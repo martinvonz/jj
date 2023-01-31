@@ -45,7 +45,7 @@ fn test_log_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
     o add a file
-    o (no description set)
+    o 
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-p"]);
@@ -57,14 +57,13 @@ fn test_log_with_or_without_diff() {
     o add a file
     | Added regular file file1:
     |         1: foo
-    o (no description set)
+    o 
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
     a new commit
     add a file
-    (no description set)
     "###);
 
     // `-p` for default diff output, `-s` for summary
@@ -79,7 +78,7 @@ fn test_log_with_or_without_diff() {
     | A file1
     | Added regular file file1:
     |         1: foo
-    o (no description set)
+    o 
     "###);
 
     // `-s` for summary, `--git` for git diff (which implies `-p`)
@@ -103,7 +102,7 @@ fn test_log_with_or_without_diff() {
     | +++ b/file1
     | @@ -1,0 +1,1 @@
     | +foo
-    o (no description set)
+    o 
     "###);
 
     // `-p` enables default "summary" output, so `-s` is noop
@@ -123,7 +122,7 @@ fn test_log_with_or_without_diff() {
     | M file1
     o add a file
     | A file1
-    o (no description set)
+    o 
     "###);
 
     // `-p` enables default "color-words" diff output, so `--color-words` is noop
@@ -139,7 +138,7 @@ fn test_log_with_or_without_diff() {
     o add a file
     | Added regular file file1:
     |         1: foo
-    o (no description set)
+    o 
     "###);
 
     // `--git` enables git diff, so `-p` is noop
@@ -164,7 +163,6 @@ fn test_log_with_or_without_diff() {
     +++ b/file1
     @@ -1,0 +1,1 @@
     +foo
-    (no description set)
     "###);
 
     // Both formats enabled if `--git` and `--color-words` are explicitly specified
@@ -202,7 +200,6 @@ fn test_log_with_or_without_diff() {
     +foo
     Added regular file file1:
             1: foo
-    (no description set)
     "###);
 
     // `-s` with or without graph
@@ -212,7 +209,7 @@ fn test_log_with_or_without_diff() {
     | M file1
     o add a file
     | A file1
-    o (no description set)
+    o 
     "###);
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -223,7 +220,6 @@ fn test_log_with_or_without_diff() {
     M file1
     add a file
     A file1
-    (no description set)
     "###);
 
     // `--git` implies `-p`, with or without graph
@@ -356,7 +352,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
         @r###"
     @ Change 9[a45c67d3e] initial b[a1a30916d] original
-    o Change 0[000000000] (no description set) 0[000000000] 
+    o Change 0[000000000]  0[000000000] 
     "###
     );
     for i in 1..100 {
@@ -376,7 +372,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
         @r###"
     @ Change 9a4[5c67d3e] commit99 de[3177d2ac] original
-    o Change 000[0000000] (no description set) 000[0000000] 
+    o Change 000[0000000]  000[0000000] 
     "###
     );
     insta::assert_snapshot!(
@@ -413,7 +409,7 @@ fn test_log_divergence() {
     // No divergence
     insta::assert_snapshot!(stdout, @r###"
     @ description 1
-    o (no description set)
+    o 
     "###);
 
     // Create divergence
@@ -434,7 +430,7 @@ fn test_log_divergence() {
     o description 2 !divergence!
     | @ description 1 !divergence!
     |/  
-    o (no description set)
+    o 
     "###);
 }
 
@@ -449,7 +445,7 @@ fn test_log_reversed() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "--reversed"]);
     insta::assert_snapshot!(stdout, @r###"
-    o (no description set)
+    o 
     o first
     @ second
     "###);
@@ -459,7 +455,6 @@ fn test_log_reversed() {
         &["log", "-T", "description", "--reversed", "--no-graph"],
     );
     insta::assert_snapshot!(stdout, @r###"
-    (no description set)
     first
     second
     "###);
@@ -540,7 +535,7 @@ fn test_log_warn_path_might_be_revset() {
         .assert()
         .success();
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
-    @ (no description set)
+    @ 
     ~ 
     "###);
     insta::assert_snapshot!(get_stderr_string(&assert), @"");
@@ -551,7 +546,7 @@ fn test_log_warn_path_might_be_revset() {
         .assert()
         .success();
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
-    @ (no description set)
+    @ 
     ~ 
     "###);
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"warning: The argument "." is being interpreted as a path, but this is often not useful because all non-empty commits touch '.'.  If you meant to show the working copy commit, pass -r '@' instead."###);
@@ -670,7 +665,7 @@ fn test_graph_template_color() {
     o first line
     | second line
     | third line
-    o (no description set)
+    o 
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T=description"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -678,7 +673,7 @@ fn test_graph_template_color() {
     o [38;5;1mfirst line[39m
     | [38;5;1msecond line[39m
     | [38;5;1mthird line[39m
-    o [38;5;1m(no description set)[39m
+    o 
     "###);
 }
 
@@ -714,7 +709,7 @@ fn test_graph_styles() {
     |/  
     o main branch 1
     o initial
-    o (no description set)
+    o 
     "###);
 
     // ASCII style
@@ -731,7 +726,7 @@ fn test_graph_styles() {
     |/
     o  main branch 1
     o  initial
-    o  (no description set)
+    o
     "###);
 
     // Large ASCII style
@@ -750,7 +745,7 @@ fn test_graph_styles() {
     |/
     o  main branch 1
     o  initial
-    o  (no description set)
+    o
     "###);
 
     // Curved style
@@ -767,7 +762,7 @@ fn test_graph_styles() {
     ├─╯
     o  main branch 1
     o  initial
-    o  (no description set)
+    o
     "###);
 
     // Square style
@@ -784,6 +779,6 @@ fn test_graph_styles() {
     ├─┘
     o  main branch 1
     o  initial
-    o  (no description set)
+    o
     "###);
 }

@@ -233,14 +233,14 @@ fn test_list_workspaces_template() {
     // "current_working_copy" should point to the workspace we operate on
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    default: e0e6d5672858 (no description set) (current)
-    second: f68da2d114f1 (no description set)
+    default: e0e6d5672858  (current)
+    second: f68da2d114f1 
     "###);
 
     let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    default: e0e6d5672858 (no description set)
-    second: f68da2d114f1 (no description set) (current)
+    default: e0e6d5672858 
+    second: f68da2d114f1  (current)
     "###);
 }
 

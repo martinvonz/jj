@@ -49,6 +49,7 @@ use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, resolve_base_revs, run_ui_editor,
     short_commit_hash, user_error, user_error_with_hint, write_config_entry, Args, CommandError,
     CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
+    DESCRIPTION_PLACEHOLDER_TEMPLATE,
 };
 use crate::config::config_path;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -1242,7 +1243,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
             "Author: " author " (" {author_timestamp_template} ")\n"
             "Committer: " committer " (" {committer_timestamp_template} ")\n"
             "\n"
-            description
+            if(description, description, {DESCRIPTION_PLACEHOLDER_TEMPLATE} "\n")
             "\n""#,
     );
     let template = crate::template_parser::parse_commit_template(
@@ -1397,7 +1398,7 @@ fn log_template(settings: &UserSettings) -> String {
             if(conflict, label("conflict", " conflict"))
             "\n"
             if(empty, label("empty", "(empty) "))
-            description.first_line()
+            if(description, description.first_line(), {DESCRIPTION_PLACEHOLDER_TEMPLATE})
             "\n""#,
     );
     settings

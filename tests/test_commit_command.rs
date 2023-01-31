@@ -27,9 +27,9 @@ fn test_commit_with_description_from_cli() {
     // Description applies to the current working-copy (not the new one)
     test_env.jj_cmd_success(&workspace_path, &["commit", "-m=first"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @ b88fb4e51bdd (no description set)
+    @ b88fb4e51bdd 
     o 69542c1984c1 first
-    o 000000000000 (no description set)
+    o 000000000000 
     "###);
 }
 
@@ -46,9 +46,9 @@ fn test_commit_with_editor() {
     std::fs::write(&edit_script, ["dump editor0", "write\nmodified"].join("\0")).unwrap();
     test_env.jj_cmd_success(&workspace_path, &["commit"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @ 3df78bc2b9b5 (no description set)
+    @ 3df78bc2b9b5 
     o 30a8c2b3d6eb modified
-    o 000000000000 (no description set)
+    o 000000000000 
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"

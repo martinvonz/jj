@@ -23,7 +23,7 @@ use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::rewrite::merge_commit_trees;
 
 use crate::formatter::Formatter;
-use crate::time_util;
+use crate::{cli_util, time_util};
 
 pub trait Template<C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
@@ -211,11 +211,7 @@ impl TemplateProperty<Commit> for DescriptionProperty {
     type Output = String;
 
     fn extract(&self, context: &Commit) -> Self::Output {
-        match context.description() {
-            s if s.is_empty() => "(no description set)\n".to_owned(),
-            s if s.ends_with('\n') => s.to_owned(),
-            s => format!("{s}\n"),
-        }
+        cli_util::complete_newline(context.description())
     }
 }
 

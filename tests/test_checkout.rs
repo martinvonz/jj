@@ -33,10 +33,10 @@ fn test_checkout() {
     Working copy now at: 05ce7118568d (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 05ce7118568d3007efc9163b055f9cb4a6becfde (no description set)
+    @ 05ce7118568d3007efc9163b055f9cb4a6becfde 
     o 5c52832c3483e0ace06d047a806024984f28f1d7 second
     o 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
-    o 0000000000000000000000000000000000000000 (no description set)
+    o 0000000000000000000000000000000000000000 
     "###);
 
     // Can provide a description
@@ -46,7 +46,7 @@ fn test_checkout() {
     | o 5c52832c3483e0ace06d047a806024984f28f1d7 second
     |/  
     o 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
-    o 0000000000000000000000000000000000000000 (no description set)
+    o 0000000000000000000000000000000000000000 
     "###);
 }
 
