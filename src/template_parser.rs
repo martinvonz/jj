@@ -108,6 +108,17 @@ impl<'a, I: 'a> Property<'a, I> {
 
 struct PropertyAndLabels<'a, C>(Property<'a, C>, Vec<String>);
 
+impl<'a, C: 'a> PropertyAndLabels<'a, C> {
+    fn into_template(self) -> Box<dyn Template<C> + 'a> {
+        let PropertyAndLabels(property, labels) = self;
+        if labels.is_empty() {
+            property.into_template()
+        } else {
+            Box::new(LabelTemplate::new(property.into_template(), labels))
+        }
+    }
+}
+
 fn parse_method_chain<'a, I: 'a>(
     pair: Pair<Rule>,
     input_property: PropertyAndLabels<'a, I>,
@@ -273,17 +284,11 @@ fn parse_commit_term<'a>(
         Rule::literal => {
             let text = parse_string_literal(expr);
             let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
-            let PropertyAndLabels(property, labels) = parse_method_chain(maybe_method, term);
-            if labels.is_empty() {
-                property.into_template()
-            } else {
-                Box::new(LabelTemplate::new(property.into_template(), labels))
-            }
+            parse_method_chain(maybe_method, term).into_template()
         }
         Rule::identifier => {
             let term = parse_commit_keyword(repo, workspace_id, expr);
-            let PropertyAndLabels(property, labels) = parse_method_chain(maybe_method, term);
-            Box::new(LabelTemplate::new(property.into_template(), labels))
+            parse_method_chain(maybe_method, term).into_template()
         }
         Rule::function => {
             let (name, mut args) = {
