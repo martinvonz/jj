@@ -71,6 +71,17 @@
                     "description": "Pager to use for displaying command output",
                     "default": "less -FRX"
                 },
+                "graph": {
+                    "type": "object",
+                    "description": "Options for rendering revision graphs from jj log etc",
+                    "properties": {
+                        "style": {
+                            "description": "Style of connectors/markings used to render the graph. See https://github.com/martinvonz/jj/blob/main/docs/config.md#graph-style",
+                            "enum": ["legacy", "curved", "square", "ascii", "ascii-large"],
+                            "default": "legacy"
+                        }
+                    }
+                },
                 "editor": {
                     "type": "string",
                     "description": "Editor to use for commands that involve editing text"
