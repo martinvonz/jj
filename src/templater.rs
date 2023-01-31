@@ -20,10 +20,9 @@ use jujutsu_lib::backend::{ObjectId, Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
-use jujutsu_lib::rewrite::merge_commit_trees;
 
 use crate::formatter::Formatter;
-use crate::{cli_util, time_util};
+use crate::time_util;
 
 pub trait Template<C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
@@ -205,36 +204,6 @@ where
     }
 }
 
-pub struct DescriptionProperty;
-
-impl TemplateProperty<Commit> for DescriptionProperty {
-    type Output = String;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        cli_util::complete_newline(context.description())
-    }
-}
-
-pub struct AuthorProperty;
-
-impl TemplateProperty<Commit> for AuthorProperty {
-    type Output = Signature;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        context.author().clone()
-    }
-}
-
-pub struct CommitterProperty;
-
-impl TemplateProperty<Commit> for CommitterProperty {
-    type Output = Signature;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        context.committer().clone()
-    }
-}
-
 pub struct WorkingCopiesProperty<'a> {
     pub repo: RepoRef<'a>,
 }
@@ -380,36 +349,6 @@ impl TemplateProperty<Commit> for GitHeadProperty<'_> {
             }
             _ => "".to_string(),
         }
-    }
-}
-
-pub struct DivergentProperty<'a> {
-    repo: RepoRef<'a>,
-}
-
-impl<'a> DivergentProperty<'a> {
-    pub fn new(repo: RepoRef<'a>) -> Self {
-        DivergentProperty { repo }
-    }
-}
-
-impl TemplateProperty<Commit> for DivergentProperty<'_> {
-    type Output = bool;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        // The given commit could be hidden in e.g. obslog.
-        let maybe_entries = self.repo.resolve_change_id(context.change_id());
-        maybe_entries.map_or(0, |entries| entries.len()) > 1
-    }
-}
-
-pub struct ConflictProperty;
-
-impl TemplateProperty<Commit> for ConflictProperty {
-    type Output = bool;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        context.tree().has_conflict()
     }
 }
 
@@ -597,41 +536,5 @@ impl Template<()> for IdWithHighlightedPrefix {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.with_label("prefix", |fmt| fmt.write_str(&self.prefix))?;
         formatter.with_label("rest", |fmt| fmt.write_str(&self.rest))
-    }
-}
-
-pub struct CommitIdProperty<'a> {
-    pub repo: RepoRef<'a>,
-}
-
-impl<'a> TemplateProperty<Commit> for CommitIdProperty<'a> {
-    type Output = CommitOrChangeId<'a>;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        CommitOrChangeId::new(self.repo, context.id())
-    }
-}
-
-pub struct ChangeIdProperty<'a> {
-    pub repo: RepoRef<'a>,
-}
-
-impl<'a> TemplateProperty<Commit> for ChangeIdProperty<'a> {
-    type Output = CommitOrChangeId<'a>;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        CommitOrChangeId::new(self.repo, context.change_id())
-    }
-}
-
-pub struct EmptyProperty<'a> {
-    pub repo: RepoRef<'a>,
-}
-
-impl TemplateProperty<Commit> for EmptyProperty<'_> {
-    type Output = bool;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        context.tree().id() == merge_commit_trees(self.repo, &context.parents()).id()
     }
 }

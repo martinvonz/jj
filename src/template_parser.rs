@@ -17,20 +17,19 @@ use jujutsu_lib::backend::{Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::rewrite;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
 
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{
-    AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdProperty, CommitOrChangeId,
-    CommitterProperty, ConditionalTemplate, ConflictProperty, DescriptionProperty,
-    DivergentProperty, DynamicLabelTemplate, EmptyProperty, FormattablePropertyTemplate,
-    GitHeadProperty, GitRefsProperty, IdWithHighlightedPrefix, IsWorkingCopyProperty,
-    LabelTemplate, ListTemplate, Literal, TagProperty, Template, TemplateFunction,
-    TemplateProperty, TemplatePropertyFn, WorkingCopiesProperty,
+    BranchProperty, CommitOrChangeId, ConditionalTemplate, DynamicLabelTemplate,
+    FormattablePropertyTemplate, GitHeadProperty, GitRefsProperty, IdWithHighlightedPrefix,
+    IsWorkingCopyProperty, LabelTemplate, ListTemplate, Literal, TagProperty, Template,
+    TemplateFunction, TemplateProperty, TemplatePropertyFn, WorkingCopiesProperty,
 };
-use crate::time_util;
+use crate::{cli_util, time_util};
 
 #[derive(Parser)]
 #[grammar = "template.pest"]
@@ -258,13 +257,24 @@ fn parse_commit_keyword<'a>(
     workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
 ) -> PropertyAndLabels<'a, Commit> {
+    fn wrap_fn<'a, O>(
+        f: impl Fn(&Commit) -> O + 'a,
+    ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'a> {
+        Box::new(TemplatePropertyFn(f))
+    }
     assert_eq!(pair.as_rule(), Rule::identifier);
     let property = match pair.as_str() {
-        "description" => Property::String(Box::new(DescriptionProperty)),
-        "change_id" => Property::CommitOrChangeId(Box::new(ChangeIdProperty { repo })),
-        "commit_id" => Property::CommitOrChangeId(Box::new(CommitIdProperty { repo })),
-        "author" => Property::Signature(Box::new(AuthorProperty)),
-        "committer" => Property::Signature(Box::new(CommitterProperty)),
+        "description" => Property::String(wrap_fn(|commit| {
+            cli_util::complete_newline(commit.description())
+        })),
+        "change_id" => Property::CommitOrChangeId(wrap_fn(move |commit| {
+            CommitOrChangeId::new(repo, commit.change_id())
+        })),
+        "commit_id" => Property::CommitOrChangeId(wrap_fn(move |commit| {
+            CommitOrChangeId::new(repo, commit.id())
+        })),
+        "author" => Property::Signature(wrap_fn(|commit| commit.author().clone())),
+        "committer" => Property::Signature(wrap_fn(|commit| commit.committer().clone())),
         "working_copies" => Property::String(Box::new(WorkingCopiesProperty { repo })),
         "current_working_copy" => Property::Boolean(Box::new(IsWorkingCopyProperty {
             repo,
@@ -274,9 +284,15 @@ fn parse_commit_keyword<'a>(
         "tags" => Property::String(Box::new(TagProperty { repo })),
         "git_refs" => Property::String(Box::new(GitRefsProperty { repo })),
         "git_head" => Property::String(Box::new(GitHeadProperty::new(repo))),
-        "divergent" => Property::Boolean(Box::new(DivergentProperty::new(repo))),
-        "conflict" => Property::Boolean(Box::new(ConflictProperty)),
-        "empty" => Property::Boolean(Box::new(EmptyProperty { repo })),
+        "divergent" => Property::Boolean(wrap_fn(move |commit| {
+            // The given commit could be hidden in e.g. obslog.
+            let maybe_entries = repo.resolve_change_id(commit.change_id());
+            maybe_entries.map_or(0, |entries| entries.len()) > 1
+        })),
+        "conflict" => Property::Boolean(wrap_fn(|commit| commit.tree().has_conflict())),
+        "empty" => Property::Boolean(wrap_fn(move |commit| {
+            commit.tree().id() == rewrite::merge_commit_trees(repo, &commit.parents()).id()
+        })),
         name => panic!("unexpected identifier: {name}"),
     };
     PropertyAndLabels(property, vec![pair.as_str().to_string()])
