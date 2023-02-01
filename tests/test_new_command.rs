@@ -151,6 +151,46 @@ fn test_new_rebase_children() {
     "###);
 }
 
+#[test]
+fn test_new_insert() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    setup_before_insertion(&test_env, &repo_path);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    @   F
+    |\  
+    o | E
+    | o D
+    |/  
+    | o C
+    | o B
+    | o A
+    |/  
+    o root
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["new", "--insert", "-m", "G", "C", "F"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 2 descendant commits
+    Working copy now at: ff6bbbc7b8df G
+    "###);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    o F
+    | o C
+    |/  
+    @-.   G
+    |\ \  
+    o | | E
+    | o | D
+    |/ /  
+    | o B
+    | o A
+    |/  
+    o root
+    "###);
+}
+
 fn setup_before_insertion(test_env: &TestEnvironment, repo_path: &Path) {
     test_env.jj_cmd_success(repo_path, &["branch", "create", "A"]);
     test_env.jj_cmd_success(repo_path, &["commit", "-m", "A"]);

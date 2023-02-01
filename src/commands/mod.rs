@@ -438,6 +438,7 @@ struct EditArgs {
 /// For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
+#[command(group(ArgGroup::new("order").args(&["rebase_children", "insert"])))]
 struct NewArgs {
     /// Parent(s) of the new change
     #[arg(default_value = "@")]
@@ -451,6 +452,9 @@ struct NewArgs {
     /// Rebase the children of the parents onto the new change
     #[arg(long, short = 'C')]
     rebase_children: bool,
+    /// Insert the commit before the given changes
+    #[arg(long, short = 'I')]
+    insert: bool,
 }
 
 /// Move changes from one revision into another
@@ -1979,7 +1983,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     let parent_ids = commits.iter().map(|c| c.id().clone()).collect::<Vec<_>>();
     let mut tx = workspace_command.start_transaction("new empty commit");
     let merged_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &commits);
-    let new_commit = tx
+    let mut new_commit = tx
         .mut_repo()
         .new_commit(
             command.settings(),
@@ -1990,6 +1994,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         .write()?;
     let mut num_rebased = 0;
     if args.rebase_children {
+        // Replace parents in all children by the new commit
         let parents = RevsetExpression::commits(parent_ids);
         let children = tx
             .base_workspace_helper()
@@ -2014,6 +2019,32 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
             tx.mut_repo()
                 .rewrite_commit(command.settings(), &child_commit)
                 .set_parents(new_parents)
+                .write()?;
+        }
+    } else if args.insert {
+        // Instead of having the new commit as a child of the
+        // changes given on the command line, add it between
+        // the changes parents and the changes.
+        let parents = RevsetExpression::commits(parent_ids.clone());
+        let parents_parents = tx
+            .base_workspace_helper()
+            .evaluate_revset(&parents.parents())?
+            .iter()
+            .map(|c| c.commit_id())
+            .collect::<Vec<_>>();
+        new_commit = tx
+            .mut_repo()
+            .rewrite_commit(command.settings(), &new_commit)
+            .set_parents(parents_parents)
+            .write()?;
+        num_rebased = parent_ids.len();
+        for parent_id in parent_ids {
+            let parent_commit = tx
+                .base_workspace_helper()
+                .resolve_single_rev(&parent_id.hex())?;
+            tx.mut_repo()
+                .rewrite_commit(command.settings(), &parent_commit)
+                .set_parents(vec![new_commit.id().clone()])
                 .write()?;
         }
     }
