@@ -1272,7 +1272,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
         workspace_command.repo().as_repo_ref(),
         workspace_command.workspace_id(),
         &template_string,
-    );
+    )?;
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
@@ -1458,7 +1458,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         repo.as_repo_ref(),
         workspace_id,
         &template_string,
-    );
+    )?;
     let format_commit_template = |commit: &Commit, formatter: &mut dyn Formatter| {
         if Some(commit.id()) == wc_commit_id {
             formatter.with_label("working_copy", |formatter| {
@@ -1604,7 +1604,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         workspace_command.repo().as_repo_ref(),
         workspace_id,
         &template_string,
-    );
+    )?;
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
