@@ -897,10 +897,7 @@ impl WorkspaceCommandHelper {
         Ok(())
     }
 
-    pub fn start_transaction<'a>(
-        &'a mut self,
-        description: &str,
-    ) -> WorkspaceCommandTransaction<'a> {
+    pub fn start_transaction(&mut self, description: &str) -> WorkspaceCommandTransaction {
         let tx = start_repo_transaction(&self.repo, &self.settings, &self.string_args, description);
         WorkspaceCommandTransaction { helper: self, tx }
     }
