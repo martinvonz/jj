@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Use `if(description, description, "(no description set)\n")` to get back
   the previous behavior.
 
+* The global `--no-commit-working-copy` is now called `--ignore-working-copy`.
+
 ### New features
 
 * The default log format now uses the committer timestamp instead of the author

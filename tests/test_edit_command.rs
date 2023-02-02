@@ -91,11 +91,11 @@ fn test_edit_current_wc_commit_missing() {
         .join("542c1984c1f9d91f7c6c9c9e6941782c944bd9");
     std::fs::remove_file(commit_object_path).unwrap();
 
-    // Pass --no-commit-working-copy to avoid triggering the error at snapshot time
+    // Pass --ignore-working-copy to avoid triggering the error at snapshot time
     let assert = test_env
         .jj_cmd(
             &repo_path,
-            &["edit", "--no-commit-working-copy", "5c52832c3483"],
+            &["edit", "--ignore-working-copy", "5c52832c3483"],
         )
         .assert()
         .code(255);
