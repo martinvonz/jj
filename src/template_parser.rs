@@ -209,7 +209,7 @@ impl<'a, C: 'a> Expression<'a, C> {
 fn parse_method_chain<'a, I: 'a>(
     pair: Pair<Rule>,
     input_property: PropertyAndLabels<'a, I>,
-) -> PropertyAndLabels<'a, I> {
+) -> Result<PropertyAndLabels<'a, I>, TemplateParseError> {
     let PropertyAndLabels(mut property, mut labels) = input_property;
     assert_eq!(pair.as_rule(), Rule::maybe_method);
     for chain in pair.into_inner() {
@@ -224,37 +224,44 @@ fn parse_method_chain<'a, I: 'a>(
         };
         labels.push(name.as_str().to_owned());
         property = match property {
-            Property::String(property) => parse_string_method(name, args).after(property),
-            Property::Boolean(property) => parse_boolean_method(name, args).after(property),
+            Property::String(property) => parse_string_method(name, args)?.after(property),
+            Property::Boolean(property) => parse_boolean_method(name, args)?.after(property),
             Property::CommitOrChangeId(property) => {
-                parse_commit_or_change_id_method(name, args).after(property)
+                parse_commit_or_change_id_method(name, args)?.after(property)
             }
             Property::IdWithHighlightedPrefix(_property) => {
                 panic!("Commit or change ids with styled prefix don't have any methods")
             }
-            Property::Signature(property) => parse_signature_method(name, args).after(property),
-            Property::Timestamp(property) => parse_timestamp_method(name, args).after(property),
+            Property::Signature(property) => parse_signature_method(name, args)?.after(property),
+            Property::Timestamp(property) => parse_timestamp_method(name, args)?.after(property),
         };
     }
-    PropertyAndLabels(property, labels)
+    Ok(PropertyAndLabels(property, labels))
 }
 
-fn parse_string_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, String> {
+fn parse_string_method<'a>(
+    name: Pair<Rule>,
+    _args: Pairs<Rule>,
+) -> Result<Property<'a, String>, TemplateParseError> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&String) -> O + 'a,
     ) -> Box<dyn TemplateProperty<String, Output = O> + 'a> {
         Box::new(TemplatePropertyFn(f))
     }
     // TODO: validate arguments
-    match name.as_str() {
+    let property = match name.as_str() {
         "first_line" => Property::String(wrap_fn(|s| {
             s.lines().next().unwrap_or_default().to_string()
         })),
         name => panic!("no such string method: {name}"),
-    }
+    };
+    Ok(property)
 }
 
-fn parse_boolean_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, bool> {
+fn parse_boolean_method<'a>(
+    name: Pair<Rule>,
+    _args: Pairs<Rule>,
+) -> Result<Property<'a, bool>, TemplateParseError> {
     // TODO: validate arguments
     panic!("no such boolean method: {}", name.as_str());
 }
@@ -262,14 +269,14 @@ fn parse_boolean_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a
 fn parse_commit_or_change_id_method<'a>(
     name: Pair<Rule>,
     _args: Pairs<Rule>,
-) -> Property<'a, CommitOrChangeId<'a>> {
+) -> Result<Property<'a, CommitOrChangeId<'a>>, TemplateParseError> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&CommitOrChangeId<'a>) -> O + 'a,
     ) -> Box<dyn TemplateProperty<CommitOrChangeId<'a>, Output = O> + 'a> {
         Box::new(TemplatePropertyFn(f))
     }
     // TODO: validate arguments
-    match name.as_str() {
+    let property = match name.as_str() {
         "short" => Property::String(wrap_fn(|id| id.short())),
         "shortest_prefix_and_brackets" => {
             Property::String(wrap_fn(|id| id.shortest_prefix_and_brackets()))
@@ -278,42 +285,51 @@ fn parse_commit_or_change_id_method<'a>(
             Property::IdWithHighlightedPrefix(wrap_fn(|id| id.shortest_styled_prefix()))
         }
         name => panic!("no such commit ID method: {name}"),
-    }
+    };
+    Ok(property)
 }
 
-fn parse_signature_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, Signature> {
+fn parse_signature_method<'a>(
+    name: Pair<Rule>,
+    _args: Pairs<Rule>,
+) -> Result<Property<'a, Signature>, TemplateParseError> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Signature) -> O + 'a,
     ) -> Box<dyn TemplateProperty<Signature, Output = O> + 'a> {
         Box::new(TemplatePropertyFn(f))
     }
     // TODO: validate arguments
-    match name.as_str() {
+    let property = match name.as_str() {
         "name" => Property::String(wrap_fn(|signature| signature.name.clone())),
         "email" => Property::String(wrap_fn(|signature| signature.email.clone())),
         "timestamp" => Property::Timestamp(wrap_fn(|signature| signature.timestamp.clone())),
         name => panic!("no such commit ID method: {name}"),
-    }
+    };
+    Ok(property)
 }
 
-fn parse_timestamp_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, Timestamp> {
+fn parse_timestamp_method<'a>(
+    name: Pair<Rule>,
+    _args: Pairs<Rule>,
+) -> Result<Property<'a, Timestamp>, TemplateParseError> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Timestamp) -> O + 'a,
     ) -> Box<dyn TemplateProperty<Timestamp, Output = O> + 'a> {
         Box::new(TemplatePropertyFn(f))
     }
     // TODO: validate arguments
-    match name.as_str() {
+    let property = match name.as_str() {
         "ago" => Property::String(wrap_fn(time_util::format_timestamp_relative_to_now)),
         name => panic!("no such timestamp method: {name}"),
-    }
+    };
+    Ok(property)
 }
 
 fn parse_commit_keyword<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
-) -> PropertyAndLabels<'a, Commit> {
+) -> Result<PropertyAndLabels<'a, Commit>, TemplateParseError> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Commit) -> O + 'a,
     ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'a> {
@@ -352,14 +368,14 @@ fn parse_commit_keyword<'a>(
         })),
         name => panic!("unexpected identifier: {name}"),
     };
-    PropertyAndLabels(property, vec![pair.as_str().to_string()])
+    Ok(PropertyAndLabels(property, vec![pair.as_str().to_string()]))
 }
 
 fn parse_commit_term<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
-) -> Expression<'a, Commit> {
+) -> Result<Expression<'a, Commit>, TemplateParseError> {
     assert_eq!(pair.as_rule(), Rule::term);
     let mut inner = pair.into_inner();
     let expr = inner.next().unwrap();
@@ -369,11 +385,13 @@ fn parse_commit_term<'a>(
         Rule::literal => {
             let text = parse_string_literal(expr);
             let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
-            Expression::Property(parse_method_chain(maybe_method, term))
+            let property = parse_method_chain(maybe_method, term)?;
+            Ok(Expression::Property(property))
         }
         Rule::identifier => {
-            let term = parse_commit_keyword(repo, workspace_id, expr);
-            Expression::Property(parse_method_chain(maybe_method, term))
+            let term = parse_commit_keyword(repo, workspace_id, expr)?;
+            let property = parse_method_chain(maybe_method, term)?;
+            Ok(Expression::Property(property))
         }
         Rule::function => {
             let (name, mut args) = {
@@ -384,11 +402,12 @@ fn parse_commit_term<'a>(
                 assert_eq!(args_pair.as_rule(), Rule::function_arguments);
                 (name, args_pair.into_inner())
             };
-            match name.as_str() {
+            let expression = match name.as_str() {
                 "label" => {
                     let label_pair = args.next().unwrap();
-                    let label_property = parse_commit_template_rule(repo, workspace_id, label_pair)
-                        .into_plain_text();
+                    let label_property =
+                        parse_commit_template_rule(repo, workspace_id, label_pair)?
+                            .into_plain_text();
                     let arg_template = match args.next() {
                         None => panic!("label() requires two arguments"),
                         Some(pair) => pair,
@@ -396,7 +415,7 @@ fn parse_commit_term<'a>(
                     if args.next().is_some() {
                         panic!("label() accepts only two arguments")
                     }
-                    let content = parse_commit_template_rule(repo, workspace_id, arg_template)
+                    let content = parse_commit_template_rule(repo, workspace_id, arg_template)?
                         .into_template();
                     let labels = TemplateFunction::new(label_property, |s| {
                         s.split_whitespace().map(ToString::to_string).collect()
@@ -407,7 +426,7 @@ fn parse_commit_term<'a>(
                 "if" => {
                     let condition_pair = args.next().unwrap();
                     let condition =
-                        parse_commit_template_rule(repo, workspace_id, condition_pair.clone())
+                        parse_commit_template_rule(repo, workspace_id, condition_pair.clone())?
                             .try_into_boolean()
                             .unwrap_or_else(|| {
                                 panic!("cannot yet use this as boolean: {condition_pair:?}")
@@ -416,12 +435,14 @@ fn parse_commit_term<'a>(
                     let true_template = match args.next() {
                         None => panic!("if() requires at least two arguments"),
                         Some(pair) => {
-                            parse_commit_template_rule(repo, workspace_id, pair).into_template()
+                            parse_commit_template_rule(repo, workspace_id, pair)?.into_template()
                         }
                     };
-                    let false_template = args.next().map(|pair| {
-                        parse_commit_template_rule(repo, workspace_id, pair).into_template()
-                    });
+                    let false_template = args
+                        .next()
+                        .map(|pair| parse_commit_template_rule(repo, workspace_id, pair))
+                        .transpose()?
+                        .map(|x| x.into_template());
                     if args.next().is_some() {
                         panic!("if() accepts at most three arguments")
                     }
@@ -433,7 +454,8 @@ fn parse_commit_term<'a>(
                     Expression::Template(template)
                 }
                 name => panic!("function {name} not implemented"),
-            }
+            };
+            Ok(expression)
         }
         Rule::template => parse_commit_template_rule(repo, workspace_id, expr),
         other => panic!("unexpected term: {other:?}"),
@@ -444,17 +466,17 @@ fn parse_commit_template_rule<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
-) -> Expression<'a, Commit> {
+) -> Result<Expression<'a, Commit>, TemplateParseError> {
     assert_eq!(pair.as_rule(), Rule::template);
     let inner = pair.into_inner();
-    let mut expressions = inner
+    let mut expressions: Vec<_> = inner
         .map(|term| parse_commit_term(repo, workspace_id, term))
-        .collect_vec();
+        .try_collect()?;
     if expressions.len() == 1 {
-        expressions.pop().unwrap()
+        Ok(expressions.pop().unwrap())
     } else {
         let templates = expressions.into_iter().map(|x| x.into_template()).collect();
-        Expression::Template(Box::new(ListTemplate(templates)))
+        Ok(Expression::Template(Box::new(ListTemplate(templates))))
     }
 }
 
@@ -468,6 +490,6 @@ pub fn parse_commit_template<'a>(
     if first_pair.as_rule() == Rule::EOI {
         Ok(Box::new(Literal(String::new())))
     } else {
-        Ok(parse_commit_template_rule(repo, workspace_id, first_pair).into_template())
+        parse_commit_template_rule(repo, workspace_id, first_pair).map(|x| x.into_template())
     }
 }
