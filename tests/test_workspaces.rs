@@ -112,13 +112,13 @@ fn test_workspaces_conflicting_edits() {
     "###);
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation 6a2e94fc65fb).
+    Error: The working copy is stale (not updated since operation 379444bfa103).
     Hint: Run `jj workspace update-stale` to update it.
     "###);
     // Same error on second run, and from another command
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["log"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation 6a2e94fc65fb).
+    Error: The working copy is stale (not updated since operation 379444bfa103).
     Hint: Run `jj workspace update-stale` to update it.
     "###);
     let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "update-stale"]);
