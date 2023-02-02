@@ -120,6 +120,33 @@ fn test_templater_parse_error() {
       |
       = expected template
     "###);
+
+    insta::assert_snapshot!(render_err(r#"foo"#), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | foo
+      | ^-^
+      |
+      = Keyword "foo" doesn't exist
+    "###);
+
+    insta::assert_snapshot!(render_err(r#"foo()"#), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | foo()
+      | ^-^
+      |
+      = Function "foo" doesn't exist
+    "###);
+
+    insta::assert_snapshot!(render_err(r#"description.first_line().foo()"#), @r###"
+    Error: Failed to parse template:  --> 1:26
+      |
+    1 | description.first_line().foo()
+      |                          ^-^
+      |
+      = Method "foo" doesn't exist for type "String"
+    "###);
 }
 
 #[test]

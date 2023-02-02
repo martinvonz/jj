@@ -47,6 +47,48 @@ pub struct TemplateParseError {
 pub enum TemplateParseErrorKind {
     #[error("Syntax error")]
     SyntaxError,
+    #[error(r#"Keyword "{0}" doesn't exist"#)]
+    NoSuchKeyword(String),
+    #[error(r#"Function "{0}" doesn't exist"#)]
+    NoSuchFunction(String),
+    #[error(r#"Method "{name}" doesn't exist for type "{type_name}""#)]
+    NoSuchMethod { type_name: String, name: String },
+}
+
+impl TemplateParseError {
+    fn with_span(kind: TemplateParseErrorKind, span: pest::Span<'_>) -> Self {
+        let pest_error = Box::new(pest::error::Error::new_from_span(
+            pest::error::ErrorVariant::CustomError {
+                message: kind.to_string(),
+            },
+            span,
+        ));
+        TemplateParseError { kind, pest_error }
+    }
+
+    fn no_such_keyword(pair: &Pair<'_, Rule>) -> Self {
+        TemplateParseError::with_span(
+            TemplateParseErrorKind::NoSuchKeyword(pair.as_str().to_owned()),
+            pair.as_span(),
+        )
+    }
+
+    fn no_such_function(pair: &Pair<'_, Rule>) -> Self {
+        TemplateParseError::with_span(
+            TemplateParseErrorKind::NoSuchFunction(pair.as_str().to_owned()),
+            pair.as_span(),
+        )
+    }
+
+    fn no_such_method(type_name: impl Into<String>, pair: &Pair<'_, Rule>) -> Self {
+        TemplateParseError::with_span(
+            TemplateParseErrorKind::NoSuchMethod {
+                type_name: type_name.into(),
+                name: pair.as_str().to_owned(),
+            },
+            pair.as_span(),
+        )
+    }
 }
 
 impl From<pest::error::Error<Rule>> for TemplateParseError {
@@ -70,7 +112,7 @@ impl error::Error for TemplateParseError {
             // SyntaxError is a wrapper for pest::error::Error.
             TemplateParseErrorKind::SyntaxError => Some(&self.pest_error as &dyn error::Error),
             // Otherwise the kind represents this error.
-            // TODO: e => e.source(),
+            e => e.source(),
         }
     }
 }
@@ -230,7 +272,10 @@ fn parse_method_chain<'a, I: 'a>(
                 parse_commit_or_change_id_method(name, args)?.after(property)
             }
             Property::IdWithHighlightedPrefix(_property) => {
-                panic!("Commit or change ids with styled prefix don't have any methods")
+                return Err(TemplateParseError::no_such_method(
+                    "IdWithHighlightedPrefix",
+                    &name,
+                ));
             }
             Property::Signature(property) => parse_signature_method(name, args)?.after(property),
             Property::Timestamp(property) => parse_timestamp_method(name, args)?.after(property),
@@ -253,7 +298,7 @@ fn parse_string_method<'a>(
         "first_line" => Property::String(wrap_fn(|s| {
             s.lines().next().unwrap_or_default().to_string()
         })),
-        name => panic!("no such string method: {name}"),
+        _ => return Err(TemplateParseError::no_such_method("String", &name)),
     };
     Ok(property)
 }
@@ -262,8 +307,7 @@ fn parse_boolean_method<'a>(
     name: Pair<Rule>,
     _args: Pairs<Rule>,
 ) -> Result<Property<'a, bool>, TemplateParseError> {
-    // TODO: validate arguments
-    panic!("no such boolean method: {}", name.as_str());
+    Err(TemplateParseError::no_such_method("Boolean", &name))
 }
 
 fn parse_commit_or_change_id_method<'a>(
@@ -284,7 +328,12 @@ fn parse_commit_or_change_id_method<'a>(
         "shortest_styled_prefix" => {
             Property::IdWithHighlightedPrefix(wrap_fn(|id| id.shortest_styled_prefix()))
         }
-        name => panic!("no such commit ID method: {name}"),
+        _ => {
+            return Err(TemplateParseError::no_such_method(
+                "CommitOrChangeId",
+                &name,
+            ));
+        }
     };
     Ok(property)
 }
@@ -303,7 +352,7 @@ fn parse_signature_method<'a>(
         "name" => Property::String(wrap_fn(|signature| signature.name.clone())),
         "email" => Property::String(wrap_fn(|signature| signature.email.clone())),
         "timestamp" => Property::Timestamp(wrap_fn(|signature| signature.timestamp.clone())),
-        name => panic!("no such commit ID method: {name}"),
+        _ => return Err(TemplateParseError::no_such_method("Signature", &name)),
     };
     Ok(property)
 }
@@ -320,7 +369,7 @@ fn parse_timestamp_method<'a>(
     // TODO: validate arguments
     let property = match name.as_str() {
         "ago" => Property::String(wrap_fn(time_util::format_timestamp_relative_to_now)),
-        name => panic!("no such timestamp method: {name}"),
+        _ => return Err(TemplateParseError::no_such_method("Timestamp", &name)),
     };
     Ok(property)
 }
@@ -366,7 +415,7 @@ fn parse_commit_keyword<'a>(
         "empty" => Property::Boolean(wrap_fn(move |commit| {
             commit.tree().id() == rewrite::merge_commit_trees(repo, &commit.parents()).id()
         })),
-        name => panic!("unexpected identifier: {name}"),
+        _ => return Err(TemplateParseError::no_such_keyword(&pair)),
     };
     Ok(PropertyAndLabels(property, vec![pair.as_str().to_string()]))
 }
@@ -453,7 +502,7 @@ fn parse_commit_term<'a>(
                     ));
                     Expression::Template(template)
                 }
-                name => panic!("function {name} not implemented"),
+                _ => return Err(TemplateParseError::no_such_function(&name)),
             };
             Ok(expression)
         }
