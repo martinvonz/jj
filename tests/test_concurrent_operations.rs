@@ -51,11 +51,11 @@ fn test_concurrent_operations_auto_rebase() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ 9e80a32ef376 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @ eac5ad986688 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     | describe commit 123ed18e4c4c0d77428df41112bc02ffc83fb935
     | args: jj describe -m initial
-    o b9a339dcd1dc test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
-    | commit working copy
+    o 09a674690d20 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    | snapshot working copy
     o a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     | add workspace 'default'
     o 56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
@@ -126,7 +126,7 @@ fn test_concurrent_operations_wc_modified() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(redact_op_log(&stdout), @r###"
     @ 
-    | commit working copy
+    | snapshot working copy
     o   
     |\  resolve concurrent operations
     | | 
@@ -140,7 +140,7 @@ fn test_concurrent_operations_wc_modified() {
     | describe commit cf911c223d3e24e001fc8264d6dbf0610804fc40
     | 
     o 
-    | commit working copy
+    | snapshot working copy
     o 
     | 
     o 
