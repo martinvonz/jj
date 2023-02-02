@@ -106,6 +106,23 @@ fn test_templater_parsed_tree() {
 }
 
 #[test]
+fn test_templater_parse_error() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
+
+    insta::assert_snapshot!(render_err(r#"description ()"#), @r###"
+    Error: Failed to parse template:  --> 1:14
+      |
+    1 | description ()
+      |              ^---
+      |
+      = expected template
+    "###);
+}
+
+#[test]
 fn test_templater_string_method() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

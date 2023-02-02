@@ -58,6 +58,7 @@ use tracing_subscriber::prelude::*;
 use crate::config::{AnnotatedValue, FullCommandArgs, LayeredConfigs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
+use crate::template_parser::{self, TemplateParseError};
 use crate::ui::{ColorChoice, Ui};
 
 #[derive(Clone, Debug)]
@@ -214,6 +215,12 @@ impl From<RevsetParseError> for CommandError {
 impl From<RevsetError> for CommandError {
     fn from(err: RevsetError) -> Self {
         user_error(format!("{err}"))
+    }
+}
+
+impl From<TemplateParseError> for CommandError {
+    fn from(err: TemplateParseError) -> Self {
+        user_error(format!("Failed to parse template: {err}"))
     }
 }
 
@@ -1467,19 +1474,24 @@ pub fn write_commit_summary(
     commit: &Commit,
     settings: &UserSettings,
 ) -> std::io::Result<()> {
-    let template_string = settings
+    // TODO: Better to parse template early (at e.g. WorkspaceCommandHelper::new())
+    // to report error before starting mutable operation.
+
+    // Fall back to the default template on parsing error.
+    let template = settings
         .config()
         .get_string("template.commit_summary")
-        .unwrap_or_else(|_| {
-            format!(
+        .ok()
+        .and_then(|s| template_parser::parse_commit_template(repo, workspace_id, &s).ok())
+        .unwrap_or_else(|| {
+            let s = format!(
                 r#"
                     commit_id.short() " "
                     if(description, description.first_line(), {DESCRIPTION_PLACEHOLDER_TEMPLATE})
                     "#,
-            )
+            );
+            template_parser::parse_commit_template(repo, workspace_id, &s).unwrap()
         });
-    let template =
-        crate::template_parser::parse_commit_template(repo, workspace_id, &template_string);
     template.format(commit, formatter)
 }
 

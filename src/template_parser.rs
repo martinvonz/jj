@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{error, fmt};
+
 use itertools::Itertools as _;
 use jujutsu_lib::backend::{Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
@@ -21,6 +23,7 @@ use jujutsu_lib::rewrite;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
+use thiserror::Error;
 
 use crate::templater::{
     BranchProperty, CommitOrChangeId, ConditionalTemplate, FormattablePropertyTemplate,
@@ -33,6 +36,44 @@ use crate::{cli_util, time_util};
 #[derive(Parser)]
 #[grammar = "template.pest"]
 pub struct TemplateParser;
+
+#[derive(Clone, Debug)]
+pub struct TemplateParseError {
+    kind: TemplateParseErrorKind,
+    pest_error: Box<pest::error::Error<Rule>>,
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum TemplateParseErrorKind {
+    #[error("Syntax error")]
+    SyntaxError,
+}
+
+impl From<pest::error::Error<Rule>> for TemplateParseError {
+    fn from(err: pest::error::Error<Rule>) -> Self {
+        TemplateParseError {
+            kind: TemplateParseErrorKind::SyntaxError,
+            pest_error: Box::new(err),
+        }
+    }
+}
+
+impl fmt::Display for TemplateParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.pest_error.fmt(f)
+    }
+}
+
+impl error::Error for TemplateParseError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match &self.kind {
+            // SyntaxError is a wrapper for pest::error::Error.
+            TemplateParseErrorKind::SyntaxError => Some(&self.pest_error as &dyn error::Error),
+            // Otherwise the kind represents this error.
+            // TODO: e => e.source(),
+        }
+    }
+}
 
 fn parse_string_literal(pair: Pair<Rule>) -> String {
     assert_eq!(pair.as_rule(), Rule::literal);
@@ -421,12 +462,12 @@ pub fn parse_commit_template<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     template_text: &str,
-) -> Box<dyn Template<Commit> + 'a> {
-    let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text).unwrap();
+) -> Result<Box<dyn Template<Commit> + 'a>, TemplateParseError> {
+    let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text)?;
     let first_pair = pairs.next().unwrap();
     if first_pair.as_rule() == Rule::EOI {
-        Box::new(Literal(String::new()))
+        Ok(Box::new(Literal(String::new())))
     } else {
-        parse_commit_template_rule(repo, workspace_id, first_pair).into_template()
+        Ok(parse_commit_template_rule(repo, workspace_id, first_pair).into_template())
     }
 }
