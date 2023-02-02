@@ -62,7 +62,7 @@ fn test_no_subcommand() {
 }
 
 #[test]
-fn test_no_commit_working_copy() {
+fn test_ignore_working_copy() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
 
@@ -75,16 +75,16 @@ fn test_no_commit_working_copy() {
     o 0000000000000000000000000000000000000000
     "###);
 
-    // Modify the file. With --no-commit-working-copy, we still get the same commit
+    // Modify the file. With --ignore-working-copy, we still get the same commit
     // ID.
     std::fs::write(repo_path.join("file"), "modified").unwrap();
     let stdout_again = test_env.jj_cmd_success(
         &repo_path,
-        &["log", "-T", "commit_id", "--no-commit-working-copy"],
+        &["log", "-T", "commit_id", "--ignore-working-copy"],
     );
     assert_eq!(stdout_again, stdout);
 
-    // But without --no-commit-working-copy, we get a new commit ID.
+    // But without --ignore-working-copy, we get a new commit ID.
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @ fab22d1acf5bb9c5aa48cb2c3dd2132072a359ca
@@ -346,7 +346,7 @@ fn test_help() {
 
     Global Options:
       -R, --repository <REPOSITORY>      Path to repository to operate on
-          --no-commit-working-copy       Don't commit the working copy
+          --ignore-working-copy          Don't snapshot the working copy, and don't update it
           --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
       -v, --verbose                      Enable verbose logging
           --color <WHEN>                 When to colorize output (always, never, auto)

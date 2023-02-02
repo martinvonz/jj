@@ -465,7 +465,7 @@ impl WorkspaceCommandHelper {
     ) -> Result<Self, CommandError> {
         let revset_aliases_map = load_revset_aliases(ui, &settings)?;
         let loaded_at_head = &global_args.at_operation == "@";
-        let may_update_working_copy = loaded_at_head && !global_args.no_commit_working_copy;
+        let may_update_working_copy = loaded_at_head && !global_args.ignore_working_copy;
         let mut working_copy_shared_with_git = false;
         let maybe_git_repo = repo.store().git_repo();
         if let Some(git_workdir) = maybe_git_repo
@@ -492,8 +492,8 @@ impl WorkspaceCommandHelper {
         if self.may_update_working_copy {
             Ok(())
         } else {
-            let hint = if self.global_args.no_commit_working_copy {
-                "Don't use --no-commit-working-copy."
+            let hint = if self.global_args.ignore_working_copy {
+                "Don't use --ignore-working-copy."
             } else {
                 "Don't use --at-op."
             };
@@ -1574,16 +1574,20 @@ pub struct GlobalArgs {
     value_hint = clap::ValueHint::DirPath,
     )]
     pub repository: Option<String>,
-    /// Don't commit the working copy
+    /// Don't snapshot the working copy, and don't update it
     ///
-    /// By default, Jujutsu commits the working copy on every command, unless
-    /// you load the repo at a specific operation with `--at-operation`. If
-    /// you want to avoid committing the working and instead see a possibly
-    /// stale working copy commit, you can use `--no-commit-working-copy`.
+    /// By default, Jujutsu snapshots the working copy at the beginning of every
+    /// command. The working copy is also updated at the end of the command,
+    /// if the command modified the working-copy commit (`@`). If you want
+    /// to avoid snapshotting the working and instead see a possibly
+    /// stale working copy commit, you can use `--ignore-working-copy`.
     /// This may be useful e.g. in a command prompt, especially if you have
     /// another process that commits the working copy.
+    ///
+    /// Loading the repository is at a specific operation with `--at-operation`
+    /// implies `--ignore-working-copy`.
     #[arg(long, global = true, help_heading = "Global Options")]
-    pub no_commit_working_copy: bool,
+    pub ignore_working_copy: bool,
     /// Operation to load the repo at
     ///
     /// Operation to load the repo at. By default, Jujutsu loads the repo at the
@@ -1595,8 +1599,8 @@ pub struct GlobalArgs {
     /// Use `jj op log` to find the operation ID you want. Any unambiguous
     /// prefix of the operation ID is enough.
     ///
-    /// When loading the repo at an earlier operation, the working copy will not
-    /// be automatically committed.
+    /// When loading the repo at an earlier operation, the working copy will be
+    /// ignored, as if `--ignore-working-copy` had been specified.
     ///
     /// It is possible to run mutating commands when loading the repo at an
     /// earlier operation. Doing that is equivalent to having run concurrent
