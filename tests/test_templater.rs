@@ -147,6 +147,15 @@ fn test_templater_parse_error() {
       |
       = Method "foo" doesn't exist for type "String"
     "###);
+
+    insta::assert_snapshot!(render_err(r#"if(label("foo", "bar"), "baz")"#), @r###"
+    Error: Failed to parse template:  --> 1:4
+      |
+    1 | if(label("foo", "bar"), "baz")
+      |    ^-----------------^
+      |
+      = Expected argument of type "Boolean"
+    "###);
 }
 
 #[test]
