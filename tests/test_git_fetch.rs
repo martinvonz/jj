@@ -58,14 +58,52 @@ fn test_git_fetch_single_remote_from_config() {
 }
 
 #[test]
+fn test_git_fetch_multiple_remotes() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "rem1");
+    add_git_remote(&test_env, &repo_path, "rem2");
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["git", "fetch", "--remote", "rem1", "--remote", "rem2"],
+    );
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    rem1: 9f01a0e04879 message
+    rem2: 9f01a0e04879 message
+    "###);
+}
+
+#[test]
+fn test_git_fetch_multiple_remotes_from_config() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "rem1");
+    add_git_remote(&test_env, &repo_path, "rem2");
+    test_env.add_config(r#"git.fetch = ["rem1", "rem2"]"#);
+
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    rem1: 9f01a0e04879 message
+    rem2: 9f01a0e04879 message
+    "###);
+}
+
+#[test]
 fn test_git_fetch_nonexistent_remote() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "rem1");
 
-    let stderr = &test_env.jj_cmd_failure(&repo_path, &["git", "fetch", "--remote", "rem1"]);
+    let stderr = &test_env.jj_cmd_failure(
+        &repo_path,
+        &["git", "fetch", "--remote", "rem1", "--remote", "rem2"],
+    );
     insta::assert_snapshot!(stderr, @r###"
-    Error: No git remote named 'rem1'
+    Error: No git remote named 'rem2'
     "###);
     // No remote should have been fetched as part of the failing transaction
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
@@ -76,11 +114,12 @@ fn test_git_fetch_nonexistent_remote_from_config() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.add_config(r#"git.fetch = "rem1""#);
+    add_git_remote(&test_env, &repo_path, "rem1");
+    test_env.add_config(r#"git.fetch = ["rem1", "rem2"]"#);
 
     let stderr = &test_env.jj_cmd_failure(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: No git remote named 'rem1'
+    Error: No git remote named 'rem2'
     "###);
     // No remote should have been fetched as part of the failing transaction
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");

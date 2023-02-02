@@ -74,9 +74,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `remote_needle` as optional arguments and matches just the branches whose
   name contains `branch_needle` and remote contains `remote_needle`.
 
+* `jj git fetch` accepts repeated `--remote` arguments.
+
 * Default remotes can be configured for the `jj git fetch` and `jj git push`
   operations ("origin" by default) using the `git.fetch` and `git.push`
-  configuration entries.
+  configuration entries. `git.fetch` can be a list if multiple remotes must
+  be fetched from.
 
 * `jj duplicate` can now duplicate multiple changes in one go. This preserves
   any parent-child relationships between them. For example, the entire tree of
