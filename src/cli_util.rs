@@ -512,7 +512,7 @@ impl WorkspaceCommandHelper {
                 let maybe_git_repo = self.repo.store().git_repo();
                 self.import_git_refs_and_head(ui, maybe_git_repo.as_ref().unwrap())?;
             }
-            self.commit_working_copy(ui)?;
+            self.snapshot_working_copy(ui)?;
         }
         Ok(())
     }
@@ -818,7 +818,7 @@ impl WorkspaceCommandHelper {
         Ok(())
     }
 
-    pub fn commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    pub fn snapshot_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let repo = self.repo.clone();
         let workspace_id = self.workspace_id().to_owned();
         let wc_commit_id = match repo.view().get_wc_commit_id(&workspace_id) {
