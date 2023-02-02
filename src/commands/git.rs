@@ -85,9 +85,10 @@ pub struct GitRemoteListArgs {}
 /// Fetch from a Git remote
 #[derive(clap::Args, Clone, Debug)]
 pub struct GitFetchArgs {
-    /// The remote to fetch from (only named remotes are supported)
-    #[arg(long)]
-    remote: Option<String>,
+    /// The remote to fetch from (only named remotes are supported, can be
+    /// repeated)
+    #[arg(long = "remote", value_name = "remote")]
+    remotes: Vec<String>,
 }
 
 /// Create a new repo backed by a clone of a Git repo
@@ -238,24 +239,33 @@ fn cmd_git_fetch(
     args: &GitFetchArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let remote = if let Some(name) = &args.remote {
-        name.clone()
+    let remotes = if args.remotes.is_empty() {
+        const KEY: &str = "git.fetch";
+        let config = command.settings().config();
+        config
+            .get(KEY)
+            .or_else(|_| config.get_string(KEY).map(|r| vec![r]))?
     } else {
-        command.settings().config().get("git.fetch")?
+        args.remotes.clone()
     };
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    let mut tx = workspace_command.start_transaction(&format!("fetch from git remote {}", &remote));
-    with_remote_callbacks(ui, |cb| {
-        git::fetch(
-            tx.mut_repo(),
-            &git_repo,
-            &remote,
-            cb,
-            &command.settings().git_settings(),
-        )
-    })
-    .map_err(|err| user_error(err.to_string()))?;
+    let mut tx = workspace_command.start_transaction(&format!(
+        "fetch from git remote(s) {}",
+        remotes.iter().join(",")
+    ));
+    for remote in remotes {
+        with_remote_callbacks(ui, |cb| {
+            git::fetch(
+                tx.mut_repo(),
+                &git_repo,
+                &remote,
+                cb,
+                &command.settings().git_settings(),
+            )
+        })
+        .map_err(|err| user_error(err.to_string()))?;
+    }
     tx.finish(ui)?;
     Ok(())
 }
