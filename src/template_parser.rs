@@ -53,6 +53,11 @@ pub enum TemplateParseErrorKind {
     NoSuchFunction(String),
     #[error(r#"Method "{name}" doesn't exist for type "{type_name}""#)]
     NoSuchMethod { type_name: String, name: String },
+    #[error(
+        "Expected {} arguments",
+        if min == max { format!("{min}") } else { format!("{min} to {max}") },
+    )]
+    InvalidArgumentCount { min: usize, max: usize },
     #[error(r#"Expected argument of type "{0}""#)]
     InvalidArgumentType(String),
 }
@@ -89,6 +94,13 @@ impl TemplateParseError {
                 name: pair.as_str().to_owned(),
             },
             pair.as_span(),
+        )
+    }
+
+    fn invalid_argument_count(min: usize, max: usize, span: pest::Span<'_>) -> Self {
+        TemplateParseError::with_span(
+            TemplateParseErrorKind::InvalidArgumentCount { min, max },
+            span,
         )
     }
 
@@ -452,26 +464,25 @@ fn parse_commit_term<'a>(
             Ok(Expression::Property(property))
         }
         Rule::function => {
-            let (name, mut args) = {
+            let (name, args_span, mut args) = {
                 let mut inner = expr.into_inner();
                 let name = inner.next().unwrap();
                 let args_pair = inner.next().unwrap();
                 assert_eq!(name.as_rule(), Rule::identifier);
                 assert_eq!(args_pair.as_rule(), Rule::function_arguments);
-                (name, args_pair.into_inner())
+                (name, args_pair.as_span(), args_pair.into_inner())
             };
             let expression = match name.as_str() {
                 "label" => {
-                    let label_pair = args.next().unwrap();
+                    let arg_count_error =
+                        || TemplateParseError::invalid_argument_count(2, 2, args_span);
+                    let label_pair = args.next().ok_or_else(arg_count_error)?;
                     let label_property =
                         parse_commit_template_rule(repo, workspace_id, label_pair)?
                             .into_plain_text();
-                    let arg_template = match args.next() {
-                        None => panic!("label() requires two arguments"),
-                        Some(pair) => pair,
-                    };
+                    let arg_template = args.next().ok_or_else(arg_count_error)?;
                     if args.next().is_some() {
-                        panic!("label() accepts only two arguments")
+                        return Err(arg_count_error());
                     }
                     let content = parse_commit_template_rule(repo, workspace_id, arg_template)?
                         .into_template();
@@ -482,7 +493,9 @@ fn parse_commit_term<'a>(
                     Expression::Template(template)
                 }
                 "if" => {
-                    let condition_pair = args.next().unwrap();
+                    let arg_count_error =
+                        || TemplateParseError::invalid_argument_count(2, 3, args_span);
+                    let condition_pair = args.next().ok_or_else(arg_count_error)?;
                     let condition_span = condition_pair.as_span();
                     let condition = parse_commit_template_rule(repo, workspace_id, condition_pair)?
                         .try_into_boolean()
@@ -490,19 +503,18 @@ fn parse_commit_term<'a>(
                             TemplateParseError::invalid_argument_type("Boolean", condition_span)
                         })?;
 
-                    let true_template = match args.next() {
-                        None => panic!("if() requires at least two arguments"),
-                        Some(pair) => {
-                            parse_commit_template_rule(repo, workspace_id, pair)?.into_template()
-                        }
-                    };
+                    let true_template = args
+                        .next()
+                        .ok_or_else(arg_count_error)
+                        .and_then(|pair| parse_commit_template_rule(repo, workspace_id, pair))?
+                        .into_template();
                     let false_template = args
                         .next()
                         .map(|pair| parse_commit_template_rule(repo, workspace_id, pair))
                         .transpose()?
                         .map(|x| x.into_template());
                     if args.next().is_some() {
-                        panic!("if() accepts at most three arguments")
+                        return Err(arg_count_error());
                     }
                     let template = Box::new(ConditionalTemplate::new(
                         condition,
