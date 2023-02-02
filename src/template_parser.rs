@@ -53,6 +53,8 @@ pub enum TemplateParseErrorKind {
     NoSuchFunction(String),
     #[error(r#"Method "{name}" doesn't exist for type "{type_name}""#)]
     NoSuchMethod { type_name: String, name: String },
+    #[error(r#"Expected argument of type "{0}""#)]
+    InvalidArgumentType(String),
 }
 
 impl TemplateParseError {
@@ -87,6 +89,13 @@ impl TemplateParseError {
                 name: pair.as_str().to_owned(),
             },
             pair.as_span(),
+        )
+    }
+
+    fn invalid_argument_type(expected_type_name: impl Into<String>, span: pest::Span<'_>) -> Self {
+        TemplateParseError::with_span(
+            TemplateParseErrorKind::InvalidArgumentType(expected_type_name.into()),
+            span,
         )
     }
 }
@@ -474,12 +483,12 @@ fn parse_commit_term<'a>(
                 }
                 "if" => {
                     let condition_pair = args.next().unwrap();
-                    let condition =
-                        parse_commit_template_rule(repo, workspace_id, condition_pair.clone())?
-                            .try_into_boolean()
-                            .unwrap_or_else(|| {
-                                panic!("cannot yet use this as boolean: {condition_pair:?}")
-                            });
+                    let condition_span = condition_pair.as_span();
+                    let condition = parse_commit_template_rule(repo, workspace_id, condition_pair)?
+                        .try_into_boolean()
+                        .ok_or_else(|| {
+                            TemplateParseError::invalid_argument_type("Boolean", condition_span)
+                        })?;
 
                     let true_template = match args.next() {
                         None => panic!("if() requires at least two arguments"),
