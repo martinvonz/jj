@@ -331,10 +331,7 @@ fn cmd_branch_list(
     Ok(())
 }
 
-fn validate_branch_names_exist<'a>(
-    view: &'a View,
-    names: &'a [String],
-) -> Result<(), CommandError> {
+fn validate_branch_names_exist(view: &View, names: &[String]) -> Result<(), CommandError> {
     for branch_name in names {
         if view.get_local_branch(branch_name).is_none() {
             return Err(user_error(format!("No such branch: {branch_name}")));
