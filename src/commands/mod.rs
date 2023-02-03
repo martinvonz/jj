@@ -165,23 +165,29 @@ struct ConfigArgs {
 /// https://github.com/martinvonz/jj/issues/531).
 #[derive(clap::Subcommand, Clone, Debug)]
 enum ConfigSubcommand {
-    /// List variables set in config file, along with their values.
     #[command(visible_alias("l"))]
-    List {
-        /// An optional name of a specific config option to look up.
-        #[arg(value_parser=NonEmptyStringValueParser::new())]
-        name: Option<String>,
-        /// Whether to explicitly include built-in default values in the list.
-        #[arg(long)]
-        include_defaults: bool,
-        // TODO(#1047): Support --show-origin using LayeredConfigs.
-        // TODO(#1047): Support ConfigArgs (--user or --repo).
-    },
+    List(ConfigListArgs),
     #[command(visible_alias("e"))]
-    Edit {
-        #[clap(flatten)]
-        config_args: ConfigArgs,
-    },
+    Edit(ConfigEditArgs),
+}
+
+/// List variables set in config file, along with their values.
+#[derive(clap::Args, Clone, Debug)]
+struct ConfigListArgs {
+    /// An optional name of a specific config option to look up.
+    #[arg(value_parser = NonEmptyStringValueParser::new())]
+    pub name: Option<String>,
+    /// Whether to explicitly include built-in default values in the list.
+    #[arg(long)]
+    pub include_defaults: bool,
+    // TODO(#1047): Support --show-origin using LayeredConfigs.
+    // TODO(#1047): Support ConfigArgs (--user or --repo).
+}
+
+#[derive(clap::Args, Clone, Debug)]
+struct ConfigEditArgs {
+    #[clap(flatten)]
+    pub config_args: ConfigArgs,
 }
 
 /// Create a new, empty change and edit it in the working copy
@@ -1030,10 +1036,10 @@ fn cmd_config(
 ) -> Result<(), CommandError> {
     let settings = command.settings();
     match subcommand {
-        ConfigSubcommand::List {
+        ConfigSubcommand::List(ConfigListArgs {
             name,
             include_defaults,
-        } => {
+        }) => {
             ui.request_pager();
             let name_path = name
                 .as_ref()
@@ -1068,7 +1074,7 @@ fn cmd_config(
                 }
             }
         }
-        ConfigSubcommand::Edit { config_args } => {
+        ConfigSubcommand::Edit(ConfigEditArgs { config_args }) => {
             let edit_path = if config_args.user {
                 // TODO(#531): Special-case for editors that can't handle viewing directories?
                 config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
