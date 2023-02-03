@@ -38,6 +38,8 @@ use crate::{cli_util, time_util};
 #[grammar = "template.pest"]
 pub struct TemplateParser;
 
+type TemplateParseResult<T> = Result<T, TemplateParseError>;
+
 #[derive(Clone, Debug)]
 pub struct TemplateParseError {
     kind: TemplateParseErrorKind,
@@ -289,7 +291,7 @@ impl<'a, C: 'a> Expression<'a, C> {
 fn parse_method_chain<'a, I: 'a>(
     pair: Pair<Rule>,
     input_property: PropertyAndLabels<'a, I>,
-) -> Result<PropertyAndLabels<'a, I>, TemplateParseError> {
+) -> TemplateParseResult<PropertyAndLabels<'a, I>> {
     let PropertyAndLabels(mut property, mut labels) = input_property;
     assert_eq!(pair.as_rule(), Rule::maybe_method);
     for chain in pair.into_inner() {
@@ -325,7 +327,7 @@ fn parse_method_chain<'a, I: 'a>(
 fn parse_string_method<'a>(
     name: Pair<Rule>,
     _args: Pairs<Rule>,
-) -> Result<Property<'a, String>, TemplateParseError> {
+) -> TemplateParseResult<Property<'a, String>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&String) -> O + 'a,
     ) -> Box<dyn TemplateProperty<String, Output = O> + 'a> {
@@ -344,14 +346,14 @@ fn parse_string_method<'a>(
 fn parse_boolean_method<'a>(
     name: Pair<Rule>,
     _args: Pairs<Rule>,
-) -> Result<Property<'a, bool>, TemplateParseError> {
+) -> TemplateParseResult<Property<'a, bool>> {
     Err(TemplateParseError::no_such_method("Boolean", &name))
 }
 
 fn parse_commit_or_change_id_method<'a>(
     name: Pair<Rule>,
     _args: Pairs<Rule>,
-) -> Result<Property<'a, CommitOrChangeId<'a>>, TemplateParseError> {
+) -> TemplateParseResult<Property<'a, CommitOrChangeId<'a>>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&CommitOrChangeId<'a>) -> O + 'a,
     ) -> Box<dyn TemplateProperty<CommitOrChangeId<'a>, Output = O> + 'a> {
@@ -379,7 +381,7 @@ fn parse_commit_or_change_id_method<'a>(
 fn parse_signature_method<'a>(
     name: Pair<Rule>,
     _args: Pairs<Rule>,
-) -> Result<Property<'a, Signature>, TemplateParseError> {
+) -> TemplateParseResult<Property<'a, Signature>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Signature) -> O + 'a,
     ) -> Box<dyn TemplateProperty<Signature, Output = O> + 'a> {
@@ -398,7 +400,7 @@ fn parse_signature_method<'a>(
 fn parse_timestamp_method<'a>(
     name: Pair<Rule>,
     _args: Pairs<Rule>,
-) -> Result<Property<'a, Timestamp>, TemplateParseError> {
+) -> TemplateParseResult<Property<'a, Timestamp>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Timestamp) -> O + 'a,
     ) -> Box<dyn TemplateProperty<Timestamp, Output = O> + 'a> {
@@ -416,7 +418,7 @@ fn parse_commit_keyword<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
-) -> Result<PropertyAndLabels<'a, Commit>, TemplateParseError> {
+) -> TemplateParseResult<PropertyAndLabels<'a, Commit>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Commit) -> O + 'a,
     ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'a> {
@@ -464,7 +466,7 @@ fn parse_commit_term<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
-) -> Result<Expression<'a, Commit>, TemplateParseError> {
+) -> TemplateParseResult<Expression<'a, Commit>> {
     assert_eq!(pair.as_rule(), Rule::term);
     let mut inner = pair.into_inner();
     let expr = inner.next().unwrap();
@@ -570,7 +572,7 @@ fn parse_commit_template_rule<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
-) -> Result<Expression<'a, Commit>, TemplateParseError> {
+) -> TemplateParseResult<Expression<'a, Commit>> {
     assert_eq!(pair.as_rule(), Rule::template);
     let inner = pair.into_inner();
     let mut expressions: Vec<_> = inner
@@ -588,7 +590,7 @@ pub fn parse_commit_template<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     template_text: &str,
-) -> Result<Box<dyn Template<Commit> + 'a>, TemplateParseError> {
+) -> TemplateParseResult<Box<dyn Template<Commit> + 'a>> {
     let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text)?;
     let first_pair = pairs.next().unwrap();
     if first_pair.as_rule() == Rule::EOI {
