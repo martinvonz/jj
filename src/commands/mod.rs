@@ -1426,7 +1426,7 @@ fn log_template(settings: &UserSettings) -> String {
               if(divergent,
                 label("divergent", change_id.{prefix_format} "??"),
                 change_id.{prefix_format})
-              " " author.email()
+              if(author.email(), " " author.email())
               " " {committer_timestamp}
               if(branches, " " branches)
               if(tags, " " tags)
