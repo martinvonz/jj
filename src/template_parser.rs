@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::ops::RangeInclusive;
 use std::{error, fmt};
 
 use itertools::Itertools as _;
@@ -53,11 +54,11 @@ pub enum TemplateParseErrorKind {
     NoSuchFunction(String),
     #[error(r#"Method "{name}" doesn't exist for type "{type_name}""#)]
     NoSuchMethod { type_name: String, name: String },
-    #[error(
-        "Expected {} arguments",
-        if min == max { format!("{min}") } else { format!("{min} to {max}") },
-    )]
-    InvalidArgumentCount { min: usize, max: usize },
+    // TODO: clean up argument error variants
+    #[error("Expected {0} arguments")]
+    InvalidArgumentCountExact(usize),
+    #[error("Expected {} to {} arguments", .0.start(), .0.end())]
+    InvalidArgumentCountRange(RangeInclusive<usize>),
     #[error(r#"Expected argument of type "{0}""#)]
     InvalidArgumentType(String),
 }
@@ -97,9 +98,16 @@ impl TemplateParseError {
         )
     }
 
-    fn invalid_argument_count(min: usize, max: usize, span: pest::Span<'_>) -> Self {
+    fn invalid_argument_count_exact(count: usize, span: pest::Span<'_>) -> Self {
         TemplateParseError::with_span(
-            TemplateParseErrorKind::InvalidArgumentCount { min, max },
+            TemplateParseErrorKind::InvalidArgumentCountExact(count),
+            span,
+        )
+    }
+
+    fn invalid_argument_count_range(count: RangeInclusive<usize>, span: pest::Span<'_>) -> Self {
+        TemplateParseError::with_span(
+            TemplateParseErrorKind::InvalidArgumentCountRange(count),
             span,
         )
     }
@@ -477,7 +485,7 @@ fn parse_commit_term<'a>(
             let expression = match name.as_str() {
                 "label" => {
                     let arg_count_error =
-                        || TemplateParseError::invalid_argument_count(2, 2, args_span);
+                        || TemplateParseError::invalid_argument_count_exact(2, args_span);
                     let label_pair = args.next().ok_or_else(arg_count_error)?;
                     let label_property =
                         parse_commit_template_rule(repo, workspace_id, label_pair)?
@@ -496,7 +504,7 @@ fn parse_commit_term<'a>(
                 }
                 "if" => {
                     let arg_count_error =
-                        || TemplateParseError::invalid_argument_count(2, 3, args_span);
+                        || TemplateParseError::invalid_argument_count_range(2..=3, args_span);
                     let condition_pair = args.next().ok_or_else(arg_count_error)?;
                     let condition_span = condition_pair.as_span();
                     let condition = parse_commit_template_rule(repo, workspace_id, condition_pair)?
