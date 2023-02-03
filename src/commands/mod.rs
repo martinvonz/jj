@@ -1407,21 +1407,23 @@ fn log_template(settings: &UserSettings) -> String {
     };
     let default_template = format!(
         r#"
-            if(divergent,
-              label("divergent", change_id.{prefix_format} "??"),
-              change_id.{prefix_format})
-            " " author.email()
-            " " {committer_timestamp}
-            if(branches, " " branches)
-            if(tags, " " tags)
-            if(working_copies, " " working_copies)
-            if(git_head, " " git_head)
-            " " commit_id.{prefix_format}
-            if(conflict, label("conflict", " conflict"))
-            "\n"
-            if(empty, label("empty", "(empty) "))
-            if(description, description.first_line(), {DESCRIPTION_PLACEHOLDER_TEMPLATE})
-            "\n""#,
+            label(if(current_working_copy, "working_copy"),
+              if(divergent,
+                label("divergent", change_id.{prefix_format} "??"),
+                change_id.{prefix_format})
+              " " author.email()
+              " " {committer_timestamp}
+              if(branches, " " branches)
+              if(tags, " " tags)
+              if(working_copies, " " working_copies)
+              if(git_head, " " git_head)
+              " " commit_id.{prefix_format}
+              if(conflict, label("conflict", " conflict"))
+              "\n"
+              if(empty, label("empty", "(empty) "))
+              if(description, description.first_line(), {DESCRIPTION_PLACEHOLDER_TEMPLATE})
+              "\n"
+            )"#,
     );
     settings
         .config()
@@ -1459,15 +1461,6 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         workspace_id,
         &template_string,
     )?;
-    let format_commit_template = |commit: &Commit, formatter: &mut dyn Formatter| {
-        if Some(commit.id()) == wc_commit_id {
-            formatter.with_label("working_copy", |formatter| {
-                template.format(commit, formatter)
-            })
-        } else {
-            template.format(commit, formatter)
-        }
-    };
 
     {
         ui.request_pager();
@@ -1509,7 +1502,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 let mut buffer = vec![];
                 let commit_id = index_entry.commit_id();
                 let commit = store.get_commit(&commit_id)?;
-                format_commit_template(&commit, ui.new_formatter(&mut buffer).as_mut())?;
+                template.format(&commit, ui.new_formatter(&mut buffer).as_mut())?;
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
                 }
@@ -1544,7 +1537,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             };
             for index_entry in iter {
                 let commit = store.get_commit(&index_entry.commit_id())?;
-                format_commit_template(&commit, formatter)?;
+                template.format(&commit, formatter)?;
                 if !diff_formats.is_empty() {
                     diff_util::show_patch(
                         formatter,
