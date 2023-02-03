@@ -222,6 +222,57 @@ fn test_templater_label_function() {
         render(r#"label(if(empty, "error", "warning"), "text")"#), @"[38;5;1mtext[39m");
 }
 
+#[test]
+fn test_templater_separate_function() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
+
+    insta::assert_snapshot!(render(r#"separate(" ")"#), @"");
+    insta::assert_snapshot!(render(r#"separate(" ", "")"#), @"");
+    insta::assert_snapshot!(render(r#"separate(" ", "a")"#), @"a");
+    insta::assert_snapshot!(render(r#"separate(" ", "a", "b")"#), @"a b");
+    insta::assert_snapshot!(render(r#"separate(" ", "a", "", "b")"#), @"a b");
+    insta::assert_snapshot!(render(r#"separate(" ", "a", "b", "")"#), @"a b");
+    insta::assert_snapshot!(render(r#"separate(" ", "", "a", "b")"#), @"a b");
+
+    // Labeled
+    insta::assert_snapshot!(
+        render(r#"separate(" ", label("error", ""), label("warning", "a"), "b")"#),
+        @"[38;5;3ma[39m b");
+
+    // List template
+    insta::assert_snapshot!(render(r#"separate(" ", "a", ("" ""))"#), @"a");
+    insta::assert_snapshot!(render(r#"separate(" ", "a", ("" "b"))"#), @"a b");
+
+    // Nested separate
+    insta::assert_snapshot!(
+        render(r#"separate(" ", "a", separate("|", "", ""))"#), @"a");
+    insta::assert_snapshot!(
+        render(r#"separate(" ", "a", separate("|", "b", ""))"#), @"a b");
+    insta::assert_snapshot!(
+        render(r#"separate(" ", "a", separate("|", "b", "c"))"#), @"a b|c");
+
+    // Conditional template
+    insta::assert_snapshot!(
+        render(r#"separate(" ", "a", if("t", ""))"#), @"a");
+    insta::assert_snapshot!(
+        render(r#"separate(" ", "a", if("t", "", "f"))"#), @"a");
+    insta::assert_snapshot!(
+        render(r#"separate(" ", "a", if("", "t", ""))"#), @"a");
+    insta::assert_snapshot!(
+        render(r#"separate(" ", "a", if("t", "t", "f"))"#), @"a t");
+
+    // Separate keywords
+    insta::assert_snapshot!(
+        render(r#"separate(" ", author, description, empty)"#), @" <> [38;5;2mtrue[39m");
+
+    // Keyword as separator
+    insta::assert_snapshot!(
+        render(r#"separate(author, "X", "Y", "Z")"#), @"X <>Y <>Z");
+}
+
 fn get_template_output(
     test_env: &TestEnvironment,
     repo_path: &Path,

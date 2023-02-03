@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ops::RangeInclusive;
+use std::ops::{RangeFrom, RangeInclusive};
 use std::{error, fmt};
 
 use itertools::Itertools as _;
@@ -29,8 +29,8 @@ use thiserror::Error;
 use crate::templater::{
     BranchProperty, CommitOrChangeId, ConditionalTemplate, FormattablePropertyTemplate,
     GitHeadProperty, GitRefsProperty, IdWithHighlightedPrefix, LabelTemplate, ListTemplate,
-    Literal, PlainTextFormattedProperty, TagProperty, Template, TemplateFunction, TemplateProperty,
-    TemplatePropertyFn, WorkingCopiesProperty,
+    Literal, PlainTextFormattedProperty, SeparateTemplate, TagProperty, Template, TemplateFunction,
+    TemplateProperty, TemplatePropertyFn, WorkingCopiesProperty,
 };
 use crate::{cli_util, time_util};
 
@@ -59,6 +59,8 @@ pub enum TemplateParseErrorKind {
     InvalidArgumentCountExact(usize),
     #[error("Expected {} to {} arguments", .0.start(), .0.end())]
     InvalidArgumentCountRange(RangeInclusive<usize>),
+    #[error("Expected at least {} arguments", .0.start)]
+    InvalidArgumentCountRangeFrom(RangeFrom<usize>),
     #[error(r#"Expected argument of type "{0}""#)]
     InvalidArgumentType(String),
 }
@@ -108,6 +110,13 @@ impl TemplateParseError {
     fn invalid_argument_count_range(count: RangeInclusive<usize>, span: pest::Span<'_>) -> Self {
         TemplateParseError::with_span(
             TemplateParseErrorKind::InvalidArgumentCountRange(count),
+            span,
+        )
+    }
+
+    fn invalid_argument_count_range_from(count: RangeFrom<usize>, span: pest::Span<'_>) -> Self {
+        TemplateParseError::with_span(
+            TemplateParseErrorKind::InvalidArgumentCountRangeFrom(count),
             span,
         )
     }
@@ -531,6 +540,21 @@ fn parse_commit_term<'a>(
                         true_template,
                         false_template,
                     ));
+                    Expression::Template(template)
+                }
+                "separate" => {
+                    let arg_count_error =
+                        || TemplateParseError::invalid_argument_count_range_from(1.., args_span);
+                    let separator_pair = args.next().ok_or_else(arg_count_error)?;
+                    let separator = parse_commit_template_rule(repo, workspace_id, separator_pair)?
+                        .into_template();
+                    let contents = args
+                        .map(|pair| {
+                            parse_commit_template_rule(repo, workspace_id, pair)
+                                .map(|x| x.into_template())
+                        })
+                        .try_collect()?;
+                    let template = Box::new(SeparateTemplate::new(separator, contents));
                     Expression::Template(template)
                 }
                 _ => return Err(TemplateParseError::no_such_function(&name)),
