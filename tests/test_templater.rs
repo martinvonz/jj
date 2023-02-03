@@ -208,19 +208,7 @@ fn test_templater_label_function() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    let render = |template| {
-        test_env.jj_cmd_success(
-            &repo_path,
-            &[
-                "log",
-                "--color=always",
-                "--no-graph",
-                "-r@-",
-                "-T",
-                template,
-            ],
-        )
-    };
+    let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
     // Literal
     insta::assert_snapshot!(render(r#"label("error", "text")"#), @"[38;5;1mtext[39m");
@@ -241,4 +229,24 @@ fn get_template_output(
     template: &str,
 ) -> String {
     test_env.jj_cmd_success(repo_path, &["log", "--no-graph", "-r", rev, "-T", template])
+}
+
+fn get_colored_template_output(
+    test_env: &TestEnvironment,
+    repo_path: &Path,
+    rev: &str,
+    template: &str,
+) -> String {
+    test_env.jj_cmd_success(
+        repo_path,
+        &[
+            "log",
+            "--color=always",
+            "--no-graph",
+            "-r",
+            rev,
+            "-T",
+            template,
+        ],
+    )
 }
