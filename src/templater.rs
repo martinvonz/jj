@@ -200,6 +200,28 @@ impl<C, P: TemplateProperty<C> + ?Sized> TemplateProperty<C> for Box<P> {
     }
 }
 
+// Implement TemplateProperty for tuples
+macro_rules! tuple_impls {
+    ($( ( $($n:tt $T:ident),+ ) )+) => {
+        $(
+            impl<C, $($T: TemplateProperty<C>,)+> TemplateProperty<C> for ($($T,)+) {
+                type Output = ($($T::Output,)+);
+
+                fn extract(&self, context: &C) -> Self::Output {
+                    ($(self.$n.extract(context),)+)
+                }
+            }
+        )+
+    }
+}
+
+tuple_impls! {
+    (0 T0)
+    (0 T0, 1 T1)
+    (0 T0, 1 T1, 2 T2)
+    (0 T0, 1 T1, 2 T2, 3 T3)
+}
+
 /// Adapter to drop template context.
 pub struct Literal<O>(pub O);
 
