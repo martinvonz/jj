@@ -1034,65 +1034,74 @@ fn cmd_config(
     command: &CommandHelper,
     subcommand: &ConfigSubcommand,
 ) -> Result<(), CommandError> {
-    let settings = command.settings();
     match subcommand {
-        ConfigSubcommand::List(ConfigListArgs {
-            name,
-            include_defaults,
-        }) => {
-            ui.request_pager();
-            let name_path = name
-                .as_ref()
-                .map_or(vec![], |name| name.split('.').collect_vec());
-            let values = command.resolved_config_values(&name_path)?;
-            let mut wrote_values = false;
-            for AnnotatedValue {
-                path,
-                value,
-                source,
-                is_overridden,
-            } in &values
-            {
-                // Remove overridden values.
-                // TODO(#1047): Allow printing overridden values via `--include-overridden`.
-                if *is_overridden {
-                    continue;
-                }
-                // Skip built-ins if not included.
-                if !*include_defaults && *source == ConfigSource::Default {
-                    continue;
-                }
-                writeln!(ui, "{}={}", path.join("."), serialize_config_value(value))?;
-                wrote_values = true;
-            }
-            if !wrote_values {
-                // Note to stderr explaining why output is empty.
-                if let Some(name) = name {
-                    writeln!(ui.warning(), "No matching config key for {name}")?;
-                } else {
-                    writeln!(ui.warning(), "No config to list")?;
-                }
-            }
+        ConfigSubcommand::List(sub_args) => cmd_config_list(ui, command, sub_args),
+        ConfigSubcommand::Edit(sub_args) => cmd_config_edit(ui, command, sub_args),
+    }
+}
+
+fn cmd_config_list(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ConfigListArgs,
+) -> Result<(), CommandError> {
+    ui.request_pager();
+    let name_path = args
+        .name
+        .as_ref()
+        .map_or(vec![], |name| name.split('.').collect_vec());
+    let values = command.resolved_config_values(&name_path)?;
+    let mut wrote_values = false;
+    for AnnotatedValue {
+        path,
+        value,
+        source,
+        is_overridden,
+    } in &values
+    {
+        // Remove overridden values.
+        // TODO(#1047): Allow printing overridden values via `--include-overridden`.
+        if *is_overridden {
+            continue;
         }
-        ConfigSubcommand::Edit(ConfigEditArgs { config_args }) => {
-            let edit_path = if config_args.user {
-                // TODO(#531): Special-case for editors that can't handle viewing directories?
-                config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
-            } else if config_args.repo {
-                let workspace_command = command.workspace_helper(ui)?;
-                let workspace_path = workspace_command.workspace_root();
-                WorkspaceLoader::init(workspace_path)
-                    .unwrap()
-                    .repo_path()
-                    .join("config.toml")
-            } else {
-                // Shouldn't be reachable unless clap ArgGroup is broken.
-                panic!("No config_level provided");
-            };
-            run_ui_editor(settings, &edit_path)?;
+        // Skip built-ins if not included.
+        if !args.include_defaults && *source == ConfigSource::Default {
+            continue;
+        }
+        writeln!(ui, "{}={}", path.join("."), serialize_config_value(value))?;
+        wrote_values = true;
+    }
+    if !wrote_values {
+        // Note to stderr explaining why output is empty.
+        if let Some(name) = &args.name {
+            writeln!(ui.warning(), "No matching config key for {name}")?;
+        } else {
+            writeln!(ui.warning(), "No config to list")?;
         }
     }
+    Ok(())
+}
 
+fn cmd_config_edit(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ConfigEditArgs,
+) -> Result<(), CommandError> {
+    let edit_path = if args.config_args.user {
+        // TODO(#531): Special-case for editors that can't handle viewing directories?
+        config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
+    } else if args.config_args.repo {
+        let workspace_command = command.workspace_helper(ui)?;
+        let workspace_path = workspace_command.workspace_root();
+        WorkspaceLoader::init(workspace_path)
+            .unwrap()
+            .repo_path()
+            .join("config.toml")
+    } else {
+        // Shouldn't be reachable unless clap ArgGroup is broken.
+        panic!("No config_level provided");
+    };
+    run_ui_editor(command.settings(), &edit_path)?;
     Ok(())
 }
 
