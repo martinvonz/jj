@@ -18,7 +18,6 @@ use std::io;
 use itertools::Itertools;
 use jujutsu_lib::backend::{ObjectId, Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
-use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
 
 use crate::formatter::{Formatter, PlainTextFormatter};
@@ -217,19 +216,6 @@ impl TemplateProperty<Commit> for WorkingCopiesProperty<'_> {
             }
         }
         names.join(" ")
-    }
-}
-
-pub struct IsWorkingCopyProperty<'a> {
-    pub repo: RepoRef<'a>,
-    pub workspace_id: WorkspaceId,
-}
-
-impl TemplateProperty<Commit> for IsWorkingCopyProperty<'_> {
-    type Output = bool;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        Some(context.id()) == self.repo.view().get_wc_commit_id(&self.workspace_id)
     }
 }
 

@@ -27,9 +27,9 @@ use thiserror::Error;
 
 use crate::templater::{
     BranchProperty, CommitOrChangeId, ConditionalTemplate, FormattablePropertyTemplate,
-    GitHeadProperty, GitRefsProperty, IdWithHighlightedPrefix, IsWorkingCopyProperty,
-    LabelTemplate, ListTemplate, Literal, PlainTextFormattedProperty, TagProperty, Template,
-    TemplateFunction, TemplateProperty, TemplatePropertyFn, WorkingCopiesProperty,
+    GitHeadProperty, GitRefsProperty, IdWithHighlightedPrefix, LabelTemplate, ListTemplate,
+    Literal, PlainTextFormattedProperty, TagProperty, Template, TemplateFunction, TemplateProperty,
+    TemplatePropertyFn, WorkingCopiesProperty,
 };
 use crate::{cli_util, time_util};
 
@@ -419,10 +419,12 @@ fn parse_commit_keyword<'a>(
         "author" => Property::Signature(wrap_fn(|commit| commit.author().clone())),
         "committer" => Property::Signature(wrap_fn(|commit| commit.committer().clone())),
         "working_copies" => Property::String(Box::new(WorkingCopiesProperty { repo })),
-        "current_working_copy" => Property::Boolean(Box::new(IsWorkingCopyProperty {
-            repo,
-            workspace_id: workspace_id.clone(),
-        })),
+        "current_working_copy" => {
+            let workspace_id = workspace_id.clone();
+            Property::Boolean(wrap_fn(move |commit| {
+                Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id)
+            }))
+        }
         "branches" => Property::String(Box::new(BranchProperty { repo })),
         "tags" => Property::String(Box::new(TagProperty { repo })),
         "git_refs" => Property::String(Box::new(GitRefsProperty { repo })),
