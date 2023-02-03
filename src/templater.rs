@@ -135,6 +135,57 @@ impl<C, T: Template<C>> Template<C> for ListTemplate<T> {
     }
 }
 
+/// Like `ListTemplate`, but inserts a separator between non-empty templates.
+pub struct SeparateTemplate<S, T> {
+    separator: S,
+    contents: Vec<T>,
+}
+
+impl<S, T> SeparateTemplate<S, T> {
+    pub fn new<C>(separator: S, contents: Vec<T>) -> Self
+    where
+        S: Template<C>,
+        T: Template<C>,
+    {
+        SeparateTemplate {
+            separator,
+            contents,
+        }
+    }
+}
+
+impl<C, S, T> Template<C> for SeparateTemplate<S, T>
+where
+    S: Template<C>,
+    T: Template<C>,
+{
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        // TemplateProperty may be evaluated twice, by has_content() and format().
+        // If that's too expensive, we can instead create a buffered formatter
+        // inheriting the state, and write to it to test the emptiness. In this case,
+        // the formatter should guarantee push/pop_label() is noop without content.
+        let mut content_templates = self
+            .contents
+            .iter()
+            .filter(|template| template.has_content(context))
+            .fuse();
+        if let Some(template) = content_templates.next() {
+            template.format(context, formatter)?;
+        }
+        for template in content_templates {
+            self.separator.format(context, formatter)?;
+            template.format(context, formatter)?;
+        }
+        Ok(())
+    }
+
+    fn has_content(&self, context: &C) -> bool {
+        self.contents
+            .iter()
+            .any(|template| template.has_content(context))
+    }
+}
+
 pub trait TemplateProperty<C> {
     type Output;
 
