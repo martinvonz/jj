@@ -462,11 +462,10 @@ fn parse_commit_keyword<'a>(
     Ok(PropertyAndLabels(property, vec![pair.as_str().to_string()]))
 }
 
-fn parse_commit_term<'a>(
-    repo: RepoRef<'a>,
-    workspace_id: &WorkspaceId,
+fn parse_term<'a, C: 'a>(
     pair: Pair<Rule>,
-) -> TemplateParseResult<Expression<'a, Commit>> {
+    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+) -> TemplateParseResult<Expression<'a, C>> {
     assert_eq!(pair.as_rule(), Rule::term);
     let mut inner = pair.into_inner();
     let expr = inner.next().unwrap();
@@ -480,7 +479,7 @@ fn parse_commit_term<'a>(
             Ok(Expression::Property(property))
         }
         Rule::identifier => {
-            let term = parse_commit_keyword(repo, workspace_id, expr)?;
+            let term = parse_keyword(expr)?;
             let property = parse_method_chain(maybe_method, term)?;
             Ok(Expression::Property(property))
         }
@@ -499,14 +498,12 @@ fn parse_commit_term<'a>(
                         || TemplateParseError::invalid_argument_count_exact(2, args_span);
                     let label_pair = args.next().ok_or_else(arg_count_error)?;
                     let label_property =
-                        parse_commit_template_rule(repo, workspace_id, label_pair)?
-                            .into_plain_text();
+                        parse_template_rule(label_pair, parse_keyword)?.into_plain_text();
                     let arg_template = args.next().ok_or_else(arg_count_error)?;
                     if args.next().is_some() {
                         return Err(arg_count_error());
                     }
-                    let content = parse_commit_template_rule(repo, workspace_id, arg_template)?
-                        .into_template();
+                    let content = parse_template_rule(arg_template, parse_keyword)?.into_template();
                     let labels = TemplateFunction::new(label_property, |s| {
                         s.split_whitespace().map(ToString::to_string).collect()
                     });
@@ -518,7 +515,7 @@ fn parse_commit_term<'a>(
                         || TemplateParseError::invalid_argument_count_range(2..=3, args_span);
                     let condition_pair = args.next().ok_or_else(arg_count_error)?;
                     let condition_span = condition_pair.as_span();
-                    let condition = parse_commit_template_rule(repo, workspace_id, condition_pair)?
+                    let condition = parse_template_rule(condition_pair, parse_keyword)?
                         .try_into_boolean()
                         .ok_or_else(|| {
                             TemplateParseError::invalid_argument_type("Boolean", condition_span)
@@ -527,11 +524,11 @@ fn parse_commit_term<'a>(
                     let true_template = args
                         .next()
                         .ok_or_else(arg_count_error)
-                        .and_then(|pair| parse_commit_template_rule(repo, workspace_id, pair))?
+                        .and_then(|pair| parse_template_rule(pair, parse_keyword))?
                         .into_template();
                     let false_template = args
                         .next()
-                        .map(|pair| parse_commit_template_rule(repo, workspace_id, pair))
+                        .map(|pair| parse_template_rule(pair, parse_keyword))
                         .transpose()?
                         .map(|x| x.into_template());
                     if args.next().is_some() {
@@ -548,12 +545,11 @@ fn parse_commit_term<'a>(
                     let arg_count_error =
                         || TemplateParseError::invalid_argument_count_range_from(1.., args_span);
                     let separator_pair = args.next().ok_or_else(arg_count_error)?;
-                    let separator = parse_commit_template_rule(repo, workspace_id, separator_pair)?
-                        .into_template();
+                    let separator =
+                        parse_template_rule(separator_pair, parse_keyword)?.into_template();
                     let contents = args
                         .map(|pair| {
-                            parse_commit_template_rule(repo, workspace_id, pair)
-                                .map(|x| x.into_template())
+                            parse_template_rule(pair, parse_keyword).map(|x| x.into_template())
                         })
                         .try_collect()?;
                     let template = Box::new(SeparateTemplate::new(separator, contents));
@@ -563,20 +559,19 @@ fn parse_commit_term<'a>(
             };
             Ok(expression)
         }
-        Rule::template => parse_commit_template_rule(repo, workspace_id, expr),
+        Rule::template => parse_template_rule(expr, parse_keyword),
         other => panic!("unexpected term: {other:?}"),
     }
 }
 
-fn parse_commit_template_rule<'a>(
-    repo: RepoRef<'a>,
-    workspace_id: &WorkspaceId,
+fn parse_template_rule<'a, C: 'a>(
     pair: Pair<Rule>,
-) -> TemplateParseResult<Expression<'a, Commit>> {
+    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+) -> TemplateParseResult<Expression<'a, C>> {
     assert_eq!(pair.as_rule(), Rule::template);
     let inner = pair.into_inner();
     let mut expressions: Vec<_> = inner
-        .map(|term| parse_commit_term(repo, workspace_id, term))
+        .map(|term| parse_term(term, parse_keyword))
         .try_collect()?;
     if expressions.len() == 1 {
         Ok(expressions.pop().unwrap())
@@ -586,16 +581,27 @@ fn parse_commit_template_rule<'a>(
     }
 }
 
-pub fn parse_commit_template<'a>(
-    repo: RepoRef<'a>,
-    workspace_id: &WorkspaceId,
+// TODO: We'll probably need a trait that abstracts the Property enum and
+// keyword/method parsing functions per the top-level context.
+fn parse_template_str<'a, C: 'a>(
     template_text: &str,
-) -> TemplateParseResult<Box<dyn Template<Commit> + 'a>> {
+    parse_keyword: impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+) -> TemplateParseResult<Box<dyn Template<C> + 'a>> {
     let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text)?;
     let first_pair = pairs.next().unwrap();
     if first_pair.as_rule() == Rule::EOI {
         Ok(Box::new(Literal(String::new())))
     } else {
-        parse_commit_template_rule(repo, workspace_id, first_pair).map(|x| x.into_template())
+        parse_template_rule(first_pair, &parse_keyword).map(|x| x.into_template())
     }
+}
+
+pub fn parse_commit_template<'a>(
+    repo: RepoRef<'a>,
+    workspace_id: &WorkspaceId,
+    template_text: &str,
+) -> TemplateParseResult<Box<dyn Template<Commit> + 'a>> {
+    parse_template_str(template_text, |pair| {
+        parse_commit_keyword(repo, workspace_id, pair)
+    })
 }
