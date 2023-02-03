@@ -561,9 +561,9 @@ impl<'a> CommitOrChangeId<'a> {
         hex::encode(&self.id_bytes)
     }
 
-    pub fn short(&self) -> String {
+    pub fn short(&self, total_len: usize) -> String {
         let mut hex = self.hex();
-        hex.truncate(12);
+        hex.truncate(total_len);
         hex
     }
 

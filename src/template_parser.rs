@@ -485,10 +485,12 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
     };
     let property = match name.as_str() {
         "short" => {
-            expect_no_arguments(args_pair)?;
+            let len_property = parse_optional_integer(args_pair)?;
             Property::String(chain_properties(
-                self_property,
-                TemplatePropertyFn(|id: &CommitOrChangeId| id.short()),
+                (self_property, len_property),
+                TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
+                    id.short(len.and_then(|l| l.try_into().ok()).unwrap_or(12))
+                }),
             ))
         }
         "shortest_prefix_and_brackets" => {
