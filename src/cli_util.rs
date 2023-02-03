@@ -137,8 +137,21 @@ impl From<BackendError> for CommandError {
 }
 
 impl From<WorkspaceInitError> for CommandError {
-    fn from(_: WorkspaceInitError) -> Self {
-        user_error("The target repo already exists")
+    fn from(err: WorkspaceInitError) -> Self {
+        match err {
+            WorkspaceInitError::DestinationExists(_) => {
+                user_error("The target repo already exists")
+            }
+            WorkspaceInitError::NonUnicodePath => {
+                user_error("The target repo path contains non-unicode characters")
+            }
+            WorkspaceInitError::CheckOutCommit(err) => CommandError::InternalError(format!(
+                "Failed to check out the initial commit: {err}"
+            )),
+            WorkspaceInitError::Path(err) => {
+                CommandError::InternalError(format!("Failed to access the repository: {err}"))
+            }
+        }
     }
 }
 
