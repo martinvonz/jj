@@ -187,29 +187,6 @@ enum Property<'a, I> {
 }
 
 impl<'a, I: 'a> Property<'a, I> {
-    fn after<C: 'a>(self, first: Box<dyn TemplateProperty<C, Output = I> + 'a>) -> Property<'a, C> {
-        fn chain<'a, C: 'a, I: 'a, O: 'a>(
-            first: Box<dyn TemplateProperty<C, Output = I> + 'a>,
-            second: Box<dyn TemplateProperty<I, Output = O> + 'a>,
-        ) -> Box<dyn TemplateProperty<C, Output = O> + 'a> {
-            Box::new(TemplateFunction::new(first, move |value| {
-                second.extract(&value)
-            }))
-        }
-        match self {
-            Property::String(property) => Property::String(chain(first, property)),
-            Property::Boolean(property) => Property::Boolean(chain(first, property)),
-            Property::CommitOrChangeId(property) => {
-                Property::CommitOrChangeId(chain(first, property))
-            }
-            Property::IdWithHighlightedPrefix(property) => {
-                Property::IdWithHighlightedPrefix(chain(first, property))
-            }
-            Property::Signature(property) => Property::Signature(chain(first, property)),
-            Property::Timestamp(property) => Property::Timestamp(chain(first, property)),
-        }
-    }
-
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<I, Output = bool> + 'a>> {
         match self {
             Property::String(property) => {
@@ -306,10 +283,10 @@ fn parse_method_chain<'a, I: 'a>(
         };
         labels.push(name.as_str().to_owned());
         property = match property {
-            Property::String(property) => parse_string_method(name, args_pair)?.after(property),
-            Property::Boolean(property) => parse_boolean_method(name, args_pair)?.after(property),
+            Property::String(property) => parse_string_method(property, name, args_pair)?,
+            Property::Boolean(property) => parse_boolean_method(property, name, args_pair)?,
             Property::CommitOrChangeId(property) => {
-                parse_commit_or_change_id_method(name, args_pair)?.after(property)
+                parse_commit_or_change_id_method(property, name, args_pair)?
             }
             Property::IdWithHighlightedPrefix(_property) => {
                 return Err(TemplateParseError::no_such_method(
@@ -317,61 +294,65 @@ fn parse_method_chain<'a, I: 'a>(
                     &name,
                 ));
             }
-            Property::Signature(property) => {
-                parse_signature_method(name, args_pair)?.after(property)
-            }
-            Property::Timestamp(property) => {
-                parse_timestamp_method(name, args_pair)?.after(property)
-            }
+            Property::Signature(property) => parse_signature_method(property, name, args_pair)?,
+            Property::Timestamp(property) => parse_timestamp_method(property, name, args_pair)?,
         };
     }
     Ok(PropertyAndLabels(property, labels))
 }
 
-fn parse_string_method<'a>(
+fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
+    first: impl TemplateProperty<I, Output = J> + 'a,
+    second: impl TemplateProperty<J, Output = O> + 'a,
+) -> Box<dyn TemplateProperty<I, Output = O> + 'a> {
+    Box::new(TemplateFunction::new(first, move |value| {
+        second.extract(&value)
+    }))
+}
+
+fn parse_string_method<'a, I: 'a>(
+    self_property: impl TemplateProperty<I, Output = String> + 'a,
     name: Pair<Rule>,
     _args_pair: Pair<Rule>,
-) -> TemplateParseResult<Property<'a, String>> {
-    fn wrap_fn<'a, O>(
-        f: impl Fn(&String) -> O + 'a,
-    ) -> Box<dyn TemplateProperty<String, Output = O> + 'a> {
-        Box::new(TemplatePropertyFn(f))
-    }
+) -> TemplateParseResult<Property<'a, I>> {
     // TODO: validate arguments
     let property = match name.as_str() {
-        "first_line" => Property::String(wrap_fn(|s| {
-            s.lines().next().unwrap_or_default().to_string()
-        })),
+        "first_line" => Property::String(chain_properties(
+            self_property,
+            TemplatePropertyFn(|s: &String| s.lines().next().unwrap_or_default().to_string()),
+        )),
         _ => return Err(TemplateParseError::no_such_method("String", &name)),
     };
     Ok(property)
 }
 
-fn parse_boolean_method<'a>(
+fn parse_boolean_method<'a, I: 'a>(
+    _self_property: impl TemplateProperty<I, Output = bool> + 'a,
     name: Pair<Rule>,
     _args_pair: Pair<Rule>,
-) -> TemplateParseResult<Property<'a, bool>> {
+) -> TemplateParseResult<Property<'a, I>> {
     Err(TemplateParseError::no_such_method("Boolean", &name))
 }
 
-fn parse_commit_or_change_id_method<'a>(
+fn parse_commit_or_change_id_method<'a, I: 'a>(
+    self_property: impl TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a,
     name: Pair<Rule>,
     _args_pair: Pair<Rule>,
-) -> TemplateParseResult<Property<'a, CommitOrChangeId<'a>>> {
-    fn wrap_fn<'a, O>(
-        f: impl Fn(&CommitOrChangeId<'a>) -> O + 'a,
-    ) -> Box<dyn TemplateProperty<CommitOrChangeId<'a>, Output = O> + 'a> {
-        Box::new(TemplatePropertyFn(f))
-    }
+) -> TemplateParseResult<Property<'a, I>> {
     // TODO: validate arguments
     let property = match name.as_str() {
-        "short" => Property::String(wrap_fn(|id| id.short())),
-        "shortest_prefix_and_brackets" => {
-            Property::String(wrap_fn(|id| id.shortest_prefix_and_brackets()))
-        }
-        "shortest_styled_prefix" => {
-            Property::IdWithHighlightedPrefix(wrap_fn(|id| id.shortest_styled_prefix()))
-        }
+        "short" => Property::String(chain_properties(
+            self_property,
+            TemplatePropertyFn(|id: &CommitOrChangeId| id.short()),
+        )),
+        "shortest_prefix_and_brackets" => Property::String(chain_properties(
+            self_property,
+            TemplatePropertyFn(|id: &CommitOrChangeId| id.shortest_prefix_and_brackets()),
+        )),
+        "shortest_styled_prefix" => Property::IdWithHighlightedPrefix(chain_properties(
+            self_property,
+            TemplatePropertyFn(|id: &CommitOrChangeId| id.shortest_styled_prefix()),
+        )),
         _ => {
             return Err(TemplateParseError::no_such_method(
                 "CommitOrChangeId",
@@ -382,37 +363,41 @@ fn parse_commit_or_change_id_method<'a>(
     Ok(property)
 }
 
-fn parse_signature_method<'a>(
+fn parse_signature_method<'a, I: 'a>(
+    self_property: impl TemplateProperty<I, Output = Signature> + 'a,
     name: Pair<Rule>,
     _args_pair: Pair<Rule>,
-) -> TemplateParseResult<Property<'a, Signature>> {
-    fn wrap_fn<'a, O>(
-        f: impl Fn(&Signature) -> O + 'a,
-    ) -> Box<dyn TemplateProperty<Signature, Output = O> + 'a> {
-        Box::new(TemplatePropertyFn(f))
-    }
+) -> TemplateParseResult<Property<'a, I>> {
     // TODO: validate arguments
     let property = match name.as_str() {
-        "name" => Property::String(wrap_fn(|signature| signature.name.clone())),
-        "email" => Property::String(wrap_fn(|signature| signature.email.clone())),
-        "timestamp" => Property::Timestamp(wrap_fn(|signature| signature.timestamp.clone())),
+        "name" => Property::String(chain_properties(
+            self_property,
+            TemplatePropertyFn(|signature: &Signature| signature.name.clone()),
+        )),
+        "email" => Property::String(chain_properties(
+            self_property,
+            TemplatePropertyFn(|signature: &Signature| signature.email.clone()),
+        )),
+        "timestamp" => Property::Timestamp(chain_properties(
+            self_property,
+            TemplatePropertyFn(|signature: &Signature| signature.timestamp.clone()),
+        )),
         _ => return Err(TemplateParseError::no_such_method("Signature", &name)),
     };
     Ok(property)
 }
 
-fn parse_timestamp_method<'a>(
+fn parse_timestamp_method<'a, I: 'a>(
+    self_property: impl TemplateProperty<I, Output = Timestamp> + 'a,
     name: Pair<Rule>,
     _args_pair: Pair<Rule>,
-) -> TemplateParseResult<Property<'a, Timestamp>> {
-    fn wrap_fn<'a, O>(
-        f: impl Fn(&Timestamp) -> O + 'a,
-    ) -> Box<dyn TemplateProperty<Timestamp, Output = O> + 'a> {
-        Box::new(TemplatePropertyFn(f))
-    }
+) -> TemplateParseResult<Property<'a, I>> {
     // TODO: validate arguments
     let property = match name.as_str() {
-        "ago" => Property::String(wrap_fn(time_util::format_timestamp_relative_to_now)),
+        "ago" => Property::String(chain_properties(
+            self_property,
+            TemplatePropertyFn(time_util::format_timestamp_relative_to_now),
+        )),
         _ => return Err(TemplateParseError::no_such_method("Timestamp", &name)),
     };
     Ok(property)
