@@ -103,6 +103,10 @@ fn cmd_op_log(
             }
             Ok(())
         }
+
+        fn has_content(&self, _: &Operation) -> bool {
+            true
+        }
     }
     let template = OpTemplate {
         relative_timestamps: command.settings().relative_timestamps(),
