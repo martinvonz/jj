@@ -1423,17 +1423,19 @@ fn log_template(settings: &UserSettings) -> String {
     let default_template = format!(
         r#"
             label(if(current_working_copy, "working_copy"),
-              if(divergent,
-                label("divergent", change_id.{prefix_format} "??"),
-                change_id.{prefix_format})
-              if(author.email(), " " author.email())
-              " " {committer_timestamp}
-              if(branches, " " branches)
-              if(tags, " " tags)
-              if(working_copies, " " working_copies)
-              if(git_head, " " git_head)
-              " " commit_id.{prefix_format}
-              if(conflict, " " label("conflict", "conflict"))
+              separate(" ",
+                if(divergent,
+                  label("divergent", change_id.{prefix_format} "??"),
+                  change_id.{prefix_format}),
+                author.email(),
+                {committer_timestamp},
+                branches,
+                tags,
+                working_copies,
+                git_head,
+                commit_id.{prefix_format},
+                if(conflict, label("conflict", "conflict"))
+              )
               "\n"
               if(empty, label("empty", "(empty)") " ")
               if(description, description.first_line(), {DESCRIPTION_PLACEHOLDER_TEMPLATE})
