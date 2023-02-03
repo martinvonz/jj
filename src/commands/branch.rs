@@ -21,68 +21,79 @@ use crate::ui::Ui;
 /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
 #[derive(clap::Subcommand, Clone, Debug)]
 pub enum BranchSubcommand {
-    /// Create a new branch.
     #[command(visible_alias("c"))]
-    Create {
-        /// The branch's target revision.
-        #[arg(long, short)]
-        revision: Option<RevisionArg>,
-
-        /// The branches to create.
-        #[arg(required = true, value_parser=NonEmptyStringValueParser::new())]
-        names: Vec<String>,
-    },
-
-    /// Delete an existing branch and propagate the deletion to remotes on the
-    /// next push.
+    Create(BranchCreateArgs),
     #[command(visible_alias("d"))]
-    Delete {
-        /// The branches to delete.
-        #[arg(required = true)]
-        names: Vec<String>,
-    },
-
-    /// Forget everything about a branch, including its local and remote
-    /// targets.
-    ///
-    /// A forgotten branch will not impact remotes on future pushes. It will be
-    /// recreated on future pulls if it still exists in the remote.
+    Delete(BranchDeleteArgs),
     #[command(visible_alias("f"))]
-    Forget {
-        /// The branches to forget.
-        #[arg(required_unless_present_any(&["glob"]))]
-        names: Vec<String>,
-
-        /// A glob pattern indicating branches to forget.
-        #[arg(long)]
-        glob: Vec<String>,
-    },
-
-    /// List branches and their targets
-    ///
-    /// A remote branch will be included only if its target is different from
-    /// the local target. For a conflicted branch (both local and remote), old
-    /// target revisions are preceded by a "-" and new target revisions are
-    /// preceded by a "+". For information about branches, see
-    /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+    Forget(BranchForgetArgs),
     #[command(visible_alias("l"))]
-    List,
-
-    /// Update a given branch to point to a certain commit.
+    List(BranchListArgs),
     #[command(visible_alias("s"))]
-    Set {
-        /// The branch's target revision.
-        #[arg(long, short)]
-        revision: Option<RevisionArg>,
+    Set(BranchSetArgs),
+}
 
-        /// Allow moving the branch backwards or sideways.
-        #[arg(long, short = 'B')]
-        allow_backwards: bool,
+/// Create a new branch.
+#[derive(clap::Args, Clone, Debug)]
+pub struct BranchCreateArgs {
+    /// The branch's target revision.
+    #[arg(long, short)]
+    revision: Option<RevisionArg>,
 
-        /// The branches to update.
-        #[arg(required = true)]
-        names: Vec<String>,
-    },
+    /// The branches to create.
+    #[arg(required = true, value_parser=NonEmptyStringValueParser::new())]
+    names: Vec<String>,
+}
+
+/// Delete an existing branch and propagate the deletion to remotes on the
+/// next push.
+#[derive(clap::Args, Clone, Debug)]
+pub struct BranchDeleteArgs {
+    /// The branches to delete.
+    #[arg(required = true)]
+    names: Vec<String>,
+}
+
+/// List branches and their targets
+///
+/// A remote branch will be included only if its target is different from
+/// the local target. For a conflicted branch (both local and remote), old
+/// target revisions are preceded by a "-" and new target revisions are
+/// preceded by a "+". For information about branches, see
+/// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+#[derive(clap::Args, Clone, Debug)]
+pub struct BranchListArgs;
+
+/// Forget everything about a branch, including its local and remote
+/// targets.
+///
+/// A forgotten branch will not impact remotes on future pushes. It will be
+/// recreated on future pulls if it still exists in the remote.
+#[derive(clap::Args, Clone, Debug)]
+pub struct BranchForgetArgs {
+    /// The branches to forget.
+    #[arg(required_unless_present_any(& ["glob"]))]
+    pub names: Vec<String>,
+
+    /// A glob pattern indicating branches to forget.
+    #[arg(long)]
+    pub glob: Vec<String>,
+}
+
+/// Update a given branch to point to a certain commit.
+#[derive(clap::Args, Clone, Debug)]
+pub struct BranchSetArgs {
+    /// The branch's target revision.
+    #[arg(long, short)]
+    pub revision: Option<RevisionArg>,
+
+    /// Allow moving the branch backwards or sideways.
+    #[arg(long, short = 'B')]
+    pub allow_backwards: bool,
+
+    /// The branches to update.
+    #[arg(required = true)]
+    pub names: Vec<String>,
 }
 
 pub fn cmd_branch(
@@ -120,7 +131,7 @@ pub fn cmd_branch(
     }
 
     match subcommand {
-        BranchSubcommand::Create { revision, names } => {
+        BranchSubcommand::Create(BranchCreateArgs { revision, names }) => {
             let branch_names: Vec<&str> = names
                 .iter()
                 .map(|branch_name| match view.get_local_branch(branch_name) {
@@ -156,11 +167,11 @@ pub fn cmd_branch(
             tx.finish(ui)?;
         }
 
-        BranchSubcommand::Set {
+        BranchSubcommand::Set(BranchSetArgs {
             revision,
             allow_backwards,
             names: branch_names,
-        } => {
+        }) => {
             if branch_names.len() > 1 {
                 writeln!(
                     ui.warning(),
@@ -199,7 +210,7 @@ pub fn cmd_branch(
             tx.finish(ui)?;
         }
 
-        BranchSubcommand::Delete { names } => {
+        BranchSubcommand::Delete(BranchDeleteArgs { names }) => {
             validate_branch_names_exist(view, names)?;
             let mut tx =
                 workspace_command.start_transaction(&format!("delete {}", make_branch_term(names)));
@@ -209,7 +220,7 @@ pub fn cmd_branch(
             tx.finish(ui)?;
         }
 
-        BranchSubcommand::Forget { names, glob } => {
+        BranchSubcommand::Forget(BranchForgetArgs { names, glob }) => {
             validate_branch_names_exist(view, names)?;
             let globbed_names = find_globs(view, glob)?;
             let names: BTreeSet<String> = names.iter().cloned().chain(globbed_names).collect();
@@ -221,7 +232,7 @@ pub fn cmd_branch(
             tx.finish(ui)?;
         }
 
-        BranchSubcommand::List => {
+        BranchSubcommand::List(BranchListArgs) => {
             list_branches(ui, command, &workspace_command)?;
         }
     }
