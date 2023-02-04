@@ -399,9 +399,21 @@ fn parse_string_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = String> + 'a,
     name: Pair<Rule>,
     args_pair: Pair<Rule>,
-    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     let property = match name.as_str() {
+        "contains" => {
+            let [needle_pair] = expect_exact_arguments(args_pair)?;
+            // TODO: or .try_into_string() to disable implicit type cast?
+            let needle_property =
+                parse_template_rule(needle_pair, parse_keyword)?.into_plain_text();
+            Property::Boolean(chain_properties(
+                (self_property, needle_property),
+                TemplatePropertyFn(|(haystack, needle): &(String, String)| {
+                    haystack.contains(needle)
+                }),
+            ))
+        }
         "first_line" => {
             expect_no_arguments(args_pair)?;
             Property::String(chain_properties(
