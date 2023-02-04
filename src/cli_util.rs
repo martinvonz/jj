@@ -1419,7 +1419,9 @@ pub fn resolve_mutliple_nonempty_revsets_flag_guarded(
     } else {
         let mut commits = IndexSet::new();
         for revision_str in revisions {
-            let commit = workspace_command.resolve_single_rev(revision_str)?;
+            let commit = workspace_command
+                .resolve_single_rev(revision_str)
+                .map_err(append_large_revsets_hint_if_multiple_revisions)?;
             let commit_hash = short_commit_hash(commit.id());
             if !commits.insert(commit) {
                 return Err(user_error(format!(
@@ -1428,6 +1430,24 @@ pub fn resolve_mutliple_nonempty_revsets_flag_guarded(
             }
         }
         Ok(commits)
+    }
+}
+
+fn append_large_revsets_hint_if_multiple_revisions(err: CommandError) -> CommandError {
+    match err {
+        CommandError::UserError { message, hint } if message.contains("more than one revision") => {
+            CommandError::UserError {
+                message,
+                hint: {
+                    Some(format!(
+                        "{old_hint}If this was intentional, specify the `--allow-large-revsets` \
+                         argument",
+                        old_hint = hint.map(|h| format!("{h}\n")).unwrap_or_default()
+                    ))
+                },
+            }
+        }
+        _ => err,
     }
 }
 
