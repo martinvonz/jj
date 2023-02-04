@@ -148,6 +148,15 @@ fn test_templater_parse_error() {
       = Method "foo" doesn't exist for type "String"
     "###);
 
+    insta::assert_snapshot!(render_err(r#"description.contains()"#), @r###"
+    Error: Failed to parse template:  --> 1:22
+      |
+    1 | description.contains()
+      |                      ^
+      |
+      = Expected 1 arguments
+    "###);
+
     insta::assert_snapshot!(render_err(r#"description.first_line("foo")"#), @r###"
     Error: Failed to parse template:  --> 1:24
       |
@@ -206,7 +215,14 @@ fn test_templater_string_method() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m=description 1"]);
     let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
+
+    insta::assert_snapshot!(render(r#""fooo".contains("foo")"#), @"true");
+    insta::assert_snapshot!(render(r#""foo".contains("fooo")"#), @"false");
+    insta::assert_snapshot!(render(r#"description.contains("description")"#), @"true");
+    insta::assert_snapshot!(
+        render(r#""description 123".contains(description.first_line())"#), @"true");
 
     insta::assert_snapshot!(render(r#""".first_line()"#), @"");
     insta::assert_snapshot!(render(r#""foo\nbar".first_line()"#), @"foo");
