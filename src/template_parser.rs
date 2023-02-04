@@ -582,18 +582,13 @@ fn parse_term<'a, C: 'a>(
     let expr = inner.next().unwrap();
     let maybe_method = inner.next().unwrap();
     assert!(inner.next().is_none());
-    match expr.as_rule() {
+    let primary = match expr.as_rule() {
         Rule::literal => {
             let text = parse_string_literal(expr);
             let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
-            let property = parse_method_chain(maybe_method, term, parse_keyword)?;
-            Ok(Expression::Property(property))
+            Expression::Property(term)
         }
-        Rule::identifier => {
-            let term = parse_keyword(expr)?;
-            let property = parse_method_chain(maybe_method, term, parse_keyword)?;
-            Ok(Expression::Property(property))
-        }
+        Rule::identifier => Expression::Property(parse_keyword(expr)?),
         Rule::function => {
             let (name, args_pair) = {
                 let mut inner = expr.into_inner();
@@ -603,7 +598,7 @@ fn parse_term<'a, C: 'a>(
                 assert_eq!(args_pair.as_rule(), Rule::function_arguments);
                 (name, args_pair)
             };
-            let expression = match name.as_str() {
+            match name.as_str() {
                 "label" => {
                     let [label_pair, content_pair] = expect_exact_arguments(args_pair)?;
                     let label_property =
@@ -649,11 +644,24 @@ fn parse_term<'a, C: 'a>(
                     Expression::Template(template)
                 }
                 _ => return Err(TemplateParseError::no_such_function(&name)),
-            };
-            Ok(expression)
+            }
         }
-        Rule::template => parse_template_rule(expr, parse_keyword),
+        Rule::template => parse_template_rule(expr, parse_keyword)?,
         other => panic!("unexpected term: {other:?}"),
+    };
+    match primary {
+        Expression::Property(property) => {
+            parse_method_chain(maybe_method, property, parse_keyword).map(Expression::Property)
+        }
+        Expression::Template(template) => {
+            if let Some(chain) = maybe_method.into_inner().next() {
+                assert_eq!(chain.as_rule(), Rule::function);
+                let name = chain.into_inner().next().unwrap();
+                Err(TemplateParseError::no_such_method("Template", &name))
+            } else {
+                Ok(Expression::Template(template))
+            }
+        }
     }
 }
 
