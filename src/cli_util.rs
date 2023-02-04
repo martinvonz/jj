@@ -1947,17 +1947,13 @@ impl CliRunner {
     }
 
     /// Replaces `StoreFactories` to be used.
-    pub fn set_store_factories(self, store_factories: StoreFactories) -> Self {
-        CliRunner {
-            tracing_subscription: self.tracing_subscription,
-            app: self.app,
-            store_factories: Some(store_factories),
-            dispatch_fn: self.dispatch_fn,
-        }
+    pub fn set_store_factories(mut self, store_factories: StoreFactories) -> Self {
+        self.store_factories = Some(store_factories);
+        self
     }
 
     /// Registers new subcommands in addition to the default ones.
-    pub fn add_subcommand<C, F>(self, custom_dispatch_fn: F) -> Self
+    pub fn add_subcommand<C, F>(mut self, custom_dispatch_fn: F) -> Self
     where
         C: clap::Subcommand,
         F: FnOnce(&mut Ui, &CommandHelper, C) -> Result<(), CommandError> + 'static,
@@ -1970,16 +1966,13 @@ impl CliRunner {
                     Err(_) => old_dispatch_fn(ui, command_helper, matches),
                 }
             };
-        CliRunner {
-            tracing_subscription: self.tracing_subscription,
-            app: C::augment_subcommands(self.app),
-            store_factories: self.store_factories,
-            dispatch_fn: Box::new(new_dispatch_fn),
-        }
+        self.app = C::augment_subcommands(self.app);
+        self.dispatch_fn = Box::new(new_dispatch_fn);
+        self
     }
 
     /// Registers new global arguments in addition to the default ones.
-    pub fn add_global_args<A, F>(self, process_before: F) -> Self
+    pub fn add_global_args<A, F>(mut self, process_before: F) -> Self
     where
         A: clap::Args,
         F: FnOnce(&mut Ui, A) -> Result<(), CommandError> + 'static,
@@ -1991,12 +1984,9 @@ impl CliRunner {
                 process_before(ui, custom_args)?;
                 old_dispatch_fn(ui, command_helper, matches)
             };
-        CliRunner {
-            tracing_subscription: self.tracing_subscription,
-            app: A::augment_args(self.app),
-            store_factories: self.store_factories,
-            dispatch_fn: Box::new(new_dispatch_fn),
-        }
+        self.app = A::augment_args(self.app);
+        self.dispatch_fn = Box::new(new_dispatch_fn);
+        self
     }
 
     fn run_internal(
