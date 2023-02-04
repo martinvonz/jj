@@ -1794,7 +1794,7 @@ fn cmd_describe(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewriteable(&commit)?;
+    workspace_command.check_rewritable(&commit)?;
     let description = if args.stdin {
         let mut buffer = String::new();
         io::stdin().read_to_string(&mut buffer).unwrap();
@@ -1862,7 +1862,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     Ok(())
 }
 
-fn resolve_multiple_rewriteable_revsets(
+fn resolve_multiple_rewritable_revsets(
     revision_args: &[RevisionArg],
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<IndexSet<Commit>, CommandError> {
@@ -1871,7 +1871,7 @@ fn resolve_multiple_rewriteable_revsets(
         let revisions = workspace_command.resolve_revset(revset)?;
         workspace_command.check_non_empty(&revisions)?;
         for commit in &revisions {
-            workspace_command.check_rewriteable(commit)?;
+            workspace_command.check_rewritable(commit)?;
         }
         acc.extend(revisions);
     }
@@ -1885,7 +1885,7 @@ fn cmd_duplicate(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let to_duplicate: IndexSet<Commit> =
-        resolve_multiple_rewriteable_revsets(&args.revisions, &workspace_command)?;
+        resolve_multiple_rewritable_revsets(&args.revisions, &workspace_command)?;
     let mut duplicated_old_to_new: IndexMap<Commit, Commit> = IndexMap::new();
 
     let mut tx = workspace_command
@@ -1938,7 +1938,7 @@ fn cmd_abandon(
     args: &AbandonArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let to_abandon = resolve_multiple_rewriteable_revsets(&args.revisions, &workspace_command)?;
+    let to_abandon = resolve_multiple_rewritable_revsets(&args.revisions, &workspace_command)?;
     let transaction_description = if to_abandon.len() == 1 {
         format!("abandon commit {}", to_abandon[0].id().hex())
     } else {
@@ -1981,7 +1981,7 @@ fn cmd_abandon(
 fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewriteable(&new_commit)?;
+    workspace_command.check_rewritable(&new_commit)?;
     if workspace_command
         .repo()
         .view()
@@ -2052,8 +2052,8 @@ fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(),
     if source.id() == destination.id() {
         return Err(user_error("Source and destination cannot be the same."));
     }
-    workspace_command.check_rewriteable(&source)?;
-    workspace_command.check_rewriteable(&destination)?;
+    workspace_command.check_rewritable(&source)?;
+    workspace_command.check_rewritable(&destination)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "move changes from {} to {}",
@@ -2139,13 +2139,13 @@ from the source will be moved into the destination.
 fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewriteable(&commit)?;
+    workspace_command.check_rewritable(&commit)?;
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(user_error("Cannot squash merge commits"));
     }
     let parent = &parents[0];
-    workspace_command.check_rewriteable(parent)?;
+    workspace_command.check_rewritable(parent)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut tx =
         workspace_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
@@ -2213,13 +2213,13 @@ fn cmd_unsquash(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewriteable(&commit)?;
+    workspace_command.check_rewritable(&commit)?;
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(user_error("Cannot unsquash merge commits"));
     }
     let parent = &parents[0];
-    workspace_command.check_rewriteable(parent)?;
+    workspace_command.check_rewritable(parent)?;
     let mut tx =
         workspace_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
     let parent_base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &parent.parents());
@@ -2306,7 +2306,7 @@ fn cmd_resolve(
     };
 
     let (repo_path, _) = conflicts.get(0).unwrap();
-    workspace_command.check_rewriteable(&commit)?;
+    workspace_command.check_rewritable(&commit)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "Resolve conflicts in commit {}",
         commit.id().hex()
@@ -2443,7 +2443,7 @@ fn cmd_restore(
     };
     let from_commit = workspace_command.resolve_single_rev(from_str)?;
     let to_commit = workspace_command.resolve_single_rev(to_str)?;
-    workspace_command.check_rewriteable(&to_commit)?;
+    workspace_command.check_rewritable(&to_commit)?;
     let tree_id = if args.paths.is_empty() {
         from_commit.tree_id().clone()
     } else {
@@ -2504,7 +2504,7 @@ fn cmd_diffedit(
         base_commits = target_commit.parents();
         diff_description = "The diff initially shows the commit's changes.".to_string();
     };
-    workspace_command.check_rewriteable(&target_commit)?;
+    workspace_command.check_rewritable(&target_commit)?;
 
     let mut tx =
         workspace_command.start_transaction(&format!("edit commit {}", target_commit.id().hex()));
@@ -2589,7 +2589,7 @@ fn diff_summary_to_description(bytes: &[u8]) -> String {
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewriteable(&commit)?;
+    workspace_command.check_rewritable(&commit)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut tx =
         workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
@@ -2744,7 +2744,7 @@ fn rebase_branch(
         .start_transaction(&format!("rebase branch at {}", branch_commit.id().hex()));
     let mut num_rebased = 0;
     for root_commit in &root_commits {
-        tx.base_workspace_helper().check_rewriteable(root_commit)?;
+        tx.base_workspace_helper().check_rewritable(root_commit)?;
         rebase_commit(command.settings(), tx.mut_repo(), root_commit, new_parents)?;
         num_rebased += 1;
     }
@@ -2762,7 +2762,7 @@ fn rebase_descendants(
     source_str: &str,
 ) -> Result<(), CommandError> {
     let old_commit = workspace_command.resolve_single_rev(source_str)?;
-    workspace_command.check_rewriteable(&old_commit)?;
+    workspace_command.check_rewritable(&old_commit)?;
     check_rebase_destinations(workspace_command.repo(), new_parents, &old_commit)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "rebase commit {} and descendants",
@@ -2783,7 +2783,7 @@ fn rebase_revision(
     rev_str: &str,
 ) -> Result<(), CommandError> {
     let old_commit = workspace_command.resolve_single_rev(rev_str)?;
-    workspace_command.check_rewriteable(&old_commit)?;
+    workspace_command.check_rewritable(&old_commit)?;
     check_rebase_destinations(workspace_command.repo(), new_parents, &old_commit)?;
     let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
     let child_commits: Vec<_> = workspace_command

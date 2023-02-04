@@ -817,7 +817,7 @@ impl WorkspaceCommandHelper {
         )
     }
 
-    pub fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {
+    pub fn check_rewritable(&self, commit: &Commit) -> Result<(), CommandError> {
         if commit.id() == self.repo.store().root_commit_id() {
             return Err(user_error("Cannot rewrite the root commit"));
         }
