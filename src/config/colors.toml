@@ -1,7 +1,7 @@
 [colors]
 "error" = "red"
 "warning" = "yellow"
-"hint" = "blue"
+"hint" = "cyan"
 
 "conflict_description" = "yellow"
 "conflict_description difficult" = "red"
