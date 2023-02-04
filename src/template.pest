@@ -24,7 +24,7 @@ literal_char = @{ !("\"" | "\\") ~ ANY }
 raw_literal = @{ literal_char+ }
 literal = { "\"" ~ (raw_literal | escape)* ~ "\"" }
 
-identifier = @{ (ASCII_ALPHANUMERIC | "_")+ }
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
 function = { identifier ~ "(" ~ function_arguments ~ ")" }
 function_arguments = {
