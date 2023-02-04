@@ -1396,7 +1396,7 @@ fn load_revset_aliases(
     Ok(aliases_map)
 }
 
-pub fn resolve_multiple_rewritable_revsets(
+pub fn resolve_multiple_nonempty_revsets(
     revision_args: &[RevisionArg],
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<IndexSet<Commit>, CommandError> {
@@ -1404,9 +1404,6 @@ pub fn resolve_multiple_rewritable_revsets(
     for revset in revision_args {
         let revisions = workspace_command.resolve_revset(revset)?;
         workspace_command.check_non_empty(&revisions)?;
-        for commit in &revisions {
-            workspace_command.check_rewritable(commit)?;
-        }
         acc.extend(revisions);
     }
     Ok(acc)
