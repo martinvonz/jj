@@ -314,6 +314,19 @@ fn test_rebase_multiple_destinations() {
     o 
     "###);
 
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b|c"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "b|c" resolved to more than one revision
+    Hint: The revset "b|c" resolved to these revisions:
+    fe2e8e8b50b3 c
+    d370aee184ba b
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "b"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "b" and "b" resolved to the same revision d370aee184ba
+    "###);
+
     let stderr =
         test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "root"]);
     insta::assert_snapshot!(stderr, @r###"
