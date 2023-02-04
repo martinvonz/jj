@@ -267,6 +267,16 @@ impl<'a, C: 'a> Expression<'a, C> {
 
 type OptionalArg<'i> = Option<Pair<'i, Rule>>;
 
+fn expect_no_arguments(pair: Pair<Rule>) -> Result<(), TemplateParseError> {
+    let span = pair.as_span();
+    let mut pairs = pair.into_inner();
+    if pairs.next().is_none() {
+        Ok(())
+    } else {
+        Err(TemplateParseError::invalid_argument_count_exact(0, span))
+    }
+}
+
 /// Extracts exactly N required arguments.
 fn expect_exact_arguments<const N: usize>(
     pair: Pair<Rule>,
@@ -388,15 +398,17 @@ fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
 fn parse_string_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = String> + 'a,
     name: Pair<Rule>,
-    _args_pair: Pair<Rule>,
+    args_pair: Pair<Rule>,
     _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    // TODO: validate arguments
     let property = match name.as_str() {
-        "first_line" => Property::String(chain_properties(
-            self_property,
-            TemplatePropertyFn(|s: &String| s.lines().next().unwrap_or_default().to_string()),
-        )),
+        "first_line" => {
+            expect_no_arguments(args_pair)?;
+            Property::String(chain_properties(
+                self_property,
+                TemplatePropertyFn(|s: &String| s.lines().next().unwrap_or_default().to_string()),
+            ))
+        }
         _ => return Err(TemplateParseError::no_such_method("String", &name)),
     };
     Ok(property)
@@ -414,23 +426,31 @@ fn parse_boolean_method<'a, I: 'a>(
 fn parse_commit_or_change_id_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a,
     name: Pair<Rule>,
-    _args_pair: Pair<Rule>,
+    args_pair: Pair<Rule>,
     _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    // TODO: validate arguments
     let property = match name.as_str() {
-        "short" => Property::String(chain_properties(
-            self_property,
-            TemplatePropertyFn(|id: &CommitOrChangeId| id.short()),
-        )),
-        "shortest_prefix_and_brackets" => Property::String(chain_properties(
-            self_property,
-            TemplatePropertyFn(|id: &CommitOrChangeId| id.shortest_prefix_and_brackets()),
-        )),
-        "shortest_styled_prefix" => Property::IdWithHighlightedPrefix(chain_properties(
-            self_property,
-            TemplatePropertyFn(|id: &CommitOrChangeId| id.shortest_styled_prefix()),
-        )),
+        "short" => {
+            expect_no_arguments(args_pair)?;
+            Property::String(chain_properties(
+                self_property,
+                TemplatePropertyFn(|id: &CommitOrChangeId| id.short()),
+            ))
+        }
+        "shortest_prefix_and_brackets" => {
+            expect_no_arguments(args_pair)?;
+            Property::String(chain_properties(
+                self_property,
+                TemplatePropertyFn(|id: &CommitOrChangeId| id.shortest_prefix_and_brackets()),
+            ))
+        }
+        "shortest_styled_prefix" => {
+            expect_no_arguments(args_pair)?;
+            Property::IdWithHighlightedPrefix(chain_properties(
+                self_property,
+                TemplatePropertyFn(|id: &CommitOrChangeId| id.shortest_styled_prefix()),
+            ))
+        }
         _ => {
             return Err(TemplateParseError::no_such_method(
                 "CommitOrChangeId",
@@ -444,23 +464,31 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
 fn parse_signature_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = Signature> + 'a,
     name: Pair<Rule>,
-    _args_pair: Pair<Rule>,
+    args_pair: Pair<Rule>,
     _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    // TODO: validate arguments
     let property = match name.as_str() {
-        "name" => Property::String(chain_properties(
-            self_property,
-            TemplatePropertyFn(|signature: &Signature| signature.name.clone()),
-        )),
-        "email" => Property::String(chain_properties(
-            self_property,
-            TemplatePropertyFn(|signature: &Signature| signature.email.clone()),
-        )),
-        "timestamp" => Property::Timestamp(chain_properties(
-            self_property,
-            TemplatePropertyFn(|signature: &Signature| signature.timestamp.clone()),
-        )),
+        "name" => {
+            expect_no_arguments(args_pair)?;
+            Property::String(chain_properties(
+                self_property,
+                TemplatePropertyFn(|signature: &Signature| signature.name.clone()),
+            ))
+        }
+        "email" => {
+            expect_no_arguments(args_pair)?;
+            Property::String(chain_properties(
+                self_property,
+                TemplatePropertyFn(|signature: &Signature| signature.email.clone()),
+            ))
+        }
+        "timestamp" => {
+            expect_no_arguments(args_pair)?;
+            Property::Timestamp(chain_properties(
+                self_property,
+                TemplatePropertyFn(|signature: &Signature| signature.timestamp.clone()),
+            ))
+        }
         _ => return Err(TemplateParseError::no_such_method("Signature", &name)),
     };
     Ok(property)
@@ -469,15 +497,17 @@ fn parse_signature_method<'a, I: 'a>(
 fn parse_timestamp_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = Timestamp> + 'a,
     name: Pair<Rule>,
-    _args_pair: Pair<Rule>,
+    args_pair: Pair<Rule>,
     _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    // TODO: validate arguments
     let property = match name.as_str() {
-        "ago" => Property::String(chain_properties(
-            self_property,
-            TemplatePropertyFn(time_util::format_timestamp_relative_to_now),
-        )),
+        "ago" => {
+            expect_no_arguments(args_pair)?;
+            Property::String(chain_properties(
+                self_property,
+                TemplatePropertyFn(time_util::format_timestamp_relative_to_now),
+            ))
+        }
         _ => return Err(TemplateParseError::no_such_method("Timestamp", &name)),
     };
     Ok(property)

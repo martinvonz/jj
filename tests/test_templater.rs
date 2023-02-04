@@ -148,6 +148,15 @@ fn test_templater_parse_error() {
       = Method "foo" doesn't exist for type "String"
     "###);
 
+    insta::assert_snapshot!(render_err(r#"description.first_line("foo")"#), @r###"
+    Error: Failed to parse template:  --> 1:24
+      |
+    1 | description.first_line("foo")
+      |                        ^---^
+      |
+      = Expected 0 arguments
+    "###);
+
     insta::assert_snapshot!(render_err(r#"label()"#), @r###"
     Error: Failed to parse template:  --> 1:7
       |
