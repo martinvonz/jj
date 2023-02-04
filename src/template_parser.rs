@@ -268,6 +268,7 @@ impl<'a, C: 'a> Expression<'a, C> {
 fn parse_method_chain<'a, I: 'a>(
     pair: Pair<Rule>,
     input_property: PropertyAndLabels<'a, I>,
+    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<PropertyAndLabels<'a, I>> {
     let PropertyAndLabels(mut property, mut labels) = input_property;
     assert_eq!(pair.as_rule(), Rule::maybe_method);
@@ -283,10 +284,14 @@ fn parse_method_chain<'a, I: 'a>(
         };
         labels.push(name.as_str().to_owned());
         property = match property {
-            Property::String(property) => parse_string_method(property, name, args_pair)?,
-            Property::Boolean(property) => parse_boolean_method(property, name, args_pair)?,
+            Property::String(property) => {
+                parse_string_method(property, name, args_pair, parse_keyword)?
+            }
+            Property::Boolean(property) => {
+                parse_boolean_method(property, name, args_pair, parse_keyword)?
+            }
             Property::CommitOrChangeId(property) => {
-                parse_commit_or_change_id_method(property, name, args_pair)?
+                parse_commit_or_change_id_method(property, name, args_pair, parse_keyword)?
             }
             Property::IdWithHighlightedPrefix(_property) => {
                 return Err(TemplateParseError::no_such_method(
@@ -294,8 +299,12 @@ fn parse_method_chain<'a, I: 'a>(
                     &name,
                 ));
             }
-            Property::Signature(property) => parse_signature_method(property, name, args_pair)?,
-            Property::Timestamp(property) => parse_timestamp_method(property, name, args_pair)?,
+            Property::Signature(property) => {
+                parse_signature_method(property, name, args_pair, parse_keyword)?
+            }
+            Property::Timestamp(property) => {
+                parse_timestamp_method(property, name, args_pair, parse_keyword)?
+            }
         };
     }
     Ok(PropertyAndLabels(property, labels))
@@ -314,6 +323,7 @@ fn parse_string_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = String> + 'a,
     name: Pair<Rule>,
     _args_pair: Pair<Rule>,
+    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     // TODO: validate arguments
     let property = match name.as_str() {
@@ -330,6 +340,7 @@ fn parse_boolean_method<'a, I: 'a>(
     _self_property: impl TemplateProperty<I, Output = bool> + 'a,
     name: Pair<Rule>,
     _args_pair: Pair<Rule>,
+    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     Err(TemplateParseError::no_such_method("Boolean", &name))
 }
@@ -338,6 +349,7 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a,
     name: Pair<Rule>,
     _args_pair: Pair<Rule>,
+    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     // TODO: validate arguments
     let property = match name.as_str() {
@@ -367,6 +379,7 @@ fn parse_signature_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = Signature> + 'a,
     name: Pair<Rule>,
     _args_pair: Pair<Rule>,
+    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     // TODO: validate arguments
     let property = match name.as_str() {
@@ -391,6 +404,7 @@ fn parse_timestamp_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = Timestamp> + 'a,
     name: Pair<Rule>,
     _args_pair: Pair<Rule>,
+    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     // TODO: validate arguments
     let property = match name.as_str() {
@@ -464,12 +478,12 @@ fn parse_term<'a, C: 'a>(
         Rule::literal => {
             let text = parse_string_literal(expr);
             let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
-            let property = parse_method_chain(maybe_method, term)?;
+            let property = parse_method_chain(maybe_method, term, parse_keyword)?;
             Ok(Expression::Property(property))
         }
         Rule::identifier => {
             let term = parse_keyword(expr)?;
-            let property = parse_method_chain(maybe_method, term)?;
+            let property = parse_method_chain(maybe_method, term, parse_keyword)?;
             Ok(Expression::Property(property))
         }
         Rule::function => {
