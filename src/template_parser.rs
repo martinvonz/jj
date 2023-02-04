@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::num::ParseIntError;
 use std::ops::{RangeFrom, RangeInclusive};
 use std::{error, fmt, iter};
 
@@ -50,6 +51,8 @@ pub struct TemplateParseError {
 pub enum TemplateParseErrorKind {
     #[error("Syntax error")]
     SyntaxError,
+    #[error("Invalid integer literal: {0}")]
+    ParseIntError(#[source] ParseIntError),
     #[error(r#"Keyword "{0}" doesn't exist"#)]
     NoSuchKeyword(String),
     #[error(r#"Function "{0}" doesn't exist"#)]
@@ -180,6 +183,7 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
 enum Property<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
+    Integer(Box<dyn TemplateProperty<I, Output = i64> + 'a>),
     CommitOrChangeId(Box<dyn TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a>),
     IdWithHighlightedPrefix(Box<dyn TemplateProperty<I, Output = IdWithHighlightedPrefix> + 'a>),
     Signature(Box<dyn TemplateProperty<I, Output = Signature> + 'a>),
@@ -193,6 +197,14 @@ impl<'a, I: 'a> Property<'a, I> {
                 Some(Box::new(TemplateFunction::new(property, |s| !s.is_empty())))
             }
             Property::Boolean(property) => Some(property),
+            _ => None,
+        }
+    }
+
+    #[cfg(test)] // TODO: remove after adding call site in production code
+    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<I, Output = i64> + 'a>> {
+        match self {
+            Property::Integer(property) => Some(property),
             _ => None,
         }
     }
@@ -213,6 +225,7 @@ impl<'a, I: 'a> Property<'a, I> {
         match self {
             Property::String(property) => wrap(property),
             Property::Boolean(property) => wrap(property),
+            Property::Integer(property) => wrap(property),
             Property::CommitOrChangeId(property) => wrap(property),
             Property::IdWithHighlightedPrefix(property) => wrap(property),
             Property::Signature(property) => wrap(property),
@@ -246,6 +259,14 @@ impl<'a, C: 'a> Expression<'a, C> {
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>> {
         match self {
             Expression::Property(PropertyAndLabels(property, _)) => property.try_into_boolean(),
+            Expression::Template(_) => None,
+        }
+    }
+
+    #[cfg(test)] // TODO: remove after adding call site in production code
+    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>> {
+        match self {
+            Expression::Property(PropertyAndLabels(property, _)) => property.try_into_integer(),
             Expression::Template(_) => None,
         }
     }
@@ -365,6 +386,9 @@ fn parse_method_chain<'a, I: 'a>(
             Property::Boolean(property) => {
                 parse_boolean_method(property, name, args_pair, parse_keyword)?
             }
+            Property::Integer(property) => {
+                parse_integer_method(property, name, args_pair, parse_keyword)?
+            }
             Property::CommitOrChangeId(property) => {
                 parse_commit_or_change_id_method(property, name, args_pair, parse_keyword)?
             }
@@ -432,6 +456,15 @@ fn parse_boolean_method<'a, I: 'a>(
     _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     Err(TemplateParseError::no_such_method("Boolean", &name))
+}
+
+fn parse_integer_method<'a, I: 'a>(
+    _self_property: impl TemplateProperty<I, Output = i64> + 'a,
+    name: Pair<Rule>,
+    _args_pair: Pair<Rule>,
+    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+) -> TemplateParseResult<Property<'a, I>> {
+    Err(TemplateParseError::no_such_method("Integer", &name))
 }
 
 fn parse_commit_or_change_id_method<'a, I: 'a>(
@@ -635,6 +668,16 @@ fn parse_term<'a, C: 'a>(
             let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
             Expression::Property(term)
         }
+        Rule::integer_literal => {
+            let value = expr.as_str().parse().map_err(|err| {
+                TemplateParseError::with_span(
+                    TemplateParseErrorKind::ParseIntError(err),
+                    expr.as_span(),
+                )
+            })?;
+            let term = PropertyAndLabels(Property::Integer(Box::new(Literal(value))), vec![]);
+            Expression::Property(term)
+        }
         Rule::identifier => Expression::Property(parse_keyword(expr)?),
         Rule::function => {
             let mut inner = expr.into_inner();
@@ -704,4 +747,27 @@ pub fn parse_commit_template<'a>(
         parse_commit_keyword(repo, workspace_id, pair)
     })?;
     Ok(expression.into_template())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(template_text: &str) -> TemplateParseResult<Expression<()>> {
+        parse_template_str(template_text, |pair| {
+            Err(TemplateParseError::no_such_keyword(&pair))
+        })
+    }
+
+    #[test]
+    fn test_integer_literal() {
+        let extract = |x: Expression<()>| x.try_into_integer().unwrap().extract(&());
+
+        assert_eq!(extract(parse("0").unwrap()), 0);
+        assert_eq!(extract(parse("(42)").unwrap()), 42);
+        assert!(parse("00").is_err());
+
+        assert_eq!(extract(parse(&format!("{}", i64::MAX)).unwrap()), i64::MAX);
+        assert!(parse(&format!("{}", (i64::MAX as u64) + 1)).is_err());
+    }
 }
