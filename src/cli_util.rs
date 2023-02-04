@@ -26,6 +26,7 @@ use std::sync::Arc;
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
 use git2::{Oid, Repository};
+use indexmap::IndexSet;
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
 use jujutsu_lib::commit::Commit;
@@ -1393,6 +1394,22 @@ fn load_revset_aliases(
         }
     }
     Ok(aliases_map)
+}
+
+pub fn resolve_multiple_rewritable_revsets(
+    revision_args: &[RevisionArg],
+    workspace_command: &WorkspaceCommandHelper,
+) -> Result<IndexSet<Commit>, CommandError> {
+    let mut acc = IndexSet::new();
+    for revset in revision_args {
+        let revisions = workspace_command.resolve_revset(revset)?;
+        workspace_command.check_non_empty(&revisions)?;
+        for commit in &revisions {
+            workspace_command.check_rewritable(commit)?;
+        }
+        acc.extend(revisions);
+    }
+    Ok(acc)
 }
 
 pub fn resolve_base_revs(

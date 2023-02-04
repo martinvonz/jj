@@ -45,10 +45,10 @@ use maplit::{hashmap, hashset};
 use pest::Parser;
 
 use crate::cli_util::{
-    self, check_stale_working_copy, print_checkout_stats, resolve_base_revs, run_ui_editor,
-    serialize_config_value, short_commit_hash, user_error, user_error_with_hint, Args,
-    CommandError, CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
-    DESCRIPTION_PLACEHOLDER_TEMPLATE,
+    self, check_stale_working_copy, print_checkout_stats, resolve_base_revs,
+    resolve_multiple_rewritable_revsets, run_ui_editor, serialize_config_value, short_commit_hash,
+    user_error, user_error_with_hint, Args, CommandError, CommandHelper, DescriptionArg,
+    RevisionArg, WorkspaceCommandHelper, DESCRIPTION_PLACEHOLDER_TEMPLATE,
 };
 use crate::config::{config_path, AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -1860,22 +1860,6 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     }
     tx.finish(ui)?;
     Ok(())
-}
-
-fn resolve_multiple_rewritable_revsets(
-    revision_args: &[RevisionArg],
-    workspace_command: &WorkspaceCommandHelper,
-) -> Result<IndexSet<Commit>, CommandError> {
-    let mut acc = IndexSet::new();
-    for revset in revision_args {
-        let revisions = workspace_command.resolve_revset(revset)?;
-        workspace_command.check_non_empty(&revisions)?;
-        for commit in &revisions {
-            workspace_command.check_rewritable(commit)?;
-        }
-        acc.extend(revisions);
-    }
-    Ok(acc)
 }
 
 fn cmd_duplicate(
