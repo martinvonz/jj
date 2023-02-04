@@ -46,7 +46,7 @@ use pest::Parser;
 
 use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, resolve_base_revs,
-    resolve_multiple_rewritable_revsets, run_ui_editor, serialize_config_value, short_commit_hash,
+    resolve_multiple_nonempty_revsets, run_ui_editor, serialize_config_value, short_commit_hash,
     user_error, user_error_with_hint, Args, CommandError, CommandHelper, DescriptionArg,
     RevisionArg, WorkspaceCommandHelper, DESCRIPTION_PLACEHOLDER_TEMPLATE,
 };
@@ -1870,7 +1870,11 @@ fn cmd_duplicate(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let to_duplicate: IndexSet<Commit> =
-        resolve_multiple_rewritable_revsets(&args.revisions, &workspace_command)?;
+        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
+    to_duplicate
+        .iter()
+        .map(|commit| workspace_command.check_rewritable(commit))
+        .try_collect()?;
     let mut duplicated_old_to_new: IndexMap<Commit, Commit> = IndexMap::new();
 
     let mut tx = workspace_command
@@ -1923,7 +1927,11 @@ fn cmd_abandon(
     args: &AbandonArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let to_abandon = resolve_multiple_rewritable_revsets(&args.revisions, &workspace_command)?;
+    let to_abandon = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
+    to_abandon
+        .iter()
+        .map(|commit| workspace_command.check_rewritable(commit))
+        .try_collect()?;
     let transaction_description = if to_abandon.len() == 1 {
         format!("abandon commit {}", to_abandon[0].id().hex())
     } else {
