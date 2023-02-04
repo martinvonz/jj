@@ -324,7 +324,7 @@ fn test_rebase_multiple_destinations() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "b"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Revset "b" and "b" resolved to the same revision d370aee184ba
+    Error: More than one revset resolved to revision d370aee184ba
     "###);
 
     let stderr =

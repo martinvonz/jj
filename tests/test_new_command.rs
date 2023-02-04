@@ -96,7 +96,7 @@ fn test_new_merge() {
     // merge with non-unique revisions
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "200e"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Revset "@" and "200e" resolved to the same revision 200ed1a14c8a
+    Error: More than one revset resolved to revision 200ed1a14c8a
     "###);
 
     // merge with root
