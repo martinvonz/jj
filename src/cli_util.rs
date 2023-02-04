@@ -1412,19 +1412,16 @@ pub fn resolve_multiple_nonempty_revsets(
 pub fn resolve_base_revs(
     workspace_command: &WorkspaceCommandHelper,
     revisions: &[RevisionArg],
-) -> Result<Vec<Commit>, CommandError> {
-    let mut commits = vec![];
+) -> Result<IndexSet<Commit>, CommandError> {
+    let mut commits = IndexSet::new();
     for revision_str in revisions {
         let commit = workspace_command.resolve_single_rev(revision_str)?;
-        if let Some(i) = commits.iter().position(|c| c == &commit) {
+        let commit_hash = short_commit_hash(commit.id());
+        if !commits.insert(commit) {
             return Err(user_error(format!(
-                r#"Revset "{}" and "{}" resolved to the same revision {}"#,
-                &revisions[i].0,
-                &revision_str.0,
-                short_commit_hash(commit.id()),
+                r#"More than one revset resolved to revision {commit_hash}"#,
             )));
         }
-        commits.push(commit);
     }
 
     let root_commit_id = workspace_command.repo().store().root_commit_id();
