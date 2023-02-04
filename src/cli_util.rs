@@ -1927,10 +1927,13 @@ pub struct CliRunner {
     app: Command,
     store_factories: Option<StoreFactories>,
     dispatch_fn: CliDispatchFn,
+    process_global_args_fns: Vec<ProcessGlobalArgsFn>,
 }
 
 type CliDispatchFn =
     Box<dyn FnOnce(&mut Ui, &CommandHelper, &ArgMatches) -> Result<(), CommandError>>;
+
+type ProcessGlobalArgsFn = Box<dyn FnOnce(&mut Ui, &ArgMatches) -> Result<(), CommandError>>;
 
 impl CliRunner {
     /// Initializes CLI environment and returns a builder. This should be called
@@ -1943,6 +1946,7 @@ impl CliRunner {
             app: crate::commands::default_app(),
             store_factories: None,
             dispatch_fn: Box::new(crate::commands::run_command),
+            process_global_args_fns: vec![],
         }
     }
 
@@ -1977,15 +1981,13 @@ impl CliRunner {
         A: clap::Args,
         F: FnOnce(&mut Ui, A) -> Result<(), CommandError> + 'static,
     {
-        let old_dispatch_fn = self.dispatch_fn;
-        let new_dispatch_fn =
-            move |ui: &mut Ui, command_helper: &CommandHelper, matches: &ArgMatches| {
-                let custom_args = A::from_arg_matches(matches).unwrap();
-                process_before(ui, custom_args)?;
-                old_dispatch_fn(ui, command_helper, matches)
-            };
+        let process_global_args_fn = move |ui: &mut Ui, matches: &ArgMatches| {
+            let custom_args = A::from_arg_matches(matches).unwrap();
+            process_before(ui, custom_args)
+        };
         self.app = A::augment_args(self.app);
-        self.dispatch_fn = Box::new(new_dispatch_fn);
+        self.process_global_args_fns
+            .push(Box::new(process_global_args_fn));
         self
     }
 
@@ -2006,6 +2008,9 @@ impl CliRunner {
             &string_args,
             &mut layered_configs,
         )?;
+        for process_global_args_fn in self.process_global_args_fns {
+            process_global_args_fn(ui, &matches)?;
+        }
 
         let maybe_workspace_loader = init_workspace_loader(&cwd, &args.global_args);
         if let Ok(loader) = &maybe_workspace_loader {
