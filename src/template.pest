@@ -32,14 +32,16 @@ function_arguments = {
   | whitespace*
 }
 
-maybe_method = { ("." ~ function)* }
-
 // Note that "x(y)" is a function call but "x (y)" concatenates "x" and "y"
+primary = _{
+  ("(" ~ template ~ ")")
+  | function
+  | identifier
+  | literal
+}
+
 term = {
-  ("(" ~ template ~ ")") ~ maybe_method
-  | function ~ maybe_method
-  | identifier ~ maybe_method
-  | literal ~ maybe_method
+  primary ~ ("." ~ function)*
 }
 
 list = _{

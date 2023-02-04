@@ -342,13 +342,12 @@ fn expect_arguments<const N: usize, const M: usize>(
 }
 
 fn parse_method_chain<'a, I: 'a>(
-    pair: Pair<Rule>,
     input_property: PropertyAndLabels<'a, I>,
+    method_pairs: Pairs<Rule>,
     parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<PropertyAndLabels<'a, I>> {
     let PropertyAndLabels(mut property, mut labels) = input_property;
-    assert_eq!(pair.as_rule(), Rule::maybe_method);
-    for chain in pair.into_inner() {
+    for chain in method_pairs {
         assert_eq!(chain.as_rule(), Rule::function);
         let (name, args_pair) = {
             let mut inner = chain.into_inner();
@@ -630,8 +629,6 @@ fn parse_term<'a, C: 'a>(
     assert_eq!(pair.as_rule(), Rule::term);
     let mut inner = pair.into_inner();
     let expr = inner.next().unwrap();
-    let maybe_method = inner.next().unwrap();
-    assert!(inner.next().is_none());
     let primary = match expr.as_rule() {
         Rule::literal => {
             let text = parse_string_literal(expr);
@@ -652,10 +649,10 @@ fn parse_term<'a, C: 'a>(
     };
     match primary {
         Expression::Property(property) => {
-            parse_method_chain(maybe_method, property, parse_keyword).map(Expression::Property)
+            parse_method_chain(property, inner, parse_keyword).map(Expression::Property)
         }
         Expression::Template(template) => {
-            if let Some(chain) = maybe_method.into_inner().next() {
+            if let Some(chain) = inner.next() {
                 assert_eq!(chain.as_rule(), Rule::function);
                 let name = chain.into_inner().next().unwrap();
                 Err(TemplateParseError::no_such_method("Template", &name))
