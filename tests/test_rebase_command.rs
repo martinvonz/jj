@@ -320,6 +320,7 @@ fn test_rebase_multiple_destinations() {
     Hint: The revset "b|c" resolved to these revisions:
     fe2e8e8b50b3 c
     d370aee184ba b
+    If this was intentional, specify the `--allow-large-revsets` argument
     "###);
     let stdout = test_env.jj_cmd_success(
         &repo_path,
