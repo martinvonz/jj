@@ -103,6 +103,9 @@ fn test_templater_parsed_tree() {
 
     // Parenthesized "if" condition
     insta::assert_snapshot!(render(r#"if((divergent), "t", "f")"#), @"f");
+
+    // Parenthesized method chaining
+    insta::assert_snapshot!(render(r#"(commit_id).short()"#), @"000000000000");
 }
 
 #[test]
@@ -146,6 +149,15 @@ fn test_templater_parse_error() {
       |                          ^-^
       |
       = Method "foo" doesn't exist for type "String"
+    "###);
+
+    insta::assert_snapshot!(render_err(r#"("foo" "bar").baz()"#), @r###"
+    Error: Failed to parse template:  --> 1:15
+      |
+    1 | ("foo" "bar").baz()
+      |               ^-^
+      |
+      = Method "baz" doesn't exist for type "Template"
     "###);
 
     insta::assert_snapshot!(render_err(r#"description.contains()"#), @r###"
