@@ -738,14 +738,15 @@ impl WorkspaceCommandHelper {
         match (iter.next(), iter.next()) {
             (Some(commit), None) => Ok(commit?),
             (None, _) => Err(user_error(format!(
-                "Revset \"{revision_str}\" didn't resolve to any revisions"
+                r#"Revset "{revision_str}" didn't resolve to any revisions"#
             ))),
             (Some(commit0), Some(commit1)) => {
                 let mut iter = [commit0, commit1].into_iter().chain(iter);
                 let commits: Vec<_> = iter.by_ref().take(5).try_collect()?;
                 let elided = iter.next().is_some();
                 let hint = format!(
-                    "The revset resolved to these revisions:\n{commits}{ellipsis}",
+                    r#"The revset "{revision_str}" resolved to these revisions:{eol}{commits}{ellipsis}"#,
+                    eol = "\n",
                     commits = commits
                         .iter()
                         .map(|c| self.format_commit_summary(c))
@@ -753,7 +754,7 @@ impl WorkspaceCommandHelper {
                     ellipsis = elided.then(|| "\n...").unwrap_or_default()
                 );
                 Err(user_error_with_hint(
-                    format!("Revset \"{revision_str}\" resolved to more than one revision"),
+                    format!(r#"Revset "{revision_str}" resolved to more than one revision"#),
                     hint,
                 ))
             }
