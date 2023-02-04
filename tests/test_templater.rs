@@ -151,6 +151,23 @@ fn test_templater_parse_error() {
       = Method "foo" doesn't exist for type "String"
     "###);
 
+    insta::assert_snapshot!(render_err(r#"10000000000000000000"#), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | 10000000000000000000
+      | ^------------------^
+      |
+      = Invalid integer literal: number too large to fit in target type
+    "###);
+    insta::assert_snapshot!(render_err(r#"42.foo()"#), @r###"
+    Error: Failed to parse template:  --> 1:4
+      |
+    1 | 42.foo()
+      |    ^-^
+      |
+      = Method "foo" doesn't exist for type "Integer"
+    "###);
+
     insta::assert_snapshot!(render_err(r#"("foo" "bar").baz()"#), @r###"
     Error: Failed to parse template:  --> 1:15
       |

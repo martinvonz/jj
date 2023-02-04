@@ -83,6 +83,16 @@ impl Template<()> for bool {
     }
 }
 
+impl Template<()> for i64 {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        write!(formatter, "{self}")
+    }
+
+    fn has_content(&self, _: &()) -> bool {
+        true
+    }
+}
+
 pub struct LabelTemplate<T, L> {
     content: T,
     labels: L,
