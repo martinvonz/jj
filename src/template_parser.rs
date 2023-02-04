@@ -296,20 +296,20 @@ fn parse_method_chain<'a, I: 'a>(
     assert_eq!(pair.as_rule(), Rule::maybe_method);
     for chain in pair.into_inner() {
         assert_eq!(chain.as_rule(), Rule::function);
-        let (name, args) = {
+        let (name, args_pair) = {
             let mut inner = chain.into_inner();
             let name = inner.next().unwrap();
             let args_pair = inner.next().unwrap();
             assert_eq!(name.as_rule(), Rule::identifier);
             assert_eq!(args_pair.as_rule(), Rule::function_arguments);
-            (name, args_pair.into_inner())
+            (name, args_pair)
         };
         labels.push(name.as_str().to_owned());
         property = match property {
-            Property::String(property) => parse_string_method(name, args)?.after(property),
-            Property::Boolean(property) => parse_boolean_method(name, args)?.after(property),
+            Property::String(property) => parse_string_method(name, args_pair)?.after(property),
+            Property::Boolean(property) => parse_boolean_method(name, args_pair)?.after(property),
             Property::CommitOrChangeId(property) => {
-                parse_commit_or_change_id_method(name, args)?.after(property)
+                parse_commit_or_change_id_method(name, args_pair)?.after(property)
             }
             Property::IdWithHighlightedPrefix(_property) => {
                 return Err(TemplateParseError::no_such_method(
@@ -317,8 +317,12 @@ fn parse_method_chain<'a, I: 'a>(
                     &name,
                 ));
             }
-            Property::Signature(property) => parse_signature_method(name, args)?.after(property),
-            Property::Timestamp(property) => parse_timestamp_method(name, args)?.after(property),
+            Property::Signature(property) => {
+                parse_signature_method(name, args_pair)?.after(property)
+            }
+            Property::Timestamp(property) => {
+                parse_timestamp_method(name, args_pair)?.after(property)
+            }
         };
     }
     Ok(PropertyAndLabels(property, labels))
@@ -326,7 +330,7 @@ fn parse_method_chain<'a, I: 'a>(
 
 fn parse_string_method<'a>(
     name: Pair<Rule>,
-    _args: Pairs<Rule>,
+    _args_pair: Pair<Rule>,
 ) -> TemplateParseResult<Property<'a, String>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&String) -> O + 'a,
@@ -345,14 +349,14 @@ fn parse_string_method<'a>(
 
 fn parse_boolean_method<'a>(
     name: Pair<Rule>,
-    _args: Pairs<Rule>,
+    _args_pair: Pair<Rule>,
 ) -> TemplateParseResult<Property<'a, bool>> {
     Err(TemplateParseError::no_such_method("Boolean", &name))
 }
 
 fn parse_commit_or_change_id_method<'a>(
     name: Pair<Rule>,
-    _args: Pairs<Rule>,
+    _args_pair: Pair<Rule>,
 ) -> TemplateParseResult<Property<'a, CommitOrChangeId<'a>>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&CommitOrChangeId<'a>) -> O + 'a,
@@ -380,7 +384,7 @@ fn parse_commit_or_change_id_method<'a>(
 
 fn parse_signature_method<'a>(
     name: Pair<Rule>,
-    _args: Pairs<Rule>,
+    _args_pair: Pair<Rule>,
 ) -> TemplateParseResult<Property<'a, Signature>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Signature) -> O + 'a,
@@ -399,7 +403,7 @@ fn parse_signature_method<'a>(
 
 fn parse_timestamp_method<'a>(
     name: Pair<Rule>,
-    _args: Pairs<Rule>,
+    _args_pair: Pair<Rule>,
 ) -> TemplateParseResult<Property<'a, Timestamp>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Timestamp) -> O + 'a,
