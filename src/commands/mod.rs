@@ -446,6 +446,7 @@ struct EditArgs {
 /// For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
+#[command(group(ArgGroup::new("order").args(&["insert_after", "insert_before"])))]
 struct NewArgs {
     /// Parent(s) of the new change
     #[arg(default_value = "@")]
@@ -459,6 +460,9 @@ struct NewArgs {
     /// Allow revsets expanding to multiple commits in a single argument
     #[arg(long, short = 'L')]
     allow_large_revsets: bool,
+    /// Insert the new change between the target commit(s) and their children
+    #[arg(long, short = 'A', visible_alias = "after")]
+    insert_after: bool,
     /// Insert the new change between the target commit(s) and their parents
     #[arg(long, short = 'B', visible_alias = "before")]
     insert_before: bool,
@@ -2097,9 +2101,45 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         let merged_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &target_commits);
         new_commit = tx
             .mut_repo()
-            .new_commit(command.settings(), target_ids, merged_tree.id().clone())
+            .new_commit(
+                command.settings(),
+                target_ids.clone(),
+                merged_tree.id().clone(),
+            )
             .set_description(&args.message)
             .write()?;
+        if args.insert_after {
+            // Each child of the targets will be rebased: its set of parents will be updated
+            // so that the targets are replaced by the new commit.
+            let old_parents = RevsetExpression::commits(target_ids);
+            // Exclude children that are ancestors of the new commit
+            let to_rebase = old_parents.children().minus(&old_parents.ancestors());
+            let commits_to_rebase: Vec<Commit> = tx
+                .base_workspace_helper()
+                .evaluate_revset(&to_rebase)?
+                .iter()
+                .commits(tx.base_repo().store())
+                .try_collect()?;
+            num_rebased = commits_to_rebase.len();
+            for child_commit in commits_to_rebase {
+                let commit_parents =
+                    RevsetExpression::commits(child_commit.parent_ids().to_owned());
+                let new_parents = commit_parents.minus(&old_parents);
+                let mut new_parent_commits: Vec<Commit> = tx
+                    .base_workspace_helper()
+                    .evaluate_revset(&new_parents)?
+                    .iter()
+                    .commits(tx.base_repo().store())
+                    .try_collect()?;
+                new_parent_commits.push(new_commit.clone());
+                rebase_commit(
+                    command.settings(),
+                    tx.mut_repo(),
+                    &child_commit,
+                    &new_parent_commits,
+                )?;
+            }
+        }
     }
     num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {

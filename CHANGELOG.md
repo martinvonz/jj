@@ -133,6 +133,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj new --insert-before` inserts the new commit between the target commit and
   its parents.
 
+* `jj new --insert-after` inserts the new commit between the target commit and
+  its children.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
