@@ -3146,14 +3146,10 @@ fn cmd_workspace_root(
     _args: &WorkspaceRootArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let root =
-        workspace_command
-            .workspace_root()
-            .to_str()
-            .ok_or_else(|| CommandError::UserError {
-                message: String::from("The workspace root is not valid UTF-8"),
-                hint: None,
-            })?;
+    let root = workspace_command
+        .workspace_root()
+        .to_str()
+        .ok_or_else(|| user_error("The workspace root is not valid UTF-8"))?;
     writeln!(ui, "{root}")?;
     Ok(())
 }
