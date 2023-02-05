@@ -485,3 +485,128 @@ fn editor_name_from_settings(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config_from_string(text: &str) -> config::Config {
+        config::Config::builder()
+            // Load defaults to test the default args lookup
+            .add_source(crate::config::default_config())
+            .add_source(config::File::from_str(text, config::FileFormat::Toml))
+            .build()
+            .unwrap()
+    }
+
+    #[test]
+    fn test_get_diff_editor() {
+        let get = |text| {
+            let config = config_from_string(text);
+            let mut ui = Ui::with_config(&config).unwrap();
+            let settings = UserSettings::from_config(config);
+            get_diff_editor_from_settings(&mut ui, &settings)
+        };
+
+        // Default
+        insta::assert_debug_snapshot!(get("").unwrap(), @r###"
+        MergeTool {
+            program: "meld",
+            edit_args: [],
+            merge_args: [
+                "$left",
+                "$base",
+                "$right",
+                "-o",
+                "$output",
+                "--auto-merge",
+            ],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
+        // Just program name
+        insta::assert_debug_snapshot!(get(r#"ui.diff-editor = "my-diff""#).unwrap(), @r###"
+        MergeTool {
+            program: "my-diff",
+            edit_args: [],
+            merge_args: [],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
+        // Pick from merge-tools
+        insta::assert_debug_snapshot!(get(
+        r#"
+        ui.diff-editor = "foo bar"
+        [merge-tools."foo bar"]
+        edit-args = ["--edit", "args"]
+        "#,
+        ).unwrap(), @r###"
+        MergeTool {
+            program: "foo bar",
+            edit_args: [
+                "--edit",
+                "args",
+            ],
+            merge_args: [],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+    }
+
+    #[test]
+    fn test_get_merge_tool() {
+        let get = |text| {
+            let config = config_from_string(text);
+            let mut ui = Ui::with_config(&config).unwrap();
+            let settings = UserSettings::from_config(config);
+            get_merge_tool_from_settings(&mut ui, &settings)
+        };
+
+        // Default
+        insta::assert_debug_snapshot!(get("").unwrap(), @r###"
+        MergeTool {
+            program: "meld",
+            edit_args: [],
+            merge_args: [
+                "$left",
+                "$base",
+                "$right",
+                "-o",
+                "$output",
+                "--auto-merge",
+            ],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
+        // Just program name
+        insta::assert_debug_snapshot!(get(r#"ui.merge-editor = "my-merge""#).unwrap_err(), @r###"
+        MergeArgsNotConfigured {
+            tool_name: "my-merge",
+        }
+        "###);
+
+        // Pick from merge-tools
+        insta::assert_debug_snapshot!(get(
+        r#"
+        ui.merge-editor = "foo bar"
+        [merge-tools."foo bar"]
+        merge-args = ["$base", "$left", "$right", "$output"]
+        "#,
+        ).unwrap(), @r###"
+        MergeTool {
+            program: "foo bar",
+            edit_args: [],
+            merge_args: [
+                "$base",
+                "$left",
+                "$right",
+                "$output",
+            ],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+    }
+}
