@@ -525,6 +525,56 @@ fn parse_timestamp_method<'a, I: 'a>(
     Ok(property)
 }
 
+fn parse_global_function<'a, C: 'a>(
+    name: Pair<Rule>,
+    args_pair: Pair<Rule>,
+    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+) -> TemplateParseResult<Expression<'a, C>> {
+    let expression = match name.as_str() {
+        "label" => {
+            let [label_pair, content_pair] = expect_exact_arguments(args_pair)?;
+            let label_property = parse_template_rule(label_pair, parse_keyword)?.into_plain_text();
+            let content = parse_template_rule(content_pair, parse_keyword)?.into_template();
+            let labels = TemplateFunction::new(label_property, |s| {
+                s.split_whitespace().map(ToString::to_string).collect()
+            });
+            let template = Box::new(LabelTemplate::new(content, labels));
+            Expression::Template(template)
+        }
+        "if" => {
+            let ([condition_pair, true_pair], [false_pair]) = expect_arguments(args_pair)?;
+            let condition_span = condition_pair.as_span();
+            let condition = parse_template_rule(condition_pair, parse_keyword)?
+                .try_into_boolean()
+                .ok_or_else(|| {
+                    TemplateParseError::invalid_argument_type("Boolean", condition_span)
+                })?;
+            let true_template = parse_template_rule(true_pair, parse_keyword)?.into_template();
+            let false_template = false_pair
+                .map(|pair| parse_template_rule(pair, parse_keyword))
+                .transpose()?
+                .map(|x| x.into_template());
+            let template = Box::new(ConditionalTemplate::new(
+                condition,
+                true_template,
+                false_template,
+            ));
+            Expression::Template(template)
+        }
+        "separate" => {
+            let ([separator_pair], content_pairs) = expect_some_arguments(args_pair)?;
+            let separator = parse_template_rule(separator_pair, parse_keyword)?.into_template();
+            let contents = content_pairs
+                .map(|pair| parse_template_rule(pair, parse_keyword).map(|x| x.into_template()))
+                .try_collect()?;
+            let template = Box::new(SeparateTemplate::new(separator, contents));
+            Expression::Template(template)
+        }
+        _ => return Err(TemplateParseError::no_such_function(&name)),
+    };
+    Ok(expression)
+}
+
 fn parse_commit_keyword<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
@@ -590,61 +640,12 @@ fn parse_term<'a, C: 'a>(
         }
         Rule::identifier => Expression::Property(parse_keyword(expr)?),
         Rule::function => {
-            let (name, args_pair) = {
-                let mut inner = expr.into_inner();
-                let name = inner.next().unwrap();
-                let args_pair = inner.next().unwrap();
-                assert_eq!(name.as_rule(), Rule::identifier);
-                assert_eq!(args_pair.as_rule(), Rule::function_arguments);
-                (name, args_pair)
-            };
-            match name.as_str() {
-                "label" => {
-                    let [label_pair, content_pair] = expect_exact_arguments(args_pair)?;
-                    let label_property =
-                        parse_template_rule(label_pair, parse_keyword)?.into_plain_text();
-                    let content = parse_template_rule(content_pair, parse_keyword)?.into_template();
-                    let labels = TemplateFunction::new(label_property, |s| {
-                        s.split_whitespace().map(ToString::to_string).collect()
-                    });
-                    let template = Box::new(LabelTemplate::new(content, labels));
-                    Expression::Template(template)
-                }
-                "if" => {
-                    let ([condition_pair, true_pair], [false_pair]) = expect_arguments(args_pair)?;
-                    let condition_span = condition_pair.as_span();
-                    let condition = parse_template_rule(condition_pair, parse_keyword)?
-                        .try_into_boolean()
-                        .ok_or_else(|| {
-                            TemplateParseError::invalid_argument_type("Boolean", condition_span)
-                        })?;
-                    let true_template =
-                        parse_template_rule(true_pair, parse_keyword)?.into_template();
-                    let false_template = false_pair
-                        .map(|pair| parse_template_rule(pair, parse_keyword))
-                        .transpose()?
-                        .map(|x| x.into_template());
-                    let template = Box::new(ConditionalTemplate::new(
-                        condition,
-                        true_template,
-                        false_template,
-                    ));
-                    Expression::Template(template)
-                }
-                "separate" => {
-                    let ([separator_pair], content_pairs) = expect_some_arguments(args_pair)?;
-                    let separator =
-                        parse_template_rule(separator_pair, parse_keyword)?.into_template();
-                    let contents = content_pairs
-                        .map(|pair| {
-                            parse_template_rule(pair, parse_keyword).map(|x| x.into_template())
-                        })
-                        .try_collect()?;
-                    let template = Box::new(SeparateTemplate::new(separator, contents));
-                    Expression::Template(template)
-                }
-                _ => return Err(TemplateParseError::no_such_function(&name)),
-            }
+            let mut inner = expr.into_inner();
+            let name = inner.next().unwrap();
+            let args_pair = inner.next().unwrap();
+            assert_eq!(name.as_rule(), Rule::identifier);
+            assert_eq!(args_pair.as_rule(), Rule::function_arguments);
+            parse_global_function(name, args_pair, parse_keyword)?
         }
         Rule::template => parse_template_rule(expr, parse_keyword)?,
         other => panic!("unexpected term: {other:?}"),
