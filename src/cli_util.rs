@@ -1431,26 +1431,6 @@ pub fn resolve_mutliple_nonempty_revsets_flag_guarded(
     }
 }
 
-/// Resolves revsets into revisions to rebase onto. These revisions don't have
-/// to be rewriteable.
-pub fn resolve_destination_revs(
-    workspace_command: &WorkspaceCommandHelper,
-    revisions: &[RevisionArg],
-    allow_plural_revsets: bool,
-) -> Result<IndexSet<Commit>, CommandError> {
-    let commits = resolve_mutliple_nonempty_revsets_flag_guarded(
-        workspace_command,
-        revisions,
-        allow_plural_revsets,
-    )?;
-    let root_commit_id = workspace_command.repo().store().root_commit_id();
-    if commits.len() >= 2 && commits.iter().any(|c| c.id() == root_commit_id) {
-        Err(user_error("Cannot merge with root revision"))
-    } else {
-        Ok(commits)
-    }
-}
-
 pub fn update_working_copy(
     ui: &mut Ui,
     repo: &Arc<ReadonlyRepo>,
