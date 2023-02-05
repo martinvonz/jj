@@ -471,7 +471,7 @@ fn editor_name_from_settings(
     // best one here.
     match settings.config().get_string(key) {
         Ok(editor_binary) => Ok(editor_binary),
-        Err(_) => {
+        Err(config::ConfigError::NotFound(_)) => {
             let default_editor = "meld".to_string();
             writeln!(
                 ui.hint(),
@@ -479,6 +479,7 @@ fn editor_name_from_settings(
             )?;
             Ok(default_editor)
         }
+        Err(err) => Err(err.into()),
     }
 }
 
@@ -549,6 +550,9 @@ mod tests {
             merge_tool_edits_conflict_markers: false,
         }
         "###);
+
+        // Invalid type
+        assert!(get(r#"ui.diff-editor.k = 0"#).is_err());
     }
 
     #[test]
@@ -604,5 +608,8 @@ mod tests {
             merge_tool_edits_conflict_markers: false,
         }
         "###);
+
+        // Invalid type
+        assert!(get(r#"ui.merge-editor.k = 0"#).is_err());
     }
 }
