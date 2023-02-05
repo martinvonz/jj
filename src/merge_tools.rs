@@ -41,6 +41,11 @@ use crate::ui::Ui;
 pub enum ExternalToolError {
     #[error("Invalid config: {0}")]
     ConfigError(#[from] ConfigError),
+    #[error(
+        "To use `{tool_name}` as a merge tool, the config `merge-tools.{tool_name}.merge-args` \
+         must be defined (see docs for details)"
+    )]
+    MergeArgsNotConfigured { tool_name: String },
     #[error("Error setting up temporary directory: {0:?}")]
     SetUpDirError(#[source] std::io::Error),
     // TODO: Remove the "(run with --verbose to see the exact invocation)"
@@ -79,11 +84,6 @@ pub enum DiffEditError {
 pub enum ConflictResolveError {
     #[error(transparent)]
     ExternalToolError(#[from] ExternalToolError),
-    #[error(
-        "To use `{tool_name}` as a merge tool, the config `merge-tools.{tool_name}.merge-args` \
-         must be defined (see docs for details)"
-    )]
-    MergeArgsNotConfigured { tool_name: String },
     #[error("Couldn't find the path {0:?} in this revision")]
     PathNotFoundError(RepoPath),
     #[error("Couldn't find any conflicts at {0:?} in this revision")]
@@ -449,11 +449,11 @@ fn get_diff_editor_from_settings(
 fn get_merge_tool_from_settings(
     ui: &mut Ui,
     settings: &UserSettings,
-) -> Result<MergeTool, ConflictResolveError> {
+) -> Result<MergeTool, ExternalToolError> {
     let editor_name = editor_name_from_settings(ui, settings, "ui.merge-editor")?;
-    let editor = get_tool_config(settings, &editor_name).map_err(ExternalToolError::ConfigError)?;
+    let editor = get_tool_config(settings, &editor_name)?;
     if editor.merge_args.is_empty() {
-        Err(ConflictResolveError::MergeArgsNotConfigured {
+        Err(ExternalToolError::MergeArgsNotConfigured {
             tool_name: editor_name,
         })
     } else {
