@@ -35,6 +35,7 @@ use jujutsu_lib::tree::Tree;
 use jujutsu_lib::working_copy::{CheckoutError, SnapshotError, TreeState};
 use thiserror::Error;
 
+use crate::config::FullCommandArgs;
 use crate::ui::Ui;
 
 #[derive(Debug, Error)]
@@ -407,19 +408,29 @@ struct MergeTool {
 }
 
 impl MergeTool {
-    pub fn with_program(program: &str) -> Self {
+    pub fn with_edit_args(args: &FullCommandArgs) -> Self {
+        let full_args = args.args();
         MergeTool {
-            program: program.to_owned(),
-            edit_args: vec![],
+            program: full_args[0].to_owned(),
+            edit_args: full_args[1..].to_vec(),
             merge_args: vec![],
+            merge_tool_edits_conflict_markers: false,
+        }
+    }
+
+    pub fn with_merge_args(args: &FullCommandArgs) -> Self {
+        let full_args = args.args();
+        MergeTool {
+            program: full_args[0].to_owned(),
+            edit_args: vec![],
+            merge_args: full_args[1..].to_vec(),
             merge_tool_edits_conflict_markers: false,
         }
     }
 }
 
-/// Loads merge tool options from `[merge-tools.<name>]`. The given name is used
-/// as an executable name if no configuration found for that name.
-fn get_tool_config(settings: &UserSettings, name: &str) -> Result<MergeTool, ConfigError> {
+/// Loads merge tool options from `[merge-tools.<name>]`.
+fn get_tool_config(settings: &UserSettings, name: &str) -> Result<Option<MergeTool>, ConfigError> {
     const TABLE_KEY: &str = "merge-tools";
     let tools_table = settings.config().get_table(TABLE_KEY)?;
     if let Some(v) = tools_table.get(name) {
@@ -432,9 +443,9 @@ fn get_tool_config(settings: &UserSettings, name: &str) -> Result<MergeTool, Con
         if result.program.is_empty() {
             result.program.clone_from(&name.to_string());
         };
-        Ok(result)
+        Ok(Some(result))
     } else {
-        Ok(MergeTool::with_program(name))
+        Ok(None)
     }
 }
 
@@ -442,19 +453,27 @@ fn get_diff_editor_from_settings(
     ui: &mut Ui,
     settings: &UserSettings,
 ) -> Result<MergeTool, ExternalToolError> {
-    let editor_name = editor_name_from_settings(ui, settings, "ui.diff-editor")?;
-    Ok(get_tool_config(settings, &editor_name)?)
+    let args = editor_args_from_settings(ui, settings, "ui.diff-editor")?;
+    let maybe_editor = match &args {
+        FullCommandArgs::String(name) => get_tool_config(settings, name)?,
+        FullCommandArgs::Vec(_) => None,
+    };
+    Ok(maybe_editor.unwrap_or_else(|| MergeTool::with_edit_args(&args)))
 }
 
 fn get_merge_tool_from_settings(
     ui: &mut Ui,
     settings: &UserSettings,
 ) -> Result<MergeTool, ExternalToolError> {
-    let editor_name = editor_name_from_settings(ui, settings, "ui.merge-editor")?;
-    let editor = get_tool_config(settings, &editor_name)?;
+    let args = editor_args_from_settings(ui, settings, "ui.merge-editor")?;
+    let maybe_editor = match &args {
+        FullCommandArgs::String(name) => get_tool_config(settings, name)?,
+        FullCommandArgs::Vec(_) => None,
+    };
+    let editor = maybe_editor.unwrap_or_else(|| MergeTool::with_merge_args(&args));
     if editor.merge_args.is_empty() {
         Err(ExternalToolError::MergeArgsNotConfigured {
-            tool_name: editor_name,
+            tool_name: args.to_string(),
         })
     } else {
         Ok(editor)
@@ -462,22 +481,22 @@ fn get_merge_tool_from_settings(
 }
 
 /// Finds the appropriate tool for diff editing or merges
-fn editor_name_from_settings(
+fn editor_args_from_settings(
     ui: &mut Ui,
     settings: &UserSettings,
     key: &str,
-) -> Result<String, ExternalToolError> {
+) -> Result<FullCommandArgs, ExternalToolError> {
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.
-    match settings.config().get_string(key) {
-        Ok(editor_binary) => Ok(editor_binary),
+    match settings.config().get::<FullCommandArgs>(key) {
+        Ok(args) => Ok(args),
         Err(config::ConfigError::NotFound(_)) => {
-            let default_editor = "meld".to_string();
+            let default_editor = "meld";
             writeln!(
                 ui.hint(),
                 "Using default editor '{default_editor}'; you can change this by setting {key}"
             )?;
-            Ok(default_editor)
+            Ok(default_editor.into())
         }
         Err(err) => Err(err.into()),
     }
@@ -532,6 +551,32 @@ mod tests {
         }
         "###);
 
+        // String args
+        insta::assert_debug_snapshot!(
+            get(r#"ui.diff-editor = "my-diff --diff""#).unwrap(), @r###"
+        MergeTool {
+            program: "my-diff",
+            edit_args: [
+                "--diff",
+            ],
+            merge_args: [],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
+        // List args
+        insta::assert_debug_snapshot!(
+            get(r#"ui.diff-editor = ["my-diff", "--diff"]"#).unwrap(), @r###"
+        MergeTool {
+            program: "my-diff",
+            edit_args: [
+                "--diff",
+            ],
+            merge_args: [],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
         // Pick from merge-tools
         insta::assert_debug_snapshot!(get(
         r#"
@@ -546,6 +591,16 @@ mod tests {
                 "--edit",
                 "args",
             ],
+            merge_args: [],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
+        // List args should never be a merge-tools key
+        insta::assert_debug_snapshot!(get(r#"ui.diff-editor = ["meld"]"#).unwrap(), @r###"
+        MergeTool {
+            program: "meld",
+            edit_args: [],
             merge_args: [],
             merge_tool_edits_conflict_markers: false,
         }
@@ -588,6 +643,40 @@ mod tests {
         }
         "###);
 
+        // String args
+        insta::assert_debug_snapshot!(
+            get(r#"ui.merge-editor = "my-merge $left $base $right $output""#).unwrap(), @r###"
+        MergeTool {
+            program: "my-merge",
+            edit_args: [],
+            merge_args: [
+                "$left",
+                "$base",
+                "$right",
+                "$output",
+            ],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
+        // List args
+        insta::assert_debug_snapshot!(
+            get(
+                r#"ui.merge-editor = ["my-merge", "$left", "$base", "$right", "$output"]"#,
+            ).unwrap(), @r###"
+        MergeTool {
+            program: "my-merge",
+            edit_args: [],
+            merge_args: [
+                "$left",
+                "$base",
+                "$right",
+                "$output",
+            ],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
         // Pick from merge-tools
         insta::assert_debug_snapshot!(get(
         r#"
@@ -606,6 +695,14 @@ mod tests {
                 "$output",
             ],
             merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
+        // List args should never be a merge-tools key
+        insta::assert_debug_snapshot!(
+            get(r#"ui.merge-editor = ["meld"]"#).unwrap_err(), @r###"
+        MergeArgsNotConfigured {
+            tool_name: "meld",
         }
         "###);
 
