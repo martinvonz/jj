@@ -679,13 +679,13 @@ fn parse_template_rule<'a, C: 'a>(
 fn parse_template_str<'a, C: 'a>(
     template_text: &str,
     parse_keyword: impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
-) -> TemplateParseResult<Box<dyn Template<C> + 'a>> {
+) -> TemplateParseResult<Expression<'a, C>> {
     let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text)?;
     let first_pair = pairs.next().unwrap();
     if first_pair.as_rule() == Rule::EOI {
-        Ok(Box::new(Literal(String::new())))
+        Ok(Expression::Template(Box::new(Literal(String::new()))))
     } else {
-        parse_template_rule(first_pair, &parse_keyword).map(|x| x.into_template())
+        parse_template_rule(first_pair, &parse_keyword)
     }
 }
 
@@ -694,7 +694,8 @@ pub fn parse_commit_template<'a>(
     workspace_id: &WorkspaceId,
     template_text: &str,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'a>> {
-    parse_template_str(template_text, |pair| {
+    let expression = parse_template_str(template_text, |pair| {
         parse_commit_keyword(repo, workspace_id, pair)
-    })
+    })?;
+    Ok(expression.into_template())
 }
