@@ -45,7 +45,7 @@ use maplit::{hashmap, hashset};
 use pest::Parser;
 
 use crate::cli_util::{
-    self, check_stale_working_copy, print_checkout_stats, resolve_base_revs,
+    self, check_stale_working_copy, print_checkout_stats, resolve_destination_revs,
     resolve_multiple_nonempty_revsets, run_ui_editor, serialize_config_value, short_commit_hash,
     user_error, user_error_with_hint, Args, CommandError, CommandHelper, DescriptionArg,
     RevisionArg, WorkspaceCommandHelper, DESCRIPTION_PLACEHOLDER_TEMPLATE,
@@ -2003,7 +2003,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         !args.revisions.is_empty(),
         "expected a non-empty list from clap"
     );
-    let commits = resolve_base_revs(
+    let commits = resolve_destination_revs(
         &workspace_command,
         &args.revisions,
         args.allow_large_revsets,
@@ -2698,7 +2698,7 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(),
 
 fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_parents = resolve_base_revs(
+    let new_parents = resolve_destination_revs(
         &workspace_command,
         &args.destination,
         args.allow_large_revsets,
