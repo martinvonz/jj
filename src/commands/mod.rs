@@ -2936,7 +2936,7 @@ fn cmd_debug(
         }
         DebugCommands::ConfigSchema(_config_schema_matches) => {
             // TODO(#879): Consider generating entire schema dynamically vs. static file.
-            let buf = include_bytes!("config-schema.json");
+            let buf = include_bytes!("../config-schema.json");
             ui.stdout_formatter().write_all(buf)?;
         }
         DebugCommands::ResolveRev(resolve_matches) => {
