@@ -13,5 +13,5 @@ https://github.com/martinvonz/jj/blob/main/docs/contributing.md for details.
 If applicable:
 - [ ] I have updated `CHANGELOG.md`
 - [ ] I have updated the documentation (README.md, docs/, demos/)
-- [ ] I have updated the config schema (src/commands/config-schema.json)
+- [ ] I have updated the config schema (src/config-schema.json)
 - [ ] I have added tests to cover my changes
