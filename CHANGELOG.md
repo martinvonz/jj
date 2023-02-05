@@ -114,6 +114,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `jj split any-non-existent-path` inserts an empty commit between the
   target commit and its parents.
 
+* Command arguments to `ui.diff-editor`/`ui.merge-editor` can now be specified
+  inline without referring to `[merge-tools]` table.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export

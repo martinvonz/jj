@@ -186,7 +186,8 @@ directories to diff are passed as the first and second argument respectively.
 For example:
 
 ```toml
-ui.diff-editor = "kdiff3"
+ui.diff-editor = "kdiff3" # Use merge-tools.kdiff3.edit-args
+ui.diff-editor = ["kdiff3", "--merge"] # Specify edit-args inline
 ```
 
 Custom arguments can be added, and will be inserted before the paths to diff:
@@ -212,17 +213,20 @@ The `ui.merge-editor` key specifies the tool used for three-way merge tools
 by `jj resolve`. For example:
 
 ```toml
+# Use merge-tools.meld.merge-args
 ui.merge-editor = "meld"  # Or "kdiff3" or "vimdiff"
+# Specify merge-args inline
+ui.merge-editor = ["meld", "$left", "$base", "$right", "-o", "$output"]
 ```
 
 The "meld", "kdiff3", and "vimdiff" tools can be used out of the box, as long as
 they are installed.
 
 To use a different tool named `TOOL`, the arguments to pass to the tool MUST be
-specified in the `merge-tools.TOOL.merge-args` key. As an example of how to set
-this key and other tool configuration options, here is the out-of-the-box
-configuration of the three default tools. (There is no need to copy it to your
-config file verbatim, but you are welcome to customize it.)
+specified either inline or in the `merge-tools.TOOL.merge-args` key. As an
+example of how to set this key and other tool configuration options, here is
+the out-of-the-box configuration of the three default tools. (There is no need
+to copy it to your config file verbatim, but you are welcome to customize it.)
 
 ```toml
 # merge-tools.kdiff3.program  = "kdiff3"     # Defaults to the name of the tool if not specified
