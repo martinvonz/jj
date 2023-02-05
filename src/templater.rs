@@ -210,6 +210,14 @@ impl<C, P: TemplateProperty<C> + ?Sized> TemplateProperty<C> for Box<P> {
     }
 }
 
+impl<C, P: TemplateProperty<C>> TemplateProperty<C> for Option<P> {
+    type Output = Option<P::Output>;
+
+    fn extract(&self, context: &C) -> Self::Output {
+        self.as_ref().map(|property| property.extract(context))
+    }
+}
+
 // Implement TemplateProperty for tuples
 macro_rules! tuple_impls {
     ($( ( $($n:tt $T:ident),+ ) )+) => {
