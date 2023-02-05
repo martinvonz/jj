@@ -1409,15 +1409,15 @@ pub fn resolve_multiple_nonempty_revsets(
     Ok(acc)
 }
 
-pub fn resolve_base_revs(
+pub fn resolve_mutliple_nonempty_revsets_flag_guarded(
     workspace_command: &WorkspaceCommandHelper,
     revisions: &[RevisionArg],
     allow_plural_revsets: bool,
 ) -> Result<IndexSet<Commit>, CommandError> {
-    let mut commits = IndexSet::new();
     if allow_plural_revsets {
-        commits = resolve_multiple_nonempty_revsets(revisions, workspace_command)?;
+        resolve_multiple_nonempty_revsets(revisions, workspace_command)
     } else {
+        let mut commits = IndexSet::new();
         for revision_str in revisions {
             let commit = workspace_command.resolve_single_rev(revision_str)?;
             let commit_hash = short_commit_hash(commit.id());
@@ -1427,8 +1427,22 @@ pub fn resolve_base_revs(
                 )));
             }
         }
+        Ok(commits)
     }
+}
 
+/// Resolves revsets into revisions to rebase onto. These revisions don't have
+/// to be rewriteable.
+pub fn resolve_destination_revs(
+    workspace_command: &WorkspaceCommandHelper,
+    revisions: &[RevisionArg],
+    allow_plural_revsets: bool,
+) -> Result<IndexSet<Commit>, CommandError> {
+    let commits = resolve_mutliple_nonempty_revsets_flag_guarded(
+        workspace_command,
+        revisions,
+        allow_plural_revsets,
+    )?;
     let root_commit_id = workspace_command.repo().store().root_commit_id();
     if commits.len() >= 2 && commits.iter().any(|c| c.id() == root_commit_id) {
         Err(user_error("Cannot merge with root revision"))
