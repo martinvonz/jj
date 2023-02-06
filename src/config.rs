@@ -325,23 +325,23 @@ fn read_config_path(config_path: &Path) -> Result<config::Config, config::Config
 /// Command name and arguments specified by config.
 #[derive(Clone, Debug, Eq, Hash, PartialEq, serde::Deserialize)]
 #[serde(untagged)]
-pub enum FullCommandArgs {
+pub enum CommandNameAndArgs {
     String(String),
     Vec(NonEmptyCommandArgsVec),
 }
 
-impl FullCommandArgs {
+impl CommandNameAndArgs {
     /// Returns command name and arguments.
     ///
     /// The command name may be an empty string (as well as each argument.)
     pub fn split_name_and_args(&self) -> (Cow<str>, Cow<[String]>) {
         match self {
-            FullCommandArgs::String(s) => {
+            CommandNameAndArgs::String(s) => {
                 // Handle things like `EDITOR=emacs -nw` (TODO: parse shell escapes)
                 let mut args = s.split(' ').map(|s| s.to_owned());
                 (args.next().unwrap().into(), args.collect())
             }
-            FullCommandArgs::Vec(NonEmptyCommandArgsVec(a)) => {
+            CommandNameAndArgs::Vec(NonEmptyCommandArgsVec(a)) => {
                 (Cow::Borrowed(&a[0]), Cow::Borrowed(&a[1..]))
             }
         }
@@ -356,18 +356,18 @@ impl FullCommandArgs {
     }
 }
 
-impl<T: AsRef<str> + ?Sized> From<&T> for FullCommandArgs {
+impl<T: AsRef<str> + ?Sized> From<&T> for CommandNameAndArgs {
     fn from(s: &T) -> Self {
-        FullCommandArgs::String(s.as_ref().to_owned())
+        CommandNameAndArgs::String(s.as_ref().to_owned())
     }
 }
 
-impl fmt::Display for FullCommandArgs {
+impl fmt::Display for CommandNameAndArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FullCommandArgs::String(s) => write!(f, "{s}"),
+            CommandNameAndArgs::String(s) => write!(f, "{s}"),
             // TODO: format with shell escapes
-            FullCommandArgs::Vec(a) => write!(f, "{}", a.0.join(" ")),
+            CommandNameAndArgs::Vec(a) => write!(f, "{}", a.0.join(" ")),
         }
     }
 }
@@ -408,18 +408,18 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(config.get::<FullCommandArgs>("empty_array").is_err());
+        assert!(config.get::<CommandNameAndArgs>("empty_array").is_err());
 
-        let command_args: FullCommandArgs = config.get("empty_string").unwrap();
-        assert_eq!(command_args, FullCommandArgs::String("".to_owned()));
+        let command_args: CommandNameAndArgs = config.get("empty_string").unwrap();
+        assert_eq!(command_args, CommandNameAndArgs::String("".to_owned()));
         let (name, args) = command_args.split_name_and_args();
         assert_eq!(name, "");
         assert!(args.is_empty());
 
-        let command_args: FullCommandArgs = config.get("array").unwrap();
+        let command_args: CommandNameAndArgs = config.get("array").unwrap();
         assert_eq!(
             command_args,
-            FullCommandArgs::Vec(NonEmptyCommandArgsVec(
+            CommandNameAndArgs::Vec(NonEmptyCommandArgsVec(
                 ["emacs", "-nw",].map(|s| s.to_owned()).to_vec()
             ))
         );
@@ -427,10 +427,10 @@ mod tests {
         assert_eq!(name, "emacs");
         assert_eq!(args, ["-nw"].as_ref());
 
-        let command_args: FullCommandArgs = config.get("string").unwrap();
+        let command_args: CommandNameAndArgs = config.get("string").unwrap();
         assert_eq!(
             command_args,
-            FullCommandArgs::String("emacs -nw".to_owned())
+            CommandNameAndArgs::String("emacs -nw".to_owned())
         );
         let (name, args) = command_args.split_name_and_args();
         assert_eq!(name, "emacs");
