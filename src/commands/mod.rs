@@ -731,10 +731,11 @@ struct RebaseArgs {
     /// parent(s)
     #[arg(long, short)]
     revision: Option<RevisionArg>,
-    /// The revision(s) to rebase onto
+    /// The revision(s) to rebase onto (can be repeated)
     #[arg(long, short, required = true)]
     destination: Vec<RevisionArg>,
-    /// Allow revsets expanding to multiple commits in a single argument
+    /// Allow revsets expanding to multiple commits in a single argument (for
+    /// those options that can be repeated)
     #[arg(long, short = 'L')]
     allow_large_revsets: bool,
 }
