@@ -201,7 +201,7 @@ Obviously, you would only set one line, don't copy them all in!
 The `ui.diff-editor` setting affects the tool used for editing diffs (e.g.
 `jj split`, `jj amend -i`). The default is `meld`.
 
-`jj` replaces the following arguments:
+`jj` makes the following substitutions:
 
 - `$left` and `$right` are replaced with the paths to the left and right
   directories to diff respectively.
@@ -270,7 +270,7 @@ merge-tools.vimdiff.program = "vim"
 merge-tools.vimdiff.merge-tool-edits-conflict-markers = true    # See below for an explanation
 ```
 
-`jj` replaces the following arguments with the appropriate file names:
+`jj` makes the following substitutions:
 
 - `$output` (REQUIRED) is replaced with the name of the file that the merge tool
   should output. `jj` will read this file after the merge tool exits.

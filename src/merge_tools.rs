@@ -33,6 +33,7 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::Tree;
 use jujutsu_lib::working_copy::{CheckoutError, SnapshotError, TreeState};
+use regex::{Captures, Regex};
 use thiserror::Error;
 
 use crate::config::CommandNameAndArgs;
@@ -285,16 +286,19 @@ fn interpolate_variables<V: AsRef<str>>(
     args: &[String],
     variables: &HashMap<&str, V>,
 ) -> Vec<String> {
+    // Not interested in $UPPER_CASE_VARIABLES
+    let re = Regex::new(r"\$([a-z0-9_]+)\b").unwrap();
     args.iter()
         .map(|arg| {
-            // TODO: Match all instances of `\$\w+` pattern and replace them
-            // so that portions of args can be replaced, and so that file paths
-            // that include the '$' character are processed correctly.
-            if let Some(subst) = arg.strip_prefix('$').and_then(|p| variables.get(p)) {
-                subst.as_ref().to_owned()
-            } else {
-                arg.clone()
-            }
+            re.replace_all(arg, |caps: &Captures| {
+                let name = &caps[1];
+                if let Some(subst) = variables.get(name) {
+                    subst.as_ref().to_owned()
+                } else {
+                    caps[0].to_owned()
+                }
+            })
+            .into_owned()
         })
         .collect()
 }
@@ -392,8 +396,6 @@ struct MergeTool {
     /// Arguments to pass to the program when resolving 3-way conflicts.
     /// `$left`, `$right`, `$base`, and `$output` are replaced with
     /// paths to the corresponding files.
-    /// TODO: Currently, the entire argument has to match one of these 4
-    /// strings to be substituted.
     pub merge_args: Vec<String>,
     /// If false (default), the `$output` file starts out empty and is accepted
     /// as a full conflict resolution as-is by `jj` after the merge tool is
@@ -770,5 +772,46 @@ mod tests {
 
         // Invalid type
         assert!(get(r#"ui.merge-editor.k = 0"#).is_err());
+    }
+
+    #[test]
+    fn test_interpolate_variables() {
+        let patterns = maplit::hashmap! {
+            "left" => "LEFT",
+            "right" => "RIGHT",
+            "left_right" => "$left $right",
+        };
+
+        assert_eq!(
+            interpolate_variables(
+                &["$left", "$1", "$right", "$2"].map(ToOwned::to_owned),
+                &patterns
+            ),
+            ["LEFT", "$1", "RIGHT", "$2"],
+        );
+
+        // Option-like
+        assert_eq!(
+            interpolate_variables(&["-o$left$right".to_owned()], &patterns),
+            ["-oLEFTRIGHT"],
+        );
+
+        // Sexp-like
+        assert_eq!(
+            interpolate_variables(&["($unknown $left $right)".to_owned()], &patterns),
+            ["($unknown LEFT RIGHT)"],
+        );
+
+        // Not a word "$left"
+        assert_eq!(
+            interpolate_variables(&["$lefty".to_owned()], &patterns),
+            ["$lefty"],
+        );
+
+        // Patterns in pattern: not expanded recursively
+        assert_eq!(
+            interpolate_variables(&["$left_right".to_owned()], &patterns),
+            ["$left $right"],
+        );
     }
 }
