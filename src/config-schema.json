@@ -228,6 +228,12 @@
                     "program": {
                         "type": "string"
                     },
+                    "edit-args": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
                     "merge-args": {
                         "type": "array",
                         "items": {
