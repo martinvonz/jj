@@ -187,7 +187,7 @@ impl Backend for GitBackend {
         "git"
     }
 
-    fn hash_length(&self) -> usize {
+    fn commit_id_length(&self) -> usize {
         HASH_LENGTH
     }
 

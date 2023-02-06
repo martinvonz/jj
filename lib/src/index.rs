@@ -158,14 +158,14 @@ impl<'a> IndexRef<'a> {
 
 struct CommitGraphEntry<'a> {
     data: &'a [u8],
-    hash_length: usize,
+    commit_id_length: usize,
 }
 
 // TODO: Add pointers to ancestors further back, like a skip list. Clear the
 // lowest set bit to determine which generation number the pointers point to.
 impl CommitGraphEntry<'_> {
-    fn size(hash_length: usize) -> usize {
-        36 + hash_length
+    fn size(commit_id_length: usize) -> usize {
+        36 + commit_id_length
     }
 
     fn generation_number(&self) -> u32 {
@@ -195,18 +195,18 @@ impl CommitGraphEntry<'_> {
     }
 
     fn commit_id(&self) -> CommitId {
-        CommitId::from_bytes(&self.data[36..36 + self.hash_length])
+        CommitId::from_bytes(&self.data[36..36 + self.commit_id_length])
     }
 }
 
 struct CommitLookupEntry<'a> {
     data: &'a [u8],
-    hash_length: usize,
+    commit_id_length: usize,
 }
 
 impl CommitLookupEntry<'_> {
-    fn size(hash_length: usize) -> usize {
-        hash_length + 4
+    fn size(commit_id_length: usize) -> usize {
+        commit_id_length + 4
     }
 
     fn commit_id(&self) -> CommitId {
@@ -215,12 +215,12 @@ impl CommitLookupEntry<'_> {
 
     // might be better to add borrowed version of CommitId
     fn commit_id_bytes(&self) -> &[u8] {
-        &self.data[0..self.hash_length]
+        &self.data[0..self.commit_id_length]
     }
 
     fn pos(&self) -> IndexPosition {
         IndexPosition(
-            (&self.data[self.hash_length..self.hash_length + 4])
+            (&self.data[self.commit_id_length..self.commit_id_length + 4])
                 .read_u32::<LittleEndian>()
                 .unwrap(),
         )
@@ -255,7 +255,7 @@ pub struct ReadonlyIndex {
     parent_file: Option<Arc<ReadonlyIndex>>,
     num_parent_commits: u32,
     name: String,
-    hash_length: usize,
+    commit_id_length: usize,
     commit_graph_entry_size: usize,
     commit_lookup_entry_size: usize,
     // Number of commits not counting the parent file
@@ -373,17 +373,17 @@ struct MutableGraphEntry {
 pub struct MutableIndex {
     parent_file: Option<Arc<ReadonlyIndex>>,
     num_parent_commits: u32,
-    hash_length: usize,
+    commit_id_length: usize,
     graph: Vec<MutableGraphEntry>,
     lookup: BTreeMap<CommitId, IndexPosition>,
 }
 
 impl MutableIndex {
-    pub(crate) fn full(hash_length: usize) -> Self {
+    pub(crate) fn full(commit_id_length: usize) -> Self {
         Self {
             parent_file: None,
             num_parent_commits: 0,
-            hash_length,
+            commit_id_length,
             graph: vec![],
             lookup: BTreeMap::new(),
         }
@@ -391,11 +391,11 @@ impl MutableIndex {
 
     pub fn incremental(parent_file: Arc<ReadonlyIndex>) -> Self {
         let num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
-        let hash_length = parent_file.hash_length;
+        let commit_id_length = parent_file.commit_id_length;
         Self {
             parent_file: Some(parent_file),
             num_parent_commits,
-            hash_length,
+            commit_id_length,
             graph: vec![],
             lookup: BTreeMap::new(),
         }
@@ -534,7 +534,7 @@ impl MutableIndex {
             assert_eq!(entry.change_id.as_bytes().len(), 16);
             buf.write_all(entry.change_id.as_bytes()).unwrap();
 
-            assert_eq!(entry.commit_id.as_bytes().len(), self.hash_length);
+            assert_eq!(entry.commit_id.as_bytes().len(), self.commit_id_length);
             buf.write_all(entry.commit_id.as_bytes()).unwrap();
         }
 
@@ -576,7 +576,7 @@ impl MutableIndex {
                     maybe_parent_file = parent_file.parent_file.clone();
                 }
                 None => {
-                    squashed = MutableIndex::full(self.hash_length);
+                    squashed = MutableIndex::full(self.commit_id_length);
                     break;
                 }
             }
@@ -598,7 +598,7 @@ impl MutableIndex {
             return Ok(self.parent_file.unwrap());
         }
 
-        let hash_length = self.hash_length;
+        let commit_id_length = self.commit_id_length;
 
         let buf = self.maybe_squash_with_ancestors().serialize();
         let mut hasher = Blake2b512::new();
@@ -612,14 +612,14 @@ impl MutableIndex {
         persist_content_addressed_temp_file(temp_file, index_file_path)?;
 
         let mut cursor = Cursor::new(&buf);
-        ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, hash_length).map_err(|err| {
-            match err {
+        ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, commit_id_length).map_err(
+            |err| match err {
                 IndexLoadError::IndexCorrupt(err) => {
                     panic!("Just-created index file is corrupt: {err}")
                 }
                 IndexLoadError::IoError(err) => err,
-            }
-        })
+            },
+        )
     }
 
     pub fn num_commits(&self) -> u32 {
@@ -1543,7 +1543,7 @@ impl ReadonlyIndex {
         file: &mut dyn Read,
         dir: PathBuf,
         name: String,
-        hash_length: usize,
+        commit_id_length: usize,
     ) -> Result<Arc<ReadonlyIndex>, IndexLoadError> {
         let parent_filename_len = file.read_u32::<LittleEndian>()?;
         let num_parent_commits;
@@ -1555,7 +1555,7 @@ impl ReadonlyIndex {
             let parent_file_path = dir.join(&parent_filename);
             let mut index_file = File::open(parent_file_path).unwrap();
             let parent_file =
-                ReadonlyIndex::load_from(&mut index_file, dir, parent_filename, hash_length)?;
+                ReadonlyIndex::load_from(&mut index_file, dir, parent_filename, commit_id_length)?;
             num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
             maybe_parent_file = Some(parent_file);
         } else {
@@ -1566,9 +1566,9 @@ impl ReadonlyIndex {
         let num_parent_overflow_entries = file.read_u32::<LittleEndian>()?;
         let mut data = vec![];
         file.read_to_end(&mut data)?;
-        let commit_graph_entry_size = CommitGraphEntry::size(hash_length);
+        let commit_graph_entry_size = CommitGraphEntry::size(commit_id_length);
         let graph_size = (num_commits as usize) * commit_graph_entry_size;
-        let commit_lookup_entry_size = CommitLookupEntry::size(hash_length);
+        let commit_lookup_entry_size = CommitLookupEntry::size(commit_id_length);
         let lookup_size = (num_commits as usize) * commit_lookup_entry_size;
         let parent_overflow_size = (num_parent_overflow_entries as usize) * 4;
         let expected_size = graph_size + lookup_size + parent_overflow_size;
@@ -1582,7 +1582,7 @@ impl ReadonlyIndex {
             parent_file: maybe_parent_file,
             num_parent_commits,
             name,
-            hash_length,
+            commit_id_length,
             commit_graph_entry_size,
             commit_lookup_entry_size,
             num_local_commits: num_commits,
@@ -1662,7 +1662,7 @@ impl ReadonlyIndex {
         let offset = (local_pos as usize) * self.commit_graph_entry_size;
         CommitGraphEntry {
             data: &self.graph[offset..offset + self.commit_graph_entry_size],
-            hash_length: self.hash_length,
+            commit_id_length: self.commit_id_length,
         }
     }
 
@@ -1670,7 +1670,7 @@ impl ReadonlyIndex {
         let offset = (lookup_pos as usize) * self.commit_lookup_entry_size;
         CommitLookupEntry {
             data: &self.lookup[offset..offset + self.commit_lookup_entry_size],
-            hash_length: self.hash_length,
+            commit_id_length: self.commit_id_length,
         }
     }
 

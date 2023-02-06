@@ -123,7 +123,7 @@ impl Backend for LocalBackend {
         "local"
     }
 
-    fn hash_length(&self) -> usize {
+    fn commit_id_length(&self) -> usize {
         64
     }
 

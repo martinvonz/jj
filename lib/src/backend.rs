@@ -383,7 +383,8 @@ pub trait Backend: Send + Sync + Debug {
     /// `.jj/repo/store/backend` when the repo is created.
     fn name(&self) -> &str;
 
-    fn hash_length(&self) -> usize;
+    /// The length of commit IDs in bytes.
+    fn commit_id_length(&self) -> usize;
 
     fn git_repo(&self) -> Option<git2::Repository>;
 

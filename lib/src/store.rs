@@ -43,8 +43,8 @@ impl Store {
         })
     }
 
-    pub fn hash_length(&self) -> usize {
-        self.backend.hash_length()
+    pub fn commit_id_length(&self) -> usize {
+        self.backend.commit_id_length()
     }
 
     pub fn git_repo(&self) -> Option<git2::Repository> {
