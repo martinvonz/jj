@@ -97,6 +97,13 @@ Which elements can be colored is not yet documented, but see
 the [default color configuration](https://github.com/martinvonz/jj/blob/main/src/config/colors.toml)
 for some examples of what's possible.
 
+### Diff format
+
+```toml
+# Possible values: "color-words" (default), "git", "summary"
+ui.diff.format = "git"
+```
+
 ### Graph style
 
 ```toml
