@@ -453,6 +453,11 @@ impl Backend for GitBackend {
         let author = signature_to_git(&contents.author);
         let mut committer = signature_to_git(&contents.committer);
         let message = &contents.description;
+        if contents.parents.is_empty() {
+            return Err(BackendError::Other(
+                "Cannot write a commit with no parents".to_string(),
+            ));
+        }
         let mut parents = vec![];
         for parent_id in &contents.parents {
             if *parent_id == self.root_commit_id {
@@ -735,6 +740,13 @@ mod tests {
             committer: create_signature(),
         };
 
+        // No parents
+        commit.parents = vec![];
+        assert_matches!(
+            backend.write_commit(&commit),
+            Err(BackendError::Other(message)) if message.contains("no parents")
+        );
+
         // Only root commit as parent
         commit.parents = vec![backend.root_commit_id().clone()];
         let first_id = backend.write_commit(&commit).unwrap();
@@ -786,7 +798,7 @@ mod tests {
             },
         };
         let commit = Commit {
-            parents: vec![],
+            parents: vec![store.root_commit_id().clone()],
             predecessors: vec![],
             root_tree: store.empty_tree_id().clone(),
             change_id: ChangeId::new(vec![]),
@@ -810,7 +822,7 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let store = GitBackend::init_internal(temp_dir.path());
         let commit1 = Commit {
-            parents: vec![],
+            parents: vec![store.root_commit_id().clone()],
             predecessors: vec![],
             root_tree: store.empty_tree_id().clone(),
             change_id: ChangeId::new(vec![]),
