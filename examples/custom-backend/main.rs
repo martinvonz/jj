@@ -92,8 +92,8 @@ impl Backend for JitBackend {
         "jit"
     }
 
-    fn hash_length(&self) -> usize {
-        self.inner.hash_length()
+    fn commit_id_length(&self) -> usize {
+        self.inner.commit_id_length()
     }
 
     fn git_repo(&self) -> Option<Repository> {

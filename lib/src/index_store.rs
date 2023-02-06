@@ -54,7 +54,7 @@ impl IndexStore {
         let op_id_hex = op.id().hex();
         let op_id_file = self.dir.join("operations").join(op_id_hex);
         if op_id_file.exists() {
-            match self.load_index_at_operation(store.hash_length(), op.id()) {
+            match self.load_index_at_operation(store.commit_id_length(), op.id()) {
                 Err(IndexLoadError::IndexCorrupt(_)) => {
                     // If the index was corrupt (maybe it was written in a different format),
                     // we just reindex.
@@ -77,7 +77,7 @@ impl IndexStore {
 
     fn load_index_at_operation(
         &self,
-        hash_length: usize,
+        commit_id_length: usize,
         op_id: &OperationId,
     ) -> Result<Arc<ReadonlyIndex>, IndexLoadError> {
         let op_id_file = self.dir.join("operations").join(op_id.hex());
@@ -93,7 +93,7 @@ impl IndexStore {
             &mut index_file,
             self.dir.clone(),
             index_file_id_hex,
-            hash_length,
+            commit_id_length,
         )
     }
 
@@ -104,7 +104,7 @@ impl IndexStore {
     ) -> io::Result<Arc<ReadonlyIndex>> {
         let view = operation.view();
         let operations_dir = self.dir.join("operations");
-        let hash_length = store.hash_length();
+        let commit_id_length = store.commit_id_length();
         let mut new_heads = view.heads().clone();
         let mut parent_op_id: Option<OperationId> = None;
         for op in dag_walk::bfs(
@@ -127,11 +127,11 @@ impl IndexStore {
         match parent_op_id {
             None => {
                 maybe_parent_file = None;
-                data = MutableIndex::full(hash_length);
+                data = MutableIndex::full(commit_id_length);
             }
             Some(parent_op_id) => {
                 let parent_file = self
-                    .load_index_at_operation(hash_length, &parent_op_id)
+                    .load_index_at_operation(commit_id_length, &parent_op_id)
                     .unwrap();
                 maybe_parent_file = Some(parent_file.clone());
                 data = MutableIndex::incremental(parent_file)

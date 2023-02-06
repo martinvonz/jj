@@ -86,7 +86,7 @@ fn resolve_full_commit_id(
     symbol: &str,
 ) -> Result<Option<Vec<CommitId>>, RevsetError> {
     if let Ok(binary_commit_id) = hex::decode(symbol) {
-        if repo.store().hash_length() != binary_commit_id.len() {
+        if repo.store().commit_id_length() != binary_commit_id.len() {
             return Ok(None);
         }
         let commit_id = CommitId::new(binary_commit_id);
