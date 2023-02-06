@@ -83,9 +83,10 @@
                     }
                 },
                 "unique-prefixes": {
-                    "enum": ["none", "brackets"],
+                    "enum": ["none", "brackets", "styled"],
                     "description": "How formatter indicates the unique prefix part of a revision or change ID",
-                    "default": "brackets"
+                    "default": "styled"
+
                 },
                 "editor": {
                     "type": "string",
