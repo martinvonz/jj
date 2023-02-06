@@ -236,9 +236,8 @@ pub fn run_mergetool(
         })
         .try_collect()?;
 
-    let args = interpolate_mergetool_filename_patterns(&editor.merge_args, &paths);
     let mut cmd = Command::new(&editor.program);
-    cmd.args(args);
+    cmd.args(interpolate_variables(&editor.merge_args, &paths));
     tracing::debug!(?cmd, "Invoking the external merge tool:");
     let exit_status = cmd
         .status()
@@ -282,17 +281,16 @@ pub fn run_mergetool(
     Ok(tree_builder.write_tree())
 }
 
-fn interpolate_mergetool_filename_patterns<V: AsRef<str>>(
-    merge_args: &[String],
-    paths: &HashMap<&str, V>,
+fn interpolate_variables<V: AsRef<str>>(
+    args: &[String],
+    variables: &HashMap<&str, V>,
 ) -> Vec<String> {
-    merge_args
-        .iter()
+    args.iter()
         .map(|arg| {
             // TODO: Match all instances of `\$\w+` pattern and replace them
             // so that portions of args can be replaced, and so that file paths
             // that include the '$' character are processed correctly.
-            if let Some(subst) = arg.strip_prefix('$').and_then(|p| paths.get(p)) {
+            if let Some(subst) = arg.strip_prefix('$').and_then(|p| variables.get(p)) {
                 subst.as_ref().to_owned()
             } else {
                 arg.clone()
