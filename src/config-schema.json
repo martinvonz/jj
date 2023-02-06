@@ -71,6 +71,17 @@
                     "description": "Pager to use for displaying command output",
                     "default": "less -FRX"
                 },
+                "diff": {
+                    "type": "object",
+                    "description": "Options for how diffs are displayed",
+                    "properties": {
+                        "format": {
+                            "description": "The diff format to use",
+                            "enum": ["color-words", "git", "summary"],
+                            "default": "color-words"
+                        }
+                    }
+                },
                 "graph": {
                     "type": "object",
                     "description": "Options for rendering revision graphs from jj log etc",
