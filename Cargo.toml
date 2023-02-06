@@ -73,7 +73,6 @@ criterion_bencher_compat = "0.4.0"
 insta = { version = "1.26.0", features = ["filters"] }
 predicates = "2.1.5"
 regex = "1.7.1"
-test-case = "2.2.2"
 testutils = { path = "lib/testutils" }
 
 [features]
