@@ -556,6 +556,24 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
 }
 
 #[test]
+fn test_log_shortest_length_parameter() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.shortest(0)"]), @r###"
+    @ 2
+    o 0
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.shortest(100)"]), @r###"
+    @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    o 0000000000000000000000000000000000000000
+    "###);
+}
+
+#[test]
 fn test_log_divergence() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
