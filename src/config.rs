@@ -331,22 +331,27 @@ pub enum FullCommandArgs {
 }
 
 impl FullCommandArgs {
-    /// Returns arguments including the command name.
+    /// Returns command name and arguments.
     ///
-    /// The list is not empty, but each element may be an empty string.
-    pub fn args(&self) -> Cow<[String]> {
+    /// The command name may be an empty string (as well as each argument.)
+    pub fn split_name_and_args(&self) -> (Cow<str>, Cow<[String]>) {
         match self {
-            // Handle things like `EDITOR=emacs -nw` (TODO: parse shell escapes)
-            FullCommandArgs::String(s) => s.split(' ').map(|s| s.to_owned()).collect(),
-            FullCommandArgs::Vec(a) => Cow::Borrowed(&a.0),
+            FullCommandArgs::String(s) => {
+                // Handle things like `EDITOR=emacs -nw` (TODO: parse shell escapes)
+                let mut args = s.split(' ').map(|s| s.to_owned());
+                (args.next().unwrap().into(), args.collect())
+            }
+            FullCommandArgs::Vec(NonEmptyCommandArgsVec(a)) => {
+                (Cow::Borrowed(&a[0]), Cow::Borrowed(&a[1..]))
+            }
         }
     }
 
     /// Returns process builder configured with this.
     pub fn to_command(&self) -> Command {
-        let full_args = self.args();
-        let mut cmd = Command::new(&full_args[0]);
-        cmd.args(&full_args[1..]);
+        let (name, args) = self.split_name_and_args();
+        let mut cmd = Command::new(name.as_ref());
+        cmd.args(args.as_ref());
         cmd
     }
 }
@@ -405,22 +410,31 @@ mod tests {
 
         assert!(config.get::<FullCommandArgs>("empty_array").is_err());
 
-        let args: FullCommandArgs = config.get("empty_string").unwrap();
-        assert_eq!(args, FullCommandArgs::String("".to_owned()));
-        assert_eq!(args.args(), [""].as_ref());
+        let command_args: FullCommandArgs = config.get("empty_string").unwrap();
+        assert_eq!(command_args, FullCommandArgs::String("".to_owned()));
+        let (name, args) = command_args.split_name_and_args();
+        assert_eq!(name, "");
+        assert!(args.is_empty());
 
-        let args: FullCommandArgs = config.get("array").unwrap();
+        let command_args: FullCommandArgs = config.get("array").unwrap();
         assert_eq!(
-            args,
+            command_args,
             FullCommandArgs::Vec(NonEmptyCommandArgsVec(
                 ["emacs", "-nw",].map(|s| s.to_owned()).to_vec()
             ))
         );
-        assert_eq!(args.args(), ["emacs", "-nw"].as_ref());
+        let (name, args) = command_args.split_name_and_args();
+        assert_eq!(name, "emacs");
+        assert_eq!(args, ["-nw"].as_ref());
 
-        let args: FullCommandArgs = config.get("string").unwrap();
-        assert_eq!(args, FullCommandArgs::String("emacs -nw".to_owned()));
-        assert_eq!(args.args(), ["emacs", "-nw"].as_ref());
+        let command_args: FullCommandArgs = config.get("string").unwrap();
+        assert_eq!(
+            command_args,
+            FullCommandArgs::String("emacs -nw".to_owned())
+        );
+        let (name, args) = command_args.split_name_and_args();
+        assert_eq!(name, "emacs");
+        assert_eq!(args, ["-nw"].as_ref());
     }
 
     #[test]
