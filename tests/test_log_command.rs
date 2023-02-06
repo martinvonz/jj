@@ -114,7 +114,7 @@ fn test_log_with_or_without_diff() {
             "description",
             "-p",
             "-s",
-            "--config-toml=diff.format='summary'",
+            "--config-toml=ui.diff.format='summary'",
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
