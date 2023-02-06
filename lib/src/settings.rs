@@ -19,7 +19,7 @@ use chrono::DateTime;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
-use crate::backend::{ChangeId, ObjectId, Signature, Timestamp, CHANGE_ID_HASH_LENGTH};
+use crate::backend::{ChangeId, ObjectId, Signature, Timestamp};
 
 #[derive(Debug, Clone)]
 pub struct UserSettings {
@@ -198,19 +198,10 @@ impl UserSettings {
 #[derive(Debug)]
 pub struct JJRng(Mutex<ChaCha20Rng>);
 impl JJRng {
-    pub fn new_change_id(&self) -> ChangeId {
-        let random_bytes: [u8; CHANGE_ID_HASH_LENGTH] = self.gen();
-        ChangeId::new(random_bytes.into())
-    }
-
-    /// Wraps Rng::gen but only requires an immutable reference. Can be made
-    /// public if there's a use for it.
-    fn gen<T>(&self) -> T
-    where
-        rand::distributions::Standard: rand::distributions::Distribution<T>,
-    {
+    pub fn new_change_id(&self, length: usize) -> ChangeId {
         let mut rng = self.0.lock().unwrap();
-        rng.gen()
+        let random_bytes = (0..length).map(|_| rng.gen::<u8>()).collect();
+        ChangeId::new(random_bytes)
     }
 
     /// Creates a new RNGs. Could be made public, but we'd like to encourage all

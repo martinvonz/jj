@@ -37,11 +37,12 @@ impl CommitBuilder<'_> {
         let signature = settings.signature();
         assert!(!parents.is_empty());
         let rng = settings.get_rng();
+        let change_id = rng.new_change_id(mut_repo.store().change_id_length());
         let commit = backend::Commit {
             parents,
             predecessors: vec![],
             root_tree: tree_id,
-            change_id: rng.new_change_id(),
+            change_id,
             description: String::new(),
             author: signature.clone(),
             committer: signature,
@@ -100,7 +101,9 @@ impl CommitBuilder<'_> {
     }
 
     pub fn generate_new_change_id(mut self) -> Self {
-        self.commit.change_id = self.rng.new_change_id();
+        self.commit.change_id = self
+            .rng
+            .new_change_id(self.mut_repo.store().change_id_length());
         self
     }
 

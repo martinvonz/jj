@@ -25,11 +25,14 @@ use tempfile::{NamedTempFile, PersistError};
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
     ConflictId, ConflictPart, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
-    Tree, TreeId, TreeValue, CHANGE_ID_HASH_LENGTH,
+    Tree, TreeId, TreeValue,
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::repo_path::{RepoPath, RepoPathComponent};
+
+const COMMIT_ID_LENGTH: usize = 64;
+const CHANGE_ID_LENGTH: usize = 16;
 
 impl From<std::io::Error> for BackendError {
     fn from(err: std::io::Error) -> Self {
@@ -89,8 +92,8 @@ impl LocalBackend {
     }
 
     pub fn load(store_path: &Path) -> Self {
-        let root_commit_id = CommitId::from_bytes(&[0; 64]);
-        let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_HASH_LENGTH]);
+        let root_commit_id = CommitId::from_bytes(&[0; COMMIT_ID_LENGTH]);
+        let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_LENGTH]);
         let empty_tree_id = TreeId::from_hex("482ae5a29fbe856c7272f2071b8b0f0359ee2d89ff392b8a900643fbd0836eccd067b8bf41909e206c90d45d6e7d8b6686b93ecaee5fe1a9060d87b672101310");
         LocalBackend {
             path: store_path.to_path_buf(),
@@ -127,7 +130,11 @@ impl Backend for LocalBackend {
     }
 
     fn commit_id_length(&self) -> usize {
-        64
+        COMMIT_ID_LENGTH
+    }
+
+    fn change_id_length(&self) -> usize {
+        CHANGE_ID_LENGTH
     }
 
     fn git_repo(&self) -> Option<git2::Repository> {

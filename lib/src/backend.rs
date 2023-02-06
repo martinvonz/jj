@@ -23,8 +23,6 @@ use thiserror::Error;
 use crate::content_hash::ContentHash;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
-pub const CHANGE_ID_HASH_LENGTH: usize = 16;
-
 pub trait ObjectId {
     fn new(value: Vec<u8>) -> Self;
     fn object_type(&self) -> String;
@@ -377,6 +375,9 @@ pub trait Backend: Send + Sync + Debug {
 
     /// The length of commit IDs in bytes.
     fn commit_id_length(&self) -> usize;
+
+    /// The length of change IDs in bytes.
+    fn change_id_length(&self) -> usize;
 
     fn git_repo(&self) -> Option<git2::Repository>;
 

@@ -159,13 +159,14 @@ impl<'a> IndexRef<'a> {
 struct CommitGraphEntry<'a> {
     data: &'a [u8],
     commit_id_length: usize,
+    change_id_length: usize,
 }
 
 // TODO: Add pointers to ancestors further back, like a skip list. Clear the
 // lowest set bit to determine which generation number the pointers point to.
 impl CommitGraphEntry<'_> {
-    fn size(commit_id_length: usize) -> usize {
-        36 + commit_id_length
+    fn size(commit_id_length: usize, change_id_length: usize) -> usize {
+        20 + commit_id_length + change_id_length
     }
 
     fn generation_number(&self) -> u32 {
@@ -191,11 +192,14 @@ impl CommitGraphEntry<'_> {
     // to better cache locality when walking it; ability to quickly find all
     // commits associated with a change id.
     fn change_id(&self) -> ChangeId {
-        ChangeId::new(self.data[20..36].to_vec())
+        ChangeId::new(self.data[20..20 + self.change_id_length].to_vec())
     }
 
     fn commit_id(&self) -> CommitId {
-        CommitId::from_bytes(&self.data[36..36 + self.commit_id_length])
+        CommitId::from_bytes(
+            &self.data
+                [20 + self.change_id_length..20 + self.change_id_length + self.commit_id_length],
+        )
     }
 }
 
@@ -256,6 +260,7 @@ pub struct ReadonlyIndex {
     num_parent_commits: u32,
     name: String,
     commit_id_length: usize,
+    change_id_length: usize,
     commit_graph_entry_size: usize,
     commit_lookup_entry_size: usize,
     // Number of commits not counting the parent file
@@ -374,16 +379,18 @@ pub struct MutableIndex {
     parent_file: Option<Arc<ReadonlyIndex>>,
     num_parent_commits: u32,
     commit_id_length: usize,
+    change_id_length: usize,
     graph: Vec<MutableGraphEntry>,
     lookup: BTreeMap<CommitId, IndexPosition>,
 }
 
 impl MutableIndex {
-    pub(crate) fn full(commit_id_length: usize) -> Self {
+    pub(crate) fn full(commit_id_length: usize, change_id_length: usize) -> Self {
         Self {
             parent_file: None,
             num_parent_commits: 0,
             commit_id_length,
+            change_id_length,
             graph: vec![],
             lookup: BTreeMap::new(),
         }
@@ -392,10 +399,12 @@ impl MutableIndex {
     pub fn incremental(parent_file: Arc<ReadonlyIndex>) -> Self {
         let num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
         let commit_id_length = parent_file.commit_id_length;
+        let change_id_length = parent_file.change_id_length;
         Self {
             parent_file: Some(parent_file),
             num_parent_commits,
             commit_id_length,
+            change_id_length,
             graph: vec![],
             lookup: BTreeMap::new(),
         }
@@ -531,7 +540,7 @@ impl MutableIndex {
             buf.write_u32::<LittleEndian>(parent1_pos.0).unwrap();
             buf.write_u32::<LittleEndian>(parent_overflow_pos).unwrap();
 
-            assert_eq!(entry.change_id.as_bytes().len(), 16);
+            assert_eq!(entry.change_id.as_bytes().len(), self.change_id_length);
             buf.write_all(entry.change_id.as_bytes()).unwrap();
 
             assert_eq!(entry.commit_id.as_bytes().len(), self.commit_id_length);
@@ -576,7 +585,7 @@ impl MutableIndex {
                     maybe_parent_file = parent_file.parent_file.clone();
                 }
                 None => {
-                    squashed = MutableIndex::full(self.commit_id_length);
+                    squashed = MutableIndex::full(self.commit_id_length, self.change_id_length);
                     break;
                 }
             }
@@ -599,6 +608,7 @@ impl MutableIndex {
         }
 
         let commit_id_length = self.commit_id_length;
+        let change_id_length = self.change_id_length;
 
         let buf = self.maybe_squash_with_ancestors().serialize();
         let mut hasher = Blake2b512::new();
@@ -612,14 +622,19 @@ impl MutableIndex {
         persist_content_addressed_temp_file(temp_file, index_file_path)?;
 
         let mut cursor = Cursor::new(&buf);
-        ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, commit_id_length).map_err(
-            |err| match err {
-                IndexLoadError::IndexCorrupt(err) => {
-                    panic!("Just-created index file is corrupt: {err}")
-                }
-                IndexLoadError::IoError(err) => err,
-            },
+        ReadonlyIndex::load_from(
+            &mut cursor,
+            dir,
+            index_file_id_hex,
+            commit_id_length,
+            change_id_length,
         )
+        .map_err(|err| match err {
+            IndexLoadError::IndexCorrupt(err) => {
+                panic!("Just-created index file is corrupt: {err}")
+            }
+            IndexLoadError::IoError(err) => err,
+        })
     }
 
     pub fn num_commits(&self) -> u32 {
@@ -1544,6 +1559,7 @@ impl ReadonlyIndex {
         dir: PathBuf,
         name: String,
         commit_id_length: usize,
+        change_id_length: usize,
     ) -> Result<Arc<ReadonlyIndex>, IndexLoadError> {
         let parent_filename_len = file.read_u32::<LittleEndian>()?;
         let num_parent_commits;
@@ -1554,8 +1570,13 @@ impl ReadonlyIndex {
             let parent_filename = String::from_utf8(parent_filename_bytes).unwrap();
             let parent_file_path = dir.join(&parent_filename);
             let mut index_file = File::open(parent_file_path).unwrap();
-            let parent_file =
-                ReadonlyIndex::load_from(&mut index_file, dir, parent_filename, commit_id_length)?;
+            let parent_file = ReadonlyIndex::load_from(
+                &mut index_file,
+                dir,
+                parent_filename,
+                commit_id_length,
+                change_id_length,
+            )?;
             num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
             maybe_parent_file = Some(parent_file);
         } else {
@@ -1566,7 +1587,7 @@ impl ReadonlyIndex {
         let num_parent_overflow_entries = file.read_u32::<LittleEndian>()?;
         let mut data = vec![];
         file.read_to_end(&mut data)?;
-        let commit_graph_entry_size = CommitGraphEntry::size(commit_id_length);
+        let commit_graph_entry_size = CommitGraphEntry::size(commit_id_length, change_id_length);
         let graph_size = (num_commits as usize) * commit_graph_entry_size;
         let commit_lookup_entry_size = CommitLookupEntry::size(commit_id_length);
         let lookup_size = (num_commits as usize) * commit_lookup_entry_size;
@@ -1583,6 +1604,7 @@ impl ReadonlyIndex {
             num_parent_commits,
             name,
             commit_id_length,
+            change_id_length,
             commit_graph_entry_size,
             commit_lookup_entry_size,
             num_local_commits: num_commits,
@@ -1663,6 +1685,7 @@ impl ReadonlyIndex {
         CommitGraphEntry {
             data: &self.graph[offset..offset + self.commit_graph_entry_size],
             commit_id_length: self.commit_id_length,
+            change_id_length: self.change_id_length,
         }
     }
 
@@ -1723,7 +1746,7 @@ mod tests {
     #[test_case(true; "file")]
     fn index_empty(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
-        let index = MutableIndex::full(3);
+        let index = MutableIndex::full(3, 16);
         let mut _saved_index = None;
         let index = if on_disk {
             _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
@@ -1752,7 +1775,7 @@ mod tests {
     fn index_root_commit(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         let id_0 = CommitId::from_hex("000000");
         let change_id0 = new_change_id();
         index.add_commit_data(id_0.clone(), change_id0.clone(), &[]);
@@ -1791,7 +1814,7 @@ mod tests {
     #[should_panic(expected = "parent commit is not indexed")]
     fn index_missing_parent_commit() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("111111");
         index.add_commit_data(id_1, new_change_id(), &[id_0]);
@@ -1804,7 +1827,7 @@ mod tests {
     fn index_multiple_commits(incremental: bool, on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         // 5
         // |\
         // 4 | 3
@@ -1912,7 +1935,7 @@ mod tests {
     fn index_many_parents(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         //     6
         //    /|\
         //   / | \
@@ -1977,7 +2000,7 @@ mod tests {
     fn resolve_prefix() {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
 
         // Create some commits with different various common prefixes.
         let id_0 = CommitId::from_hex("000000");
@@ -2047,7 +2070,7 @@ mod tests {
     fn neighbor_commit_ids() {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
 
         // Create some commits with different various common prefixes.
         let id_0 = CommitId::from_hex("000001");
@@ -2175,7 +2198,7 @@ mod tests {
     fn shortest_unique_commit_id_prefix() {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
 
         // Create some commits with different various common prefixes.
         let id_0 = CommitId::from_hex("000001");
@@ -2226,7 +2249,7 @@ mod tests {
     #[test]
     fn test_is_ancestor() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         // 5
         // |\
         // 4 | 3
@@ -2263,7 +2286,7 @@ mod tests {
     #[test]
     fn test_common_ancestors() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         // 5
         // |\
         // 4 |
@@ -2345,7 +2368,7 @@ mod tests {
     #[test]
     fn test_common_ancestors_criss_cross() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         // 3 4
         // |X|
         // 1 2
@@ -2370,7 +2393,7 @@ mod tests {
     #[test]
     fn test_common_ancestors_merge_with_ancestor() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         // 4   5
         // |\ /|
         // 1 2 3
@@ -2397,7 +2420,7 @@ mod tests {
     #[test]
     fn test_walk_revs() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         // 5
         // |\
         // 4 | 3
@@ -2476,7 +2499,7 @@ mod tests {
     #[test]
     fn test_walk_revs_filter_by_generation() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         // 8 6
         // | |
         // 7 5
@@ -2558,7 +2581,7 @@ mod tests {
     #[test]
     fn test_heads() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3);
+        let mut index = MutableIndex::full(3, 16);
         // 5
         // |\
         // 4 | 3
