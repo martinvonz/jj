@@ -495,7 +495,7 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
             Property::ShortestIdPrefix(chain_properties(
                 (self_property, len_property),
                 TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
-                    id.shortest(len.unwrap_or(0))
+                    id.shortest(len.and_then(|l| l.try_into().ok()).unwrap_or(0))
                 }),
             ))
         }

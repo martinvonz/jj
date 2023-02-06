@@ -569,17 +569,21 @@ impl<'a> CommitOrChangeId<'a> {
 
     /// The length of the id printed will be the maximum of `total_len` and the
     /// length of the shortest unique prefix
-    pub fn shortest(&self, total_len: i64) -> ShortestIdPrefix {
-        let hex = self.hex();
-        let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
-            &hex,
+    pub fn shortest(&self, total_len: usize) -> ShortestIdPrefix {
+        // If this id is a prefix of another id in different space, (e.g.
+        // change_id.starts_with(commit_id)) shortest_unique_id_prefix_len()
+        // exceeds the actual hex.len(). Note that the full id is ambiguous
+        // in that case.
+        //
+        // TODO: maybe split commit_id/change_id spaces and remove min(hex.len())?
+        let mut hex = self.hex();
+        let prefix_len = min(
             self.repo.shortest_unique_id_prefix_len(self.as_bytes()),
-            max(total_len, 0) as usize,
+            hex.len(),
         );
-        ShortestIdPrefix {
-            prefix: prefix.to_string(),
-            rest: rest.to_string(),
-        }
+        hex.truncate(max(prefix_len, total_len));
+        let rest = hex.split_off(prefix_len);
+        ShortestIdPrefix { prefix: hex, rest }
     }
 }
 
@@ -590,52 +594,6 @@ impl Template<()> for CommitOrChangeId<'_> {
 
     fn has_content(&self, _: &()) -> bool {
         !self.id_bytes.is_empty()
-    }
-}
-
-/// This function supports short `total_len` by ensuring that the entire
-/// unique prefix is always printed
-fn extract_entire_prefix_and_trimmed_tail(
-    s: &str,
-    prefix_len: usize,
-    total_len: usize,
-) -> (&str, &str) {
-    let prefix_len = min(prefix_len, s.len());
-    let total_len = max(prefix_len, min(total_len, s.len()));
-    (&s[0..prefix_len], &s[prefix_len..total_len])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::extract_entire_prefix_and_trimmed_tail;
-
-    #[test]
-    fn test_prefix() {
-        let s = "0123456789";
-        insta::assert_debug_snapshot!(extract_entire_prefix_and_trimmed_tail(s, 2, 5), @r###"
-        (
-            "01",
-            "234",
-        )
-        "###);
-        insta::assert_debug_snapshot!(extract_entire_prefix_and_trimmed_tail(s, 2, 11), @r###"
-        (
-            "01",
-            "23456789",
-        )
-        "###);
-        insta::assert_debug_snapshot!(extract_entire_prefix_and_trimmed_tail(s, 11, 2), @r###"
-        (
-            "0123456789",
-            "",
-        )
-        "###);
-        insta::assert_debug_snapshot!(extract_entire_prefix_and_trimmed_tail(s, 11, 11), @r###"
-        (
-            "0123456789",
-            "",
-        )
-        "###);
     }
 }
 
