@@ -1,9 +1,10 @@
 [merge-tools.kdiff3]
 # --merge to open output pane, CreateBakFiles=0 to not include backup files in commit
-edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
+edit-args = ["--merge", "--cs", "CreateBakFiles=0", "$left", "$right"]
 merge-args = ["$base", "$left", "$right", "-o", "$output", "--auto"]
 
 [merge-tools.meld]
+edit-args = ["$left", "$right"]
 merge-args = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
 
 [merge-tools.vimdiff]
@@ -16,4 +17,4 @@ merge-tool-edits-conflict-markers = true
 # Using vimdiff as a diff editor is not recommended. For instructions on configuring
 # the DirDiff Vim plugin for a better experience, see
 # https://gist.github.com/ilyagr/5d6339fb7dac5e7ab06fe1561ec62d45
-edit-args = ["-f", "-d"]
+edit-args = ["-f", "-d", "$left", "$right"]
