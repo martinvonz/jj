@@ -95,6 +95,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   option to `none`. For a presentation that doesn't rely on color, set it to
   `brackets`.
 
+* It is now possible to change the lengths of the ids `jj log` prints with the
+  new `ui.log-id-preferred-length` option.
+
 * `jj print` was renamed to `jj cat`. `jj print` remains as an alias.
   
 * In content that goes to the terminal, the ANSI escape byte (0x1b) is replaced

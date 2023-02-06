@@ -1413,12 +1413,13 @@ fn log_template(settings: &UserSettings) -> String {
     } else {
         "committer.timestamp()"
     };
+    let desired_id_len = settings.log_id_preferred_length().unwrap_or(12);
     // TODO: If/when this logic is relevant in the `lib` crate, make this into
     // and enum similar to `ColorChoice`.
     let prefix_format = match settings.unique_prefixes().as_str() {
-        "brackets" => "shortest_prefix_and_brackets()",
-        "styled" => "shortest_styled_prefix()",
-        _ => "short()",
+        "brackets" => format!("shortest_prefix_and_brackets({desired_id_len})"),
+        "styled" => format!("shortest_styled_prefix({desired_id_len})"),
+        _ => format!("short({desired_id_len})"),
     };
     let default_template = format!(
         r#"

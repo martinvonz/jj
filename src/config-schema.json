@@ -86,7 +86,11 @@
                     "enum": ["none", "brackets", "styled"],
                     "description": "How formatter indicates the unique prefix part of a revision or change ID",
                     "default": "styled"
-
+                },
+                "log-id-preferred-length": {
+                    "type": "integer",
+                    "description": "Determines the number of characters displayed for `jj log` for change or commit ids.",
+                    "default": 12
                 },
                 "editor": {
                     "type": "string",
