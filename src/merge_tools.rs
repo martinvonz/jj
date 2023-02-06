@@ -408,22 +408,22 @@ struct MergeTool {
 }
 
 impl MergeTool {
-    pub fn with_edit_args(args: &FullCommandArgs) -> Self {
-        let full_args = args.args();
+    pub fn with_edit_args(command_args: &FullCommandArgs) -> Self {
+        let (name, args) = command_args.split_name_and_args();
         MergeTool {
-            program: full_args[0].to_owned(),
-            edit_args: full_args[1..].to_vec(),
+            program: name.into_owned(),
+            edit_args: args.to_vec(),
             merge_args: vec![],
             merge_tool_edits_conflict_markers: false,
         }
     }
 
-    pub fn with_merge_args(args: &FullCommandArgs) -> Self {
-        let full_args = args.args();
+    pub fn with_merge_args(command_args: &FullCommandArgs) -> Self {
+        let (name, args) = command_args.split_name_and_args();
         MergeTool {
-            program: full_args[0].to_owned(),
+            program: name.into_owned(),
             edit_args: vec![],
-            merge_args: full_args[1..].to_vec(),
+            merge_args: args.to_vec(),
             merge_tool_edits_conflict_markers: false,
         }
     }
