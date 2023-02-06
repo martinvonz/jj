@@ -585,14 +585,14 @@ impl<'a> CommitOrChangeId<'a> {
 
     /// The length of the id printed will be the maximum of `total_len` and the
     /// length of the shortest unique prefix
-    pub fn shortest_styled_prefix(&self, total_len: i64) -> IdWithHighlightedPrefix {
+    pub fn shortest(&self, total_len: i64) -> ShortestIdPrefix {
         let hex = self.hex();
         let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
             &hex,
             self.repo.shortest_unique_id_prefix_len(self.as_bytes()),
             max(total_len, 0) as usize,
         );
-        IdWithHighlightedPrefix {
+        ShortestIdPrefix {
             prefix: prefix.to_string(),
             rest: rest.to_string(),
         }
@@ -655,12 +655,12 @@ mod tests {
     }
 }
 
-pub struct IdWithHighlightedPrefix {
+pub struct ShortestIdPrefix {
     prefix: String,
     rest: String,
 }
 
-impl Template<()> for IdWithHighlightedPrefix {
+impl Template<()> for ShortestIdPrefix {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.with_label("prefix", |fmt| fmt.write_str(&self.prefix))?;
         formatter.with_label("rest", |fmt| fmt.write_str(&self.rest))
