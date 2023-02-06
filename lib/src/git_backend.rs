@@ -460,7 +460,13 @@ impl Backend for GitBackend {
                 // add it to the list of parents to write in the Git commit. We also check that
                 // there are no other parents since Git cannot represent a merge between a root
                 // commit and another commit.
-                assert_eq!(contents.parents.len(), 1);
+                if contents.parents.len() > 1 {
+                    return Err(BackendError::Other(
+                        "The Git backend does not support creating merge commits with the root \
+                         commit as one of the parents."
+                            .to_string(),
+                    ));
+                }
             } else {
                 let git_commit_id = validate_git_object_id(parent_id)?;
                 let parent_git_commit = locked_repo
@@ -595,6 +601,7 @@ fn bytes_vec_from_json(value: &serde_json::Value) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
 
     use super::*;
     use crate::backend::{FileId, MillisSinceEpoch};
@@ -756,6 +763,13 @@ mod tests {
         assert_eq!(
             merge_git_commit.parent_ids().collect_vec(),
             vec![git_id(&first_id), git_id(&second_id)]
+        );
+
+        // Merge commit with root as one parent
+        commit.parents = vec![first_id, backend.root_commit_id().clone()];
+        assert_matches!(
+            backend.write_commit(&commit),
+            Err(BackendError::Other(message)) if message.contains("root commit")
         );
     }
 
