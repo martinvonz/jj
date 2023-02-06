@@ -294,7 +294,7 @@ impl ReadonlyRepo {
 
     pub fn shortest_unique_id_prefix_len(&self, target_id_bytes: &[u8]) -> usize {
         let root_commit_id = self.store().root_commit_id();
-        let root_change_id = backend::root_change_id();
+        let root_change_id = self.store().root_change_id();
         if target_id_bytes == root_commit_id.as_bytes()
             || target_id_bytes == root_change_id.as_bytes()
         {

@@ -19,7 +19,8 @@ use git2::Repository;
 use jujutsu::cli_util::{CliRunner, CommandError, CommandHelper};
 use jujutsu::ui::Ui;
 use jujutsu_lib::backend::{
-    Backend, BackendResult, Commit, CommitId, Conflict, ConflictId, FileId, SymlinkId, Tree, TreeId,
+    Backend, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId, FileId, SymlinkId,
+    Tree, TreeId,
 };
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::repo::StoreFactories;
@@ -118,6 +119,10 @@ impl Backend for JitBackend {
 
     fn root_commit_id(&self) -> &CommitId {
         self.inner.root_commit_id()
+    }
+
+    fn root_change_id(&self) -> &ChangeId {
+        self.inner.root_change_id()
     }
 
     fn empty_tree_id(&self) -> &TreeId {

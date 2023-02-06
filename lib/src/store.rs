@@ -18,7 +18,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::backend;
 use crate::backend::{
-    Backend, BackendResult, CommitId, Conflict, ConflictId, FileId, SymlinkId, TreeId,
+    Backend, BackendResult, ChangeId, CommitId, Conflict, ConflictId, FileId, SymlinkId, TreeId,
 };
 use crate::commit::Commit;
 use crate::repo_path::RepoPath;
@@ -57,6 +57,10 @@ impl Store {
 
     pub fn root_commit_id(&self) -> &CommitId {
         self.backend.root_commit_id()
+    }
+
+    pub fn root_change_id(&self) -> &ChangeId {
+        self.backend.root_change_id()
     }
 
     pub fn root_commit(self: &Arc<Self>) -> Commit {

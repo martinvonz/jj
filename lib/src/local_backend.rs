@@ -25,7 +25,7 @@ use tempfile::{NamedTempFile, PersistError};
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
     ConflictId, ConflictPart, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
-    Tree, TreeId, TreeValue,
+    Tree, TreeId, TreeValue, CHANGE_ID_HASH_LENGTH,
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
@@ -69,6 +69,7 @@ fn map_not_found_err(err: std::io::Error, id: &impl ObjectId) -> BackendError {
 pub struct LocalBackend {
     path: PathBuf,
     root_commit_id: CommitId,
+    root_change_id: ChangeId,
     empty_tree_id: TreeId,
 }
 
@@ -89,10 +90,12 @@ impl LocalBackend {
 
     pub fn load(store_path: &Path) -> Self {
         let root_commit_id = CommitId::from_bytes(&[0; 64]);
+        let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_HASH_LENGTH]);
         let empty_tree_id = TreeId::from_hex("482ae5a29fbe856c7272f2071b8b0f0359ee2d89ff392b8a900643fbd0836eccd067b8bf41909e206c90d45d6e7d8b6686b93ecaee5fe1a9060d87b672101310");
         LocalBackend {
             path: store_path.to_path_buf(),
             root_commit_id,
+            root_change_id,
             empty_tree_id,
         }
     }
@@ -185,6 +188,10 @@ impl Backend for LocalBackend {
         &self.root_commit_id
     }
 
+    fn root_change_id(&self) -> &ChangeId {
+        &self.root_change_id
+    }
+
     fn empty_tree_id(&self) -> &TreeId {
         &self.empty_tree_id
     }
@@ -231,7 +238,10 @@ impl Backend for LocalBackend {
 
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if *id == self.root_commit_id {
-            return Ok(make_root_commit(self.empty_tree_id.clone()));
+            return Ok(make_root_commit(
+                self.root_change_id().clone(),
+                self.empty_tree_id.clone(),
+            ));
         }
 
         let path = self.commit_path(id);
