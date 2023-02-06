@@ -498,7 +498,7 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
             Property::String(chain_properties(
                 (self_property, len_property),
                 TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
-                    id.shortest_prefix_and_brackets(len.unwrap_or(12))
+                    id.shortest_prefix_and_brackets(len.unwrap_or(0))
                 }),
             ))
         }
@@ -507,7 +507,7 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
             Property::IdWithHighlightedPrefix(chain_properties(
                 (self_property, len_property),
                 TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
-                    id.shortest_styled_prefix(len.unwrap_or(12))
+                    id.shortest_styled_prefix(len.unwrap_or(0))
                 }),
             ))
         }
