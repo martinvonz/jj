@@ -1,6 +1,5 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::io;
 use std::sync::{Mutex, Once};
-use std::{io, thread};
 
 use once_cell::sync::Lazy;
 use slab::Slab;
@@ -56,6 +55,8 @@ mod platform {
     use std::os::unix::io::{IntoRawFd as _, RawFd};
     use std::os::unix::net::UnixDatagram;
     use std::panic::AssertUnwindSafe;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::thread;
 
     use libc::{c_int, SIGINT, SIGTERM};
 

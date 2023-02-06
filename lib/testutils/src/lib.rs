@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![deny(unused_imports)]
+
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};

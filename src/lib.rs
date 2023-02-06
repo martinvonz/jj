@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![deny(unused_imports)]
 #![deny(unused_must_use)]
 
 pub mod cleanup_guard;
