@@ -227,7 +227,12 @@ pub fn run_mergetool(
                 // TODO: Should actually ignore the error here, or have a warning.
                 set_readonly_recursively(&path).map_err(ExternalToolError::SetUpDirError)?;
             }
-            Ok((*role, path))
+            Ok((
+                *role,
+                path.into_os_string()
+                    .into_string()
+                    .expect("temp_dir would be valid utf-8"),
+            ))
         })
         .try_collect()?;
 
@@ -277,23 +282,21 @@ pub fn run_mergetool(
     Ok(tree_builder.write_tree())
 }
 
-fn interpolate_mergetool_filename_patterns<T: std::str::FromStr + From<PathBuf>>(
+fn interpolate_mergetool_filename_patterns<V: AsRef<str>>(
     merge_args: &[String],
-    paths: &HashMap<&str, PathBuf>,
-) -> Vec<T>
-where
-    Vec<T>: FromIterator<PathBuf>,
-{
+    paths: &HashMap<&str, V>,
+) -> Vec<String> {
     merge_args
         .iter()
         .map(|arg| {
             // TODO: Match all instances of `\$\w+` pattern and replace them
             // so that portions of args can be replaced, and so that file paths
             // that include the '$' character are processed correctly.
-            arg.strip_prefix('$')
-                .and_then(|p| paths.get(p))
-                .and_then(|p| From::from(p.clone()))
-                .unwrap_or_else(|| From::from(arg.clone()))
+            if let Some(subst) = arg.strip_prefix('$').and_then(|p| paths.get(p)) {
+                subst.as_ref().to_owned()
+            } else {
+                arg.clone()
+            }
         })
         .collect()
 }
