@@ -292,8 +292,8 @@ fn test_log_prefix_highlight_brackets() {
     fn prefix_format(len: Option<usize>) -> String {
         format!(
             r#"
-      "Change " change_id.shortest_prefix_and_brackets({0}) " " description.first_line()
-      " " commit_id.shortest_prefix_and_brackets({0}) " " branches
+      "Change " change_id.shortest({0}).with_brackets() " " description.first_line()
+      " " commit_id.shortest({0}).with_brackets() " " branches
     "#,
             len.map(|l| l.to_string()).unwrap_or(String::default())
         )
@@ -508,8 +508,8 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     let repo_path = test_env.env_root().join("repo");
 
     let prefix_format = r#"
-      "Change " change_id.shortest_prefix_and_brackets(12) " " description.first_line()
-      " " commit_id.shortest_prefix_and_brackets(12) " " branches
+      "Change " change_id.shortest(12).with_brackets() " " description.first_line()
+      " " commit_id.shortest(12).with_brackets() " " branches
     "#;
 
     std::fs::write(repo_path.join("file"), "original file\n").unwrap();

@@ -390,11 +390,8 @@ fn parse_method_chain<'a, I: 'a>(
             Property::CommitOrChangeId(property) => {
                 parse_commit_or_change_id_method(property, name, args_pair, parse_keyword)?
             }
-            Property::ShortestIdPrefix(_property) => {
-                return Err(TemplateParseError::no_such_method(
-                    "ShortestIdPrefix",
-                    &name,
-                ));
+            Property::ShortestIdPrefix(property) => {
+                parse_shortest_id_prefix_method(property, name, args_pair, parse_keyword)?
             }
             Property::Signature(property) => {
                 parse_signature_method(property, name, args_pair, parse_keyword)?
@@ -493,15 +490,6 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
                 }),
             ))
         }
-        "shortest_prefix_and_brackets" => {
-            let len_property = parse_optional_integer(args_pair)?;
-            Property::String(chain_properties(
-                (self_property, len_property),
-                TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
-                    id.shortest_prefix_and_brackets(len.unwrap_or(0))
-                }),
-            ))
-        }
         "shortest" => {
             let len_property = parse_optional_integer(args_pair)?;
             Property::ShortestIdPrefix(chain_properties(
@@ -514,6 +502,32 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
         _ => {
             return Err(TemplateParseError::no_such_method(
                 "CommitOrChangeId",
+                &name,
+            ));
+        }
+    };
+    Ok(property)
+}
+
+fn parse_shortest_id_prefix_method<'a, I: 'a>(
+    self_property: impl TemplateProperty<I, Output = ShortestIdPrefix> + 'a,
+    name: Pair<Rule>,
+    args_pair: Pair<Rule>,
+    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+) -> TemplateParseResult<Property<'a, I>> {
+    let property = match name.as_str() {
+        "with_brackets" => {
+            // TODO: If we had a map function, this could be expressed as a template
+            // like 'id.shortest() % (.prefix() if(.rest(), "[" .rest() "]"))'
+            expect_no_arguments(args_pair)?;
+            Property::String(chain_properties(
+                self_property,
+                TemplatePropertyFn(|id: &ShortestIdPrefix| id.with_brackets()),
+            ))
+        }
+        _ => {
+            return Err(TemplateParseError::no_such_method(
+                "ShortestIdPrefix",
                 &name,
             ));
         }

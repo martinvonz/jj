@@ -567,22 +567,6 @@ impl<'a> CommitOrChangeId<'a> {
         hex
     }
 
-    /// The length of the id printed (not counting the brackets) will be the
-    /// maximum of `total_len` and the length of the shortest unique prefix
-    pub fn shortest_prefix_and_brackets(&self, total_len: i64) -> String {
-        let hex = self.hex();
-        let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
-            &hex,
-            self.repo.shortest_unique_id_prefix_len(self.as_bytes()),
-            max(total_len, 0) as usize,
-        );
-        if rest.is_empty() {
-            prefix.to_string()
-        } else {
-            format!("{prefix}[{rest}]")
-        }
-    }
-
     /// The length of the id printed will be the maximum of `total_len` and the
     /// length of the shortest unique prefix
     pub fn shortest(&self, total_len: i64) -> ShortestIdPrefix {
@@ -658,6 +642,16 @@ mod tests {
 pub struct ShortestIdPrefix {
     prefix: String,
     rest: String,
+}
+
+impl ShortestIdPrefix {
+    pub fn with_brackets(&self) -> String {
+        if self.rest.is_empty() {
+            self.prefix.clone()
+        } else {
+            format!("{}[{}]", self.prefix, self.rest)
+        }
+    }
 }
 
 impl Template<()> for ShortestIdPrefix {
