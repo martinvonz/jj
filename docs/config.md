@@ -105,13 +105,25 @@ for some examples of what's possible.
 ui.graph.style = "curved"
 ```
 
-### Shortest unique prefixes for ids
+### Display of commit and change ids
+
 ```toml
 ui.unique-prefixes = "brackets"  # Does not rely on color
 ```
 
 Whether to highlight a unique prefix for commit & change ids. Possible
 values are `styled`, `brackets` and `none` (default: `styled`).
+
+```toml
+ui.log-id-preferred-length = 6
+```
+
+Determines the number of characters displayed for `jj log` for change or commit
+ids. The default is 12. If the `ui.unique-prefixes` option is not set to `none`,
+this option will be ignored if the number of characters it specifies is
+insufficient to print the entire unique prefix of an id.
+
+This option can be convenient to set on a per-repository level.
 
 ### Relative timestamps
 

@@ -170,6 +170,13 @@ impl UserSettings {
             .unwrap_or_else(|_| "styled".to_string())
     }
 
+    pub fn log_id_preferred_length(&self) -> Option<usize> {
+        self.config
+            .get_int("ui.log-id-preferred-length")
+            .ok()
+            .and_then(|l| l.try_into().ok())
+    }
+
     pub fn config(&self) -> &config::Config {
         &self.config
     }
