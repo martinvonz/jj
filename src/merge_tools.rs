@@ -351,12 +351,14 @@ pub fn edit_diff(
             .map_err(ExternalToolError::SetUpDirError)?;
     }
 
-    let editor = get_diff_editor_from_settings(ui, settings)?;
     // Start a diff editor on the two directories.
+    let editor = get_diff_editor_from_settings(ui, settings)?;
+    let patterns = maplit::hashmap! {
+        "left" => left_wc_dir.to_str().expect("temp_dir would be valid utf-8"),
+        "right" => right_wc_dir.to_str().expect("temp_dir would be valid utf-8"),
+    };
     let mut cmd = Command::new(&editor.program);
-    cmd.args(&editor.edit_args)
-        .arg(&left_wc_dir)
-        .arg(&right_wc_dir);
+    cmd.args(interpolate_variables(&editor.edit_args, &patterns));
     tracing::debug!(?cmd, "Invoking the external diff editor:");
     let exit_status = cmd
         .status()
@@ -385,6 +387,7 @@ struct MergeTool {
     /// if not specified in the config.
     pub program: String,
     /// Arguments to pass to the program when editing diffs.
+    /// `$left` and `$right` are replaced with the corresponding directories.
     pub edit_args: Vec<String>,
     /// Arguments to pass to the program when resolving 3-way conflicts.
     /// `$left`, `$right`, `$base`, and `$output` are replaced with
@@ -404,12 +407,11 @@ struct MergeTool {
     pub merge_tool_edits_conflict_markers: bool,
 }
 
-#[allow(clippy::derivable_impls)] // TODO
 impl Default for MergeTool {
     fn default() -> Self {
         MergeTool {
             program: String::new(),
-            edit_args: vec![],
+            edit_args: ["$left", "$right"].map(ToOwned::to_owned).to_vec(),
             merge_args: vec![],
             merge_tool_edits_conflict_markers: false,
         }
@@ -541,7 +543,10 @@ mod tests {
         insta::assert_debug_snapshot!(get("").unwrap(), @r###"
         MergeTool {
             program: "meld",
-            edit_args: [],
+            edit_args: [
+                "$left",
+                "$right",
+            ],
             merge_args: [
                 "$left",
                 "$base",
@@ -554,36 +559,44 @@ mod tests {
         }
         "###);
 
-        // Just program name
+        // Just program name, edit_args are filled by default
         insta::assert_debug_snapshot!(get(r#"ui.diff-editor = "my-diff""#).unwrap(), @r###"
         MergeTool {
             program: "my-diff",
-            edit_args: [],
-            merge_args: [],
-            merge_tool_edits_conflict_markers: false,
-        }
-        "###);
-
-        // String args
-        insta::assert_debug_snapshot!(
-            get(r#"ui.diff-editor = "my-diff --diff""#).unwrap(), @r###"
-        MergeTool {
-            program: "my-diff",
             edit_args: [
-                "--diff",
+                "$left",
+                "$right",
             ],
             merge_args: [],
             merge_tool_edits_conflict_markers: false,
         }
         "###);
 
-        // List args
+        // String args (with interpolation variables)
         insta::assert_debug_snapshot!(
-            get(r#"ui.diff-editor = ["my-diff", "--diff"]"#).unwrap(), @r###"
+            get(r#"ui.diff-editor = "my-diff -l $left -r $right""#).unwrap(), @r###"
+        MergeTool {
+            program: "my-diff",
+            edit_args: [
+                "-l",
+                "$left",
+                "-r",
+                "$right",
+            ],
+            merge_args: [],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
+        // List args (with interpolation variables)
+        insta::assert_debug_snapshot!(
+            get(r#"ui.diff-editor = ["my-diff", "--diff", "$left", "$right"]"#).unwrap(), @r###"
         MergeTool {
             program: "my-diff",
             edit_args: [
                 "--diff",
+                "$left",
+                "$right",
             ],
             merge_args: [],
             merge_tool_edits_conflict_markers: false,
@@ -595,7 +608,7 @@ mod tests {
         r#"
         ui.diff-editor = "foo bar"
         [merge-tools."foo bar"]
-        edit-args = ["--edit", "args"]
+        edit-args = ["--edit", "args", "$left", "$right"]
         "#,
         ).unwrap(), @r###"
         MergeTool {
@@ -603,17 +616,41 @@ mod tests {
             edit_args: [
                 "--edit",
                 "args",
+                "$left",
+                "$right",
             ],
             merge_args: [],
             merge_tool_edits_conflict_markers: false,
         }
         "###);
 
-        // List args should never be a merge-tools key
+        // Pick from merge-tools, but no edit-args specified
+        insta::assert_debug_snapshot!(get(
+        r#"
+        ui.diff-editor = "my-diff"
+        [merge-tools.my-diff]
+        program = "MyDiff"
+        "#,
+        ).unwrap(), @r###"
+        MergeTool {
+            program: "MyDiff",
+            edit_args: [
+                "$left",
+                "$right",
+            ],
+            merge_args: [],
+            merge_tool_edits_conflict_markers: false,
+        }
+        "###);
+
+        // List args should never be a merge-tools key, edit_args are filled by default
         insta::assert_debug_snapshot!(get(r#"ui.diff-editor = ["meld"]"#).unwrap(), @r###"
         MergeTool {
             program: "meld",
-            edit_args: [],
+            edit_args: [
+                "$left",
+                "$right",
+            ],
             merge_args: [],
             merge_tool_edits_conflict_markers: false,
         }
@@ -636,7 +673,10 @@ mod tests {
         insta::assert_debug_snapshot!(get("").unwrap(), @r###"
         MergeTool {
             program: "meld",
-            edit_args: [],
+            edit_args: [
+                "$left",
+                "$right",
+            ],
             merge_args: [
                 "$left",
                 "$base",
@@ -661,7 +701,10 @@ mod tests {
             get(r#"ui.merge-editor = "my-merge $left $base $right $output""#).unwrap(), @r###"
         MergeTool {
             program: "my-merge",
-            edit_args: [],
+            edit_args: [
+                "$left",
+                "$right",
+            ],
             merge_args: [
                 "$left",
                 "$base",
@@ -679,7 +722,10 @@ mod tests {
             ).unwrap(), @r###"
         MergeTool {
             program: "my-merge",
-            edit_args: [],
+            edit_args: [
+                "$left",
+                "$right",
+            ],
             merge_args: [
                 "$left",
                 "$base",
@@ -700,7 +746,10 @@ mod tests {
         ).unwrap(), @r###"
         MergeTool {
             program: "foo bar",
-            edit_args: [],
+            edit_args: [
+                "$left",
+                "$right",
+            ],
             merge_args: [
                 "$base",
                 "$left",

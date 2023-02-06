@@ -199,21 +199,31 @@ Obviously, you would only set one line, don't copy them all in!
 ## Editing diffs
 
 The `ui.diff-editor` setting affects the tool used for editing diffs (e.g.
-`jj split`, `jj amend -i`). The default is `meld`. The left and right
-directories to diff are passed as the first and second argument respectively.
+`jj split`, `jj amend -i`). The default is `meld`.
+
+`jj` replaces the following arguments:
+
+- `$left` and `$right` are replaced with the paths to the left and right
+  directories to diff respectively.
+
+If no arguments are specified, `["$left", "$right"]` are set by default.
 
 For example:
 
 ```toml
-ui.diff-editor = "kdiff3" # Use merge-tools.kdiff3.edit-args
-ui.diff-editor = ["kdiff3", "--merge"] # Specify edit-args inline
+# Use merge-tools.kdiff3.edit-args
+ui.diff-editor = "kdiff3"
+# Specify edit-args inline
+ui.diff-editor = ["kdiff3", "--merge", "$left", "$right"]
 ```
 
-Custom arguments can be added, and will be inserted before the paths to diff:
+If `ui.diff-editor` consists of a single word, e.g. `"kdiff3"`, the arguments
+will be read from the following config keys.
 
 ```toml
 # merge-tools.kdiff3.program = "kdiff3"      # Defaults to the name of the tool if not specified
-merge-tools.kdiff3.edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
+merge-tools.kdiff3.edit-args = [
+    "--merge", "--cs", "CreateBakFiles=0", "$left", "$right"]
 ```
 
 ### Using Vim as a diff editor
