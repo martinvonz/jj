@@ -709,6 +709,56 @@ mod tests {
         );
     }
 
+    /// Test that parents get written correctly
+    #[test]
+    fn git_commit_parents() {
+        let temp_dir = testutils::new_temp_dir();
+        let store_path = temp_dir.path();
+        let git_repo_path = temp_dir.path().join("git");
+        let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+
+        let backend = GitBackend::init_external(store_path, &git_repo_path);
+        let mut commit = Commit {
+            parents: vec![],
+            predecessors: vec![],
+            root_tree: backend.empty_tree_id().clone(),
+            change_id: ChangeId::from_hex("abc123"),
+            description: "".to_string(),
+            author: create_signature(),
+            committer: create_signature(),
+        };
+
+        // Only root commit as parent
+        commit.parents = vec![backend.root_commit_id().clone()];
+        let first_id = backend.write_commit(&commit).unwrap();
+        let first_commit = backend.read_commit(&first_id).unwrap();
+        assert_eq!(first_commit, commit);
+        let first_git_commit = git_repo.find_commit(git_id(&first_id)).unwrap();
+        assert_eq!(first_git_commit.parent_ids().collect_vec(), vec![]);
+
+        // Only non-root commit as parent
+        commit.parents = vec![first_id.clone()];
+        let second_id = backend.write_commit(&commit).unwrap();
+        let second_commit = backend.read_commit(&second_id).unwrap();
+        assert_eq!(second_commit, commit);
+        let second_git_commit = git_repo.find_commit(git_id(&second_id)).unwrap();
+        assert_eq!(
+            second_git_commit.parent_ids().collect_vec(),
+            vec![git_id(&first_id)]
+        );
+
+        // Merge commit
+        commit.parents = vec![first_id.clone(), second_id.clone()];
+        let merge_id = backend.write_commit(&commit).unwrap();
+        let merge_commit = backend.read_commit(&merge_id).unwrap();
+        assert_eq!(merge_commit, commit);
+        let merge_git_commit = git_repo.find_commit(git_id(&merge_id)).unwrap();
+        assert_eq!(
+            merge_git_commit.parent_ids().collect_vec(),
+            vec![git_id(&first_id), git_id(&second_id)]
+        );
+    }
+
     #[test]
     fn commit_has_ref() {
         let temp_dir = testutils::new_temp_dir();
@@ -738,32 +788,21 @@ mod tests {
             .unwrap()
             .map(|git_ref| git_ref.unwrap().target().unwrap())
             .collect_vec();
-        assert_eq!(
-            git_refs,
-            vec![Oid::from_bytes(commit_id.as_bytes()).unwrap()]
-        );
+        assert_eq!(git_refs, vec![git_id(&commit_id)]);
     }
 
     #[test]
     fn overlapping_git_commit_id() {
         let temp_dir = testutils::new_temp_dir();
         let store = GitBackend::init_internal(temp_dir.path());
-        let signature = Signature {
-            name: "Someone".to_string(),
-            email: "someone@example.com".to_string(),
-            timestamp: Timestamp {
-                timestamp: MillisSinceEpoch(0),
-                tz_offset: 0,
-            },
-        };
         let commit1 = Commit {
             parents: vec![],
             predecessors: vec![],
             root_tree: store.empty_tree_id().clone(),
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
-            author: signature.clone(),
-            committer: signature,
+            author: create_signature(),
+            committer: create_signature(),
         };
         let commit_id1 = store.write_commit(&commit1).unwrap();
         let mut commit2 = commit1;
@@ -771,5 +810,20 @@ mod tests {
         // `write_commit` should prevent the ids from being the same by changing the
         // committer timestamp of the commit it actually writes.
         assert_ne!(store.write_commit(&commit2).unwrap(), commit_id1);
+    }
+
+    fn git_id(commit_id: &CommitId) -> Oid {
+        Oid::from_bytes(commit_id.as_bytes()).unwrap()
+    }
+
+    fn create_signature() -> Signature {
+        Signature {
+            name: "Someone".to_string(),
+            email: "someone@example.com".to_string(),
+            timestamp: Timestamp {
+                timestamp: MillisSinceEpoch(0),
+                tz_offset: 0,
+            },
+        }
     }
 }
