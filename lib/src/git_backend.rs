@@ -25,7 +25,7 @@ use prost::Message;
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
     ConflictId, ConflictPart, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
-    Tree, TreeId, TreeValue,
+    Tree, TreeId, TreeValue, CHANGE_ID_HASH_LENGTH,
 };
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::stacked_table::{ReadonlyTable, TableSegment, TableStore};
@@ -38,6 +38,7 @@ const CONFLICT_SUFFIX: &str = ".jjconflict";
 pub struct GitBackend {
     repo: Mutex<git2::Repository>,
     root_commit_id: CommitId,
+    root_change_id: ChangeId,
     empty_tree_id: TreeId,
     extra_metadata_store: TableStore,
     cached_extra_metadata: Mutex<Option<Arc<ReadonlyTable>>>,
@@ -46,10 +47,12 @@ pub struct GitBackend {
 impl GitBackend {
     fn new(repo: git2::Repository, extra_metadata_store: TableStore) -> Self {
         let root_commit_id = CommitId::from_bytes(&[0; HASH_LENGTH]);
+        let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_HASH_LENGTH]);
         let empty_tree_id = TreeId::from_hex("4b825dc642cb6eb9a060e54bf8d69288fbee4904");
         GitBackend {
             repo: Mutex::new(repo),
             root_commit_id,
+            root_change_id,
             empty_tree_id,
             extra_metadata_store,
             cached_extra_metadata: Mutex::new(None),
@@ -250,6 +253,10 @@ impl Backend for GitBackend {
         &self.root_commit_id
     }
 
+    fn root_change_id(&self) -> &ChangeId {
+        &self.root_change_id
+    }
+
     fn empty_tree_id(&self) -> &TreeId {
         &self.empty_tree_id
     }
@@ -382,7 +389,10 @@ impl Backend for GitBackend {
 
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if *id == self.root_commit_id {
-            return Ok(make_root_commit(self.empty_tree_id.clone()));
+            return Ok(make_root_commit(
+                self.root_change_id().clone(),
+                self.empty_tree_id.clone(),
+            ));
         }
         let git_commit_id = validate_git_object_id(id)?;
 

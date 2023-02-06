@@ -18,7 +18,6 @@ use std::io::Read;
 use std::result::Result;
 use std::vec::Vec;
 
-use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::content_hash::ContentHash;
@@ -350,13 +349,7 @@ fn iter_half_bytes(bytes: &[u8]) -> impl ExactSizeIterator<Item = u8> + '_ {
     })
 }
 
-pub fn root_change_id() -> &'static ChangeId {
-    static ROOT_CHANGE_ID: Lazy<ChangeId> =
-        Lazy::new(|| ChangeId::new(vec![0; CHANGE_ID_HASH_LENGTH]));
-    &ROOT_CHANGE_ID
-}
-
-pub fn make_root_commit(empty_tree_id: TreeId) -> Commit {
+pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Commit {
     let timestamp = Timestamp {
         timestamp: MillisSinceEpoch(0),
         tz_offset: 0,
@@ -366,12 +359,11 @@ pub fn make_root_commit(empty_tree_id: TreeId) -> Commit {
         email: String::new(),
         timestamp,
     };
-    let change_id = root_change_id().to_owned();
     Commit {
         parents: vec![],
         predecessors: vec![],
         root_tree: empty_tree_id,
-        change_id,
+        change_id: root_change_id,
         description: String::new(),
         author: signature.clone(),
         committer: signature,
@@ -397,6 +389,8 @@ pub trait Backend: Send + Sync + Debug {
     fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId>;
 
     fn root_commit_id(&self) -> &CommitId;
+
+    fn root_change_id(&self) -> &ChangeId;
 
     fn empty_tree_id(&self) -> &TreeId;
 
