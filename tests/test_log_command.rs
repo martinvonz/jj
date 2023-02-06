@@ -386,8 +386,8 @@ fn test_log_prefix_highlight_styled() {
     fn prefix_format(len: Option<usize>) -> String {
         format!(
             r#"
-      "Change " change_id.shortest_styled_prefix({0}) " " description.first_line()
-      " " commit_id.shortest_styled_prefix({0}) " " branches
+      "Change " change_id.shortest({0}) " " description.first_line()
+      " " commit_id.shortest({0}) " " branches
     "#,
             len.map(|l| l.to_string()).unwrap_or(String::default())
         )

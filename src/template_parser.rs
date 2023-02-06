@@ -29,9 +29,9 @@ use thiserror::Error;
 
 use crate::templater::{
     BranchProperty, CommitOrChangeId, ConditionalTemplate, FormattablePropertyTemplate,
-    GitHeadProperty, GitRefsProperty, IdWithHighlightedPrefix, LabelTemplate, ListTemplate,
-    Literal, PlainTextFormattedProperty, SeparateTemplate, TagProperty, Template, TemplateFunction,
-    TemplateProperty, TemplatePropertyFn, WorkingCopiesProperty,
+    GitHeadProperty, GitRefsProperty, LabelTemplate, ListTemplate, Literal,
+    PlainTextFormattedProperty, SeparateTemplate, ShortestIdPrefix, TagProperty, Template,
+    TemplateFunction, TemplateProperty, TemplatePropertyFn, WorkingCopiesProperty,
 };
 use crate::{cli_util, time_util};
 
@@ -185,7 +185,7 @@ enum Property<'a, I> {
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
     Integer(Box<dyn TemplateProperty<I, Output = i64> + 'a>),
     CommitOrChangeId(Box<dyn TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a>),
-    IdWithHighlightedPrefix(Box<dyn TemplateProperty<I, Output = IdWithHighlightedPrefix> + 'a>),
+    ShortestIdPrefix(Box<dyn TemplateProperty<I, Output = ShortestIdPrefix> + 'a>),
     Signature(Box<dyn TemplateProperty<I, Output = Signature> + 'a>),
     Timestamp(Box<dyn TemplateProperty<I, Output = Timestamp> + 'a>),
 }
@@ -226,7 +226,7 @@ impl<'a, I: 'a> Property<'a, I> {
             Property::Boolean(property) => wrap(property),
             Property::Integer(property) => wrap(property),
             Property::CommitOrChangeId(property) => wrap(property),
-            Property::IdWithHighlightedPrefix(property) => wrap(property),
+            Property::ShortestIdPrefix(property) => wrap(property),
             Property::Signature(property) => wrap(property),
             Property::Timestamp(property) => wrap(property),
         }
@@ -390,9 +390,9 @@ fn parse_method_chain<'a, I: 'a>(
             Property::CommitOrChangeId(property) => {
                 parse_commit_or_change_id_method(property, name, args_pair, parse_keyword)?
             }
-            Property::IdWithHighlightedPrefix(_property) => {
+            Property::ShortestIdPrefix(_property) => {
                 return Err(TemplateParseError::no_such_method(
-                    "IdWithHighlightedPrefix",
+                    "ShortestIdPrefix",
                     &name,
                 ));
             }
@@ -502,12 +502,12 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
                 }),
             ))
         }
-        "shortest_styled_prefix" => {
+        "shortest" => {
             let len_property = parse_optional_integer(args_pair)?;
-            Property::IdWithHighlightedPrefix(chain_properties(
+            Property::ShortestIdPrefix(chain_properties(
                 (self_property, len_property),
                 TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
-                    id.shortest_styled_prefix(len.unwrap_or(0))
+                    id.shortest(len.unwrap_or(0))
                 }),
             ))
         }
