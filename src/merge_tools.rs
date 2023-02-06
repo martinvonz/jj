@@ -35,7 +35,7 @@ use jujutsu_lib::tree::Tree;
 use jujutsu_lib::working_copy::{CheckoutError, SnapshotError, TreeState};
 use thiserror::Error;
 
-use crate::config::FullCommandArgs;
+use crate::config::CommandNameAndArgs;
 use crate::ui::Ui;
 
 #[derive(Debug, Error)]
@@ -408,7 +408,7 @@ struct MergeTool {
 }
 
 impl MergeTool {
-    pub fn with_edit_args(command_args: &FullCommandArgs) -> Self {
+    pub fn with_edit_args(command_args: &CommandNameAndArgs) -> Self {
         let (name, args) = command_args.split_name_and_args();
         MergeTool {
             program: name.into_owned(),
@@ -418,7 +418,7 @@ impl MergeTool {
         }
     }
 
-    pub fn with_merge_args(command_args: &FullCommandArgs) -> Self {
+    pub fn with_merge_args(command_args: &CommandNameAndArgs) -> Self {
         let (name, args) = command_args.split_name_and_args();
         MergeTool {
             program: name.into_owned(),
@@ -455,8 +455,8 @@ fn get_diff_editor_from_settings(
 ) -> Result<MergeTool, ExternalToolError> {
     let args = editor_args_from_settings(ui, settings, "ui.diff-editor")?;
     let maybe_editor = match &args {
-        FullCommandArgs::String(name) => get_tool_config(settings, name)?,
-        FullCommandArgs::Vec(_) => None,
+        CommandNameAndArgs::String(name) => get_tool_config(settings, name)?,
+        CommandNameAndArgs::Vec(_) => None,
     };
     Ok(maybe_editor.unwrap_or_else(|| MergeTool::with_edit_args(&args)))
 }
@@ -467,8 +467,8 @@ fn get_merge_tool_from_settings(
 ) -> Result<MergeTool, ExternalToolError> {
     let args = editor_args_from_settings(ui, settings, "ui.merge-editor")?;
     let maybe_editor = match &args {
-        FullCommandArgs::String(name) => get_tool_config(settings, name)?,
-        FullCommandArgs::Vec(_) => None,
+        CommandNameAndArgs::String(name) => get_tool_config(settings, name)?,
+        CommandNameAndArgs::Vec(_) => None,
     };
     let editor = maybe_editor.unwrap_or_else(|| MergeTool::with_merge_args(&args));
     if editor.merge_args.is_empty() {
@@ -485,10 +485,10 @@ fn editor_args_from_settings(
     ui: &mut Ui,
     settings: &UserSettings,
     key: &str,
-) -> Result<FullCommandArgs, ExternalToolError> {
+) -> Result<CommandNameAndArgs, ExternalToolError> {
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.
-    match settings.config().get::<FullCommandArgs>(key) {
+    match settings.config().get::<CommandNameAndArgs>(key) {
         Ok(args) => Ok(args),
         Err(config::ConfigError::NotFound(_)) => {
             let default_editor = "meld";

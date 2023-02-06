@@ -55,7 +55,7 @@ use jujutsu_lib::{dag_walk, file_util, git, revset};
 use thiserror::Error;
 use tracing_subscriber::prelude::*;
 
-use crate::config::{AnnotatedValue, FullCommandArgs, LayeredConfigs};
+use crate::config::{AnnotatedValue, CommandNameAndArgs, LayeredConfigs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::template_parser::{self, TemplateParseError};
@@ -1526,7 +1526,7 @@ pub fn serialize_config_value(value: &config::Value) -> String {
 }
 
 pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(), CommandError> {
-    let editor: FullCommandArgs = settings
+    let editor: CommandNameAndArgs = settings
         .config()
         .get("ui.editor")
         .unwrap_or_else(|_| "pico".into());

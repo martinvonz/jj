@@ -19,12 +19,12 @@ use std::{fmt, io, mem};
 
 use crossterm::tty::IsTty;
 
-use crate::config::FullCommandArgs;
+use crate::config::CommandNameAndArgs;
 use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
 
 pub struct Ui {
     color: bool,
-    pager_cmd: FullCommandArgs,
+    pager_cmd: CommandNameAndArgs,
     paginate: PaginationChoice,
     progress_indicator: bool,
     formatter_factory: FormatterFactory,
@@ -100,7 +100,7 @@ impl Default for PaginationChoice {
     }
 }
 
-fn pager_setting(config: &config::Config) -> FullCommandArgs {
+fn pager_setting(config: &config::Config) -> CommandNameAndArgs {
     config
         .get("ui.pager")
         .unwrap_or_else(|_| "less -FRX".into())
@@ -320,7 +320,7 @@ impl UiOutput {
         }
     }
 
-    fn new_paged(pager_cmd: &FullCommandArgs) -> io::Result<UiOutput> {
+    fn new_paged(pager_cmd: &CommandNameAndArgs) -> io::Result<UiOutput> {
         let mut child = pager_cmd.to_command().stdin(Stdio::piped()).spawn()?;
         let child_stdin = child.stdin.take().unwrap();
         Ok(UiOutput::Paged { child, child_stdin })
