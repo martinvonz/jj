@@ -90,7 +90,13 @@ fn diff_formats_from_args(args: &DiffFormatArgs) -> Vec<DiffFormat> {
 }
 
 fn default_diff_format(settings: &UserSettings) -> DiffFormat {
-    match settings.config().get_string("diff.format").as_deref() {
+    match settings
+        .config()
+        .get_string("ui.diff.format")
+        // old config name
+        .or_else(|_| settings.config().get_string("diff.format"))
+        .as_deref()
+    {
         Ok("summary") => DiffFormat::Summary,
         Ok("git") => DiffFormat::Git,
         Ok("color-words") => DiffFormat::ColorWords,

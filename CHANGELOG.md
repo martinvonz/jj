@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The global `--no-commit-working-copy` is now called `--ignore-working-copy`.
 
+* The `diff.format` config option is now called `ui.diff.format`. The old name
+  is still supported for now.
+
 ### New features
 
 * The default log format now uses the committer timestamp instead of the author
