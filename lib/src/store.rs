@@ -47,6 +47,10 @@ impl Store {
         self.backend.commit_id_length()
     }
 
+    pub fn change_id_length(&self) -> usize {
+        self.backend.change_id_length()
+    }
+
     pub fn git_repo(&self) -> Option<git2::Repository> {
         self.backend.git_repo()
     }

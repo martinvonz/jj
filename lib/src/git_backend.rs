@@ -25,12 +25,13 @@ use prost::Message;
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
     ConflictId, ConflictPart, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
-    Tree, TreeId, TreeValue, CHANGE_ID_HASH_LENGTH,
+    Tree, TreeId, TreeValue,
 };
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::stacked_table::{ReadonlyTable, TableSegment, TableStore};
 
 const HASH_LENGTH: usize = 20;
+const CHANGE_ID_LENGTH: usize = 16;
 /// Ref namespace used only for preventing GC.
 pub const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
@@ -47,7 +48,7 @@ pub struct GitBackend {
 impl GitBackend {
     fn new(repo: git2::Repository, extra_metadata_store: TableStore) -> Self {
         let root_commit_id = CommitId::from_bytes(&[0; HASH_LENGTH]);
-        let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_HASH_LENGTH]);
+        let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_LENGTH]);
         let empty_tree_id = TreeId::from_hex("4b825dc642cb6eb9a060e54bf8d69288fbee4904");
         GitBackend {
             repo: Mutex::new(repo),
@@ -192,6 +193,10 @@ impl Backend for GitBackend {
 
     fn commit_id_length(&self) -> usize {
         HASH_LENGTH
+    }
+
+    fn change_id_length(&self) -> usize {
+        CHANGE_ID_LENGTH
     }
 
     fn git_repo(&self) -> Option<git2::Repository> {

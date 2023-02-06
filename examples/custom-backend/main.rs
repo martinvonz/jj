@@ -97,6 +97,10 @@ impl Backend for JitBackend {
         self.inner.commit_id_length()
     }
 
+    fn change_id_length(&self) -> usize {
+        self.inner.change_id_length()
+    }
+
     fn git_repo(&self) -> Option<Repository> {
         self.inner.git_repo()
     }
