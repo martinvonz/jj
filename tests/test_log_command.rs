@@ -309,10 +309,17 @@ fn test_log_prefix_highlight_brackets() {
     ~ 
     "###
     );
-    for i in 1..50 {
+
+    // Create a chain of 10 commits
+    for i in 1..10 {
         test_env.jj_cmd_success(&repo_path, &["new", "-m", &format!("commit{i}")]);
         std::fs::write(repo_path.join("file"), format!("file {i}\n")).unwrap();
     }
+    // Create 2^3 duplicates of the chain
+    for _ in 0..3 {
+        test_env.jj_cmd_success(&repo_path, &["duplicate", "description(commit)"]);
+    }
+
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "original", "-T", &prefix_format(Some(12))]),
         @r###"
@@ -321,54 +328,51 @@ fn test_log_prefix_highlight_brackets() {
     "###
     );
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-----------..@", "-T", &prefix_format(Some(12))]),
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", ":@", "-T", &prefix_format(Some(12))]),
         @r###"
-    @ Change 4c9[32da80131] commit49 d8[3437a2ceff] 
-    o Change 0d[58f15eaba6] commit48 f3[abb4ea0ac3] 
-    o Change fc[e6c2c59123] commit47 38e[891bea27b] 
-    o Change d5[1defcac305] commit46 1c[04d947707a] 
-    o Change 4f[13b1391d68] commit45 747[24ae22b1e] 
-    o Change 6a[de2950a042] commit44 c7a[a67cf7bbd] 
-    o Change 06c[482e452d3] commit43 8e[c99dfcb6c7] 
-    o Change 392[beeb018eb] commit42 8f0[e60411b78] 
-    o Change a1[b73d3ff916] commit41 71[d6937a66c3] 
-    o Change 708[8f461291f] commit40 db[5720490266] 
-    o Change c49[f7f006c77] commit39 d94[54fec8a69] 
-    ~ 
+    @ Change 39c[3fb0af576] commit9 03f[51310b83e] 
+    o Change fd[f57e73a939] commit8 f7[7fb1909080] 
+    o Change fa9[213bcf78e] commit7 e7[15ad5db646] 
+    o Change 0cff[a7997ffe] commit6 38[622e54e2e5] 
+    o Change 1b[76972398e6] commit5 0cf4[2f60199c] 
+    o Change 48[523d946ad2] commit4 9e[6015e4e622] 
+    o Change 19[b790168e73] commit3 06f[34d9b1475] 
+    o Change 8b12[d1f268f8] commit2 1f[99a5e19891] 
+    o Change d0[43564ef936] commit1 7b[1f7dee65b4] 
+    o Change 9a4[5c67d3e96] initial ba1[a30916d29] original
+    o Change 000[000000000]  000[000000000] 
     "###
     );
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-----------..@", "-T", &prefix_format(Some(3))]),
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", ":@", "-T", &prefix_format(Some(3))]),
         @r###"
-    @ Change 4c9 commit49 d8[3] 
-    o Change 0d[5] commit48 f3[a] 
-    o Change fc[e] commit47 38e 
-    o Change d5[1] commit46 1c[0] 
-    o Change 4f[1] commit45 747 
-    o Change 6a[d] commit44 c7a 
-    o Change 06c commit43 8e[c] 
-    o Change 392 commit42 8f0 
-    o Change a1[b] commit41 71[d] 
-    o Change 708 commit40 db[5] 
-    o Change c49 commit39 d94 
-    ~ 
+    @ Change 39c commit9 03f 
+    o Change fd[f] commit8 f7[7] 
+    o Change fa9 commit7 e7[1] 
+    o Change 0cff commit6 38[6] 
+    o Change 1b[7] commit5 0cf4 
+    o Change 48[5] commit4 9e[6] 
+    o Change 19[b] commit3 06f 
+    o Change 8b12 commit2 1f[9] 
+    o Change d0[4] commit1 7b[1] 
+    o Change 9a4 initial ba1 original
+    o Change 000  000 
     "###
     );
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-----------..@", "-T", &prefix_format(None)]),
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", ":@", "-T", &prefix_format(None)]),
         @r###"
-    @ Change 4c9 commit49 d8 
-    o Change 0d commit48 f3 
-    o Change fc commit47 38e 
-    o Change d5 commit46 1c 
-    o Change 4f commit45 747 
-    o Change 6a commit44 c7a 
-    o Change 06c commit43 8e 
-    o Change 392 commit42 8f0 
-    o Change a1 commit41 71 
-    o Change 708 commit40 db 
-    o Change c49 commit39 d94 
-    ~ 
+    @ Change 39c commit9 03f 
+    o Change fd commit8 f7 
+    o Change fa9 commit7 e7 
+    o Change 0cff commit6 38 
+    o Change 1b commit5 0cf4 
+    o Change 48 commit4 9e 
+    o Change 19 commit3 06f 
+    o Change 8b12 commit2 1f 
+    o Change d0 commit1 7b 
+    o Change 9a4 initial ba1 original
+    o Change 000  000 
     "###
     );
 }
@@ -399,10 +403,17 @@ fn test_log_prefix_highlight_styled() {
     ~ 
     "###
     );
-    for i in 1..50 {
+
+    // Create a chain of 10 commits
+    for i in 1..10 {
         test_env.jj_cmd_success(&repo_path, &["new", "-m", &format!("commit{i}")]);
         std::fs::write(repo_path.join("file"), format!("file {i}\n")).unwrap();
     }
+    // Create 2^3 duplicates of the chain
+    for _ in 0..3 {
+        test_env.jj_cmd_success(&repo_path, &["duplicate", "description(commit)"]);
+    }
+
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "original", "-T", &prefix_format(Some(12))]),
         @r###"
@@ -423,18 +434,17 @@ fn test_log_prefix_highlight_styled() {
     );
     insta::assert_snapshot!(stdout,
         @r###"
-    @ Change [1m[38;5;5m4c9[0m[38;5;8m32da80131[39m commit49 [1m[38;5;4md8[0m[38;5;8m3437a2ceff[39m 
-    o Change [1m[38;5;5m0d[0m[38;5;8m58f15eaba6[39m commit48 [1m[38;5;4mf3[0m[38;5;8mabb4ea0ac3[39m 
-    o Change [1m[38;5;5mfc[0m[38;5;8me6c2c59123[39m commit47 [1m[38;5;4m38e[0m[38;5;8m891bea27b[39m 
-    o Change [1m[38;5;5md5[0m[38;5;8m1defcac305[39m commit46 [1m[38;5;4m1c[0m[38;5;8m04d947707a[39m 
-    o Change [1m[38;5;5m4f[0m[38;5;8m13b1391d68[39m commit45 [1m[38;5;4m747[0m[38;5;8m24ae22b1e[39m 
-    o Change [1m[38;5;5m6a[0m[38;5;8mde2950a042[39m commit44 [1m[38;5;4mc7a[0m[38;5;8ma67cf7bbd[39m 
-    o Change [1m[38;5;5m06c[0m[38;5;8m482e452d3[39m commit43 [1m[38;5;4m8e[0m[38;5;8mc99dfcb6c7[39m 
-    o Change [1m[38;5;5m392[0m[38;5;8mbeeb018eb[39m commit42 [1m[38;5;4m8f0[0m[38;5;8me60411b78[39m 
-    o Change [1m[38;5;5ma1[0m[38;5;8mb73d3ff916[39m commit41 [1m[38;5;4m71[0m[38;5;8md6937a66c3[39m 
-    o Change [1m[38;5;5m708[0m[38;5;8m8f461291f[39m commit40 [1m[38;5;4mdb[0m[38;5;8m5720490266[39m 
-    o Change [1m[38;5;5mc49[0m[38;5;8mf7f006c77[39m commit39 [1m[38;5;4md94[0m[38;5;8m54fec8a69[39m 
-    ~ 
+    @ Change [1m[38;5;5m39c[0m[38;5;8m3fb0af576[39m commit9 [1m[38;5;4m03f[0m[38;5;8m51310b83e[39m 
+    o Change [1m[38;5;5mfd[0m[38;5;8mf57e73a939[39m commit8 [1m[38;5;4mf7[0m[38;5;8m7fb1909080[39m 
+    o Change [1m[38;5;5mfa9[0m[38;5;8m213bcf78e[39m commit7 [1m[38;5;4me7[0m[38;5;8m15ad5db646[39m 
+    o Change [1m[38;5;5m0cff[0m[38;5;8ma7997ffe[39m commit6 [1m[38;5;4m38[0m[38;5;8m622e54e2e5[39m 
+    o Change [1m[38;5;5m1b[0m[38;5;8m76972398e6[39m commit5 [1m[38;5;4m0cf4[0m[38;5;8m2f60199c[39m 
+    o Change [1m[38;5;5m48[0m[38;5;8m523d946ad2[39m commit4 [1m[38;5;4m9e[0m[38;5;8m6015e4e622[39m 
+    o Change [1m[38;5;5m19[0m[38;5;8mb790168e73[39m commit3 [1m[38;5;4m06f[0m[38;5;8m34d9b1475[39m 
+    o Change [1m[38;5;5m8b12[0m[38;5;8md1f268f8[39m commit2 [1m[38;5;4m1f[0m[38;5;8m99a5e19891[39m 
+    o Change [1m[38;5;5md0[0m[38;5;8m43564ef936[39m commit1 [1m[38;5;4m7b[0m[38;5;8m1f7dee65b4[39m 
+    o Change [1m[38;5;5m9a4[0m[38;5;8m5c67d3e96[39m initial [1m[38;5;4mba1[0m[38;5;8ma30916d29[39m [38;5;5moriginal[39m
+    o Change [1m[38;5;5m000[0m[38;5;8m000000000[39m  [1m[38;5;4m000[0m[38;5;8m000000000[39m 
     "###
     );
     let stdout = test_env.jj_cmd_success(
@@ -450,18 +460,17 @@ fn test_log_prefix_highlight_styled() {
     );
     insta::assert_snapshot!(stdout,
         @r###"
-    @ Change [1m[38;5;5m4c9[0m commit49 [1m[38;5;4md8[0m[38;5;8m3[39m 
-    o Change [1m[38;5;5m0d[0m[38;5;8m5[39m commit48 [1m[38;5;4mf3[0m[38;5;8ma[39m 
-    o Change [1m[38;5;5mfc[0m[38;5;8me[39m commit47 [1m[38;5;4m38e[0m 
-    o Change [1m[38;5;5md5[0m[38;5;8m1[39m commit46 [1m[38;5;4m1c[0m[38;5;8m0[39m 
-    o Change [1m[38;5;5m4f[0m[38;5;8m1[39m commit45 [1m[38;5;4m747[0m 
-    o Change [1m[38;5;5m6a[0m[38;5;8md[39m commit44 [1m[38;5;4mc7a[0m 
-    o Change [1m[38;5;5m06c[0m commit43 [1m[38;5;4m8e[0m[38;5;8mc[39m 
-    o Change [1m[38;5;5m392[0m commit42 [1m[38;5;4m8f0[0m 
-    o Change [1m[38;5;5ma1[0m[38;5;8mb[39m commit41 [1m[38;5;4m71[0m[38;5;8md[39m 
-    o Change [1m[38;5;5m708[0m commit40 [1m[38;5;4mdb[0m[38;5;8m5[39m 
-    o Change [1m[38;5;5mc49[0m commit39 [1m[38;5;4md94[0m 
-    ~ 
+    @ Change [1m[38;5;5m39c[0m commit9 [1m[38;5;4m03f[0m 
+    o Change [1m[38;5;5mfd[0m[38;5;8mf[39m commit8 [1m[38;5;4mf7[0m[38;5;8m7[39m 
+    o Change [1m[38;5;5mfa9[0m commit7 [1m[38;5;4me7[0m[38;5;8m1[39m 
+    o Change [1m[38;5;5m0cff[0m commit6 [1m[38;5;4m38[0m[38;5;8m6[39m 
+    o Change [1m[38;5;5m1b[0m[38;5;8m7[39m commit5 [1m[38;5;4m0cf4[0m 
+    o Change [1m[38;5;5m48[0m[38;5;8m5[39m commit4 [1m[38;5;4m9e[0m[38;5;8m6[39m 
+    o Change [1m[38;5;5m19[0m[38;5;8mb[39m commit3 [1m[38;5;4m06f[0m 
+    o Change [1m[38;5;5m8b12[0m commit2 [1m[38;5;4m1f[0m[38;5;8m9[39m 
+    o Change [1m[38;5;5md0[0m[38;5;8m4[39m commit1 [1m[38;5;4m7b[0m[38;5;8m1[39m 
+    o Change [1m[38;5;5m9a4[0m initial [1m[38;5;4mba1[0m [38;5;5moriginal[39m
+    o Change [1m[38;5;5m000[0m  [1m[38;5;4m000[0m 
     "###
     );
     let stdout = test_env.jj_cmd_success(
@@ -477,18 +486,17 @@ fn test_log_prefix_highlight_styled() {
     );
     insta::assert_snapshot!(stdout,
         @r###"
-    @ Change [1m[38;5;5m4c9[0m commit49 [1m[38;5;4md8[0m 
-    o Change [1m[38;5;5m0d[0m commit48 [1m[38;5;4mf3[0m 
-    o Change [1m[38;5;5mfc[0m commit47 [1m[38;5;4m38e[0m 
-    o Change [1m[38;5;5md5[0m commit46 [1m[38;5;4m1c[0m 
-    o Change [1m[38;5;5m4f[0m commit45 [1m[38;5;4m747[0m 
-    o Change [1m[38;5;5m6a[0m commit44 [1m[38;5;4mc7a[0m 
-    o Change [1m[38;5;5m06c[0m commit43 [1m[38;5;4m8e[0m 
-    o Change [1m[38;5;5m392[0m commit42 [1m[38;5;4m8f0[0m 
-    o Change [1m[38;5;5ma1[0m commit41 [1m[38;5;4m71[0m 
-    o Change [1m[38;5;5m708[0m commit40 [1m[38;5;4mdb[0m 
-    o Change [1m[38;5;5mc49[0m commit39 [1m[38;5;4md94[0m 
-    ~ 
+    @ Change [1m[38;5;5m39c[0m commit9 [1m[38;5;4m03f[0m 
+    o Change [1m[38;5;5mfd[0m commit8 [1m[38;5;4mf7[0m 
+    o Change [1m[38;5;5mfa9[0m commit7 [1m[38;5;4me7[0m 
+    o Change [1m[38;5;5m0cff[0m commit6 [1m[38;5;4m38[0m 
+    o Change [1m[38;5;5m1b[0m commit5 [1m[38;5;4m0cf4[0m 
+    o Change [1m[38;5;5m48[0m commit4 [1m[38;5;4m9e[0m 
+    o Change [1m[38;5;5m19[0m commit3 [1m[38;5;4m06f[0m 
+    o Change [1m[38;5;5m8b12[0m commit2 [1m[38;5;4m1f[0m 
+    o Change [1m[38;5;5md0[0m commit1 [1m[38;5;4m7b[0m 
+    o Change [1m[38;5;5m9a4[0m initial [1m[38;5;4mba1[0m [38;5;5moriginal[39m
+    o Change [1m[38;5;5m000[0m  [1m[38;5;4m000[0m 
     "###
     );
 }
@@ -514,24 +522,22 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     o Change 0[00000000000]  0[00000000000] 
     "###
     );
-    for i in 1..100 {
-        test_env.jj_cmd_success(&repo_path, &["describe", "-m", &format!("commit{i}")]);
-        std::fs::write(repo_path.join("file"), format!("file {i}\n")).unwrap();
+
+    // Create 2^7 hidden commits
+    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m", "extra"]);
+    for _ in 0..7 {
+        test_env.jj_cmd_success(&repo_path, &["duplicate", "description(extra)"]);
     }
-    // The first commit still exists. Its unique prefix became longer.
+    test_env.jj_cmd_success(&repo_path, &["abandon", "description(extra)"]);
+
+    // The first commit's unique prefix became longer.
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", "ba1", "-T", prefix_format]),
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", prefix_format]),
         @r###"
-    o Change 9a4[5c67d3e96] initial ba1[a30916d29] 
-    ~ 
-    "###
-    );
-    // The first commit is no longer visible
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
-        @r###"
-    @ Change 9a4[5c67d3e96] commit99 de[3177d2acf2] original
-    o Change 000[000000000]  000[000000000] 
+    @ Change 39c3[fb0af576]  44[4c3c5066d3] 
+    | o Change 9a[45c67d3e96] initial ba[1a30916d29] original
+    |/  
+    o Change 00[0000000000]  00[0000000000] 
     "###
     );
     insta::assert_snapshot!(
@@ -541,9 +547,9 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     "###
     );
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", "de", "-T", prefix_format]),
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", "d0", "-T", prefix_format]),
         @r###"
-    @ Change 9a4[5c67d3e96] commit99 de[3177d2acf2] original
+    o Change a70[78fc7d293] extra d0[947f34cec4] 
     ~ 
     "###
     );
