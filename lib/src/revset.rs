@@ -2404,6 +2404,32 @@ mod tests {
                     .minus(&RevsetExpression::visible_heads())
             )
         );
+
+        // Trailing comma isn't allowed for empty argument
+        assert!(parse("branches(,)").is_err());
+        // Trailing comma is allowed for the last argument
+        assert!(parse("branches(a,)").is_ok());
+        assert!(parse("branches(a ,  )").is_ok());
+        assert!(parse("branches(,a)").is_err());
+        assert!(parse("branches(a,,)").is_err());
+        assert!(parse("branches(a  , , )").is_err());
+        assert!(parse("file(a,b,)").is_ok());
+        assert!(parse("file(a,,b)").is_err());
+    }
+
+    #[test]
+    fn test_parse_revset_alias_formal_parameter() {
+        let mut aliases_map = RevsetAliasesMap::new();
+        // Trailing comma isn't allowed for empty parameter
+        assert!(aliases_map.insert("f(,)", "none()").is_err());
+        // Trailing comma is allowed for the last parameter
+        assert!(aliases_map.insert("g(a,)", "none()").is_ok());
+        assert!(aliases_map.insert("h(a ,  )", "none()").is_ok());
+        assert!(aliases_map.insert("i(,a)", "none()").is_err());
+        assert!(aliases_map.insert("j(a,,)", "none()").is_err());
+        assert!(aliases_map.insert("k(a  , , )", "none()").is_err());
+        assert!(aliases_map.insert("l(a,b,)", "none()").is_ok());
+        assert!(aliases_map.insert("m(a,,b)", "none()").is_err());
     }
 
     #[test]
