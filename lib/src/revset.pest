@@ -48,11 +48,15 @@ infix_op = _{ union_op | intersection_op | difference_op | compat_add_op | compa
 
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
 function_arguments = {
-  (whitespace* ~ expression ~ whitespace* ~ ",")* ~ whitespace* ~ expression ~ whitespace*
+  whitespace* ~ expression ~ whitespace*
+  ~ ("," ~ whitespace* ~ expression ~ whitespace*)*
+  ~ ("," ~ whitespace*)?
   | whitespace*
 }
 formal_parameters = {
-  (whitespace* ~ identifier ~ whitespace* ~ ",")* ~ whitespace* ~ identifier ~ whitespace*
+  whitespace* ~ identifier ~ whitespace*
+  ~ ("," ~ whitespace* ~ identifier ~ whitespace*)*
+  ~ ("," ~ whitespace*)?
   | whitespace*
 }
 
