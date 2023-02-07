@@ -790,6 +790,24 @@ mod tests {
     }
 
     #[test]
+    fn test_function_call_syntax() {
+        // Trailing comma isn't allowed for empty argument
+        assert!(parse(r#" "".first_line() "#).is_ok());
+        assert!(parse(r#" "".first_line(,) "#).is_err());
+
+        // Trailing comma is allowed for the last argument
+        assert!(parse(r#" "".contains("") "#).is_ok());
+        assert!(parse(r#" "".contains("",) "#).is_ok());
+        assert!(parse(r#" "".contains("" ,  ) "#).is_ok());
+        assert!(parse(r#" "".contains(,"") "#).is_err());
+        assert!(parse(r#" "".contains("",,) "#).is_err());
+        assert!(parse(r#" "".contains("" , , ) "#).is_err());
+        assert!(parse(r#" label("","") "#).is_ok());
+        assert!(parse(r#" label("","",) "#).is_ok());
+        assert!(parse(r#" label("",,"") "#).is_err());
+    }
+
+    #[test]
     fn test_integer_literal() {
         let extract = |x: Expression<()>| x.try_into_integer().unwrap().extract(&());
 
