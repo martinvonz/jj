@@ -378,21 +378,18 @@ pub fn edit_diff(
 
 /// Merge/diff tool loaded from the settings.
 #[derive(Clone, Debug, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(default, rename_all = "kebab-case")]
 struct MergeTool {
     /// Program to execute. Must be defined; defaults to the tool name
     /// if not specified in the config.
-    #[serde(default)]
     pub program: String,
     /// Arguments to pass to the program when editing diffs.
-    #[serde(default)]
     pub edit_args: Vec<String>,
     /// Arguments to pass to the program when resolving 3-way conflicts.
     /// `$left`, `$right`, `$base`, and `$output` are replaced with
     /// paths to the corresponding files.
     /// TODO: Currently, the entire argument has to match one of these 4
     /// strings to be substituted.
-    #[serde(default)]
     pub merge_args: Vec<String>,
     /// If false (default), the `$output` file starts out empty and is accepted
     /// as a full conflict resolution as-is by `jj` after the merge tool is
@@ -403,29 +400,44 @@ struct MergeTool {
     /// resolved.
     // TODO: Instead of a boolean, this could denote the flavor of conflict markers to put in
     // the file (`jj` or `diff3` for example).
-    #[serde(default)]
     pub merge_tool_edits_conflict_markers: bool,
+}
+
+#[allow(clippy::derivable_impls)] // TODO
+impl Default for MergeTool {
+    fn default() -> Self {
+        MergeTool {
+            program: String::new(),
+            edit_args: vec![],
+            merge_args: vec![],
+            merge_tool_edits_conflict_markers: false,
+        }
+    }
 }
 
 impl MergeTool {
     pub fn with_edit_args(command_args: &CommandNameAndArgs) -> Self {
         let (name, args) = command_args.split_name_and_args();
-        MergeTool {
+        let mut tool = MergeTool {
             program: name.into_owned(),
-            edit_args: args.to_vec(),
-            merge_args: vec![],
-            merge_tool_edits_conflict_markers: false,
+            ..Default::default()
+        };
+        if !args.is_empty() {
+            tool.edit_args = args.to_vec();
         }
+        tool
     }
 
     pub fn with_merge_args(command_args: &CommandNameAndArgs) -> Self {
         let (name, args) = command_args.split_name_and_args();
-        MergeTool {
+        let mut tool = MergeTool {
             program: name.into_owned(),
-            edit_args: vec![],
-            merge_args: args.to_vec(),
-            merge_tool_edits_conflict_markers: false,
+            ..Default::default()
+        };
+        if !args.is_empty() {
+            tool.merge_args = args.to_vec();
         }
+        tool
     }
 }
 
