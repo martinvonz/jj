@@ -33,7 +33,7 @@ identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
 function = { identifier ~ "(" ~ function_arguments ~ ")" }
 function_arguments = {
-  template ~ ("," ~ template)*
+  template ~ ("," ~ template)* ~ ("," ~ whitespace*)?
   | whitespace*
 }
 

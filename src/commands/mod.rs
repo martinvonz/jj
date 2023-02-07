@@ -1449,7 +1449,7 @@ fn log_template(settings: &UserSettings) -> String {
                 working_copies,
                 git_head,
                 commit_id.{prefix_format},
-                if(conflict, label("conflict", "conflict"))
+                if(conflict, label("conflict", "conflict")),
               )
               "\n"
               if(empty, label("empty", "(empty)") " ")
