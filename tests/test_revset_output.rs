@@ -76,7 +76,7 @@ fn test_bad_function_call() {
     1 | parents()
       |         ^
       |
-      = Invalid arguments to revset function "parents": Expected 1 argument
+      = Invalid arguments to revset function "parents": Expected 1 arguments
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "parents(foo, bar)"]);
@@ -86,7 +86,7 @@ fn test_bad_function_call() {
     1 | parents(foo, bar)
       |         ^------^
       |
-      = Invalid arguments to revset function "parents": Expected 1 argument
+      = Invalid arguments to revset function "parents": Expected 1 arguments
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "heads(foo, bar)"]);
@@ -96,7 +96,7 @@ fn test_bad_function_call() {
     1 | heads(foo, bar)
       |       ^------^
       |
-      = Invalid arguments to revset function "heads": Expected 0 or 1 arguments
+      = Invalid arguments to revset function "heads": Expected 0 to 1 arguments
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file()"]);
