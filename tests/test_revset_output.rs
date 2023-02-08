@@ -138,6 +138,50 @@ fn test_bad_function_call() {
       |
       = Revset function "whatever" doesn't exist
     "###);
+
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["log", "-r", "remote_branches(a, b, remote=c)"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:23
+      |
+    1 | remote_branches(a, b, remote=c)
+      |                       ^------^
+      |
+      = Invalid arguments to revset function "remote_branches": Got multiple values for keyword "remote"
+    "###);
+
+    let stderr =
+        test_env.jj_cmd_failure(&repo_path, &["log", "-r", "remote_branches(remote=a, b)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:27
+      |
+    1 | remote_branches(remote=a, b)
+      |                           ^
+      |
+      = Invalid arguments to revset function "remote_branches": Positional argument follows keyword argument
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "remote_branches(=foo)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:17
+      |
+    1 | remote_branches(=foo)
+      |                 ^---
+      |
+      = expected identifier or expression
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "remote_branches(remote=)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:24
+      |
+    1 | remote_branches(remote=)
+      |                        ^---
+      |
+      = expected expression
+    "###);
 }
 
 #[test]

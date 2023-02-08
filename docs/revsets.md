@@ -90,8 +90,8 @@ revsets (expressions) as arguments.
   `branches(push)` would match the branches `push-123` and `repushed` but not
   the branch `main`. If a branch is in a conflicted state, all its possible
   targets are included.
-* `remote_branches([branch_needle[, remote_needle]])`: All remote branch
-  targets across all remotes. If just the `branch_needle` is specified,
+* `remote_branches([branch_needle[, [remote=]remote_needle]])`: All remote
+  branch targets across all remotes. If just the `branch_needle` is specified,
   branches whose name contains the given string across all remotes are
   selected. If both `branch_needle` and `remote_needle` are specified, the
   selection is further restricted to just the remotes whose name contains
@@ -151,7 +151,7 @@ jj log -r 'remote_branches()..'
 Show commits not on `origin` (if you have other remotes like `fork`):
 
 ```
-jj log -r 'remote_branches("", origin)..'
+jj log -r 'remote_branches(remote=origin)..'
 ```
 
 Show all ancestors of the working copy (almost like plain `git log`)
