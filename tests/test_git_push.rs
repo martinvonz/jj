@@ -369,3 +369,141 @@ fn test_git_push_missing_committer() {
     Error: Won't push commit f73024ee65ec since it has no description and it has no author and/or committer set
     "###);
 }
+
+#[test]
+fn test_git_push_changes_and_branches() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &["git", "push", "--change", "@", "--branch", "some-feature"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Creating branch some-feature for revision @
+    Branch changes to push to origin:
+      Add branch some-feature to 28d7620ea63a
+    "###);
+    // test pushing two changes at once
+    std::fs::write(workspace_root.join("file"), "modified2").unwrap();
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &[
+            "git", "push", "--change", "@", "--branch", "feat1", "--change", "@-", "--branch",
+            "feat2",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Creating branch feat1 for revision @
+    Creating branch feat2 for revision @-
+    Branch changes to push to origin:
+      Add branch feat1 to 48d8c7948133
+      Add branch feat2 to fa16a14170fb
+    "###);
+    // specifying the same change twice doesn't break things
+    std::fs::write(workspace_root.join("file"), "modified3").unwrap();
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &[
+            "git", "push", "--change", "@", "--branch", "feature1", "--change", "@", "--branch",
+            "feature2",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Creating branch feature1 for revision @
+    Creating branch feature2 for revision @
+    Branch changes to push to origin:
+      Add branch feature1 to b5f030322b1d
+      Add branch feature2 to b5f030322b1d
+    "###);
+}
+
+#[test]
+fn test_git_push_changes_and_branches_mismatch() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+
+    let stderr = test_env.jj_cmd_failure(
+        &workspace_root,
+        &[
+            "git", "push", "--change", "@", "--branch", "feat1", "--branch", "feat2",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot create 2 branch names for 1 change
+    Hint: Use as many --branch arguments as you use --change arguments to create branch names
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(
+        &workspace_root,
+        &[
+            "git", "push", "--change", "@", "--change", "@-", "--branch", "feat",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot create 1 branch name for 2 changes
+    Hint: Use as many --branch arguments as you use --change arguments to create branch names
+    "###);
+
+    let assert = test_env
+        .jj_cmd(
+            &workspace_root,
+            &[
+                "git", "push", "--change", "@", "--branch", "feat", "--change", "@-", "--branch",
+                "feat",
+            ],
+        )
+        .assert()
+        .failure();
+    let output = assert.get_output();
+    insta::assert_snapshot!(String::from_utf8_lossy(&output.stdout), @r###"
+    Creating branch feat for revision @
+    "###);
+    insta::assert_snapshot!(String::from_utf8_lossy(&output.stderr), @r###"
+    Error: Branch name feat already used
+    Hint: Use a different branch name for every change
+    "###);
+}
+
+#[test]
+fn test_git_push_change_and_existing_local_branch() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+
+    let stderr = test_env.jj_cmd_failure(
+        &workspace_root,
+        &["git", "push", "--change", "@", "--branch", "branch1"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Branch branch1 already exists locally
+    Hint: Use a non-existing branch name
+    "###);
+}
+
+#[test]
+fn test_git_push_change_and_existing_remote_branch() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+
+    test_env.jj_cmd_success(&workspace_root, &["branch", "delete", "branch1"]);
+    let stderr = test_env.jj_cmd_failure(
+        &workspace_root,
+        &["git", "push", "--change", "@", "--branch", "branch1"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Branch branch1 already exists on some remotes: origin
+    Hint: Use a non-existing branch name
+    "###);
+}

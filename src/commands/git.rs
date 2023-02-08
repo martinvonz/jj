@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use clap::{ArgGroup, Subcommand};
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use jujutsu_lib::backend::ObjectId;
 use jujutsu_lib::git::{self, GitFetchError, GitRefUpdate};
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
@@ -21,7 +21,7 @@ use maplit::hashset;
 
 use crate::cli_util::{
     pluralize, print_failed_git_export, short_change_hash, short_commit_hash, user_error,
-    CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    user_error_with_hint, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::commands::make_branch_term;
 use crate::progress::Progress;
@@ -110,8 +110,12 @@ pub struct GitCloneArgs {
 /// point to `@`. Use `--branch` to push specific branches. Use `--all` to push
 /// all branches. Use `--change` to generate branch names based on the change
 /// IDs of specific commits.
+///
+/// You might also push a specific change and create a branch name at the same
+/// time by using `--change` and `--branch ` simultaneously.
 #[derive(clap::Args, Clone, Debug)]
-#[command(group(ArgGroup::new("what").args(&["branch", "all", "change"])))]
+#[command(group(ArgGroup::new("what").args(&["all", "change"])))]
+#[command(group(ArgGroup::new("named").args(&["all", "branch"])))]
 pub struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
     #[arg(long)]
@@ -543,7 +547,19 @@ fn cmd_git_push(
         tx = workspace_command
             .start_transaction(&format!("push all branches to git remote {}", &remote));
     } else if !args.change.is_empty() {
-        // TODO: Allow specifying --branch and --change at the same time
+        if !args.branch.is_empty() && args.change.len() != args.branch.len() {
+            return Err(user_error_with_hint(
+                format!(
+                    "Cannot create {} branch {} for {} {}",
+                    args.branch.len(),
+                    pluralize(args.branch.len(), "name", "names"),
+                    args.change.len(),
+                    pluralize(args.change.len(), "change", "changes"),
+                ),
+                "Use as many --branch arguments as you use --change arguments to create branch \
+                 names",
+            ));
+        }
         let commits: Vec<_> = args
             .change
             .iter()
@@ -555,33 +571,58 @@ fn cmd_git_push(
             commits.iter().map(|c| c.change_id().hex()).join(", "),
             &remote
         ));
-        for (change_str, commit) in std::iter::zip(args.change.iter(), commits) {
-            let mut branch_name = format!(
-                "{}{}",
-                command.settings().push_branch_prefix(),
-                commit.change_id().hex()
-            );
-            if !seen_branches.insert(branch_name.clone()) {
-                continue;
-            }
+        let branch_names = args.branch.iter().map(Some).chain(std::iter::repeat(None));
+        for (change_str, branch_name, commit) in izip!(args.change.iter(), branch_names, commits) {
             let view = tx.base_repo().view();
-            if view.get_local_branch(&branch_name).is_none() {
-                // A local branch with the full change ID doesn't exist already, so use the
-                // short ID if it's not ambiguous (which it shouldn't be most of the time).
-                let short_change_id = short_change_hash(commit.change_id());
-                if tx
-                    .base_workspace_helper()
-                    .resolve_single_rev(&short_change_id)
-                    .is_ok()
-                {
-                    // Short change ID is not ambiguous, so update the branch name to use it.
-                    branch_name = format!(
-                        "{}{}",
-                        command.settings().push_branch_prefix(),
-                        short_change_id
-                    );
-                };
-            }
+            let branch_name = if let Some(branch_name) = branch_name {
+                if view.get_local_branch(branch_name).is_some() {
+                    return Err(user_error_with_hint(
+                        format!("Branch {branch_name} already exists locally"),
+                        "Use a non-existing branch name",
+                    ));
+                }
+                if !seen_branches.insert(branch_name.to_owned()) {
+                    return Err(user_error_with_hint(
+                        format!("Branch name {branch_name} already used"),
+                        "Use a different branch name for every change",
+                    ));
+                }
+                if let Some(target) = view.get_branch(branch_name) {
+                    let remotes = target.remote_targets.keys().join(", ");
+                    return Err(user_error_with_hint(
+                        format!("Branch {branch_name} already exists on some remotes: {remotes}"),
+                        "Use a non-existing branch name",
+                    ));
+                }
+                branch_name.clone()
+            } else {
+                let mut branch_name = format!(
+                    "{}{}",
+                    command.settings().push_branch_prefix(),
+                    commit.change_id().hex()
+                );
+                if !seen_branches.insert(branch_name.clone()) {
+                    continue;
+                }
+                if view.get_local_branch(&branch_name).is_none() {
+                    // A local branch with the full change ID doesn't exist already, so use the
+                    // short ID if it's not ambiguous (which it shouldn't be most of the time).
+                    let short_change_id = short_change_hash(commit.change_id());
+                    if tx
+                        .base_workspace_helper()
+                        .resolve_single_rev(&short_change_id)
+                        .is_ok()
+                    {
+                        // Short change ID is not ambiguous, so update the branch name to use it.
+                        branch_name = format!(
+                            "{}{}",
+                            command.settings().push_branch_prefix(),
+                            short_change_id
+                        );
+                    };
+                }
+                branch_name
+            };
             if view.get_local_branch(&branch_name).is_none() {
                 writeln!(
                     ui,

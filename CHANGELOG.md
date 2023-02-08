@@ -139,6 +139,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj new --insert-after` inserts the new commit between the target commit and
   its children.
 
+* `jj git push` accepts matching `--change` and `--branch` arguments and create
+  the branch names while pushing the changes.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
