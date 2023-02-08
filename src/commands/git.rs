@@ -542,30 +542,6 @@ fn cmd_git_push(
         }
         tx = workspace_command
             .start_transaction(&format!("push all branches to git remote {}", &remote));
-    } else if !args.branch.is_empty() {
-        for branch_name in &args.branch {
-            if !seen_branches.insert(branch_name.clone()) {
-                continue;
-            }
-            if let Some(update) = branch_updates_for_push(
-                workspace_command.repo().as_repo_ref(),
-                &remote,
-                branch_name,
-            )? {
-                branch_updates.push((branch_name.clone(), update));
-            } else {
-                writeln!(
-                    ui,
-                    "Branch {}@{} already matches {}",
-                    branch_name, &remote, branch_name
-                )?;
-            }
-        }
-        tx = workspace_command.start_transaction(&format!(
-            "push {} to git remote {}",
-            make_branch_term(&args.branch),
-            &remote
-        ));
     } else if !args.change.is_empty() {
         // TODO: Allow specifying --branch and --change at the same time
         let commits: Vec<_> = args
@@ -628,6 +604,30 @@ fn cmd_git_push(
                 )?;
             }
         }
+    } else if !args.branch.is_empty() {
+        for branch_name in &args.branch {
+            if !seen_branches.insert(branch_name.clone()) {
+                continue;
+            }
+            if let Some(update) = branch_updates_for_push(
+                workspace_command.repo().as_repo_ref(),
+                &remote,
+                branch_name,
+            )? {
+                branch_updates.push((branch_name.clone(), update));
+            } else {
+                writeln!(
+                    ui,
+                    "Branch {}@{} already matches {}",
+                    branch_name, &remote, branch_name
+                )?;
+            }
+        }
+        tx = workspace_command.start_transaction(&format!(
+            "push {} to git remote {}",
+            make_branch_term(&args.branch),
+            &remote
+        ));
     } else {
         match workspace_command
             .repo()
