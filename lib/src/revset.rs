@@ -15,7 +15,7 @@
 use std::borrow::Borrow;
 use std::cmp::{Ordering, Reverse};
 use std::collections::{HashMap, HashSet};
-use std::iter::{self, Peekable};
+use std::iter::Peekable;
 use std::ops::Range;
 use std::path::Path;
 use std::rc::Rc;
@@ -846,25 +846,17 @@ fn parse_function_expression(
     if let Some((id, params, defn)) = state.aliases_map.get_function(name) {
         // Resolve arguments in the current scope, and pass them in to the alias
         // expansion scope.
-        let arguments_span = arguments_pair.as_span();
-        let args: Vec<_> = arguments_pair
-            .into_inner()
+        let (required, optional) =
+            expect_named_arguments_vec(name, &[], arguments_pair, params.len(), params.len())?;
+        assert!(optional.is_empty());
+        let args: Vec<_> = required
+            .into_iter()
             .map(|arg| parse_expression_rule(arg.into_inner(), state))
             .try_collect()?;
-        if params.len() == args.len() {
-            let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
-            state.with_alias_expanding(id, &locals, primary_span, |state| {
-                parse_program(defn, state)
-            })
-        } else {
-            Err(RevsetParseError::with_span(
-                RevsetParseErrorKind::InvalidFunctionArguments {
-                    name: name.to_owned(),
-                    message: format!("Expected {} arguments", params.len()),
-                },
-                arguments_span,
-            ))
-        }
+        let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
+        state.with_alias_expanding(id, &locals, primary_span, |state| {
+            parse_program(defn, state)
+        })
     } else {
         parse_builtin_function(name_pair, arguments_pair, state)
     }
@@ -938,7 +930,8 @@ fn parse_builtin_function(
             Ok(RevsetExpression::branches(needle))
         }
         "remote_branches" => {
-            let ([], [branch_opt_arg, remote_opt_arg]) = expect_arguments(name, arguments_pair)?;
+            let ([], [branch_opt_arg, remote_opt_arg]) =
+                expect_named_arguments(name, &["", "remote"], arguments_pair)?;
             let branch_needle = if let Some(branch_arg) = branch_opt_arg {
                 parse_function_argument_to_string(name, branch_arg, state)?
             } else {
@@ -1064,46 +1057,108 @@ fn expect_one_argument<'i>(
     Ok(arg)
 }
 
-/// Extracts N required arguments and M optional arguments.
 fn expect_arguments<'i, const N: usize, const M: usize>(
     function_name: &str,
     arguments_pair: Pair<'i, Rule>,
 ) -> Result<([Pair<'i, Rule>; N], [OptionalArg<'i>; M]), RevsetParseError> {
+    expect_named_arguments(function_name, &[], arguments_pair)
+}
+
+/// Extracts N required arguments and M optional arguments.
+///
+/// `argument_names` is a list of argument names. Unnamed positional arguments
+/// should be padded with `""`.
+fn expect_named_arguments<'i, const N: usize, const M: usize>(
+    function_name: &str,
+    argument_names: &[&str],
+    arguments_pair: Pair<'i, Rule>,
+) -> Result<([Pair<'i, Rule>; N], [OptionalArg<'i>; M]), RevsetParseError> {
+    let (required, optional) =
+        expect_named_arguments_vec(function_name, argument_names, arguments_pair, N, N + M)?;
+    Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
+}
+
+fn expect_named_arguments_vec<'i>(
+    function_name: &str,
+    argument_names: &[&str],
+    arguments_pair: Pair<'i, Rule>,
+    min_arg_count: usize,
+    max_arg_count: usize,
+) -> Result<(Vec<Pair<'i, Rule>>, Vec<OptionalArg<'i>>), RevsetParseError> {
+    assert!(argument_names.len() <= max_arg_count);
     let arguments_span = arguments_pair.as_span();
-    let make_error = || {
-        let message = if M == 0 {
-            format!("Expected {N} arguments")
-        } else {
-            format!("Expected {N} to {max} arguments", max = N + M)
-        };
+    let make_error = |message, span| {
         RevsetParseError::with_span(
             RevsetParseErrorKind::InvalidFunctionArguments {
                 name: function_name.to_owned(),
                 message,
             },
-            arguments_span,
+            span,
         )
     };
-    let mut argument_pairs = arguments_pair.into_inner().fuse();
-    let required: [Pair<Rule>; N] = argument_pairs
-        .by_ref()
-        .take(N)
-        .collect_vec()
-        .try_into()
-        .map_err(|_| make_error())?;
-    let optional: [OptionalArg; M] = argument_pairs
-        .by_ref()
-        .map(Some)
-        .chain(iter::repeat(None))
-        .take(M)
-        .collect_vec()
-        .try_into()
-        .unwrap();
-    if argument_pairs.next().is_none() {
-        Ok((required, optional))
-    } else {
-        Err(make_error())
+    let make_count_error = || {
+        let message = if min_arg_count == max_arg_count {
+            format!("Expected {min_arg_count} arguments")
+        } else {
+            format!("Expected {min_arg_count} to {max_arg_count} arguments")
+        };
+        make_error(message, arguments_span)
+    };
+
+    let mut pos_iter = Some(0..max_arg_count);
+    let mut extracted_pairs = vec![None; max_arg_count];
+    for pair in arguments_pair.into_inner() {
+        let span = pair.as_span();
+        match pair.as_rule() {
+            Rule::expression => {
+                let pos = pos_iter
+                    .as_mut()
+                    .ok_or_else(|| {
+                        make_error(
+                            "Positional argument follows keyword argument".to_owned(),
+                            span,
+                        )
+                    })?
+                    .next()
+                    .ok_or_else(make_count_error)?;
+                assert!(extracted_pairs[pos].is_none());
+                extracted_pairs[pos] = Some(pair);
+            }
+            Rule::keyword_argument => {
+                pos_iter = None; // No more positional arguments
+                let mut pairs = pair.into_inner();
+                let name = pairs.next().unwrap();
+                let expr = pairs.next().unwrap();
+                assert_eq!(name.as_rule(), Rule::identifier);
+                assert_eq!(expr.as_rule(), Rule::expression);
+                let pos = argument_names
+                    .iter()
+                    .position(|&n| n == name.as_str())
+                    .ok_or_else(|| {
+                        make_error(
+                            format!(r#"Unexpected keyword argument "{}""#, name.as_str()),
+                            span,
+                        )
+                    })?;
+                if extracted_pairs[pos].is_some() {
+                    return Err(make_error(
+                        format!(r#"Got multiple values for keyword "{}""#, name.as_str()),
+                        span,
+                    ));
+                }
+                extracted_pairs[pos] = Some(expr);
+            }
+            r => panic!("unexpected argument rule {r:?}"),
+        }
     }
+
+    assert_eq!(extracted_pairs.len(), max_arg_count);
+    let optional = extracted_pairs.split_off(min_arg_count);
+    let required = extracted_pairs.into_iter().flatten().collect_vec();
+    if required.len() != min_arg_count {
+        return Err(make_count_error());
+    }
+    Ok((required, optional))
 }
 
 fn parse_function_argument_to_string(
@@ -2386,6 +2441,11 @@ mod tests {
                     .minus(&RevsetExpression::visible_heads())
             )
         );
+        // Space is allowed around keyword arguments
+        assert_eq!(
+            parse("remote_branches( remote  =   foo  )").unwrap(),
+            parse("remote_branches(remote=foo)").unwrap(),
+        );
 
         // Trailing comma isn't allowed for empty argument
         assert!(parse("branches(,)").is_err());
@@ -2397,6 +2457,8 @@ mod tests {
         assert!(parse("branches(a  , , )").is_err());
         assert!(parse("file(a,b,)").is_ok());
         assert!(parse("file(a,,b)").is_err());
+        assert!(parse("remote_branches(a,remote=b  , )").is_ok());
+        assert!(parse("remote_branches(a,,remote=b)").is_err());
     }
 
     #[test]
@@ -2558,6 +2620,50 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_revset_keyword_arguments() {
+        assert_eq!(
+            parse("remote_branches(remote=foo)").unwrap(),
+            parse(r#"remote_branches("", foo)"#).unwrap(),
+        );
+        assert_eq!(
+            parse("remote_branches(foo, remote=bar)").unwrap(),
+            parse(r#"remote_branches(foo, bar)"#).unwrap(),
+        );
+        insta::assert_debug_snapshot!(
+            parse(r#"remote_branches(remote=foo, bar)"#).unwrap_err(),
+            @r###"
+        InvalidFunctionArguments {
+            name: "remote_branches",
+            message: "Positional argument follows keyword argument",
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            parse(r#"remote_branches("", foo, remote=bar)"#).unwrap_err(),
+            @r###"
+        InvalidFunctionArguments {
+            name: "remote_branches",
+            message: "Got multiple values for keyword \"remote\"",
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            parse(r#"remote_branches(remote=bar, remote=bar)"#).unwrap_err(),
+            @r###"
+        InvalidFunctionArguments {
+            name: "remote_branches",
+            message: "Got multiple values for keyword \"remote\"",
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            parse(r#"remote_branches(unknown=bar)"#).unwrap_err(),
+            @r###"
+        InvalidFunctionArguments {
+            name: "remote_branches",
+            message: "Unexpected keyword argument \"unknown\"",
+        }
+        "###);
+    }
+
+    #[test]
     fn test_expand_symbol_alias() {
         assert_eq!(
             parse_with_aliases("AB|c", [("AB", "a|b")]).unwrap(),
@@ -2690,6 +2796,15 @@ mod tests {
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "F".to_owned(),
                 message: "Expected 2 arguments".to_owned()
+            })
+        );
+
+        // Keyword argument isn't supported for now.
+        assert_eq!(
+            parse_with_aliases("F(x=y)", [("F(x)", "x")]),
+            Err(RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "F".to_owned(),
+                message: r#"Unexpected keyword argument "x""#.to_owned()
             })
         );
 

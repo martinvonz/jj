@@ -47,8 +47,10 @@ compat_sub_op = { "-" }
 infix_op = _{ union_op | intersection_op | difference_op | compat_add_op | compat_sub_op }
 
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
+keyword_argument = { identifier ~ whitespace* ~ "=" ~ whitespace* ~ expression }
+argument = _{ keyword_argument | expression }
 function_arguments = {
-  expression ~ (whitespace* ~ "," ~ whitespace* ~ expression)* ~ (whitespace* ~ ",")?
+  argument ~ (whitespace* ~ "," ~ whitespace* ~ argument)* ~ (whitespace* ~ ",")?
   | ""
 }
 formal_parameters = {
