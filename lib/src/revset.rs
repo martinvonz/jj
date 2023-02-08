@@ -15,7 +15,7 @@
 use std::borrow::Borrow;
 use std::cmp::{Ordering, Reverse};
 use std::collections::{HashMap, HashSet};
-use std::iter::Peekable;
+use std::iter::{self, Peekable};
 use std::ops::Range;
 use std::path::Path;
 use std::rc::Rc;
@@ -911,7 +911,8 @@ fn parse_builtin_function(
             Ok(RevsetExpression::all())
         }
         "heads" => {
-            if let Some(arg) = expect_one_optional_argument(name, arguments_pair)? {
+            let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
+            if let Some(arg) = opt_arg {
                 let candidates = parse_expression_rule(arg.into_inner(), state)?;
                 Ok(candidates.heads())
             } else {
@@ -928,7 +929,7 @@ fn parse_builtin_function(
             Ok(RevsetExpression::public_heads())
         }
         "branches" => {
-            let opt_arg = expect_one_optional_argument(name, arguments_pair)?;
+            let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
             let needle = if let Some(arg) = opt_arg {
                 parse_function_argument_to_string(name, arg, state)?
             } else {
@@ -937,8 +938,7 @@ fn parse_builtin_function(
             Ok(RevsetExpression::branches(needle))
         }
         "remote_branches" => {
-            let (branch_opt_arg, remote_opt_arg) =
-                expect_two_optional_argument(name, arguments_pair)?;
+            let ([], [branch_opt_arg, remote_opt_arg]) = expect_arguments(name, arguments_pair)?;
             let branch_needle = if let Some(branch_arg) = branch_opt_arg {
                 parse_function_argument_to_string(name, branch_arg, state)?
             } else {
@@ -1046,82 +1046,63 @@ fn parse_builtin_function(
     }
 }
 
-fn expect_no_arguments(name: &str, arguments_pair: Pair<Rule>) -> Result<(), RevsetParseError> {
-    let span = arguments_pair.as_span();
-    let mut argument_pairs = arguments_pair.into_inner();
-    if argument_pairs.next().is_none() {
-        Ok(())
-    } else {
-        Err(RevsetParseError::with_span(
-            RevsetParseErrorKind::InvalidFunctionArguments {
-                name: name.to_owned(),
-                message: "Expected 0 arguments".to_string(),
-            },
-            span,
-        ))
-    }
+type OptionalArg<'i> = Option<Pair<'i, Rule>>;
+
+fn expect_no_arguments(
+    function_name: &str,
+    arguments_pair: Pair<Rule>,
+) -> Result<(), RevsetParseError> {
+    let ([], []) = expect_arguments(function_name, arguments_pair)?;
+    Ok(())
 }
 
 fn expect_one_argument<'i>(
-    name: &str,
+    function_name: &str,
     arguments_pair: Pair<'i, Rule>,
 ) -> Result<Pair<'i, Rule>, RevsetParseError> {
-    let span = arguments_pair.as_span();
-    let mut argument_pairs = arguments_pair.into_inner().fuse();
-    if let (Some(arg), None) = (argument_pairs.next(), argument_pairs.next()) {
-        Ok(arg)
-    } else {
-        Err(RevsetParseError::with_span(
-            RevsetParseErrorKind::InvalidFunctionArguments {
-                name: name.to_owned(),
-                message: "Expected 1 argument".to_string(),
-            },
-            span,
-        ))
-    }
+    let ([arg], []) = expect_arguments(function_name, arguments_pair)?;
+    Ok(arg)
 }
 
-type OptionalArg<'i> = Option<Pair<'i, Rule>>;
-
-fn expect_one_optional_argument<'i>(
-    name: &str,
+/// Extracts N required arguments and M optional arguments.
+fn expect_arguments<'i, const N: usize, const M: usize>(
+    function_name: &str,
     arguments_pair: Pair<'i, Rule>,
-) -> Result<OptionalArg<'i>, RevsetParseError> {
-    let span = arguments_pair.as_span();
-    let mut argument_pairs = arguments_pair.into_inner().fuse();
-    if let (opt_arg, None) = (argument_pairs.next(), argument_pairs.next()) {
-        Ok(opt_arg)
-    } else {
-        Err(RevsetParseError::with_span(
+) -> Result<([Pair<'i, Rule>; N], [OptionalArg<'i>; M]), RevsetParseError> {
+    let arguments_span = arguments_pair.as_span();
+    let make_error = || {
+        let message = if M == 0 {
+            format!("Expected {N} arguments")
+        } else {
+            format!("Expected {N} to {max} arguments", max = N + M)
+        };
+        RevsetParseError::with_span(
             RevsetParseErrorKind::InvalidFunctionArguments {
-                name: name.to_owned(),
-                message: "Expected 0 or 1 arguments".to_string(),
+                name: function_name.to_owned(),
+                message,
             },
-            span,
-        ))
-    }
-}
-
-fn expect_two_optional_argument<'i>(
-    name: &str,
-    arguments_pair: Pair<'i, Rule>,
-) -> Result<(OptionalArg<'i>, OptionalArg<'i>), RevsetParseError> {
-    let span = arguments_pair.as_span();
+            arguments_span,
+        )
+    };
     let mut argument_pairs = arguments_pair.into_inner().fuse();
-    if let (opt_arg1, opt_arg2, None) = (
-        argument_pairs.next(),
-        argument_pairs.next(),
-        argument_pairs.next(),
-    ) {
-        Ok((opt_arg1, opt_arg2))
+    let required: [Pair<Rule>; N] = argument_pairs
+        .by_ref()
+        .take(N)
+        .collect_vec()
+        .try_into()
+        .map_err(|_| make_error())?;
+    let optional: [OptionalArg; M] = argument_pairs
+        .by_ref()
+        .map(Some)
+        .chain(iter::repeat(None))
+        .take(M)
+        .collect_vec()
+        .try_into()
+        .unwrap();
+    if argument_pairs.next().is_none() {
+        Ok((required, optional))
     } else {
-        Err(RevsetParseError::with_span(
-            RevsetParseErrorKind::InvalidFunctionArguments {
-                name: name.to_owned(),
-                message: "Expected 0 to 2 arguments".to_string(),
-            },
-            span,
-        ))
+        Err(make_error())
     }
 }
 
@@ -2517,7 +2498,7 @@ mod tests {
             parse("parents(@,@)"),
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "parents".to_string(),
-                message: "Expected 1 argument".to_string()
+                message: "Expected 1 arguments".to_string()
             })
         );
         assert_eq!(
