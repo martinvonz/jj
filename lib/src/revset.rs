@@ -2367,6 +2367,7 @@ mod tests {
         assert_eq!(parse("(@)-"), Ok(wc_symbol.parents()));
         // Space is allowed around expressions
         assert_eq!(parse(" :@ "), Ok(wc_symbol.ancestors()));
+        assert_eq!(parse("( :@ )"), Ok(wc_symbol.ancestors()));
         // Space is not allowed around prefix operators
         assert_eq!(parse(" : @ "), Err(RevsetParseErrorKind::SyntaxError));
         // Incomplete parse
