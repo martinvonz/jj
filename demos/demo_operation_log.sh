@@ -12,13 +12,8 @@ so far:"
 run_command "jj op log"
 
 comment "We are going to make some changes to show
-how the operation log works.
-We are currently working off of the \"master\"
-branch:"
-run_command "jj log"
-
-comment "Let's add a file, set a description, and
-rebase onto the \"test\" branch:"
+how the operation log works. Let's add a file, set
+a description, and rebase onto the \"test\" branch:"
 run_command "echo stuff > new-file"
 run_command "jj describe -m stuff"
 run_command "jj rebase -d test"
@@ -30,10 +25,11 @@ run_command "jj describe -m \"other stuff\""
 
 comment "The repo now looks like this:"
 run_command "jj log"
-run_command "# And the operation log looks like this:"
+comment "And the operation log looks like this:"
+run_command "jj op log --color=always | head"
 
 comment "Let's undo that rebase operation:"
-rebase_op=$(jj --color=never op log | grep 'o ' | sed '3q;d' | cut -b3-15)
+rebase_op=$(jj --color=never op log | grep 'o ' | sed '3q;d' | cut -b4-15)
 run_command "jj undo $rebase_op"
 
 comment "The \"stuff\" change is now back on master as
