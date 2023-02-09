@@ -20,8 +20,8 @@ use jujutsu_lib::workspace::Workspace;
 use maplit::hashset;
 
 use crate::cli_util::{
-    print_failed_git_export, short_change_hash, short_commit_hash, user_error, CommandError,
-    CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    pluralize, print_failed_git_export, short_change_hash, short_commit_hash, user_error,
+    CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::commands::make_branch_term;
 use crate::progress::Progress;
@@ -575,11 +575,7 @@ fn cmd_git_push(
             .try_collect()?;
         tx = workspace_command.start_transaction(&format!(
             "push {} {} to git remote {}",
-            if commits.len() > 1 {
-                "changes"
-            } else {
-                "change"
-            },
+            pluralize(commits.len(), "change", "changes"),
             commits.iter().map(|c| c.change_id().hex()).join(", "),
             &remote
         ));

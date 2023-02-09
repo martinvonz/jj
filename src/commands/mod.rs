@@ -45,10 +45,11 @@ use maplit::{hashmap, hashset};
 use pest::Parser;
 
 use crate::cli_util::{
-    self, check_stale_working_copy, print_checkout_stats, resolve_multiple_nonempty_revsets,
-    resolve_mutliple_nonempty_revsets_flag_guarded, run_ui_editor, serialize_config_value,
-    short_commit_hash, user_error, user_error_with_hint, Args, CommandError, CommandHelper,
-    DescriptionArg, RevisionArg, WorkspaceCommandHelper, DESCRIPTION_PLACEHOLDER_TEMPLATE,
+    self, check_stale_working_copy, pluralize, print_checkout_stats,
+    resolve_multiple_nonempty_revsets, resolve_mutliple_nonempty_revsets_flag_guarded,
+    run_ui_editor, serialize_config_value, short_commit_hash, user_error, user_error_with_hint,
+    Args, CommandError, CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
+    DESCRIPTION_PLACEHOLDER_TEMPLATE,
 };
 use crate::config::{config_path, AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -2495,8 +2496,8 @@ fn print_conflicted_paths(
             seen_objects.insert(
                 format!(
                     // Starting with a number sorts this first
-                    "{deletions} deletion{}",
-                    if deletions > 1 { "s" } else { "" }
+                    "{deletions} {}",
+                    pluralize(deletions, "deletion", "deletions")
                 ),
                 "normal", // Deletions don't interfere with `jj resolve` or diff display
             );

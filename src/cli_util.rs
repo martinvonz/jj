@@ -2075,3 +2075,11 @@ impl CliRunner {
         exit_code
     }
 }
+
+pub fn pluralize<'s>(n: usize, singular: &'s str, plural: &'s str) -> &'s str {
+    if n != 1 {
+        plural
+    } else {
+        singular
+    }
+}
