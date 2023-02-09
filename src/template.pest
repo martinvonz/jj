@@ -31,15 +31,15 @@ integer_literal = {
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
-function = { identifier ~ "(" ~ function_arguments ~ ")" }
+function = { identifier ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")" }
 function_arguments = {
-  template ~ ("," ~ template)* ~ ("," ~ whitespace*)?
-  | whitespace*
+  template ~ (whitespace* ~ "," ~ whitespace* ~ template)* ~ (whitespace* ~ ",")?
+  | ""
 }
 
 // Note that "x(y)" is a function call but "x (y)" concatenates "x" and "y"
 primary = _{
-  ("(" ~ template ~ ")")
+  ("(" ~ whitespace* ~ template ~ whitespace* ~ ")")
   | function
   | identifier
   | literal
@@ -54,8 +54,6 @@ list = _{
   term ~ (whitespace+ ~ term)+
 }
 
-template = {
-  whitespace* ~ (list | term) ~ whitespace*
-}
+template = { list | term }
 
-program = _{ SOI ~ (template | whitespace*) ~ EOI }
+program = _{ SOI ~ whitespace* ~ template? ~ whitespace* ~ EOI }
