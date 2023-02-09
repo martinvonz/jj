@@ -43,8 +43,16 @@ fn test_log_author_timestamp_ago() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp().ago()"]);
-    let line_re = Regex::new(r"@|o [0-9]+ years ago").unwrap();
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "--no-graph",
+            "-T",
+            r#"author.timestamp().ago() "\\n""#,
+        ],
+    );
+    let line_re = Regex::new(r"[0-9]+ years ago").unwrap();
     assert!(
         stdout.lines().all(|x| line_re.is_match(x)),
         "expected every line to match regex"
