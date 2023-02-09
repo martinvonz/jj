@@ -107,8 +107,9 @@ fn test_init_git_external() {
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    o d3866db7e30a git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a8ee1
-    ~ My commit message
+    o  d3866db7e30a git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a8ee1
+    │  My commit message
+    ~
     "###);
 }
 
@@ -150,8 +151,9 @@ fn test_init_git_colocated() {
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    o d3866db7e30a git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a8ee1
-    ~ My commit message
+    o  d3866db7e30a git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a8ee1
+    │  My commit message
+    ~
     "###);
 }
 

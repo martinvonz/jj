@@ -28,7 +28,8 @@ fn test_alias_basic() {
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "my-branch"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["b"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ my-branch
+    @  my-branch
+    │
     ~
     "###);
 }
@@ -44,7 +45,8 @@ fn test_alias_legacy_section() {
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "my-branch"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["b"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ my-branch
+    @  my-branch
+    │
     ~
     "###);
 
@@ -135,8 +137,8 @@ fn test_alias_cannot_override_builtin() {
     // Alias should be ignored
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "root"]);
     insta::assert_snapshot!(stdout, @r###"
-    o 000000000000 1970-01-01 00:00:00.000 +00:00 000000000000
-      (empty) (no description set)
+    o  000000000000 1970-01-01 00:00:00.000 +00:00 000000000000
+       (empty) (no description set)
     "###);
 }
 
@@ -174,29 +176,29 @@ fn test_alias_global_args_before_and_after() {
     // Test the setup
     let stdout = test_env.jj_cmd_success(&repo_path, &["l"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    o 0000000000000000000000000000000000000000
+    @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    o  0000000000000000000000000000000000000000
     "###);
 
     // Can pass global args before
     let stdout = test_env.jj_cmd_success(&repo_path, &["l", "--at-op", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    o 0000000000000000000000000000000000000000
+    o  0000000000000000000000000000000000000000
     "###);
     // Can pass global args after
     let stdout = test_env.jj_cmd_success(&repo_path, &["--at-op", "@-", "l"]);
     insta::assert_snapshot!(stdout, @r###"
-    o 0000000000000000000000000000000000000000
+    o  0000000000000000000000000000000000000000
     "###);
     // Test passing global args both before and after
     let stdout = test_env.jj_cmd_success(&repo_path, &["--at-op", "abc123", "l", "--at-op", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    o 0000000000000000000000000000000000000000
+    o  0000000000000000000000000000000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["-R", "../nonexistent", "l", "-R", "."]);
     insta::assert_snapshot!(stdout, @r###"
-    @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    o 0000000000000000000000000000000000000000
+    @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    o  0000000000000000000000000000000000000000
     "###);
 }
 
@@ -212,7 +214,7 @@ fn test_alias_global_args_in_definition() {
     // The global argument in the alias is respected
     let stdout = test_env.jj_cmd_success(&repo_path, &["l"]);
     insta::assert_snapshot!(stdout, @r###"
-    o [38;5;4m0000000000000000000000000000000000000000[39m
+    o  [38;5;4m0000000000000000000000000000000000000000[39m
     "###);
 }
 

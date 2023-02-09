@@ -33,20 +33,20 @@ fn test_checkout() {
     Working copy now at: 05ce7118568d (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 05ce7118568d3007efc9163b055f9cb4a6becfde 
-    o 5c52832c3483e0ace06d047a806024984f28f1d7 second
-    o 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
-    o 0000000000000000000000000000000000000000 
+    @  05ce7118568d3007efc9163b055f9cb4a6becfde
+    o  5c52832c3483e0ace06d047a806024984f28f1d7 second
+    o  69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
+    o  0000000000000000000000000000000000000000
     "###);
 
     // Can provide a description
     test_env.jj_cmd_success(&repo_path, &["checkout", "@--", "-m", "my message"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 1191baaf276e3d0b96b1747e885b3a517be80d6f my message
-    | o 5c52832c3483e0ace06d047a806024984f28f1d7 second
-    |/  
-    o 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
-    o 0000000000000000000000000000000000000000 
+    @  1191baaf276e3d0b96b1747e885b3a517be80d6f my message
+    │ o  5c52832c3483e0ace06d047a806024984f28f1d7 second
+    ├─╯
+    o  69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
+    o  0000000000000000000000000000000000000000
     "###);
 }
 
