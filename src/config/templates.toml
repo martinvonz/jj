@@ -8,38 +8,39 @@ separate(" ",
 
 log = '''
 label(if(current_working_copy, "working_copy"),
-  separate(" ",
-    if(divergent,
-      label("divergent", format_short_change_id(change_id) "??"),
-      format_short_change_id(change_id)),
-    format_short_signature(author),
-    format_timestamp(committer.timestamp()),
-    branches,
-    tags,
-    working_copies,
-    git_head,
-    format_short_commit_id(commit_id),
-    if(conflict, label("conflict", "conflict")),
-  )
-  "\n"
-  separate(" ",
-    if(empty, label("empty", "(empty)")),
-    if(description, description.first_line(), description_placeholder),
-  )
-  "\n"
+  concat(
+    separate(" ",
+      if(divergent,
+        label("divergent", format_short_change_id(change_id) "??"),
+        format_short_change_id(change_id)),
+      format_short_signature(author),
+      format_timestamp(committer.timestamp()),
+      branches,
+      tags,
+      working_copies,
+      git_head,
+      format_short_commit_id(commit_id),
+      if(conflict, label("conflict", "conflict")),
+    ) "\n",
+    separate(" ",
+      if(empty, label("empty", "(empty)")),
+      if(description, description.first_line(), description_placeholder),
+    ) "\n",
+  ),
 )
 '''
 
 op_log = '''
 label(if(current_operation, "current_operation"),
-  separate(" ",
-    id.short(),
-    user,
-    format_time_range(time),
-  )
-  "\n"
-  description.first_line() "\n"
-  tags
+  concat(
+    separate(" ",
+      id.short(),
+      user,
+      format_time_range(time),
+    ) "\n",
+    description.first_line() "\n",
+    tags,
+  ),
 )
 '''
 
@@ -61,11 +62,13 @@ show = 'show'
 # TODO: Add branches, tags, etc
 # TODO: Indent the description like Git does
 'show' = '''
-"Commit ID: " commit_id "\n"
-"Change ID: " change_id "\n"
-"Author: " author " (" format_timestamp(author.timestamp()) ")\n"
-"Committer: " committer " (" format_timestamp(committer.timestamp()) ")\n"
-"\n"
-if(description, description, description_placeholder "\n")
-"\n"
+concat(
+  "Commit ID: " commit_id "\n",
+  "Change ID: " change_id "\n",
+  "Author: " author " (" format_timestamp(author.timestamp()) ")\n",
+  "Committer: " committer " (" format_timestamp(committer.timestamp()) ")\n",
+  "\n",
+  if(description, description, description_placeholder "\n"),
+  "\n",
+)
 '''

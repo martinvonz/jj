@@ -336,6 +336,20 @@ fn test_templater_label_function() {
 }
 
 #[test]
+fn test_templater_concat_function() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
+
+    insta::assert_snapshot!(render(r#"concat()"#), @"");
+    insta::assert_snapshot!(render(r#"concat(author, empty)"#), @" <>[38;5;2mtrue[39m");
+    insta::assert_snapshot!(
+        render(r#"concat(label("error", ""), label("warning", "a"), "b")"#),
+        @"[38;5;3ma[39mb");
+}
+
+#[test]
 fn test_templater_separate_function() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

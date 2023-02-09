@@ -1068,6 +1068,15 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
             ));
             Expression::Template(template)
         }
+        "concat" => {
+            let contents = function
+                .args
+                .iter()
+                .map(|node| build_expression(language, node).map(|x| x.into_template()))
+                .try_collect()?;
+            let template = Box::new(ListTemplate(contents));
+            Expression::Template(template)
+        }
         "separate" => {
             let ([separator_node], content_nodes) = expect_some_arguments(function)?;
             let separator = build_expression(language, separator_node)?.into_template();
