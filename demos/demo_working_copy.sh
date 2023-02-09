@@ -46,3 +46,5 @@ run_command "jj describe goodbye -m goodbye"
 
 comment "Inspect the result:"
 run_command "jj log"
+
+blank

@@ -50,3 +50,5 @@ run_command "jj op restore $rebase_op"
 comment "We're now back to before the \"other stuff\"
 change existed:"
 run_command "jj log"
+
+blank

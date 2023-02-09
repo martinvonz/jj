@@ -14,3 +14,5 @@ run_command "jj diff -r b1"
 
 comment "The repo is backed by the actual Git repo:"
 run_command "git --git-dir=.jj/repo/store/git log --graph --all --decorate --oneline"
+
+blank
