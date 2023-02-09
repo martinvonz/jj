@@ -107,9 +107,9 @@ ui.diff.format = "git"
 ### Graph style
 
 ```toml
-# Possible values: "curved", "square", "ascii", "ascii-large",
-# "legacy" (default)
-ui.graph.style = "curved"
+# Possible values: "curved" (default), "square", "ascii", "ascii-large",
+# "legacy" 
+ui.graph.style = "square"
 ```
 
 ### Display of commit and change ids

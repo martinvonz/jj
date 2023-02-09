@@ -194,7 +194,7 @@ impl UserSettings {
     pub fn graph_style(&self) -> String {
         self.config
             .get_string("ui.graph.style")
-            .unwrap_or_else(|_| "legacy".to_string())
+            .unwrap_or_else(|_| "curved".to_string())
     }
 }
 

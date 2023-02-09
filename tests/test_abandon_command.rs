@@ -43,15 +43,15 @@ fn test_rebase_branch_with_merge() {
     create_commit(&test_env, &repo_path, "e", &["a", "d"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   e
-    |\  
-    o | d
-    o | c
-    | | o b
-    | |/  
-    | o a
-    |/  
-    o 
+    @    e
+    ├─╮
+    o │  d
+    o │  c
+    │ │ o  b
+    │ ├─╯
+    │ o  a
+    ├─╯
+    o
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d"]);
@@ -62,14 +62,14 @@ fn test_rebase_branch_with_merge() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   e
-    |\  
-    o | c d
-    | | o b
-    | |/  
-    | o a
-    |/  
-    o 
+    @    e
+    ├─╮
+    o │  c d
+    │ │ o  b
+    │ ├─╯
+    │ o  a
+    ├─╯
+    o
     "###);
 
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -80,15 +80,14 @@ fn test_rebase_branch_with_merge() {
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 
-    | o d e??
-    | o c
-    | | o b
-    | |/  
-    |/|   
-    o | a e??
-    |/  
-    o 
+    @
+    │ o  d e??
+    │ o  c
+    │ │ o  b
+    ├───╯
+    o │  a e??
+    ├─╯
+    o
     "###);
 
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -102,11 +101,11 @@ fn test_rebase_branch_with_merge() {
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 
-    | o b
-    |/  
-    o a e??
-    o c d e??
+    @
+    │ o  b
+    ├─╯
+    o  a e??
+    o  c d e??
     "###);
 
     // Test abandoning the same commit twice directly
@@ -116,13 +115,13 @@ fn test_rebase_branch_with_merge() {
     Abandoned commit 1394f625cbbd b
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   e
-    |\  
-    o | d
-    o | c
-    | o a b
-    |/  
-    o 
+    @    e
+    ├─╮
+    o │  d
+    o │  c
+    │ o  a b
+    ├─╯
+    o
     "###);
 
     // Test abandoning the same commit twice indirectly
@@ -138,10 +137,10 @@ fn test_rebase_branch_with_merge() {
     Added 0 files, modified 0 files, removed 4 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 
-    | o c d e??
-    |/  
-    o a b e??
+    @
+    │ o  c d e??
+    ├─╯
+    o  a b e??
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["abandon", "root"]);

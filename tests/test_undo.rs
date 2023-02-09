@@ -27,13 +27,13 @@ fn test_undo_rewrite_with_child() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "modified"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
-    let op_id_hex = stdout[2..14].to_string();
+    let op_id_hex = stdout[3..15].to_string();
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "child"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ child
-    o modified
-    o 
+    @  child
+    o  modified
+    o
     "###);
     test_env.jj_cmd_success(&repo_path, &["undo", &op_id_hex]);
 
@@ -41,8 +41,8 @@ fn test_undo_rewrite_with_child() {
     // of the initial commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ child
-    o initial
-    o 
+    @  child
+    o  initial
+    o
     "###);
 }

@@ -98,14 +98,14 @@ fn test_rebase_branch() {
     create_commit(&test_env, &repo_path, "e", &["a"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ e
-    | o d
-    | | o c
-    | |/  
-    | o b
-    |/  
-    o a
-    o 
+    @  e
+    │ o  d
+    │ │ o  c
+    │ ├─╯
+    │ o  b
+    ├─╯
+    o  a
+    o
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "c", "-d", "e"]);
@@ -113,13 +113,13 @@ fn test_rebase_branch() {
     Rebased 3 commits
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o d
-    | o c
-    |/  
-    o b
-    @ e
-    o a
-    o 
+    o  d
+    │ o  c
+    ├─╯
+    o  b
+    @  e
+    o  a
+    o
     "###);
 }
 
@@ -136,15 +136,15 @@ fn test_rebase_branch_with_merge() {
     create_commit(&test_env, &repo_path, "e", &["a", "d"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   e
-    |\  
-    o | d
-    o | c
-    | | o b
-    | |/  
-    | o a
-    |/  
-    o 
+    @    e
+    ├─╮
+    o │  d
+    o │  c
+    │ │ o  b
+    │ ├─╯
+    │ o  a
+    ├─╯
+    o
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "d", "-d", "b"]);
@@ -154,12 +154,12 @@ fn test_rebase_branch_with_merge() {
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ e
-    o d
-    o c
-    o b
-    o a
-    o 
+    @  e
+    o  d
+    o  c
+    o  b
+    o  a
+    o
     "###);
 
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -170,12 +170,12 @@ fn test_rebase_branch_with_merge() {
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ e
-    o d
-    o c
-    o b
-    o a
-    o 
+    @  e
+    o  d
+    o  c
+    o  b
+    o  a
+    o
     "###);
 }
 
@@ -191,13 +191,13 @@ fn test_rebase_single_revision() {
     create_commit(&test_env, &repo_path, "d", &["c"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ d
-    o   c
-    |\  
-    o | b
-    | o a
-    |/  
-    o 
+    @  d
+    o    c
+    ├─╮
+    o │  b
+    │ o  a
+    ├─╯
+    o
     "###);
 
     // Descendants of the rebased commit "b" should be rebased onto parents. First
@@ -213,12 +213,12 @@ fn test_rebase_single_revision() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ d
-    o c
-    | o b
-    |/  
-    o a
-    o 
+    @  d
+    o  c
+    │ o  b
+    ├─╯
+    o  a
+    o
     "###);
     test_env.jj_cmd_success(&repo_path, &["undo"]);
 
@@ -231,15 +231,14 @@ fn test_rebase_single_revision() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   d
-    |\  
-    | | o c
-    o | | b
-    | |/  
-    |/|   
-    | o a
-    |/  
-    o 
+    @    d
+    ├─╮
+    │ │ o  c
+    o │ │  b
+    ├───╯
+    │ o  a
+    ├─╯
+    o
     "###);
 }
 
@@ -255,13 +254,13 @@ fn test_rebase_single_revision_merge_parent() {
     create_commit(&test_env, &repo_path, "d", &["a", "c"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   d
-    |\  
-    o | c
-    o | b
-    | o a
-    |/  
-    o 
+    @    d
+    ├─╮
+    o │  c
+    o │  b
+    │ o  a
+    ├─╯
+    o
     "###);
 
     // Descendants of the rebased commit should be rebased onto parents, and if
@@ -273,14 +272,14 @@ fn test_rebase_single_revision_merge_parent() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   d
-    |\  
-    | | o c
-    | |/  
-    o | b
-    | o a
-    |/  
-    o 
+    @    d
+    ├─╮
+    │ │ o  c
+    │ ├─╯
+    o │  b
+    │ o  a
+    ├─╯
+    o
     "###);
 }
 
@@ -295,23 +294,23 @@ fn test_rebase_multiple_destinations() {
     create_commit(&test_env, &repo_path, "c", &[]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ c
-    | o b
-    |/  
-    | o a
-    |/  
-    o 
+    @  c
+    │ o  b
+    ├─╯
+    │ o  a
+    ├─╯
+    o
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "c"]);
     insta::assert_snapshot!(stdout, @r###""###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o   a
-    |\  
-    @ | c
-    | o b
-    |/  
-    o 
+    o    a
+    ├─╮
+    @ │  c
+    │ o  b
+    ├─╯
+    o
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b|c"]);
@@ -328,12 +327,12 @@ fn test_rebase_multiple_destinations() {
     );
     insta::assert_snapshot!(stdout, @r###""###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o   a
-    |\  
-    @ | c
-    | o b
-    |/  
-    o 
+    o    a
+    ├─╮
+    @ │  c
+    │ o  b
+    ├─╯
+    o
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "b"]);
@@ -358,11 +357,11 @@ fn test_rebase_multiple_destinations() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o a
-    | @ c
-    o | b
-    |/  
-    o 
+    o  a
+    │ @  c
+    o │  b
+    ├─╯
+    o
     "###);
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -379,12 +378,12 @@ fn test_rebase_multiple_destinations() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o   a
-    |\  
-    @ | c
-    | o b
-    |/  
-    o 
+    o    a
+    ├─╮
+    @ │  c
+    │ o  b
+    ├─╯
+    o
     "###);
 
     let stderr =
@@ -406,13 +405,13 @@ fn test_rebase_with_descendants() {
     create_commit(&test_env, &repo_path, "d", &["c"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ d
-    o   c
-    |\  
-    o | b
-    | o a
-    |/  
-    o 
+    @  d
+    o    c
+    ├─╮
+    o │  b
+    │ o  a
+    ├─╯
+    o
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s", "b", "-d", "a"]);
@@ -421,11 +420,11 @@ fn test_rebase_with_descendants() {
     Working copy now at: 309336ffce22 d
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ d
-    o c
-    o b
-    o a
-    o 
+    @  d
+    o  c
+    o  b
+    o  a
+    o
     "###);
 }
 

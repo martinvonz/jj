@@ -34,10 +34,10 @@ fn test_concurrent_operation_divergence() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]);
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
-    o message 2
-    | @ message 1
-    |/  
-    o 
+    o  message 2
+    │ @  message 1
+    ├─╯
+    o
     "###);
 }
 
@@ -51,17 +51,17 @@ fn test_concurrent_operations_auto_rebase() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ eac5ad986688 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
-    | describe commit 123ed18e4c4c0d77428df41112bc02ffc83fb935
-    | args: jj describe -m initial
-    o 09a674690d20 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
-    | snapshot working copy
-    o a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
-    | add workspace 'default'
-    o 56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
-      initialize repo
+    @  eac5ad986688 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  describe commit 123ed18e4c4c0d77428df41112bc02ffc83fb935
+    │  args: jj describe -m initial
+    o  09a674690d20 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  snapshot working copy
+    o  a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    o  56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+       initialize repo
     "###);
-    let op_id_hex = stdout[2..14].to_string();
+    let op_id_hex = stdout[3..15].to_string();
 
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "rewritten"]);
     test_env.jj_cmd_success(
@@ -74,9 +74,9 @@ fn test_concurrent_operations_auto_rebase() {
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
     Rebased 1 descendant commits onto commits rewritten by other operation
-    o 3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
-    @ d91437157468ec86bbbc9e6a14a60d3e8d1790ac rewritten
-    o 0000000000000000000000000000000000000000 
+    o  3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
+    @  d91437157468ec86bbbc9e6a14a60d3e8d1790ac rewritten
+    o  0000000000000000000000000000000000000000
     "###);
 }
 
@@ -89,7 +89,7 @@ fn test_concurrent_operations_wc_modified() {
     std::fs::write(repo_path.join("file"), "contents\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
-    let op_id_hex = stdout[2..14].to_string();
+    let op_id_hex = stdout[3..15].to_string();
 
     test_env.jj_cmd_success(
         &repo_path,
@@ -105,11 +105,11 @@ fn test_concurrent_operations_wc_modified() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id \" \" description"]);
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
-    @ 4eb0610031b7cd148ff9f729a673a3f815033170 new child1
-    | o 4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
-    |/  
-    o 52c893bf3cd201e215b23e084e8a871244ca14d5 initial
-    o 0000000000000000000000000000000000000000 
+    @  4eb0610031b7cd148ff9f729a673a3f815033170 new child1
+    │ o  4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
+    ├─╯
+    o  52c893bf3cd201e215b23e084e8a871244ca14d5 initial
+    o  0000000000000000000000000000000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -125,26 +125,26 @@ fn test_concurrent_operations_wc_modified() {
     // The working copy should be committed after merging the operations
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(redact_op_log(&stdout), @r###"
-    @ 
-    | snapshot working copy
-    o   
-    |\  resolve concurrent operations
-    | | 
-    o | 
-    | | new empty commit
-    | | 
-    | o 
-    |/  new empty commit
-    |   
-    o 
-    | describe commit cf911c223d3e24e001fc8264d6dbf0610804fc40
-    | 
-    o 
-    | snapshot working copy
-    o 
-    | 
-    o 
-      initialize repo
+    @  
+    │  snapshot working copy
+    o    
+    ├─╮  resolve concurrent operations
+    │ │  
+    o │  
+    │ │  new empty commit
+    │ │  
+    │ o  
+    ├─╯  new empty commit
+    │    
+    o  
+    │  describe commit cf911c223d3e24e001fc8264d6dbf0610804fc40
+    │  
+    o  
+    │  snapshot working copy
+    o  
+    │  
+    o  
+       initialize repo
     "###);
 }
 
