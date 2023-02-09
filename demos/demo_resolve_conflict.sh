@@ -38,3 +38,5 @@ run_command "echo \"Hello earth!\" > README"
 
 comment "The status command no longer reports it:"
 run_command "jj status"
+
+blank

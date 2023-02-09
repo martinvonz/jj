@@ -44,3 +44,5 @@ run_command "jj log"
 comment "Again, because the merge commit has the
 changes from all three commits, it has no
 conflict."
+
+blank
