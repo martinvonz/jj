@@ -34,7 +34,7 @@ pest_derive = "2.5.5"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 regex = "1.7.1"
-serde_json = "1.0.92"
+serde_json = "1.0.93"
 tempfile = "3.3.0"
 thiserror = "1.0.38"
 thrift = { version = "0.17.0", default-features = false, optional = true }
