@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -99,4 +101,132 @@ fn test_restore() {
     insta::assert_snapshot!(stdout, @r###"
     R file1
     "###);
+}
+
+// Much of this test is copied from test_resolve_command
+#[test]
+fn test_restore_conflicted_merge() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
+    create_commit(&test_env, &repo_path, "a", &["base"], &[("file", "a\n")]);
+    create_commit(&test_env, &repo_path, "b", &["base"], &[("file", "b\n")]);
+    create_commit(&test_env, &repo_path, "conflict", &["a", "b"], &[]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @    conflict
+    ├─╮
+    o │  b
+    │ o  a
+    ├─╯
+    o  base
+    o
+    "###);
+    insta::assert_snapshot!(
+    std::fs::read_to_string(repo_path.join("file")).unwrap()
+        , @r###"
+            <<<<<<<
+            %%%%%%%
+            -base
+            +a
+            +++++++
+            b
+            >>>>>>>
+            "###);
+
+    // Overwrite the file...
+    std::fs::write(repo_path.join("file"), "resolution").unwrap();
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    @r###"
+    Resolved conflict in file:
+       1     : <<<<<<<
+       2     : %%%%%%%
+       3     : -base
+       4     : +a
+       5     : +++++++
+       6     : b
+       7     : >>>>>>>
+            1: resolution
+    "###);
+
+    // ...and restore it back again.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "file"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created 63198ca2e4aa conflict
+    Working copy now at: 63198ca2e4aa conflict
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(
+    std::fs::read_to_string(repo_path.join("file")).unwrap()
+        , @r###"
+    <<<<<<<
+    %%%%%%%
+    -base
+    +a
+    +++++++
+    b
+    >>>>>>>
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
+    insta::assert_snapshot!(stdout, @"");
+
+    // The same, but without the `file` argument. Overwrite the file...
+    std::fs::write(repo_path.join("file"), "resolution").unwrap();
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    @r###"
+    Resolved conflict in file:
+       1     : <<<<<<<
+       2     : %%%%%%%
+       3     : -base
+       4     : +a
+       5     : +++++++
+       6     : b
+       7     : >>>>>>>
+            1: resolution
+    "###);
+
+    // ... and restore it back again.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["restore"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created d955febceac1 conflict
+    Working copy now at: d955febceac1 conflict
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(
+    std::fs::read_to_string(repo_path.join("file")).unwrap()
+        , @r###"
+    <<<<<<<
+    %%%%%%%
+    -base
+    +a
+    +++++++
+    b
+    >>>>>>>
+    "###);
+}
+
+fn create_commit(
+    test_env: &TestEnvironment,
+    repo_path: &Path,
+    name: &str,
+    parents: &[&str],
+    files: &[(&str, &str)],
+) {
+    if parents.is_empty() {
+        test_env.jj_cmd_success(repo_path, &["new", "root", "-m", name]);
+    } else {
+        let mut args = vec!["new", "-m", name];
+        args.extend(parents);
+        test_env.jj_cmd_success(repo_path, &args);
+    }
+    for (name, content) in files {
+        std::fs::write(repo_path.join(name), content).unwrap();
+    }
+    test_env.jj_cmd_success(repo_path, &["branch", "create", name]);
+}
+
+fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(repo_path, &["log", "-T", "branches"])
 }

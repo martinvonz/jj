@@ -2490,24 +2490,27 @@ fn cmd_restore(
     args: &RestoreArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let (from_str, to_str) = match (args.from.as_deref(), args.to.as_deref()) {
-        (None, None) => ("@-", "@"),
-        (Some(from), None) => (from, "@"),
-        (None, Some(to)) => ("@", to),
-        (Some(from), Some(to)) => (from, to),
-    };
-    let from_commit = workspace_command.resolve_single_rev(from_str)?;
-    let to_commit = workspace_command.resolve_single_rev(to_str)?;
+    let (from_tree, to_commit);
+    if args.from.is_some() || args.to.is_some() {
+        to_commit = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+        from_tree = workspace_command
+            .resolve_single_rev(args.from.as_deref().unwrap_or("@"))?
+            .tree();
+    } else {
+        to_commit = workspace_command.resolve_single_rev("@")?;
+        from_tree = merge_commit_trees(workspace_command.repo(), &to_commit.parents());
+    }
     workspace_command.check_rewritable(&to_commit)?;
-    let tree_id = if args.paths.is_empty() {
-        from_commit.tree_id().clone()
+
+    let new_tree_id = if args.paths.is_empty() {
+        from_tree.id().clone()
     } else {
         let matcher = workspace_command.matcher_from_values(&args.paths)?;
         let mut tree_builder = workspace_command
             .repo()
             .store()
             .tree_builder(to_commit.tree_id().clone());
-        for (repo_path, diff) in from_commit.tree().diff(&to_commit.tree(), matcher.as_ref()) {
+        for (repo_path, diff) in from_tree.diff(&to_commit.tree(), matcher.as_ref()) {
             match diff.into_options().0 {
                 Some(value) => {
                     tree_builder.set(repo_path, value);
@@ -2519,7 +2522,7 @@ fn cmd_restore(
         }
         tree_builder.write_tree()
     };
-    if &tree_id == to_commit.tree_id() {
+    if &new_tree_id == to_commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
         let mut tx = workspace_command
@@ -2527,7 +2530,7 @@ fn cmd_restore(
         let mut_repo = tx.mut_repo();
         let new_commit = mut_repo
             .rewrite_commit(command.settings(), &to_commit)
-            .set_tree(tree_id)
+            .set_tree(new_tree_id)
             .write()?;
         ui.write("Created ")?;
         tx.write_commit_summary(ui.stdout_formatter().as_mut(), &new_commit)?;
