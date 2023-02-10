@@ -242,7 +242,7 @@ impl Ui {
         }
     }
 
-    pub fn finalize_writes(&mut self) {
+    pub fn finalize_pager(&mut self) {
         if let UiOutput::Paged {
             mut child,
             child_stdin,
