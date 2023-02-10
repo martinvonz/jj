@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git push --deleted` will remove all locally deleted branches from the remote.
 
+* `jj restore` without `--from` works correctly even if `@` is a merge
+  commit.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines
