@@ -360,6 +360,14 @@ fn expect_arguments<const N: usize, const M: usize>(
     }
 }
 
+fn split_email(email: &str) -> (&str, Option<&str>) {
+    if let Some((username, rest)) = email.split_once('@') {
+        (username, Some(rest))
+    } else {
+        (email, None)
+    }
+}
+
 fn parse_method_chain<'a, I: 'a>(
     input_property: PropertyAndLabels<'a, I>,
     method_pairs: Pairs<Rule>,
@@ -554,6 +562,16 @@ fn parse_signature_method<'a, I: 'a>(
             Property::String(chain_properties(
                 self_property,
                 TemplatePropertyFn(|signature: &Signature| signature.email.clone()),
+            ))
+        }
+        "username" => {
+            expect_no_arguments(args_pair)?;
+            Property::String(chain_properties(
+                self_property,
+                TemplatePropertyFn(|signature: &Signature| {
+                    let (username, _) = split_email(&signature.email);
+                    username.to_owned()
+                }),
             ))
         }
         "timestamp" => {
