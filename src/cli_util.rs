@@ -1897,24 +1897,28 @@ pub fn parse_args(
     Ok((matches, args))
 }
 
-#[must_use]
-pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> ExitCode {
+const BROKEN_PIPE_EXIT_CODE: u8 = 3;
+
+pub fn handle_command_result(
+    ui: &mut Ui,
+    result: Result<(), CommandError>,
+) -> std::io::Result<ExitCode> {
     match result {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(()) => Ok(ExitCode::SUCCESS),
         Err(CommandError::UserError { message, hint }) => {
-            writeln!(ui.error(), "Error: {message}").unwrap();
+            writeln!(ui.error(), "Error: {message}")?;
             if let Some(hint) = hint {
-                writeln!(ui.hint(), "Hint: {hint}").unwrap();
+                writeln!(ui.hint(), "Hint: {hint}")?;
             }
-            ExitCode::from(1)
+            Ok(ExitCode::from(1))
         }
         Err(CommandError::ConfigError(message)) => {
-            writeln!(ui.error(), "Config error: {message}").unwrap();
-            ExitCode::from(1)
+            writeln!(ui.error(), "Config error: {message}")?;
+            Ok(ExitCode::from(1))
         }
         Err(CommandError::CliError(message)) => {
-            writeln!(ui.error(), "Error: {message}").unwrap();
-            ExitCode::from(2)
+            writeln!(ui.error(), "Error: {message}")?;
+            Ok(ExitCode::from(2))
         }
         Err(CommandError::ClapCliError(inner)) => {
             let clap_str = if ui.color() {
@@ -1934,19 +1938,24 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> E
             // https://github.com/clap-rs/clap/blob/master/src/error/mod.rs
             match inner.kind() {
                 clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => {
-                    ui.write(&clap_str).unwrap();
-                    ExitCode::SUCCESS
+                    ui.write(&clap_str)?;
+                    Ok(ExitCode::SUCCESS)
                 }
                 _ => {
-                    ui.write_stderr(&clap_str).unwrap();
-                    ExitCode::from(2)
+                    ui.write_stderr(&clap_str)?;
+                    Ok(ExitCode::from(2))
                 }
             }
         }
-        Err(CommandError::BrokenPipe) => ExitCode::from(3),
+        Err(CommandError::BrokenPipe) => {
+            // It's unlikely this write() would succeed, but try anyway to either
+            // print error message or raise new io::Error.
+            writeln!(ui.error(), "Error: Broken pipe")?;
+            Ok(ExitCode::from(BROKEN_PIPE_EXIT_CODE))
+        }
         Err(CommandError::InternalError(message)) => {
-            writeln!(ui.error(), "Internal error: {message}").unwrap();
-            ExitCode::from(255)
+            writeln!(ui.error(), "Internal error: {message}")?;
+            Ok(ExitCode::from(255))
         }
     }
 }
@@ -2070,8 +2079,17 @@ impl CliRunner {
         let mut ui = Ui::with_config(&layered_configs.merge())
             .expect("default config should be valid, env vars are stringly typed");
         let result = self.run_internal(&mut ui, layered_configs);
-        let exit_code = handle_command_result(&mut ui, result);
-        ui.finalize_writes();
-        exit_code
+        match handle_command_result(&mut ui, result) {
+            Ok(exit_code) => {
+                ui.finalize_pager();
+                exit_code
+            }
+            Err(err) => {
+                // The error is most likely a BrokenPipe. Close pager and write to stderr.
+                ui.finalize_pager();
+                writeln!(ui.error(), "Error: {err}").ok();
+                ExitCode::from(BROKEN_PIPE_EXIT_CODE)
+            }
+        }
     }
 }
