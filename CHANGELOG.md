@@ -142,6 +142,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj new --insert-after` inserts the new commit between the target commit and
   its children.
 
+* `author`/`committer` templates now support `.username()`, which leaves out the
+domain information of `.email()`.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export

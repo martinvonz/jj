@@ -258,6 +258,68 @@ fn test_templater_string_method() {
 }
 
 #[test]
+fn test_templater_signature() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| get_template_output(&test_env, &repo_path, "@", template);
+
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+
+    insta::assert_snapshot!(render(r#"author"#), @"Test User <test.user@example.com>");
+    insta::assert_snapshot!(render(r#"author.name()"#), @"Test User");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@example.com");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["--config-toml=user.name='Another Test User'", "new"],
+    );
+
+    insta::assert_snapshot!(render(r#"author"#), @"Another Test User <test.user@example.com>");
+    insta::assert_snapshot!(render(r#"author.name()"#), @"Another Test User");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@example.com");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "--config-toml=user.email='test.user@invalid@example.com'",
+            "new",
+        ],
+    );
+
+    insta::assert_snapshot!(render(r#"author"#), @"Test User <test.user@invalid@example.com>");
+    insta::assert_snapshot!(render(r#"author.name()"#), @"Test User");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@invalid@example.com");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
+
+    test_env.jj_cmd_success(&repo_path, &["--config-toml=user.email='test.user'", "new"]);
+
+    insta::assert_snapshot!(render(r#"author"#), @"Test User <test.user>");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "--config-toml=user.email='test.user+tag@example.com'",
+            "new",
+        ],
+    );
+
+    insta::assert_snapshot!(render(r#"author"#), @"Test User <test.user+tag@example.com>");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user+tag@example.com");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user+tag");
+
+    test_env.jj_cmd_success(&repo_path, &["--config-toml=user.email='x@y'", "new"]);
+
+    insta::assert_snapshot!(render(r#"author"#), @"Test User <x@y>");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"x@y");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"x");
+}
+
+#[test]
 fn test_templater_label_function() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
