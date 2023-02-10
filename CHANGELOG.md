@@ -47,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `merge-tools.<name>.edit-args` now requires `$left`/`$right` parameters.
   The default is `edit-args = ["$left", "$right"]`.
 
+* The builtin `jj update` and `jj up` aliases for `jj checkout` have been
+  deleted.
+
 ### New features
 
 * The default log format now uses the committer timestamp instead of the author

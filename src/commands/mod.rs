@@ -195,7 +195,7 @@ struct ConfigEditArgs {
 /// For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[command(visible_aliases = &["co", "update", "up"])]
+#[command(visible_aliases = &["co"])]
 struct CheckoutArgs {
     /// The revision to update to
     revision: RevisionArg,
