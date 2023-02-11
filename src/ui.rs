@@ -18,8 +18,9 @@ use std::str::FromStr;
 use std::{fmt, io, mem};
 
 use crossterm::tty::IsTty;
+use maplit::hashmap;
 
-use crate::config::CommandNameAndArgs;
+use crate::config::{CommandNameAndArgs, NonEmptyCommandArgsVec};
 use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
 
 pub struct Ui {
@@ -103,7 +104,11 @@ impl Default for PaginationChoice {
 fn pager_setting(config: &config::Config) -> CommandNameAndArgs {
     config
         .get("ui.pager")
-        .unwrap_or_else(|_| "less -FRX".into())
+        .unwrap_or_else(|_| CommandNameAndArgs::Structured {
+            command: NonEmptyCommandArgsVec::try_from(vec!["less".to_string(), "-FRX".to_string()])
+                .unwrap(),
+            env: hashmap! { "LESSCHARSET".to_string() => "utf-8".to_string() },
+        })
 }
 
 impl Ui {
