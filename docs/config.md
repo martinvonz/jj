@@ -144,7 +144,7 @@ as `x days/hours/seconds ago` instead of being rendered as a full timestamp.
 ### Author format
 
 ```toml
-ui.log_author_format = 'username'
+ui.log-author-format = 'username'
 ```
 
 Supported values are,
