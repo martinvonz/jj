@@ -141,6 +141,20 @@ ui.relative-timestamps = true
 False by default, but setting to true will change timestamps to be rendered
 as `x days/hours/seconds ago` instead of being rendered as a full timestamp.
 
+### Author format
+
+```toml
+ui.log_author_format = 'username'
+```
+
+Supported values are,
+
+- `none` for no author information,
+- `full` for both the name and email,
+- `name` for just the name,
+- `username` for username part of the email,
+- (default) `email` (or any other gibberish for that matter) for the full email.
+
 ## Pager
 
 The default pager is can be set via `ui.pager` or the `PAGER` environment
