@@ -1435,6 +1435,14 @@ fn log_template(settings: &UserSettings) -> String {
         "styled" => format!("shortest({desired_id_len})"),
         _ => format!("short({desired_id_len})"),
     };
+    let author_template = match settings.log_author_format().as_str() {
+        "none" => None,
+        "full" => Some("author"),
+        "name" => Some("author.name()"),
+        "username" => Some("author.username()"),
+        _ => Some("author.email()"),
+    }
+    .map_or("".to_owned(), |t| t.to_owned() + ",");
     let default_template = format!(
         r#"
             label(if(current_working_copy, "working_copy"),
@@ -1442,7 +1450,7 @@ fn log_template(settings: &UserSettings) -> String {
                 if(divergent,
                   label("divergent", change_id.{prefix_format} "??"),
                   change_id.{prefix_format}),
-                author.email(),
+                {author_template}
                 {committer_timestamp},
                 branches,
                 tags,

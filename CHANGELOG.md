@@ -143,7 +143,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its children.
 
 * `author`/`committer` templates now support `.username()`, which leaves out the
-domain information of `.email()`.
+  domain information of `.email()`.
+
+* It is now possible to change the author format of `jj log` with the new
+  `ui.log_author_format` option.
 
 ### Fixed bugs
 

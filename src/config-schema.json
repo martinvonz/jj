@@ -63,7 +63,11 @@
                 },
                 "color": {
                     "description": "Whether to colorize command output",
-                    "enum": ["always", "never", "auto"],
+                    "enum": [
+                        "always",
+                        "never",
+                        "auto"
+                    ],
                     "default": "auto"
                 },
                 "pager": {
@@ -77,7 +81,11 @@
                     "properties": {
                         "format": {
                             "description": "The diff format to use",
-                            "enum": ["color-words", "git", "summary"],
+                            "enum": [
+                                "color-words",
+                                "git",
+                                "summary"
+                            ],
                             "default": "color-words"
                         }
                     }
@@ -88,15 +96,36 @@
                     "properties": {
                         "style": {
                             "description": "Style of connectors/markings used to render the graph. See https://github.com/martinvonz/jj/blob/main/docs/config.md#graph-style",
-                            "enum": ["legacy", "curved", "square", "ascii", "ascii-large"],
+                            "enum": [
+                                "legacy",
+                                "curved",
+                                "square",
+                                "ascii",
+                                "ascii-large"
+                            ],
                             "default": "legacy"
                         }
                     }
                 },
                 "unique-prefixes": {
-                    "enum": ["none", "brackets", "styled"],
+                    "enum": [
+                        "none",
+                        "brackets",
+                        "styled"
+                    ],
                     "description": "How formatter indicates the unique prefix part of a revision or change ID",
                     "default": "styled"
+                },
+                "log-author-format": {
+                    "enum": [
+                        "none",
+                        "full",
+                        "name",
+                        "username",
+                        "email"
+                    ],
+                    "default": "email",
+                    "description": "Determines how author information is displayed in `jj log`"
                 },
                 "log-id-preferred-length": {
                     "type": "integer",
@@ -162,8 +191,12 @@
             },
             "propertyNames": {
                 "oneOf": [
-                    { "$ref": "#/properties/colors/definitions/basicFormatterLabels" },
-                    { "type": "string" }
+                    {
+                        "$ref": "#/properties/colors/definitions/basicFormatterLabels"
+                    },
+                    {
+                        "type": "string"
+                    }
                 ]
             },
             "additionalProperties": {
@@ -175,8 +208,12 @@
                     {
                         "type": "object",
                         "properties": {
-                            "fg": { "$ref": "#/properties/colors/definitions/colors" },
-                            "bg": { "$ref": "#/properties/colors/definitions/colors" },
+                            "fg": {
+                                "$ref": "#/properties/colors/definitions/colors"
+                            },
+                            "bg": {
+                                "$ref": "#/properties/colors/definitions/colors"
+                            },
                             "bold": {
                                 "type": "boolean"
                             },
