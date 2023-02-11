@@ -160,6 +160,43 @@ impl error::Error for TemplateParseError {
     }
 }
 
+/// AST node without type or name checking.
+#[derive(Clone, Debug, PartialEq)]
+struct ExpressionNode<'i> {
+    kind: ExpressionKind<'i>,
+    span: pest::Span<'i>,
+}
+
+impl<'i> ExpressionNode<'i> {
+    fn new(kind: ExpressionKind<'i>, span: pest::Span<'i>) -> Self {
+        ExpressionNode { kind, span }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum ExpressionKind<'i> {
+    Identifier(&'i str),
+    Integer(i64),
+    String(String),
+    List(Vec<ExpressionNode<'i>>),
+    FunctionCall(FunctionCallNode<'i>),
+    MethodCall(MethodCallNode<'i>),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct FunctionCallNode<'i> {
+    name: &'i str,
+    name_span: pest::Span<'i>,
+    args: Vec<ExpressionNode<'i>>,
+    args_span: pest::Span<'i>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct MethodCallNode<'i> {
+    object: Box<ExpressionNode<'i>>,
+    function: FunctionCallNode<'i>,
+}
+
 fn parse_string_literal(pair: Pair<Rule>) -> String {
     assert_eq!(pair.as_rule(), Rule::literal);
     let mut result = String::new();
@@ -180,88 +217,87 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
     result
 }
 
-/*
-fn parse_term<'a, C: 'a>(
-    pair: Pair<Rule>,
-    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
-) -> TemplateParseResult<Expression<'a, C>> {
+fn parse_function_call_node(pair: Pair<Rule>) -> TemplateParseResult<FunctionCallNode> {
+    assert_eq!(pair.as_rule(), Rule::function);
+    let mut inner = pair.into_inner();
+    let name = inner.next().unwrap();
+    let args_pair = inner.next().unwrap();
+    let args_span = args_pair.as_span();
+    assert_eq!(name.as_rule(), Rule::identifier);
+    assert_eq!(args_pair.as_rule(), Rule::function_arguments);
+    let args = args_pair
+        .into_inner()
+        .map(parse_template_node)
+        .try_collect()?;
+    Ok(FunctionCallNode {
+        name: name.as_str(),
+        name_span: name.as_span(),
+        args,
+        args_span,
+    })
+}
+
+fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
     assert_eq!(pair.as_rule(), Rule::term);
     let mut inner = pair.into_inner();
     let expr = inner.next().unwrap();
+    let span = expr.as_span();
     let primary = match expr.as_rule() {
         Rule::literal => {
             let text = parse_string_literal(expr);
-            let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
-            Expression::Property(term)
+            ExpressionNode::new(ExpressionKind::String(text), span)
         }
         Rule::integer_literal => {
             let value = expr.as_str().parse().map_err(|err| {
-                TemplateParseError::with_span(
-                    TemplateParseErrorKind::ParseIntError(err),
-                    expr.as_span(),
-                )
+                TemplateParseError::with_span(TemplateParseErrorKind::ParseIntError(err), span)
             })?;
-            let term = PropertyAndLabels(Property::Integer(Box::new(Literal(value))), vec![]);
-            Expression::Property(term)
+            ExpressionNode::new(ExpressionKind::Integer(value), span)
         }
-        Rule::identifier => Expression::Property(parse_keyword(expr)?),
+        Rule::identifier => ExpressionNode::new(ExpressionKind::Identifier(expr.as_str()), span),
         Rule::function => {
-            let mut inner = expr.into_inner();
-            let name = inner.next().unwrap();
-            let args_pair = inner.next().unwrap();
-            assert_eq!(name.as_rule(), Rule::identifier);
-            assert_eq!(args_pair.as_rule(), Rule::function_arguments);
-            parse_global_function(name, args_pair, parse_keyword)?
+            let function = parse_function_call_node(expr)?;
+            ExpressionNode::new(ExpressionKind::FunctionCall(function), span)
         }
-        Rule::template => parse_template_rule(expr, parse_keyword)?,
+        Rule::template => parse_template_node(expr)?,
         other => panic!("unexpected term: {other:?}"),
     };
-    match primary {
-        Expression::Property(property) => {
-            parse_method_chain(property, inner, parse_keyword).map(Expression::Property)
-        }
-        Expression::Template(template) => {
-            if let Some(chain) = inner.next() {
-                assert_eq!(chain.as_rule(), Rule::function);
-                let name = chain.into_inner().next().unwrap();
-                Err(TemplateParseError::no_such_method("Template", &name))
-            } else {
-                Ok(Expression::Template(template))
-            }
-        }
-    }
+    inner.try_fold(primary, |object, chain| {
+        assert_eq!(chain.as_rule(), Rule::function);
+        let span = chain.as_span();
+        let method = MethodCallNode {
+            object: Box::new(object),
+            function: parse_function_call_node(chain)?,
+        };
+        Ok(ExpressionNode::new(
+            ExpressionKind::MethodCall(method),
+            span,
+        ))
+    })
 }
 
-fn parse_template_rule<'a, C: 'a>(
-    pair: Pair<Rule>,
-    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
-) -> TemplateParseResult<Expression<'a, C>> {
+fn parse_template_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
     assert_eq!(pair.as_rule(), Rule::template);
+    let span = pair.as_span();
     let inner = pair.into_inner();
-    let mut expressions: Vec<_> = inner
-        .map(|term| parse_term(term, parse_keyword))
-        .try_collect()?;
-    if expressions.len() == 1 {
-        Ok(expressions.pop().unwrap())
+    let mut nodes: Vec<_> = inner.map(parse_term_node).try_collect()?;
+    if nodes.len() == 1 {
+        Ok(nodes.pop().unwrap())
     } else {
-        let templates = expressions.into_iter().map(|x| x.into_template()).collect();
-        Ok(Expression::Template(Box::new(ListTemplate(templates))))
+        Ok(ExpressionNode::new(ExpressionKind::List(nodes), span))
     }
 }
 
-fn parse_template_str<'a, C: 'a>(
-    template_text: &str,
-    parse_keyword: impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
-) -> TemplateParseResult<Expression<'a, C>> {
+/// Parses text into AST nodes. No type/name checking is made at this stage.
+fn parse_template(template_text: &str) -> TemplateParseResult<ExpressionNode> {
     let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text)?;
     let first_pair = pairs.next().unwrap();
     if first_pair.as_rule() == Rule::EOI {
-        Ok(Expression::Template(Box::new(Literal(String::new()))))
+        let span = first_pair.as_span();
+        Ok(ExpressionNode::new(ExpressionKind::List(Vec::new()), span))
     } else {
-        parse_template_rule(first_pair, &parse_keyword)
+        parse_template_node(first_pair)
     }
 }
-*/
 
 enum Property<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
@@ -874,6 +910,8 @@ pub fn parse_commit_template<'a>(
     workspace_id: &WorkspaceId,
     template_text: &str,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'a>> {
+    // TODO: use AST node to build expression tree
+    parse_template(template_text)?;
     let expression = parse_template_str(template_text, |pair| {
         parse_commit_keyword(repo, workspace_id, pair)
     })?;
@@ -888,6 +926,61 @@ mod tests {
         parse_template_str(template_text, |pair| {
             Err(TemplateParseError::no_such_keyword(&pair))
         })
+    }
+
+    /// Drops auxiliary data of AST so it can be compared with other node.
+    fn normalize_tree(node: ExpressionNode) -> ExpressionNode {
+        fn empty_span() -> pest::Span<'static> {
+            pest::Span::new("", 0, 0).unwrap()
+        }
+
+        fn normalize_list(nodes: Vec<ExpressionNode>) -> Vec<ExpressionNode> {
+            nodes.into_iter().map(normalize_tree).collect()
+        }
+
+        fn normalize_function_call(function: FunctionCallNode) -> FunctionCallNode {
+            FunctionCallNode {
+                name: function.name,
+                name_span: empty_span(),
+                args: normalize_list(function.args),
+                args_span: empty_span(),
+            }
+        }
+
+        let normalized_kind = match node.kind {
+            ExpressionKind::Identifier(_)
+            | ExpressionKind::Integer(_)
+            | ExpressionKind::String(_) => node.kind,
+            ExpressionKind::List(nodes) => ExpressionKind::List(normalize_list(nodes)),
+            ExpressionKind::FunctionCall(function) => {
+                ExpressionKind::FunctionCall(normalize_function_call(function))
+            }
+            ExpressionKind::MethodCall(method) => {
+                let object = Box::new(normalize_tree(*method.object));
+                let function = normalize_function_call(method.function);
+                ExpressionKind::MethodCall(MethodCallNode { object, function })
+            }
+        };
+        ExpressionNode {
+            kind: normalized_kind,
+            span: empty_span(),
+        }
+    }
+
+    #[test]
+    fn test_parse_tree_eq() {
+        assert_eq!(
+            normalize_tree(parse_template(r#" commit_id.short(1 )  description"#).unwrap()),
+            normalize_tree(parse_template(r#"commit_id.short( 1 ) (description)"#).unwrap()),
+        );
+        assert_ne!(
+            normalize_tree(parse_template(r#" "ab" "#).unwrap()),
+            normalize_tree(parse_template(r#" "a" "b" "#).unwrap()),
+        );
+        assert_ne!(
+            normalize_tree(parse_template(r#" "foo" "0" "#).unwrap()),
+            normalize_tree(parse_template(r#" "foo" 0 "#).unwrap()),
+        );
     }
 
     #[test]
