@@ -180,6 +180,89 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
     result
 }
 
+/*
+fn parse_term<'a, C: 'a>(
+    pair: Pair<Rule>,
+    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+) -> TemplateParseResult<Expression<'a, C>> {
+    assert_eq!(pair.as_rule(), Rule::term);
+    let mut inner = pair.into_inner();
+    let expr = inner.next().unwrap();
+    let primary = match expr.as_rule() {
+        Rule::literal => {
+            let text = parse_string_literal(expr);
+            let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
+            Expression::Property(term)
+        }
+        Rule::integer_literal => {
+            let value = expr.as_str().parse().map_err(|err| {
+                TemplateParseError::with_span(
+                    TemplateParseErrorKind::ParseIntError(err),
+                    expr.as_span(),
+                )
+            })?;
+            let term = PropertyAndLabels(Property::Integer(Box::new(Literal(value))), vec![]);
+            Expression::Property(term)
+        }
+        Rule::identifier => Expression::Property(parse_keyword(expr)?),
+        Rule::function => {
+            let mut inner = expr.into_inner();
+            let name = inner.next().unwrap();
+            let args_pair = inner.next().unwrap();
+            assert_eq!(name.as_rule(), Rule::identifier);
+            assert_eq!(args_pair.as_rule(), Rule::function_arguments);
+            parse_global_function(name, args_pair, parse_keyword)?
+        }
+        Rule::template => parse_template_rule(expr, parse_keyword)?,
+        other => panic!("unexpected term: {other:?}"),
+    };
+    match primary {
+        Expression::Property(property) => {
+            parse_method_chain(property, inner, parse_keyword).map(Expression::Property)
+        }
+        Expression::Template(template) => {
+            if let Some(chain) = inner.next() {
+                assert_eq!(chain.as_rule(), Rule::function);
+                let name = chain.into_inner().next().unwrap();
+                Err(TemplateParseError::no_such_method("Template", &name))
+            } else {
+                Ok(Expression::Template(template))
+            }
+        }
+    }
+}
+
+fn parse_template_rule<'a, C: 'a>(
+    pair: Pair<Rule>,
+    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+) -> TemplateParseResult<Expression<'a, C>> {
+    assert_eq!(pair.as_rule(), Rule::template);
+    let inner = pair.into_inner();
+    let mut expressions: Vec<_> = inner
+        .map(|term| parse_term(term, parse_keyword))
+        .try_collect()?;
+    if expressions.len() == 1 {
+        Ok(expressions.pop().unwrap())
+    } else {
+        let templates = expressions.into_iter().map(|x| x.into_template()).collect();
+        Ok(Expression::Template(Box::new(ListTemplate(templates))))
+    }
+}
+
+fn parse_template_str<'a, C: 'a>(
+    template_text: &str,
+    parse_keyword: impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+) -> TemplateParseResult<Expression<'a, C>> {
+    let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text)?;
+    let first_pair = pairs.next().unwrap();
+    if first_pair.as_rule() == Rule::EOI {
+        Ok(Expression::Template(Box::new(Literal(String::new()))))
+    } else {
+        parse_template_rule(first_pair, &parse_keyword)
+    }
+}
+*/
+
 enum Property<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
