@@ -14,7 +14,7 @@
 
 use std::num::ParseIntError;
 use std::ops::{RangeFrom, RangeInclusive};
-use std::{error, fmt, iter};
+use std::{error, fmt};
 
 use itertools::Itertools as _;
 use jujutsu_lib::backend::{Signature, Timestamp};
@@ -81,27 +81,24 @@ impl TemplateParseError {
         TemplateParseError { kind, pest_error }
     }
 
-    fn no_such_keyword(pair: &Pair<'_, Rule>) -> Self {
+    fn no_such_keyword(name: impl Into<String>, span: pest::Span<'_>) -> Self {
+        TemplateParseError::with_span(TemplateParseErrorKind::NoSuchKeyword(name.into()), span)
+    }
+
+    fn no_such_function(function: &FunctionCallNode) -> Self {
         TemplateParseError::with_span(
-            TemplateParseErrorKind::NoSuchKeyword(pair.as_str().to_owned()),
-            pair.as_span(),
+            TemplateParseErrorKind::NoSuchFunction(function.name.to_owned()),
+            function.name_span,
         )
     }
 
-    fn no_such_function(pair: &Pair<'_, Rule>) -> Self {
-        TemplateParseError::with_span(
-            TemplateParseErrorKind::NoSuchFunction(pair.as_str().to_owned()),
-            pair.as_span(),
-        )
-    }
-
-    fn no_such_method(type_name: impl Into<String>, pair: &Pair<'_, Rule>) -> Self {
+    fn no_such_method(type_name: impl Into<String>, function: &FunctionCallNode) -> Self {
         TemplateParseError::with_span(
             TemplateParseErrorKind::NoSuchMethod {
                 type_name: type_name.into(),
-                name: pair.as_str().to_owned(),
+                name: function.name.to_owned(),
             },
-            pair.as_span(),
+            function.name_span,
         )
     }
 
@@ -403,79 +400,61 @@ impl<'a, C: 'a> Expression<'a, C> {
     }
 }
 
-type OptionalArg<'i> = Option<Pair<'i, Rule>>;
-
-fn expect_no_arguments(pair: Pair<Rule>) -> Result<(), TemplateParseError> {
-    let span = pair.as_span();
-    let mut pairs = pair.into_inner();
-    if pairs.next().is_none() {
+fn expect_no_arguments(function: &FunctionCallNode) -> TemplateParseResult<()> {
+    if function.args.is_empty() {
         Ok(())
     } else {
-        Err(TemplateParseError::invalid_argument_count_exact(0, span))
+        Err(TemplateParseError::invalid_argument_count_exact(
+            0,
+            function.args_span,
+        ))
     }
 }
 
 /// Extracts exactly N required arguments.
-fn expect_exact_arguments<const N: usize>(
-    pair: Pair<Rule>,
-) -> TemplateParseResult<[Pair<Rule>; N]> {
-    let span = pair.as_span();
-    let make_error = || TemplateParseError::invalid_argument_count_exact(N, span);
-    let mut pairs = pair.into_inner();
-    let required: [Pair<Rule>; N] = pairs
-        .by_ref()
-        .take(N)
-        .collect_vec()
+fn expect_exact_arguments<'a, 'i, const N: usize>(
+    function: &'a FunctionCallNode<'i>,
+) -> TemplateParseResult<&'a [ExpressionNode<'i>; N]> {
+    function
+        .args
+        .as_slice()
         .try_into()
-        .map_err(|_| make_error())?;
-    if pairs.next().is_none() {
-        Ok(required)
-    } else {
-        Err(make_error())
-    }
+        .map_err(|_| TemplateParseError::invalid_argument_count_exact(N, function.args_span))
 }
 
 /// Extracts N required arguments and remainders.
-fn expect_some_arguments<const N: usize>(
-    pair: Pair<Rule>,
-) -> TemplateParseResult<([Pair<Rule>; N], Pairs<Rule>)> {
-    let span = pair.as_span();
-    let make_error = || TemplateParseError::invalid_argument_count_range_from(N.., span);
-    let mut pairs = pair.into_inner();
-    let required: [Pair<Rule>; N] = pairs
-        .by_ref()
-        .take(N)
-        .collect_vec()
-        .try_into()
-        .map_err(|_| make_error())?;
-    Ok((required, pairs))
+fn expect_some_arguments<'a, 'i, const N: usize>(
+    function: &'a FunctionCallNode<'i>,
+) -> TemplateParseResult<(&'a [ExpressionNode<'i>; N], &'a [ExpressionNode<'i>])> {
+    if function.args.len() >= N {
+        let (required, rest) = function.args.split_at(N);
+        Ok((required.try_into().unwrap(), rest))
+    } else {
+        Err(TemplateParseError::invalid_argument_count_range_from(
+            N..,
+            function.args_span,
+        ))
+    }
 }
 
 /// Extracts N required arguments and M optional arguments.
-fn expect_arguments<const N: usize, const M: usize>(
-    pair: Pair<Rule>,
-) -> TemplateParseResult<([Pair<Rule>; N], [OptionalArg; M])> {
-    let span = pair.as_span();
-    let make_error = || TemplateParseError::invalid_argument_count_range(N..=(N + M), span);
-    let mut pairs = pair.into_inner().fuse();
-    let required: [Pair<Rule>; N] = pairs
-        .by_ref()
-        .take(N)
-        .collect_vec()
-        .try_into()
-        .map_err(|_| make_error())?;
-    let optional: [OptionalArg; M] = pairs
-        .by_ref()
-        .map(Some)
-        .chain(iter::repeat(None))
-        .take(M)
-        .collect_vec()
-        .try_into()
-        .unwrap();
-    if pairs.next().is_none() {
-        Ok((required, optional))
+fn expect_arguments<'a, 'i, const N: usize, const M: usize>(
+    function: &'a FunctionCallNode<'i>,
+) -> TemplateParseResult<(
+    &'a [ExpressionNode<'i>; N],
+    [Option<&'a ExpressionNode<'i>>; M],
+)> {
+    let count_range = N..=(N + M);
+    if count_range.contains(&function.args.len()) {
+        let (required, rest) = function.args.split_at(N);
+        let mut optional = rest.iter().map(Some).collect_vec();
+        optional.resize(M, None);
+        Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
     } else {
-        Err(make_error())
+        Err(TemplateParseError::invalid_argument_count_range(
+            count_range,
+            function.args_span,
+        ))
     }
 }
 
@@ -487,48 +466,43 @@ fn split_email(email: &str) -> (&str, Option<&str>) {
     }
 }
 
-fn parse_method_chain<'a, I: 'a>(
-    input_property: PropertyAndLabels<'a, I>,
-    method_pairs: Pairs<Rule>,
-    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
-) -> TemplateParseResult<PropertyAndLabels<'a, I>> {
-    let PropertyAndLabels(mut property, mut labels) = input_property;
-    for chain in method_pairs {
-        assert_eq!(chain.as_rule(), Rule::function);
-        let (name, args_pair) = {
-            let mut inner = chain.into_inner();
-            let name = inner.next().unwrap();
-            let args_pair = inner.next().unwrap();
-            assert_eq!(name.as_rule(), Rule::identifier);
-            assert_eq!(args_pair.as_rule(), Rule::function_arguments);
-            (name, args_pair)
-        };
-        labels.push(name.as_str().to_owned());
-        property = match property {
-            Property::String(property) => {
-                parse_string_method(property, name, args_pair, parse_keyword)?
-            }
-            Property::Boolean(property) => {
-                parse_boolean_method(property, name, args_pair, parse_keyword)?
-            }
-            Property::Integer(property) => {
-                parse_integer_method(property, name, args_pair, parse_keyword)?
-            }
-            Property::CommitOrChangeId(property) => {
-                parse_commit_or_change_id_method(property, name, args_pair, parse_keyword)?
-            }
-            Property::ShortestIdPrefix(property) => {
-                parse_shortest_id_prefix_method(property, name, args_pair, parse_keyword)?
-            }
-            Property::Signature(property) => {
-                parse_signature_method(property, name, args_pair, parse_keyword)?
-            }
-            Property::Timestamp(property) => {
-                parse_timestamp_method(property, name, args_pair, parse_keyword)?
-            }
-        };
+fn build_method_call<'a, I: 'a>(
+    method: &MethodCallNode,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+) -> TemplateParseResult<Expression<'a, I>> {
+    match build_expression(&method.object, build_keyword)? {
+        Expression::Property(PropertyAndLabels(property, mut labels)) => {
+            let property = match property {
+                Property::String(property) => {
+                    build_string_method(property, &method.function, build_keyword)?
+                }
+                Property::Boolean(property) => {
+                    build_boolean_method(property, &method.function, build_keyword)?
+                }
+                Property::Integer(property) => {
+                    build_integer_method(property, &method.function, build_keyword)?
+                }
+                Property::CommitOrChangeId(property) => {
+                    build_commit_or_change_id_method(property, &method.function, build_keyword)?
+                }
+                Property::ShortestIdPrefix(property) => {
+                    build_shortest_id_prefix_method(property, &method.function, build_keyword)?
+                }
+                Property::Signature(property) => {
+                    build_signature_method(property, &method.function, build_keyword)?
+                }
+                Property::Timestamp(property) => {
+                    build_timestamp_method(property, &method.function, build_keyword)?
+                }
+            };
+            labels.push(method.function.name.to_owned());
+            Ok(Expression::Property(PropertyAndLabels(property, labels)))
+        }
+        Expression::Template(_) => Err(TemplateParseError::no_such_method(
+            "Template",
+            &method.function,
+        )),
     }
-    Ok(PropertyAndLabels(property, labels))
 }
 
 fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
@@ -540,18 +514,16 @@ fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
     }))
 }
 
-fn parse_string_method<'a, I: 'a>(
+fn build_string_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = String> + 'a,
-    name: Pair<Rule>,
-    args_pair: Pair<Rule>,
-    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    function: &FunctionCallNode,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    let property = match name.as_str() {
+    let property = match function.name {
         "contains" => {
-            let [needle_pair] = expect_exact_arguments(args_pair)?;
+            let [needle_node] = expect_exact_arguments(function)?;
             // TODO: or .try_into_string() to disable implicit type cast?
-            let needle_property =
-                parse_template_rule(needle_pair, parse_keyword)?.into_plain_text();
+            let needle_property = build_expression(needle_node, build_keyword)?.into_plain_text();
             Property::Boolean(chain_properties(
                 (self_property, needle_property),
                 TemplatePropertyFn(|(haystack, needle): &(String, String)| {
@@ -560,56 +532,53 @@ fn parse_string_method<'a, I: 'a>(
             ))
         }
         "first_line" => {
-            expect_no_arguments(args_pair)?;
+            expect_no_arguments(function)?;
             Property::String(chain_properties(
                 self_property,
                 TemplatePropertyFn(|s: &String| s.lines().next().unwrap_or_default().to_string()),
             ))
         }
-        _ => return Err(TemplateParseError::no_such_method("String", &name)),
+        _ => return Err(TemplateParseError::no_such_method("String", function)),
     };
     Ok(property)
 }
 
-fn parse_boolean_method<'a, I: 'a>(
+fn build_boolean_method<'a, I: 'a>(
     _self_property: impl TemplateProperty<I, Output = bool> + 'a,
-    name: Pair<Rule>,
-    _args_pair: Pair<Rule>,
-    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    function: &FunctionCallNode,
+    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    Err(TemplateParseError::no_such_method("Boolean", &name))
+    Err(TemplateParseError::no_such_method("Boolean", function))
 }
 
-fn parse_integer_method<'a, I: 'a>(
+fn build_integer_method<'a, I: 'a>(
     _self_property: impl TemplateProperty<I, Output = i64> + 'a,
-    name: Pair<Rule>,
-    _args_pair: Pair<Rule>,
-    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    function: &FunctionCallNode,
+    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    Err(TemplateParseError::no_such_method("Integer", &name))
+    Err(TemplateParseError::no_such_method("Integer", function))
 }
 
-fn parse_commit_or_change_id_method<'a, I: 'a>(
+fn build_commit_or_change_id_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a,
-    name: Pair<Rule>,
-    args_pair: Pair<Rule>,
-    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    function: &FunctionCallNode,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    let parse_optional_integer = |args_pair: Pair<Rule>| -> Result<Option<_>, TemplateParseError> {
-        let ([], [len_pair]) = expect_arguments(args_pair)?;
-        len_pair
-            .map(|len_pair| {
-                let span = len_pair.as_span();
-                parse_template_rule(len_pair, parse_keyword).and_then(|p| {
-                    p.try_into_integer()
-                        .ok_or_else(|| TemplateParseError::invalid_argument_type("Integer", span))
+    let parse_optional_integer = |function| -> Result<Option<_>, TemplateParseError> {
+        let ([], [len_node]) = expect_arguments(function)?;
+        len_node
+            .map(|node| {
+                build_expression(node, build_keyword).and_then(|p| {
+                    p.try_into_integer().ok_or_else(|| {
+                        TemplateParseError::invalid_argument_type("Integer", node.span)
+                    })
                 })
             })
             .transpose()
     };
-    let property = match name.as_str() {
+    let property = match function.name {
         "short" => {
-            let len_property = parse_optional_integer(args_pair)?;
+            let len_property = parse_optional_integer(function)?;
             Property::String(chain_properties(
                 (self_property, len_property),
                 TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
@@ -618,7 +587,7 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
             ))
         }
         "shortest" => {
-            let len_property = parse_optional_integer(args_pair)?;
+            let len_property = parse_optional_integer(function)?;
             Property::ShortestIdPrefix(chain_properties(
                 (self_property, len_property),
                 TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
@@ -629,24 +598,23 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
         _ => {
             return Err(TemplateParseError::no_such_method(
                 "CommitOrChangeId",
-                &name,
-            ));
+                function,
+            ))
         }
     };
     Ok(property)
 }
 
-fn parse_shortest_id_prefix_method<'a, I: 'a>(
+fn build_shortest_id_prefix_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = ShortestIdPrefix> + 'a,
-    name: Pair<Rule>,
-    args_pair: Pair<Rule>,
-    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    function: &FunctionCallNode,
+    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    let property = match name.as_str() {
+    let property = match function.name {
         "with_brackets" => {
             // TODO: If we had a map function, this could be expressed as a template
             // like 'id.shortest() % (.prefix() if(.rest(), "[" .rest() "]"))'
-            expect_no_arguments(args_pair)?;
+            expect_no_arguments(function)?;
             Property::String(chain_properties(
                 self_property,
                 TemplatePropertyFn(|id: &ShortestIdPrefix| id.with_brackets()),
@@ -655,36 +623,35 @@ fn parse_shortest_id_prefix_method<'a, I: 'a>(
         _ => {
             return Err(TemplateParseError::no_such_method(
                 "ShortestIdPrefix",
-                &name,
-            ));
+                function,
+            ))
         }
     };
     Ok(property)
 }
 
-fn parse_signature_method<'a, I: 'a>(
+fn build_signature_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = Signature> + 'a,
-    name: Pair<Rule>,
-    args_pair: Pair<Rule>,
-    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    function: &FunctionCallNode,
+    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    let property = match name.as_str() {
+    let property = match function.name {
         "name" => {
-            expect_no_arguments(args_pair)?;
+            expect_no_arguments(function)?;
             Property::String(chain_properties(
                 self_property,
                 TemplatePropertyFn(|signature: &Signature| signature.name.clone()),
             ))
         }
         "email" => {
-            expect_no_arguments(args_pair)?;
+            expect_no_arguments(function)?;
             Property::String(chain_properties(
                 self_property,
                 TemplatePropertyFn(|signature: &Signature| signature.email.clone()),
             ))
         }
         "username" => {
-            expect_no_arguments(args_pair)?;
+            expect_no_arguments(function)?;
             Property::String(chain_properties(
                 self_property,
                 TemplatePropertyFn(|signature: &Signature| {
@@ -694,46 +661,44 @@ fn parse_signature_method<'a, I: 'a>(
             ))
         }
         "timestamp" => {
-            expect_no_arguments(args_pair)?;
+            expect_no_arguments(function)?;
             Property::Timestamp(chain_properties(
                 self_property,
                 TemplatePropertyFn(|signature: &Signature| signature.timestamp.clone()),
             ))
         }
-        _ => return Err(TemplateParseError::no_such_method("Signature", &name)),
+        _ => return Err(TemplateParseError::no_such_method("Signature", function)),
     };
     Ok(property)
 }
 
-fn parse_timestamp_method<'a, I: 'a>(
+fn build_timestamp_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = Timestamp> + 'a,
-    name: Pair<Rule>,
-    args_pair: Pair<Rule>,
-    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    function: &FunctionCallNode,
+    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
-    let property = match name.as_str() {
+    let property = match function.name {
         "ago" => {
-            expect_no_arguments(args_pair)?;
+            expect_no_arguments(function)?;
             Property::String(chain_properties(
                 self_property,
                 TemplatePropertyFn(time_util::format_timestamp_relative_to_now),
             ))
         }
-        _ => return Err(TemplateParseError::no_such_method("Timestamp", &name)),
+        _ => return Err(TemplateParseError::no_such_method("Timestamp", function)),
     };
     Ok(property)
 }
 
-fn parse_global_function<'a, C: 'a>(
-    name: Pair<Rule>,
-    args_pair: Pair<Rule>,
-    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+fn build_global_function<'a, C: 'a>(
+    function: &FunctionCallNode,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
 ) -> TemplateParseResult<Expression<'a, C>> {
-    let expression = match name.as_str() {
+    let expression = match function.name {
         "label" => {
-            let [label_pair, content_pair] = expect_exact_arguments(args_pair)?;
-            let label_property = parse_template_rule(label_pair, parse_keyword)?.into_plain_text();
-            let content = parse_template_rule(content_pair, parse_keyword)?.into_template();
+            let [label_node, content_node] = expect_exact_arguments(function)?;
+            let label_property = build_expression(label_node, build_keyword)?.into_plain_text();
+            let content = build_expression(content_node, build_keyword)?.into_template();
             let labels = TemplateFunction::new(label_property, |s| {
                 s.split_whitespace().map(ToString::to_string).collect()
             });
@@ -741,16 +706,15 @@ fn parse_global_function<'a, C: 'a>(
             Expression::Template(template)
         }
         "if" => {
-            let ([condition_pair, true_pair], [false_pair]) = expect_arguments(args_pair)?;
-            let condition_span = condition_pair.as_span();
-            let condition = parse_template_rule(condition_pair, parse_keyword)?
+            let ([condition_node, true_node], [false_node]) = expect_arguments(function)?;
+            let condition = build_expression(condition_node, build_keyword)?
                 .try_into_boolean()
                 .ok_or_else(|| {
-                    TemplateParseError::invalid_argument_type("Boolean", condition_span)
+                    TemplateParseError::invalid_argument_type("Boolean", condition_node.span)
                 })?;
-            let true_template = parse_template_rule(true_pair, parse_keyword)?.into_template();
-            let false_template = false_pair
-                .map(|pair| parse_template_rule(pair, parse_keyword))
+            let true_template = build_expression(true_node, build_keyword)?.into_template();
+            let false_template = false_node
+                .map(|node| build_expression(node, build_keyword))
                 .transpose()?
                 .map(|x| x.into_template());
             let template = Box::new(ConditionalTemplate::new(
@@ -761,31 +725,32 @@ fn parse_global_function<'a, C: 'a>(
             Expression::Template(template)
         }
         "separate" => {
-            let ([separator_pair], content_pairs) = expect_some_arguments(args_pair)?;
-            let separator = parse_template_rule(separator_pair, parse_keyword)?.into_template();
-            let contents = content_pairs
-                .map(|pair| parse_template_rule(pair, parse_keyword).map(|x| x.into_template()))
+            let ([separator_node], content_nodes) = expect_some_arguments(function)?;
+            let separator = build_expression(separator_node, build_keyword)?.into_template();
+            let contents = content_nodes
+                .iter()
+                .map(|node| build_expression(node, build_keyword).map(|x| x.into_template()))
                 .try_collect()?;
             let template = Box::new(SeparateTemplate::new(separator, contents));
             Expression::Template(template)
         }
-        _ => return Err(TemplateParseError::no_such_function(&name)),
+        _ => return Err(TemplateParseError::no_such_function(function)),
     };
     Ok(expression)
 }
 
-fn parse_commit_keyword<'a>(
+fn build_commit_keyword<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
-    pair: Pair<Rule>,
+    name: &str,
+    span: pest::Span,
 ) -> TemplateParseResult<PropertyAndLabels<'a, Commit>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Commit) -> O + 'a,
     ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'a> {
         Box::new(TemplatePropertyFn(f))
     }
-    assert_eq!(pair.as_rule(), Rule::identifier);
-    let property = match pair.as_str() {
+    let property = match name {
         "description" => Property::String(wrap_fn(|commit| {
             cli_util::complete_newline(commit.description())
         })),
@@ -817,103 +782,51 @@ fn parse_commit_keyword<'a>(
         "empty" => Property::Boolean(wrap_fn(move |commit| {
             commit.tree().id() == rewrite::merge_commit_trees(repo, &commit.parents()).id()
         })),
-        _ => return Err(TemplateParseError::no_such_keyword(&pair)),
+        _ => return Err(TemplateParseError::no_such_keyword(name, span)),
     };
-    Ok(PropertyAndLabels(property, vec![pair.as_str().to_string()]))
+    Ok(PropertyAndLabels(property, vec![name.to_owned()]))
 }
 
-fn parse_term<'a, C: 'a>(
-    pair: Pair<Rule>,
-    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+/// Builds template evaluation tree from AST nodes.
+fn build_expression<'a, C: 'a>(
+    node: &ExpressionNode,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
 ) -> TemplateParseResult<Expression<'a, C>> {
-    assert_eq!(pair.as_rule(), Rule::term);
-    let mut inner = pair.into_inner();
-    let expr = inner.next().unwrap();
-    let primary = match expr.as_rule() {
-        Rule::literal => {
-            let text = parse_string_literal(expr);
-            let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
-            Expression::Property(term)
+    match &node.kind {
+        ExpressionKind::Identifier(name) => {
+            Ok(Expression::Property(build_keyword(name, node.span)?))
         }
-        Rule::integer_literal => {
-            let value = expr.as_str().parse().map_err(|err| {
-                TemplateParseError::with_span(
-                    TemplateParseErrorKind::ParseIntError(err),
-                    expr.as_span(),
-                )
-            })?;
-            let term = PropertyAndLabels(Property::Integer(Box::new(Literal(value))), vec![]);
-            Expression::Property(term)
+        ExpressionKind::Integer(value) => {
+            let term = PropertyAndLabels(Property::Integer(Box::new(Literal(*value))), vec![]);
+            Ok(Expression::Property(term))
         }
-        Rule::identifier => Expression::Property(parse_keyword(expr)?),
-        Rule::function => {
-            let mut inner = expr.into_inner();
-            let name = inner.next().unwrap();
-            let args_pair = inner.next().unwrap();
-            assert_eq!(name.as_rule(), Rule::identifier);
-            assert_eq!(args_pair.as_rule(), Rule::function_arguments);
-            parse_global_function(name, args_pair, parse_keyword)?
+        ExpressionKind::String(value) => {
+            let term =
+                PropertyAndLabels(Property::String(Box::new(Literal(value.clone()))), vec![]);
+            Ok(Expression::Property(term))
         }
-        Rule::template => parse_template_rule(expr, parse_keyword)?,
-        other => panic!("unexpected term: {other:?}"),
-    };
-    match primary {
-        Expression::Property(property) => {
-            parse_method_chain(property, inner, parse_keyword).map(Expression::Property)
+        ExpressionKind::List(nodes) => {
+            let templates = nodes
+                .iter()
+                .map(|node| build_expression(node, build_keyword).map(|x| x.into_template()))
+                .try_collect()?;
+            Ok(Expression::Template(Box::new(ListTemplate(templates))))
         }
-        Expression::Template(template) => {
-            if let Some(chain) = inner.next() {
-                assert_eq!(chain.as_rule(), Rule::function);
-                let name = chain.into_inner().next().unwrap();
-                Err(TemplateParseError::no_such_method("Template", &name))
-            } else {
-                Ok(Expression::Template(template))
-            }
-        }
-    }
-}
-
-fn parse_template_rule<'a, C: 'a>(
-    pair: Pair<Rule>,
-    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
-) -> TemplateParseResult<Expression<'a, C>> {
-    assert_eq!(pair.as_rule(), Rule::template);
-    let inner = pair.into_inner();
-    let mut expressions: Vec<_> = inner
-        .map(|term| parse_term(term, parse_keyword))
-        .try_collect()?;
-    if expressions.len() == 1 {
-        Ok(expressions.pop().unwrap())
-    } else {
-        let templates = expressions.into_iter().map(|x| x.into_template()).collect();
-        Ok(Expression::Template(Box::new(ListTemplate(templates))))
+        ExpressionKind::FunctionCall(function) => build_global_function(function, build_keyword),
+        ExpressionKind::MethodCall(method) => build_method_call(method, build_keyword),
     }
 }
 
 // TODO: We'll probably need a trait that abstracts the Property enum and
 // keyword/method parsing functions per the top-level context.
-fn parse_template_str<'a, C: 'a>(
-    template_text: &str,
-    parse_keyword: impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
-) -> TemplateParseResult<Expression<'a, C>> {
-    let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text)?;
-    let first_pair = pairs.next().unwrap();
-    if first_pair.as_rule() == Rule::EOI {
-        Ok(Expression::Template(Box::new(Literal(String::new()))))
-    } else {
-        parse_template_rule(first_pair, &parse_keyword)
-    }
-}
-
 pub fn parse_commit_template<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     template_text: &str,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'a>> {
-    // TODO: use AST node to build expression tree
-    parse_template(template_text)?;
-    let expression = parse_template_str(template_text, |pair| {
-        parse_commit_keyword(repo, workspace_id, pair)
+    let node = parse_template(template_text)?;
+    let expression = build_expression(&node, &|name, span| {
+        build_commit_keyword(repo, workspace_id, name, span)
     })?;
     Ok(expression.into_template())
 }
@@ -923,8 +836,9 @@ mod tests {
     use super::*;
 
     fn parse(template_text: &str) -> TemplateParseResult<Expression<()>> {
-        parse_template_str(template_text, |pair| {
-            Err(TemplateParseError::no_such_keyword(&pair))
+        let node = parse_template(template_text)?;
+        build_expression(&node, &|name, span| {
+            Err(TemplateParseError::no_such_keyword(name, span))
         })
     }
 
