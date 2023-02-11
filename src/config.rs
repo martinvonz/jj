@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fmt};
@@ -323,11 +323,15 @@ fn read_config_path(config_path: &Path) -> Result<config::Config, config::Config
 }
 
 /// Command name and arguments specified by config.
-#[derive(Clone, Debug, Eq, Hash, PartialEq, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
 #[serde(untagged)]
 pub enum CommandNameAndArgs {
     String(String),
     Vec(NonEmptyCommandArgsVec),
+    Structured {
+        env: HashMap<String, String>,
+        command: NonEmptyCommandArgsVec,
+    },
 }
 
 impl CommandNameAndArgs {
@@ -344,6 +348,10 @@ impl CommandNameAndArgs {
             CommandNameAndArgs::Vec(NonEmptyCommandArgsVec(a)) => {
                 (Cow::Borrowed(&a[0]), Cow::Borrowed(&a[1..]))
             }
+            CommandNameAndArgs::Structured {
+                env: _,
+                command: cmd,
+            } => (Cow::Borrowed(&cmd.0[0]), Cow::Borrowed(&cmd.0[1..])),
         }
     }
 
@@ -351,6 +359,9 @@ impl CommandNameAndArgs {
     pub fn to_command(&self) -> Command {
         let (name, args) = self.split_name_and_args();
         let mut cmd = Command::new(name.as_ref());
+        if let CommandNameAndArgs::Structured { env, .. } = self {
+            cmd.envs(env);
+        }
         cmd.args(args.as_ref());
         cmd
     }
@@ -368,6 +379,12 @@ impl fmt::Display for CommandNameAndArgs {
             CommandNameAndArgs::String(s) => write!(f, "{s}"),
             // TODO: format with shell escapes
             CommandNameAndArgs::Vec(a) => write!(f, "{}", a.0.join(" ")),
+            CommandNameAndArgs::Structured { env, command } => {
+                for (k, v) in env.iter() {
+                    write!(f, "{k}={v} ")?;
+                }
+                write!(f, "{}", command.0.join(" "))
+            }
         }
     }
 }
@@ -392,6 +409,8 @@ impl TryFrom<Vec<String>> for NonEmptyCommandArgsVec {
 
 #[cfg(test)]
 mod tests {
+    use maplit::hashmap;
+
     use super::*;
 
     #[test]
@@ -404,6 +423,12 @@ mod tests {
             .set_override("array", vec!["emacs", "-nw"])
             .unwrap()
             .set_override("string", "emacs -nw")
+            .unwrap()
+            .set_override("structured.env.KEY1", "value1")
+            .unwrap()
+            .set_override("structured.env.KEY2", "value2")
+            .unwrap()
+            .set_override("structured.command", vec!["emacs", "-nw"])
             .unwrap()
             .build()
             .unwrap();
@@ -431,6 +456,21 @@ mod tests {
         assert_eq!(
             command_args,
             CommandNameAndArgs::String("emacs -nw".to_owned())
+        );
+        let (name, args) = command_args.split_name_and_args();
+        assert_eq!(name, "emacs");
+        assert_eq!(args, ["-nw"].as_ref());
+
+        let command_args: CommandNameAndArgs = config.get("structured").unwrap();
+        assert_eq!(
+            command_args,
+            CommandNameAndArgs::Structured {
+                env: hashmap! {
+                    "KEY1".to_string() => "value1".to_string(),
+                    "KEY2".to_string() => "value2".to_string(),
+                },
+                command: NonEmptyCommandArgsVec(["emacs", "-nw",].map(|s| s.to_owned()).to_vec())
+            }
         );
         let (name, args) = command_args.split_name_and_args();
         assert_eq!(name, "emacs");

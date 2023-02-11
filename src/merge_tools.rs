@@ -474,6 +474,7 @@ fn get_diff_editor_from_settings(
     let maybe_editor = match &args {
         CommandNameAndArgs::String(name) => get_tool_config(settings, name)?,
         CommandNameAndArgs::Vec(_) => None,
+        CommandNameAndArgs::Structured { .. } => None,
     };
     Ok(maybe_editor.unwrap_or_else(|| MergeTool::with_edit_args(&args)))
 }
@@ -486,6 +487,7 @@ fn get_merge_tool_from_settings(
     let maybe_editor = match &args {
         CommandNameAndArgs::String(name) => get_tool_config(settings, name)?,
         CommandNameAndArgs::Vec(_) => None,
+        CommandNameAndArgs::Structured { .. } => None,
     };
     let editor = maybe_editor.unwrap_or_else(|| MergeTool::with_merge_args(&args));
     if editor.merge_args.is_empty() {
