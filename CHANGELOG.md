@@ -146,7 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   domain information of `.email()`.
 
 * It is now possible to change the author format of `jj log` with the new
-  `ui.log_author_format` option.
+  `ui.log-author-format` option.
 
 ### Fixed bugs
 
