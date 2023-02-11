@@ -125,6 +125,29 @@ fn test_git_fetch_nonexistent_remote_from_config() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 }
 
+#[test]
+fn test_git_fetch_prune_before_updating_tips() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "origin");
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    origin: 9f01a0e04879 message
+    "###);
+
+    // Remove origin branch in git repo and create origin/subname
+    let git_repo = git2::Repository::open(test_env.env_root().join("origin")).unwrap();
+    git_repo
+        .find_branch("origin", git2::BranchType::Local)
+        .unwrap()
+        .rename("origin/subname", false)
+        .unwrap();
+
+    // Exhibit bug: origin will prevent origin/subname from being created
+    let _ = test_env.jj_cmd_failure(&repo_path, &["git", "fetch"]);
+}
+
 /// Add a remote containing a branch with the same name
 fn add_git_remote(test_env: &TestEnvironment, repo_path: &Path, remote: &str) {
     let git_repo_path = test_env.env_root().join(remote);
