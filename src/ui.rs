@@ -242,19 +242,27 @@ impl Ui {
         }
     }
 
-    pub fn finalize_pager(&mut self) {
+    /// Waits for the pager exits. Returns true if the pager exits successfully
+    /// or the output isn't paged.
+    pub fn finalize_pager(&mut self) -> bool {
         if let UiOutput::Paged {
             mut child,
             child_stdin,
         } = mem::replace(&mut self.output, UiOutput::new_terminal())
         {
             drop(child_stdin);
-            if let Err(e) = child.wait() {
-                // It's possible (though unlikely) that this write fails, but
-                // this function gets called so late that there's not much we
-                // can do about it.
-                writeln!(self.error(), "Failed to wait on pager: {e}").ok();
+            match child.wait() {
+                Ok(status) => status.success(),
+                Err(e) => {
+                    // It's possible (though unlikely) that this write fails, but
+                    // this function gets called so late that there's not much we
+                    // can do about it.
+                    writeln!(self.error(), "Failed to wait on pager: {e}").ok();
+                    false
+                }
             }
+        } else {
+            true
         }
     }
 

@@ -2085,9 +2085,13 @@ impl CliRunner {
                 exit_code
             }
             Err(err) => {
-                // The error is most likely a BrokenPipe. Close pager and write to stderr.
-                ui.finalize_pager();
-                writeln!(ui.error(), "Error: {err}").ok();
+                // The error is most likely a BrokenPipe. If the pager is closed by user
+                // (by e.g. pressing "q"), BrokenPipe shouldn't be considered a hard error.
+                // Otherwise, close pager and report the error to stderr.
+                let success_or_not_paged = ui.finalize_pager();
+                if !success_or_not_paged {
+                    writeln!(ui.error(), "Error: {err}").ok();
+                }
                 ExitCode::from(BROKEN_PIPE_EXIT_CODE)
             }
         }
