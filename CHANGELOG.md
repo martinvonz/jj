@@ -174,6 +174,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fix the output of `jj debug completion --help` by reversing fish and zsh text.
 
+* Fixed edge case in `jj git fetch` when a pruned branch is a prefix of another
+  branch.
+
 ### Contributors
 
 Thanks to the people who made this release happen!
