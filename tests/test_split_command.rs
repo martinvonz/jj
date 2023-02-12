@@ -28,8 +28,8 @@ fn test_split_by_paths() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "change_id.short()"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  9a45c67d3e96
-    o  000000000000
+    @  qpvuntsmwlqt
+    o  zzzzzzzzzzzz
     "###);
 
     let edit_script = test_env.set_up_fake_editor();
@@ -66,9 +66,9 @@ fn test_split_by_paths() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "change_id.short()"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  ffdaa62087a2
-    o  9a45c67d3e96
-    o  000000000000
+    @  kkmpptxzrspx
+    o  qpvuntsmwlqt
+    o  zzzzzzzzzzzz
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -94,10 +94,10 @@ fn test_split_by_paths() {
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["log", "-T", r#"change_id.short() " " empty"#]);
     insta::assert_snapshot!(stdout, @r###"
-    @  ffdaa62087a2 false
-    o  19b790168e73 true
-    o  9a45c67d3e96 false
-    o  000000000000 true
+    @  kkmpptxzrspx false
+    o  yqosqzytrlsw true
+    o  qpvuntsmwlqt false
+    o  zzzzzzzzzzzz true
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@--"]);
@@ -127,10 +127,10 @@ fn test_split_by_paths() {
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["log", "-T", r#"change_id.short() " " empty"#]);
     insta::assert_snapshot!(stdout, @r###"
-    @  ffdaa62087a2 false
-    o  fa9213bcf78e false
-    o  9a45c67d3e96 true
-    o  000000000000 true
+    @  kkmpptxzrspx false
+    o  kpqxywonksrl false
+    o  qpvuntsmwlqt true
+    o  zzzzzzzzzzzz true
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);

@@ -275,26 +275,26 @@ fn test_git_colocated_squash_undo() {
     test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    @  8e4fac809cbb 8f71e3b6a3be
-    o  9a45c67d3e96 a86754f975f9 A master
-    o  000000000000 000000000000
+    @  rlvkpnrzqnoo 8f71e3b6a3be
+    o  qpvuntsmwlqt a86754f975f9 A master
+    o  zzzzzzzzzzzz 000000000000
     "###);
 
     test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    @  0757f5ec8418 f0c12b0396d9
-    o  9a45c67d3e96 2f376ea1478c A master
-    o  000000000000 000000000000
+    @  zsuskulnrvyr f0c12b0396d9
+    o  qpvuntsmwlqt 2f376ea1478c A master
+    o  zzzzzzzzzzzz 000000000000
     "###);
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     // TODO: There should be no divergence here; 2f376ea1478c should be hidden
     // (#922)
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    o  9a45c67d3e96 2f376ea1478c A master !divergence!
-    │ @  8e4fac809cbb 8f71e3b6a3be
-    │ o  9a45c67d3e96 a86754f975f9 A  !divergence!
+    o  qpvuntsmwlqt 2f376ea1478c A master !divergence!
+    │ @  rlvkpnrzqnoo 8f71e3b6a3be
+    │ o  qpvuntsmwlqt a86754f975f9 A  !divergence!
     ├─╯
-    o  000000000000 000000000000
+    o  zzzzzzzzzzzz 000000000000
     "###);
 }
 
