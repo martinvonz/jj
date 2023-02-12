@@ -9,66 +9,51 @@ If you haven't already, make sure you
 
 ## Cloning a Git repo
 
-Let's start by cloning the Jujutsu Git repo using `jj`:
+Let's start by cloning GitHub's Hello-World repo using `jj`:
 ```shell script
 # Note the "git" before "clone" (there is no support for cloning native jj
 # repos yet)
-$ jj git clone https://github.com/martinvonz/jj.git
-Fetching into new repo in "<dir>/jj"
-Working copy now at: 265ecf5cab2d (no description set)
-Added 98 files, modified 0 files, removed 0 files
-$ cd jj
+$ jj git clone https://github.com/octocat/Hello-World
+Fetching into new repo in "/tmp/tmp.O1DWMiaKd4/Hello-World"
+Working copy now at: d7439b06fbef (no description set)
+Added 1 files, modified 0 files, removed 0 files
+$ cd Hello-World
 ```
 
 Running `jj st` (short for`jj status`) now yields something like this:
 ```shell script
 $ jj st
-Parent commit: 723ebb380971 cleanup: restructure escaped newlines to make new rustc happy
-Working copy : 265ecf5cab2d (no description set)
+Parent commit: 7fd1a60b01f9 Merge pull request #6 from Spaceghost/patch-1
+Working copy : d7439b06fbef (no description set)
 The working copy is clean
 ```
 
-We can see from the output above that our working copy has a commit ID
-(`265ecf5cab2d` in the example).
-
-Let's check out a particular commit, so we get more predictable output:
-```shell script
-$ jj co 080a9b37ff7e
-Working copy now at: 608c179a60df
-Added 7 files, modified 65 files, removed 21 files
-$ jj st
-Parent commit: 080a9b37ff7e cli: make `jj st` show parent commit before working copy commit
-Working copy : 608c179a60df (no description set)
-The working copy is clean
-```
-
-You might have noticed that even though we asked to check out some commit
-(`080a9b37ff7e`), our working-copy commit ended up being another commit
-(`608c179a60df`). That is because `jj co` (short for `jj checkout`) creates a
-new commit on top of the commit you asked it to check out. The new commit is for
-the working-copy changes.
+We can see from the output above that our working copy is a real commit with a
+commit ID (`7fd1a60b01f9` in the example). When you make a change in the working
+copy, the working-copy commit gets automatically amended by the next `jj`
+command.
 
 ## Creating our first change
 
-Now let's say we want to edit the `README.md` file in the repo to say that Jujutsu
-is ready for use. Let's start by describing the change (adding a commit message)
-so we don't forget what we're working on:
+Now let's say we want to edit the `README` file in the repo to say "Goodbye"
+instead of "Hello". Let's start by describing the change (adding a
+commit message) so we don't forget what we're working on:
 ```shell script
 # This will bring up $EDITOR (or `pico` by default). Enter something like
-# "Jujutsu is ready!" in the editor and then close it.
+# "Say goodbye" in the editor and then close it.
 $ jj describe
-Working copy now at: b2985d68096d Jujutsu is ready!
+Working copy now at: e427edcfd0ba Say goodbye
 ```
 
 Now make the change in the README:
 ```shell script
 # Adjust as necessary for compatibility with your flavor of `sed`
-$ sed -i 's/not ready/ready/' README.md
+$ sed -i 's/Hello/Goodbye/' README
 $ jj st
-Parent commit: 080a9b37ff7e cli: make `jj st` show parent commit before working copy commit
-Working copy : 5f80190c44b9 Jujutsu is ready!
+Parent commit: 7fd1a60b01f9 Merge pull request #6 from Spaceghost/patch-1
+Working copy : 5d39e19dac36 Say goodbye
 Working copy changes:
-M README.md
+M README
 ```
 Note that you didn't have to tell Jujutsu to add the change like you would with
 `git add`. You actually don't even need to tell it when you add new files or
@@ -78,22 +63,16 @@ remove existing files. To untrack a path, add it to your `.gitignore` and run
 To see the diff, run `jj diff`:
 ```shell script
 $ jj diff --git  # Feel free to skip the `--git` flag
-diff --git a/README.md b/README.md
-index aa9b9e31a8...c30897997c 100644
---- a/README.md
-+++ b/README.md
-@@ -4,7 +4,7 @@
- ## Disclaimer
-
- This is not a Google product. It is an experimental version-control system
--(VCS). It is not ready for use. It was written by me, Martin von Zweigbergk
-+(VCS). It is ready for use. It was written by me, Martin von Zweigbergk
- (martinvonz@google.com). It is my personal hobby project. It does not indicate
- any commitment or direction from Google.
-
+diff --git a/README b/README
+index 980a0d5f19...1ce3f81130 100644
+--- a/README
++++ b/README
+@@ -1,1 +1,1 @@
+-Hello World!
++Goodbye World!
 ```
 Jujutsu's diff format currently defaults to inline coloring of the diff (like
-`git diff --color-words`), so we used `--git` above to make the diff visible in
+`git diff --color-words`), so we used `--git` above to make the diff readable in
 this tutorial.
 
 As you may have noticed, the working-copy commit's ID changed both when we
@@ -102,29 +81,33 @@ stayed the same. Each change to the working-copy commit amends the previous
 version. So how do we tell Jujutsu that we are done amending the current change
 and want to start working on a new one? That is what `jj new` is for. That will
 create a new commit on top of your current working-copy commit. The new commit
-is for the working-copy changes. That may remind you of what we said earlier
-that `jj checkout` does; `jj checkout` is in fact practically a synonym for
-`jj new` (you can specify a destination for `jj new` as well).
+is for the working-copy changes. For familiarity for user coming from other
+VCSs, there is also a `jj checkout/co` command, which is practically a synonym
+for `jj new` (you can specify a destination for `jj new` as well).
 
 So, let's say we're now done with this change, so we create a new change:
 ```shell script
 $ jj new
-Working copy now at: 192b456b024b (no description set)
+Working copy now at: aef4df99ea11 (no description set)
 $ jj st
-Parent commit: fb563a4c6d26 Jujutsu is ready!
-Working copy : 192b456b024b (no description set)
+Parent commit: 5d39e19dac36 Say goodbye
+Working copy : aef4df99ea11 (no description set)
 The working copy is clean
 ```
 
 If we later realize that we want to make further changes, we can make them
 in the working copy and then run `jj squash`. That command squashes the changes
 from a given commit into its parent commit. Like most commands, it acts on the
-working-copy commit by default. Alternatively, we can use `jj edit <commit>` to
-resume editing a commit in the working copy. Any further changes in the working
-copy will then amend the commit. Whether you choose to checkout-and-squash or to
-edit typically depends on how done you are with the change; if the change is
-almost done, it makes sense to use `jj checkout` so you can easily review your
-adjustments with `jj diff` before running `jj squash`. 
+working-copy commit by default. When run on the working-copy commit, it behaves
+very similar to `git commit --amend`, and `jj amend` is in fact an alias for
+`jj squash`.
+
+Alternatively, we can use `jj edit <commit>` to resume editing a commit in the
+working copy. Any further changes in the working copy will then amend the
+commit. Whether you choose to checkout-and-squash or to edit typically depends
+on how done you are with the change; if the change is almost done, it makes
+sense to use `jj checkout` so you can easily review your adjustments with
+`jj diff` before running `jj squash`. 
 
 ## The log command and "revsets"
 
@@ -132,20 +115,21 @@ You're probably familiar with `git log`. Jujutsu has very similar functionality
 in its `jj log` command:
 ```shell script
 $ jj log
-@ f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00 192b456b024b
-| (empty) (no description set)
-o f63e76f175b9 martinvonz@google.com 2021-05-23 22:13:45.000 -07:00 fb563a4c6d26
-| Jujutsu is ready!
-o 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main 080a9b37ff7e
-~ cli: make `jj st` show parent commit before working copy commit
+@  mpqrykypylvy martinvonz@google.com 2023-02-12 15:00:22.000 -08:00 aef4df99ea11
+│  (empty) (no description set)
+o  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
+│  Say goodbye
+o  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+│  (empty) Merge pull request #6 from Spaceghost/patch-1
+~
 ```
 
-The `@` indicates the working-copy commit. The first hash on a line is the
-"change ID", which is an ID that follows the commit as it's rewritten (similar
-to Gerrit's Change-Id). The second hash is the commit ID, which changes when you
-rewrite the commit. You can give either hash to commands that take revisions as
-arguments. We will generally prefer change IDs because they stay the same when
-the commit is rewritten.
+The `@` indicates the working-copy commit. The first ID on a line
+(e.g. "mpqrykypylvy" above) is the "change ID", which is an ID that follows the
+commit as it's rewritten (similar to Gerrit's Change-Id). The second ID is the
+commit ID, which changes when you rewrite the commit. You can give either ID
+to commands that take revisions as arguments. We will generally prefer change
+IDs because they stay the same when the commit is rewritten.
 
 By default, `jj log` lists your local commits, with some remote commits added
 for context.  The `~` indicates that the commit has parents that are not
@@ -158,16 +142,21 @@ expressions with `|` for union, `&` for intersection and `~` for difference. For
 example:
 ```shell script
 $ jj log -r '@ | root | branches()'
-@ f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00 192b456b024b
-: (empty) (no description set)
-o 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main 080a9b37ff7e
-: cli: make `jj st` show parent commit before working copy commit
-o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
-  (empty) (no description set)
+@  mpqrykypylvy martinvonz@google.com 2023-02-12 15:00:22.000 -08:00 aef4df99ea11
+╷  (empty) (no description set)
+╷ o  kowxouwzwxmv octocat@nowhere.com 2014-06-10 15:22:26.000 -07:00 test b3cbd5bbd7e8
+╭─╯  Create CONTRIBUTING.md
+│ o  tpstlustrvsn support+octocat@github.com 2018-05-10 12:55:19.000 -05:00 octocat-patch-1 b1b3f9723831
+├─╯  sentence case
+o  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+╷  (empty) Merge pull request #6 from Spaceghost/patch-1
+o  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+   (empty) (no description set)
 ```
 
-The `000000000000` commit is a virtual commit that's called the "root commit".
-It's the root commit of every repo. The `root` symbol in the revset matches it.
+The `000000000000` commit (change ID `zzzzzzzzzzzz`) is a virtual commit that's
+called the "root commit". It's the root commit of every repo. The `root` symbol
+in the revset matches it.
 
 There are also operators for getting the parents (`foo-`), children (`foo+`),
 ancestors (`:foo`), descendants (`foo:`), DAG range (`foo:bar`, like
@@ -180,43 +169,53 @@ input set if they're ancestors of other revisions in the set.
 Now let's see how Jujutsu deals with merge conflicts. We'll start by making some
 commits:
 ```shell script
-# Start creating a chain of commits off of the grandparent of the working copy
-$ jj new @-- -m A; echo a > file1
-Working copy now at: 9164f1d6a011 A
+# Start creating a chain of commits off of the `master` branch
+$ jj new master -m A; echo a > file1
+Working copy now at: 00a2aeed556a A
 Added 0 files, modified 1 files, removed 0 files
 $ jj new -m B1; echo b1 > file1
-Working copy now at: 5be91b2b5b69 B1
+Working copy now at: 967d9f9fd288 B1
 $ jj new -m B2; echo b2 > file1
-Working copy now at: fd571967346e B2
+Working copy now at: 8ebeaffa332b B2
 $ jj new -m C; echo c > file2
-Working copy now at: 4ae1e0587eef C
+Working copy now at: 62a3c6d315cd C
 $ jj log
-@ 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 1769bdaa8d6d
-| C
-o 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 de5690380f40
-| B2
-o ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00 47e336632333
-| B1
-o cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00 661432c51c08
-~ A
+@  qzvqqupxlkot martinvonz@google.com 2023-02-12 15:07:41.946 -08:00 2370ddf3fa39
+│  C
+o  puqltuttrvzp martinvonz@google.com 2023-02-12 15:07:33.000 -08:00 daa6ffd5a09a
+│  B2
+o  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
+│  B1
+o  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
+│  A
+│ o  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
+├─╯  Say goodbye
+o  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+│  (empty) Merge pull request #6 from Spaceghost/patch-1
+~
 ```
 
 We now have a few commits, where A, B1, and B2 modify the same file, while C
 modifies a different file. Let's now rebase B2 directly onto A:
 ```shell script
-$ jj rebase -s 5548374c0794 -d cf49e6bec410
+$ jj rebase -s puqltuttrvzp -d nuvyytnqlquo
 Rebased 2 commits
-Working copy now at: 9195b6d2e8dc C
+Working copy now at: 1978b53430cd C
 Added 0 files, modified 1 files, removed 0 files
 $ jj log
-@ 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 66274d5a7d2d conflict
-| C
-o 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 0c305a9e6b27 conflict
-| B2
-| o ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00 47e336632333
-|/  B1
-o cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00 661432c51c08
-~ A
+@  qzvqqupxlkot martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 1978b53430cd conflict
+│  C
+o  puqltuttrvzp martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 f7fb5943ee41 conflict
+│  B2
+│ o  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
+├─╯  B1
+o  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
+│  A
+│ o  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
+├─╯  Say goodbye
+o  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+│  (empty) Merge pull request #6 from Spaceghost/patch-1
+~
 ```
 
 There are several things worth noting here. First, the `jj rebase` command said
@@ -231,15 +230,15 @@ Now let's resolve the conflict in B2. We'll do that by creating a new commit on
 top of B2. Once we've resolved the conflict, we'll squash the conflict
 resolution into the conflicted B2. That might look like this:
 ```shell script
-$ jj new 5548374c0794  # Replace the hash by what you have for B2
-Working copy now at: 619f58d8a988 (no description set)
-Added 0 files, modified 1 files, removed 0 files
+$ jj new puqltuttrvzp  # Replace the ID by what you have for B2
+Working copy now at: c7068d1c23fd (no description set)
+Added 0 files, modified 0 files, removed 1 files
 $ jj st
-Parent commit: 5548374c0794 B2
-Working copy : 619f58d8a988 (no description set)
+Parent commit: f7fb5943ee41 B2
+Working copy : c7068d1c23fd (no description set)
 The working copy is clean
 There are unresolved conflicts at these paths:
-file1
+file1    2-sided conflict
 $ cat file1
 <<<<<<<
 %%%%%%%
@@ -251,25 +250,30 @@ b2
 $ echo resolved > file1
 $ jj squash
 Rebased 1 descendant commits
-Working copy now at: e659edc4a9fc (no description set)
+Working copy now at: e3c279cc2043 (no description set)
 $ jj log
-@ 461f38324592 martinvonz@google.com 2021-05-26 12:53:08.000 -07:00 e659edc4a9fc
-| (empty) (no description set)
-| o 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 69dbcf76642a
-|/  C
-o 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 576d647acf36
-| B2
-| o ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00 47e336632333
-|/  B1
-o cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00 661432c51c08
-~ A
+@  ntxxqymrlvxu martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 e3c279cc2043
+│  (empty) (no description set)
+│ o  qzvqqupxlkot martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 b9da9d28b26b
+├─╯  C
+o  puqltuttrvzp martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 2c7a658e2586
+│  B2
+│ o  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
+├─╯  B1
+o  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
+│  A
+│ o  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
+├─╯  Say goodbye
+o  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+│  (empty) Merge pull request #6 from Spaceghost/patch-1
+~
 ```
 
 Note that commit C automatically got rebased on top of the resolved B2, and that
 C is also resolved (since it modified only a different file).
 
 By the way, if we want to get rid of B1 now, we can run `jj abandon
-47e336632333`. That will hide the commit from the log output and will rebase any
+ovknlmrokpkl`. That will hide the commit from the log output and will rebase any
 descendants to its parent.
 
 ## The operation log
@@ -279,17 +283,17 @@ the "operation log". Use the `jj op` (short for `jj operation`) family of
 commands to interact with it. To list the operations, use `jj op log`:
 ```shell script
 $ jj op log
-@ 5bd384507342 martinvonz@<hostname> 2021-05-26 12:53:08.339 -07:00 - 2021-05-26 12:53:08.350 -07:00
-| squash commit 41f0d2289b568bfcdcf35f73d4f70f3ab6696398
-| args: jj squash
-o 2fd266a8a2e0 martinvonz@<hostname> 2021-05-26 12:53:08.335 -07:00 - 2021-05-26 12:53:08.338 -07:00
-| commit working copy
-o 1e6dd15305a3 martinvonz@<hostname> 2021-05-26 12:52:39.374 -07:00 - 2021-05-26 12:52:39.382 -07:00
-| check out commit 0c305a9e6b274bc09b2bca85635299dcfdc6811c
-| args: jj co 0c305a9e6b27
-o 401652a2f61e martinvonz@<hostname> 2021-05-26 12:44:51.872 -07:00 - 2021-05-26 12:44:51.882 -07:00
-| rebase commit de5690380f40f3f7fc6b7d66d43a4f68ee606228 and descendants
-| args: jj rebase -s de5690380f40 -d 661432c51c08
+@  d3b77addea49 martinvonz@vonz.svl.corp.google.com 2023-02-12 19:34:09.549 -08:00 - 2023-02-12 19:34:09.552 -08:00
+│  squash commit 63874fe6c4fba405ffc38b0dd926f03b715cf7ef
+│  args: jj squash
+o  6fc1873c1180 martinvonz@vonz.svl.corp.google.com 2023-02-12 19:34:09.548 -08:00 - 2023-02-12 19:34:09.549 -08:00
+│  snapshot working copy
+o  ed91f7bcc1fb martinvonz@vonz.svl.corp.google.com 2023-02-12 19:32:46.007 -08:00 - 2023-02-12 19:32:46.008 -08:00
+│  new empty commit
+│  args: jj new puqltuttrvzp
+o  367400773f87 martinvonz@vonz.svl.corp.google.com 2023-02-12 15:08:33.917 -08:00 - 2023-02-12 15:08:33.920 -08:00
+│  rebase commit daa6ffd5a09a8a7d09a65796194e69b7ed0a566d and descendants
+│  args: jj rebase -s puqltuttrvzp -d nuvyytnqlquo
 [many more lines]
 ```
 
@@ -297,18 +301,23 @@ The most useful command is `jj undo` (alias for `jj op undo`), which will undo
 an operation. By default, it will undo the most recent operation. Let's try it:
 ```shell script
 $ jj undo
-Working copy now at: 41f0d2289b56
+Working copy now at: 63874fe6c4fb (no description set)
 $ jj log
-@ b1e3a4afde5e martinvonz@google.com 2021-05-26 12:52:39.000 -07:00 41f0d2289b56
-| (no description set)
-| o 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 66274d5a7d2d conflict
-|/  C
-o 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 0c305a9e6b27 conflict
-| B2
-| o ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00 47e336632333
-|/  B1
-o cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00 661432c51c08
-~ A
+@  zxoosnnpvvpn martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 63874fe6c4fb
+│  (no description set)
+│ o  qzvqqupxlkot martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 1978b53430cd conflict
+├─╯  C
+o  puqltuttrvzp martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 f7fb5943ee41 conflict
+│  B2
+│ o  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
+├─╯  B1
+o  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
+│  A
+│ o  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
+├─╯  Say goodbye
+o  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+│  (empty) Merge pull request #6 from Spaceghost/patch-1
+~
 ```
 As you can perhaps see, that undid the `jj squash` invocation we used for
 squashing the conflict resolution into commit B2 earlier. Notice that it also
@@ -316,7 +325,7 @@ updated the working copy.
 
 You can also view the repo the way it looked after some earlier operation. For
 example, if you want to see `jj log` output right after the `jj rebase` operation,
-try `jj log --at-op=401652a2f61e` but use the hash from your own `jj op log`.
+try `jj log --at-op=367400773f87` but use the hash from your own `jj op log`.
 
 ## Moving content changes between commits
 
@@ -332,20 +341,23 @@ diff-editor = "vimdiff"
 We'll need some more complex content to test these commands, so let's create a
 few more commits:
 ```shell script
-$ jj new origin/main -m abc; printf 'a\nb\nc\n' > file
-Working copy now at: 61b0efa09dbe abc
+$ jj new master -m abc; printf 'a\nb\nc\n' > file
+Working copy now at: f94e49cf2547 abc
 Added 0 files, modified 0 files, removed 1 files
 $ jj new -m ABC; printf 'A\nB\nc\n' > file
-Working copy now at: 9d97c5018b23 ABC
+Working copy now at: 6f30cd1fb351 ABC
 $ jj new -m ABCD; printf 'A\nB\nC\nD\n' > file
-Working copy now at: c5a985bc3f41 ABCD
-$ jj log
-@ 874f2d307594 martinvonz@google.com 2021-05-26 14:36:38.000 -07:00 687009839bae 
-| ABCD
-o 2bbc0c1eb382 martinvonz@google.com 2021-05-26 14:36:26.000 -07:00 ad9b1ce3b5d0 
-| ABC
-o 3680117711f5 martinvonz@google.com 2021-05-26 14:36:05.000 -07:00 a355fb177b21 
-~ abc
+Working copy now at: a67491542e10 ABCD
+$ jj log -r master:@
+@  mrxqplykzpkw martinvonz@google.com 2023-02-12 19:38:21.000 -08:00 b98c607bf87f
+│  ABCD
+o  kwtuwqnmqyqp martinvonz@google.com 2023-02-12 19:38:12.000 -08:00 30aecc0871ea
+│  ABC
+o  ztqrpvnwqqnq martinvonz@google.com 2023-02-12 19:38:03.000 -08:00 510022615871
+│  abc
+o  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+│  (empty) Merge pull request #6 from Spaceghost/patch-1
+~
 ```
 
 We "forgot" to capitalize "c" in the second commit when we capitalized the other
@@ -357,7 +369,8 @@ into its parent. `jj squash -i` moves only part of the changes into its parent.
 Now try that:
 ```shell script
 $ jj squash -i
-Working copy now at: 4b4c714b36aa ABCD
+Using default editor 'meld'; you can change this by setting ui.diff-editor
+Working copy now at: 52a6c7fda1e3 ABCD
 ```
 That will bring up Meld with a diff of the changes in the "ABCD" commit. Modify
 the right side of the diff to have the desired end state in "ABC" by removing
@@ -381,9 +394,10 @@ command is `jj diffedit`, which lets you edit the contents of a commit without
 checking it out.
 ```shell script
 $ jj diffedit -r @-
-Created 2423c134ea70 ABC
+Using default editor 'meld'; you can change this by setting ui.diff-editor
+Created 70985eaa924f ABC
 Rebased 1 descendant commits
-Working copy now at: d31c52e8ca41 ABCD
+Working copy now at: 1c72cd50525d ABCD
 Added 0 files, modified 1 files, removed 0 files
 ```
 When Meld starts, edit the right side by e.g. adding something to the first
