@@ -822,13 +822,12 @@ impl WorkspaceCommandHelper {
         commit: &Commit,
     ) -> std::io::Result<()> {
         // TODO: parsed template can be cached if it doesn't capture repo
-        write_commit_summary(
-            formatter,
+        let template = parse_commit_summary_template(
             self.repo.as_repo_ref(),
             self.workspace_id(),
-            commit,
             &self.settings,
-        )
+        );
+        template.format(commit, formatter)
     }
 
     pub fn check_rewritable(&self, commit: &Commit) -> Result<(), CommandError> {
@@ -955,13 +954,18 @@ impl WorkspaceCommandHelper {
         self.repo = tx.commit();
         if self.may_update_working_copy {
             let workspace_id = self.workspace_id().to_owned();
+            let summary_template = parse_commit_summary_template(
+                self.repo.as_repo_ref(),
+                &workspace_id,
+                &self.settings,
+            );
             let stats = update_working_copy(
                 ui,
                 &self.repo,
                 &workspace_id,
                 self.workspace.working_copy_mut(),
                 maybe_old_commit.as_ref(),
-                &self.settings,
+                &summary_template,
             )?;
             if let Some(stats) = stats {
                 print_checkout_stats(ui, stats)?;
@@ -1099,10 +1103,12 @@ impl WorkspaceCommandTransaction<'_> {
         formatter: &mut dyn Formatter,
         commit: &Commit,
     ) -> std::io::Result<()> {
-        let repo = self.tx.repo().as_repo_ref();
-        let workspace_id = self.helper.workspace_id();
-        let settings = &self.helper.settings;
-        write_commit_summary(formatter, repo, workspace_id, commit, settings)
+        let template = parse_commit_summary_template(
+            self.tx.repo().as_repo_ref(),
+            self.helper.workspace_id(),
+            &self.helper.settings,
+        );
+        template.format(commit, formatter)
     }
 
     pub fn finish(self, ui: &mut Ui) -> Result<(), CommandError> {
@@ -1469,7 +1475,7 @@ pub fn update_working_copy(
     workspace_id: &WorkspaceId,
     wc: &mut WorkingCopy,
     old_commit: Option<&Commit>,
-    settings: &UserSettings,
+    summary_template: &dyn Template<Commit>,
 ) -> Result<Option<CheckoutStats>, CommandError> {
     let new_commit_id = match repo.view().get_wc_commit_id(workspace_id) {
         Some(new_commit_id) => new_commit_id,
@@ -1505,13 +1511,7 @@ pub fn update_working_copy(
     };
     if Some(&new_commit) != old_commit {
         ui.write("Working copy now at: ")?;
-        write_commit_summary(
-            ui.stdout_formatter().as_mut(),
-            repo.as_repo_ref(),
-            workspace_id,
-            &new_commit,
-            settings,
-        )?;
+        summary_template.format(&new_commit, ui.stdout_formatter().as_mut())?;
         ui.write("\n")?;
     }
     Ok(stats)
@@ -1520,18 +1520,16 @@ pub fn update_working_copy(
 pub const DESCRIPTION_PLACEHOLDER_TEMPLATE: &str =
     r#"label("description", "(no description set)")"#;
 
-pub fn write_commit_summary(
-    formatter: &mut dyn Formatter,
-    repo: RepoRef,
+fn parse_commit_summary_template<'a>(
+    repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
-    commit: &Commit,
     settings: &UserSettings,
-) -> std::io::Result<()> {
+) -> Box<dyn Template<Commit> + 'a> {
     // TODO: Better to parse template early (at e.g. WorkspaceCommandHelper::new())
     // to report error before starting mutable operation.
 
     // Fall back to the default template on parsing error.
-    let template = settings
+    settings
         .config()
         .get_string("template.commit_summary")
         .ok()
@@ -1544,8 +1542,7 @@ pub fn write_commit_summary(
                     "#,
             );
             template_parser::parse_commit_template(repo, workspace_id, &s).unwrap()
-        });
-    template.format(commit, formatter)
+        })
 }
 
 // TODO: Use a proper TOML library to serialize instead.
