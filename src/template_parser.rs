@@ -938,6 +938,7 @@ pub fn parse_commit_template<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     template_text: &str,
+    _aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'a>> {
     let node = parse_template(template_text)?;
     let expression = build_expression(&node, &|name, span| {

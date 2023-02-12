@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-use crate::common::TestEnvironment;
+use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -386,6 +386,36 @@ fn test_templater_separate_function() {
     // Keyword as separator
     insta::assert_snapshot!(
         render(r#"separate(author, "X", "Y", "Z")"#), @"X <>Y <>Z");
+}
+
+#[test]
+fn test_templater_bad_alias_decl() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // TODO: test alias substitution of parsable one
+    test_env.add_config(
+        r###"
+    [template-aliases]
+    'badfn(a, a)' = 'a'
+    "###,
+    );
+
+    // Invalid declaration should be warned and ignored.
+    let assert = test_env
+        .jj_cmd(&repo_path, &["log", "--no-graph", "-r@-", "-Tcommit_id"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @"0000000000000000000000000000000000000000");
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Failed to load "template-aliases.badfn(a, a)":  --> 1:7
+      |
+    1 | badfn(a, a)
+      |       ^--^
+      |
+      = Redefinition of function parameter
+    "###);
 }
 
 fn get_template_output(
