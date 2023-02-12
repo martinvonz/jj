@@ -148,6 +148,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * It is now possible to change the author format of `jj log` with the new
   `ui.log-author-format` option.
 
+* Added support for template aliases. New symbols and functions can be
+  configured by `template-aliases.<name> = <expression>`. Be aware that
+  the template syntax isn't documented yet and is likely to change.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
