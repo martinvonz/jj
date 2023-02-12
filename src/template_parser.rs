@@ -37,7 +37,7 @@ use crate::{cli_util, time_util};
 
 #[derive(Parser)]
 #[grammar = "template.pest"]
-pub struct TemplateParser;
+struct TemplateParser;
 
 type TemplateParseResult<T> = Result<T, TemplateParseError>;
 
@@ -159,7 +159,7 @@ impl error::Error for TemplateParseError {
 
 /// AST node without type or name checking.
 #[derive(Clone, Debug, PartialEq)]
-struct ExpressionNode<'i> {
+pub struct ExpressionNode<'i> {
     kind: ExpressionKind<'i>,
     span: pest::Span<'i>,
 }
@@ -285,7 +285,7 @@ fn parse_template_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> 
 }
 
 /// Parses text into AST nodes. No type/name checking is made at this stage.
-fn parse_template(template_text: &str) -> TemplateParseResult<ExpressionNode> {
+pub fn parse_template(template_text: &str) -> TemplateParseResult<ExpressionNode> {
     let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text)?;
     let first_pair = pairs.next().unwrap();
     if first_pair.as_rule() == Rule::EOI {
