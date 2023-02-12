@@ -36,6 +36,10 @@ function_arguments = {
   template ~ (whitespace* ~ "," ~ whitespace* ~ template)* ~ (whitespace* ~ ",")?
   | ""
 }
+formal_parameters = {
+  identifier ~ (whitespace* ~ "," ~ whitespace* ~ identifier)* ~ (whitespace* ~ ",")?
+  | ""
+}
 
 // Note that "x(y)" is a function call but "x (y)" concatenates "x" and "y"
 primary = _{
@@ -57,3 +61,10 @@ list = _{
 template = { list | term }
 
 program = _{ SOI ~ whitespace* ~ template? ~ whitespace* ~ EOI }
+
+function_alias_declaration = {
+  identifier ~ "(" ~ whitespace* ~ formal_parameters ~ whitespace* ~ ")"
+}
+alias_declaration = _{
+  SOI ~ (function_alias_declaration | identifier) ~ EOI
+}

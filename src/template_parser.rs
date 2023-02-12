@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::num::ParseIntError;
 use std::ops::{RangeFrom, RangeInclusive};
 use std::{error, fmt};
@@ -68,6 +69,8 @@ pub enum TemplateParseErrorKind {
     InvalidArgumentCountRangeFrom(RangeFrom<usize>),
     #[error(r#"Expected argument of type "{0}""#)]
     InvalidArgumentType(String),
+    #[error("Redefinition of function parameter")]
+    RedefinedFunctionParameter,
 }
 
 impl TemplateParseError {
@@ -293,6 +296,118 @@ pub fn parse_template(template_text: &str) -> TemplateParseResult<ExpressionNode
         Ok(ExpressionNode::new(ExpressionKind::List(Vec::new()), span))
     } else {
         parse_template_node(first_pair)
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct TemplateAliasesMap {
+    symbol_aliases: HashMap<String, String>,
+    function_aliases: HashMap<String, (Vec<String>, String)>,
+}
+
+impl TemplateAliasesMap {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds new substitution rule `decl = defn`.
+    ///
+    /// Returns error if `decl` is invalid. The `defn` part isn't checked. A bad
+    /// `defn` will be reported when the alias is substituted.
+    pub fn insert(
+        &mut self,
+        decl: impl AsRef<str>,
+        defn: impl Into<String>,
+    ) -> TemplateParseResult<()> {
+        match TemplateAliasDeclaration::parse(decl.as_ref())? {
+            TemplateAliasDeclaration::Symbol(name) => {
+                self.symbol_aliases.insert(name, defn.into());
+            }
+            TemplateAliasDeclaration::Function(name, params) => {
+                self.function_aliases.insert(name, (params, defn.into()));
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(test)] // TODO: remove
+    fn get_symbol(&self, name: &str) -> Option<(TemplateAliasId<'_>, &str)> {
+        self.symbol_aliases
+            .get_key_value(name)
+            .map(|(name, defn)| (TemplateAliasId::Symbol(name), defn.as_ref()))
+    }
+
+    #[cfg(test)] // TODO: remove
+    fn get_function(&self, name: &str) -> Option<(TemplateAliasId<'_>, &[String], &str)> {
+        self.function_aliases
+            .get_key_value(name)
+            .map(|(name, (params, defn))| {
+                (
+                    TemplateAliasId::Function(name),
+                    params.as_ref(),
+                    defn.as_ref(),
+                )
+            })
+    }
+}
+
+/// Parsed declaration part of alias rule.
+#[derive(Clone, Debug)]
+enum TemplateAliasDeclaration {
+    Symbol(String),
+    Function(String, Vec<String>),
+}
+
+impl TemplateAliasDeclaration {
+    fn parse(source: &str) -> TemplateParseResult<Self> {
+        let mut pairs = TemplateParser::parse(Rule::alias_declaration, source)?;
+        let first = pairs.next().unwrap();
+        match first.as_rule() {
+            Rule::identifier => Ok(TemplateAliasDeclaration::Symbol(first.as_str().to_owned())),
+            Rule::function_alias_declaration => {
+                let mut inner = first.into_inner();
+                let name_pair = inner.next().unwrap();
+                let params_pair = inner.next().unwrap();
+                let params_span = params_pair.as_span();
+                assert_eq!(name_pair.as_rule(), Rule::identifier);
+                assert_eq!(params_pair.as_rule(), Rule::formal_parameters);
+                let name = name_pair.as_str().to_owned();
+                let params = params_pair
+                    .into_inner()
+                    .map(|pair| match pair.as_rule() {
+                        Rule::identifier => pair.as_str().to_owned(),
+                        r => panic!("unexpected formal parameter rule {r:?}"),
+                    })
+                    .collect_vec();
+                if params.iter().all_unique() {
+                    Ok(TemplateAliasDeclaration::Function(name, params))
+                } else {
+                    Err(TemplateParseError::with_span(
+                        TemplateParseErrorKind::RedefinedFunctionParameter,
+                        params_span,
+                    ))
+                }
+            }
+            r => panic!("unexpected alias declaration rule {r:?}"),
+        }
+    }
+}
+
+/// Borrowed reference to identify alias expression.
+#[cfg(test)] // TODO: remove
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TemplateAliasId<'a> {
+    Symbol(&'a str),
+    Function(&'a str),
+}
+
+#[cfg(test)] // TODO: remove
+impl fmt::Display for TemplateAliasId<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TemplateAliasId::Symbol(name) => write!(f, "{name}"),
+            TemplateAliasId::Function(name) => write!(f, "{name}()"),
+        }
     }
 }
 
@@ -925,5 +1040,38 @@ mod tests {
 
         assert_eq!(extract(parse(&format!("{}", i64::MAX)).unwrap()), i64::MAX);
         assert!(parse(&format!("{}", (i64::MAX as u64) + 1)).is_err());
+    }
+
+    #[test]
+    fn test_parse_alias_decl() {
+        let mut aliases_map = TemplateAliasesMap::new();
+        aliases_map.insert("sym", r#""is symbol""#).unwrap();
+        aliases_map.insert("func(a)", r#""is function""#).unwrap();
+
+        let (id, defn) = aliases_map.get_symbol("sym").unwrap();
+        assert_eq!(id, TemplateAliasId::Symbol("sym"));
+        assert_eq!(defn, r#""is symbol""#);
+
+        let (id, params, defn) = aliases_map.get_function("func").unwrap();
+        assert_eq!(id, TemplateAliasId::Function("func"));
+        assert_eq!(params, ["a"]);
+        assert_eq!(defn, r#""is function""#);
+
+        // Formal parameter 'a' can't be redefined
+        assert_eq!(
+            aliases_map.insert("f(a, a)", r#""""#).unwrap_err().kind,
+            TemplateParseErrorKind::RedefinedFunctionParameter
+        );
+
+        // Trailing comma isn't allowed for empty parameter
+        assert!(aliases_map.insert("f(,)", r#"""#).is_err());
+        // Trailing comma is allowed for the last parameter
+        assert!(aliases_map.insert("g(a,)", r#"""#).is_ok());
+        assert!(aliases_map.insert("h(a ,  )", r#"""#).is_ok());
+        assert!(aliases_map.insert("i(,a)", r#"""#).is_err());
+        assert!(aliases_map.insert("j(a,,)", r#"""#).is_err());
+        assert!(aliases_map.insert("k(a  , , )", r#"""#).is_err());
+        assert!(aliases_map.insert("l(a,b,)", r#"""#).is_ok());
+        assert!(aliases_map.insert("m(a,,b)", r#"""#).is_err());
     }
 }
