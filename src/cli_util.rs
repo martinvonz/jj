@@ -32,6 +32,7 @@ use jujutsu_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git::{GitExportError, GitImportError};
 use jujutsu_lib::gitignore::GitIgnoreFile;
+use jujutsu_lib::hex_util::to_reverse_hex;
 use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
@@ -1619,7 +1620,9 @@ pub fn short_commit_hash(commit_id: &CommitId) -> String {
 }
 
 pub fn short_change_hash(change_id: &ChangeId) -> String {
-    change_id.hex()[0..12].to_string()
+    // TODO: We could avoid the unwrap() and make this more efficient by converting
+    // straight from binary.
+    to_reverse_hex(&change_id.hex()[0..12]).unwrap()
 }
 
 pub fn short_operation_hash(operation_id: &OperationId) -> String {
