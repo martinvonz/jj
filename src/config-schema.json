@@ -292,6 +292,13 @@
                 "type": "string"
             }
         },
+        "template-aliases": {
+            "type": "object",
+            "description": "Custom symbols/function aliases that can used in templates",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
         "aliases": {
             "type": "object",
             "description": "Custom subcommand aliases to be supported by the jj command",

@@ -59,7 +59,7 @@ use tracing_subscriber::prelude::*;
 use crate::config::{AnnotatedValue, CommandNameAndArgs, LayeredConfigs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
-use crate::template_parser::{self, TemplateParseError};
+use crate::template_parser::{self, TemplateAliasesMap, TemplateParseError};
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
 
@@ -464,6 +464,7 @@ pub struct WorkspaceCommandHelper {
     workspace: Workspace,
     repo: Arc<ReadonlyRepo>,
     revset_aliases_map: RevsetAliasesMap,
+    template_aliases_map: TemplateAliasesMap,
     may_update_working_copy: bool,
     working_copy_shared_with_git: bool,
 }
@@ -479,6 +480,7 @@ impl WorkspaceCommandHelper {
         repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
         let revset_aliases_map = load_revset_aliases(ui, &settings)?;
+        let template_aliases_map = load_template_aliases(ui, &settings)?;
         let loaded_at_head = &global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !global_args.ignore_working_copy;
         let mut working_copy_shared_with_git = false;
@@ -498,6 +500,7 @@ impl WorkspaceCommandHelper {
             workspace,
             repo,
             revset_aliases_map,
+            template_aliases_map,
             may_update_working_copy,
             working_copy_shared_with_git,
         })
@@ -804,6 +807,7 @@ impl WorkspaceCommandHelper {
             self.repo.as_repo_ref(),
             self.workspace_id(),
             template_text,
+            &self.template_aliases_map,
         )
     }
 
@@ -825,6 +829,7 @@ impl WorkspaceCommandHelper {
         let template = parse_commit_summary_template(
             self.repo.as_repo_ref(),
             self.workspace_id(),
+            &self.template_aliases_map,
             &self.settings,
         );
         template.format(commit, formatter)
@@ -957,6 +962,7 @@ impl WorkspaceCommandHelper {
             let summary_template = parse_commit_summary_template(
                 self.repo.as_repo_ref(),
                 &workspace_id,
+                &self.template_aliases_map,
                 &self.settings,
             );
             let stats = update_working_copy(
@@ -1106,6 +1112,7 @@ impl WorkspaceCommandTransaction<'_> {
         let template = parse_commit_summary_template(
             self.tx.repo().as_repo_ref(),
             self.helper.workspace_id(),
+            &self.helper.template_aliases_map,
             &self.helper.settings,
         );
         template.format(commit, formatter)
@@ -1520,9 +1527,29 @@ pub fn update_working_copy(
 pub const DESCRIPTION_PLACEHOLDER_TEMPLATE: &str =
     r#"label("description", "(no description set)")"#;
 
+fn load_template_aliases(
+    ui: &mut Ui,
+    settings: &UserSettings,
+) -> Result<TemplateAliasesMap, CommandError> {
+    const TABLE_KEY: &str = "template-aliases";
+    let mut aliases_map = TemplateAliasesMap::new();
+    let table = settings.config().get_table(TABLE_KEY)?;
+    for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
+        let r = value
+            .into_string()
+            .map_err(|e| e.to_string())
+            .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
+        if let Err(s) = r {
+            writeln!(ui.warning(), r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#)?;
+        }
+    }
+    Ok(aliases_map)
+}
+
 fn parse_commit_summary_template<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
+    aliases_map: &TemplateAliasesMap,
     settings: &UserSettings,
 ) -> Box<dyn Template<Commit> + 'a> {
     // TODO: Better to parse template early (at e.g. WorkspaceCommandHelper::new())
@@ -1533,7 +1560,9 @@ fn parse_commit_summary_template<'a>(
         .config()
         .get_string("template.commit_summary")
         .ok()
-        .and_then(|s| template_parser::parse_commit_template(repo, workspace_id, &s).ok())
+        .and_then(|s| {
+            template_parser::parse_commit_template(repo, workspace_id, &s, aliases_map).ok()
+        })
         .unwrap_or_else(|| {
             let s = format!(
                 r#"
@@ -1541,7 +1570,7 @@ fn parse_commit_summary_template<'a>(
                     if(description, description.first_line(), {DESCRIPTION_PLACEHOLDER_TEMPLATE})
                     "#,
             );
-            template_parser::parse_commit_template(repo, workspace_id, &s).unwrap()
+            template_parser::parse_commit_template(repo, workspace_id, &s, aliases_map).unwrap()
         })
 }
 
