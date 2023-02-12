@@ -428,14 +428,40 @@ fn test_templater_alias() {
       = expected identifier
     "###);
 
-    // TODO: outer template substitution should be reported too
     insta::assert_snapshot!(render_err("commit_id name_error"), @r###"
-    Error: Failed to parse template:  --> 1:1
+    Error: Failed to parse template:  --> 1:11
+      |
+    1 | commit_id name_error
+      |           ^--------^
+      |
+      = Alias "name_error" cannot be expanded
+     --> 1:1
       |
     1 | unknown_id
       | ^--------^
       |
       = Keyword "unknown_id" doesn't exist
+    "###);
+
+    insta::assert_snapshot!(render_err(r#"identity(identity(commit_id.short("")))"#), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | identity(identity(commit_id.short("")))
+      | ^-------------------------------------^
+      |
+      = Alias "identity()" cannot be expanded
+     --> 1:10
+      |
+    1 | identity(identity(commit_id.short("")))
+      |          ^---------------------------^
+      |
+      = Alias "identity()" cannot be expanded
+     --> 1:35
+      |
+    1 | identity(identity(commit_id.short("")))
+      |                                   ^^
+      |
+      = Expected argument of type "Integer"
     "###);
 
     insta::assert_snapshot!(render_err("commit_id recurse"), @r###"
@@ -483,7 +509,13 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err(r#"coalesce(label("x", "not boolean"), "")"#), @r###"
-    Error: Failed to parse template:  --> 1:10
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | coalesce(label("x", "not boolean"), "")
+      | ^-------------------------------------^
+      |
+      = Alias "coalesce()" cannot be expanded
+     --> 1:10
       |
     1 | coalesce(label("x", "not boolean"), "")
       |          ^-----------------------^

@@ -225,6 +225,8 @@ enum ExpressionKind<'i> {
     List(Vec<ExpressionNode<'i>>),
     FunctionCall(FunctionCallNode<'i>),
     MethodCall(MethodCallNode<'i>),
+    /// Identity node to preserve the span in the source template text.
+    AliasExpanded(TemplateAliasId<'i>, Box<ExpressionNode<'i>>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -464,10 +466,10 @@ fn expand_aliases<'i>(
     }
 
     fn expand_defn<'i>(
-        id: TemplateAliasId<'_>,
+        id: TemplateAliasId<'i>,
         defn: &'i str,
         locals: &HashMap<&str, ExpressionNode<'i>>,
-        span: pest::Span<'_>,
+        span: pest::Span<'i>,
         state: State<'_, 'i>,
     ) -> TemplateParseResult<ExpressionNode<'i>> {
         // The stack should be short, so let's simply do linear search and duplicate.
@@ -487,6 +489,9 @@ fn expand_aliases<'i>(
         // Parsed defn could be cached if needed.
         parse_template(defn)
             .and_then(|node| expand_node(node, expanding_state))
+            .map(|node| {
+                ExpressionNode::new(ExpressionKind::AliasExpanded(id, Box::new(node)), span)
+            })
             .map_err(|e| e.within_alias_expansion(id, span))
     }
 
@@ -557,6 +562,12 @@ fn expand_aliases<'i>(
                     object: Box::new(expand_node(*method.object, state)?),
                     function: expand_function_call(method.function, state)?,
                 });
+                Ok(node)
+            }
+            ExpressionKind::AliasExpanded(id, subst) => {
+                // Just in case the original tree contained AliasExpanded node.
+                let subst = Box::new(expand_node(*subst, state)?);
+                node.kind = ExpressionKind::AliasExpanded(id, subst);
                 Ok(node)
             }
         }
@@ -1088,6 +1099,8 @@ fn build_expression<'a, C: 'a>(
         }
         ExpressionKind::FunctionCall(function) => build_global_function(function, build_keyword),
         ExpressionKind::MethodCall(method) => build_method_call(method, build_keyword),
+        ExpressionKind::AliasExpanded(id, subst) => build_expression(subst, build_keyword)
+            .map_err(|e| e.within_alias_expansion(*id, node.span)),
     }
 }
 
@@ -1181,6 +1194,7 @@ mod tests {
                 let function = normalize_function_call(method.function);
                 ExpressionKind::MethodCall(MethodCallNode { object, function })
             }
+            ExpressionKind::AliasExpanded(_, subst) => normalize_tree(*subst).kind,
         };
         ExpressionNode {
             kind: normalized_kind,
