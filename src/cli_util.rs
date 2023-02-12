@@ -60,6 +60,7 @@ use crate::config::{AnnotatedValue, CommandNameAndArgs, LayeredConfigs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::template_parser::{self, TemplateParseError};
+use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
 
 #[derive(Clone, Debug)]
@@ -793,6 +794,17 @@ impl WorkspaceCommandHelper {
             workspace_id: self.workspace_id(),
             workspace_root: self.workspace.workspace_root(),
         }
+    }
+
+    pub fn parse_commit_template(
+        &self,
+        template_text: &str,
+    ) -> Result<Box<dyn Template<Commit> + '_>, TemplateParseError> {
+        template_parser::parse_commit_template(
+            self.repo.as_repo_ref(),
+            self.workspace_id(),
+            template_text,
+        )
     }
 
     /// Returns one-line summary of the given `commit`.

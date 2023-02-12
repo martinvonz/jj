@@ -1296,11 +1296,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
             if(description, description, {DESCRIPTION_PLACEHOLDER_TEMPLATE} "\n")
             "\n""#,
     );
-    let template = crate::template_parser::parse_commit_template(
-        workspace_command.repo().as_repo_ref(),
-        workspace_command.workspace_id(),
-        &template_string,
-    )?;
+    let template = workspace_command.parse_commit_template(&template_string)?;
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
@@ -1494,11 +1490,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         Some(value) => value.to_string(),
         None => log_template(command.settings()),
     };
-    let template = crate::template_parser::parse_commit_template(
-        repo.as_repo_ref(),
-        workspace_id,
-        &template_string,
-    )?;
+    let template = workspace_command.parse_commit_template(&template_string)?;
 
     {
         ui.request_pager();
@@ -1631,11 +1623,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         Some(value) => value.to_string(),
         None => log_template(command.settings()),
     };
-    let template = crate::template_parser::parse_commit_template(
-        workspace_command.repo().as_repo_ref(),
-        workspace_id,
-        &template_string,
-    )?;
+    let template = workspace_command.parse_commit_template(&template_string)?;
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
