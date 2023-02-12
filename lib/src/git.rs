@@ -364,10 +364,10 @@ pub fn fetch(
     let refspec: &[&str] = &[];
     tracing::debug!("remote.download");
     remote.download(refspec, Some(&mut fetch_options))?;
-    tracing::debug!("remote.update_tips");
-    remote.update_tips(None, false, git2::AutotagOption::Unspecified, None)?;
     tracing::debug!("remote.prune");
     remote.prune(None)?;
+    tracing::debug!("remote.update_tips");
+    remote.update_tips(None, false, git2::AutotagOption::Unspecified, None)?;
     // TODO: We could make it optional to get the default branch since we only care
     // about it on clone.
     let mut default_branch = None;

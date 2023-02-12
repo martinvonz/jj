@@ -144,8 +144,10 @@ fn test_git_fetch_prune_before_updating_tips() {
         .rename("origin/subname", false)
         .unwrap();
 
-    // Exhibit bug: origin will prevent origin/subname from being created
-    let _ = test_env.jj_cmd_failure(&repo_path, &["git", "fetch"]);
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    origin/subname: 9f01a0e04879 message
+    "###);
 }
 
 /// Add a remote containing a branch with the same name
