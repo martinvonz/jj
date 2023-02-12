@@ -258,7 +258,19 @@ fn test_resolve_symbol_change_id(readonly: bool) {
         )]
     );
     assert_eq!(
+        resolve_symbol(repo_ref, "zvlyx", None).unwrap(),
+        vec![CommitId::from_hex(
+            "8fd68d104372910e19511df709e5dde62a548720"
+        )]
+    );
+    assert_eq!(
         resolve_symbol(repo_ref, "04e1c", None).unwrap(),
+        vec![CommitId::from_hex(
+            "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
+        )]
+    );
+    assert_eq!(
+        resolve_symbol(repo_ref, "zvlyn", None).unwrap(),
         vec![CommitId::from_hex(
             "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
         )]
@@ -275,6 +287,10 @@ fn test_resolve_symbol_change_id(readonly: bool) {
         resolve_symbol(repo_ref, "04e13", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "04e13"
     );
+    assert_matches!(
+        resolve_symbol(repo_ref, "zvlyw", None),
+        Err(RevsetError::NoSuchRevision(s)) if s == "zvlyw"
+    );
 
     // Test commit/changed id conflicts.
     assert_eq!(
@@ -286,6 +302,14 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     assert_matches!(
         resolve_symbol(repo_ref, "040", None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s == "040"
+    );
+
+    // Can disambiguate by using reverse hex for change id
+    assert_eq!(
+        resolve_symbol(repo_ref, "zvz", None).unwrap(),
+        vec![CommitId::from_hex(
+            "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
+        )]
     );
 
     // Test non-hex string

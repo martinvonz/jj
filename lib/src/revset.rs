@@ -32,6 +32,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, CommitId, ObjectId};
 use crate::commit::Commit;
+use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, IndexEntry, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use crate::op_store::WorkspaceId;
@@ -119,7 +120,8 @@ fn resolve_short_commit_id(
 }
 
 fn resolve_change_id(repo: RepoRef, symbol: &str) -> Result<Option<Vec<CommitId>>, RevsetError> {
-    if let Some(prefix) = HexPrefix::new(symbol) {
+    let forward_hex = to_forward_hex(symbol);
+    if let Some(prefix) = HexPrefix::new(forward_hex.as_deref().unwrap_or(symbol)) {
         match repo.resolve_change_id_prefix(&prefix) {
             PrefixResolution::NoMatch => Ok(None),
             PrefixResolution::AmbiguousMatch => {
