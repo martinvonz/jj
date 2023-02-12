@@ -46,6 +46,7 @@ type TemplateParseResult<T> = Result<T, TemplateParseError>;
 pub struct TemplateParseError {
     kind: TemplateParseErrorKind,
     pest_error: Box<pest::error::Error<Rule>>,
+    origin: Option<Box<TemplateParseError>>,
 }
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
@@ -81,7 +82,30 @@ impl TemplateParseError {
             },
             span,
         ));
-        TemplateParseError { kind, pest_error }
+        TemplateParseError {
+            kind,
+            pest_error,
+            origin: None,
+        }
+    }
+
+    #[allow(unused)] // TODO: remove
+    fn with_span_and_origin(
+        kind: TemplateParseErrorKind,
+        span: pest::Span<'_>,
+        origin: Self,
+    ) -> Self {
+        let pest_error = Box::new(pest::error::Error::new_from_span(
+            pest::error::ErrorVariant::CustomError {
+                message: kind.to_string(),
+            },
+            span,
+        ));
+        TemplateParseError {
+            kind,
+            pest_error,
+            origin: Some(Box::new(origin)),
+        }
     }
 
     fn no_such_keyword(name: impl Into<String>, span: pest::Span<'_>) -> Self {
@@ -132,6 +156,11 @@ impl TemplateParseError {
             span,
         )
     }
+
+    /// Original parsing error which typically occurred in an alias expression.
+    pub fn origin(&self) -> Option<&Self> {
+        self.origin.as_deref()
+    }
 }
 
 impl From<pest::error::Error<Rule>> for TemplateParseError {
@@ -139,6 +168,7 @@ impl From<pest::error::Error<Rule>> for TemplateParseError {
         TemplateParseError {
             kind: TemplateParseErrorKind::SyntaxError,
             pest_error: Box::new(err),
+            origin: None,
         }
     }
 }
@@ -151,6 +181,9 @@ impl fmt::Display for TemplateParseError {
 
 impl error::Error for TemplateParseError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        if let Some(e) = self.origin() {
+            return Some(e as &dyn error::Error);
+        }
         match &self.kind {
             // SyntaxError is a wrapper for pest::error::Error.
             TemplateParseErrorKind::SyntaxError => Some(&self.pest_error as &dyn error::Error),
