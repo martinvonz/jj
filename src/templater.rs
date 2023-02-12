@@ -553,10 +553,6 @@ impl<'a> CommitOrChangeId<'a> {
         }
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.id_bytes
-    }
-
     pub fn hex(&self) -> String {
         hex::encode(&self.id_bytes)
     }
@@ -578,7 +574,7 @@ impl<'a> CommitOrChangeId<'a> {
         // TODO: maybe split commit_id/change_id spaces and remove min(hex.len())?
         let mut hex = self.hex();
         let prefix_len = min(
-            self.repo.shortest_unique_id_prefix_len(self.as_bytes()),
+            self.repo.shortest_unique_id_prefix_len(&self.id_bytes),
             hex.len(),
         );
         hex.truncate(max(prefix_len, total_len));
