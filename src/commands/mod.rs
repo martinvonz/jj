@@ -42,7 +42,6 @@ use jujutsu_lib::tree::{merge_trees, Tree};
 use jujutsu_lib::workspace::{Workspace, WorkspaceLoader};
 use jujutsu_lib::{conflicts, file_util, revset};
 use maplit::{hashmap, hashset};
-use pest::Parser;
 
 use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, resolve_multiple_nonempty_revsets,
@@ -54,7 +53,7 @@ use crate::config::{config_path, AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{get_graphlog, Edge};
-use crate::template_parser::TemplateParser;
+use crate::template_parser;
 use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
@@ -3103,11 +3102,8 @@ fn cmd_debug(
             }
         }
         DebugCommands::Template(template_matches) => {
-            let parse = TemplateParser::parse(
-                crate::template_parser::Rule::program,
-                &template_matches.template,
-            );
-            writeln!(ui, "{parse:#?}")?;
+            let node = template_parser::parse_template(&template_matches.template)?;
+            writeln!(ui, "{node:#?}")?;
         }
         DebugCommands::Index(_index_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
