@@ -235,7 +235,8 @@ impl From<RevsetError> for CommandError {
 
 impl From<TemplateParseError> for CommandError {
     fn from(err: TemplateParseError) -> Self {
-        user_error(format!("Failed to parse template: {err}"))
+        let message = iter::successors(Some(&err), |e| e.origin()).join("\n");
+        user_error(format!("Failed to parse template: {message}"))
     }
 }
 
