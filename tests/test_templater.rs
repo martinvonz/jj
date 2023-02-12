@@ -389,25 +389,129 @@ fn test_templater_separate_function() {
 }
 
 #[test]
+fn test_templater_alias() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
+    let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
+
+    test_env.add_config(
+        r###"
+    [template-aliases]
+    'my_commit_id' = 'commit_id.short()'
+    'syntax_error' = 'foo.'
+    'name_error' = 'unknown_id'
+    'recurse' = 'recurse1'
+    'recurse1' = 'recurse2()'
+    'recurse2()' = 'recurse'
+    'identity(x)' = 'x'
+    'coalesce(x, y)' = 'if(x, x, y)'
+    "###,
+    );
+
+    insta::assert_snapshot!(render("my_commit_id"), @"000000000000");
+    insta::assert_snapshot!(render("identity(my_commit_id)"), @"000000000000");
+
+    insta::assert_snapshot!(render_err("commit_id syntax_error"), @r###"
+    Error: Failed to parse template:  --> 1:11
+      |
+    1 | commit_id syntax_error
+      |           ^----------^
+      |
+      = Alias "syntax_error" cannot be expanded
+     --> 1:5
+      |
+    1 | foo.
+      |     ^---
+      |
+      = expected identifier
+    "###);
+
+    // TODO: outer template substitution should be reported too
+    insta::assert_snapshot!(render_err("commit_id name_error"), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | unknown_id
+      | ^--------^
+      |
+      = Keyword "unknown_id" doesn't exist
+    "###);
+
+    insta::assert_snapshot!(render_err("commit_id recurse"), @r###"
+    Error: Failed to parse template:  --> 1:11
+      |
+    1 | commit_id recurse
+      |           ^-----^
+      |
+      = Alias "recurse" cannot be expanded
+     --> 1:1
+      |
+    1 | recurse1
+      | ^------^
+      |
+      = Alias "recurse1" cannot be expanded
+     --> 1:1
+      |
+    1 | recurse2()
+      | ^--------^
+      |
+      = Alias "recurse2()" cannot be expanded
+     --> 1:1
+      |
+    1 | recurse
+      | ^-----^
+      |
+      = Alias "recurse" expanded recursively
+    "###);
+
+    insta::assert_snapshot!(render_err("identity()"), @r###"
+    Error: Failed to parse template:  --> 1:10
+      |
+    1 | identity()
+      |          ^
+      |
+      = Expected 1 arguments
+    "###);
+    insta::assert_snapshot!(render_err("identity(commit_id, commit_id)"), @r###"
+    Error: Failed to parse template:  --> 1:10
+      |
+    1 | identity(commit_id, commit_id)
+      |          ^------------------^
+      |
+      = Expected 1 arguments
+    "###);
+
+    insta::assert_snapshot!(render_err(r#"coalesce(label("x", "not boolean"), "")"#), @r###"
+    Error: Failed to parse template:  --> 1:10
+      |
+    1 | coalesce(label("x", "not boolean"), "")
+      |          ^-----------------------^
+      |
+      = Expected argument of type "Boolean"
+    "###);
+}
+
+#[test]
 fn test_templater_bad_alias_decl() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    // TODO: test alias substitution of parsable one
     test_env.add_config(
         r###"
     [template-aliases]
     'badfn(a, a)' = 'a'
+    'my_commit_id' = 'commit_id.short()'
     "###,
     );
 
     // Invalid declaration should be warned and ignored.
     let assert = test_env
-        .jj_cmd(&repo_path, &["log", "--no-graph", "-r@-", "-Tcommit_id"])
+        .jj_cmd(&repo_path, &["log", "--no-graph", "-r@-", "-Tmy_commit_id"])
         .assert()
         .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"0000000000000000000000000000000000000000");
+    insta::assert_snapshot!(get_stdout_string(&assert), @"000000000000");
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     Failed to load "template-aliases.badfn(a, a)":  --> 1:7
       |

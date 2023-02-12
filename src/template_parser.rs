@@ -72,6 +72,10 @@ pub enum TemplateParseErrorKind {
     InvalidArgumentType(String),
     #[error("Redefinition of function parameter")]
     RedefinedFunctionParameter,
+    #[error(r#"Alias "{0}" cannot be expanded"#)]
+    BadAliasExpansion(String),
+    #[error(r#"Alias "{0}" expanded recursively"#)]
+    RecursiveAlias(String),
 }
 
 impl TemplateParseError {
@@ -89,7 +93,6 @@ impl TemplateParseError {
         }
     }
 
-    #[allow(unused)] // TODO: remove
     fn with_span_and_origin(
         kind: TemplateParseErrorKind,
         span: pest::Span<'_>,
@@ -154,6 +157,14 @@ impl TemplateParseError {
         TemplateParseError::with_span(
             TemplateParseErrorKind::InvalidArgumentType(expected_type_name.into()),
             span,
+        )
+    }
+
+    fn within_alias_expansion(self, id: TemplateAliasId<'_>, span: pest::Span<'_>) -> Self {
+        TemplateParseError::with_span_and_origin(
+            TemplateParseErrorKind::BadAliasExpansion(id.to_string()),
+            span,
+            self,
         )
     }
 
@@ -363,14 +374,12 @@ impl TemplateAliasesMap {
         Ok(())
     }
 
-    #[cfg(test)] // TODO: remove
     fn get_symbol(&self, name: &str) -> Option<(TemplateAliasId<'_>, &str)> {
         self.symbol_aliases
             .get_key_value(name)
             .map(|(name, defn)| (TemplateAliasId::Symbol(name), defn.as_ref()))
     }
 
-    #[cfg(test)] // TODO: remove
     fn get_function(&self, name: &str) -> Option<(TemplateAliasId<'_>, &[String], &str)> {
         self.function_aliases
             .get_key_value(name)
@@ -427,14 +436,12 @@ impl TemplateAliasDeclaration {
 }
 
 /// Borrowed reference to identify alias expression.
-#[cfg(test)] // TODO: remove
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TemplateAliasId<'a> {
     Symbol(&'a str),
     Function(&'a str),
 }
 
-#[cfg(test)] // TODO: remove
 impl fmt::Display for TemplateAliasId<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -442,6 +449,125 @@ impl fmt::Display for TemplateAliasId<'_> {
             TemplateAliasId::Function(name) => write!(f, "{name}()"),
         }
     }
+}
+
+/// Expand aliases recursively.
+fn expand_aliases<'i>(
+    node: ExpressionNode<'i>,
+    aliases_map: &'i TemplateAliasesMap,
+) -> TemplateParseResult<ExpressionNode<'i>> {
+    #[derive(Clone, Copy, Debug)]
+    struct State<'a, 'i> {
+        aliases_map: &'i TemplateAliasesMap,
+        aliases_expanding: &'a [TemplateAliasId<'a>],
+        locals: &'a HashMap<&'a str, ExpressionNode<'i>>,
+    }
+
+    fn expand_defn<'i>(
+        id: TemplateAliasId<'_>,
+        defn: &'i str,
+        locals: &HashMap<&str, ExpressionNode<'i>>,
+        span: pest::Span<'_>,
+        state: State<'_, 'i>,
+    ) -> TemplateParseResult<ExpressionNode<'i>> {
+        // The stack should be short, so let's simply do linear search and duplicate.
+        if state.aliases_expanding.contains(&id) {
+            return Err(TemplateParseError::with_span(
+                TemplateParseErrorKind::RecursiveAlias(id.to_string()),
+                span,
+            ));
+        }
+        let mut aliases_expanding = state.aliases_expanding.to_vec();
+        aliases_expanding.push(id);
+        let expanding_state = State {
+            aliases_map: state.aliases_map,
+            aliases_expanding: &aliases_expanding,
+            locals,
+        };
+        // Parsed defn could be cached if needed.
+        parse_template(defn)
+            .and_then(|node| expand_node(node, expanding_state))
+            .map_err(|e| e.within_alias_expansion(id, span))
+    }
+
+    fn expand_list<'i>(
+        nodes: Vec<ExpressionNode<'i>>,
+        state: State<'_, 'i>,
+    ) -> TemplateParseResult<Vec<ExpressionNode<'i>>> {
+        nodes
+            .into_iter()
+            .map(|node| expand_node(node, state))
+            .try_collect()
+    }
+
+    fn expand_function_call<'i>(
+        function: FunctionCallNode<'i>,
+        state: State<'_, 'i>,
+    ) -> TemplateParseResult<FunctionCallNode<'i>> {
+        Ok(FunctionCallNode {
+            name: function.name,
+            name_span: function.name_span,
+            args: expand_list(function.args, state)?,
+            args_span: function.args_span,
+        })
+    }
+
+    fn expand_node<'i>(
+        mut node: ExpressionNode<'i>,
+        state: State<'_, 'i>,
+    ) -> TemplateParseResult<ExpressionNode<'i>> {
+        match node.kind {
+            ExpressionKind::Identifier(name) => {
+                if let Some(node) = state.locals.get(name) {
+                    Ok(node.clone())
+                } else if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
+                    let locals = HashMap::new(); // Don't spill out the current scope
+                    expand_defn(id, defn, &locals, node.span, state)
+                } else {
+                    Ok(node)
+                }
+            }
+            ExpressionKind::Integer(_) => Ok(node),
+            ExpressionKind::String(_) => Ok(node),
+            ExpressionKind::List(nodes) => {
+                node.kind = ExpressionKind::List(expand_list(nodes, state)?);
+                Ok(node)
+            }
+            ExpressionKind::FunctionCall(function) => {
+                if let Some((id, params, defn)) = state.aliases_map.get_function(function.name) {
+                    if function.args.len() != params.len() {
+                        return Err(TemplateParseError::invalid_argument_count_exact(
+                            params.len(),
+                            function.args_span,
+                        ));
+                    }
+                    // Resolve arguments in the current scope, and pass them in to the alias
+                    // expansion scope.
+                    let args = expand_list(function.args, state)?;
+                    let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
+                    expand_defn(id, defn, &locals, node.span, state)
+                } else {
+                    node.kind =
+                        ExpressionKind::FunctionCall(expand_function_call(function, state)?);
+                    Ok(node)
+                }
+            }
+            ExpressionKind::MethodCall(method) => {
+                node.kind = ExpressionKind::MethodCall(MethodCallNode {
+                    object: Box::new(expand_node(*method.object, state)?),
+                    function: expand_function_call(method.function, state)?,
+                });
+                Ok(node)
+            }
+        }
+    }
+
+    let state = State {
+        aliases_map,
+        aliases_expanding: &[],
+        locals: &HashMap::new(),
+    };
+    expand_node(node, state)
 }
 
 enum Property<'a, I> {
@@ -971,9 +1097,10 @@ pub fn parse_commit_template<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     template_text: &str,
-    _aliases_map: &TemplateAliasesMap,
+    aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'a>> {
     let node = parse_template(template_text)?;
+    let node = expand_aliases(node, aliases_map)?;
     let expression = build_expression(&node, &|name, span| {
         build_commit_keyword(repo, workspace_id, name, span)
     })?;
@@ -984,11 +1111,42 @@ pub fn parse_commit_template<'a>(
 mod tests {
     use super::*;
 
+    #[derive(Debug)]
+    struct WithTemplateAliasesMap(TemplateAliasesMap);
+
+    impl WithTemplateAliasesMap {
+        fn parse<'i>(&'i self, template_text: &'i str) -> TemplateParseResult<ExpressionNode<'i>> {
+            let node = parse_template(template_text)?;
+            expand_aliases(node, &self.0)
+        }
+
+        fn parse_normalized<'i>(
+            &'i self,
+            template_text: &'i str,
+        ) -> TemplateParseResult<ExpressionNode<'i>> {
+            self.parse(template_text).map(normalize_tree)
+        }
+    }
+
+    fn with_aliases(
+        aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
+    ) -> WithTemplateAliasesMap {
+        let mut aliases_map = TemplateAliasesMap::new();
+        for (decl, defn) in aliases {
+            aliases_map.insert(decl, defn).unwrap();
+        }
+        WithTemplateAliasesMap(aliases_map)
+    }
+
     fn parse(template_text: &str) -> TemplateParseResult<Expression<()>> {
         let node = parse_template(template_text)?;
         build_expression(&node, &|name, span| {
             Err(TemplateParseError::no_such_keyword(name, span))
         })
+    }
+
+    fn parse_normalized(template_text: &str) -> TemplateParseResult<ExpressionNode> {
+        parse_template(template_text).map(normalize_tree)
     }
 
     /// Drops auxiliary data of AST so it can be compared with other node.
@@ -1107,5 +1265,164 @@ mod tests {
         assert!(aliases_map.insert("k(a  , , )", r#"""#).is_err());
         assert!(aliases_map.insert("l(a,b,)", r#"""#).is_ok());
         assert!(aliases_map.insert("m(a,,b)", r#"""#).is_err());
+    }
+
+    #[test]
+    fn test_expand_symbol_alias() {
+        assert_eq!(
+            with_aliases([("AB", "a b")])
+                .parse_normalized("AB c")
+                .unwrap(),
+            parse_normalized("(a b) c").unwrap(),
+        );
+        assert_eq!(
+            with_aliases([("AB", "a b")])
+                .parse_normalized("if(AB, label(c, AB))")
+                .unwrap(),
+            parse_normalized("if((a b), label(c, (a b)))").unwrap(),
+        );
+
+        // Multi-level substitution.
+        assert_eq!(
+            with_aliases([("A", "BC"), ("BC", "b C"), ("C", "c")])
+                .parse_normalized("A")
+                .unwrap(),
+            parse_normalized("b c").unwrap(),
+        );
+
+        // Method receiver and arguments should be expanded.
+        assert_eq!(
+            with_aliases([("A", "a")])
+                .parse_normalized("A.f()")
+                .unwrap(),
+            parse_normalized("a.f()").unwrap(),
+        );
+        assert_eq!(
+            with_aliases([("A", "a"), ("B", "b")])
+                .parse_normalized("x.f(A, B)")
+                .unwrap(),
+            parse_normalized("x.f(a, b)").unwrap(),
+        );
+
+        // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
+        assert_eq!(
+            with_aliases([("A", "A")]).parse("A").unwrap_err().kind,
+            TemplateParseErrorKind::BadAliasExpansion("A".to_owned()),
+        );
+        assert_eq!(
+            with_aliases([("A", "B"), ("B", "b C"), ("C", "c B")])
+                .parse("A")
+                .unwrap_err()
+                .kind,
+            TemplateParseErrorKind::BadAliasExpansion("A".to_owned()),
+        );
+
+        // Error in alias definition.
+        assert_eq!(
+            with_aliases([("A", "a(")]).parse("A").unwrap_err().kind,
+            TemplateParseErrorKind::BadAliasExpansion("A".to_owned()),
+        );
+    }
+
+    #[test]
+    fn test_expand_function_alias() {
+        assert_eq!(
+            with_aliases([("F(  )", "a")])
+                .parse_normalized("F()")
+                .unwrap(),
+            parse_normalized("a").unwrap(),
+        );
+        assert_eq!(
+            with_aliases([("F( x )", "x")])
+                .parse_normalized("F(a)")
+                .unwrap(),
+            parse_normalized("a").unwrap(),
+        );
+        assert_eq!(
+            with_aliases([("F( x, y )", "x y")])
+                .parse_normalized("F(a, b)")
+                .unwrap(),
+            parse_normalized("a b").unwrap(),
+        );
+
+        // Arguments should be resolved in the current scope.
+        assert_eq!(
+            with_aliases([("F(x,y)", "if(x, y)")])
+                .parse_normalized("F(a y, b x)")
+                .unwrap(),
+            parse_normalized("if((a y), (b x))").unwrap(),
+        );
+        // F(a) -> if(G(a), y) -> if((x a), y)
+        assert_eq!(
+            with_aliases([("F(x)", "if(G(x), y)"), ("G(y)", "x y")])
+                .parse_normalized("F(a)")
+                .unwrap(),
+            parse_normalized("if((x a), y)").unwrap(),
+        );
+        // F(G(a)) -> F(x a) -> if(G(x a), y) -> if((x (x a)), y)
+        assert_eq!(
+            with_aliases([("F(x)", "if(G(x), y)"), ("G(y)", "x y")])
+                .parse_normalized("F(G(a))")
+                .unwrap(),
+            parse_normalized("if((x (x a)), y)").unwrap(),
+        );
+
+        // Function parameter should precede the symbol alias.
+        assert_eq!(
+            with_aliases([("F(X)", "X"), ("X", "x")])
+                .parse_normalized("F(a) X")
+                .unwrap(),
+            parse_normalized("a x").unwrap(),
+        );
+
+        // Function parameter shouldn't be expanded in symbol alias.
+        assert_eq!(
+            with_aliases([("F(x)", "x A"), ("A", "x")])
+                .parse_normalized("F(a)")
+                .unwrap(),
+            parse_normalized("a x").unwrap(),
+        );
+
+        // Function and symbol aliases reside in separate namespaces.
+        assert_eq!(
+            with_aliases([("A()", "A"), ("A", "a")])
+                .parse_normalized("A()")
+                .unwrap(),
+            parse_normalized("a").unwrap(),
+        );
+
+        // Method call shouldn't be substituted by function alias.
+        assert_eq!(
+            with_aliases([("F()", "f()")])
+                .parse_normalized("x.F()")
+                .unwrap(),
+            parse_normalized("x.F()").unwrap(),
+        );
+
+        // Invalid number of arguments.
+        assert_eq!(
+            with_aliases([("F()", "x")]).parse("F(a)").unwrap_err().kind,
+            TemplateParseErrorKind::InvalidArgumentCountExact(0),
+        );
+        assert_eq!(
+            with_aliases([("F(x)", "x")]).parse("F()").unwrap_err().kind,
+            TemplateParseErrorKind::InvalidArgumentCountExact(1),
+        );
+        assert_eq!(
+            with_aliases([("F(x,y)", "x y")])
+                .parse("F(a,b,c)")
+                .unwrap_err()
+                .kind,
+            TemplateParseErrorKind::InvalidArgumentCountExact(2),
+        );
+
+        // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
+        assert_eq!(
+            with_aliases([("F(x)", "G(x)"), ("G(x)", "H(x)"), ("H(x)", "F(x)")])
+                .parse("F(a)")
+                .unwrap_err()
+                .kind,
+            TemplateParseErrorKind::BadAliasExpansion("F()".to_owned()),
+        );
     }
 }
