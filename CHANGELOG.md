@@ -50,12 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The builtin `jj update` and `jj up` aliases for `jj checkout` have been
   deleted.
 
-* Change IDs are now in rendered using letters from the end of the alphabet
-  (backwards from 'z' through 'k') instead of the usual hex digits ('0' through
-  '9' and 'a' through 'f'). This is to clarify the distinction between change
-  IDs and commit IDs, and to allow more efficient lookup of unique prefixes.
-  This change doesn't affect the storage format; existing repositories will
-  remain usable.
+* Change IDs are now rendered using letters from the end of the alphabet (from
+  'z' through 'k') instead of the usual hex digits ('0' through '9' and 'a'
+  through 'f'). This is to clarify the distinction between change IDs and commit
+  IDs, and to allow more efficient lookup of unique prefixes. This change
+  doesn't affect the storage format; existing repositories will remain usable.
 
 ### New features
 
