@@ -28,6 +28,7 @@ pub mod files;
 pub mod git;
 pub mod git_backend;
 pub mod gitignore;
+pub mod hex_util;
 pub mod index;
 pub mod index_store;
 #[cfg(feature = "legacy-thrift")]
