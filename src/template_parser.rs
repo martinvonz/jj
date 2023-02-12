@@ -1040,10 +1040,10 @@ fn build_commit_keyword<'a>(
             cli_util::complete_newline(commit.description())
         })),
         "change_id" => Property::CommitOrChangeId(wrap_fn(move |commit| {
-            CommitOrChangeId::new(repo, commit.change_id())
+            CommitOrChangeId::change_id(repo, commit.change_id())
         })),
         "commit_id" => Property::CommitOrChangeId(wrap_fn(move |commit| {
-            CommitOrChangeId::new(repo, commit.id())
+            CommitOrChangeId::commit_id(repo, commit.id())
         })),
         "author" => Property::Signature(wrap_fn(|commit| commit.author().clone())),
         "committer" => Property::Signature(wrap_fn(|commit| commit.committer().clone())),
