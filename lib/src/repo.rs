@@ -30,8 +30,7 @@ use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
 use crate::git_backend::GitBackend;
 use crate::index::{
-    HexPrefix, Index, IndexEntry, IndexPosition, IndexRef, MutableIndex, PrefixResolution,
-    ReadonlyIndex,
+    HexPrefix, Index, IndexEntry, IndexPosition, MutableIndex, PrefixResolution, ReadonlyIndex,
 };
 use crate::index_store::IndexStore;
 use crate::local_backend::LocalBackend;
@@ -80,10 +79,10 @@ impl<'a> RepoRef<'a> {
         }
     }
 
-    pub fn index(&self) -> IndexRef<'a> {
+    pub fn index(&self) -> &'a dyn Index {
         match self {
-            RepoRef::Readonly(repo) => IndexRef::Readonly(repo.index()),
-            RepoRef::Mutable(repo) => IndexRef::Mutable(repo.index()),
+            RepoRef::Readonly(repo) => repo.index().as_ref(),
+            RepoRef::Mutable(repo) => repo.index(),
         }
     }
 
@@ -1080,7 +1079,7 @@ impl MutableRepo {
             let base_target = base.get_ref(&ref_name);
             let other_target = other.get_ref(&ref_name);
             self.view.get_mut().merge_single_ref(
-                self.index.as_index_ref(),
+                &self.index,
                 &ref_name,
                 base_target.as_ref(),
                 other_target.as_ref(),
@@ -1088,7 +1087,7 @@ impl MutableRepo {
         }
 
         if let Some(new_git_head) = merge_ref_targets(
-            self.index.as_index_ref(),
+            &self.index,
             self.view().git_head(),
             base.git_head(),
             other.git_head(),
@@ -1148,12 +1147,9 @@ impl MutableRepo {
         base_target: Option<&RefTarget>,
         other_target: Option<&RefTarget>,
     ) {
-        self.view.get_mut().merge_single_ref(
-            self.index.as_index_ref(),
-            ref_name,
-            base_target,
-            other_target,
-        );
+        self.view
+            .get_mut()
+            .merge_single_ref(&self.index, ref_name, base_target, other_target);
     }
 }
 

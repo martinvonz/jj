@@ -44,7 +44,6 @@ pub struct IndexPosition(u32);
 impl IndexPosition {
     pub const MAX: Self = IndexPosition(u32::MAX);
 }
-
 pub trait Index {
     fn num_commits(&self) -> u32;
 
@@ -71,110 +70,6 @@ pub trait Index {
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
 
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry>;
-}
-
-#[derive(Clone, Copy)]
-pub enum IndexRef<'a> {
-    Readonly(&'a ReadonlyIndex),
-    Mutable(&'a MutableIndex),
-}
-
-impl<'a> From<&'a ReadonlyIndex> for IndexRef<'a> {
-    fn from(index: &'a ReadonlyIndex) -> Self {
-        IndexRef::Readonly(index)
-    }
-}
-
-impl<'a> From<&'a MutableIndex> for IndexRef<'a> {
-    fn from(index: &'a MutableIndex) -> Self {
-        IndexRef::Mutable(index)
-    }
-}
-
-impl<'a> IndexRef<'a> {
-    pub fn num_commits(&self) -> u32 {
-        match self {
-            IndexRef::Readonly(index) => index.num_commits(),
-            IndexRef::Mutable(index) => index.num_commits(),
-        }
-    }
-
-    pub fn stats(&self) -> IndexStats {
-        match self {
-            IndexRef::Readonly(index) => index.stats(),
-            IndexRef::Mutable(index) => index.stats(),
-        }
-    }
-
-    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        match self {
-            IndexRef::Readonly(index) => index.commit_id_to_pos(commit_id),
-            IndexRef::Mutable(index) => index.commit_id_to_pos(commit_id),
-        }
-    }
-
-    pub fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
-        match self {
-            IndexRef::Readonly(index) => index.shortest_unique_commit_id_prefix_len(commit_id),
-            IndexRef::Mutable(index) => index.shortest_unique_commit_id_prefix_len(commit_id),
-        }
-    }
-
-    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        match self {
-            IndexRef::Readonly(index) => index.resolve_prefix(prefix),
-            IndexRef::Mutable(index) => index.resolve_prefix(prefix),
-        }
-    }
-
-    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
-        match self {
-            IndexRef::Readonly(index) => index.entry_by_id(commit_id),
-            IndexRef::Mutable(index) => index.entry_by_id(commit_id),
-        }
-    }
-
-    pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry<'a> {
-        match self {
-            IndexRef::Readonly(index) => index.entry_by_pos(pos),
-            IndexRef::Mutable(index) => index.entry_by_pos(pos),
-        }
-    }
-
-    pub fn has_id(&self, commit_id: &CommitId) -> bool {
-        match self {
-            IndexRef::Readonly(index) => index.has_id(commit_id),
-            IndexRef::Mutable(index) => index.has_id(commit_id),
-        }
-    }
-
-    pub fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
-        match self {
-            IndexRef::Readonly(index) => index.is_ancestor(ancestor_id, descendant_id),
-            IndexRef::Mutable(index) => index.is_ancestor(ancestor_id, descendant_id),
-        }
-    }
-
-    pub fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
-        match self {
-            IndexRef::Readonly(index) => index.common_ancestors(set1, set2),
-            IndexRef::Mutable(index) => index.common_ancestors(set1, set2),
-        }
-    }
-
-    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
-        match self {
-            IndexRef::Readonly(index) => index.walk_revs(wanted, unwanted),
-            IndexRef::Mutable(index) => index.walk_revs(wanted, unwanted),
-        }
-    }
-
-    pub fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        match self {
-            IndexRef::Readonly(index) => index.heads(candidates),
-            IndexRef::Mutable(index) => index.heads(candidates),
-        }
-    }
 }
 
 struct CommitGraphEntry<'a> {
@@ -429,10 +324,6 @@ impl MutableIndex {
             graph: vec![],
             lookup: BTreeMap::new(),
         }
-    }
-
-    pub fn as_index_ref(&self) -> IndexRef {
-        IndexRef::Mutable(self)
     }
 
     pub fn add_commit(&mut self, commit: &Commit) {
@@ -1622,10 +1513,6 @@ impl ReadonlyIndex {
             lookup,
             overflow_parent,
         }))
-    }
-
-    pub fn as_index_ref(self: &ReadonlyIndex) -> IndexRef {
-        IndexRef::Readonly(self)
     }
 
     pub fn name(&self) -> &str {
