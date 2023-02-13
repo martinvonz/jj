@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::backend::CommitId;
-use crate::index::IndexRef;
+use crate::index::Index;
 use crate::op_store::{BranchTarget, RefTarget};
 
 pub fn merge_ref_targets(
-    index: IndexRef,
+    index: &dyn Index,
     left: Option<&RefTarget>,
     base: Option<&RefTarget>,
     right: Option<&RefTarget>,
@@ -63,7 +63,7 @@ pub fn merge_ref_targets(
 }
 
 fn find_pair_to_remove(
-    index: IndexRef,
+    index: &dyn Index,
     adds: &[CommitId],
     removes: &[CommitId],
 ) -> Option<(Option<usize>, usize)> {

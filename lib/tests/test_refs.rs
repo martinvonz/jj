@@ -50,7 +50,7 @@ fn test_merge_ref_targets() {
     let _target7 = RefTarget::Normal(commit7.id().clone());
 
     let index = repo.index();
-    let index_ref = index.as_index_ref();
+    let index_ref = index.as_ref();
 
     // Left moved forward
     assert_eq!(

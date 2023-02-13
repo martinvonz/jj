@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use itertools::Itertools;
 
 use crate::backend::CommitId;
-use crate::index::IndexRef;
+use crate::index::Index;
 use crate::op_store;
 use crate::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use crate::refs::merge_ref_targets;
@@ -266,7 +266,7 @@ impl View {
 
     pub fn merge_single_ref(
         &mut self,
-        index: IndexRef,
+        index: &dyn Index,
         ref_name: &RefName,
         base_target: Option<&RefTarget>,
         other_target: Option<&RefTarget>,
