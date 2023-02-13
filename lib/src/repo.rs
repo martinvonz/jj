@@ -283,10 +283,10 @@ impl ReadonlyRepo {
         })
     }
 
-    pub fn resolve_change_id_prefix<'a>(
-        &'a self,
+    pub fn resolve_change_id_prefix(
+        &self,
         prefix: &HexPrefix,
-    ) -> PrefixResolution<Vec<IndexEntry<'a>>> {
+    ) -> PrefixResolution<Vec<IndexEntry>> {
         let index = self.index();
         self.change_id_index()
             .resolve_prefix_with(prefix, |&pos| index.entry_by_pos(pos))
