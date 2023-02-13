@@ -232,19 +232,19 @@ fn test_resolve_symbol_change_id(readonly: bool) {
 
     // Test lookup by full change id
     assert_eq!(
-        resolve_symbol(repo_ref, "04e12a5467bba790efb88a9870894ec2", None).unwrap(),
+        resolve_symbol(repo_ref, "zvlyxpuvtsoopsqzlkorrpqrszrqvlnx", None).unwrap(),
         vec![CommitId::from_hex(
             "8fd68d104372910e19511df709e5dde62a548720"
         )]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "040b3ba3a51d8edbc4c5855cbd09de71", None).unwrap(),
+        resolve_symbol(repo_ref, "zvzowopwpuymrlmonvnuruunomzqmlsy", None).unwrap(),
         vec![CommitId::from_hex(
             "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
         )]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "04e1c7082e4e34f3f371d8a1a46770b8", None).unwrap(),
+        resolve_symbol(repo_ref, "zvlynszrxlvlwvkwkwsymrpypvtsszor", None).unwrap(),
         vec![CommitId::from_hex(
             "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
         )]
@@ -252,21 +252,9 @@ fn test_resolve_symbol_change_id(readonly: bool) {
 
     // Test change id prefix
     assert_eq!(
-        resolve_symbol(repo_ref, "04e12", None).unwrap(),
-        vec![CommitId::from_hex(
-            "8fd68d104372910e19511df709e5dde62a548720"
-        )]
-    );
-    assert_eq!(
         resolve_symbol(repo_ref, "zvlyx", None).unwrap(),
         vec![CommitId::from_hex(
             "8fd68d104372910e19511df709e5dde62a548720"
-        )]
-    );
-    assert_eq!(
-        resolve_symbol(repo_ref, "04e1c", None).unwrap(),
-        vec![CommitId::from_hex(
-            "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
         )]
     );
     assert_eq!(
@@ -276,35 +264,26 @@ fn test_resolve_symbol_change_id(readonly: bool) {
         )]
     );
     assert_matches!(
-        resolve_symbol(repo_ref, "04e1", None),
-        Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04e1"
+        resolve_symbol(repo_ref, "zvly", None),
+        Err(RevsetError::AmbiguousIdPrefix(s)) if s == "zvly"
     );
     assert_matches!(
         resolve_symbol(repo_ref, "", None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
     assert_matches!(
-        resolve_symbol(repo_ref, "04e13", None),
-        Err(RevsetError::NoSuchRevision(s)) if s == "04e13"
-    );
-    assert_matches!(
         resolve_symbol(repo_ref, "zvlyw", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "zvlyw"
     );
 
-    // Test commit/changed id conflicts.
+    // Test that commit and changed id don't conflict ("040" and "zvz" are the
+    // same).
     assert_eq!(
-        resolve_symbol(repo_ref, "040b", None).unwrap(),
+        resolve_symbol(repo_ref, "040", None).unwrap(),
         vec![CommitId::from_hex(
-            "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
+            "040031cb4ad0cbc3287914f1d205dabf4a7eb889"
         )]
     );
-    assert_matches!(
-        resolve_symbol(repo_ref, "040", None),
-        Err(RevsetError::AmbiguousIdPrefix(s)) if s == "040"
-    );
-
-    // Can disambiguate by using reverse hex for change id
     assert_eq!(
         resolve_symbol(repo_ref, "zvz", None).unwrap(),
         vec![CommitId::from_hex(
