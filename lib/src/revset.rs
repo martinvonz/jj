@@ -179,17 +179,17 @@ pub fn resolve_symbol(
             return Ok(ids);
         }
 
-        // Try to resolve as a commit/change id.
-        match (
-            resolve_short_commit_id(repo, symbol)?,
-            resolve_change_id(repo, symbol)?,
-        ) {
-            // Likely a root_commit_id, but not limited to it.
-            (Some(ids1), Some(ids2)) if ids1 == ids2 => Ok(ids1),
-            (Some(_), Some(_)) => Err(RevsetError::AmbiguousIdPrefix(symbol.to_owned())),
-            (Some(ids), None) | (None, Some(ids)) => Ok(ids),
-            (None, None) => Err(RevsetError::NoSuchRevision(symbol.to_owned())),
+        // Try to resolve as a commit id.
+        if let Some(ids) = resolve_short_commit_id(repo, symbol)? {
+            return Ok(ids);
         }
+
+        // Try to resolve as a change id.
+        if let Some(ids) = resolve_change_id(repo, symbol)? {
+            return Ok(ids);
+        }
+
+        Err(RevsetError::NoSuchRevision(symbol.to_owned()))
     }
 }
 
