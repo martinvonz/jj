@@ -1260,7 +1260,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
         let commit =
             workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
         let parents = commit.parents();
-        from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
+        from_tree = merge_commit_trees(workspace_command.repo(), &parents);
         to_tree = commit.tree()
     }
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
@@ -1371,7 +1371,7 @@ fn cmd_status(
     }
 
     if let Some(wc_commit) = &maybe_wc_commit {
-        let parent_tree = merge_commit_trees(repo.as_repo_ref(), &wc_commit.parents());
+        let parent_tree = merge_commit_trees(repo, &wc_commit.parents());
         let tree = wc_commit.tree();
         if tree.id() == parent_tree.id() {
             formatter.write_str("The working copy is clean\n")?;
@@ -1409,7 +1409,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let revset = workspace_command.evaluate_revset(&revset_expression)?;
     let revset = if !args.paths.is_empty() {
-        revset::filter_by_diff(repo.as_repo_ref(), matcher.as_ref(), revset)
+        revset::filter_by_diff(repo, matcher.as_ref(), revset)
     } else {
         revset
     };
@@ -1667,12 +1667,9 @@ fn rebase_to_dest_parent(
     if source.parent_ids() == destination.parent_ids() {
         Ok(source.tree())
     } else {
-        let destination_parent_tree = merge_commit_trees(
-            workspace_command.repo().as_repo_ref(),
-            &destination.parents(),
-        );
-        let source_parent_tree =
-            merge_commit_trees(workspace_command.repo().as_repo_ref(), &source.parents());
+        let destination_parent_tree =
+            merge_commit_trees(workspace_command.repo(), &destination.parents());
+        let source_parent_tree = merge_commit_trees(workspace_command.repo(), &source.parents());
         let rebased_tree_id = merge_trees(
             &destination_parent_tree,
             &source_parent_tree,
@@ -2003,7 +2000,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         if new_parents_commits.len() > 1 {
             new_parents_commits.retain(|c| c != &root_commit);
         }
-        let merged_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &new_parents_commits);
+        let merged_tree = merge_commit_trees(tx.base_repo(), &new_parents_commits);
         let new_parents_commit_id = new_parents_commits.iter().map(|c| c.id().clone()).collect();
         new_commit = tx
             .mut_repo()
@@ -2024,7 +2021,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
             )?;
         }
     } else {
-        let merged_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &target_commits);
+        let merged_tree = merge_commit_trees(tx.base_repo(), &target_commits);
         new_commit = tx
             .mut_repo()
             .new_commit(
@@ -2118,7 +2115,7 @@ fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(),
         source.id().hex(),
         destination.id().hex()
     ));
-    let parent_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &source.parents());
+    let parent_tree = merge_commit_trees(tx.base_repo(), &source.parents());
     let source_tree = source.tree();
     let instructions = format!(
         "\
@@ -2280,7 +2277,7 @@ fn cmd_unsquash(
     workspace_command.check_rewritable(parent)?;
     let mut tx =
         workspace_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
-    let parent_base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &parent.parents());
+    let parent_base_tree = merge_commit_trees(tx.base_repo(), &parent.parents());
     let new_parent_tree_id;
     if args.interactive {
         let instructions = format!(
@@ -2576,7 +2573,7 @@ Adjust the right side until it shows the contents you want. If you
 don't make any changes, then the operation will be aborted.",
         tx.format_commit_summary(&target_commit),
     );
-    let base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), base_commits.as_slice());
+    let base_tree = merge_commit_trees(tx.base_repo(), base_commits.as_slice());
     let tree_id = tx.edit_diff(ui, &base_tree, &target_commit.tree(), &instructions)?;
     if &tree_id == target_commit.tree_id() {
         ui.write("Nothing changed.\n")?;
@@ -2651,7 +2648,7 @@ fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut tx =
         workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
-    let base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &commit.parents());
+    let base_tree = merge_commit_trees(tx.base_repo(), &commit.parents());
     let interactive = args.paths.is_empty();
     let instructions = format!(
         "\

@@ -15,7 +15,7 @@
 use std::path::Path;
 
 use jujutsu_lib::backend::CommitId;
-use jujutsu_lib::repo::{Repo, RepoRef};
+use jujutsu_lib::repo::Repo;
 use test_case::test_case;
 use testutils::{create_random_commit, write_random_commit, TestRepo};
 
@@ -122,7 +122,7 @@ fn test_concurrent_operations(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![merged_op_id.hex()]);
 }
 
-fn assert_heads(repo: RepoRef, expected: Vec<&CommitId>) {
+fn assert_heads(repo: &dyn Repo, expected: Vec<&CommitId>) {
     let expected = expected.iter().cloned().cloned().collect();
     assert_eq!(*repo.view().heads(), expected);
 }
@@ -147,9 +147,9 @@ fn test_isolation(use_git: bool) {
     let mut tx2 = repo.start_transaction(&settings, "transaction 2");
     let mut_repo2 = tx2.mut_repo();
 
-    assert_heads(repo.as_repo_ref(), vec![initial.id()]);
-    assert_heads(mut_repo1.as_repo_ref(), vec![initial.id()]);
-    assert_heads(mut_repo2.as_repo_ref(), vec![initial.id()]);
+    assert_heads(&repo, vec![initial.id()]);
+    assert_heads(mut_repo1, vec![initial.id()]);
+    assert_heads(mut_repo2, vec![initial.id()]);
 
     let rewrite1 = mut_repo1
         .rewrite_commit(&settings, &initial)
@@ -166,19 +166,19 @@ fn test_isolation(use_git: bool) {
 
     // Neither transaction has committed yet, so each transaction sees its own
     // commit.
-    assert_heads(repo.as_repo_ref(), vec![initial.id()]);
-    assert_heads(mut_repo1.as_repo_ref(), vec![rewrite1.id()]);
-    assert_heads(mut_repo2.as_repo_ref(), vec![rewrite2.id()]);
+    assert_heads(&repo, vec![initial.id()]);
+    assert_heads(mut_repo1, vec![rewrite1.id()]);
+    assert_heads(mut_repo2, vec![rewrite2.id()]);
 
     // The base repo and tx2 don't see the commits from tx1.
     tx1.commit();
-    assert_heads(repo.as_repo_ref(), vec![initial.id()]);
-    assert_heads(mut_repo2.as_repo_ref(), vec![rewrite2.id()]);
+    assert_heads(&repo, vec![initial.id()]);
+    assert_heads(mut_repo2, vec![rewrite2.id()]);
 
     // The base repo still doesn't see the commits after both transactions commit.
     tx2.commit();
-    assert_heads(repo.as_repo_ref(), vec![initial.id()]);
+    assert_heads(&repo, vec![initial.id()]);
     // After reload, the base repo sees both rewrites.
     let repo = repo.reload_at_head(&settings).unwrap();
-    assert_heads(repo.as_repo_ref(), vec![rewrite1.id(), rewrite2.id()]);
+    assert_heads(&repo, vec![rewrite1.id(), rewrite2.id()]);
 }

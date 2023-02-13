@@ -4,7 +4,7 @@ use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId};
 use jujutsu_lib::op_store::RefTarget;
-use jujutsu_lib::repo::{Repo, RepoRef};
+use jujutsu_lib::repo::Repo;
 use jujutsu_lib::view::View;
 
 use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg};
@@ -170,11 +170,7 @@ fn cmd_branch_set(
         workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
     if !args.allow_backwards
         && !branch_names.iter().all(|branch_name| {
-            is_fast_forward(
-                workspace_command.repo().as_repo_ref(),
-                branch_name,
-                target_commit.id(),
-            )
+            is_fast_forward(workspace_command.repo(), branch_name, target_commit.id())
         })
     {
         return Err(user_error_with_hint(
@@ -340,7 +336,7 @@ fn validate_branch_names_exist(view: &View, names: &[String]) -> Result<(), Comm
     Ok(())
 }
 
-fn is_fast_forward(repo: RepoRef, branch_name: &str, new_target_id: &CommitId) -> bool {
+fn is_fast_forward(repo: &dyn Repo, branch_name: &str, new_target_id: &CommitId) -> bool {
     if let Some(current_target) = repo.view().get_local_branch(branch_name) {
         current_target
             .adds()

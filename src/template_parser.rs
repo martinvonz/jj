@@ -21,7 +21,7 @@ use itertools::Itertools as _;
 use jujutsu_lib::backend::{Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
-use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::repo::Repo;
 use jujutsu_lib::rewrite;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
@@ -1030,7 +1030,7 @@ fn build_global_function<'a, C: 'a>(
 }
 
 fn build_commit_keyword<'a>(
-    repo: RepoRef<'a>,
+    repo: &'a dyn Repo,
     workspace_id: &WorkspaceId,
     name: &str,
     span: pest::Span,
@@ -1112,7 +1112,7 @@ fn build_expression<'a, C: 'a>(
 // TODO: We'll probably need a trait that abstracts the Property enum and
 // keyword/method parsing functions per the top-level context.
 pub fn parse_commit_template<'a>(
-    repo: RepoRef<'a>,
+    repo: &'a dyn Repo,
     workspace_id: &WorkspaceId,
     template_text: &str,
     aliases_map: &TemplateAliasesMap,

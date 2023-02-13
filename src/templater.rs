@@ -19,7 +19,7 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{ChangeId, CommitId, ObjectId, Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::hex_util::to_reverse_hex;
-use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::repo::Repo;
 
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::time_util;
@@ -329,7 +329,7 @@ impl<C, T: Template<C>> TemplateProperty<C> for PlainTextFormattedProperty<T> {
 }
 
 pub struct WorkingCopiesProperty<'a> {
-    pub repo: RepoRef<'a>,
+    pub repo: &'a dyn Repo,
 }
 
 impl TemplateProperty<Commit> for WorkingCopiesProperty<'_> {
@@ -351,7 +351,7 @@ impl TemplateProperty<Commit> for WorkingCopiesProperty<'_> {
 }
 
 pub struct BranchProperty<'a> {
-    pub repo: RepoRef<'a>,
+    pub repo: &'a dyn Repo,
 }
 
 impl TemplateProperty<Commit> for BranchProperty<'_> {
@@ -391,7 +391,7 @@ impl TemplateProperty<Commit> for BranchProperty<'_> {
 }
 
 pub struct TagProperty<'a> {
-    pub repo: RepoRef<'a>,
+    pub repo: &'a dyn Repo,
 }
 
 impl TemplateProperty<Commit> for TagProperty<'_> {
@@ -413,7 +413,7 @@ impl TemplateProperty<Commit> for TagProperty<'_> {
 }
 
 pub struct GitRefsProperty<'a> {
-    pub repo: RepoRef<'a>,
+    pub repo: &'a dyn Repo,
 }
 
 impl TemplateProperty<Commit> for GitRefsProperty<'_> {
@@ -437,11 +437,11 @@ impl TemplateProperty<Commit> for GitRefsProperty<'_> {
 }
 
 pub struct GitHeadProperty<'a> {
-    repo: RepoRef<'a>,
+    repo: &'a dyn Repo,
 }
 
 impl<'a> GitHeadProperty<'a> {
-    pub fn new(repo: RepoRef<'a>) -> Self {
+    pub fn new(repo: &'a dyn Repo) -> Self {
         Self { repo }
     }
 }
@@ -542,13 +542,13 @@ where
 /// Type-erased `CommitId`/`ChangeId`.
 #[derive(Clone)]
 pub struct CommitOrChangeId<'a> {
-    repo: RepoRef<'a>,
+    repo: &'a dyn Repo,
     id_bytes: Vec<u8>,
     is_commit_id: bool,
 }
 
 impl<'a> CommitOrChangeId<'a> {
-    pub fn commit_id(repo: RepoRef<'a>, id: &CommitId) -> Self {
+    pub fn commit_id(repo: &'a dyn Repo, id: &CommitId) -> Self {
         CommitOrChangeId {
             repo,
             id_bytes: id.to_bytes(),
@@ -556,7 +556,7 @@ impl<'a> CommitOrChangeId<'a> {
         }
     }
 
-    pub fn change_id(repo: RepoRef<'a>, id: &ChangeId) -> Self {
+    pub fn change_id(repo: &'a dyn Repo, id: &ChangeId) -> Self {
         CommitOrChangeId {
             repo,
             id_bytes: id.to_bytes(),

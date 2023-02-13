@@ -19,7 +19,7 @@ use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Time
 use jujutsu_lib::git;
 use jujutsu_lib::matchers::{FilesMatcher, Matcher};
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
-use jujutsu_lib::repo::{Repo, RepoRef};
+use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
     self, optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,
@@ -39,7 +39,7 @@ fn test_resolve_symbol_root(use_git: bool) {
     let repo = &test_repo.repo;
 
     assert_matches!(
-        resolve_symbol(repo.as_repo_ref(), "root", None),
+        resolve_symbol(repo, "root", None),
         Ok(v) if v == vec![repo.store().root_commit_id().clone()]
     );
 }
@@ -99,60 +99,59 @@ fn test_resolve_symbol_commit_id() {
     insta::assert_snapshot!(commits[2].change_id().hex(), @"4399e4f3123763dfe7d68a2809ecc01b");
 
     // Test lookup by full commit id
-    let repo_ref = repo.as_repo_ref();
     assert_eq!(
-        resolve_symbol(repo_ref, "0454de3cae04c46cda37ba2e8873b4c17ff51dcb", None).unwrap(),
+        resolve_symbol(&repo, "0454de3cae04c46cda37ba2e8873b4c17ff51dcb", None).unwrap(),
         vec![commits[0].id().clone()]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "045f56cd1b17e8abde86771e2705395dcde6a957", None).unwrap(),
+        resolve_symbol(&repo, "045f56cd1b17e8abde86771e2705395dcde6a957", None).unwrap(),
         vec![commits[1].id().clone()]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "0468f7da8de2ce442f512aacf83411d26cd2e0cf", None).unwrap(),
+        resolve_symbol(&repo, "0468f7da8de2ce442f512aacf83411d26cd2e0cf", None).unwrap(),
         vec![commits[2].id().clone()]
     );
 
     // Test empty commit id
     assert_matches!(
-        resolve_symbol(repo_ref, "", None),
+        resolve_symbol(&repo, "", None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
 
     // Test commit id prefix
     assert_eq!(
-        resolve_symbol(repo_ref, "046", None).unwrap(),
+        resolve_symbol(&repo, "046", None).unwrap(),
         vec![commits[2].id().clone()]
     );
     assert_matches!(
-        resolve_symbol(repo_ref, "04", None),
+        resolve_symbol(&repo, "04", None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04"
     );
     assert_matches!(
-        resolve_symbol(repo_ref, "", None),
+        resolve_symbol(&repo, "", None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
     assert_matches!(
-        resolve_symbol(repo_ref, "040", None),
+        resolve_symbol(&repo, "040", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "040"
     );
 
     // Test non-hex string
     assert_matches!(
-        resolve_symbol(repo_ref, "foo", None),
+        resolve_symbol(&repo, "foo", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "foo"
     );
 
     // Test present() suppresses only NoSuchRevision error
-    assert_eq!(resolve_commit_ids(repo_ref, "present(foo)"), []);
+    assert_eq!(resolve_commit_ids(&repo, "present(foo)"), []);
     assert_matches!(
         optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap())
-            .evaluate(repo_ref, None)
+            .evaluate(&repo, None)
             .map(|_| ()),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04"
     );
     assert_eq!(
-        resolve_commit_ids(repo_ref, "present(046)"),
+        resolve_commit_ids(&repo, "present(046)"),
         vec![commits[2].id().clone()]
     );
 }
@@ -222,29 +221,29 @@ fn test_resolve_symbol_change_id(readonly: bool) {
         "040031cb4ad0cbc3287914f1d205dabf4a7eb889"
     );
 
-    let repo;
-    let repo_ref = if readonly {
-        repo = tx.commit();
-        repo.as_repo_ref()
+    let _readonly_repo;
+    let repo: &dyn Repo = if readonly {
+        _readonly_repo = tx.commit();
+        &_readonly_repo
     } else {
-        tx.repo().as_repo_ref()
+        tx.mut_repo()
     };
 
     // Test lookup by full change id
     assert_eq!(
-        resolve_symbol(repo_ref, "zvlyxpuvtsoopsqzlkorrpqrszrqvlnx", None).unwrap(),
+        resolve_symbol(repo, "zvlyxpuvtsoopsqzlkorrpqrszrqvlnx", None).unwrap(),
         vec![CommitId::from_hex(
             "8fd68d104372910e19511df709e5dde62a548720"
         )]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "zvzowopwpuymrlmonvnuruunomzqmlsy", None).unwrap(),
+        resolve_symbol(repo, "zvzowopwpuymrlmonvnuruunomzqmlsy", None).unwrap(),
         vec![CommitId::from_hex(
             "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
         )]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "zvlynszrxlvlwvkwkwsymrpypvtsszor", None).unwrap(),
+        resolve_symbol(repo, "zvlynszrxlvlwvkwkwsymrpypvtsszor", None).unwrap(),
         vec![CommitId::from_hex(
             "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
         )]
@@ -252,40 +251,40 @@ fn test_resolve_symbol_change_id(readonly: bool) {
 
     // Test change id prefix
     assert_eq!(
-        resolve_symbol(repo_ref, "zvlyx", None).unwrap(),
+        resolve_symbol(repo, "zvlyx", None).unwrap(),
         vec![CommitId::from_hex(
             "8fd68d104372910e19511df709e5dde62a548720"
         )]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "zvlyn", None).unwrap(),
+        resolve_symbol(repo, "zvlyn", None).unwrap(),
         vec![CommitId::from_hex(
             "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
         )]
     );
     assert_matches!(
-        resolve_symbol(repo_ref, "zvly", None),
+        resolve_symbol(repo, "zvly", None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s == "zvly"
     );
     assert_matches!(
-        resolve_symbol(repo_ref, "", None),
+        resolve_symbol(repo, "", None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
     assert_matches!(
-        resolve_symbol(repo_ref, "zvlyw", None),
+        resolve_symbol(repo, "zvlyw", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "zvlyw"
     );
 
     // Test that commit and changed id don't conflict ("040" and "zvz" are the
     // same).
     assert_eq!(
-        resolve_symbol(repo_ref, "040", None).unwrap(),
+        resolve_symbol(repo, "040", None).unwrap(),
         vec![CommitId::from_hex(
             "040031cb4ad0cbc3287914f1d205dabf4a7eb889"
         )]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "zvz", None).unwrap(),
+        resolve_symbol(repo, "zvz", None).unwrap(),
         vec![CommitId::from_hex(
             "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
         )]
@@ -293,7 +292,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
 
     // Test non-hex string
     assert_matches!(
-        resolve_symbol(repo_ref, "foo", None),
+        resolve_symbol(repo, "foo", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "foo"
     );
 }
@@ -316,15 +315,15 @@ fn test_resolve_symbol_checkout(use_git: bool) {
 
     // With no workspaces, no variation can be resolved
     assert_matches!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@", None),
+        resolve_symbol(mut_repo, "@", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "@"
     );
     assert_matches!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws1)),
+        resolve_symbol(mut_repo, "@", Some(&ws1)),
         Err(RevsetError::NoSuchRevision(s)) if s == "@"
     );
     assert_matches!(
-        resolve_symbol(mut_repo.as_repo_ref(), "ws1@", Some(&ws1)),
+        resolve_symbol(mut_repo, "ws1@", Some(&ws1)),
         Err(RevsetError::NoSuchRevision(s)) if s == "ws1@"
     );
 
@@ -335,17 +334,17 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     mut_repo.set_wc_commit(ws2, commit2.id().clone()).unwrap();
     // @ cannot be resolved without a default workspace ID
     assert_matches!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@", None),
+        resolve_symbol(mut_repo, "@", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "@"
     );
     // Can resolve "@" shorthand with a default workspace ID
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws1)).unwrap(),
+        resolve_symbol(mut_repo, "@", Some(&ws1)).unwrap(),
         vec![commit1.id().clone()]
     );
     // Can resolve an explicit checkout
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "ws2@", Some(&ws1)).unwrap(),
+        resolve_symbol(mut_repo, "ws2@", Some(&ws1)).unwrap(),
         vec![commit2.id().clone()]
     );
 }
@@ -391,7 +390,7 @@ fn test_resolve_symbol_git_refs() {
 
     // Nonexistent ref
     assert_matches!(
-        resolve_symbol(mut_repo.as_repo_ref(), "nonexistent", None),
+        resolve_symbol(mut_repo, "nonexistent", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "nonexistent"
     );
 
@@ -401,7 +400,7 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/branch", None).unwrap(),
+        resolve_symbol(mut_repo, "refs/heads/branch", None).unwrap(),
         vec![commit4.id().clone()]
     );
 
@@ -415,7 +414,7 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "heads/branch", None).unwrap(),
+        resolve_symbol(mut_repo, "heads/branch", None).unwrap(),
         vec![commit5.id().clone()]
     );
 
@@ -429,7 +428,7 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "branch", None).unwrap(),
+        resolve_symbol(mut_repo, "branch", None).unwrap(),
         vec![commit3.id().clone()]
     );
 
@@ -439,7 +438,7 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "tag", None).unwrap(),
+        resolve_symbol(mut_repo, "tag", None).unwrap(),
         vec![commit4.id().clone()]
     );
 
@@ -449,7 +448,7 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit2.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "origin/remote-branch", None).unwrap(),
+        resolve_symbol(mut_repo, "origin/remote-branch", None).unwrap(),
         vec![commit2.id().clone()]
     );
 
@@ -461,22 +460,22 @@ fn test_resolve_symbol_git_refs() {
     mut_repo.set_git_ref("@".to_string(), RefTarget::Normal(commit2.id().clone()));
     mut_repo.set_git_ref("root".to_string(), RefTarget::Normal(commit3.id().clone()));
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws_id)).unwrap(),
+        resolve_symbol(mut_repo, "@", Some(&ws_id)).unwrap(),
         vec![mut_repo.view().get_wc_commit_id(&ws_id).unwrap().clone()]
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "root", None).unwrap(),
+        resolve_symbol(mut_repo, "root", None).unwrap(),
         vec![mut_repo.store().root_commit().id().clone()]
     );
 
     // Conflicted ref resolves to its "adds"
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/conflicted", None).unwrap(),
+        resolve_symbol(mut_repo, "refs/heads/conflicted", None).unwrap(),
         vec![commit1.id().clone(), commit3.id().clone()]
     );
 }
 
-fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
+fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let expression = optimize(parse(revset_str, &RevsetAliasesMap::new(), None).unwrap());
     expression
         .evaluate(repo, None)
@@ -487,7 +486,7 @@ fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
 }
 
 fn resolve_commit_ids_in_workspace(
-    repo: RepoRef,
+    repo: &dyn Repo,
     revset_str: &str,
     workspace: &Workspace,
     cwd: Option<&Path>,
@@ -522,7 +521,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
 
     // Can find the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "root"),
+        resolve_commit_ids(mut_repo, "root"),
         vec![root_commit.id().clone()]
     );
 
@@ -531,12 +530,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
         .set_wc_commit(WorkspaceId::default(), commit1.id().clone())
         .unwrap();
     assert_eq!(
-        resolve_commit_ids_in_workspace(
-            mut_repo.as_repo_ref(),
-            "@",
-            &test_workspace.workspace,
-            None,
-        ),
+        resolve_commit_ids_in_workspace(mut_repo, "@", &test_workspace.workspace, None),
         vec![commit1.id().clone()]
     );
 }
@@ -557,30 +551,24 @@ fn test_evaluate_expression_heads(use_git: bool) {
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
 
     // Heads of an empty set is an empty set
-    assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "heads(none())"),
-        vec![]
-    );
+    assert_eq!(resolve_commit_ids(mut_repo, "heads(none())"), vec![]);
 
     // Heads of the root is the root
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "heads(root)"),
+        resolve_commit_ids(mut_repo, "heads(root)"),
         vec![root_commit.id().clone()]
     );
 
     // Heads of a single commit is that commit
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo.as_repo_ref(),
-            &format!("heads({})", commit2.id().hex())
-        ),
+        resolve_commit_ids(mut_repo, &format!("heads({})", commit2.id().hex())),
         vec![commit2.id().clone()]
     );
 
     // Heads of a parent and a child is the child
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("heads({} | {})", commit2.id().hex(), commit3.id().hex())
         ),
         vec![commit3.id().clone()]
@@ -590,7 +578,7 @@ fn test_evaluate_expression_heads(use_git: bool) {
     // heads() revset, which would include both)
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("heads({} | {})", commit1.id().hex(), commit3.id().hex())
         ),
         vec![commit3.id().clone()]
@@ -598,8 +586,8 @@ fn test_evaluate_expression_heads(use_git: bool) {
 
     // Heads of all commits is the set of heads in the repo
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "heads(all())"),
-        resolve_commit_ids(mut_repo.as_repo_ref(), "heads()")
+        resolve_commit_ids(mut_repo, "heads(all())"),
+        resolve_commit_ids(mut_repo, "heads()")
     );
 }
 
@@ -619,30 +607,24 @@ fn test_evaluate_expression_roots(use_git: bool) {
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
 
     // Roots of an empty set is an empty set
-    assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "roots(none())"),
-        vec![]
-    );
+    assert_eq!(resolve_commit_ids(mut_repo, "roots(none())"), vec![]);
 
     // Roots of the root is the root
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "roots(root)"),
+        resolve_commit_ids(mut_repo, "roots(root)"),
         vec![root_commit.id().clone()]
     );
 
     // Roots of a single commit is that commit
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo.as_repo_ref(),
-            &format!("roots({})", commit2.id().hex())
-        ),
+        resolve_commit_ids(mut_repo, &format!("roots({})", commit2.id().hex())),
         vec![commit2.id().clone()]
     );
 
     // Roots of a parent and a child is the parent
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("roots({} | {})", commit2.id().hex(), commit3.id().hex())
         ),
         vec![commit2.id().clone()]
@@ -652,7 +634,7 @@ fn test_evaluate_expression_roots(use_git: bool) {
     // Mercurial's roots() revset, which would include both)
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("roots({} | {})", commit1.id().hex(), commit3.id().hex())
         ),
         vec![commit1.id().clone()]
@@ -660,7 +642,7 @@ fn test_evaluate_expression_roots(use_git: bool) {
 
     // Roots of all commits is the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "roots(all())"),
+        resolve_commit_ids(mut_repo, "roots(all())"),
         vec![root_commit.id().clone()]
     );
 }
@@ -683,32 +665,27 @@ fn test_evaluate_expression_parents(use_git: bool) {
     let commit5 = graph_builder.commit_with_parents(&[&commit2]);
 
     // The root commit has no parents
-    assert_eq!(resolve_commit_ids(mut_repo.as_repo_ref(), "root-"), vec![]);
+    assert_eq!(resolve_commit_ids(mut_repo, "root-"), vec![]);
 
     // Can find parents of the current working-copy commit
     mut_repo
         .set_wc_commit(WorkspaceId::default(), commit2.id().clone())
         .unwrap();
     assert_eq!(
-        resolve_commit_ids_in_workspace(
-            mut_repo.as_repo_ref(),
-            "@-",
-            &test_workspace.workspace,
-            None,
-        ),
+        resolve_commit_ids_in_workspace(mut_repo, "@-", &test_workspace.workspace, None,),
         vec![commit1.id().clone()]
     );
 
     // Can find parents of a merge commit
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("{}-", commit4.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("{}-", commit4.id().hex())),
         vec![commit3.id().clone(), commit2.id().clone()]
     );
 
     // Parents of all commits in input are returned
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("({} | {})-", commit2.id().hex(), commit3.id().hex())
         ),
         vec![commit1.id().clone(), root_commit.id().clone()]
@@ -717,7 +694,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     // Parents already in input set are returned
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("({} | {})-", commit1.id().hex(), commit2.id().hex())
         ),
         vec![commit1.id().clone(), root_commit.id().clone()]
@@ -726,7 +703,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     // Parents shared among commits in input are not repeated
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("({} | {})-", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit3.id().clone(), commit2.id().clone()]
@@ -734,19 +711,19 @@ fn test_evaluate_expression_parents(use_git: bool) {
 
     // Can find parents of parents, which may be optimized to single query
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("{}--", commit4.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("{}--", commit4.id().hex())),
         vec![commit1.id().clone(), root_commit.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("({} | {})--", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit1.id().clone(), root_commit.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("({} | {})--", commit4.id().hex(), commit2.id().hex())
         ),
         vec![commit1.id().clone(), root_commit.id().clone()]
@@ -783,7 +760,7 @@ fn test_evaluate_expression_children(use_git: bool) {
 
     // Can find children of the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "root+"),
+        resolve_commit_ids(mut_repo, "root+"),
         vec![commit1.id().clone()]
     );
 
@@ -791,7 +768,7 @@ fn test_evaluate_expression_children(use_git: bool) {
     // input set
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("({} | {})+", commit1.id().hex(), commit2.id().hex())
         ),
         vec![
@@ -804,7 +781,7 @@ fn test_evaluate_expression_children(use_git: bool) {
     // Children shared among commits in input are not repeated
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("({} | {})+", commit3.id().hex(), commit4.id().hex())
         ),
         vec![commit5.id().clone()]
@@ -829,14 +806,14 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
 
     // The ancestors of the root commit is just the root commit itself
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), ":root"),
+        resolve_commit_ids(mut_repo, ":root"),
         vec![root_commit.id().clone()]
     );
 
     // Can find ancestors of a specific commit. Commits reachable via multiple paths
     // are not repeated.
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), &format!(":{}", commit4.id().hex())),
+        resolve_commit_ids(mut_repo, &format!(":{}", commit4.id().hex())),
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
@@ -849,10 +826,7 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
     // Can find ancestors of parents or parents of ancestors, which may be optimized
     // to single query
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo.as_repo_ref(),
-            &format!(":({}-)", commit4.id().hex()),
-        ),
+        resolve_commit_ids(mut_repo, &format!(":({}-)", commit4.id().hex()),),
         vec![
             commit3.id().clone(),
             commit2.id().clone(),
@@ -862,7 +836,7 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
     );
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("(:({}|{}))-", commit3.id().hex(), commit2.id().hex()),
         ),
         vec![
@@ -873,7 +847,7 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
     );
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(":(({}|{})-)", commit3.id().hex(), commit2.id().hex()),
         ),
         vec![
@@ -901,15 +875,12 @@ fn test_evaluate_expression_range(use_git: bool) {
 
     // The range from the root to the root is empty (because the left side of the
     // range is exclusive)
-    assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "root..root"),
-        vec![]
-    );
+    assert_eq!(resolve_commit_ids(mut_repo, "root..root"), vec![]);
 
     // Linear range
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("{}..{}", commit1.id().hex(), commit3.id().hex())
         ),
         vec![commit3.id().clone(), commit2.id().clone()]
@@ -918,7 +889,7 @@ fn test_evaluate_expression_range(use_git: bool) {
     // Empty range (descendant first)
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("{}..{}", commit3.id().hex(), commit1.id().hex())
         ),
         vec![]
@@ -927,7 +898,7 @@ fn test_evaluate_expression_range(use_git: bool) {
     // Range including a merge
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("{}..{}", commit1.id().hex(), commit4.id().hex())
         ),
         vec![
@@ -940,7 +911,7 @@ fn test_evaluate_expression_range(use_git: bool) {
     // Sibling commits
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("{}..{}", commit2.id().hex(), commit3.id().hex())
         ),
         vec![commit3.id().clone()]
@@ -966,14 +937,14 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
 
     // Can get DAG range of just the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "root:root"),
+        resolve_commit_ids(mut_repo, "root:root"),
         vec![root_commit_id.clone()]
     );
 
     // Linear range
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("{}:{}", root_commit_id.hex(), commit2.id().hex())
         ),
         vec![commit2.id().clone(), commit1.id().clone(), root_commit_id]
@@ -982,7 +953,7 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
     // Empty range
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("{}:{}", commit2.id().hex(), commit4.id().hex())
         ),
         vec![]
@@ -991,7 +962,7 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
     // Including a merge
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("{}:{}", commit1.id().hex(), commit5.id().hex())
         ),
         vec![
@@ -1006,7 +977,7 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
     // Including a merge, but ancestors only from one side
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("{}:{}", commit2.id().hex(), commit5.id().hex())
         ),
         vec![
@@ -1035,21 +1006,18 @@ fn test_evaluate_expression_connected(use_git: bool) {
     let commit5 = graph_builder.commit_with_parents(&[&commit3, &commit4]);
 
     // Connecting an empty set yields an empty set
-    assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "connected(none())"),
-        vec![]
-    );
+    assert_eq!(resolve_commit_ids(mut_repo, "connected(none())"), vec![]);
 
     // Can connect just the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "connected(root)"),
+        resolve_commit_ids(mut_repo, "connected(root)"),
         vec![root_commit_id.clone()]
     );
 
     // Can connect linearly
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(
                 "connected({} | {})",
                 root_commit_id.hex(),
@@ -1062,7 +1030,7 @@ fn test_evaluate_expression_connected(use_git: bool) {
     // Siblings don't get connected
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("connected({} | {})", commit2.id().hex(), commit4.id().hex())
         ),
         vec![commit4.id().clone(), commit2.id().clone()]
@@ -1071,7 +1039,7 @@ fn test_evaluate_expression_connected(use_git: bool) {
     // Including a merge
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("connected({} | {})", commit1.id().hex(), commit5.id().hex())
         ),
         vec![
@@ -1086,7 +1054,7 @@ fn test_evaluate_expression_connected(use_git: bool) {
     // Including a merge, but ancestors only from one side
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("connected({} | {})", commit2.id().hex(), commit5.id().hex())
         ),
         vec![
@@ -1128,7 +1096,7 @@ fn test_evaluate_expression_descendants(use_git: bool) {
 
     // The descendants of the root commit are all the commits in the repo
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "root:"),
+        resolve_commit_ids(mut_repo, "root:"),
         vec![
             commit5.id().clone(),
             commit4.id().clone(),
@@ -1141,7 +1109,7 @@ fn test_evaluate_expression_descendants(use_git: bool) {
 
     // Can find descendants of a specific commit
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("{}:", commit2.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("{}:", commit2.id().hex())),
         vec![
             commit5.id().clone(),
             commit3.id().clone(),
@@ -1157,7 +1125,7 @@ fn test_evaluate_expression_none(use_git: bool) {
     let repo = &test_repo.repo;
 
     // none() is empty (doesn't include the checkout, for example)
-    assert_eq!(resolve_commit_ids(repo.as_repo_ref(), "none()"), vec![]);
+    assert_eq!(resolve_commit_ids(repo, "none()"), vec![]);
 }
 
 #[test_case(false ; "local backend")]
@@ -1177,7 +1145,7 @@ fn test_evaluate_expression_all(use_git: bool) {
     let commit4 = graph_builder.commit_with_parents(&[&commit2, &commit3]);
 
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "all()"),
+        resolve_commit_ids(mut_repo, "all()"),
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
@@ -1203,7 +1171,7 @@ fn test_evaluate_expression_visible_heads(use_git: bool) {
     let commit3 = graph_builder.commit_with_parents(&[&commit1]);
 
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "heads()"),
+        resolve_commit_ids(mut_repo, "heads()"),
         vec![commit3.id().clone(), commit2.id().clone()]
     );
 }
@@ -1224,19 +1192,19 @@ fn test_evaluate_expression_public_heads(use_git: bool) {
 
     // Can get public heads with root commit as only public head
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "public_heads()"),
+        resolve_commit_ids(mut_repo, "public_heads()"),
         vec![root_commit.id().clone()]
     );
     // Can get public heads with a single public head
     mut_repo.add_public_head(&commit1);
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "public_heads()"),
+        resolve_commit_ids(mut_repo, "public_heads()"),
         vec![commit1.id().clone()]
     );
     // Can get public heads with multiple public head
     mut_repo.add_public_head(&commit2);
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "public_heads()"),
+        resolve_commit_ids(mut_repo, "public_heads()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
 }
@@ -1257,10 +1225,7 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
     let commit4 = write_random_commit(mut_repo, &settings);
 
     // Can get git refs when there are none
-    assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "git_refs()"),
-        vec![]
-    );
+    assert_eq!(resolve_commit_ids(mut_repo, "git_refs()"), vec![]);
     // Can get a mix of git refs
     mut_repo.set_git_ref(
         "refs/heads/branch1".to_string(),
@@ -1271,7 +1236,7 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
         RefTarget::Normal(commit2.id().clone()),
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "git_refs()"),
+        resolve_commit_ids(mut_repo, "git_refs()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Two refs pointing to the same commit does not result in a duplicate in the
@@ -1281,7 +1246,7 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
         RefTarget::Normal(commit2.id().clone()),
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "git_refs()"),
+        resolve_commit_ids(mut_repo, "git_refs()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Can get git refs when there are conflicted refs
@@ -1301,7 +1266,7 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
     );
     mut_repo.remove_git_ref("refs/tags/tag2");
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "git_refs()"),
+        resolve_commit_ids(mut_repo, "git_refs()"),
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
@@ -1323,13 +1288,10 @@ fn test_evaluate_expression_git_head(use_git: bool) {
     let commit1 = write_random_commit(mut_repo, &settings);
 
     // Can get git head when it's not set
-    assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "git_head()"),
-        vec![]
-    );
+    assert_eq!(resolve_commit_ids(mut_repo, "git_head()"), vec![]);
     mut_repo.set_git_head(RefTarget::Normal(commit1.id().clone()));
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "git_head()"),
+        resolve_commit_ids(mut_repo, "git_head()"),
         vec![commit1.id().clone()]
     );
 }
@@ -1350,10 +1312,7 @@ fn test_evaluate_expression_branches(use_git: bool) {
     let commit4 = write_random_commit(mut_repo, &settings);
 
     // Can get branches when there are none
-    assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "branches()"),
-        vec![]
-    );
+    assert_eq!(resolve_commit_ids(mut_repo, "branches()"), vec![]);
     // Can get a few branches
     mut_repo.set_local_branch(
         "branch1".to_string(),
@@ -1364,23 +1323,20 @@ fn test_evaluate_expression_branches(use_git: bool) {
         RefTarget::Normal(commit2.id().clone()),
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "branches()"),
+        resolve_commit_ids(mut_repo, "branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Can get branches with matching names
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "branches(branch1)"),
+        resolve_commit_ids(mut_repo, "branches(branch1)"),
         vec![commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "branches(branch)"),
+        resolve_commit_ids(mut_repo, "branches(branch)"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Can silently resolve to an empty set if there's no matches
-    assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "branches(branch3)"),
-        vec![]
-    );
+    assert_eq!(resolve_commit_ids(mut_repo, "branches(branch3)"), vec![]);
     // Two branches pointing to the same commit does not result in a duplicate in
     // the revset
     mut_repo.set_local_branch(
@@ -1388,7 +1344,7 @@ fn test_evaluate_expression_branches(use_git: bool) {
         RefTarget::Normal(commit2.id().clone()),
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "branches()"),
+        resolve_commit_ids(mut_repo, "branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Can get branches when there are conflicted refs
@@ -1408,7 +1364,7 @@ fn test_evaluate_expression_branches(use_git: bool) {
     );
     mut_repo.remove_local_branch("branch3");
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "branches()"),
+        resolve_commit_ids(mut_repo, "branches()"),
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
@@ -1433,10 +1389,7 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
     let commit4 = write_random_commit(mut_repo, &settings);
 
     // Can get branches when there are none
-    assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
-        vec![]
-    );
+    assert_eq!(resolve_commit_ids(mut_repo, "remote_branches()"), vec![]);
     // Can get a few branches
     mut_repo.set_remote_branch(
         "branch1".to_string(),
@@ -1449,53 +1402,47 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
         RefTarget::Normal(commit2.id().clone()),
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
+        resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Can get branches with matching names
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches(branch1)"),
+        resolve_commit_ids(mut_repo, "remote_branches(branch1)"),
         vec![commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches(branch)"),
+        resolve_commit_ids(mut_repo, "remote_branches(branch)"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Can get branches from matching remotes
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), r#"remote_branches("", origin)"#),
+        resolve_commit_ids(mut_repo, r#"remote_branches("", origin)"#),
         vec![commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), r#"remote_branches("", ri)"#),
+        resolve_commit_ids(mut_repo, r#"remote_branches("", ri)"#),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Can get branches with matching names from matching remotes
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches(branch1, ri)"),
+        resolve_commit_ids(mut_repo, "remote_branches(branch1, ri)"),
         vec![commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo.as_repo_ref(),
-            r#"remote_branches(branch, private)"#
-        ),
+        resolve_commit_ids(mut_repo, r#"remote_branches(branch, private)"#),
         vec![commit2.id().clone()]
     );
     // Can silently resolve to an empty set if there's no matches
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches(branch3)"),
+        resolve_commit_ids(mut_repo, "remote_branches(branch3)"),
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), r#"remote_branches("", upstream)"#),
+        resolve_commit_ids(mut_repo, r#"remote_branches("", upstream)"#),
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo.as_repo_ref(),
-            r#"remote_branches(branch1, private)"#
-        ),
+        resolve_commit_ids(mut_repo, r#"remote_branches(branch1, private)"#),
         vec![]
     );
     // Two branches pointing to the same commit does not result in a duplicate in
@@ -1506,13 +1453,13 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
         RefTarget::Normal(commit2.id().clone()),
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
+        resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // The commits don't have to be in the current set of heads to be included.
     mut_repo.remove_head(commit2.id());
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
+        resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Can get branches when there are conflicted refs
@@ -1534,7 +1481,7 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
     );
     mut_repo.remove_remote_branch("branch3", "origin");
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
+        resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
@@ -1561,15 +1508,12 @@ fn test_evaluate_expression_merges(use_git: bool) {
 
     // Finds all merges by default
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "merges()"),
+        resolve_commit_ids(mut_repo, "merges()"),
         vec![commit5.id().clone(), commit4.id().clone(),]
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo.as_repo_ref(),
-            &format!(":{} & merges()", commit5.id().hex())
-        ),
+        resolve_commit_ids(mut_repo, &format!(":{} & merges()", commit5.id().hex())),
         vec![commit5.id().clone()]
     );
 }
@@ -1601,7 +1545,7 @@ fn test_evaluate_expression_description(use_git: bool) {
 
     // Can find multiple matches
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "description(commit)"),
+        resolve_commit_ids(mut_repo, "description(commit)"),
         vec![
             commit3.id().clone(),
             commit2.id().clone(),
@@ -1610,15 +1554,12 @@ fn test_evaluate_expression_description(use_git: bool) {
     );
     // Can find a unique match
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "description(\"commit 2\")"),
+        resolve_commit_ids(mut_repo, "description(\"commit 2\")"),
         vec![commit2.id().clone()]
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo.as_repo_ref(),
-            "heads() & description(\"commit 2\")"
-        ),
+        resolve_commit_ids(mut_repo, "heads() & description(\"commit 2\")"),
         vec![]
     );
 }
@@ -1666,7 +1607,7 @@ fn test_evaluate_expression_author(use_git: bool) {
 
     // Can find multiple matches
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "author(name)"),
+        resolve_commit_ids(mut_repo, "author(name)"),
         vec![
             commit3.id().clone(),
             commit2.id().clone(),
@@ -1675,22 +1616,22 @@ fn test_evaluate_expression_author(use_git: bool) {
     );
     // Can find a unique match by either name or email
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "author(\"name2\")"),
+        resolve_commit_ids(mut_repo, "author(\"name2\")"),
         vec![commit2.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "author(\"name3\")"),
+        resolve_commit_ids(mut_repo, "author(\"name3\")"),
         vec![commit3.id().clone()]
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "heads() & author(\"name2\")"),
+        resolve_commit_ids(mut_repo, "heads() & author(\"name2\")"),
         vec![]
     );
     // Filter by union of pure predicate and set
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("root.. & (author(name1) | {})", commit3.id().hex())
         ),
         vec![commit3.id().clone(), commit1.id().clone()]
@@ -1740,7 +1681,7 @@ fn test_evaluate_expression_committer(use_git: bool) {
 
     // Can find multiple matches
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "committer(name)"),
+        resolve_commit_ids(mut_repo, "committer(name)"),
         vec![
             commit3.id().clone(),
             commit2.id().clone(),
@@ -1749,16 +1690,16 @@ fn test_evaluate_expression_committer(use_git: bool) {
     );
     // Can find a unique match by either name or email
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "committer(\"name2\")"),
+        resolve_commit_ids(mut_repo, "committer(\"name2\")"),
         vec![commit2.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "committer(\"name3\")"),
+        resolve_commit_ids(mut_repo, "committer(\"name3\")"),
         vec![commit3.id().clone()]
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "heads() & committer(\"name2\")"),
+        resolve_commit_ids(mut_repo, "heads() & committer(\"name2\")"),
         vec![]
     );
 }
@@ -1783,7 +1724,7 @@ fn test_evaluate_expression_union(use_git: bool) {
     // Union between ancestors
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(":{} | :{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![
@@ -1799,7 +1740,7 @@ fn test_evaluate_expression_union(use_git: bool) {
     // Unioning can add back commits removed by difference
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(
                 "(:{} ~ :{}) | :{}",
                 commit4.id().hex(),
@@ -1820,7 +1761,7 @@ fn test_evaluate_expression_union(use_git: bool) {
     // Unioning of disjoint sets
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(
                 "(:{} ~ :{}) | {}",
                 commit4.id().hex(),
@@ -1856,7 +1797,7 @@ fn test_evaluate_expression_intersection(use_git: bool) {
     // Intersection between ancestors
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(":{} & :{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![
@@ -1869,7 +1810,7 @@ fn test_evaluate_expression_intersection(use_git: bool) {
     // Intersection of disjoint sets
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("{} & {}", commit4.id().hex(), commit2.id().hex())
         ),
         vec![]
@@ -1895,35 +1836,35 @@ fn test_evaluate_expression_difference(use_git: bool) {
 
     // Difference from all
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("~:{}", commit5.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("~:{}", commit5.id().hex())),
         vec![commit4.id().clone(), commit3.id().clone()]
     );
 
     // Difference between ancestors
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(":{} ~ :{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit4.id().clone(), commit3.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(":{} ~ :{}", commit5.id().hex(), commit4.id().hex())
         ),
         vec![commit5.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!("~:{} & :{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit5.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(":{} ~ :{}", commit4.id().hex(), commit2.id().hex())
         ),
         vec![commit4.id().clone(), commit3.id().clone()]
@@ -1932,7 +1873,7 @@ fn test_evaluate_expression_difference(use_git: bool) {
     // Associativity
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(
                 ":{} ~ {} ~ {}",
                 commit4.id().hex(),
@@ -1950,7 +1891,7 @@ fn test_evaluate_expression_difference(use_git: bool) {
     // Subtracting a difference does not add back any commits
     assert_eq!(
         resolve_commit_ids(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(
                 "(:{} ~ :{}) ~ (:{} ~ :{})",
                 commit4.id().hex(),
@@ -2023,10 +1964,10 @@ fn test_filter_by_diff(use_git: bool) {
 
     // matcher API:
     let resolve = |file_path: &RepoPath| -> Vec<CommitId> {
-        let repo_ref = mut_repo.as_repo_ref();
+        let mut_repo = &*mut_repo;
         let matcher = FilesMatcher::new(&[file_path.clone()]);
-        let candidates = RevsetExpression::all().evaluate(repo_ref, None).unwrap();
-        let commit_ids = revset::filter_by_diff(repo_ref, &matcher as &dyn Matcher, candidates)
+        let candidates = RevsetExpression::all().evaluate(mut_repo, None).unwrap();
+        let commit_ids = revset::filter_by_diff(mut_repo, &matcher as &dyn Matcher, candidates)
             .iter()
             .commit_ids()
             .collect();
@@ -2050,7 +1991,7 @@ fn test_filter_by_diff(use_git: bool) {
     // file() revset:
     assert_eq!(
         resolve_commit_ids_in_workspace(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             r#"file("repo/added_clean_clean")"#,
             &test_workspace.workspace,
             Some(test_workspace.workspace.workspace_root().parent().unwrap()),
@@ -2059,7 +2000,7 @@ fn test_filter_by_diff(use_git: bool) {
     );
     assert_eq!(
         resolve_commit_ids_in_workspace(
-            mut_repo.as_repo_ref(),
+            mut_repo,
             &format!(r#"{}: & file("added_modified_clean")"#, commit2.id().hex()),
             &test_workspace.workspace,
             Some(test_workspace.workspace.workspace_root()),
@@ -2069,10 +2010,7 @@ fn test_filter_by_diff(use_git: bool) {
 
     // empty() revset, which is identical to ~file(".")
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo.as_repo_ref(),
-            &format!("{}: & empty()", commit1.id().hex())
-        ),
+        resolve_commit_ids(mut_repo, &format!("{}: & empty()", commit1.id().hex())),
         vec![commit4.id().clone()]
     );
 }

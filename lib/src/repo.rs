@@ -75,78 +75,6 @@ pub trait Repo {
     fn shortest_unique_change_id_prefix_len(&self, target_id_bytes: &ChangeId) -> usize;
 }
 
-// TODO: Should we implement From<&ReadonlyRepo> and From<&MutableRepo> for
-// RepoRef?
-#[derive(Clone, Copy)]
-pub enum RepoRef<'a> {
-    Readonly(&'a Arc<ReadonlyRepo>),
-    Mutable(&'a MutableRepo),
-}
-
-impl<'a> RepoRef<'a> {
-    pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
-        match self {
-            RepoRef::Readonly(repo) => &repo,
-            RepoRef::Mutable(repo) => &repo.base_repo,
-        }
-    }
-
-    pub fn store(&self) -> &Arc<Store> {
-        match self {
-            RepoRef::Readonly(repo) => repo.store(),
-            RepoRef::Mutable(repo) => repo.store(),
-        }
-    }
-
-    pub fn op_store(&self) -> &Arc<dyn OpStore> {
-        match self {
-            RepoRef::Readonly(repo) => repo.op_store(),
-            RepoRef::Mutable(repo) => repo.op_store(),
-        }
-    }
-
-    pub fn index(&self) -> &'a dyn Index {
-        match self {
-            RepoRef::Readonly(repo) => repo.index(),
-            RepoRef::Mutable(repo) => repo.index(),
-        }
-    }
-
-    pub fn view(&self) -> &View {
-        match self {
-            RepoRef::Readonly(repo) => repo.view(),
-            RepoRef::Mutable(repo) => repo.view(),
-        }
-    }
-
-    pub fn resolve_change_id(&self, change_id: &ChangeId) -> Option<Vec<IndexEntry<'a>>> {
-        // Replace this if we added more efficient lookup method.
-        let prefix = HexPrefix::from_bytes(change_id.as_bytes());
-        match self.resolve_change_id_prefix(&prefix) {
-            PrefixResolution::NoMatch => None,
-            PrefixResolution::SingleMatch(entries) => Some(entries),
-            PrefixResolution::AmbiguousMatch => panic!("complete change_id should be unambiguous"),
-        }
-    }
-
-    pub fn resolve_change_id_prefix(
-        &self,
-        prefix: &HexPrefix,
-    ) -> PrefixResolution<Vec<IndexEntry<'a>>> {
-        match self {
-            RepoRef::Readonly(repo) => repo.resolve_change_id_prefix(prefix),
-            RepoRef::Mutable(repo) => repo.resolve_change_id_prefix(prefix),
-        }
-    }
-
-    pub fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
-        match self {
-            RepoRef::Readonly(repo) => repo.shortest_unique_change_id_prefix_len(target_id),
-            RepoRef::Mutable(repo) => repo.shortest_unique_change_id_prefix_len(target_id),
-        }
-    }
-}
-
 pub struct ReadonlyRepo {
     repo_path: PathBuf,
     store: Arc<Store>,
@@ -269,10 +197,6 @@ impl ReadonlyRepo {
             op_heads_store: self.op_heads_store.clone(),
             index_store: self.index_store.clone(),
         }
-    }
-
-    pub fn as_repo_ref<'a>(self: &'a Arc<Self>) -> RepoRef<'a> {
-        RepoRef::Readonly(self)
     }
 
     pub fn repo_path(&self) -> &PathBuf {
@@ -652,10 +576,6 @@ impl MutableRepo {
             rewritten_commits: Default::default(),
             abandoned_commits: Default::default(),
         }
-    }
-
-    pub fn as_repo_ref(&self) -> RepoRef {
-        RepoRef::Mutable(self)
     }
 
     fn view_mut(&mut self) -> &mut View {

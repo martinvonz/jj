@@ -36,7 +36,7 @@ use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, IndexEntry, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use crate::op_store::WorkspaceId;
-use crate::repo::RepoRef;
+use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPath};
 use crate::revset_graph_iterator::RevsetGraphIterator;
 use crate::rewrite;
@@ -52,7 +52,7 @@ pub enum RevsetError {
     StoreError(#[source] BackendError),
 }
 
-fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Option<Vec<CommitId>> {
+fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
     for git_ref_prefix in &["", "refs/", "refs/heads/", "refs/tags/", "refs/remotes/"] {
         if let Some(ref_target) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
@@ -62,7 +62,7 @@ fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Option<Vec<CommitId>> {
     None
 }
 
-fn resolve_branch(repo: RepoRef, symbol: &str) -> Option<Vec<CommitId>> {
+fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     if let Some(branch_target) = repo.view().branches().get(symbol) {
         return Some(
             branch_target
@@ -83,7 +83,7 @@ fn resolve_branch(repo: RepoRef, symbol: &str) -> Option<Vec<CommitId>> {
 }
 
 fn resolve_full_commit_id(
-    repo: RepoRef,
+    repo: &dyn Repo,
     symbol: &str,
 ) -> Result<Option<Vec<CommitId>>, RevsetError> {
     if let Ok(binary_commit_id) = hex::decode(symbol) {
@@ -103,7 +103,7 @@ fn resolve_full_commit_id(
 }
 
 fn resolve_short_commit_id(
-    repo: RepoRef,
+    repo: &dyn Repo,
     symbol: &str,
 ) -> Result<Option<Vec<CommitId>>, RevsetError> {
     if let Some(prefix) = HexPrefix::new(symbol) {
@@ -119,7 +119,7 @@ fn resolve_short_commit_id(
     }
 }
 
-fn resolve_change_id(repo: RepoRef, symbol: &str) -> Result<Option<Vec<CommitId>>, RevsetError> {
+fn resolve_change_id(repo: &dyn Repo, symbol: &str) -> Result<Option<Vec<CommitId>>, RevsetError> {
     if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
         match repo.resolve_change_id_prefix(&prefix) {
             PrefixResolution::NoMatch => Ok(None),
@@ -136,7 +136,7 @@ fn resolve_change_id(repo: RepoRef, symbol: &str) -> Result<Option<Vec<CommitId>
 }
 
 pub fn resolve_symbol(
-    repo: RepoRef,
+    repo: &dyn Repo,
     symbol: &str,
     workspace_id: Option<&WorkspaceId>,
 ) -> Result<Vec<CommitId>, RevsetError> {
@@ -538,7 +538,7 @@ impl RevsetExpression {
 
     pub fn evaluate<'repo>(
         &self,
-        repo: RepoRef<'repo>,
+        repo: &'repo dyn Repo,
         workspace_ctx: Option<&RevsetWorkspaceContext>,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
         evaluate_expression(repo, self, workspace_ctx)
@@ -1916,7 +1916,7 @@ pub struct RevsetWorkspaceContext<'a> {
 }
 
 pub fn evaluate_expression<'repo>(
-    repo: RepoRef<'repo>,
+    repo: &'repo dyn Repo,
     expression: &RevsetExpression,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
@@ -2127,7 +2127,7 @@ pub fn evaluate_expression<'repo>(
 }
 
 fn revset_for_commit_ids<'revset, 'repo: 'revset>(
-    repo: RepoRef<'repo>,
+    repo: &'repo dyn Repo,
     commit_ids: &[CommitId],
 ) -> Box<dyn Revset<'repo> + 'revset> {
     let index = repo.index();
@@ -2141,7 +2141,7 @@ fn revset_for_commit_ids<'revset, 'repo: 'revset>(
 }
 
 pub fn revset_for_commits<'revset, 'repo: 'revset>(
-    repo: RepoRef<'repo>,
+    repo: &'repo dyn Repo,
     commits: &[&Commit],
 ) -> Box<dyn Revset<'repo> + 'revset> {
     let index = repo.index();
@@ -2162,7 +2162,7 @@ impl<'repo> ToPredicateFn<'repo> for PurePredicateFn<'repo> {
 }
 
 fn build_predicate_fn<'repo>(
-    repo: RepoRef<'repo>,
+    repo: &'repo dyn Repo,
     predicate: &RevsetFilterPredicate,
 ) -> PurePredicateFn<'repo> {
     match predicate {
@@ -2212,7 +2212,7 @@ fn build_predicate_fn<'repo>(
 }
 
 pub fn filter_by_diff<'revset, 'repo: 'revset>(
-    repo: RepoRef<'repo>,
+    repo: &'repo dyn Repo,
     matcher: impl Borrow<dyn Matcher + 'repo> + 'repo,
     candidates: Box<dyn Revset<'repo> + 'revset>,
 ) -> Box<dyn Revset<'repo> + 'revset> {
@@ -2222,7 +2222,7 @@ pub fn filter_by_diff<'revset, 'repo: 'revset>(
     })
 }
 
-fn has_diff_from_parent(repo: RepoRef<'_>, entry: &IndexEntry<'_>, matcher: &dyn Matcher) -> bool {
+fn has_diff_from_parent(repo: &dyn Repo, entry: &IndexEntry<'_>, matcher: &dyn Matcher) -> bool {
     let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
     let parents = commit.parents();
     let from_tree = rewrite::merge_commit_trees(repo, &parents);
