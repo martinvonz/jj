@@ -209,7 +209,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 new_parents.insert(old_commit, vec![new_commits.iter().next().unwrap().clone()]);
             } else {
                 // The call to index.heads() is mostly to get a predictable order
-                let new_commits = mut_repo.index().heads(&new_commits);
+                let new_commits = mut_repo.index().heads(&mut new_commits.iter());
                 divergent.insert(old_commit, new_commits);
             }
         }
@@ -402,7 +402,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             let head_set: HashSet<_> = self
                 .mut_repo
                 .index()
-                .heads(&new_parent_ids)
+                .heads(&mut new_parent_ids.iter())
                 .iter()
                 .cloned()
                 .collect();
