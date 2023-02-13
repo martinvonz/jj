@@ -332,49 +332,49 @@ fn test_log_prefix_highlight_brackets() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", ":@", "-T", &prefix_format(Some(12))]),
         @r###"
-    @  Change wqn[wkozpkust] commit9 03f[51310b83e]
+    @  Change wq[nwkozpkust] commit9 03[f51310b83e]
     o  Change km[kuslswpqwq] commit8 f7[7fb1909080]
-    o  Change kpq[xywonksrl] commit7 e7[15ad5db646]
-    o  Change znkk[psqqskkl] commit6 38[622e54e2e5]
-    o  Change yo[stqsxwqrlt] commit5 0cf4[2f60199c]
+    o  Change kp[qxywonksrl] commit7 e7[15ad5db646]
+    o  Change zn[kkpsqqskkl] commit6 38[622e54e2e5]
+    o  Change yo[stqsxwqrlt] commit5 0cf[42f60199c]
     o  Change vr[uxwmqvtpmx] commit4 9e[6015e4e622]
     o  Change yq[osqzytrlsw] commit3 06f[34d9b1475]
-    o  Change royx[mykxtrkr] commit2 1f[99a5e19891]
+    o  Change ro[yxmykxtrkr] commit2 1f[99a5e19891]
     o  Change mz[vwutvlkqwt] commit1 7b[1f7dee65b4]
     o  Change qpv[untsmwlqt] initial ba1[a30916d29] original
-    o  Change zzz[zzzzzzzzz]  000[000000000]
+    o  Change zzz[zzzzzzzzz]  00[0000000000]
     "###
     );
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", ":@", "-T", &prefix_format(Some(3))]),
         @r###"
-    @  Change wqn commit9 03f
+    @  Change wq[n] commit9 03[f]
     o  Change km[k] commit8 f7[7]
-    o  Change kpq commit7 e7[1]
-    o  Change znkk commit6 38[6]
-    o  Change yo[s] commit5 0cf4
+    o  Change kp[q] commit7 e7[1]
+    o  Change zn[k] commit6 38[6]
+    o  Change yo[s] commit5 0cf
     o  Change vr[u] commit4 9e[6]
     o  Change yq[o] commit3 06f
-    o  Change royx commit2 1f[9]
+    o  Change ro[y] commit2 1f[9]
     o  Change mz[v] commit1 7b[1]
     o  Change qpv initial ba1 original
-    o  Change zzz  000
+    o  Change zzz  00[0]
     "###
     );
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", ":@", "-T", &prefix_format(None)]),
         @r###"
-    @  Change wqn commit9 03f
+    @  Change wq commit9 03
     o  Change km commit8 f7
-    o  Change kpq commit7 e7
-    o  Change znkk commit6 38
-    o  Change yo commit5 0cf4
+    o  Change kp commit7 e7
+    o  Change zn commit6 38
+    o  Change yo commit5 0cf
     o  Change vr commit4 9e
     o  Change yq commit3 06f
-    o  Change royx commit2 1f
+    o  Change ro commit2 1f
     o  Change mz commit1 7b
     o  Change qpv initial ba1 original
-    o  Change zzz  000
+    o  Change zzz  00
     "###
     );
 }
@@ -438,17 +438,17 @@ fn test_log_prefix_highlight_styled() {
     );
     insta::assert_snapshot!(stdout,
         @r###"
-    @  Change [1m[38;5;5mwqn[0m[38;5;8mwkozpkust[39m commit9 [1m[38;5;4m03f[0m[38;5;8m51310b83e[39m
+    @  Change [1m[38;5;5mwq[0m[38;5;8mnwkozpkust[39m commit9 [1m[38;5;4m03[0m[38;5;8mf51310b83e[39m
     o  Change [1m[38;5;5mkm[0m[38;5;8mkuslswpqwq[39m commit8 [1m[38;5;4mf7[0m[38;5;8m7fb1909080[39m
-    o  Change [1m[38;5;5mkpq[0m[38;5;8mxywonksrl[39m commit7 [1m[38;5;4me7[0m[38;5;8m15ad5db646[39m
-    o  Change [1m[38;5;5mznkk[0m[38;5;8mpsqqskkl[39m commit6 [1m[38;5;4m38[0m[38;5;8m622e54e2e5[39m
-    o  Change [1m[38;5;5myo[0m[38;5;8mstqsxwqrlt[39m commit5 [1m[38;5;4m0cf4[0m[38;5;8m2f60199c[39m
+    o  Change [1m[38;5;5mkp[0m[38;5;8mqxywonksrl[39m commit7 [1m[38;5;4me7[0m[38;5;8m15ad5db646[39m
+    o  Change [1m[38;5;5mzn[0m[38;5;8mkkpsqqskkl[39m commit6 [1m[38;5;4m38[0m[38;5;8m622e54e2e5[39m
+    o  Change [1m[38;5;5myo[0m[38;5;8mstqsxwqrlt[39m commit5 [1m[38;5;4m0cf[0m[38;5;8m42f60199c[39m
     o  Change [1m[38;5;5mvr[0m[38;5;8muxwmqvtpmx[39m commit4 [1m[38;5;4m9e[0m[38;5;8m6015e4e622[39m
     o  Change [1m[38;5;5myq[0m[38;5;8mosqzytrlsw[39m commit3 [1m[38;5;4m06f[0m[38;5;8m34d9b1475[39m
-    o  Change [1m[38;5;5mroyx[0m[38;5;8mmykxtrkr[39m commit2 [1m[38;5;4m1f[0m[38;5;8m99a5e19891[39m
+    o  Change [1m[38;5;5mro[0m[38;5;8myxmykxtrkr[39m commit2 [1m[38;5;4m1f[0m[38;5;8m99a5e19891[39m
     o  Change [1m[38;5;5mmz[0m[38;5;8mvwutvlkqwt[39m commit1 [1m[38;5;4m7b[0m[38;5;8m1f7dee65b4[39m
     o  Change [1m[38;5;5mqpv[0m[38;5;8muntsmwlqt[39m initial [1m[38;5;4mba1[0m[38;5;8ma30916d29[39m [38;5;5moriginal[39m
-    o  Change [1m[38;5;5mzzz[0m[38;5;8mzzzzzzzzz[39m  [1m[38;5;4m000[0m[38;5;8m000000000[39m
+    o  Change [1m[38;5;5mzzz[0m[38;5;8mzzzzzzzzz[39m  [1m[38;5;4m00[0m[38;5;8m0000000000[39m
     "###
     );
     let stdout = test_env.jj_cmd_success(
@@ -464,17 +464,17 @@ fn test_log_prefix_highlight_styled() {
     );
     insta::assert_snapshot!(stdout,
         @r###"
-    @  Change [1m[38;5;5mwqn[0m commit9 [1m[38;5;4m03f[0m
+    @  Change [1m[38;5;5mwq[0m[38;5;8mn[39m commit9 [1m[38;5;4m03[0m[38;5;8mf[39m
     o  Change [1m[38;5;5mkm[0m[38;5;8mk[39m commit8 [1m[38;5;4mf7[0m[38;5;8m7[39m
-    o  Change [1m[38;5;5mkpq[0m commit7 [1m[38;5;4me7[0m[38;5;8m1[39m
-    o  Change [1m[38;5;5mznkk[0m commit6 [1m[38;5;4m38[0m[38;5;8m6[39m
-    o  Change [1m[38;5;5myo[0m[38;5;8ms[39m commit5 [1m[38;5;4m0cf4[0m
+    o  Change [1m[38;5;5mkp[0m[38;5;8mq[39m commit7 [1m[38;5;4me7[0m[38;5;8m1[39m
+    o  Change [1m[38;5;5mzn[0m[38;5;8mk[39m commit6 [1m[38;5;4m38[0m[38;5;8m6[39m
+    o  Change [1m[38;5;5myo[0m[38;5;8ms[39m commit5 [1m[38;5;4m0cf[0m
     o  Change [1m[38;5;5mvr[0m[38;5;8mu[39m commit4 [1m[38;5;4m9e[0m[38;5;8m6[39m
     o  Change [1m[38;5;5myq[0m[38;5;8mo[39m commit3 [1m[38;5;4m06f[0m
-    o  Change [1m[38;5;5mroyx[0m commit2 [1m[38;5;4m1f[0m[38;5;8m9[39m
+    o  Change [1m[38;5;5mro[0m[38;5;8my[39m commit2 [1m[38;5;4m1f[0m[38;5;8m9[39m
     o  Change [1m[38;5;5mmz[0m[38;5;8mv[39m commit1 [1m[38;5;4m7b[0m[38;5;8m1[39m
     o  Change [1m[38;5;5mqpv[0m initial [1m[38;5;4mba1[0m [38;5;5moriginal[39m
-    o  Change [1m[38;5;5mzzz[0m  [1m[38;5;4m000[0m
+    o  Change [1m[38;5;5mzzz[0m  [1m[38;5;4m00[0m[38;5;8m0[39m
     "###
     );
     let stdout = test_env.jj_cmd_success(
@@ -490,17 +490,17 @@ fn test_log_prefix_highlight_styled() {
     );
     insta::assert_snapshot!(stdout,
         @r###"
-    @  Change [1m[38;5;5mwqn[0m commit9 [1m[38;5;4m03f[0m
+    @  Change [1m[38;5;5mwq[0m commit9 [1m[38;5;4m03[0m
     o  Change [1m[38;5;5mkm[0m commit8 [1m[38;5;4mf7[0m
-    o  Change [1m[38;5;5mkpq[0m commit7 [1m[38;5;4me7[0m
-    o  Change [1m[38;5;5mznkk[0m commit6 [1m[38;5;4m38[0m
-    o  Change [1m[38;5;5myo[0m commit5 [1m[38;5;4m0cf4[0m
+    o  Change [1m[38;5;5mkp[0m commit7 [1m[38;5;4me7[0m
+    o  Change [1m[38;5;5mzn[0m commit6 [1m[38;5;4m38[0m
+    o  Change [1m[38;5;5myo[0m commit5 [1m[38;5;4m0cf[0m
     o  Change [1m[38;5;5mvr[0m commit4 [1m[38;5;4m9e[0m
     o  Change [1m[38;5;5myq[0m commit3 [1m[38;5;4m06f[0m
-    o  Change [1m[38;5;5mroyx[0m commit2 [1m[38;5;4m1f[0m
+    o  Change [1m[38;5;5mro[0m commit2 [1m[38;5;4m1f[0m
     o  Change [1m[38;5;5mmz[0m commit1 [1m[38;5;4m7b[0m
     o  Change [1m[38;5;5mqpv[0m initial [1m[38;5;4mba1[0m [38;5;5moriginal[39m
-    o  Change [1m[38;5;5mzzz[0m  [1m[38;5;4m000[0m
+    o  Change [1m[38;5;5mzzz[0m  [1m[38;5;4m00[0m
     "###
     );
 }
@@ -538,10 +538,10 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-T", prefix_format]),
         @r###"
-    @  Change wqnw[kozpkust]  44[4c3c5066d3]
-    │ o  Change qp[vuntsmwlqt] initial ba[1a30916d29] original
+    @  Change w[qnwkozpkust]  44[4c3c5066d3]
+    │ o  Change q[pvuntsmwlqt] initial ba[1a30916d29] original
     ├─╯
-    o  Change zz[zzzzzzzzzz]  00[0000000000]
+    o  Change z[zzzzzzzzzzz]  00[0000000000]
     "###
     );
     insta::assert_snapshot!(
@@ -553,7 +553,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "d0", "-T", prefix_format]),
         @r###"
-    o  Change psz[srknsmxqw] extra d0[947f34cec4]
+    o  Change p[szsrknsmxqw] extra d0[947f34cec4]
     │
     ~
     "###

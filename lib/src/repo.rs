@@ -17,7 +17,7 @@ use std::fmt::{Debug, Formatter};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{cmp, fs, io};
+use std::{fs, io};
 
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
@@ -113,10 +113,10 @@ impl<'a> RepoRef<'a> {
         }
     }
 
-    pub fn shortest_unique_id_prefix_len(&self, target_id_bytes: &[u8]) -> usize {
+    pub fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
         match self {
-            RepoRef::Readonly(repo) => repo.shortest_unique_id_prefix_len(target_id_bytes),
-            RepoRef::Mutable(_) => target_id_bytes.len() * 2, // TODO
+            RepoRef::Readonly(repo) => repo.shortest_unique_change_id_prefix_len(target_id),
+            RepoRef::Mutable(_) => target_id.as_bytes().len() * 2, // TODO
         }
     }
 }
@@ -292,17 +292,8 @@ impl ReadonlyRepo {
             .resolve_prefix_with(prefix, |&pos| index.entry_by_pos(pos))
     }
 
-    pub fn shortest_unique_id_prefix_len(&self, target_id_bytes: &[u8]) -> usize {
-        // For `len = index.shortest(id)`, a prefix of length `len` will disambiguate
-        // `id` from all other ids in the index. This will be just as true for
-        // `max(len, anything_else)`, so a max of such lengths will disambiguate in all
-        // indices.
-        cmp::max(
-            self.index()
-                .shortest_unique_commit_id_prefix_len(&CommitId::from_bytes(target_id_bytes)),
-            self.change_id_index()
-                .shortest_unique_prefix_len(&ChangeId::from_bytes(target_id_bytes)),
-        )
+    pub fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
+        self.change_id_index().shortest_unique_prefix_len(target_id)
     }
 
     pub fn store(&self) -> &Arc<Store> {
