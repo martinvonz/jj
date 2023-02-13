@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cmp::{max, min};
+use std::cmp::max;
 use std::io;
 
 use itertools::Itertools;
@@ -583,17 +583,15 @@ impl<'a> CommitOrChangeId<'a> {
     /// The length of the id printed will be the maximum of `total_len` and the
     /// length of the shortest unique prefix
     pub fn shortest(&self, total_len: usize) -> ShortestIdPrefix {
-        // If this id is a prefix of another id in different space, (e.g.
-        // change_id.starts_with(commit_id)) shortest_unique_id_prefix_len()
-        // exceeds the actual hex.len(). Note that the full id is ambiguous
-        // in that case.
-        //
-        // TODO: maybe split commit_id/change_id spaces and remove min(hex.len())?
         let mut hex = self.hex();
-        let prefix_len = min(
-            self.repo.shortest_unique_id_prefix_len(&self.id_bytes),
-            hex.len(),
-        );
+        let prefix_len = if self.is_commit_id {
+            self.repo
+                .index()
+                .shortest_unique_commit_id_prefix_len(&CommitId::from_bytes(&self.id_bytes))
+        } else {
+            self.repo
+                .shortest_unique_change_id_prefix_len(&ChangeId::from_bytes(&self.id_bytes))
+        };
         hex.truncate(max(prefix_len, total_len));
         let rest = hex.split_off(prefix_len);
         ShortestIdPrefix { prefix: hex, rest }
