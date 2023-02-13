@@ -120,8 +120,7 @@ fn resolve_short_commit_id(
 }
 
 fn resolve_change_id(repo: RepoRef, symbol: &str) -> Result<Option<Vec<CommitId>>, RevsetError> {
-    let forward_hex = to_forward_hex(symbol);
-    if let Some(prefix) = HexPrefix::new(forward_hex.as_deref().unwrap_or(symbol)) {
+    if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
         match repo.resolve_change_id_prefix(&prefix) {
             PrefixResolution::NoMatch => Ok(None),
             PrefixResolution::AmbiguousMatch => {
