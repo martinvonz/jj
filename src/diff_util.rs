@@ -137,7 +137,7 @@ pub fn show_patch(
     formats: &[DiffFormat],
 ) -> Result<(), CommandError> {
     let parents = commit.parents();
-    let from_tree = rewrite::merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
+    let from_tree = rewrite::merge_commit_trees(workspace_command.repo(), &parents);
     let to_tree = commit.tree();
     show_diff(
         formatter,

@@ -20,14 +20,14 @@ use crate::backend::{BackendError, BackendResult, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::op_store::RefTarget;
-use crate::repo::{MutableRepo, Repo, RepoRef};
+use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
 use crate::revset::RevsetExpression;
 use crate::settings::UserSettings;
 use crate::tree::{merge_trees, Tree};
 use crate::view::RefName;
 
-pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {
+pub fn merge_commit_trees(repo: &dyn Repo, commits: &[Commit]) -> Tree {
     let store = repo.store();
     if commits.is_empty() {
         store
@@ -73,8 +73,8 @@ pub fn rebase_commit(
         // Optimization
         old_commit.tree_id().clone()
     } else {
-        let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_parents);
-        let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), new_parents);
+        let old_base_tree = merge_commit_trees(mut_repo, &old_parents);
+        let new_base_tree = merge_commit_trees(mut_repo, new_parents);
         // TODO: pass in labels for the merge parts
         merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree()).unwrap()
     };
@@ -95,8 +95,8 @@ pub fn back_out_commit(
     old_commit: &Commit,
     new_parents: &[Commit],
 ) -> BackendResult<Commit> {
-    let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_commit.parents());
-    let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), new_parents);
+    let old_base_tree = merge_commit_trees(mut_repo, &old_commit.parents());
+    let new_base_tree = merge_commit_trees(mut_repo, new_parents);
     // TODO: pass in labels for the merge parts
     let new_tree_id = merge_trees(&new_base_tree, &old_commit.tree(), &old_base_tree).unwrap();
     let new_parent_ids = new_parents
@@ -157,16 +157,14 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .parents()
             .minus(&old_commits_expression);
         let heads_to_add = heads_to_add_expression
-            .evaluate(mut_repo.as_repo_ref(), None)
+            .evaluate(mut_repo, None)
             .unwrap()
             .iter()
             .commit_ids()
             .collect();
 
         let to_visit_expression = old_commits_expression.descendants();
-        let to_visit_revset = to_visit_expression
-            .evaluate(mut_repo.as_repo_ref(), None)
-            .unwrap();
+        let to_visit_revset = to_visit_expression.evaluate(mut_repo, None).unwrap();
         let to_visit_entries = to_visit_revset.iter().collect_vec();
         drop(to_visit_revset);
         let index = mut_repo.index();

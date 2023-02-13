@@ -48,7 +48,7 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
         .unwrap();
     let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
 
-    let revset = revset_for_commits(repo.as_repo_ref(), &[&commit_a, &commit_d]);
+    let revset = revset_for_commits(&repo, &[&commit_a, &commit_d]);
     let commits = revset
         .iter()
         .graph()
@@ -96,10 +96,7 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
     let pos_b = repo.index().commit_id_to_pos(commit_b.id()).unwrap();
     let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
 
-    let revset = revset_for_commits(
-        repo.as_repo_ref(),
-        &[&commit_a, &commit_b, &commit_c, &commit_f],
-    );
+    let revset = revset_for_commits(&repo, &[&commit_a, &commit_b, &commit_c, &commit_f]);
     let commits = revset
         .iter()
         .graph()
@@ -156,7 +153,7 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
         .unwrap();
     let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
 
-    let revset = revset_for_commits(repo.as_repo_ref(), &[&commit_a, &commit_c, &commit_e]);
+    let revset = revset_for_commits(&repo, &[&commit_a, &commit_c, &commit_e]);
     let commits = revset
         .iter()
         .graph()
@@ -205,7 +202,7 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
     let pos_b = repo.index().commit_id_to_pos(commit_b.id()).unwrap();
     let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
 
-    let revset = revset_for_commits(repo.as_repo_ref(), &[&commit_b, &commit_f]);
+    let revset = revset_for_commits(&repo, &[&commit_b, &commit_f]);
     let commits = revset
         .iter()
         .graph()
@@ -259,7 +256,7 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
     let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
     let pos_d = repo.index().commit_id_to_pos(commit_d.id()).unwrap();
 
-    let revset = revset_for_commits(repo.as_repo_ref(), &[&commit_c, &commit_d, &commit_f]);
+    let revset = revset_for_commits(&repo, &[&commit_c, &commit_d, &commit_f]);
     let commits = revset
         .iter()
         .graph()
@@ -337,7 +334,7 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     let pos_h = repo.index().commit_id_to_pos(commit_h.id()).unwrap();
 
     let revset = revset_for_commits(
-        repo.as_repo_ref(),
+        &repo,
         &[&commit_a, &commit_d, &commit_g, &commit_h, &commit_j],
     );
     let commits = revset
@@ -420,7 +417,7 @@ fn test_reverse_graph_iterator() {
     let pos_f = repo.index().commit_id_to_pos(commit_f.id()).unwrap();
 
     let revset = revset_for_commits(
-        repo.as_repo_ref(),
+        &repo,
         &[&commit_a, &commit_c, &commit_d, &commit_e, &commit_f],
     );
     let commits = revset.iter().graph().reversed().collect_vec();

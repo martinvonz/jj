@@ -38,7 +38,7 @@ use jujutsu_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{
-    CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader, RepoRef,
+    CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
     RewriteRootCommit, StoreFactories,
 };
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
@@ -487,7 +487,7 @@ impl WorkspaceCommandHelper {
         // operation.
         // TODO: Parsed template can be cached if it doesn't capture repo
         parse_commit_summary_template(
-            repo.as_repo_ref(),
+            &repo,
             workspace.workspace_id(),
             &template_aliases_map,
             &settings,
@@ -799,7 +799,7 @@ impl WorkspaceCommandHelper {
         &'repo self,
         revset_expression: &RevsetExpression,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
-        revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.revset_context()))
+        revset_expression.evaluate(&self.repo, Some(&self.revset_context()))
     }
 
     fn revset_context(&self) -> RevsetWorkspaceContext {
@@ -815,7 +815,7 @@ impl WorkspaceCommandHelper {
         template_text: &str,
     ) -> Result<Box<dyn Template<Commit> + '_>, TemplateParseError> {
         template_parser::parse_commit_template(
-            self.repo.as_repo_ref(),
+            &self.repo,
             self.workspace_id(),
             template_text,
             &self.template_aliases_map,
@@ -837,7 +837,7 @@ impl WorkspaceCommandHelper {
         commit: &Commit,
     ) -> std::io::Result<()> {
         let template = parse_commit_summary_template(
-            self.repo.as_repo_ref(),
+            &self.repo,
             self.workspace_id(),
             &self.template_aliases_map,
             &self.settings,
@@ -971,7 +971,7 @@ impl WorkspaceCommandHelper {
         if self.may_update_working_copy {
             let workspace_id = self.workspace_id().to_owned();
             let summary_template = parse_commit_summary_template(
-                self.repo.as_repo_ref(),
+                &self.repo,
                 &workspace_id,
                 &self.template_aliases_map,
                 &self.settings,
@@ -1122,7 +1122,7 @@ impl WorkspaceCommandTransaction<'_> {
         commit: &Commit,
     ) -> std::io::Result<()> {
         let template = parse_commit_summary_template(
-            self.tx.repo().as_repo_ref(),
+            self.tx.repo(),
             self.helper.workspace_id(),
             &self.helper.template_aliases_map,
             &self.helper.settings,
@@ -1557,7 +1557,7 @@ fn load_template_aliases(
 }
 
 fn parse_commit_summary_template<'a>(
-    repo: RepoRef<'a>,
+    repo: &'a dyn Repo,
     workspace_id: &WorkspaceId,
     aliases_map: &TemplateAliasesMap,
     settings: &UserSettings,

@@ -12,7 +12,7 @@ use jujutsu_lib::backend::ObjectId;
 use jujutsu_lib::git::{self, GitFetchError, GitRefUpdate};
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
-use jujutsu_lib::repo::{Repo, RepoRef};
+use jujutsu_lib::repo::Repo;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::view::View;
@@ -547,11 +547,9 @@ fn cmd_git_push(
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
             }
-            if let Some(update) = branch_updates_for_push(
-                workspace_command.repo().as_repo_ref(),
-                &remote,
-                branch_name,
-            )? {
+            if let Some(update) =
+                branch_updates_for_push(workspace_command.repo(), &remote, branch_name)?
+            {
                 branch_updates.push((branch_name.clone(), update));
             } else {
                 writeln!(
@@ -620,9 +618,7 @@ fn cmd_git_push(
             }
             tx.mut_repo()
                 .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
-            if let Some(update) =
-                branch_updates_for_push(tx.mut_repo().as_repo_ref(), &remote, &branch_name)?
-            {
+            if let Some(update) = branch_updates_for_push(tx.mut_repo(), &remote, &branch_name)? {
                 branch_updates.push((branch_name.clone(), update));
             } else {
                 writeln!(
@@ -822,7 +818,7 @@ fn cmd_git_push(
 }
 
 fn branch_updates_for_push(
-    repo: RepoRef,
+    repo: &dyn Repo,
     remote_name: &str,
     branch_name: &str,
 ) -> Result<Option<BranchPushUpdate>, CommandError> {
