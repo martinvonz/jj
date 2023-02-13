@@ -1892,7 +1892,7 @@ fn cmd_duplicate(
     let mut_repo = tx.mut_repo();
 
     for original_commit_id in index
-        .topo_order(to_duplicate.iter().map(|c| c.id()))
+        .topo_order(&mut to_duplicate.iter().map(|c| c.id()))
         .into_iter()
         .map(|index_entry| index_entry.commit_id())
     {

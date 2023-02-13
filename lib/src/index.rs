@@ -141,10 +141,7 @@ impl<'a> IndexRef<'a> {
         }
     }
 
-    pub fn heads<'candidates>(
-        &self,
-        candidates: impl IntoIterator<Item = &'candidates CommitId>,
-    ) -> Vec<CommitId> {
+    pub fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         match self {
             IndexRef::Readonly(index) => index.heads(candidates),
             IndexRef::Mutable(index) => index.heads(candidates),
@@ -677,17 +674,11 @@ impl MutableIndex {
         CompositeIndex(self).walk_revs(wanted, unwanted)
     }
 
-    pub fn heads<'candidates>(
-        &self,
-        candidates: impl IntoIterator<Item = &'candidates CommitId>,
-    ) -> Vec<CommitId> {
+    pub fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         CompositeIndex(self).heads(candidates)
     }
 
-    pub fn topo_order<'candidates>(
-        &self,
-        input: impl IntoIterator<Item = &'candidates CommitId>,
-    ) -> Vec<IndexEntry> {
+    pub fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
         CompositeIndex(self).topo_order(input)
     }
 }
@@ -961,12 +952,8 @@ impl<'a> CompositeIndex<'a> {
         rev_walk
     }
 
-    pub fn heads<'candidates>(
-        &self,
-        candidate_ids: impl IntoIterator<Item = &'candidates CommitId>,
-    ) -> Vec<CommitId> {
+    pub fn heads(&self, candidate_ids: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         let candidate_positions: BTreeSet<_> = candidate_ids
-            .into_iter()
             .map(|id| self.commit_id_to_pos(id).unwrap())
             .collect();
 
@@ -1012,10 +999,7 @@ impl<'a> CompositeIndex<'a> {
         candidate_positions
     }
 
-    pub fn topo_order<'input>(
-        &self,
-        input: impl IntoIterator<Item = &'input CommitId>,
-    ) -> Vec<IndexEntry<'a>> {
+    pub fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry<'a>> {
         let mut entries_by_generation = input
             .into_iter()
             .map(|id| IndexEntryByPosition(self.entry_by_id(id).unwrap()))
@@ -1662,17 +1646,11 @@ impl ReadonlyIndex {
         CompositeIndex(self).walk_revs(wanted, unwanted)
     }
 
-    pub fn heads<'candidates>(
-        &self,
-        candidates: impl IntoIterator<Item = &'candidates CommitId>,
-    ) -> Vec<CommitId> {
+    pub fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         CompositeIndex(self).heads(candidates)
     }
 
-    pub fn topo_order<'candidates>(
-        &self,
-        input: impl IntoIterator<Item = &'candidates CommitId>,
-    ) -> Vec<IndexEntry> {
+    pub fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
         CompositeIndex(self).topo_order(input)
     }
 
@@ -2586,22 +2564,34 @@ mod tests {
         index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_2.clone()]);
 
         // Empty input
-        assert!(index.heads(&[]).is_empty());
+        assert!(index.heads(&mut [].iter()).is_empty());
         // Single head
-        assert_eq!(index.heads(&[id_4.clone()]), vec![id_4.clone()]);
+        assert_eq!(index.heads(&mut [id_4.clone()].iter()), vec![id_4.clone()]);
         // Single head and parent
-        assert_eq!(index.heads(&[id_4.clone(), id_1]), vec![id_4.clone()]);
+        assert_eq!(
+            index.heads(&mut [id_4.clone(), id_1].iter()),
+            vec![id_4.clone()]
+        );
         // Single head and grand-parent
-        assert_eq!(index.heads(&[id_4.clone(), id_0]), vec![id_4.clone()]);
+        assert_eq!(
+            index.heads(&mut [id_4.clone(), id_0].iter()),
+            vec![id_4.clone()]
+        );
         // Multiple heads
         assert_eq!(
-            index.heads(&[id_4.clone(), id_3.clone()]),
+            index.heads(&mut [id_4.clone(), id_3.clone()].iter()),
             vec![id_3.clone(), id_4]
         );
         // Merge commit and ancestors
-        assert_eq!(index.heads(&[id_5.clone(), id_2]), vec![id_5.clone()]);
+        assert_eq!(
+            index.heads(&mut [id_5.clone(), id_2].iter()),
+            vec![id_5.clone()]
+        );
         // Merge commit and other commit
-        assert_eq!(index.heads(&[id_5.clone(), id_3.clone()]), vec![id_3, id_5]);
+        assert_eq!(
+            index.heads(&mut [id_5.clone(), id_3.clone()].iter()),
+            vec![id_3, id_5]
+        );
     }
 
     #[test]

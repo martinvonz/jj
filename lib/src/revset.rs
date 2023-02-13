@@ -2006,7 +2006,7 @@ pub fn evaluate_expression<'repo>(
             let candidate_ids = candidate_set.iter().commit_ids().collect_vec();
             Ok(revset_for_commit_ids(
                 repo,
-                &repo.index().heads(&candidate_ids),
+                &repo.index().heads(&mut candidate_ids.iter()),
             ))
         }
         RevsetExpression::Roots(candidates) => {

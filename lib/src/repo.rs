@@ -829,14 +829,14 @@ impl MutableRepo {
         let view = view.store_view_mut();
         view.public_head_ids = self
             .index
-            .heads(view.public_head_ids.iter())
+            .heads(&mut view.public_head_ids.iter())
             .iter()
             .cloned()
             .collect();
         view.head_ids.extend(view.public_head_ids.iter().cloned());
         view.head_ids = self
             .index
-            .heads(view.head_ids.iter())
+            .heads(&mut view.head_ids.iter())
             .iter()
             .cloned()
             .collect();
