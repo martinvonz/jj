@@ -17,7 +17,7 @@ use std::sync::Arc;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::index::IndexRef;
+use jujutsu_lib::index::ReadonlyIndex;
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, StoreFactories};
 use jujutsu_lib::settings::UserSettings;
 use test_case::test_case;
@@ -32,12 +32,8 @@ fn child_commit<'repo>(
 }
 
 // Helper just to reduce line wrapping
-fn generation_number<'a>(index: impl Into<IndexRef<'a>>, commit_id: &CommitId) -> u32 {
-    index
-        .into()
-        .entry_by_id(commit_id)
-        .unwrap()
-        .generation_number()
+fn generation_number(index: &Arc<ReadonlyIndex>, commit_id: &CommitId) -> u32 {
+    index.entry_by_id(commit_id).unwrap().generation_number()
 }
 
 #[test_case(false ; "local backend")]
@@ -51,10 +47,7 @@ fn test_index_commits_empty_repo(use_git: bool) {
     assert_eq!(index.num_commits(), 1);
 
     // Check the generation numbers of the root and the working copy
-    assert_eq!(
-        generation_number(index.as_ref(), repo.store().root_commit_id()),
-        0
-    );
+    assert_eq!(generation_number(index, repo.store().root_commit_id()), 0);
 }
 
 #[test_case(false ; "local backend")]
@@ -100,15 +93,15 @@ fn test_index_commits_standard_cases(use_git: bool) {
     assert_eq!(stats.num_merges, 1);
     assert_eq!(stats.max_generation_number, 6);
 
-    assert_eq!(generation_number(index.as_ref(), root_commit_id), 0);
-    assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
-    assert_eq!(generation_number(index.as_ref(), commit_b.id()), 2);
-    assert_eq!(generation_number(index.as_ref(), commit_c.id()), 2);
-    assert_eq!(generation_number(index.as_ref(), commit_d.id()), 3);
-    assert_eq!(generation_number(index.as_ref(), commit_e.id()), 4);
-    assert_eq!(generation_number(index.as_ref(), commit_f.id()), 5);
-    assert_eq!(generation_number(index.as_ref(), commit_g.id()), 6);
-    assert_eq!(generation_number(index.as_ref(), commit_h.id()), 5);
+    assert_eq!(generation_number(index, root_commit_id), 0);
+    assert_eq!(generation_number(index, commit_a.id()), 1);
+    assert_eq!(generation_number(index, commit_b.id()), 2);
+    assert_eq!(generation_number(index, commit_c.id()), 2);
+    assert_eq!(generation_number(index, commit_d.id()), 3);
+    assert_eq!(generation_number(index, commit_e.id()), 4);
+    assert_eq!(generation_number(index, commit_f.id()), 5);
+    assert_eq!(generation_number(index, commit_g.id()), 6);
+    assert_eq!(generation_number(index, commit_h.id()), 5);
 
     assert!(index.is_ancestor(root_commit_id, commit_a.id()));
     assert!(!index.is_ancestor(commit_a.id(), root_commit_id));
@@ -164,11 +157,11 @@ fn test_index_commits_criss_cross(use_git: bool) {
     // Check generation numbers
     for gen in 0..num_generations {
         assert_eq!(
-            generation_number(index.as_ref(), left_commits[gen].id()),
+            generation_number(index, left_commits[gen].id()),
             (gen as u32) + 1
         );
         assert_eq!(
-            generation_number(index.as_ref(), right_commits[gen].id()),
+            generation_number(index, right_commits[gen].id()),
             (gen as u32) + 1
         );
     }
@@ -307,9 +300,9 @@ fn test_index_commits_previous_operations(use_git: bool) {
     assert_eq!(stats.num_merges, 0);
     assert_eq!(stats.max_generation_number, 3);
 
-    assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
-    assert_eq!(generation_number(index.as_ref(), commit_b.id()), 2);
-    assert_eq!(generation_number(index.as_ref(), commit_c.id()), 3);
+    assert_eq!(generation_number(index, commit_a.id()), 1);
+    assert_eq!(generation_number(index, commit_b.id()), 2);
+    assert_eq!(generation_number(index, commit_c.id()), 3);
 }
 
 #[test_case(false ; "local backend")]
@@ -361,10 +354,10 @@ fn test_index_commits_incremental(use_git: bool) {
     assert_eq!(stats.levels.len(), 1);
     assert_eq!(stats.levels[0].num_commits, 4);
 
-    assert_eq!(generation_number(index.as_ref(), root_commit.id()), 0);
-    assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
-    assert_eq!(generation_number(index.as_ref(), commit_b.id()), 2);
-    assert_eq!(generation_number(index.as_ref(), commit_c.id()), 3);
+    assert_eq!(generation_number(index, root_commit.id()), 0);
+    assert_eq!(generation_number(index, commit_a.id()), 1);
+    assert_eq!(generation_number(index, commit_b.id()), 2);
+    assert_eq!(generation_number(index, commit_c.id()), 3);
 }
 
 #[test_case(false ; "local backend")]
@@ -407,8 +400,8 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     assert_eq!(stats.levels.len(), 1);
     assert_eq!(stats.levels[0].num_commits, 2);
 
-    assert_eq!(generation_number(index.as_ref(), root_commit.id()), 0);
-    assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
+    assert_eq!(generation_number(index, root_commit.id()), 0);
+    assert_eq!(generation_number(index, commit_a.id()), 1);
 }
 
 #[test_case(false ; "local backend")]
