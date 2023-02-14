@@ -613,16 +613,6 @@ pub struct ShortestIdPrefix {
     pub rest: String,
 }
 
-impl ShortestIdPrefix {
-    pub fn with_brackets(&self) -> String {
-        if self.rest.is_empty() {
-            self.prefix.clone()
-        } else {
-            format!("{}[{}]", self.prefix, self.rest)
-        }
-    }
-}
-
 impl Template<()> for ShortestIdPrefix {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.with_label("prefix", |fmt| fmt.write_str(&self.prefix))?;

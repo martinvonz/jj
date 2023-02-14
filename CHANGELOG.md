@@ -110,8 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj log` now highlights the shortest unique prefix of every commit and change
   id and shows the rest in gray. To disable, set the new `ui.unique-prefixes`
-  option to `none`. For a presentation that doesn't rely on color, set it to
-  `brackets`.
+  option to `none`.
 
 * It is now possible to change the lengths of the ids `jj log` prints with the
   new `ui.log-id-preferred-length` option.

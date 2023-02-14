@@ -110,7 +110,6 @@
                 "unique-prefixes": {
                     "enum": [
                         "none",
-                        "brackets",
                         "styled"
                     ],
                     "description": "How formatter indicates the unique prefix part of a revision or change ID",

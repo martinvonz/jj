@@ -284,7 +284,7 @@ fn test_log_with_or_without_diff() {
 }
 
 #[test]
-fn test_log_prefix_highlight_brackets() {
+fn test_log_shortest_accessors() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -301,27 +301,12 @@ fn test_log_prefix_highlight_brackets() {
         "###,
     );
 
-    fn prefix_format(len: Option<usize>) -> String {
-        format!(
-            r#"
-      "Change " change_id.shortest({0}).with_brackets() " " description.first_line()
-      " " commit_id.shortest({0}).with_brackets() " " branches
-    "#,
-            len.map(|l| l.to_string()).unwrap_or(String::default())
-        )
-    }
-
     std::fs::write(repo_path.join("file"), "original file\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "c", "original"]);
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", "original", "-T", &prefix_format(Some(12))]),
-        @r###"
-    @  Change q[pvuntsmwlqt] initial b[a1a30916d29] original
-    │
-    ~
-    "###
-    );
+        render("original", r#"format_id(change_id) " " format_id(commit_id)"#),
+        @"q[pvuntsmwlqt] b[a1a30916d29]");
 
     // Create a chain of 10 commits
     for i in 1..10 {
@@ -334,61 +319,24 @@ fn test_log_prefix_highlight_brackets() {
     }
 
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", "original", "-T", &prefix_format(Some(12))]),
-        @r###"
-    o  Change qpv[untsmwlqt] initial ba1[a30916d29] original
-    │
-    ~
-    "###
-    );
+        render("original", r#"format_id(change_id) " " format_id(commit_id)"#),
+        @"qpv[untsmwlqt] ba1[a30916d29]");
+
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", ":@", "-T", &prefix_format(Some(12))]),
+        render(":@", r#"change_id.shortest() " " commit_id.shortest() "\n""#),
         @r###"
-    @  Change wq[nwkozpkust] commit9 03[f51310b83e]
-    o  Change km[kuslswpqwq] commit8 f7[7fb1909080]
-    o  Change kp[qxywonksrl] commit7 e7[15ad5db646]
-    o  Change zn[kkpsqqskkl] commit6 38[622e54e2e5]
-    o  Change yo[stqsxwqrlt] commit5 0cf[42f60199c]
-    o  Change vr[uxwmqvtpmx] commit4 9e[6015e4e622]
-    o  Change yq[osqzytrlsw] commit3 06f[34d9b1475]
-    o  Change ro[yxmykxtrkr] commit2 1f[99a5e19891]
-    o  Change mz[vwutvlkqwt] commit1 7b[1f7dee65b4]
-    o  Change qpv[untsmwlqt] initial ba1[a30916d29] original
-    o  Change zzz[zzzzzzzzz]  00[0000000000]
-    "###
-    );
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", ":@", "-T", &prefix_format(Some(3))]),
-        @r###"
-    @  Change wq[n] commit9 03[f]
-    o  Change km[k] commit8 f7[7]
-    o  Change kp[q] commit7 e7[1]
-    o  Change zn[k] commit6 38[6]
-    o  Change yo[s] commit5 0cf
-    o  Change vr[u] commit4 9e[6]
-    o  Change yq[o] commit3 06f
-    o  Change ro[y] commit2 1f[9]
-    o  Change mz[v] commit1 7b[1]
-    o  Change qpv initial ba1 original
-    o  Change zzz  00[0]
-    "###
-    );
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", ":@", "-T", &prefix_format(None)]),
-        @r###"
-    @  Change wq commit9 03
-    o  Change km commit8 f7
-    o  Change kp commit7 e7
-    o  Change zn commit6 38
-    o  Change yo commit5 0cf
-    o  Change vr commit4 9e
-    o  Change yq commit3 06f
-    o  Change ro commit2 1f
-    o  Change mz commit1 7b
-    o  Change qpv initial ba1 original
-    o  Change zzz  00
-    "###
-    );
+    wq 03
+    km f7
+    kp e7
+    zn 38
+    yo 0cf
+    vr 9e
+    yq 06f
+    ro 1f
+    mz 7b
+    qpv ba1
+    zzz 00
+    "###);
 
     insta::assert_snapshot!(
         render(":@", r#"format_id(change_id) " " format_id(commit_id) "\n""#),
@@ -538,10 +486,16 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    test_env.add_config(
+        r###"
+        [template-aliases]
+        'format_id(id)' = 'id.shortest(12).prefix() "[" id.shortest(12).rest() "]"'
+        "###,
+    );
 
     let prefix_format = r#"
-      "Change " change_id.shortest(12).with_brackets() " " description.first_line()
-      " " commit_id.shortest(12).with_brackets() " " branches
+      "Change " format_id(change_id) " " description.first_line()
+      " " format_id(commit_id) " " branches
     "#;
 
     std::fs::write(repo_path.join("file"), "original file\n").unwrap();
