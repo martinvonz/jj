@@ -1414,9 +1414,6 @@ fn cmd_status(
 }
 
 fn log_template(settings: &UserSettings) -> String {
-    // TODO: define a method on boolean values, so we can get auto-coloring
-    //       with e.g. `conflict.then("conflict")`
-
     let committer_timestamp = if settings.relative_timestamps() {
         "committer.timestamp().ago()"
     } else {
