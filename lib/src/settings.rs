@@ -164,23 +164,10 @@ impl UserSettings {
             .unwrap_or(false)
     }
 
-    pub fn unique_prefixes(&self) -> String {
-        self.config
-            .get_string("ui.unique-prefixes")
-            .unwrap_or_else(|_| "styled".to_string())
-    }
-
     pub fn log_author_format(&self) -> String {
         self.config
             .get_string("ui.log-author-format")
             .unwrap_or_else(|_| "email".to_owned())
-    }
-
-    pub fn log_id_preferred_length(&self) -> Option<usize> {
-        self.config
-            .get_int("ui.log-id-preferred-length")
-            .ok()
-            .and_then(|l| l.try_into().ok())
     }
 
     pub fn config(&self) -> &config::Config {

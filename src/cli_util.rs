@@ -1557,17 +1557,6 @@ fn load_template_aliases(
         .insert("format_timestamp(timestamp)", timestamp_template)
         .unwrap();
 
-    let desired_id_len = settings.log_id_preferred_length().unwrap_or(12);
-    // TODO: If/when this logic is relevant in the `lib` crate, make this into
-    // and enum similar to `ColorChoice`.
-    let id_template = match settings.unique_prefixes().as_str() {
-        "styled" => format!("id.shortest({desired_id_len})"),
-        _ => format!("id.short({desired_id_len})"),
-    };
-    aliases_map
-        .insert("format_short_id(id)", id_template)
-        .unwrap();
-
     let signature_template = match settings.log_author_format().as_str() {
         "none" => r#""""#,
         "full" => "signature",
