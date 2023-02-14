@@ -33,6 +33,7 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git::{GitExportError, GitImportError};
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::hex_util::to_reverse_hex;
+use jujutsu_lib::index::Index;
 use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};

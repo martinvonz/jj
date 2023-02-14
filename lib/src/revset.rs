@@ -2234,7 +2234,7 @@ fn has_diff_from_parent(repo: RepoRef<'_>, entry: &IndexEntry<'_>, matcher: &dyn
 mod tests {
     use super::*;
     use crate::backend::ChangeId;
-    use crate::index::MutableIndex;
+    use crate::index::{Index, MutableIndex};
 
     /// Generator of unique 16-byte ChangeId excluding root id
     fn change_id_generator() -> impl FnMut() -> ChangeId {

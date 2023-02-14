@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jujutsu_lib::index::Index;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use maplit::hashset;
 use test_case::test_case;

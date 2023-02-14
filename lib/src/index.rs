@@ -45,6 +45,34 @@ impl IndexPosition {
     pub const MAX: Self = IndexPosition(u32::MAX);
 }
 
+pub trait Index {
+    fn num_commits(&self) -> u32;
+
+    fn stats(&self) -> IndexStats;
+
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
+
+    fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize;
+
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
+
+    fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry>;
+
+    fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry;
+
+    fn has_id(&self, commit_id: &CommitId) -> bool;
+
+    fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool;
+
+    fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId>;
+
+    fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk;
+
+    fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
+
+    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry>;
+}
+
 #[derive(Clone, Copy)]
 pub enum IndexRef<'a> {
     Readonly(&'a ReadonlyIndex),
@@ -629,56 +657,58 @@ impl MutableIndex {
             IndexLoadError::IoError(err) => err,
         })
     }
+}
 
-    pub fn num_commits(&self) -> u32 {
+impl Index for MutableIndex {
+    fn num_commits(&self) -> u32 {
         CompositeIndex(self).num_commits()
     }
 
-    pub fn stats(&self) -> IndexStats {
+    fn stats(&self) -> IndexStats {
         CompositeIndex(self).stats()
     }
 
-    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         CompositeIndex(self).commit_id_to_pos(commit_id)
     }
 
-    pub fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
+    fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
         CompositeIndex(self).shortest_unique_commit_id_prefix_len(commit_id)
     }
 
-    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         CompositeIndex(self).resolve_prefix(prefix)
     }
 
-    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
+    fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
         CompositeIndex(self).entry_by_id(commit_id)
     }
 
-    pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry {
+    fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry {
         CompositeIndex(self).entry_by_pos(pos)
     }
 
-    pub fn has_id(&self, commit_id: &CommitId) -> bool {
+    fn has_id(&self, commit_id: &CommitId) -> bool {
         CompositeIndex(self).has_id(commit_id)
     }
 
-    pub fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
+    fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
         CompositeIndex(self).is_ancestor(ancestor_id, descendant_id)
     }
 
-    pub fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
+    fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
         CompositeIndex(self).common_ancestors(set1, set2)
     }
 
-    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
+    fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
         CompositeIndex(self).walk_revs(wanted, unwanted)
     }
 
-    pub fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
+    fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         CompositeIndex(self).heads(candidates)
     }
 
-    pub fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
+    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
         CompositeIndex(self).topo_order(input)
     }
 }
@@ -1598,60 +1628,8 @@ impl ReadonlyIndex {
         IndexRef::Readonly(self)
     }
 
-    pub fn num_commits(&self) -> u32 {
-        CompositeIndex(self).num_commits()
-    }
-
     pub fn name(&self) -> &str {
         &self.name
-    }
-
-    pub fn stats(&self) -> IndexStats {
-        CompositeIndex(self).stats()
-    }
-
-    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        CompositeIndex(self).commit_id_to_pos(commit_id)
-    }
-
-    pub fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
-        CompositeIndex(self).shortest_unique_commit_id_prefix_len(commit_id)
-    }
-
-    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        CompositeIndex(self).resolve_prefix(prefix)
-    }
-
-    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
-        CompositeIndex(self).entry_by_id(commit_id)
-    }
-
-    pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry {
-        CompositeIndex(self).entry_by_pos(pos)
-    }
-
-    pub fn has_id(&self, commit_id: &CommitId) -> bool {
-        CompositeIndex(self).has_id(commit_id)
-    }
-
-    pub fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
-        CompositeIndex(self).is_ancestor(ancestor_id, descendant_id)
-    }
-
-    pub fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
-        CompositeIndex(self).common_ancestors(set1, set2)
-    }
-
-    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
-        CompositeIndex(self).walk_revs(wanted, unwanted)
-    }
-
-    pub fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        CompositeIndex(self).heads(candidates)
-    }
-
-    pub fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
-        CompositeIndex(self).topo_order(input)
     }
 
     fn graph_entry(&self, local_pos: u32) -> CommitGraphEntry {
@@ -1704,11 +1682,66 @@ impl ReadonlyIndex {
     }
 }
 
+impl Index for ReadonlyIndex {
+    fn num_commits(&self) -> u32 {
+        CompositeIndex(self).num_commits()
+    }
+
+    fn stats(&self) -> IndexStats {
+        CompositeIndex(self).stats()
+    }
+
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
+        CompositeIndex(self).commit_id_to_pos(commit_id)
+    }
+
+    fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
+        CompositeIndex(self).shortest_unique_commit_id_prefix_len(commit_id)
+    }
+
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+        CompositeIndex(self).resolve_prefix(prefix)
+    }
+
+    fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
+        CompositeIndex(self).entry_by_id(commit_id)
+    }
+
+    fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry {
+        CompositeIndex(self).entry_by_pos(pos)
+    }
+
+    fn has_id(&self, commit_id: &CommitId) -> bool {
+        CompositeIndex(self).has_id(commit_id)
+    }
+
+    fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
+        CompositeIndex(self).is_ancestor(ancestor_id, descendant_id)
+    }
+
+    fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
+        CompositeIndex(self).common_ancestors(set1, set2)
+    }
+
+    fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
+        CompositeIndex(self).walk_revs(wanted, unwanted)
+    }
+
+    fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
+        CompositeIndex(self).heads(candidates)
+    }
+
+    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
+        CompositeIndex(self).topo_order(input)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use test_case::test_case;
 
     use super::*;
+    use crate::index::Index;
 
     /// Generator of unique 16-byte ChangeId excluding root id
     fn change_id_generator() -> impl FnMut() -> ChangeId {
@@ -1721,12 +1754,11 @@ mod tests {
     fn index_empty(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
         let index = MutableIndex::full(3, 16);
-        let mut _saved_index = None;
-        let index = if on_disk {
-            _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
-            IndexRef::Readonly(_saved_index.as_ref().unwrap())
+        let index: Box<dyn Index> = if on_disk {
+            let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
+            Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
-            IndexRef::Mutable(&index)
+            Box::new(index)
         };
 
         // Stats are as expected
@@ -1752,12 +1784,11 @@ mod tests {
         let id_0 = CommitId::from_hex("000000");
         let change_id0 = new_change_id();
         index.add_commit_data(id_0.clone(), change_id0.clone(), &[]);
-        let mut _saved_index = None;
-        let index = if on_disk {
-            _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
-            IndexRef::Readonly(_saved_index.as_ref().unwrap())
+        let index: Box<dyn Index> = if on_disk {
+            let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
+            Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
-            IndexRef::Mutable(&index)
+            Box::new(index)
         };
 
         // Stats are as expected
@@ -1834,12 +1865,11 @@ mod tests {
         index.add_commit_data(id_3.clone(), change_id3.clone(), &[id_2.clone()]);
         index.add_commit_data(id_4.clone(), change_id4, &[id_1.clone()]);
         index.add_commit_data(id_5.clone(), change_id5, &[id_4.clone(), id_2.clone()]);
-        let mut _saved_index = None;
-        let index = if on_disk {
-            _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
-            IndexRef::Readonly(_saved_index.as_ref().unwrap())
+        let index: Box<dyn Index> = if on_disk {
+            let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
+            Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
-            IndexRef::Mutable(&index)
+            Box::new(index)
         };
 
         // Stats are as expected
@@ -1925,12 +1955,11 @@ mod tests {
             new_change_id(),
             &[id_1, id_2, id_3, id_4, id_5],
         );
-        let mut _saved_index = None;
-        let index = if on_disk {
-            _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
-            IndexRef::Readonly(_saved_index.as_ref().unwrap())
+        let index: Box<dyn Index> = if on_disk {
+            let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
+            Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
-            IndexRef::Mutable(&index)
+            Box::new(index)
         };
 
         // Stats are as expected

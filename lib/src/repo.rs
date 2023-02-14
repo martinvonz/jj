@@ -30,7 +30,8 @@ use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
 use crate::git_backend::GitBackend;
 use crate::index::{
-    HexPrefix, IndexEntry, IndexPosition, IndexRef, MutableIndex, PrefixResolution, ReadonlyIndex,
+    HexPrefix, Index, IndexEntry, IndexPosition, IndexRef, MutableIndex, PrefixResolution,
+    ReadonlyIndex,
 };
 use crate::index_store::IndexStore;
 use crate::local_backend::LocalBackend;
