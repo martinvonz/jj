@@ -1405,33 +1405,6 @@ fn cmd_status(
     Ok(())
 }
 
-fn log_template(settings: &UserSettings) -> String {
-    let default_template = r#"
-            label(if(current_working_copy, "working_copy"),
-              separate(" ",
-                if(divergent,
-                  label("divergent", format_short_id(change_id) "??"),
-                  format_short_id(change_id)),
-                format_short_signature(author),
-                format_timestamp(committer.timestamp()),
-                branches,
-                tags,
-                working_copies,
-                git_head,
-                format_short_id(commit_id),
-                if(conflict, label("conflict", "conflict")),
-              )
-              "\n"
-              if(empty, label("empty", "(empty)") " ")
-              if(description, description.first_line(), description_placeholder)
-              "\n"
-            )"#;
-    settings
-        .config()
-        .get_string("template.log.graph")
-        .unwrap_or(default_template.to_owned())
-}
-
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
@@ -1455,7 +1428,10 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
-        None => log_template(command.settings()),
+        None => command
+            .settings()
+            .config()
+            .get_string("template.log.graph")?,
     };
     let template = workspace_command.parse_commit_template(&template_string)?;
 
@@ -1588,7 +1564,10 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
-        None => log_template(command.settings()),
+        None => command
+            .settings()
+            .config()
+            .get_string("template.log.graph")?,
     };
     let template = workspace_command.parse_commit_template(&template_string)?;
 
