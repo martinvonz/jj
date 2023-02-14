@@ -1,7 +1,7 @@
 # TODO: rename section to [templates]?
 [template]
 commit_summary = '''
-commit_id.short() " "
+format_short_id(commit_id) " "
 if(description, description.first_line(), description_placeholder)
 '''
 
