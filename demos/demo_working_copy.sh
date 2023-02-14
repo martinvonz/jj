@@ -26,7 +26,6 @@ run_command "jj branch create goodbye"
 run_command "jj log"
 
 comment "Start working on a new change off of master:"
-sleep 1
 run_command "jj co master"
 run_command "jj log"
 

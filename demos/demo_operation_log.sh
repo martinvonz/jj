@@ -25,7 +25,6 @@ run_command "jj rebase -d test"
 
 comment "We are now going to make another change off of
 master:"
-sleep 1
 run_command "jj co master"
 run_command "jj describe -m \"other stuff\""
 
