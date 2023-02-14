@@ -1561,7 +1561,6 @@ fn load_template_aliases(
     // TODO: If/when this logic is relevant in the `lib` crate, make this into
     // and enum similar to `ColorChoice`.
     let id_template = match settings.unique_prefixes().as_str() {
-        "brackets" => format!("id.shortest({desired_id_len}).with_brackets()"),
         "styled" => format!("id.shortest({desired_id_len})"),
         _ => format!("id.short({desired_id_len})"),
     };

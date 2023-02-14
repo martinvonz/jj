@@ -910,15 +910,6 @@ fn build_shortest_id_prefix_method<'a, I: 'a>(
                 TemplatePropertyFn(|id: &ShortestIdPrefix| id.rest.clone()),
             ))
         }
-        "with_brackets" => {
-            // TODO: If we had a map function, this could be expressed as a template
-            // like 'id.shortest() % (.prefix() if(.rest(), "[" .rest() "]"))'
-            expect_no_arguments(function)?;
-            Property::String(chain_properties(
-                self_property,
-                TemplatePropertyFn(|id: &ShortestIdPrefix| id.with_brackets()),
-            ))
-        }
         _ => {
             return Err(TemplateParseError::no_such_method(
                 "ShortestIdPrefix",

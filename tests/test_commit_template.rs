@@ -81,38 +81,6 @@ fn test_log_default() {
        (empty) (no description set)
     "###);
 
-    // Test default log output format with bracket prefixes
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &["log", "--config-toml", "ui.unique-prefixes='brackets'"],
-    );
-    insta::assert_snapshot!(stdout, @r###"
-    @  k[kmpptxzrspx] test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9[de54178d59d]
-    │  (empty) description 1
-    o  q[pvuntsmwlqt] test.user@example.com 2001-02-03 04:05:08.000 +07:00 4[291e264ae97]
-    │  add a file
-    o  z[zzzzzzzzzzz] 1970-01-01 00:00:00.000 +00:00 0[00000000000]
-       (empty) (no description set)
-    "###);
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "--config-toml",
-            "ui.unique-prefixes='brackets'",
-            "--config-toml",
-            "ui.log-id-preferred-length=2",
-        ],
-    );
-    insta::assert_snapshot!(stdout, @r###"
-    @  k[k] test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9[d]
-    │  (empty) description 1
-    o  q[p] test.user@example.com 2001-02-03 04:05:08.000 +07:00 4[2]
-    │  add a file
-    o  z[z] 1970-01-01 00:00:00.000 +00:00 0[0]
-       (empty) (no description set)
-    "###);
-
     // Test default log output format with styled prefixes and color
     let stdout = test_env.jj_cmd_success(
         &repo_path,
