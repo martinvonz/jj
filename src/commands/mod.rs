@@ -1278,17 +1278,8 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
 fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    // TODO: Add branches, tags, etc
-    // TODO: Indent the description like Git does
-    let template_string = r#"
-            "Commit ID: " commit_id "\n"
-            "Change ID: " change_id "\n"
-            "Author: " author " (" format_timestamp(author.timestamp()) ")\n"
-            "Committer: " committer " (" format_timestamp(committer.timestamp()) ")\n"
-            "\n"
-            if(description, description, description_placeholder "\n")
-            "\n""#;
-    let template = workspace_command.parse_commit_template(template_string)?;
+    let template_string = command.settings().config().get_string("template.show")?;
+    let template = workspace_command.parse_commit_template(&template_string)?;
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
