@@ -484,6 +484,15 @@ impl WorkspaceCommandHelper {
     ) -> Result<Self, CommandError> {
         let revset_aliases_map = load_revset_aliases(ui, &settings)?;
         let template_aliases_map = load_template_aliases(ui, &settings)?;
+        // Parse commit_summary template early to report error before starting mutable
+        // operation.
+        // TODO: Parsed template can be cached if it doesn't capture repo
+        parse_commit_summary_template(
+            repo.as_repo_ref(),
+            workspace.workspace_id(),
+            &template_aliases_map,
+            &settings,
+        )?;
         let loaded_at_head = &global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !global_args.ignore_working_copy;
         let mut working_copy_shared_with_git = false;
@@ -828,13 +837,13 @@ impl WorkspaceCommandHelper {
         formatter: &mut dyn Formatter,
         commit: &Commit,
     ) -> std::io::Result<()> {
-        // TODO: parsed template can be cached if it doesn't capture repo
         let template = parse_commit_summary_template(
             self.repo.as_repo_ref(),
             self.workspace_id(),
             &self.template_aliases_map,
             &self.settings,
-        );
+        )
+        .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         template.format(commit, formatter)
     }
 
@@ -967,7 +976,8 @@ impl WorkspaceCommandHelper {
                 &workspace_id,
                 &self.template_aliases_map,
                 &self.settings,
-            );
+            )
+            .expect("parse error should be confined by WorkspaceCommandHelper::new()");
             let stats = update_working_copy(
                 ui,
                 &self.repo,
@@ -1117,7 +1127,8 @@ impl WorkspaceCommandTransaction<'_> {
             self.helper.workspace_id(),
             &self.helper.template_aliases_map,
             &self.helper.settings,
-        );
+        )
+        .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         template.format(commit, formatter)
     }
 
@@ -1587,24 +1598,18 @@ fn parse_commit_summary_template<'a>(
     workspace_id: &WorkspaceId,
     aliases_map: &TemplateAliasesMap,
     settings: &UserSettings,
-) -> Box<dyn Template<Commit> + 'a> {
-    // TODO: Better to parse template early (at e.g. WorkspaceCommandHelper::new())
-    // to report error before starting mutable operation.
-
-    // Fall back to the default template on parsing error.
+) -> Result<Box<dyn Template<Commit> + 'a>, TemplateParseError> {
     settings
         .config()
         .get_string("template.commit_summary")
         .ok()
-        .and_then(|s| {
-            template_parser::parse_commit_template(repo, workspace_id, &s, aliases_map).ok()
-        })
+        .map(|s| template_parser::parse_commit_template(repo, workspace_id, &s, aliases_map))
         .unwrap_or_else(|| {
             let s = r#"
                     commit_id.short() " "
                     if(description, description.first_line(), description_placeholder)
                     "#;
-            template_parser::parse_commit_template(repo, workspace_id, s, aliases_map).unwrap()
+            template_parser::parse_commit_template(repo, workspace_id, s, aliases_map)
         })
 }
 
