@@ -26,9 +26,15 @@ label(if(current_working_copy, "working_copy"),
 )
 '''
 
+# Defined as alias to allow 'log -T show'
+show = 'show'
+
+[template-aliases]
+'description_placeholder' = 'label("description", "(no description set)")'
+
 # TODO: Add branches, tags, etc
 # TODO: Indent the description like Git does
-show = '''
+'show' = '''
 "Commit ID: " commit_id "\n"
 "Change ID: " change_id "\n"
 "Author: " author " (" format_timestamp(author.timestamp()) ")\n"
@@ -37,6 +43,3 @@ show = '''
 if(description, description, description_placeholder "\n")
 "\n"
 '''
-
-[template-aliases]
-'description_placeholder' = 'label("description", "(no description set)")'
