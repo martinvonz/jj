@@ -2022,9 +2022,7 @@ pub fn handle_command_result(
             }
         }
         Err(CommandError::BrokenPipe) => {
-            // It's unlikely this write() would succeed, but try anyway to either
-            // print error message or raise new io::Error.
-            writeln!(ui.error(), "Error: Broken pipe")?;
+            // A broken pipe is not an error, but a signal to exit gracefully.
             Ok(ExitCode::from(BROKEN_PIPE_EXIT_CODE))
         }
         Err(CommandError::InternalError(message)) => {
