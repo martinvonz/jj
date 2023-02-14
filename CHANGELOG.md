@@ -34,7 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Use `if(description, description, "(no description set)\n")` to get back
   the previous behavior.
 
-* If a custom `template.log.graph` template is set, working-copy commit will
+* The `template.log.graph` and `template.commit_summary` config keys were
+  renamed to `templates.log` and `templates.commit_summary` respectively.
+
+* If a custom `templates.log` template is set, working-copy commit will
   no longer be highlighted automatically. Wrap your template with
   `label(if(current_working_copy, "working_copy"), ...)` to label the
   working-copy entry.

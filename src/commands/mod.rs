@@ -1278,7 +1278,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
 fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    let template_string = command.settings().config().get_string("template.show")?;
+    let template_string = command.settings().config().get_string("templates.show")?;
     let template = workspace_command.parse_commit_template(&template_string)?;
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
@@ -1419,10 +1419,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
-        None => command
-            .settings()
-            .config()
-            .get_string("template.log.graph")?,
+        None => command.settings().config().get_string("templates.log")?,
     };
     let template = workspace_command.parse_commit_template(&template_string)?;
 
@@ -1555,10 +1552,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
-        None => command
-            .settings()
-            .config()
-            .get_string("template.log.graph")?,
+        None => command.settings().config().get_string("templates.log")?,
     };
     let template = workspace_command.parse_commit_template(&template_string)?;
 

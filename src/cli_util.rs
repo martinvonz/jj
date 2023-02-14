@@ -1599,7 +1599,7 @@ fn parse_commit_summary_template<'a>(
     aliases_map: &TemplateAliasesMap,
     settings: &UserSettings,
 ) -> Result<Box<dyn Template<Commit> + 'a>, CommandError> {
-    let template_text = settings.config().get_string("template.commit_summary")?;
+    let template_text = settings.config().get_string("templates.commit_summary")?;
     Ok(template_parser::parse_commit_template(
         repo,
         workspace_id,
