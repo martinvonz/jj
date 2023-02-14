@@ -23,5 +23,17 @@ label(if(current_working_copy, "working_copy"),
 )
 '''
 
+# TODO: Add branches, tags, etc
+# TODO: Indent the description like Git does
+show = '''
+"Commit ID: " commit_id "\n"
+"Change ID: " change_id "\n"
+"Author: " author " (" format_timestamp(author.timestamp()) ")\n"
+"Committer: " committer " (" format_timestamp(committer.timestamp()) ")\n"
+"\n"
+if(description, description, description_placeholder "\n")
+"\n"
+'''
+
 [template-aliases]
 'description_placeholder' = 'label("description", "(no description set)")'
