@@ -19,7 +19,7 @@ use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Time
 use jujutsu_lib::git;
 use jujutsu_lib::matchers::{FilesMatcher, Matcher};
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
-use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::repo::{Repo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
     self, optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,

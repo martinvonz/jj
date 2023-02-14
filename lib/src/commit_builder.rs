@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use crate::backend::{self, BackendResult, ChangeId, CommitId, Signature, TreeId};
 use crate::commit::Commit;
-use crate::repo::MutableRepo;
+use crate::repo::{MutableRepo, Repo};
 use crate::settings::{JJRng, UserSettings};
 
 #[must_use]

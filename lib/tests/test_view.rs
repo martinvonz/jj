@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
-use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::transaction::Transaction;
 use maplit::{btreemap, hashset};

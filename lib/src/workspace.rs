@@ -26,7 +26,7 @@ use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{self, OpStore, OperationMetadata, WorkspaceId};
 use crate::operation::Operation;
 use crate::repo::{
-    CheckOutCommitError, IoResultExt, PathError, ReadonlyRepo, RepoLoader, StoreFactories,
+    CheckOutCommitError, IoResultExt, PathError, ReadonlyRepo, Repo, RepoLoader, StoreFactories,
 };
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;

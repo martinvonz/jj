@@ -17,8 +17,8 @@ use std::sync::Arc;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::index::{Index};
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, StoreFactories};
+use jujutsu_lib::index::Index;
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo, StoreFactories};
 use jujutsu_lib::settings::UserSettings;
 use test_case::test_case;
 use testutils::{create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo};
@@ -446,7 +446,7 @@ fn create_n_commits(
     tx.commit()
 }
 
-fn commits_by_level(repo: &ReadonlyRepo) -> Vec<u32> {
+fn commits_by_level(repo: &Arc<ReadonlyRepo>) -> Vec<u32> {
     repo.index()
         .stats()
         .levels

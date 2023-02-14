@@ -12,7 +12,7 @@ use jujutsu_lib::backend::ObjectId;
 use jujutsu_lib::git::{self, GitFetchError, GitRefUpdate};
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
-use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::repo::{Repo, RepoRef};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::view::View;

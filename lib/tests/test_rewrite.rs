@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
+use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::rewrite::DescendantRebaser;
 use maplit::{hashmap, hashset};

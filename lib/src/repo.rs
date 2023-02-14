@@ -49,6 +49,32 @@ use crate::transaction::Transaction;
 use crate::view::{RefName, View};
 use crate::{backend, op_store};
 
+pub trait Repo {
+    fn base_repo(&self) -> &Arc<ReadonlyRepo>;
+
+    fn store(&self) -> &Arc<Store>;
+
+    fn op_store(&self) -> &Arc<dyn OpStore>;
+
+    fn index(&self) -> &dyn Index;
+
+    fn view(&self) -> &View;
+
+    fn resolve_change_id(&self, change_id: &ChangeId) -> Option<Vec<IndexEntry>> {
+        // Replace this if we added more efficient lookup method.
+        let prefix = HexPrefix::from_bytes(change_id.as_bytes());
+        match self.resolve_change_id_prefix(&prefix) {
+            PrefixResolution::NoMatch => None,
+            PrefixResolution::SingleMatch(entries) => Some(entries),
+            PrefixResolution::AmbiguousMatch => panic!("complete change_id should be unambiguous"),
+        }
+    }
+
+    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<IndexEntry>>;
+
+    fn shortest_unique_change_id_prefix_len(&self, target_id_bytes: &ChangeId) -> usize;
+}
+
 // TODO: Should we implement From<&ReadonlyRepo> and From<&MutableRepo> for
 // RepoRef?
 #[derive(Clone, Copy)]
@@ -116,7 +142,7 @@ impl<'a> RepoRef<'a> {
     pub fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
         match self {
             RepoRef::Readonly(repo) => repo.shortest_unique_change_id_prefix_len(target_id),
-            RepoRef::Mutable(_) => target_id.as_bytes().len() * 2, // TODO
+            RepoRef::Mutable(repo) => repo.shortest_unique_change_id_prefix_len(target_id),
         }
     }
 }
@@ -272,40 +298,15 @@ impl ReadonlyRepo {
         })
     }
 
-    pub fn index(&self) -> &dyn Index {
-        self.readonly_index().as_ref()
-    }
-
     fn change_id_index(&self) -> &ChangeIdIndex {
         self.change_id_index.get_or_init(|| {
             let heads = self.view().heads().iter().cloned().collect_vec();
-            let walk = self.index().walk_revs(&heads, &[]);
+            let walk = self.readonly_index().walk_revs(&heads, &[]);
             IdIndex::from_vec(
                 walk.map(|entry| (entry.change_id(), entry.position()))
                     .collect(),
             )
         })
-    }
-
-    pub fn resolve_change_id_prefix(
-        &self,
-        prefix: &HexPrefix,
-    ) -> PrefixResolution<Vec<IndexEntry>> {
-        let index = self.index();
-        self.change_id_index()
-            .resolve_prefix_with(prefix, |&pos| index.entry_by_pos(pos))
-    }
-
-    pub fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
-        self.change_id_index().shortest_unique_prefix_len(target_id)
-    }
-
-    pub fn store(&self) -> &Arc<Store> {
-        &self.store
-    }
-
-    pub fn op_store(&self) -> &Arc<dyn OpStore> {
-        &self.op_store
     }
 
     pub fn op_heads_store(&self) -> &Arc<dyn OpHeadsStore> {
@@ -338,6 +339,38 @@ impl ReadonlyRepo {
 
     pub fn reload_at(&self, operation: &Operation) -> Arc<ReadonlyRepo> {
         self.loader().load_at(operation)
+    }
+}
+
+impl Repo for Arc<ReadonlyRepo> {
+    fn base_repo(&self) -> &Arc<ReadonlyRepo> {
+        self
+    }
+
+    fn store(&self) -> &Arc<Store> {
+        &self.store
+    }
+
+    fn op_store(&self) -> &Arc<dyn OpStore> {
+        &self.op_store
+    }
+
+    fn index(&self) -> &dyn Index {
+        self.readonly_index().as_ref()
+    }
+
+    fn view(&self) -> &View {
+        &self.view
+    }
+
+    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<IndexEntry>> {
+        let index = self.index();
+        self.change_id_index()
+            .resolve_prefix_with(prefix, |&pos| index.entry_by_pos(pos))
+    }
+
+    fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
+        self.change_id_index().shortest_unique_prefix_len(target_id)
     }
 }
 
@@ -625,27 +658,6 @@ impl MutableRepo {
         RepoRef::Mutable(self)
     }
 
-    pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
-        &self.base_repo
-    }
-
-    pub fn store(&self) -> &Arc<Store> {
-        self.base_repo.store()
-    }
-
-    pub fn op_store(&self) -> &Arc<dyn OpStore> {
-        self.base_repo.op_store()
-    }
-
-    pub fn index(&self) -> &MutableIndex {
-        &self.index
-    }
-
-    pub fn view(&self) -> &View {
-        self.view
-            .get_or_ensure_clean(|v| self.enforce_view_invariants(v))
-    }
-
     fn view_mut(&mut self) -> &mut View {
         self.view.get_mut()
     }
@@ -659,31 +671,6 @@ impl MutableRepo {
     pub fn consume(self) -> (MutableIndex, View) {
         self.view.ensure_clean(|v| self.enforce_view_invariants(v));
         (self.index, self.view.into_inner())
-    }
-
-    pub fn resolve_change_id_prefix<'a>(
-        &'a self,
-        prefix: &HexPrefix,
-    ) -> PrefixResolution<Vec<IndexEntry<'a>>> {
-        // TODO: Create a persistent lookup from change id to (visible?) commit ids.
-        let mut found_change_id = None;
-        let mut found_entries = vec![];
-        let heads = self.view().heads().iter().cloned().collect_vec();
-        for entry in self.index().walk_revs(&heads, &[]) {
-            let change_id = entry.change_id();
-            if prefix.matches(&change_id) {
-                if let Some(previous_change_id) = found_change_id.replace(change_id.clone()) {
-                    if previous_change_id != change_id {
-                        return PrefixResolution::AmbiguousMatch;
-                    }
-                }
-                found_entries.push(entry);
-            }
-        }
-        if found_change_id.is_none() {
-            return PrefixResolution::NoMatch;
-        }
-        PrefixResolution::SingleMatch(found_entries)
     }
 
     pub fn new_commit(
@@ -1154,6 +1141,55 @@ impl MutableRepo {
         self.view
             .get_mut()
             .merge_single_ref(&self.index, ref_name, base_target, other_target);
+    }
+}
+
+impl Repo for MutableRepo {
+    fn base_repo(&self) -> &Arc<ReadonlyRepo> {
+        &self.base_repo
+    }
+
+    fn store(&self) -> &Arc<Store> {
+        self.base_repo.store()
+    }
+
+    fn op_store(&self) -> &Arc<dyn OpStore> {
+        self.base_repo.op_store()
+    }
+
+    fn index(&self) -> &dyn Index {
+        &self.index
+    }
+
+    fn view(&self) -> &View {
+        self.view
+            .get_or_ensure_clean(|v| self.enforce_view_invariants(v))
+    }
+
+    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<IndexEntry>> {
+        // TODO: Create a persistent lookup from change id to (visible?) commit ids.
+        let mut found_change_id = None;
+        let mut found_entries = vec![];
+        let heads = self.view().heads().iter().cloned().collect_vec();
+        for entry in self.index().walk_revs(&heads, &[]) {
+            let change_id = entry.change_id();
+            if prefix.matches(&change_id) {
+                if let Some(previous_change_id) = found_change_id.replace(change_id.clone()) {
+                    if previous_change_id != change_id {
+                        return PrefixResolution::AmbiguousMatch;
+                    }
+                }
+                found_entries.push(entry);
+            }
+        }
+        if found_change_id.is_none() {
+            return PrefixResolution::NoMatch;
+        }
+        PrefixResolution::SingleMatch(found_entries)
+    }
+
+    fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
+        target_id.as_bytes().len() * 2 // TODO
     }
 }
 
