@@ -1527,9 +1527,6 @@ pub fn update_working_copy(
     Ok(stats)
 }
 
-pub const DESCRIPTION_PLACEHOLDER_TEMPLATE: &str =
-    r#"label("description", "(no description set)")"#;
-
 fn load_template_aliases(
     ui: &mut Ui,
     settings: &UserSettings,
@@ -1540,9 +1537,6 @@ fn load_template_aliases(
     // TODO: Reorganize default template aliases and config knobs:
     // - remove these configs and let user override aliases?
     // - separate namespace or config section for these "default" aliases? but how?
-    aliases_map
-        .insert("description_placeholder", DESCRIPTION_PLACEHOLDER_TEMPLATE)
-        .unwrap();
     let timestamp_template = if settings.relative_timestamps() {
         "timestamp.ago()"
     } else {

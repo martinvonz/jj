@@ -242,6 +242,7 @@ pub fn default_config() -> config::Config {
         .add_source(from_toml!("config/colors.toml"))
         .add_source(from_toml!("config/merge_tools.toml"))
         .add_source(from_toml!("config/misc.toml"))
+        .add_source(from_toml!("config/templates.toml"))
         .build()
         .unwrap()
 }

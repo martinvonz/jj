@@ -1,0 +1,27 @@
+# TODO: rename section to [templates]?
+[template]
+# TODO: drop '.graph'?
+log.graph = '''
+label(if(current_working_copy, "working_copy"),
+  separate(" ",
+    if(divergent,
+      label("divergent", format_short_id(change_id) "??"),
+      format_short_id(change_id)),
+    format_short_signature(author),
+    format_timestamp(committer.timestamp()),
+    branches,
+    tags,
+    working_copies,
+    git_head,
+    format_short_id(commit_id),
+    if(conflict, label("conflict", "conflict")),
+  )
+  "\n"
+  if(empty, label("empty", "(empty)") " ")
+  if(description, description.first_line(), description_placeholder)
+  "\n"
+)
+'''
+
+[template-aliases]
+'description_placeholder' = 'label("description", "(no description set)")'

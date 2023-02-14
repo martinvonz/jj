@@ -7,6 +7,3 @@ fetch = "origin"
 
 [revset-aliases]
 # Placeholder: added by user
-
-[template-aliases]
-# Placeholder: added by user
