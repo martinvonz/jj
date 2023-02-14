@@ -1536,6 +1536,45 @@ fn load_template_aliases(
 ) -> Result<TemplateAliasesMap, CommandError> {
     const TABLE_KEY: &str = "template-aliases";
     let mut aliases_map = TemplateAliasesMap::new();
+
+    // TODO: Reorganize default template aliases and config knobs:
+    // - remove these configs and let user override aliases?
+    // - separate namespace or config section for these "default" aliases? but how?
+    aliases_map
+        .insert("description_placeholder", DESCRIPTION_PLACEHOLDER_TEMPLATE)
+        .unwrap();
+    let timestamp_template = if settings.relative_timestamps() {
+        "timestamp.ago()"
+    } else {
+        "timestamp"
+    };
+    aliases_map
+        .insert("format_timestamp(timestamp)", timestamp_template)
+        .unwrap();
+
+    let desired_id_len = settings.log_id_preferred_length().unwrap_or(12);
+    // TODO: If/when this logic is relevant in the `lib` crate, make this into
+    // and enum similar to `ColorChoice`.
+    let id_template = match settings.unique_prefixes().as_str() {
+        "brackets" => format!("id.shortest({desired_id_len}).with_brackets()"),
+        "styled" => format!("id.shortest({desired_id_len})"),
+        _ => format!("id.short({desired_id_len})"),
+    };
+    aliases_map
+        .insert("format_short_id(id)", id_template)
+        .unwrap();
+
+    let signature_template = match settings.log_author_format().as_str() {
+        "none" => r#""""#,
+        "full" => "signature",
+        "name" => "signature.name()",
+        "username" => "signature.username()",
+        _ => "signature.email()",
+    };
+    aliases_map
+        .insert("format_short_signature(signature)", signature_template)
+        .unwrap();
+
     let table = settings.config().get_table(TABLE_KEY)?;
     for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
         let r = value
@@ -1567,13 +1606,11 @@ fn parse_commit_summary_template<'a>(
             template_parser::parse_commit_template(repo, workspace_id, &s, aliases_map).ok()
         })
         .unwrap_or_else(|| {
-            let s = format!(
-                r#"
+            let s = r#"
                     commit_id.short() " "
-                    if(description, description.first_line(), {DESCRIPTION_PLACEHOLDER_TEMPLATE})
-                    "#,
-            );
-            template_parser::parse_commit_template(repo, workspace_id, &s, aliases_map).unwrap()
+                    if(description, description.first_line(), description_placeholder)
+                    "#;
+            template_parser::parse_commit_template(repo, workspace_id, s, aliases_map).unwrap()
         })
 }
 

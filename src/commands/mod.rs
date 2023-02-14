@@ -47,7 +47,7 @@ use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, resolve_multiple_nonempty_revsets,
     resolve_mutliple_nonempty_revsets_flag_guarded, run_ui_editor, serialize_config_value,
     short_commit_hash, user_error, user_error_with_hint, Args, CommandError, CommandHelper,
-    DescriptionArg, RevisionArg, WorkspaceCommandHelper, DESCRIPTION_PLACEHOLDER_TEMPLATE,
+    DescriptionArg, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::config::{config_path, AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -1280,23 +1280,15 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     // TODO: Add branches, tags, etc
     // TODO: Indent the description like Git does
-    let (author_timestamp_template, committer_timestamp_template) =
-        if command.settings().relative_timestamps() {
-            ("author.timestamp().ago()", "committer.timestamp().ago()")
-        } else {
-            ("author.timestamp()", "committer.timestamp()")
-        };
-    let template_string = format!(
-        r#"
+    let template_string = r#"
             "Commit ID: " commit_id "\n"
             "Change ID: " change_id "\n"
-            "Author: " author " (" {author_timestamp_template} ")\n"
-            "Committer: " committer " (" {committer_timestamp_template} ")\n"
+            "Author: " author " (" format_timestamp(author.timestamp()) ")\n"
+            "Committer: " committer " (" format_timestamp(committer.timestamp()) ")\n"
             "\n"
-            if(description, description, {DESCRIPTION_PLACEHOLDER_TEMPLATE} "\n")
-            "\n""#,
-    );
-    let template = workspace_command.parse_commit_template(&template_string)?;
+            if(description, description, description_placeholder "\n")
+            "\n""#;
+    let template = workspace_command.parse_commit_template(template_string)?;
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
@@ -1414,52 +1406,30 @@ fn cmd_status(
 }
 
 fn log_template(settings: &UserSettings) -> String {
-    let committer_timestamp = if settings.relative_timestamps() {
-        "committer.timestamp().ago()"
-    } else {
-        "committer.timestamp()"
-    };
-    let desired_id_len = settings.log_id_preferred_length().unwrap_or(12);
-    // TODO: If/when this logic is relevant in the `lib` crate, make this into
-    // and enum similar to `ColorChoice`.
-    let prefix_format = match settings.unique_prefixes().as_str() {
-        "brackets" => format!("shortest({desired_id_len}).with_brackets()"),
-        "styled" => format!("shortest({desired_id_len})"),
-        _ => format!("short({desired_id_len})"),
-    };
-    let author_template = match settings.log_author_format().as_str() {
-        "none" => r#""""#,
-        "full" => "author",
-        "name" => "author.name()",
-        "username" => "author.username()",
-        _ => "author.email()",
-    };
-    let default_template = format!(
-        r#"
+    let default_template = r#"
             label(if(current_working_copy, "working_copy"),
               separate(" ",
                 if(divergent,
-                  label("divergent", change_id.{prefix_format} "??"),
-                  change_id.{prefix_format}),
-                {author_template},
-                {committer_timestamp},
+                  label("divergent", format_short_id(change_id) "??"),
+                  format_short_id(change_id)),
+                format_short_signature(author),
+                format_timestamp(committer.timestamp()),
                 branches,
                 tags,
                 working_copies,
                 git_head,
-                commit_id.{prefix_format},
+                format_short_id(commit_id),
                 if(conflict, label("conflict", "conflict")),
               )
               "\n"
               if(empty, label("empty", "(empty)") " ")
-              if(description, description.first_line(), {DESCRIPTION_PLACEHOLDER_TEMPLATE})
+              if(description, description.first_line(), description_placeholder)
               "\n"
-            )"#,
-    );
+            )"#;
     settings
         .config()
         .get_string("template.log.graph")
-        .unwrap_or(default_template)
+        .unwrap_or(default_template.to_owned())
 }
 
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
