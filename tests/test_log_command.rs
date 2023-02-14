@@ -288,6 +288,18 @@ fn test_log_prefix_highlight_brackets() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    let render = |rev, template| {
+        test_env.jj_cmd_success(
+            &repo_path,
+            &["log", "--no-graph", "-r", rev, "-T", template],
+        )
+    };
+    test_env.add_config(
+        r###"
+        [template-aliases]
+        'format_id(id)' = 'id.shortest(12).prefix() "[" id.shortest(12).rest() "]"'
+        "###,
+    );
 
     fn prefix_format(len: Option<usize>) -> String {
         format!(
@@ -377,6 +389,22 @@ fn test_log_prefix_highlight_brackets() {
     o  Change zzz  00
     "###
     );
+
+    insta::assert_snapshot!(
+        render(":@", r#"format_id(change_id) " " format_id(commit_id) "\n""#),
+        @r###"
+    wq[nwkozpkust] 03[f51310b83e]
+    km[kuslswpqwq] f7[7fb1909080]
+    kp[qxywonksrl] e7[15ad5db646]
+    zn[kkpsqqskkl] 38[622e54e2e5]
+    yo[stqsxwqrlt] 0cf[42f60199c]
+    vr[uxwmqvtpmx] 9e[6015e4e622]
+    yq[osqzytrlsw] 06f[34d9b1475]
+    ro[yxmykxtrkr] 1f[99a5e19891]
+    mz[vwutvlkqwt] 7b[1f7dee65b4]
+    qpv[untsmwlqt] ba1[a30916d29]
+    zzz[zzzzzzzzz] 00[0000000000]
+    "###);
 }
 
 #[test]
