@@ -896,6 +896,20 @@ fn build_shortest_id_prefix_method<'a, I: 'a>(
     _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     let property = match function.name {
+        "prefix" => {
+            expect_no_arguments(function)?;
+            Property::String(chain_properties(
+                self_property,
+                TemplatePropertyFn(|id: &ShortestIdPrefix| id.prefix.clone()),
+            ))
+        }
+        "rest" => {
+            expect_no_arguments(function)?;
+            Property::String(chain_properties(
+                self_property,
+                TemplatePropertyFn(|id: &ShortestIdPrefix| id.rest.clone()),
+            ))
+        }
         "with_brackets" => {
             // TODO: If we had a map function, this could be expressed as a template
             // like 'id.shortest() % (.prefix() if(.rest(), "[" .rest() "]"))'

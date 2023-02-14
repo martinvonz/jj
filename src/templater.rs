@@ -609,8 +609,8 @@ impl Template<()> for CommitOrChangeId<'_> {
 }
 
 pub struct ShortestIdPrefix {
-    prefix: String,
-    rest: String,
+    pub prefix: String,
+    pub rest: String,
 }
 
 impl ShortestIdPrefix {
