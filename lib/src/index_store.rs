@@ -26,7 +26,7 @@ use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::index::{IndexLoadError, MutableIndex, ReadonlyIndex};
+use crate::index::{Index, IndexLoadError, MutableIndex, ReadonlyIndex};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::store::Store;

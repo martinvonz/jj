@@ -19,6 +19,7 @@ use itertools::{process_results, Itertools};
 use crate::backend::{BackendError, BackendResult, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
+use crate::index::Index;
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, RepoRef};
 use crate::repo_path::RepoPath;

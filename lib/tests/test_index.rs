@@ -17,7 +17,7 @@ use std::sync::Arc;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::index::ReadonlyIndex;
+use jujutsu_lib::index::{Index, ReadonlyIndex};
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, StoreFactories};
 use jujutsu_lib::settings::UserSettings;
 use test_case::test_case;

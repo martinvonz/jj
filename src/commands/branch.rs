@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId};
+use jujutsu_lib::index::Index;
 use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::view::View;

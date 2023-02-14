@@ -23,6 +23,7 @@ use thiserror::Error;
 use crate::backend::{CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::git_backend::NO_GC_REF_NAMESPACE;
+use crate::index::Index;
 use crate::op_store::RefTarget;
 use crate::repo::MutableRepo;
 use crate::settings::GitSettings;
