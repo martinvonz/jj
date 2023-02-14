@@ -17,7 +17,7 @@ use std::thread;
 
 use assert_matches::assert_matches;
 use jujutsu_lib::gitignore::GitIgnoreFile;
-use jujutsu_lib::repo::StoreFactories;
+use jujutsu_lib::repo::{Repo, StoreFactories};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::working_copy::CheckoutError;
 use jujutsu_lib::workspace::Workspace;

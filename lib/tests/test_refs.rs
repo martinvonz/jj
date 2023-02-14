@@ -14,6 +14,7 @@
 
 use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::refs::merge_ref_targets;
+use jujutsu_lib::repo::Repo;
 use testutils::{CommitGraphBuilder, TestWorkspace};
 
 #[test]

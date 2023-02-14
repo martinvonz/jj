@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use jujutsu_lib::matchers::EverythingMatcher;
+use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree::DiffSummary;

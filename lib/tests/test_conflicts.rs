@@ -15,6 +15,7 @@
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
 use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict, update_conflict_from_content};
 use jujutsu_lib::files::{ConflictHunk, MergeHunk};
+use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::Store;
 use testutils::TestRepo;

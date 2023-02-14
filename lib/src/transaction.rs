@@ -20,7 +20,7 @@ use crate::index::ReadonlyIndex;
 use crate::op_store;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
-use crate::repo::{MutableRepo, ReadonlyRepo, RepoLoader};
+use crate::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader};
 use crate::settings::UserSettings;
 use crate::view::View;
 

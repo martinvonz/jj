@@ -24,7 +24,7 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::local_backend::LocalBackend;
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::rewrite::RebasedDescendant;
 use jujutsu_lib::settings::UserSettings;
@@ -189,7 +189,7 @@ pub fn write_symlink(tree_builder: &mut TreeBuilder, path: &RepoPath, target: &s
     tree_builder.set(path.clone(), TreeValue::Symlink(id));
 }
 
-pub fn create_tree(repo: &ReadonlyRepo, path_contents: &[(&RepoPath, &str)]) -> Tree {
+pub fn create_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]) -> Tree {
     let store = repo.store();
     let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
     for (path, contents) in path_contents {
@@ -200,7 +200,7 @@ pub fn create_tree(repo: &ReadonlyRepo, path_contents: &[(&RepoPath, &str)]) -> 
 }
 
 #[must_use]
-pub fn create_random_tree(repo: &ReadonlyRepo) -> TreeId {
+pub fn create_random_tree(repo: &Arc<ReadonlyRepo>) -> TreeId {
     let mut tree_builder = repo
         .store()
         .tree_builder(repo.store().empty_tree_id().clone());

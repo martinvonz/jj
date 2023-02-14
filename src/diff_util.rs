@@ -23,7 +23,7 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::matchers::Matcher;
-use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree::{Tree, TreeDiffIterator};

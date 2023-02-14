@@ -15,7 +15,7 @@
 use std::path::Path;
 
 use jujutsu_lib::backend::CommitId;
-use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::repo::{Repo, RepoRef};
 use test_case::test_case;
 use testutils::{create_random_commit, write_random_commit, TestRepo};
 

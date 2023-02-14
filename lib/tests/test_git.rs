@@ -23,7 +23,7 @@ use jujutsu_lib::git;
 use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
-use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use jujutsu_lib::settings::{GitSettings, UserSettings};
 use maplit::{btreemap, hashset};
 use tempfile::TempDir;

@@ -20,6 +20,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::{fs, io};
 
 use clap::builder::NonEmptyStringValueParser;
@@ -32,7 +33,7 @@ use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::index::{Index, IndexEntry};
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
-use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetAliasesMap, RevsetExpression};
 use jujutsu_lib::revset_graph_iterator::{RevsetGraphEdge, RevsetGraphEdgeType};
@@ -2917,7 +2918,7 @@ fn rebase_revision(
 }
 
 fn check_rebase_destinations(
-    repo: &ReadonlyRepo,
+    repo: &Arc<ReadonlyRepo>,
     new_parents: &[Commit],
     commit: &Commit,
 ) -> Result<(), CommandError> {

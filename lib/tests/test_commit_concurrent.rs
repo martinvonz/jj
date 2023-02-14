@@ -13,14 +13,15 @@
 // limitations under the License.
 
 use std::cmp::max;
+use std::sync::Arc;
 use std::thread;
 
 use jujutsu_lib::dag_walk;
-use jujutsu_lib::repo::{ReadonlyRepo, StoreFactories};
+use jujutsu_lib::repo::{ReadonlyRepo, Repo, StoreFactories};
 use test_case::test_case;
 use testutils::{write_random_commit, TestWorkspace};
 
-fn count_non_merge_operations(repo: &ReadonlyRepo) -> usize {
+fn count_non_merge_operations(repo: &Arc<ReadonlyRepo>) -> usize {
     let op_store = repo.op_store();
     let op_id = repo.op_id().clone();
     let mut num_ops = 0;

@@ -15,6 +15,7 @@
 use assert_matches::assert_matches;
 use itertools::Itertools;
 use jujutsu_lib::backend::{ConflictPart, TreeValue};
+use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::rewrite::rebase_commit;
 use jujutsu_lib::tree;
