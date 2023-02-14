@@ -1,12 +1,10 @@
-# TODO: rename section to [templates]?
-[template]
+[templates]
 commit_summary = '''
 format_short_id(commit_id) " "
 if(description, description.first_line(), description_placeholder)
 '''
 
-# TODO: drop '.graph'?
-log.graph = '''
+log = '''
 label(if(current_working_copy, "working_copy"),
   separate(" ",
     if(divergent,
