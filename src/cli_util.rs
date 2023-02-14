@@ -1598,19 +1598,14 @@ fn parse_commit_summary_template<'a>(
     workspace_id: &WorkspaceId,
     aliases_map: &TemplateAliasesMap,
     settings: &UserSettings,
-) -> Result<Box<dyn Template<Commit> + 'a>, TemplateParseError> {
-    settings
-        .config()
-        .get_string("template.commit_summary")
-        .ok()
-        .map(|s| template_parser::parse_commit_template(repo, workspace_id, &s, aliases_map))
-        .unwrap_or_else(|| {
-            let s = r#"
-                    commit_id.short() " "
-                    if(description, description.first_line(), description_placeholder)
-                    "#;
-            template_parser::parse_commit_template(repo, workspace_id, s, aliases_map)
-        })
+) -> Result<Box<dyn Template<Commit> + 'a>, CommandError> {
+    let template_text = settings.config().get_string("template.commit_summary")?;
+    Ok(template_parser::parse_commit_template(
+        repo,
+        workspace_id,
+        &template_text,
+        aliases_map,
+    )?)
 }
 
 // TODO: Use a proper TOML library to serialize instead.

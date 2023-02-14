@@ -1,5 +1,10 @@
 # TODO: rename section to [templates]?
 [template]
+commit_summary = '''
+commit_id.short() " "
+if(description, description.first_line(), description_placeholder)
+'''
+
 # TODO: drop '.graph'?
 log.graph = '''
 label(if(current_working_copy, "working_copy"),
