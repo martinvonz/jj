@@ -81,76 +81,6 @@ fn test_log_default() {
        (empty) (no description set)
     "###);
 
-    // Test default log output format with styled prefixes and color
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "--color=always",
-            "--config-toml",
-            "ui.unique-prefixes='styled'",
-        ],
-    );
-    insta::assert_snapshot!(stdout, @r###"
-    @  [1m[38;5;13mk[38;5;8mkmpptxzrspx[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9[38;5;8mde54178d59d[39m[0m
-    │  [1m[38;5;10m(empty)[39m description 1[0m
-    o  [1m[38;5;5mq[0m[38;5;8mpvuntsmwlqt[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m4[0m[38;5;8m291e264ae97[39m
-    │  add a file
-    o  [1m[38;5;5mz[0m[38;5;8mzzzzzzzzzzz[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
-       [38;5;2m(empty)[39m (no description set)
-    "###);
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "--color=always",
-            "--config-toml",
-            "ui.unique-prefixes='styled'",
-            "--config-toml",
-            "ui.log-id-preferred-length=1",
-        ],
-    );
-    insta::assert_snapshot!(stdout, @r###"
-    @  [1m[38;5;13mk[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9[39m[0m
-    │  [1m[38;5;10m(empty)[39m description 1[0m
-    o  [1m[38;5;5mq[0m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m4[0m
-    │  add a file
-    o  [1m[38;5;5mz[0m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m
-       [38;5;2m(empty)[39m (no description set)
-    "###);
-
-    // Test default log output format with prefixes explicitly disabled
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &["log", "--config-toml", "ui.unique-prefixes='none'"],
-    );
-    insta::assert_snapshot!(stdout, @r###"
-    @  kkmpptxzrspx test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9de54178d59d
-    │  (empty) description 1
-    o  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 4291e264ae97
-    │  add a file
-    o  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
-       (empty) (no description set)
-    "###);
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "--config-toml",
-            "ui.unique-prefixes='none'",
-            "--config-toml",
-            "ui.log-id-preferred-length=1",
-        ],
-    );
-    insta::assert_snapshot!(stdout, @r###"
-    @  k test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9
-    │  (empty) description 1
-    o  q test.user@example.com 2001-02-03 04:05:08.000 +07:00 4
-    │  add a file
-    o  z 1970-01-01 00:00:00.000 +00:00 0
-       (empty) (no description set)
-    "###);
-
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -236,5 +166,26 @@ fn test_log_git_head() {
     │  [38;5;2m(empty)[39m (no description set)
     o  [1m[38;5;5mz[0m[38;5;8mzzzzzzzzzzz[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
        [38;5;2m(empty)[39m (no description set)
+    "###);
+}
+
+#[test]
+fn test_log_customize_short_id() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
+
+    let decl = "template-aliases.'format_short_id(id)'";
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "--config-toml", &format!("{decl}='id.shortest()'")],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  q test.user@example.com 2001-02-03 04:05:08.000 +07:00 6
+    │  (empty) first
+    o  z 1970-01-01 00:00:00.000 +00:00 0
+       (empty) (no description set)
     "###);
 }

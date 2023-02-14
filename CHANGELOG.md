@@ -109,11 +109,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   descendants of `abc` can be duplicated with `jj duplicate abc:`.
 
 * `jj log` now highlights the shortest unique prefix of every commit and change
-  id and shows the rest in gray. To disable, set the new `ui.unique-prefixes`
-  option to `none`.
-
-* It is now possible to change the lengths of the ids `jj log` prints with the
-  new `ui.log-id-preferred-length` option.
+  id and shows the rest in gray. To customize the length and style, use the
+  `format_short_id()` template alias. For details, see
+  [the documentation](docs/config.md).
 
 * `jj print` was renamed to `jj cat`. `jj print` remains as an alias.
   
