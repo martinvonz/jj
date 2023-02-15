@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `label(if(current_working_copy, "working_copy"), ...)` to label the
   working-copy entry.
 
+* `jj log` and `jj show` no longer respect `ui.relative-timestamps = true`.
+  Use the `format_timestamp()` template alias instead. For details, see
+  [the documentation](docs/config.md).
+
 * The global `--no-commit-working-copy` is now called `--ignore-working-copy`.
 
 * The `diff.format` config option is now called `ui.diff.format`. The old name
@@ -81,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Per-repository configuration is now read from `.jj/repo/config.toml`.
 
-* The `ui.relative-timestamps` option now also affects `jj op log`.
+* The `ui.relative-timestamps` option now affects `jj op log`.
 
 * Background colors, bold text, and underlining are now supported. You can set
   e.g. `color.error = { bg = "red", bold = true, underline = true }` in your

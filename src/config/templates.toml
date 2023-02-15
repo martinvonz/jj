@@ -34,6 +34,7 @@ show = 'show'
 
 # Hook points for users to customize the default templates:
 'format_short_id(id)' = 'id.shortest(12)'
+'format_timestamp(timestamp)' = 'timestamp'
 
 # TODO: Add branches, tags, etc
 # TODO: Indent the description like Git does
