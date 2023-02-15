@@ -1577,16 +1577,18 @@ impl<'revset, 'index> RevsetIterator<'revset, 'index> {
             entries: self.into_iter().collect_vec(),
         }
     }
+}
 
-    fn into_predicate_fn(self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + 'revset> {
-        let mut iter = self.fuse().peekable();
-        Box::new(move |entry| {
-            while iter.next_if(|e| e.position() > entry.position()).is_some() {
-                continue;
-            }
-            iter.next_if(|e| e.position() == entry.position()).is_some()
-        })
-    }
+fn predicate_fn_from_iter<'index, 'iter>(
+    iter: impl Iterator<Item = IndexEntry<'index>> + 'iter,
+) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + 'iter> {
+    let mut iter = iter.fuse().peekable();
+    Box::new(move |entry| {
+        while iter.next_if(|e| e.position() > entry.position()).is_some() {
+            continue;
+        }
+        iter.next_if(|e| e.position() == entry.position()).is_some()
+    })
 }
 
 impl<'index> Iterator for RevsetIterator<'_, 'index> {
@@ -1654,7 +1656,7 @@ impl<'index> Revset<'index> for EagerRevset<'index> {
 
 impl<'index> ToPredicateFn<'index> for EagerRevset<'index> {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
-        self.iter().into_predicate_fn()
+        predicate_fn_from_iter(self.iter())
     }
 }
 
@@ -1681,7 +1683,7 @@ where
     T: Iterator<Item = IndexEntry<'index>> + Clone,
 {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
-        self.iter().into_predicate_fn()
+        predicate_fn_from_iter(self.iter())
     }
 }
 
@@ -1714,7 +1716,7 @@ impl<'index> Revset<'index> for ChildrenRevset<'index> {
 impl<'index> ToPredicateFn<'index> for ChildrenRevset<'index> {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         // TODO: can be optimized if candidate_set contains all heads
-        self.iter().into_predicate_fn()
+        predicate_fn_from_iter(self.iter())
     }
 }
 
