@@ -35,7 +35,7 @@ use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::revset::{RevsetAliasesMap, RevsetExpression};
+use jujutsu_lib::revset::{RevsetAliasesMap, RevsetExpression, RevsetIteratorExt};
 use jujutsu_lib::revset_graph_iterator::{
     RevsetGraphEdge, RevsetGraphEdgeType, RevsetGraphIterator,
 };

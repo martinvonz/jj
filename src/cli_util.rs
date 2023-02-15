@@ -43,7 +43,7 @@ use jujutsu_lib::repo::{
 };
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
-    Revset, RevsetAliasesMap, RevsetError, RevsetExpression, RevsetParseError,
+    Revset, RevsetAliasesMap, RevsetError, RevsetExpression, RevsetIteratorExt, RevsetParseError,
     RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::UserSettings;

@@ -22,7 +22,7 @@ use crate::dag_walk;
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
-use crate::revset::RevsetExpression;
+use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
 use crate::tree::{merge_trees, Tree};
 use crate::view::RefName;
