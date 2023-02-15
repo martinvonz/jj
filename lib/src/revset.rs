@@ -536,11 +536,11 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Difference(self.clone(), other.clone()))
     }
 
-    pub fn evaluate<'repo>(
+    pub fn evaluate<'index>(
         &self,
-        repo: &'repo dyn Repo,
+        repo: &'index dyn Repo,
         workspace_ctx: Option<&RevsetWorkspaceContext>,
-    ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
+    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
         evaluate_expression(repo, self, workspace_ctx)
     }
 }
@@ -1521,9 +1521,9 @@ pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
     fold_difference(&expression).unwrap_or(expression)
 }
 
-pub trait Revset<'repo>: ToPredicateFn<'repo> {
+pub trait Revset<'index>: ToPredicateFn<'index> {
     // All revsets currently iterate in order of descending index position
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo>;
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index>;
 
     fn is_empty(&self) -> bool {
         self.iter().next().is_none()
@@ -1531,53 +1531,53 @@ pub trait Revset<'repo>: ToPredicateFn<'repo> {
 }
 
 // This trait is implementation detail, which can be hidden in private module.
-pub trait ToPredicateFn<'repo> {
+pub trait ToPredicateFn<'index> {
     /// Creates function that tests if the given entry is included in the set.
     ///
     /// The predicate function is evaluated in order of `RevsetIterator`.
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_>;
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_>;
 }
 
-impl<'repo, T> ToPredicateFn<'repo> for Box<T>
+impl<'index, T> ToPredicateFn<'index> for Box<T>
 where
-    T: ToPredicateFn<'repo> + ?Sized,
+    T: ToPredicateFn<'index> + ?Sized,
 {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
-        <T as ToPredicateFn<'repo>>::to_predicate_fn(self)
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
+        <T as ToPredicateFn<'index>>::to_predicate_fn(self)
     }
 }
 
-pub struct RevsetIterator<'revset, 'repo: 'revset> {
-    inner: Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>,
+pub struct RevsetIterator<'revset, 'index: 'revset> {
+    inner: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
 }
 
-impl<'revset, 'repo> RevsetIterator<'revset, 'repo> {
-    fn new(inner: Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>) -> Self {
+impl<'revset, 'index> RevsetIterator<'revset, 'index> {
+    fn new(inner: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>) -> Self {
         Self { inner }
     }
 
-    pub fn commit_ids(self) -> RevsetCommitIdIterator<'revset, 'repo> {
+    pub fn commit_ids(self) -> RevsetCommitIdIterator<'revset, 'index> {
         RevsetCommitIdIterator(self.inner)
     }
 
-    pub fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<'revset, 'repo> {
+    pub fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<'revset, 'index> {
         RevsetCommitIterator {
             iter: self.inner,
             store: store.clone(),
         }
     }
 
-    pub fn reversed(self) -> ReverseRevsetIterator<'repo> {
+    pub fn reversed(self) -> ReverseRevsetIterator<'index> {
         ReverseRevsetIterator {
             entries: self.into_iter().collect_vec(),
         }
     }
 
-    pub fn graph(self) -> RevsetGraphIterator<'revset, 'repo> {
+    pub fn graph(self) -> RevsetGraphIterator<'revset, 'index> {
         RevsetGraphIterator::new(self)
     }
 
-    fn into_predicate_fn(self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + 'revset> {
+    fn into_predicate_fn(self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + 'revset> {
         let mut iter = self.fuse().peekable();
         Box::new(move |entry| {
             while iter.next_if(|e| e.position() > entry.position()).is_some() {
@@ -1588,16 +1588,16 @@ impl<'revset, 'repo> RevsetIterator<'revset, 'repo> {
     }
 }
 
-impl<'repo> Iterator for RevsetIterator<'_, 'repo> {
-    type Item = IndexEntry<'repo>;
+impl<'index> Iterator for RevsetIterator<'_, 'index> {
+    type Item = IndexEntry<'index>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
 }
 
-pub struct RevsetCommitIdIterator<'revset, 'repo: 'revset>(
-    Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>,
+pub struct RevsetCommitIdIterator<'revset, 'index: 'revset>(
+    Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
 );
 
 impl Iterator for RevsetCommitIdIterator<'_, '_> {
@@ -1608,9 +1608,9 @@ impl Iterator for RevsetCommitIdIterator<'_, '_> {
     }
 }
 
-pub struct RevsetCommitIterator<'revset, 'repo: 'revset> {
+pub struct RevsetCommitIterator<'revset, 'index: 'revset> {
     store: Arc<Store>,
-    iter: Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>,
+    iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
 }
 
 impl Iterator for RevsetCommitIterator<'_, '_> {
@@ -1623,20 +1623,20 @@ impl Iterator for RevsetCommitIterator<'_, '_> {
     }
 }
 
-pub struct ReverseRevsetIterator<'repo> {
-    entries: Vec<IndexEntry<'repo>>,
+pub struct ReverseRevsetIterator<'index> {
+    entries: Vec<IndexEntry<'index>>,
 }
 
-impl<'repo> Iterator for ReverseRevsetIterator<'repo> {
-    type Item = IndexEntry<'repo>;
+impl<'index> Iterator for ReverseRevsetIterator<'index> {
+    type Item = IndexEntry<'index>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.entries.pop()
     }
 }
 
-struct EagerRevset<'repo> {
-    index_entries: Vec<IndexEntry<'repo>>,
+struct EagerRevset<'index> {
+    index_entries: Vec<IndexEntry<'index>>,
 }
 
 impl EagerRevset<'static> {
@@ -1647,54 +1647,54 @@ impl EagerRevset<'static> {
     }
 }
 
-impl<'repo> Revset<'repo> for EagerRevset<'repo> {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+impl<'index> Revset<'index> for EagerRevset<'index> {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
         RevsetIterator::new(Box::new(self.index_entries.iter().cloned()))
     }
 }
 
-impl<'repo> ToPredicateFn<'repo> for EagerRevset<'repo> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+impl<'index> ToPredicateFn<'index> for EagerRevset<'index> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         self.iter().into_predicate_fn()
     }
 }
 
-struct RevWalkRevset<'repo, T>
+struct RevWalkRevset<'index, T>
 where
-    // RevWalkRevset<'repo> appears to be needed to assert 'repo outlives 'a
+    // RevWalkRevset<'index> appears to be needed to assert 'index outlives 'a
     // in to_predicate_fn<'a>(&'a self) -> Box<dyn 'a>.
-    T: Iterator<Item = IndexEntry<'repo>>,
+    T: Iterator<Item = IndexEntry<'index>>,
 {
     walk: T,
 }
 
-impl<'repo, T> Revset<'repo> for RevWalkRevset<'repo, T>
+impl<'index, T> Revset<'index> for RevWalkRevset<'index, T>
 where
-    T: Iterator<Item = IndexEntry<'repo>> + Clone,
+    T: Iterator<Item = IndexEntry<'index>> + Clone,
 {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
         RevsetIterator::new(Box::new(self.walk.clone()))
     }
 }
 
-impl<'repo, T> ToPredicateFn<'repo> for RevWalkRevset<'repo, T>
+impl<'index, T> ToPredicateFn<'index> for RevWalkRevset<'index, T>
 where
-    T: Iterator<Item = IndexEntry<'repo>> + Clone,
+    T: Iterator<Item = IndexEntry<'index>> + Clone,
 {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         self.iter().into_predicate_fn()
     }
 }
 
-struct ChildrenRevset<'revset, 'repo: 'revset> {
+struct ChildrenRevset<'revset, 'index: 'revset> {
     // The revisions we want to find children for
-    root_set: Box<dyn Revset<'repo> + 'revset>,
+    root_set: Box<dyn Revset<'index> + 'revset>,
     // Consider only candidates from this set
-    candidate_set: Box<dyn Revset<'repo> + 'revset>,
+    candidate_set: Box<dyn Revset<'index> + 'revset>,
 }
 
-impl<'repo> Revset<'repo> for ChildrenRevset<'_, 'repo> {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+impl<'index> Revset<'index> for ChildrenRevset<'_, 'index> {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
         let roots: HashSet<_> = self
             .root_set
             .iter()
@@ -1712,33 +1712,33 @@ impl<'repo> Revset<'repo> for ChildrenRevset<'_, 'repo> {
     }
 }
 
-impl<'repo> ToPredicateFn<'repo> for ChildrenRevset<'_, 'repo> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+impl<'index> ToPredicateFn<'index> for ChildrenRevset<'_, 'index> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         // TODO: can be optimized if candidate_set contains all heads
         self.iter().into_predicate_fn()
     }
 }
 
-struct FilterRevset<'revset, 'repo: 'revset, P> {
-    candidates: Box<dyn Revset<'repo> + 'revset>,
+struct FilterRevset<'revset, 'index: 'revset, P> {
+    candidates: Box<dyn Revset<'index> + 'revset>,
     predicate: P,
 }
 
-impl<'repo, P> Revset<'repo> for FilterRevset<'_, 'repo, P>
+impl<'index, P> Revset<'index> for FilterRevset<'_, 'index, P>
 where
-    P: ToPredicateFn<'repo>,
+    P: ToPredicateFn<'index>,
 {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
         let p = self.predicate.to_predicate_fn();
         RevsetIterator::new(Box::new(self.candidates.iter().filter(p)))
     }
 }
 
-impl<'repo, P> ToPredicateFn<'repo> for FilterRevset<'_, 'repo, P>
+impl<'index, P> ToPredicateFn<'index> for FilterRevset<'_, 'index, P>
 where
-    P: ToPredicateFn<'repo>,
+    P: ToPredicateFn<'index>,
 {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         // TODO: optimize 'p1' out if candidates = All
         let mut p1 = self.candidates.to_predicate_fn();
         let mut p2 = self.predicate.to_predicate_fn();
@@ -1746,13 +1746,13 @@ where
     }
 }
 
-struct UnionRevset<'revset, 'repo: 'revset> {
-    set1: Box<dyn Revset<'repo> + 'revset>,
-    set2: Box<dyn Revset<'repo> + 'revset>,
+struct UnionRevset<'revset, 'index: 'revset> {
+    set1: Box<dyn Revset<'index> + 'revset>,
+    set2: Box<dyn Revset<'index> + 'revset>,
 }
 
-impl<'repo> Revset<'repo> for UnionRevset<'_, 'repo> {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+impl<'index> Revset<'index> for UnionRevset<'_, 'index> {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
         RevsetIterator::new(Box::new(UnionRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
@@ -1760,21 +1760,21 @@ impl<'repo> Revset<'repo> for UnionRevset<'_, 'repo> {
     }
 }
 
-impl<'repo> ToPredicateFn<'repo> for UnionRevset<'_, 'repo> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+impl<'index> ToPredicateFn<'index> for UnionRevset<'_, 'index> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         let mut p1 = self.set1.to_predicate_fn();
         let mut p2 = self.set2.to_predicate_fn();
         Box::new(move |entry| p1(entry) || p2(entry))
     }
 }
 
-struct UnionRevsetIterator<'revset, 'repo> {
-    iter1: Peekable<RevsetIterator<'revset, 'repo>>,
-    iter2: Peekable<RevsetIterator<'revset, 'repo>>,
+struct UnionRevsetIterator<'revset, 'index> {
+    iter1: Peekable<RevsetIterator<'revset, 'index>>,
+    iter2: Peekable<RevsetIterator<'revset, 'index>>,
 }
 
-impl<'revset, 'repo> Iterator for UnionRevsetIterator<'revset, 'repo> {
-    type Item = IndexEntry<'repo>;
+impl<'revset, 'index> Iterator for UnionRevsetIterator<'revset, 'index> {
+    type Item = IndexEntry<'index>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match (self.iter1.peek(), self.iter2.peek()) {
@@ -1792,13 +1792,13 @@ impl<'revset, 'repo> Iterator for UnionRevsetIterator<'revset, 'repo> {
     }
 }
 
-struct IntersectionRevset<'revset, 'repo: 'revset> {
-    set1: Box<dyn Revset<'repo> + 'revset>,
-    set2: Box<dyn Revset<'repo> + 'revset>,
+struct IntersectionRevset<'revset, 'index: 'revset> {
+    set1: Box<dyn Revset<'index> + 'revset>,
+    set2: Box<dyn Revset<'index> + 'revset>,
 }
 
-impl<'repo> Revset<'repo> for IntersectionRevset<'_, 'repo> {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+impl<'index> Revset<'index> for IntersectionRevset<'_, 'index> {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
         RevsetIterator::new(Box::new(IntersectionRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
@@ -1806,21 +1806,21 @@ impl<'repo> Revset<'repo> for IntersectionRevset<'_, 'repo> {
     }
 }
 
-impl<'repo> ToPredicateFn<'repo> for IntersectionRevset<'_, 'repo> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+impl<'index> ToPredicateFn<'index> for IntersectionRevset<'_, 'index> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         let mut p1 = self.set1.to_predicate_fn();
         let mut p2 = self.set2.to_predicate_fn();
         Box::new(move |entry| p1(entry) && p2(entry))
     }
 }
 
-struct IntersectionRevsetIterator<'revset, 'repo> {
-    iter1: Peekable<RevsetIterator<'revset, 'repo>>,
-    iter2: Peekable<RevsetIterator<'revset, 'repo>>,
+struct IntersectionRevsetIterator<'revset, 'index> {
+    iter1: Peekable<RevsetIterator<'revset, 'index>>,
+    iter2: Peekable<RevsetIterator<'revset, 'index>>,
 }
 
-impl<'revset, 'repo> Iterator for IntersectionRevsetIterator<'revset, 'repo> {
-    type Item = IndexEntry<'repo>;
+impl<'revset, 'index> Iterator for IntersectionRevsetIterator<'revset, 'index> {
+    type Item = IndexEntry<'index>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -1848,15 +1848,15 @@ impl<'revset, 'repo> Iterator for IntersectionRevsetIterator<'revset, 'repo> {
     }
 }
 
-struct DifferenceRevset<'revset, 'repo: 'revset> {
+struct DifferenceRevset<'revset, 'index: 'revset> {
     // The minuend (what to subtract from)
-    set1: Box<dyn Revset<'repo> + 'revset>,
+    set1: Box<dyn Revset<'index> + 'revset>,
     // The subtrahend (what to subtract)
-    set2: Box<dyn Revset<'repo> + 'revset>,
+    set2: Box<dyn Revset<'index> + 'revset>,
 }
 
-impl<'repo> Revset<'repo> for DifferenceRevset<'_, 'repo> {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+impl<'index> Revset<'index> for DifferenceRevset<'_, 'index> {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
         RevsetIterator::new(Box::new(DifferenceRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
@@ -1864,8 +1864,8 @@ impl<'repo> Revset<'repo> for DifferenceRevset<'_, 'repo> {
     }
 }
 
-impl<'repo> ToPredicateFn<'repo> for DifferenceRevset<'_, 'repo> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+impl<'index> ToPredicateFn<'index> for DifferenceRevset<'_, 'index> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         // TODO: optimize 'p1' out for unary negate?
         let mut p1 = self.set1.to_predicate_fn();
         let mut p2 = self.set2.to_predicate_fn();
@@ -1873,13 +1873,13 @@ impl<'repo> ToPredicateFn<'repo> for DifferenceRevset<'_, 'repo> {
     }
 }
 
-struct DifferenceRevsetIterator<'revset, 'repo> {
-    iter1: Peekable<RevsetIterator<'revset, 'repo>>,
-    iter2: Peekable<RevsetIterator<'revset, 'repo>>,
+struct DifferenceRevsetIterator<'revset, 'index> {
+    iter1: Peekable<RevsetIterator<'revset, 'index>>,
+    iter2: Peekable<RevsetIterator<'revset, 'index>>,
 }
 
-impl<'revset, 'repo> Iterator for DifferenceRevsetIterator<'revset, 'repo> {
-    type Item = IndexEntry<'repo>;
+impl<'revset, 'index> Iterator for DifferenceRevsetIterator<'revset, 'index> {
+    type Item = IndexEntry<'index>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -1915,11 +1915,11 @@ pub struct RevsetWorkspaceContext<'a> {
     pub workspace_root: &'a Path,
 }
 
-pub fn evaluate_expression<'repo>(
-    repo: &'repo dyn Repo,
+pub fn evaluate_expression<'index>(
+    repo: &'index dyn Repo,
     expression: &RevsetExpression,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
-) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
+) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
     match expression {
         RevsetExpression::None => Ok(Box::new(EagerRevset::empty())),
         RevsetExpression::All => {
@@ -2126,10 +2126,10 @@ pub fn evaluate_expression<'repo>(
     }
 }
 
-fn revset_for_commit_ids<'revset, 'repo: 'revset>(
-    repo: &'repo dyn Repo,
+fn revset_for_commit_ids<'revset, 'index: 'revset>(
+    repo: &'index dyn Repo,
     commit_ids: &[CommitId],
-) -> Box<dyn Revset<'repo> + 'revset> {
+) -> Box<dyn Revset<'index> + 'revset> {
     let index = repo.index();
     let mut index_entries = vec![];
     for id in commit_ids {
@@ -2140,10 +2140,10 @@ fn revset_for_commit_ids<'revset, 'repo: 'revset>(
     Box::new(EagerRevset { index_entries })
 }
 
-pub fn revset_for_commits<'revset, 'repo: 'revset>(
-    repo: &'repo dyn Repo,
+pub fn revset_for_commits<'revset, 'index: 'revset>(
+    repo: &'index dyn Repo,
     commits: &[&Commit],
-) -> Box<dyn Revset<'repo> + 'revset> {
+) -> Box<dyn Revset<'index> + 'revset> {
     let index = repo.index();
     let mut index_entries = commits
         .iter()
@@ -2153,18 +2153,18 @@ pub fn revset_for_commits<'revset, 'repo: 'revset>(
     Box::new(EagerRevset { index_entries })
 }
 
-type PurePredicateFn<'repo> = Box<dyn Fn(&IndexEntry<'repo>) -> bool + 'repo>;
+type PurePredicateFn<'index> = Box<dyn Fn(&IndexEntry<'index>) -> bool + 'index>;
 
-impl<'repo> ToPredicateFn<'repo> for PurePredicateFn<'repo> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+impl<'index> ToPredicateFn<'index> for PurePredicateFn<'index> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         Box::new(self)
     }
 }
 
-fn build_predicate_fn<'repo>(
-    repo: &'repo dyn Repo,
+fn build_predicate_fn<'index>(
+    repo: &'index dyn Repo,
     predicate: &RevsetFilterPredicate,
-) -> PurePredicateFn<'repo> {
+) -> PurePredicateFn<'index> {
     match predicate {
         RevsetFilterPredicate::ParentCount(parent_count_range) => {
             let parent_count_range = parent_count_range.clone();
@@ -2211,11 +2211,11 @@ fn build_predicate_fn<'repo>(
     }
 }
 
-pub fn filter_by_diff<'revset, 'repo: 'revset>(
-    repo: &'repo dyn Repo,
-    matcher: impl Borrow<dyn Matcher + 'repo> + 'repo,
-    candidates: Box<dyn Revset<'repo> + 'revset>,
-) -> Box<dyn Revset<'repo> + 'revset> {
+pub fn filter_by_diff<'revset, 'index: 'revset>(
+    repo: &'index dyn Repo,
+    matcher: impl Borrow<dyn Matcher + 'index> + 'index,
+    candidates: Box<dyn Revset<'index> + 'revset>,
+) -> Box<dyn Revset<'index> + 'revset> {
     Box::new(FilterRevset::<PurePredicateFn> {
         candidates,
         predicate: Box::new(move |entry| has_diff_from_parent(repo, entry, matcher.borrow())),
