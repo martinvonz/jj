@@ -23,7 +23,7 @@ use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
     self, optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,
-    RevsetWorkspaceContext,
+    RevsetIteratorExt, RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::workspace::Workspace;

@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::index::{IndexEntry, IndexPosition};
 use crate::nightly_shims::BTreeMapExt;
-use crate::revset::{Revset, RevsetIterator};
+use crate::revset::Revset;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct RevsetGraphEdge {
@@ -120,7 +120,7 @@ pub enum RevsetGraphEdgeType {
 // "D", but that would require extra book-keeping to remember for later that the
 // edges from "f" and "H" are only partially computed.
 pub struct RevsetGraphIterator<'revset, 'index> {
-    input_set_iter: RevsetIterator<'revset, 'index>,
+    input_set_iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
     // Commits in the input set we had to take out of the iterator while walking external
     // edges. Does not necessarily include the commit we're currently about to emit.
     look_ahead: BTreeMap<IndexPosition, IndexEntry<'index>>,

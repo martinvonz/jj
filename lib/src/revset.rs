@@ -1522,7 +1522,7 @@ pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
 
 pub trait Revset<'index>: ToPredicateFn<'index> {
     // All revsets currently iterate in order of descending index position
-    fn iter(&self) -> RevsetIterator<'_, 'index>;
+    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
 
     fn is_empty(&self) -> bool {
         self.iter().next().is_none()
@@ -1546,33 +1546,25 @@ where
     }
 }
 
-pub struct RevsetIterator<'revset, 'index: 'revset> {
-    inner: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
+pub trait RevsetIteratorExt<'index, I> {
+    fn commit_ids(self) -> RevsetCommitIdIterator<I>;
+    fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I>;
+    fn reversed(self) -> ReverseRevsetIterator<'index>;
 }
 
-impl<'revset, 'index> RevsetIterator<'revset, 'index> {
-    fn new(inner: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>) -> Self {
-        Self { inner }
-    }
-
-    pub fn commit_ids(self) -> RevsetCommitIdIterator<Self>
-    where
-        Self: Sized + Iterator<Item = IndexEntry<'index>>,
-    {
+impl<'index, I: Iterator<Item = IndexEntry<'index>>> RevsetIteratorExt<'index, I> for I {
+    fn commit_ids(self) -> RevsetCommitIdIterator<I> {
         RevsetCommitIdIterator(self)
     }
 
-    pub fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<Self>
-    where
-        Self: Sized + Iterator<Item = IndexEntry<'index>>,
-    {
+    fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I> {
         RevsetCommitIterator {
             iter: self,
             store: store.clone(),
         }
     }
 
-    pub fn reversed(self) -> ReverseRevsetIterator<'index> {
+    fn reversed(self) -> ReverseRevsetIterator<'index> {
         ReverseRevsetIterator {
             entries: self.into_iter().collect_vec(),
         }
@@ -1589,14 +1581,6 @@ fn predicate_fn_from_iter<'index, 'iter>(
         }
         iter.next_if(|e| e.position() == entry.position()).is_some()
     })
-}
-
-impl<'index> Iterator for RevsetIterator<'_, 'index> {
-    type Item = IndexEntry<'index>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
-    }
 }
 
 pub struct RevsetCommitIdIterator<I>(I);
@@ -1649,8 +1633,8 @@ impl EagerRevset<'static> {
 }
 
 impl<'index> Revset<'index> for EagerRevset<'index> {
-    fn iter(&self) -> RevsetIterator<'_, 'index> {
-        RevsetIterator::new(Box::new(self.index_entries.iter().cloned()))
+    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+        Box::new(self.index_entries.iter().cloned())
     }
 }
 
@@ -1673,8 +1657,8 @@ impl<'index, T> Revset<'index> for RevWalkRevset<'index, T>
 where
     T: Iterator<Item = IndexEntry<'index>> + Clone,
 {
-    fn iter(&self) -> RevsetIterator<'_, 'index> {
-        RevsetIterator::new(Box::new(self.walk.clone()))
+    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+        Box::new(self.walk.clone())
     }
 }
 
@@ -1695,21 +1679,19 @@ struct ChildrenRevset<'index> {
 }
 
 impl<'index> Revset<'index> for ChildrenRevset<'index> {
-    fn iter(&self) -> RevsetIterator<'_, 'index> {
+    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
         let roots: HashSet<_> = self
             .root_set
             .iter()
             .map(|parent| parent.position())
             .collect();
 
-        RevsetIterator::new(Box::new(self.candidate_set.iter().filter(
-            move |candidate| {
-                candidate
-                    .parent_positions()
-                    .iter()
-                    .any(|parent_pos| roots.contains(parent_pos))
-            },
-        )))
+        Box::new(self.candidate_set.iter().filter(move |candidate| {
+            candidate
+                .parent_positions()
+                .iter()
+                .any(|parent_pos| roots.contains(parent_pos))
+        }))
     }
 }
 
@@ -1729,9 +1711,9 @@ impl<'index, P> Revset<'index> for FilterRevset<'index, P>
 where
     P: ToPredicateFn<'index>,
 {
-    fn iter(&self) -> RevsetIterator<'_, 'index> {
+    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
         let p = self.predicate.to_predicate_fn();
-        RevsetIterator::new(Box::new(self.candidates.iter().filter(p)))
+        Box::new(self.candidates.iter().filter(p))
     }
 }
 
@@ -1753,11 +1735,11 @@ struct UnionRevset<'index> {
 }
 
 impl<'index> Revset<'index> for UnionRevset<'index> {
-    fn iter(&self) -> RevsetIterator<'_, 'index> {
-        RevsetIterator::new(Box::new(UnionRevsetIterator {
+    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+        Box::new(UnionRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
-        }))
+        })
     }
 }
 
@@ -1805,11 +1787,11 @@ struct IntersectionRevset<'index> {
 }
 
 impl<'index> Revset<'index> for IntersectionRevset<'index> {
-    fn iter(&self) -> RevsetIterator<'_, 'index> {
-        RevsetIterator::new(Box::new(IntersectionRevsetIterator {
+    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+        Box::new(IntersectionRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
-        }))
+        })
     }
 }
 
@@ -1869,11 +1851,11 @@ struct DifferenceRevset<'index> {
 }
 
 impl<'index> Revset<'index> for DifferenceRevset<'index> {
-    fn iter(&self) -> RevsetIterator<'_, 'index> {
-        RevsetIterator::new(Box::new(DifferenceRevsetIterator {
+    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+        Box::new(DifferenceRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
-        }))
+        })
     }
 }
 
