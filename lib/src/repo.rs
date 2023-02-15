@@ -81,7 +81,7 @@ impl<'a> RepoRef<'a> {
 
     pub fn index(&self) -> &'a dyn Index {
         match self {
-            RepoRef::Readonly(repo) => repo.index().as_ref(),
+            RepoRef::Readonly(repo) => repo.index(),
             RepoRef::Mutable(repo) => repo.index(),
         }
     }
@@ -265,11 +265,15 @@ impl ReadonlyRepo {
         &self.view
     }
 
-    pub fn index(&self) -> &Arc<ReadonlyIndex> {
+    pub fn readonly_index(&self) -> &Arc<ReadonlyIndex> {
         self.index.get_or_init(|| {
             self.index_store
                 .get_index_at_op(&self.operation, &self.store)
         })
+    }
+
+    pub fn index(&self) -> &dyn Index {
+        self.readonly_index().as_ref()
     }
 
     fn change_id_index(&self) -> &ChangeIdIndex {
@@ -321,7 +325,7 @@ impl ReadonlyRepo {
         user_settings: &UserSettings,
         description: &str,
     ) -> Transaction {
-        let mut_repo = MutableRepo::new(self.clone(), self.index().clone(), &self.view);
+        let mut_repo = MutableRepo::new(self.clone(), self.readonly_index().clone(), &self.view);
         Transaction::new(mut_repo, user_settings, description)
     }
 
@@ -975,8 +979,8 @@ impl MutableRepo {
         // merging the view. Merging in base_repo's index isn't typically
         // necessary, but it can be if base_repo is ahead of either self or other_repo
         // (e.g. because we're undoing an operation that hasn't been published).
-        self.index.merge_in(base_repo.index());
-        self.index.merge_in(other_repo.index());
+        self.index.merge_in(base_repo.readonly_index());
+        self.index.merge_in(other_repo.readonly_index());
 
         self.view.ensure_clean(|v| self.enforce_view_invariants(v));
         self.merge_view(&base_repo.view, &other_repo.view);

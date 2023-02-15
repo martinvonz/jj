@@ -10,7 +10,6 @@ use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
 use jujutsu_lib::backend::ObjectId;
 use jujutsu_lib::git::{self, GitFetchError, GitRefUpdate};
-use jujutsu_lib::index::Index;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jujutsu_lib::repo::RepoRef;
