@@ -107,17 +107,6 @@
                         }
                     }
                 },
-                "log-author-format": {
-                    "enum": [
-                        "none",
-                        "full",
-                        "name",
-                        "username",
-                        "email"
-                    ],
-                    "default": "email",
-                    "description": "Determines how author information is displayed in `jj log`"
-                },
                 "editor": {
                     "type": "string",
                     "description": "Editor to use for commands that involve editing text"
