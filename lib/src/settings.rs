@@ -164,12 +164,6 @@ impl UserSettings {
             .unwrap_or(false)
     }
 
-    pub fn log_author_format(&self) -> String {
-        self.config
-            .get_string("ui.log-author-format")
-            .unwrap_or_else(|_| "email".to_owned())
-    }
-
     pub fn config(&self) -> &config::Config {
         &self.config
     }

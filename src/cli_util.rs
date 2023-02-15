@@ -1544,21 +1544,6 @@ fn load_template_aliases(
 ) -> Result<TemplateAliasesMap, CommandError> {
     const TABLE_KEY: &str = "template-aliases";
     let mut aliases_map = TemplateAliasesMap::new();
-
-    // TODO: Reorganize default template aliases and config knobs:
-    // - remove these configs and let user override aliases?
-    // - separate namespace or config section for these "default" aliases? but how?
-    let signature_template = match settings.log_author_format().as_str() {
-        "none" => r#""""#,
-        "full" => "signature",
-        "name" => "signature.name()",
-        "username" => "signature.username()",
-        _ => "signature.email()",
-    };
-    aliases_map
-        .insert("format_short_signature(signature)", signature_template)
-        .unwrap();
-
     let table = settings.config().get_table(TABLE_KEY)?;
     for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
         let r = value

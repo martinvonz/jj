@@ -561,7 +561,7 @@ fn test_log_shortest_length_parameter() {
 }
 
 #[test]
-fn test_log_author_format_in_default_template() {
+fn test_log_author_format() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -574,88 +574,16 @@ fn test_log_author_format_in_default_template() {
     ~
     "###
     );
+
+    let decl = "template-aliases.'format_short_signature(signature)'";
     insta::assert_snapshot!(
         test_env.jj_cmd_success(
             &repo_path,
             &[
-                "--config-toml=ui.log-author-format=''",
+                "--config-toml",
+                &format!("{decl}='signature.username()'"),
                 "log",
                 "--revisions=@",
-            ],
-        ),
-        @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
-    │  (empty) (no description set)
-    ~
-    "###
-    );
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(
-            &repo_path,
-            &[
-                "--config-toml=ui.log-author-format='gibberish'",
-                "log",
-                "--revisions=@",
-            ],
-        ),
-        @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
-    │  (empty) (no description set)
-    ~
-    "###
-    );
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(
-            &repo_path,
-            &[
-                "--config-toml=ui.log-author-format='email'",
-                "log",
-                "--revisions=@",
-            ],
-        ),
-        @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
-    │  (empty) (no description set)
-    ~
-    "###
-    );
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(
-            &repo_path,
-            &[
-                "--config-toml=ui.log-author-format='none'",
-                "log",
-                "--revisions=@",
-            ],
-        ),
-        @r###"
-    @  qpvuntsmwlqt 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
-    │  (empty) (no description set)
-    ~
-    "###
-    );
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(
-            &repo_path,
-            &[
-                "--config-toml=ui.log-author-format='name'",
-                "log",
-                "--revisions=@"
-            ],
-        ),
-        @r###"
-    @  qpvuntsmwlqt Test User 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
-    │  (empty) (no description set)
-    ~
-    "###
-    );
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(
-            &repo_path,
-            &[
-                "--config-toml=ui.log-author-format='username'",
-                "log",
-                "--revisions=@"
             ],
         ),
         @r###"

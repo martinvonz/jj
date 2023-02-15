@@ -155,8 +155,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `author`/`committer` templates now support `.username()`, which leaves out the
   domain information of `.email()`.
 
-* It is now possible to change the author format of `jj log` with the new
-  `ui.log-author-format` option.
+* It is now possible to change the author format of `jj log` with the
+  `format_short_signature()` template alias. For details, see
+  [the documentation](docs/config.md).
 
 * Added support for template aliases. New symbols and functions can be
   configured by `template-aliases.<name> = <expression>`. Be aware that
