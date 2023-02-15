@@ -114,46 +114,45 @@ ui.graph.style = "square"
 
 ### Display of commit and change ids
 
-```toml
-ui.unique-prefixes = "brackets"  # Does not rely on color
-```
-
-Whether to highlight a unique prefix for commit & change ids. Possible
-values are `styled`, `brackets` and `none` (default: `styled`).
+Can be customized by the `format_short_id()` template alias.
 
 ```toml
-ui.log-id-preferred-length = 6
+[template-aliases]
+# Highlight unique prefix and show at least 12 characters (default)
+'format_short_id(id)' = 'id.shortest(12)'
+# Just the shortest possible unique prefix
+'format_short_id(id)' = 'id.shortest()'
+# Show unique prefix and the rest surrounded by brackets
+'format_short_id(id)' = 'id.shortest(12).prefix() "[" id.shortest(12).rest() "]"'
+# Always show 12 characters
+'format_short_id(id)' = 'id.short(12)'
 ```
-
-Determines the number of characters displayed for `jj log` for change or commit
-ids. The default is 12. If the `ui.unique-prefixes` option is not set to `none`,
-this option will be ignored if the number of characters it specifies is
-insufficient to print the entire unique prefix of an id.
-
-This option can be convenient to set on a per-repository level.
 
 ### Relative timestamps
 
-```toml
-ui.relative-timestamps = true
-```
+Can be customized by the `format_timestamp()` template alias.
 
-False by default, but setting to true will change timestamps to be rendered
-as `x days/hours/seconds ago` instead of being rendered as a full timestamp.
+```toml
+[template-aliases]
+# Full timestamp in ISO 8601 format (default)
+'format_timestamp(timestamp)' = 'timestamp'
+# Relative timestamp rendered as "x days/hours/seconds ago"
+'format_timestamp(timestamp)' = 'timestamp.ago()'
+```
 
 ### Author format
 
+Can be customized by the `format_short_signature()` template alias.
+
 ```toml
-ui.log-author-format = 'username'
+[template-aliases]
+# Full email address (default)
+'format_short_signature(signature)' = 'signature.email()'
+# Both name and email address
+'format_short_signature(signature)' = 'signature'
+# Username part of the email address
+'format_short_signature(signature)' = 'signature.username()'
 ```
-
-Supported values are,
-
-- `none` for no author information,
-- `full` for both the name and email,
-- `name` for just the name,
-- `username` for username part of the email,
-- (default) `email` (or any other gibberish for that matter) for the full email.
 
 ## Pager
 
