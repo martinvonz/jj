@@ -1523,7 +1523,7 @@ pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
 
 pub trait Revset<'index>: ToPredicateFn<'index> {
     // All revsets currently iterate in order of descending index position
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index>;
+    fn iter(&self) -> RevsetIterator<'_, 'index>;
 
     fn is_empty(&self) -> bool {
         self.iter().next().is_none()
@@ -1648,7 +1648,7 @@ impl EagerRevset<'static> {
 }
 
 impl<'index> Revset<'index> for EagerRevset<'index> {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
+    fn iter(&self) -> RevsetIterator<'_, 'index> {
         RevsetIterator::new(Box::new(self.index_entries.iter().cloned()))
     }
 }
@@ -1672,7 +1672,7 @@ impl<'index, T> Revset<'index> for RevWalkRevset<'index, T>
 where
     T: Iterator<Item = IndexEntry<'index>> + Clone,
 {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
+    fn iter(&self) -> RevsetIterator<'_, 'index> {
         RevsetIterator::new(Box::new(self.walk.clone()))
     }
 }
@@ -1694,7 +1694,7 @@ struct ChildrenRevset<'revset, 'index: 'revset> {
 }
 
 impl<'index> Revset<'index> for ChildrenRevset<'_, 'index> {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
+    fn iter(&self) -> RevsetIterator<'_, 'index> {
         let roots: HashSet<_> = self
             .root_set
             .iter()
@@ -1728,7 +1728,7 @@ impl<'index, P> Revset<'index> for FilterRevset<'_, 'index, P>
 where
     P: ToPredicateFn<'index>,
 {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
+    fn iter(&self) -> RevsetIterator<'_, 'index> {
         let p = self.predicate.to_predicate_fn();
         RevsetIterator::new(Box::new(self.candidates.iter().filter(p)))
     }
@@ -1752,7 +1752,7 @@ struct UnionRevset<'revset, 'index: 'revset> {
 }
 
 impl<'index> Revset<'index> for UnionRevset<'_, 'index> {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
+    fn iter(&self) -> RevsetIterator<'_, 'index> {
         RevsetIterator::new(Box::new(UnionRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
@@ -1798,7 +1798,7 @@ struct IntersectionRevset<'revset, 'index: 'revset> {
 }
 
 impl<'index> Revset<'index> for IntersectionRevset<'_, 'index> {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
+    fn iter(&self) -> RevsetIterator<'_, 'index> {
         RevsetIterator::new(Box::new(IntersectionRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
@@ -1856,7 +1856,7 @@ struct DifferenceRevset<'revset, 'index: 'revset> {
 }
 
 impl<'index> Revset<'index> for DifferenceRevset<'_, 'index> {
-    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'index> {
+    fn iter(&self) -> RevsetIterator<'_, 'index> {
         RevsetIterator::new(Box::new(DifferenceRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
