@@ -1548,15 +1548,6 @@ fn load_template_aliases(
     // TODO: Reorganize default template aliases and config knobs:
     // - remove these configs and let user override aliases?
     // - separate namespace or config section for these "default" aliases? but how?
-    let timestamp_template = if settings.relative_timestamps() {
-        "timestamp.ago()"
-    } else {
-        "timestamp"
-    };
-    aliases_map
-        .insert("format_timestamp(timestamp)", timestamp_template)
-        .unwrap();
-
     let signature_template = match settings.log_author_format().as_str() {
         "none" => r#""""#,
         "full" => "signature",
