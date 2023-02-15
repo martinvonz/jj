@@ -1555,13 +1555,19 @@ impl<'revset, 'index> RevsetIterator<'revset, 'index> {
         Self { inner }
     }
 
-    pub fn commit_ids(self) -> RevsetCommitIdIterator<'revset, 'index> {
-        RevsetCommitIdIterator(self.inner)
+    pub fn commit_ids(self) -> RevsetCommitIdIterator<Self>
+    where
+        Self: Sized + Iterator<Item = IndexEntry<'index>>,
+    {
+        RevsetCommitIdIterator(self)
     }
 
-    pub fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<'revset, 'index> {
+    pub fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<Self>
+    where
+        Self: Sized + Iterator<Item = IndexEntry<'index>>,
+    {
         RevsetCommitIterator {
-            iter: self.inner,
+            iter: self,
             store: store.clone(),
         }
     }
@@ -1591,11 +1597,9 @@ impl<'index> Iterator for RevsetIterator<'_, 'index> {
     }
 }
 
-pub struct RevsetCommitIdIterator<'revset, 'index: 'revset>(
-    Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
-);
+pub struct RevsetCommitIdIterator<I>(I);
 
-impl Iterator for RevsetCommitIdIterator<'_, '_> {
+impl<'index, I: Iterator<Item = IndexEntry<'index>>> Iterator for RevsetCommitIdIterator<I> {
     type Item = CommitId;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1603,12 +1607,12 @@ impl Iterator for RevsetCommitIdIterator<'_, '_> {
     }
 }
 
-pub struct RevsetCommitIterator<'revset, 'index: 'revset> {
+pub struct RevsetCommitIterator<I> {
     store: Arc<Store>,
-    iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
+    iter: I,
 }
 
-impl Iterator for RevsetCommitIterator<'_, '_> {
+impl<'index, I: Iterator<Item = IndexEntry<'index>>> Iterator for RevsetCommitIterator<I> {
     type Item = BackendResult<Commit>;
 
     fn next(&mut self) -> Option<Self::Item> {
