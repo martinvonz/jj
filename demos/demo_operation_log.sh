@@ -25,24 +25,28 @@ run_command "jj describe -m \"other stuff\""
 
 comment "The repo now looks like this:"
 run_command "jj log"
-comment "And the operation log looks like this:"
+comment "The most recent portion of the operation log
+is:"
 run_command "jj op log --color=always | head"
 
 comment "Let's undo that rebase operation:"
 rebase_op=$(jj --color=never op log | grep 'o ' | sed '3q;d' | cut -b4-15)
 run_command "jj undo $rebase_op"
 
-comment "The \"stuff\" change is now back on master as
-expected:"
+comment "Note that only the rebase was undone, and the
+subsequent \"other stuff\" change was not undone:"
 run_command "jj log"
 
 comment "We can also see what the repo looked like
 after the rebase operation:"
 run_command "jj --at-op $rebase_op log"
 
-comment "Looks nice, let's go back to that point:"
+comment "Let's say we instead want to go back to the
+state of the repo right after the rebase:"
 run_command "jj op restore $rebase_op"
 
+# TODO: Explain and demo that undo and restore are also recorded? Remove demo
+# of --at-op?
 comment "We're now back to before the \"other stuff\"
 change existed:"
 run_command "jj log"
