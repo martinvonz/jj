@@ -71,27 +71,23 @@ fn cmd_op_log(
                 metadata.hostname
             )?;
             formatter.write_str(" ")?;
-            formatter.with_label("time", |formatter| {
-                formatter.write_str(
-                    &(if self.relative_timestamps {
-                        let mut f = timeago::Formatter::new();
-                        f.min_unit(timeago::TimeUnit::Microseconds).ago("");
-                        let mut duration =
-                            format_duration(&metadata.start_time, &metadata.end_time, &f);
-                        if duration == "now" {
-                            duration = "less than a microsecond".to_string()
-                        }
-                        let start = format_timestamp_relative_to_now(&metadata.start_time);
-                        format!("{start}, lasted {duration}",)
-                    } else {
-                        format!(
-                            "{} - {}",
-                            format_absolute_timestamp(&metadata.start_time),
-                            format_absolute_timestamp(&metadata.end_time)
-                        )
-                    }),
-                )
-            })?;
+            if self.relative_timestamps {
+                let mut f = timeago::Formatter::new();
+                f.min_unit(timeago::TimeUnit::Microseconds).ago("");
+                let mut duration = format_duration(&metadata.start_time, &metadata.end_time, &f);
+                if duration == "now" {
+                    duration = "less than a microsecond".to_string()
+                }
+                let start = format_timestamp_relative_to_now(&metadata.start_time);
+                write!(formatter.labeled("time"), "{start}, lasted {duration}")?;
+            } else {
+                write!(
+                    formatter.labeled("time"),
+                    "{} - {}",
+                    format_absolute_timestamp(&metadata.start_time),
+                    format_absolute_timestamp(&metadata.end_time)
+                )?;
+            }
             formatter.write_str("\n")?;
             write!(
                 formatter.labeled("description"),
