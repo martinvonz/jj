@@ -17,7 +17,7 @@ use std::sync::Arc;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::index::{Index, ReadonlyIndex};
+use jujutsu_lib::index::{Index};
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, StoreFactories};
 use jujutsu_lib::settings::UserSettings;
 use test_case::test_case;
@@ -32,7 +32,7 @@ fn child_commit<'repo>(
 }
 
 // Helper just to reduce line wrapping
-fn generation_number(index: &Arc<ReadonlyIndex>, commit_id: &CommitId) -> u32 {
+fn generation_number(index: &dyn Index, commit_id: &CommitId) -> u32 {
     index.entry_by_id(commit_id).unwrap().generation_number()
 }
 

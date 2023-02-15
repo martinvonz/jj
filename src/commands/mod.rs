@@ -1818,7 +1818,7 @@ fn cmd_duplicate(
 
     let mut tx = workspace_command
         .start_transaction(&format!("duplicating {} commit(s)", to_duplicate.len()));
-    let index = tx.base_repo().index().clone();
+    let index = tx.base_repo().readonly_index().clone();
     let store = tx.base_repo().store().clone();
     let mut_repo = tx.mut_repo();
 

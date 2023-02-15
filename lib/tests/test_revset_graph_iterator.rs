@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jujutsu_lib::index::Index;
 use jujutsu_lib::revset::revset_for_commits;
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdge;
 use test_case::test_case;
