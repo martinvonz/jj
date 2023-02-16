@@ -17,11 +17,19 @@ e.g. `user.name = "YOUR NAME"` is equivalent to:
 name = "YOUR NAME"
 ```
 
-Headings only need to be set once in the real config file but Jujutsu favors the
-dotted style in these instructions, if only because it's easier to write down in
-an unconfusing way. If you are confident with TOML then use whichever suits you
-in your config. If you mix the styles, put the dotted keys before the first
-heading.
+For a more complicated example,
+
+```toml
+[template-aliases]
+"format_short_id(id)" = "id.shortest(12)"
+```
+
+is equivalent to `template-aliases."format_short_id(id)" = "id.shortest(12)"`.
+
+Jujutsu favors the dotted style in these instructions, if only because it's
+easier to write down in an unconfusing way. If you are confident with TOML
+then use whichever suits you in your config. If you mix dotted keys and headings,
+**put the dotted keys before the first heading**.
 
 The other thing to remember is that the value of a setting (the part to the
 right of the `=` sign) should be surrounded in quotes if it's a string. That's
