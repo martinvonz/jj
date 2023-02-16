@@ -3,6 +3,7 @@
 These are the config settings available to jj/Jujutsu.
 
 
+## Config files and TOML
 
 The config settings are loaded from the following locations. Less common ways to
 specify `jj` config settings are discussed in a later section.
@@ -10,9 +11,17 @@ specify `jj` config settings are discussed in a later section.
 * `~/.jjconfig.toml` (global)
 * `.jj/repo/config.toml` (per-repository)
 
-See the [TOML site](https://toml.io/en/) for more on syntax. One thing to
-remember is that anything under a heading can be dotted
-e.g. `user.name = "YOUR NAME"` is equivalent to:
+See the [TOML site] and the [syntax guide] for a description of the syntax.
+
+[TOML site]: https://toml.io/en/
+[syntax guide]: https://toml.io/en/v1.0.0
+
+The first thing to remember is that the value of a setting (the part to the
+right of the `=` sign) should be surrounded in quotes if it's a string.
+
+### Dotted style and headings
+In TOML, anything under a heading can be dotted instead. For example,
+`user.name = "YOUR NAME"` is equivalent to:
 
 ```toml
 [user]
@@ -39,12 +48,9 @@ easier to write down in an unconfusing way. If you are confident with TOML
 then use whichever suits you in your config. If you mix dotted keys and headings,
 **put the dotted keys before the first heading**.
 
-The other thing to remember is that the value of a setting (the part to the
-right of the `=` sign) should be surrounded in quotes if it's a string. That's
-probably enough TOML to keep you out of trouble but the [syntax guide] is very
-short if you ever need to check.
+That's probably enough TOML to keep you out of trouble but the [syntax guide] is
+very short if you ever need to check.
 
-[syntax guide]: https://toml.io/en/v1.0.0
 
 ## User settings
 
