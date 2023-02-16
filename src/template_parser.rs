@@ -753,7 +753,7 @@ fn split_email(email: &str) -> (&str, Option<&str>) {
 
 fn build_method_call<'a, I: 'a>(
     method: &MethodCallNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
 ) -> TemplateParseResult<Expression<'a, I>> {
     match build_expression(&method.object, build_keyword)? {
         Expression::Property(PropertyAndLabels(property, mut labels)) => {
@@ -802,7 +802,7 @@ fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
 fn build_string_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = String> + 'a,
     function: &FunctionCallNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     let property = match function.name {
         "contains" => {
@@ -831,7 +831,7 @@ fn build_string_method<'a, I: 'a>(
 fn build_boolean_method<'a, I: 'a>(
     _self_property: impl TemplateProperty<I, Output = bool> + 'a,
     function: &FunctionCallNode,
-    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     Err(TemplateParseError::no_such_method("Boolean", function))
 }
@@ -839,7 +839,7 @@ fn build_boolean_method<'a, I: 'a>(
 fn build_integer_method<'a, I: 'a>(
     _self_property: impl TemplateProperty<I, Output = i64> + 'a,
     function: &FunctionCallNode,
-    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     Err(TemplateParseError::no_such_method("Integer", function))
 }
@@ -847,7 +847,7 @@ fn build_integer_method<'a, I: 'a>(
 fn build_commit_or_change_id_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a,
     function: &FunctionCallNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     let parse_optional_integer = |function| -> Result<Option<_>, TemplateParseError> {
         let ([], [len_node]) = expect_arguments(function)?;
@@ -893,7 +893,7 @@ fn build_commit_or_change_id_method<'a, I: 'a>(
 fn build_shortest_id_prefix_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = ShortestIdPrefix> + 'a,
     function: &FunctionCallNode,
-    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     let property = match function.name {
         "prefix" => {
@@ -923,7 +923,7 @@ fn build_shortest_id_prefix_method<'a, I: 'a>(
 fn build_signature_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = Signature> + 'a,
     function: &FunctionCallNode,
-    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     let property = match function.name {
         "name" => {
@@ -965,7 +965,7 @@ fn build_signature_method<'a, I: 'a>(
 fn build_timestamp_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = Timestamp> + 'a,
     function: &FunctionCallNode,
-    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
     let property = match function.name {
         "ago" => {
@@ -982,7 +982,7 @@ fn build_timestamp_method<'a, I: 'a>(
 
 fn build_global_function<'a, C: 'a>(
     function: &FunctionCallNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, C>>,
 ) -> TemplateParseResult<Expression<'a, C>> {
     let expression = match function.name {
         "label" => {
@@ -1034,7 +1034,7 @@ fn build_commit_keyword<'a>(
     workspace_id: &WorkspaceId,
     name: &str,
     span: pest::Span,
-) -> TemplateParseResult<PropertyAndLabels<'a, Commit>> {
+) -> TemplateParseResult<Property<'a, Commit>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Commit) -> O + 'a,
     ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'a> {
@@ -1074,17 +1074,19 @@ fn build_commit_keyword<'a>(
         })),
         _ => return Err(TemplateParseError::no_such_keyword(name, span)),
     };
-    Ok(PropertyAndLabels(property, vec![name.to_owned()]))
+    Ok(property)
 }
 
 /// Builds template evaluation tree from AST nodes.
 fn build_expression<'a, C: 'a>(
     node: &ExpressionNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<PropertyAndLabels<'a, C>>,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, C>>,
 ) -> TemplateParseResult<Expression<'a, C>> {
     match &node.kind {
         ExpressionKind::Identifier(name) => {
-            Ok(Expression::Property(build_keyword(name, node.span)?))
+            let property = build_keyword(name, node.span)?;
+            let labels = vec![(*name).to_owned()];
+            Ok(Expression::Property(PropertyAndLabels(property, labels)))
         }
         ExpressionKind::Integer(value) => {
             let term = PropertyAndLabels(Property::Integer(Box::new(Literal(*value))), vec![]);
