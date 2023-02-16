@@ -33,8 +33,10 @@ then use whichever suits you in your config. If you mix dotted keys and headings
 
 The other thing to remember is that the value of a setting (the part to the
 right of the `=` sign) should be surrounded in quotes if it's a string. That's
-probably enough TOML to keep you out of trouble but the syntax guide is very
+probably enough TOML to keep you out of trouble but the [syntax guide] is very
 short if you ever need to check.
+
+[syntax guide]: https://toml.io/en/v1.0.0
 
 ## User settings
 
