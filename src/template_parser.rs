@@ -581,6 +581,18 @@ fn expand_aliases<'i>(
     expand_node(node, state)
 }
 
+/// Callbacks to build language-specific evaluation objects from AST nodes.
+trait TemplateLanguage<'a> {
+    type Context: 'a;
+    // TODO: type Property;
+
+    fn build_keyword(
+        &self,
+        name: &str,
+        span: pest::Span,
+    ) -> TemplateParseResult<Property<'a, Self::Context>>;
+}
+
 enum Property<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
@@ -742,13 +754,13 @@ fn split_email(email: &str) -> (&str, Option<&str>) {
     }
 }
 
-fn build_method_call<'a, I: 'a>(
+fn build_method_call<'a, L: TemplateLanguage<'a>>(
+    language: &L,
     method: &MethodCallNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
-) -> TemplateParseResult<Expression<'a, I>> {
-    match build_expression(&method.object, build_keyword)? {
+) -> TemplateParseResult<Expression<'a, L::Context>> {
+    match build_expression(language, &method.object)? {
         Expression::Property(property, mut labels) => {
-            let property = build_core_method(property, &method.function, build_keyword)?;
+            let property = build_core_method(language, property, &method.function)?;
             labels.push(method.function.name.to_owned());
             Ok(Expression::Property(property, labels))
         }
@@ -768,36 +780,36 @@ fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
     }))
 }
 
-fn build_core_method<'a, I: 'a>(
-    property: Property<'a, I>,
+fn build_core_method<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    property: Property<'a, L::Context>,
     function: &FunctionCallNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
-) -> TemplateParseResult<Property<'a, I>> {
+) -> TemplateParseResult<Property<'a, L::Context>> {
     match property {
-        Property::String(property) => build_string_method(property, function, build_keyword),
-        Property::Boolean(property) => build_boolean_method(property, function, build_keyword),
-        Property::Integer(property) => build_integer_method(property, function, build_keyword),
+        Property::String(property) => build_string_method(language, property, function),
+        Property::Boolean(property) => build_boolean_method(language, property, function),
+        Property::Integer(property) => build_integer_method(language, property, function),
         Property::CommitOrChangeId(property) => {
-            build_commit_or_change_id_method(property, function, build_keyword)
+            build_commit_or_change_id_method(language, property, function)
         }
         Property::ShortestIdPrefix(property) => {
-            build_shortest_id_prefix_method(property, function, build_keyword)
+            build_shortest_id_prefix_method(language, property, function)
         }
-        Property::Signature(property) => build_signature_method(property, function, build_keyword),
-        Property::Timestamp(property) => build_timestamp_method(property, function, build_keyword),
+        Property::Signature(property) => build_signature_method(language, property, function),
+        Property::Timestamp(property) => build_timestamp_method(language, property, function),
     }
 }
 
-fn build_string_method<'a, I: 'a>(
-    self_property: impl TemplateProperty<I, Output = String> + 'a,
+fn build_string_method<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    self_property: impl TemplateProperty<L::Context, Output = String> + 'a,
     function: &FunctionCallNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
-) -> TemplateParseResult<Property<'a, I>> {
+) -> TemplateParseResult<Property<'a, L::Context>> {
     let property = match function.name {
         "contains" => {
             let [needle_node] = expect_exact_arguments(function)?;
             // TODO: or .try_into_string() to disable implicit type cast?
-            let needle_property = build_expression(needle_node, build_keyword)?.into_plain_text();
+            let needle_property = build_expression(language, needle_node)?.into_plain_text();
             Property::Boolean(chain_properties(
                 (self_property, needle_property),
                 TemplatePropertyFn(|(haystack, needle): &(String, String)| {
@@ -817,32 +829,32 @@ fn build_string_method<'a, I: 'a>(
     Ok(property)
 }
 
-fn build_boolean_method<'a, I: 'a>(
-    _self_property: impl TemplateProperty<I, Output = bool> + 'a,
+fn build_boolean_method<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    _self_property: impl TemplateProperty<L::Context, Output = bool> + 'a,
     function: &FunctionCallNode,
-    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
-) -> TemplateParseResult<Property<'a, I>> {
+) -> TemplateParseResult<Property<'a, L::Context>> {
     Err(TemplateParseError::no_such_method("Boolean", function))
 }
 
-fn build_integer_method<'a, I: 'a>(
-    _self_property: impl TemplateProperty<I, Output = i64> + 'a,
+fn build_integer_method<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    _self_property: impl TemplateProperty<L::Context, Output = i64> + 'a,
     function: &FunctionCallNode,
-    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
-) -> TemplateParseResult<Property<'a, I>> {
+) -> TemplateParseResult<Property<'a, L::Context>> {
     Err(TemplateParseError::no_such_method("Integer", function))
 }
 
-fn build_commit_or_change_id_method<'a, I: 'a>(
-    self_property: impl TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a,
+fn build_commit_or_change_id_method<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    self_property: impl TemplateProperty<L::Context, Output = CommitOrChangeId<'a>> + 'a,
     function: &FunctionCallNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
-) -> TemplateParseResult<Property<'a, I>> {
+) -> TemplateParseResult<Property<'a, L::Context>> {
     let parse_optional_integer = |function| -> Result<Option<_>, TemplateParseError> {
         let ([], [len_node]) = expect_arguments(function)?;
         len_node
             .map(|node| {
-                build_expression(node, build_keyword).and_then(|p| {
+                build_expression(language, node).and_then(|p| {
                     p.try_into_integer().ok_or_else(|| {
                         TemplateParseError::invalid_argument_type("Integer", node.span)
                     })
@@ -879,11 +891,11 @@ fn build_commit_or_change_id_method<'a, I: 'a>(
     Ok(property)
 }
 
-fn build_shortest_id_prefix_method<'a, I: 'a>(
-    self_property: impl TemplateProperty<I, Output = ShortestIdPrefix> + 'a,
+fn build_shortest_id_prefix_method<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    self_property: impl TemplateProperty<L::Context, Output = ShortestIdPrefix> + 'a,
     function: &FunctionCallNode,
-    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
-) -> TemplateParseResult<Property<'a, I>> {
+) -> TemplateParseResult<Property<'a, L::Context>> {
     let property = match function.name {
         "prefix" => {
             expect_no_arguments(function)?;
@@ -909,11 +921,11 @@ fn build_shortest_id_prefix_method<'a, I: 'a>(
     Ok(property)
 }
 
-fn build_signature_method<'a, I: 'a>(
-    self_property: impl TemplateProperty<I, Output = Signature> + 'a,
+fn build_signature_method<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    self_property: impl TemplateProperty<L::Context, Output = Signature> + 'a,
     function: &FunctionCallNode,
-    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
-) -> TemplateParseResult<Property<'a, I>> {
+) -> TemplateParseResult<Property<'a, L::Context>> {
     let property = match function.name {
         "name" => {
             expect_no_arguments(function)?;
@@ -951,11 +963,11 @@ fn build_signature_method<'a, I: 'a>(
     Ok(property)
 }
 
-fn build_timestamp_method<'a, I: 'a>(
-    self_property: impl TemplateProperty<I, Output = Timestamp> + 'a,
+fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    self_property: impl TemplateProperty<L::Context, Output = Timestamp> + 'a,
     function: &FunctionCallNode,
-    _build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
-) -> TemplateParseResult<Property<'a, I>> {
+) -> TemplateParseResult<Property<'a, L::Context>> {
     let property = match function.name {
         "ago" => {
             expect_no_arguments(function)?;
@@ -969,15 +981,15 @@ fn build_timestamp_method<'a, I: 'a>(
     Ok(property)
 }
 
-fn build_global_function<'a, C: 'a>(
+fn build_global_function<'a, L: TemplateLanguage<'a>>(
+    language: &L,
     function: &FunctionCallNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, C>>,
-) -> TemplateParseResult<Expression<'a, C>> {
+) -> TemplateParseResult<Expression<'a, L::Context>> {
     let expression = match function.name {
         "label" => {
             let [label_node, content_node] = expect_exact_arguments(function)?;
-            let label_property = build_expression(label_node, build_keyword)?.into_plain_text();
-            let content = build_expression(content_node, build_keyword)?.into_template();
+            let label_property = build_expression(language, label_node)?.into_plain_text();
+            let content = build_expression(language, content_node)?.into_template();
             let labels = TemplateFunction::new(label_property, |s| {
                 s.split_whitespace().map(ToString::to_string).collect()
             });
@@ -986,14 +998,14 @@ fn build_global_function<'a, C: 'a>(
         }
         "if" => {
             let ([condition_node, true_node], [false_node]) = expect_arguments(function)?;
-            let condition = build_expression(condition_node, build_keyword)?
+            let condition = build_expression(language, condition_node)?
                 .try_into_boolean()
                 .ok_or_else(|| {
                     TemplateParseError::invalid_argument_type("Boolean", condition_node.span)
                 })?;
-            let true_template = build_expression(true_node, build_keyword)?.into_template();
+            let true_template = build_expression(language, true_node)?.into_template();
             let false_template = false_node
-                .map(|node| build_expression(node, build_keyword))
+                .map(|node| build_expression(language, node))
                 .transpose()?
                 .map(|x| x.into_template());
             let template = Box::new(ConditionalTemplate::new(
@@ -1005,10 +1017,10 @@ fn build_global_function<'a, C: 'a>(
         }
         "separate" => {
             let ([separator_node], content_nodes) = expect_some_arguments(function)?;
-            let separator = build_expression(separator_node, build_keyword)?.into_template();
+            let separator = build_expression(language, separator_node)?.into_template();
             let contents = content_nodes
                 .iter()
-                .map(|node| build_expression(node, build_keyword).map(|x| x.into_template()))
+                .map(|node| build_expression(language, node).map(|x| x.into_template()))
                 .try_collect()?;
             let template = Box::new(SeparateTemplate::new(separator, contents));
             Expression::Template(template)
@@ -1019,8 +1031,7 @@ fn build_global_function<'a, C: 'a>(
 }
 
 fn build_commit_keyword<'a>(
-    repo: &'a dyn Repo,
-    workspace_id: &WorkspaceId,
+    language: &CommitTemplateLanguage<'a, '_>,
     name: &str,
     span: pest::Span,
 ) -> TemplateParseResult<Property<'a, Commit>> {
@@ -1029,6 +1040,7 @@ fn build_commit_keyword<'a>(
     ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'a> {
         Box::new(TemplatePropertyFn(f))
     }
+    let repo = language.repo;
     let property = match name {
         "description" => Property::String(wrap_fn(|commit| {
             cli_util::complete_newline(commit.description())
@@ -1043,7 +1055,7 @@ fn build_commit_keyword<'a>(
         "committer" => Property::Signature(wrap_fn(|commit| commit.committer().clone())),
         "working_copies" => Property::String(Box::new(WorkingCopiesProperty { repo })),
         "current_working_copy" => {
-            let workspace_id = workspace_id.clone();
+            let workspace_id = language.workspace_id.clone();
             Property::Boolean(wrap_fn(move |commit| {
                 Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id)
             }))
@@ -1067,13 +1079,13 @@ fn build_commit_keyword<'a>(
 }
 
 /// Builds template evaluation tree from AST nodes.
-fn build_expression<'a, C: 'a>(
+fn build_expression<'a, L: TemplateLanguage<'a>>(
+    language: &L,
     node: &ExpressionNode,
-    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, C>>,
-) -> TemplateParseResult<Expression<'a, C>> {
+) -> TemplateParseResult<Expression<'a, L::Context>> {
     match &node.kind {
         ExpressionKind::Identifier(name) => {
-            let property = build_keyword(name, node.span)?;
+            let property = language.build_keyword(name, node.span)?;
             let labels = vec![(*name).to_owned()];
             Ok(Expression::Property(property, labels))
         }
@@ -1088,36 +1100,65 @@ fn build_expression<'a, C: 'a>(
         ExpressionKind::List(nodes) => {
             let templates = nodes
                 .iter()
-                .map(|node| build_expression(node, build_keyword).map(|x| x.into_template()))
+                .map(|node| build_expression(language, node).map(|x| x.into_template()))
                 .try_collect()?;
             Ok(Expression::Template(Box::new(ListTemplate(templates))))
         }
-        ExpressionKind::FunctionCall(function) => build_global_function(function, build_keyword),
-        ExpressionKind::MethodCall(method) => build_method_call(method, build_keyword),
-        ExpressionKind::AliasExpanded(id, subst) => build_expression(subst, build_keyword)
-            .map_err(|e| e.within_alias_expansion(*id, node.span)),
+        ExpressionKind::FunctionCall(function) => build_global_function(language, function),
+        ExpressionKind::MethodCall(method) => build_method_call(language, method),
+        ExpressionKind::AliasExpanded(id, subst) => {
+            build_expression(language, subst).map_err(|e| e.within_alias_expansion(*id, node.span))
+        }
     }
 }
 
-// TODO: We'll probably need a trait that abstracts the Property enum and
-// keyword/method parsing functions per the top-level context.
+struct CommitTemplateLanguage<'a, 'b> {
+    repo: &'a dyn Repo,
+    workspace_id: &'b WorkspaceId,
+}
+
+impl<'a> TemplateLanguage<'a> for CommitTemplateLanguage<'a, '_> {
+    type Context = Commit;
+
+    fn build_keyword(
+        &self,
+        name: &str,
+        span: pest::Span,
+    ) -> TemplateParseResult<Property<'a, Self::Context>> {
+        build_commit_keyword(self, name, span)
+    }
+}
+
 pub fn parse_commit_template<'a>(
     repo: &'a dyn Repo,
     workspace_id: &WorkspaceId,
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'a>> {
+    let language = CommitTemplateLanguage { repo, workspace_id };
     let node = parse_template(template_text)?;
     let node = expand_aliases(node, aliases_map)?;
-    let expression = build_expression(&node, &|name, span| {
-        build_commit_keyword(repo, workspace_id, name, span)
-    })?;
+    let expression = build_expression(&language, &node)?;
     Ok(expression.into_template())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct MinimalTemplateLanguage;
+
+    impl TemplateLanguage<'static> for MinimalTemplateLanguage {
+        type Context = ();
+
+        fn build_keyword(
+            &self,
+            name: &str,
+            span: pest::Span,
+        ) -> TemplateParseResult<Property<'static, Self::Context>> {
+            Err(TemplateParseError::no_such_keyword(name, span))
+        }
+    }
 
     #[derive(Debug)]
     struct WithTemplateAliasesMap(TemplateAliasesMap);
@@ -1146,11 +1187,9 @@ mod tests {
         WithTemplateAliasesMap(aliases_map)
     }
 
-    fn parse(template_text: &str) -> TemplateParseResult<Expression<()>> {
+    fn parse(template_text: &str) -> TemplateParseResult<Expression<'static, ()>> {
         let node = parse_template(template_text)?;
-        build_expression(&node, &|name, span| {
-            Err(TemplateParseError::no_such_keyword(name, span))
-        })
+        build_expression(&MinimalTemplateLanguage, &node)
     }
 
     fn parse_normalized(template_text: &str) -> TemplateParseResult<ExpressionNode> {
