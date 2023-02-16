@@ -46,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Use the `format_timestamp()` template alias instead. For details, see
   [the documentation](docs/config.md).
 
+* `jj op log` now shows relative timestamps by default. To disable, set `ui.relative-timestamps` to `false`.
+
 * The global `--no-commit-working-copy` is now called `--ignore-working-copy`.
 
 * The `diff.format` config option is now called `ui.diff.format`. The old name
@@ -84,8 +86,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This can be prevented by the new `--quiet` option.
 
 * Per-repository configuration is now read from `.jj/repo/config.toml`.
-
-* The `ui.relative-timestamps` option now affects `jj op log`.
 
 * Background colors, bold text, and underlining are now supported. You can set
   e.g. `color.error = { bg = "red", bold = true, underline = true }` in your
