@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+### New features
+
+### Fixed bugs
+
+## [0.7.0] - 2023-02-16
+
+### Breaking changes
+
 * The minimum supported Rust version (MSRV) is now 1.61.0.
 
 * The `jj touchup` command was renamed to `jj diffedit`.
@@ -197,11 +205,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Thanks to the people who made this release happen!
 
- * Martin von Zweigbergk (@martinvonz)
- * Danny Hooper (hooper@google.com)
- * Yuya Nishihara (@yuja)
- * Ilya Grigoriev (@ilyagr)
+ * Aleksandr Mikhailov (@AM5800)
+ * Augie Fackler (@durin42)
+ * Benjamin Saunders (@Ralith)
+ * Daniel Ploch (@torquestomp)
+ * Danny Hooper (@hooper)
  * David Barnett (@dbarnett)
+ * Glen Choo (@chooglen)
+ * Herby Gillot (@herbygillot)
+ * Ilya Grigoriev (@ilyagr)
+ * Luke Granger-Brown (@lukegb)
+ * Martin von Zweigbergk (@martinvonz)
+ * Michael Forster (@MForster)
+ * Philip Metzger (@PhilipMetzger)
+ * Ruben Slabbert (@rslabbert)
+ * Samuel Tardieu (@samueltardieu)
+ * Tal Pressman (@talpr)
+ * Vamsi Avula (@avamsi)
+ * Waleed Khan (@arxanas)
+ * Yuya Nishihara (@yuja)
 
 ## [0.6.1] - 2022-12-05
 
