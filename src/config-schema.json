@@ -53,8 +53,8 @@
                 },
                 "relative-timestamps": {
                     "type": "boolean",
-                    "description": "Whether to change timestamps to be rendered as a relative description instead of a full timestamp",
-                    "default": false
+                    "description": "Whether to change timestamps in the op log to be rendered as a relative description instead of a full timestamp",
+                    "default": true
                 },
                 "default-revset": {
                     "type": "string",

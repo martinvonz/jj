@@ -27,7 +27,10 @@ fn test_op_log() {
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 0"]);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["op", "log", "--config-toml", "ui.relative-timestamps=false"],
+    );
     insta::assert_snapshot!(&stdout, @r###"
     @  45108169c0f8 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
@@ -38,10 +41,7 @@ fn test_op_log() {
        initialize repo
     "###);
     // Test op log with relative dates
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &["op", "log", "--config-toml", "ui.relative-timestamps=true"],
-    );
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     let regex = Regex::new(r"\d\d years").unwrap();
     insta::assert_snapshot!(regex.replace_all(&stdout, "NN years"), @r###"
     @  45108169c0f8 test-username@host.example.com NN years ago, lasted less than a microsecond
