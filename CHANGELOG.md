@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+## [0.7.1] - 2023-02-16
+
+No changes, only a fix for the automated release build.
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes

@@ -794,7 +794,7 @@ dependencies = [
 
 [[package]]
 name = "jujutsu"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -835,7 +835,7 @@ dependencies = [
 
 [[package]]
 name = "jujutsu-lib"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "assert_matches",
  "backoff",
@@ -1770,7 +1770,7 @@ dependencies = [
 
 [[package]]
 name = "testutils"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "config",
  "git2",
