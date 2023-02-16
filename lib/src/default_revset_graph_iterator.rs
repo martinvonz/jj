@@ -20,81 +20,82 @@ use crate::default_index_store::{IndexEntry, IndexPosition};
 use crate::nightly_shims::BTreeMapExt;
 use crate::revset::{RevsetGraphEdge, RevsetGraphEdgeType};
 
-// Given an iterator over some set of revisions, yields the same revisions with
-// associated edge types.
-//
-// If a revision's parent is in the input set, then the edge will be "direct".
-// Otherwise, there will be one "indirect" edge for each closest ancestor in the
-// set, and one "missing" edge for each edge leading outside the set.
-//
-// Example (uppercase characters are in the input set):
-//
-// A          A
-// |\         |\
-// B c        B :
-// |\|     => |\:
-// d E        ~ E
-// |/          ~
-// root
-//
-// The implementation works by walking the input iterator in one commit at a
-// time. It then considers all parents of the commit. It looks ahead in the
-// input iterator far enough that all the parents will have been consumed if
-// they are in the input (and puts them away so we can emit them later). If a
-// parent of the current commit is not in the input set (i.e. it was not
-// in the look-ahead), we walk these external commits until we end up back back
-// in the input set. That walk may result in consuming more elements from the
-// input iterator. In the example above, when we consider "A", we will initially
-// look ahead to "B" and "c". When we consider edges from the external commit
-// "c", we will further consume the input iterator to "E".
-//
-// Missing edges are those that don't lead back into the input set. If all edges
-// from an external commit are missing, we consider the edge to that edge to
-// also be missing. In the example above, that means that "B" will have a
-// missing edge to "d" rather than to the root.
-//
-// The iterator can be configured to skip transitive edges that it would
-// otherwise return. In this mode (which is the default), the edge from "A" to
-// "E" in the example above would be excluded because there's also a transitive
-// path from "A" to "E" via "B". The implementation of that mode
-// adds a filtering step just before yielding the edges for a commit. The
-// filtering works doing a DFS in the simplified graph. That may require even
-// more look-ahead. Consider this example (uppercase characters are in the input
-// set):
-//
-//   J
-//  /|
-// | i
-// | |\
-// | | H
-// G | |
-// | e f
-// |  \|\
-// |   D |
-//  \ /  c
-//   b  /
-//   |/
-//   A
-//   |
-//  root
-//
-// When walking from "J", we'll find indirect edges to "H", "G", and "D". This
-// is our unfiltered set of edges, before removing transitive edges. In order to
-// know that "D" is an ancestor of "H", we need to also walk from "H". We use
-// the same search for finding edges from "H" as we used from "J". That results
-// in looking ahead all the way to "A". We could reduce the amount of look-ahead
-// by stopping at "c" since we're only interested in edges that could lead to
-// "D", but that would require extra book-keeping to remember for later that the
-// edges from "f" and "H" are only partially computed.
+/// Given an iterator over some set of revisions, yields the same revisions with
+/// associated edge types.
+///
+/// If a revision's parent is in the input set, then the edge will be "direct".
+/// Otherwise, there will be one "indirect" edge for each closest ancestor in
+/// the set, and one "missing" edge for each edge leading outside the set.
+///
+/// Example (uppercase characters are in the input set):
+///
+/// A          A
+/// |\         |\
+/// B c        B :
+/// |\|     => |\:
+/// d E        ~ E
+/// |/          ~
+/// root
+///
+/// The implementation works by walking the input iterator one commit at a
+/// time. It then considers all parents of the commit. It looks ahead in the
+/// input iterator far enough that all the parents will have been consumed if
+/// they are in the input (and puts them away so we can emit them later). If a
+/// parent of the current commit is not in the input set (i.e. it was not
+/// in the look-ahead), we walk these external commits until we end up back back
+/// in the input set. That walk may result in consuming more elements from the
+/// input iterator. In the example above, when we consider "A", we will
+/// initially look ahead to "B" and "c". When we consider edges from the
+/// external commit "c", we will further consume the input iterator to "E".
+///
+/// Missing edges are those that don't lead back into the input set. If all
+/// edges from an external commit are missing, we consider the edge to that
+/// commit to also be missing. In the example above, that means that "B" will
+/// have a missing edge to "d" rather than to the root.
+///
+/// The iterator can be configured to skip transitive edges that it would
+/// otherwise return. In this mode (which is the default), the edge from "A" to
+/// "E" in the example above would be excluded because there's also a transitive
+/// path from "A" to "E" via "B". The implementation of that mode
+/// adds a filtering step just before yielding the edges for a commit. The
+/// filtering works by doing a DFS in the simplified graph. That may require
+/// even more look-ahead. Consider this example (uppercase characters are in the
+/// input set):
+///
+///   J
+///  /|
+/// | i
+/// | |\
+/// | | H
+/// G | |
+/// | e f
+/// |  \|\
+/// |   D |
+///  \ /  c
+///   b  /
+///   |/
+///   A
+///   |
+///  root
+///
+/// When walking from "J", we'll find indirect edges to "H", "G", and "D". This
+/// is our unfiltered set of edges, before removing transitive edges. In order
+/// to know that "D" is an ancestor of "H", we need to also walk from "H". We
+/// use the same search for finding edges from "H" as we used from "J". That
+/// results in looking ahead all the way to "A". We could reduce the amount of
+/// look-ahead by stopping at "c" since we're only interested in edges that
+/// could lead to "D", but that would require extra book-keeping to remember for
+/// later that the edges from "f" and "H" are only partially computed.
 pub struct RevsetGraphIterator<'revset, 'index> {
     input_set_iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
-    // Commits in the input set we had to take out of the iterator while walking external
-    // edges. Does not necessarily include the commit we're currently about to emit.
+    /// Commits in the input set we had to take out of the iterator while
+    /// walking external edges. Does not necessarily include the commit
+    /// we're currently about to emit.
     look_ahead: BTreeMap<IndexPosition, IndexEntry<'index>>,
-    // The last consumed position. This is always the smallest key in the look_ahead map, but it's
-    // faster to keep a separate field for it.
+    /// The last consumed position. This is always the smallest key in the
+    /// look_ahead map, but it's faster to keep a separate field for it.
     min_position: IndexPosition,
-    // Edges for commits not in the input set.
+    /// Edges for commits not in the input set.
     // TODO: Remove unneeded entries here as we go (that's why it's an ordered map)?
     edges: BTreeMap<IndexPosition, HashSet<(IndexPosition, RevsetGraphEdge)>>,
     skip_transitive_edges: bool,
