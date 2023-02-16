@@ -1769,12 +1769,18 @@ impl<'index> ToPredicateFn<'index> for UnionRevset<'index> {
     }
 }
 
-struct UnionRevsetIterator<'revset, 'index> {
-    iter1: Peekable<RevsetIterator<'revset, 'index>>,
-    iter2: Peekable<RevsetIterator<'revset, 'index>>,
+struct UnionRevsetIterator<
+    'index,
+    I1: Iterator<Item = IndexEntry<'index>>,
+    I2: Iterator<Item = IndexEntry<'index>>,
+> {
+    iter1: Peekable<I1>,
+    iter2: Peekable<I2>,
 }
 
-impl<'revset, 'index> Iterator for UnionRevsetIterator<'revset, 'index> {
+impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexEntry<'index>>>
+    Iterator for UnionRevsetIterator<'index, I1, I2>
+{
     type Item = IndexEntry<'index>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1815,12 +1821,18 @@ impl<'index> ToPredicateFn<'index> for IntersectionRevset<'index> {
     }
 }
 
-struct IntersectionRevsetIterator<'revset, 'index> {
-    iter1: Peekable<RevsetIterator<'revset, 'index>>,
-    iter2: Peekable<RevsetIterator<'revset, 'index>>,
+struct IntersectionRevsetIterator<
+    'index,
+    I1: Iterator<Item = IndexEntry<'index>>,
+    I2: Iterator<Item = IndexEntry<'index>>,
+> {
+    iter1: Peekable<I1>,
+    iter2: Peekable<I2>,
 }
 
-impl<'revset, 'index> Iterator for IntersectionRevsetIterator<'revset, 'index> {
+impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexEntry<'index>>>
+    Iterator for IntersectionRevsetIterator<'index, I1, I2>
+{
     type Item = IndexEntry<'index>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1874,12 +1886,18 @@ impl<'index> ToPredicateFn<'index> for DifferenceRevset<'index> {
     }
 }
 
-struct DifferenceRevsetIterator<'revset, 'index> {
-    iter1: Peekable<RevsetIterator<'revset, 'index>>,
-    iter2: Peekable<RevsetIterator<'revset, 'index>>,
+struct DifferenceRevsetIterator<
+    'index,
+    I1: Iterator<Item = IndexEntry<'index>>,
+    I2: Iterator<Item = IndexEntry<'index>>,
+> {
+    iter1: Peekable<I1>,
+    iter2: Peekable<I2>,
 }
 
-impl<'revset, 'index> Iterator for DifferenceRevsetIterator<'revset, 'index> {
+impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexEntry<'index>>>
+    Iterator for DifferenceRevsetIterator<'index, I1, I2>
+{
     type Item = IndexEntry<'index>;
 
     fn next(&mut self) -> Option<Self::Item> {
