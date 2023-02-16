@@ -18,7 +18,10 @@ fn to_reverse_hex_digit(b: u8) -> Option<u8> {
         b'a'..=b'f' => b - b'a' + 10,
         _ => return None,
     };
-    Some(b'z' - value)
+    match value {
+        8..=15 => Some(b'Z' - value),
+        _ => Some(b'z' - value),
+    }
 }
 
 fn to_forward_hex_digit(b: u8) -> Option<u8> {
@@ -66,7 +69,7 @@ mod tests {
         // All digits
         assert_eq!(
             to_reverse_hex("0123456789abcdefABCDEF"),
-            Some("zyxwvutsrqponmlkponmlk".to_string())
+            Some("zyxwvutsRQPONMLKPONMLK".to_string())
         );
         assert_eq!(
             to_forward_hex("zyxwvutsrqponmlkPONMLK"),

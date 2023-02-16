@@ -221,9 +221,9 @@ fn test_git_push_changes() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--change", "@"]);
     insta::assert_snapshot!(stdout, @r###"
-    Creating branch push-yostqsxwqrlt for revision @
+    Creating branch push-yOstQsxwQRLt for revision @
     Branch changes to push to origin:
-      Add branch push-yostqsxwqrlt to 28d7620ea63a
+      Add branch push-yOstQsxwQRLt to 28d7620ea63a
     "###);
     // test pushing two changes at once
     std::fs::write(workspace_root.join("file"), "modified2").unwrap();
@@ -232,10 +232,10 @@ fn test_git_push_changes() {
         &["git", "push", "--change", "@", "--change", "@-"],
     );
     insta::assert_snapshot!(stdout, @r###"
-    Creating branch push-yqosqzytrlsw for revision @-
+    Creating branch push-yQOsQzytRLsw for revision @-
     Branch changes to push to origin:
-      Force branch push-yostqsxwqrlt from 28d7620ea63a to 48d8c7948133
-      Add branch push-yqosqzytrlsw to fa16a14170fb
+      Force branch push-yOstQsxwQRLt from 28d7620ea63a to 48d8c7948133
+      Add branch push-yQOsQzytRLsw to fa16a14170fb
     "###);
     // specifying the same change twice doesn't break things
     std::fs::write(workspace_root.join("file"), "modified3").unwrap();
@@ -245,7 +245,7 @@ fn test_git_push_changes() {
     );
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Force branch push-yostqsxwqrlt from 48d8c7948133 to b5f030322b1d
+      Force branch push-yOstQsxwQRLt from 48d8c7948133 to b5f030322b1d
     "###);
 }
 

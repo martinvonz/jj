@@ -28,7 +28,7 @@ fn test_split_by_paths() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "change_id.short()"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsmwlqt
+    @  QPvuNtsMwLQt
     o  zzzzzzzzzzzz
     "###);
 
@@ -66,8 +66,8 @@ fn test_split_by_paths() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "change_id.short()"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  kkmpptxzrspx
-    o  qpvuntsmwlqt
+    @  KKMPPtxzRsPx
+    o  QPvuNtsMwLQt
     o  zzzzzzzzzzzz
     "###);
 
@@ -94,9 +94,9 @@ fn test_split_by_paths() {
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["log", "-T", r#"change_id.short() " " empty"#]);
     insta::assert_snapshot!(stdout, @r###"
-    @  kkmpptxzrspx false
-    o  yqosqzytrlsw true
-    o  qpvuntsmwlqt false
+    @  KKMPPtxzRsPx false
+    o  yQOsQzytRLsw true
+    o  QPvuNtsMwLQt false
     o  zzzzzzzzzzzz true
     "###);
 
@@ -127,9 +127,9 @@ fn test_split_by_paths() {
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["log", "-T", r#"change_id.short() " " empty"#]);
     insta::assert_snapshot!(stdout, @r###"
-    @  kkmpptxzrspx false
-    o  kpqxywonksrl false
-    o  qpvuntsmwlqt true
+    @  KKMPPtxzRsPx false
+    o  KPQxywONKsRL false
+    o  QPvuNtsMwLQt true
     o  zzzzzzzzzzzz true
     "###);
 
