@@ -42,11 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `label(if(current_working_copy, "working_copy"), ...)` to label the
   working-copy entry.
 
-* `jj log` and `jj show` no longer respect `ui.relative-timestamps = true`.
-  Use the `format_timestamp()` template alias instead. For details, see
-  [the documentation](docs/config.md).
+* The `ui.relative-timestamps` option has been removed. Use the
+  `format_timestamp()` template alias instead. For details on showing relative
+  timestamps in `jj log` and `jj show`, see [the documentation](docs/config.md).
 
-* `jj op log` now shows relative timestamps by default. To disable, set `ui.relative-timestamps` to `false`.
+* `jj op log` now shows relative timestamps by default. To disable, set
+  `ui.oplog-relative-timestamps` to `false`.
 
 * The global `--no-commit-working-copy` is now called `--ignore-working-copy`.
 
