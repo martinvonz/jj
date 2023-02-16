@@ -53,15 +53,15 @@ use crate::{backend, op_store};
 // RepoRef?
 #[derive(Clone, Copy)]
 pub enum RepoRef<'a> {
-    Readonly(&'a ReadonlyRepo),
+    Readonly(&'a Arc<ReadonlyRepo>),
     Mutable(&'a MutableRepo),
 }
 
 impl<'a> RepoRef<'a> {
-    pub fn base_repo(&self) -> &ReadonlyRepo {
+    pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
         match self {
-            RepoRef::Readonly(repo) => repo,
-            RepoRef::Mutable(repo) => repo.base_repo.as_ref(),
+            RepoRef::Readonly(repo) => &repo,
+            RepoRef::Mutable(repo) => &repo.base_repo,
         }
     }
 
@@ -245,7 +245,7 @@ impl ReadonlyRepo {
         }
     }
 
-    pub fn as_repo_ref(&self) -> RepoRef {
+    pub fn as_repo_ref<'a>(self: &'a Arc<Self>) -> RepoRef<'a> {
         RepoRef::Readonly(self)
     }
 

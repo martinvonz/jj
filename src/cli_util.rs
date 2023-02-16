@@ -1017,7 +1017,7 @@ impl WorkspaceCommandTransaction<'_> {
         self.helper
     }
 
-    pub fn base_repo(&self) -> &ReadonlyRepo {
+    pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
         self.tx.base_repo()
     }
 
