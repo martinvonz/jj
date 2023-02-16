@@ -158,9 +158,9 @@ impl UserSettings {
             .unwrap_or(false)
     }
 
-    pub fn relative_timestamps(&self) -> bool {
+    pub fn oplog_relative_timestamps(&self) -> bool {
         self.config
-            .get_bool("ui.relative-timestamps")
+            .get_bool("ui.oplog-relative-timestamps")
             .unwrap_or(true)
     }
 

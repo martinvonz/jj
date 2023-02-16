@@ -140,6 +140,14 @@ Can be customized by the `format_timestamp()` template alias.
 'format_timestamp(timestamp)' = 'timestamp.ago()'
 ```
 
+`jj op log` defaults to relative timestamps. To use absolute timestamps, you
+will need to modify an option.
+
+```toml
+[ui]
+oplog-relative-timestamps=false
+```
+
 ### Author format
 
 Can be customized by the `format_short_signature()` template alias.

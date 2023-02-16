@@ -105,7 +105,7 @@ fn cmd_op_log(
         }
     }
     let template = OpTemplate {
-        relative_timestamps: command.settings().relative_timestamps(),
+        relative_timestamps: command.settings().oplog_relative_timestamps(),
     };
 
     let mut graph = get_graphlog(command.settings(), formatter.raw());

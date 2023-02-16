@@ -29,7 +29,12 @@ fn test_op_log() {
 
     let stdout = test_env.jj_cmd_success(
         &repo_path,
-        &["op", "log", "--config-toml", "ui.relative-timestamps=false"],
+        &[
+            "op",
+            "log",
+            "--config-toml",
+            "ui.oplog-relative-timestamps=false",
+        ],
     );
     insta::assert_snapshot!(&stdout, @r###"
     @  45108169c0f8 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
