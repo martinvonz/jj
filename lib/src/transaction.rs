@@ -48,7 +48,7 @@ impl Transaction {
         }
     }
 
-    pub fn base_repo(&self) -> &ReadonlyRepo {
+    pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
         self.mut_repo.base_repo()
     }
 
