@@ -598,14 +598,6 @@ trait TemplateLanguage<'a> {
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'a>,
     ) -> Self::Property;
-    fn wrap_commit_or_change_id(
-        &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'a>> + 'a>,
-    ) -> Self::Property;
-    fn wrap_shortest_id_prefix(
-        &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'a>,
-    ) -> Self::Property;
     fn wrap_signature(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'a>,
@@ -636,8 +628,6 @@ enum CoreTemplatePropertyKind<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
     Integer(Box<dyn TemplateProperty<I, Output = i64> + 'a>),
-    CommitOrChangeId(Box<dyn TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a>),
-    ShortestIdPrefix(Box<dyn TemplateProperty<I, Output = ShortestIdPrefix> + 'a>),
     Signature(Box<dyn TemplateProperty<I, Output = Signature> + 'a>),
     Timestamp(Box<dyn TemplateProperty<I, Output = Timestamp> + 'a>),
 }
@@ -677,8 +667,6 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
             CoreTemplatePropertyKind::String(property) => wrap(property),
             CoreTemplatePropertyKind::Boolean(property) => wrap(property),
             CoreTemplatePropertyKind::Integer(property) => wrap(property),
-            CoreTemplatePropertyKind::CommitOrChangeId(property) => wrap(property),
-            CoreTemplatePropertyKind::ShortestIdPrefix(property) => wrap(property),
             CoreTemplatePropertyKind::Signature(property) => wrap(property),
             CoreTemplatePropertyKind::Timestamp(property) => wrap(property),
         }
@@ -834,12 +822,6 @@ fn build_core_method<'a, L: TemplateLanguage<'a>>(
         CoreTemplatePropertyKind::Integer(property) => {
             build_integer_method(language, property, function)
         }
-        CoreTemplatePropertyKind::CommitOrChangeId(property) => {
-            build_commit_or_change_id_method(language, property, function)
-        }
-        CoreTemplatePropertyKind::ShortestIdPrefix(property) => {
-            build_shortest_id_prefix_method(language, property, function)
-        }
         CoreTemplatePropertyKind::Signature(property) => {
             build_signature_method(language, property, function)
         }
@@ -894,11 +876,11 @@ fn build_integer_method<'a, L: TemplateLanguage<'a>>(
     Err(TemplateParseError::no_such_method("Integer", function))
 }
 
-fn build_commit_or_change_id_method<'a, L: TemplateLanguage<'a>>(
-    language: &L,
-    self_property: impl TemplateProperty<L::Context, Output = CommitOrChangeId<'a>> + 'a,
+fn build_commit_or_change_id_method<'a>(
+    language: &CommitTemplateLanguage<'a, '_>,
+    self_property: impl TemplateProperty<Commit, Output = CommitOrChangeId<'a>> + 'a,
     function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
+) -> TemplateParseResult<CommitTemplatePropertyKind<'a>> {
     let parse_optional_integer = |function| -> Result<Option<_>, TemplateParseError> {
         let ([], [len_node]) = expect_arguments(function)?;
         len_node
@@ -940,11 +922,11 @@ fn build_commit_or_change_id_method<'a, L: TemplateLanguage<'a>>(
     Ok(property)
 }
 
-fn build_shortest_id_prefix_method<'a, L: TemplateLanguage<'a>>(
-    language: &L,
-    self_property: impl TemplateProperty<L::Context, Output = ShortestIdPrefix> + 'a,
+fn build_shortest_id_prefix_method<'a>(
+    language: &CommitTemplateLanguage<'a, '_>,
+    self_property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'a,
     function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
+) -> TemplateParseResult<CommitTemplatePropertyKind<'a>> {
     let property = match function.name {
         "prefix" => {
             expect_no_arguments(function)?;
@@ -1083,7 +1065,7 @@ fn build_commit_keyword<'a>(
     language: &CommitTemplateLanguage<'a, '_>,
     name: &str,
     span: pest::Span,
-) -> TemplateParseResult<CoreTemplatePropertyKind<'a, Commit>> {
+) -> TemplateParseResult<CommitTemplatePropertyKind<'a>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Commit) -> O + 'a,
     ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'a> {
@@ -1168,50 +1150,38 @@ struct CommitTemplateLanguage<'a, 'b> {
 
 impl<'a> TemplateLanguage<'a> for CommitTemplateLanguage<'a, '_> {
     type Context = Commit;
-    type Property = CoreTemplatePropertyKind<'a, Commit>;
+    type Property = CommitTemplatePropertyKind<'a>;
 
     // TODO: maybe generate wrap_<type>() by macro?
     fn wrap_string(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'a>,
     ) -> Self::Property {
-        CoreTemplatePropertyKind::String(property)
+        CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::String(property))
     }
     fn wrap_boolean(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'a>,
     ) -> Self::Property {
-        CoreTemplatePropertyKind::Boolean(property)
+        CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Boolean(property))
     }
     fn wrap_integer(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'a>,
     ) -> Self::Property {
-        CoreTemplatePropertyKind::Integer(property)
-    }
-    fn wrap_commit_or_change_id(
-        &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'a>> + 'a>,
-    ) -> Self::Property {
-        CoreTemplatePropertyKind::CommitOrChangeId(property)
-    }
-    fn wrap_shortest_id_prefix(
-        &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'a>,
-    ) -> Self::Property {
-        CoreTemplatePropertyKind::ShortestIdPrefix(property)
+        CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Integer(property))
     }
     fn wrap_signature(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'a>,
     ) -> Self::Property {
-        CoreTemplatePropertyKind::Signature(property)
+        CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Signature(property))
     }
     fn wrap_timestamp(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'a>,
     ) -> Self::Property {
-        CoreTemplatePropertyKind::Timestamp(property)
+        CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Timestamp(property))
     }
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property> {
@@ -1223,7 +1193,77 @@ impl<'a> TemplateLanguage<'a> for CommitTemplateLanguage<'a, '_> {
         property: Self::Property,
         function: &FunctionCallNode,
     ) -> TemplateParseResult<Self::Property> {
-        build_core_method(self, property, function)
+        match property {
+            CommitTemplatePropertyKind::Core(property) => {
+                build_core_method(self, property, function)
+            }
+            CommitTemplatePropertyKind::CommitOrChangeId(property) => {
+                build_commit_or_change_id_method(self, property, function)
+            }
+            CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
+                build_shortest_id_prefix_method(self, property, function)
+            }
+        }
+    }
+}
+
+// If we need to add multiple languages that support Commit types, this can be
+// turned into a trait which extends TemplateLanguage.
+impl<'a> CommitTemplateLanguage<'a, '_> {
+    fn wrap_commit_or_change_id(
+        &self,
+        property: Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId<'a>> + 'a>,
+    ) -> CommitTemplatePropertyKind<'a> {
+        CommitTemplatePropertyKind::CommitOrChangeId(property)
+    }
+
+    fn wrap_shortest_id_prefix(
+        &self,
+        property: Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'a>,
+    ) -> CommitTemplatePropertyKind<'a> {
+        CommitTemplatePropertyKind::ShortestIdPrefix(property)
+    }
+}
+
+enum CommitTemplatePropertyKind<'a> {
+    Core(CoreTemplatePropertyKind<'a, Commit>),
+    CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId<'a>> + 'a>),
+    ShortestIdPrefix(Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'a>),
+}
+
+impl<'a> IntoTemplateProperty<'a, Commit> for CommitTemplatePropertyKind<'a> {
+    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Commit, Output = bool> + 'a>> {
+        match self {
+            CommitTemplatePropertyKind::Core(property) => property.try_into_boolean(),
+            _ => None,
+        }
+    }
+
+    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<Commit, Output = i64> + 'a>> {
+        match self {
+            CommitTemplatePropertyKind::Core(property) => property.try_into_integer(),
+            _ => None,
+        }
+    }
+
+    fn into_plain_text(self) -> Box<dyn TemplateProperty<Commit, Output = String> + 'a> {
+        match self {
+            CommitTemplatePropertyKind::Core(property) => property.into_plain_text(),
+            _ => Box::new(PlainTextFormattedProperty::new(self.into_template())),
+        }
+    }
+
+    fn into_template(self) -> Box<dyn Template<Commit> + 'a> {
+        fn wrap<'a, O: Template<()> + 'a>(
+            property: Box<dyn TemplateProperty<Commit, Output = O> + 'a>,
+        ) -> Box<dyn Template<Commit> + 'a> {
+            Box::new(FormattablePropertyTemplate::new(property))
+        }
+        match self {
+            CommitTemplatePropertyKind::Core(property) => property.into_template(),
+            CommitTemplatePropertyKind::CommitOrChangeId(property) => wrap(property),
+            CommitTemplatePropertyKind::ShortestIdPrefix(property) => wrap(property),
+        }
     }
 }
 
@@ -1267,20 +1307,6 @@ mod tests {
             property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'static>,
         ) -> Self::Property {
             CoreTemplatePropertyKind::Integer(property)
-        }
-        fn wrap_commit_or_change_id(
-            &self,
-            property: Box<
-                dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'static>> + 'static,
-            >,
-        ) -> Self::Property {
-            CoreTemplatePropertyKind::CommitOrChangeId(property)
-        }
-        fn wrap_shortest_id_prefix(
-            &self,
-            property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'static>,
-        ) -> Self::Property {
-            CoreTemplatePropertyKind::ShortestIdPrefix(property)
         }
         fn wrap_signature(
             &self,
