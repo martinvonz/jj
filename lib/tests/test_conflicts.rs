@@ -191,6 +191,21 @@ line 5
     line 5
     "###
     );
+
+    // modify/delete conflict at the file level
+    let conflict = Conflict {
+        removes: vec![file_conflict_part(&base_id)],
+        adds: vec![file_conflict_part(&modified_id)],
+    };
+    // TODO: THis should have context around the conflict (#1244)
+    insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
+    <<<<<<<
+    %%%%%%%
+    -line 3
+    +modified
+    >>>>>>>
+    "###
+    );
 }
 
 #[test]
