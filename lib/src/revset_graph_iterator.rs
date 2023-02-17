@@ -119,11 +119,11 @@ pub enum RevsetGraphEdgeType {
 // by stopping at "c" since we're only interested in edges that could lead to
 // "D", but that would require extra book-keeping to remember for later that the
 // edges from "f" and "H" are only partially computed.
-pub struct RevsetGraphIterator<'revset, 'repo> {
-    input_set_iter: RevsetIterator<'revset, 'repo>,
+pub struct RevsetGraphIterator<'revset, 'index> {
+    input_set_iter: RevsetIterator<'revset, 'index>,
     // Commits in the input set we had to take out of the iterator while walking external
     // edges. Does not necessarily include the commit we're currently about to emit.
-    look_ahead: BTreeMap<IndexPosition, IndexEntry<'repo>>,
+    look_ahead: BTreeMap<IndexPosition, IndexEntry<'index>>,
     // The last consumed position. This is always the smallest key in the look_ahead map, but it's
     // faster to keep a separate field for it.
     min_position: IndexPosition,
@@ -133,8 +133,8 @@ pub struct RevsetGraphIterator<'revset, 'repo> {
     skip_transitive_edges: bool,
 }
 
-impl<'revset, 'repo> RevsetGraphIterator<'revset, 'repo> {
-    pub fn new(iter: RevsetIterator<'revset, 'repo>) -> RevsetGraphIterator<'revset, 'repo> {
+impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
+    pub fn new(iter: RevsetIterator<'revset, 'index>) -> RevsetGraphIterator<'revset, 'index> {
         RevsetGraphIterator {
             input_set_iter: iter,
             look_ahead: Default::default(),
@@ -149,11 +149,11 @@ impl<'revset, 'repo> RevsetGraphIterator<'revset, 'repo> {
         self
     }
 
-    pub fn reversed(self) -> ReverseRevsetGraphIterator<'repo> {
+    pub fn reversed(self) -> ReverseRevsetGraphIterator<'index> {
         ReverseRevsetGraphIterator::new(self)
     }
 
-    fn next_index_entry(&mut self) -> Option<IndexEntry<'repo>> {
+    fn next_index_entry(&mut self) -> Option<IndexEntry<'index>> {
         if let Some(index_entry) = self.look_ahead.pop_last_value() {
             return Some(index_entry);
         }
@@ -162,7 +162,7 @@ impl<'revset, 'repo> RevsetGraphIterator<'revset, 'repo> {
 
     fn edges_from_internal_commit(
         &mut self,
-        index_entry: &IndexEntry<'repo>,
+        index_entry: &IndexEntry<'index>,
     ) -> HashSet<RevsetGraphEdge> {
         if let Some(edges) = self.edges.get(&index_entry.position()) {
             return edges.clone();
@@ -191,7 +191,7 @@ impl<'revset, 'repo> RevsetGraphIterator<'revset, 'repo> {
 
     fn edges_from_external_commit(
         &mut self,
-        index_entry: IndexEntry<'repo>,
+        index_entry: IndexEntry<'index>,
     ) -> HashSet<RevsetGraphEdge> {
         let position = index_entry.position();
         let mut stack = vec![index_entry];
@@ -294,8 +294,8 @@ impl<'revset, 'repo> RevsetGraphIterator<'revset, 'repo> {
     }
 }
 
-impl<'revset, 'repo> Iterator for RevsetGraphIterator<'revset, 'repo> {
-    type Item = (IndexEntry<'repo>, Vec<RevsetGraphEdge>);
+impl<'revset, 'index> Iterator for RevsetGraphIterator<'revset, 'index> {
+    type Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>);
 
     fn next(&mut self) -> Option<Self::Item> {
         let index_entry = self.next_index_entry()?;
@@ -309,12 +309,12 @@ impl<'revset, 'repo> Iterator for RevsetGraphIterator<'revset, 'repo> {
     }
 }
 
-pub struct ReverseRevsetGraphIterator<'repo> {
-    items: Vec<(IndexEntry<'repo>, Vec<RevsetGraphEdge>)>,
+pub struct ReverseRevsetGraphIterator<'index> {
+    items: Vec<(IndexEntry<'index>, Vec<RevsetGraphEdge>)>,
 }
 
-impl<'repo> ReverseRevsetGraphIterator<'repo> {
-    fn new<'revset>(input: RevsetGraphIterator<'revset, 'repo>) -> Self {
+impl<'index> ReverseRevsetGraphIterator<'index> {
+    fn new<'revset>(input: RevsetGraphIterator<'revset, 'index>) -> Self {
         let mut entries = vec![];
         let mut reverse_edges: HashMap<IndexPosition, Vec<RevsetGraphEdge>> = HashMap::new();
         for (entry, edges) in input {
@@ -342,8 +342,8 @@ impl<'repo> ReverseRevsetGraphIterator<'repo> {
     }
 }
 
-impl<'repo> Iterator for ReverseRevsetGraphIterator<'repo> {
-    type Item = (IndexEntry<'repo>, Vec<RevsetGraphEdge>);
+impl<'index> Iterator for ReverseRevsetGraphIterator<'index> {
+    type Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.items.pop()
