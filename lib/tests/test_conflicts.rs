@@ -128,17 +128,17 @@ line 4
 line 5
 ",
     );
-    let left_id = testutils::write_file(
+    let modified_id = testutils::write_file(
         store,
         &path,
         "line 1
 line 2
-left
+modified
 line 4
 line 5
 ",
     );
-    let right_id = testutils::write_file(
+    let deleted_id = testutils::write_file(
         store,
         &path,
         "line 1
@@ -148,9 +148,13 @@ line 5
 ",
     );
 
+    // left modifies a line, right deletes the same line.
     let conflict = Conflict {
         removes: vec![file_conflict_part(&base_id)],
-        adds: vec![file_conflict_part(&left_id), file_conflict_part(&right_id)],
+        adds: vec![
+            file_conflict_part(&modified_id),
+            file_conflict_part(&deleted_id),
+        ],
     };
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     line 1
@@ -159,65 +163,29 @@ line 5
     %%%%%%%
     -line 3
     +++++++
-    left
+    modified
     >>>>>>>
     line 4
     line 5
     "###
     );
-}
 
-#[test]
-fn test_materialize_conflict_delete_modify() {
-    let test_repo = TestRepo::init(false);
-    let store = test_repo.repo.store();
-
-    let path = RepoPath::from_internal_string("file");
-    let base_id = testutils::write_file(
-        store,
-        &path,
-        "line 1
-line 2
-line 3
-line 4
-line 5
-",
-    );
-    let left_id = testutils::write_file(
-        store,
-        &path,
-        "line 1
-line 2
-line 4
-line 5
-",
-    );
-    let right_id = testutils::write_file(
-        store,
-        &path,
-        "line 1
-line 2
-right
-line 4
-line 5
-",
-    );
-
+    // right modifies a line, left deletes the same line.
     let conflict = Conflict {
         removes: vec![file_conflict_part(&base_id)],
-        adds: vec![file_conflict_part(&left_id), file_conflict_part(&right_id)],
+        adds: vec![
+            file_conflict_part(&deleted_id),
+            file_conflict_part(&modified_id),
+        ],
     };
-
-    insta::assert_snapshot!(
-        &materialize_conflict_string(store, &path, &conflict),
-        @r###"
+    insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     line 1
     line 2
     <<<<<<<
     %%%%%%%
     -line 3
     +++++++
-    right
+    modified
     >>>>>>>
     line 4
     line 5
