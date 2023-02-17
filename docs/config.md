@@ -182,6 +182,15 @@ a `$`):
 
 `less -FRX` is the default pager in the absence of any other setting.
 
+### Processing contents to be paged
+
+If you'd like to pass the output through a formatter e.g.
+[`diff-so-fancy`](https://github.com/so-fancy/diff-so-fancy) before piping it
+through a pager you must do it using a subshell as, unlike `git` or `hg`, the
+command will be executed directly. For example:
+
+`ui.pager = ["sh", "-c", "diff-so-fancy | less -RFX"]`
+
 ## Aliases
 
 You can define aliases for commands, including their arguments. For example:
