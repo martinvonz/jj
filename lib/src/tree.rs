@@ -626,7 +626,7 @@ fn merge_tree_value(
                 });
             }
             let filename = dir.join(basename);
-            let conflict = simplify_conflict(store, &filename, &conflict)?;
+            let conflict = simplify_conflict(store, &filename, conflict)?;
             if conflict.adds.is_empty() {
                 // If there are no values to add, then the path doesn't exist
                 return Ok(None);
@@ -742,18 +742,16 @@ fn try_resolve_file_conflict(
 fn conflict_term_to_conflict(
     store: &Store,
     path: &RepoPath,
-    term: &ConflictTerm,
+    term: ConflictTerm,
 ) -> Result<Conflict, BackendError> {
-    match &term.value {
+    match term.value {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(path, id)?;
+            let conflict = store.read_conflict(path, &id)?;
             Ok(conflict)
         }
         other => Ok(Conflict {
             removes: vec![],
-            adds: vec![ConflictTerm {
-                value: other.clone(),
-            }],
+            adds: vec![ConflictTerm { value: other }],
         }),
     }
 }
@@ -761,7 +759,7 @@ fn conflict_term_to_conflict(
 fn simplify_conflict(
     store: &Store,
     path: &RepoPath,
-    conflict: &Conflict,
+    conflict: Conflict,
 ) -> Result<Conflict, BackendError> {
     // Important cases to simplify:
     //
@@ -797,7 +795,7 @@ fn simplify_conflict(
     // First expand any diffs with nested conflicts.
     let mut new_removes = vec![];
     let mut new_adds = vec![];
-    for term in &conflict.adds {
+    for term in conflict.adds {
         match term.value {
             TreeValue::Conflict(_) => {
                 let conflict = conflict_term_to_conflict(store, path, term)?;
@@ -805,11 +803,11 @@ fn simplify_conflict(
                 new_adds.extend_from_slice(&conflict.adds);
             }
             _ => {
-                new_adds.push(term.clone());
+                new_adds.push(term);
             }
         }
     }
-    for term in &conflict.removes {
+    for term in conflict.removes {
         match term.value {
             TreeValue::Conflict(_) => {
                 let conflict = conflict_term_to_conflict(store, path, term)?;
@@ -817,7 +815,7 @@ fn simplify_conflict(
                 new_adds.extend_from_slice(&conflict.removes);
             }
             _ => {
-                new_removes.push(term.clone());
+                new_removes.push(term);
             }
         }
     }
