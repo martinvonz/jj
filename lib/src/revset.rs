@@ -1686,14 +1686,14 @@ where
     }
 }
 
-struct ChildrenRevset<'revset, 'index: 'revset> {
+struct ChildrenRevset<'index> {
     // The revisions we want to find children for
-    root_set: Box<dyn Revset<'index> + 'revset>,
+    root_set: Box<dyn Revset<'index> + 'index>,
     // Consider only candidates from this set
-    candidate_set: Box<dyn Revset<'index> + 'revset>,
+    candidate_set: Box<dyn Revset<'index> + 'index>,
 }
 
-impl<'index> Revset<'index> for ChildrenRevset<'_, 'index> {
+impl<'index> Revset<'index> for ChildrenRevset<'index> {
     fn iter(&self) -> RevsetIterator<'_, 'index> {
         let roots: HashSet<_> = self
             .root_set
@@ -1712,19 +1712,19 @@ impl<'index> Revset<'index> for ChildrenRevset<'_, 'index> {
     }
 }
 
-impl<'index> ToPredicateFn<'index> for ChildrenRevset<'_, 'index> {
+impl<'index> ToPredicateFn<'index> for ChildrenRevset<'index> {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         // TODO: can be optimized if candidate_set contains all heads
         self.iter().into_predicate_fn()
     }
 }
 
-struct FilterRevset<'revset, 'index: 'revset, P> {
-    candidates: Box<dyn Revset<'index> + 'revset>,
+struct FilterRevset<'index, P> {
+    candidates: Box<dyn Revset<'index> + 'index>,
     predicate: P,
 }
 
-impl<'index, P> Revset<'index> for FilterRevset<'_, 'index, P>
+impl<'index, P> Revset<'index> for FilterRevset<'index, P>
 where
     P: ToPredicateFn<'index>,
 {
@@ -1734,7 +1734,7 @@ where
     }
 }
 
-impl<'index, P> ToPredicateFn<'index> for FilterRevset<'_, 'index, P>
+impl<'index, P> ToPredicateFn<'index> for FilterRevset<'index, P>
 where
     P: ToPredicateFn<'index>,
 {
@@ -1746,12 +1746,12 @@ where
     }
 }
 
-struct UnionRevset<'revset, 'index: 'revset> {
-    set1: Box<dyn Revset<'index> + 'revset>,
-    set2: Box<dyn Revset<'index> + 'revset>,
+struct UnionRevset<'index> {
+    set1: Box<dyn Revset<'index> + 'index>,
+    set2: Box<dyn Revset<'index> + 'index>,
 }
 
-impl<'index> Revset<'index> for UnionRevset<'_, 'index> {
+impl<'index> Revset<'index> for UnionRevset<'index> {
     fn iter(&self) -> RevsetIterator<'_, 'index> {
         RevsetIterator::new(Box::new(UnionRevsetIterator {
             iter1: self.set1.iter().peekable(),
@@ -1760,7 +1760,7 @@ impl<'index> Revset<'index> for UnionRevset<'_, 'index> {
     }
 }
 
-impl<'index> ToPredicateFn<'index> for UnionRevset<'_, 'index> {
+impl<'index> ToPredicateFn<'index> for UnionRevset<'index> {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         let mut p1 = self.set1.to_predicate_fn();
         let mut p2 = self.set2.to_predicate_fn();
@@ -1792,12 +1792,12 @@ impl<'revset, 'index> Iterator for UnionRevsetIterator<'revset, 'index> {
     }
 }
 
-struct IntersectionRevset<'revset, 'index: 'revset> {
-    set1: Box<dyn Revset<'index> + 'revset>,
-    set2: Box<dyn Revset<'index> + 'revset>,
+struct IntersectionRevset<'index> {
+    set1: Box<dyn Revset<'index> + 'index>,
+    set2: Box<dyn Revset<'index> + 'index>,
 }
 
-impl<'index> Revset<'index> for IntersectionRevset<'_, 'index> {
+impl<'index> Revset<'index> for IntersectionRevset<'index> {
     fn iter(&self) -> RevsetIterator<'_, 'index> {
         RevsetIterator::new(Box::new(IntersectionRevsetIterator {
             iter1: self.set1.iter().peekable(),
@@ -1806,7 +1806,7 @@ impl<'index> Revset<'index> for IntersectionRevset<'_, 'index> {
     }
 }
 
-impl<'index> ToPredicateFn<'index> for IntersectionRevset<'_, 'index> {
+impl<'index> ToPredicateFn<'index> for IntersectionRevset<'index> {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         let mut p1 = self.set1.to_predicate_fn();
         let mut p2 = self.set2.to_predicate_fn();
@@ -1848,14 +1848,14 @@ impl<'revset, 'index> Iterator for IntersectionRevsetIterator<'revset, 'index> {
     }
 }
 
-struct DifferenceRevset<'revset, 'index: 'revset> {
+struct DifferenceRevset<'index> {
     // The minuend (what to subtract from)
-    set1: Box<dyn Revset<'index> + 'revset>,
+    set1: Box<dyn Revset<'index> + 'index>,
     // The subtrahend (what to subtract)
-    set2: Box<dyn Revset<'index> + 'revset>,
+    set2: Box<dyn Revset<'index> + 'index>,
 }
 
-impl<'index> Revset<'index> for DifferenceRevset<'_, 'index> {
+impl<'index> Revset<'index> for DifferenceRevset<'index> {
     fn iter(&self) -> RevsetIterator<'_, 'index> {
         RevsetIterator::new(Box::new(DifferenceRevsetIterator {
             iter1: self.set1.iter().peekable(),
@@ -1864,7 +1864,7 @@ impl<'index> Revset<'index> for DifferenceRevset<'_, 'index> {
     }
 }
 
-impl<'index> ToPredicateFn<'index> for DifferenceRevset<'_, 'index> {
+impl<'index> ToPredicateFn<'index> for DifferenceRevset<'index> {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
         // TODO: optimize 'p1' out for unary negate?
         let mut p1 = self.set1.to_predicate_fn();
@@ -2126,10 +2126,10 @@ pub fn evaluate_expression<'index>(
     }
 }
 
-fn revset_for_commit_ids<'revset, 'index: 'revset>(
+fn revset_for_commit_ids<'index>(
     repo: &'index dyn Repo,
     commit_ids: &[CommitId],
-) -> Box<dyn Revset<'index> + 'revset> {
+) -> Box<dyn Revset<'index> + 'index> {
     let index = repo.index();
     let mut index_entries = vec![];
     for id in commit_ids {
@@ -2140,10 +2140,10 @@ fn revset_for_commit_ids<'revset, 'index: 'revset>(
     Box::new(EagerRevset { index_entries })
 }
 
-pub fn revset_for_commits<'revset, 'index: 'revset>(
+pub fn revset_for_commits<'index>(
     repo: &'index dyn Repo,
     commits: &[&Commit],
-) -> Box<dyn Revset<'index> + 'revset> {
+) -> Box<dyn Revset<'index> + 'index> {
     let index = repo.index();
     let mut index_entries = commits
         .iter()
@@ -2211,11 +2211,11 @@ fn build_predicate_fn<'index>(
     }
 }
 
-pub fn filter_by_diff<'revset, 'index: 'revset>(
+pub fn filter_by_diff<'index>(
     repo: &'index dyn Repo,
     matcher: impl Borrow<dyn Matcher + 'index> + 'index,
-    candidates: Box<dyn Revset<'index> + 'revset>,
-) -> Box<dyn Revset<'index> + 'revset> {
+    candidates: Box<dyn Revset<'index> + 'index>,
+) -> Box<dyn Revset<'index> + 'index> {
     Box::new(FilterRevset::<PurePredicateFn> {
         candidates,
         predicate: Box::new(move |entry| has_diff_from_parent(repo, entry, matcher.borrow())),
