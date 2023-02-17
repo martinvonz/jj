@@ -653,6 +653,12 @@ fn try_resolve_file_conflict(
     filename: &RepoPath,
     conflict: &Conflict,
 ) -> Result<Option<(Vec<u8>, bool)>, TreeMergeError> {
+    // If the file was missing from any side (typically a modify/delete conflict),
+    // we can't automatically merge it.
+    if conflict.adds.len() != conflict.removes.len() + 1 {
+        return Ok(None);
+    }
+
     // If there are any non-file parts in the conflict, we can't merge it. We check
     // early so we don't waste time reading file contents if we can't merge them
     // anyway. At the same time we determine whether the resulting file should
