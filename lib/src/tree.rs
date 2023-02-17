@@ -739,12 +739,12 @@ fn try_resolve_file_conflict(
     }
 }
 
-fn conflict_term_to_conflict(
+fn tree_value_to_conflict(
     store: &Store,
     path: &RepoPath,
-    term: ConflictTerm,
+    value: TreeValue,
 ) -> Result<Conflict, BackendError> {
-    match term.value {
+    match value {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(path, &id)?;
             Ok(conflict)
@@ -798,7 +798,7 @@ fn simplify_conflict(
     for term in conflict.adds {
         match term.value {
             TreeValue::Conflict(_) => {
-                let conflict = conflict_term_to_conflict(store, path, term)?;
+                let conflict = tree_value_to_conflict(store, path, term.value)?;
                 new_removes.extend_from_slice(&conflict.removes);
                 new_adds.extend_from_slice(&conflict.adds);
             }
@@ -810,7 +810,7 @@ fn simplify_conflict(
     for term in conflict.removes {
         match term.value {
             TreeValue::Conflict(_) => {
-                let conflict = conflict_term_to_conflict(store, path, term)?;
+                let conflict = tree_value_to_conflict(store, path, term.value)?;
                 new_removes.extend_from_slice(&conflict.adds);
                 new_adds.extend_from_slice(&conflict.removes);
             }
