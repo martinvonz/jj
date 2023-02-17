@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
+use jujutsu_lib::backend::{Conflict, ConflictPart, FileId, TreeValue};
 use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict, update_conflict_from_content};
 use jujutsu_lib::files::{ConflictHunk, MergeHunk};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::Store;
 use testutils::TestRepo;
+
+fn file_conflict_part(file_id: &FileId) -> ConflictPart {
+    ConflictPart {
+        value: TreeValue::File {
+            id: file_id.clone(),
+            executable: false,
+        },
+    }
+}
 
 #[test]
 fn test_materialize_conflict_basic() {
@@ -60,26 +69,8 @@ line 5
     );
 
     let mut conflict = Conflict {
-        removes: vec![ConflictPart {
-            value: TreeValue::File {
-                id: base_id,
-                executable: false,
-            },
-        }],
-        adds: vec![
-            ConflictPart {
-                value: TreeValue::File {
-                    id: left_id,
-                    executable: false,
-                },
-            },
-            ConflictPart {
-                value: TreeValue::File {
-                    id: right_id,
-                    executable: false,
-                },
-            },
-        ],
+        removes: vec![file_conflict_part(&base_id)],
+        adds: vec![file_conflict_part(&left_id), file_conflict_part(&right_id)],
     };
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
@@ -158,26 +149,8 @@ line 5
     );
 
     let conflict = Conflict {
-        removes: vec![ConflictPart {
-            value: TreeValue::File {
-                id: base_id,
-                executable: false,
-            },
-        }],
-        adds: vec![
-            ConflictPart {
-                value: TreeValue::File {
-                    id: left_id,
-                    executable: false,
-                },
-            },
-            ConflictPart {
-                value: TreeValue::File {
-                    id: right_id,
-                    executable: false,
-                },
-            },
-        ],
+        removes: vec![file_conflict_part(&base_id)],
+        adds: vec![file_conflict_part(&left_id), file_conflict_part(&right_id)],
     };
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     line 1
@@ -231,26 +204,8 @@ line 5
     );
 
     let conflict = Conflict {
-        removes: vec![ConflictPart {
-            value: TreeValue::File {
-                id: base_id,
-                executable: false,
-            },
-        }],
-        adds: vec![
-            ConflictPart {
-                value: TreeValue::File {
-                    id: left_id,
-                    executable: false,
-                },
-            },
-            ConflictPart {
-                value: TreeValue::File {
-                    id: right_id,
-                    executable: false,
-                },
-            },
-        ],
+        removes: vec![file_conflict_part(&base_id)],
+        adds: vec![file_conflict_part(&left_id), file_conflict_part(&right_id)],
     };
 
     insta::assert_snapshot!(
@@ -439,25 +394,10 @@ fn test_update_conflict_from_content() {
     let left_file_id = testutils::write_file(store, &path, "left 1\nline 2\nleft 3\n");
     let right_file_id = testutils::write_file(store, &path, "right 1\nline 2\nright 3\n");
     let conflict = Conflict {
-        removes: vec![ConflictPart {
-            value: TreeValue::File {
-                id: base_file_id,
-                executable: false,
-            },
-        }],
+        removes: vec![file_conflict_part(&base_file_id)],
         adds: vec![
-            ConflictPart {
-                value: TreeValue::File {
-                    id: left_file_id,
-                    executable: false,
-                },
-            },
-            ConflictPart {
-                value: TreeValue::File {
-                    id: right_file_id,
-                    executable: false,
-                },
-            },
+            file_conflict_part(&left_file_id),
+            file_conflict_part(&right_file_id),
         ],
     };
     let conflict_id = store.write_conflict(&path, &conflict).unwrap();
@@ -497,25 +437,10 @@ fn test_update_conflict_from_content() {
     assert_eq!(
         new_conflict,
         Conflict {
-            removes: vec![ConflictPart {
-                value: TreeValue::File {
-                    id: new_base_file_id,
-                    executable: false
-                }
-            }],
+            removes: vec![file_conflict_part(&new_base_file_id)],
             adds: vec![
-                ConflictPart {
-                    value: TreeValue::File {
-                        id: new_left_file_id,
-                        executable: false
-                    }
-                },
-                ConflictPart {
-                    value: TreeValue::File {
-                        id: new_right_file_id,
-                        executable: false
-                    }
-                }
+                file_conflict_part(&new_left_file_id),
+                file_conflict_part(&new_right_file_id)
             ]
         }
     )
