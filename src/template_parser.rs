@@ -591,6 +591,11 @@ trait TemplateLanguage<'a> {
         name: &str,
         span: pest::Span,
     ) -> TemplateParseResult<Property<'a, Self::Context>>;
+    fn build_method(
+        &self,
+        property: Property<'a, Self::Context>,
+        function: &FunctionCallNode,
+    ) -> TemplateParseResult<Property<'a, Self::Context>>;
 }
 
 enum Property<'a, I> {
@@ -760,7 +765,7 @@ fn build_method_call<'a, L: TemplateLanguage<'a>>(
 ) -> TemplateParseResult<Expression<'a, L::Context>> {
     match build_expression(language, &method.object)? {
         Expression::Property(property, mut labels) => {
-            let property = build_core_method(language, property, &method.function)?;
+            let property = language.build_method(property, &method.function)?;
             labels.push(method.function.name.to_owned());
             Ok(Expression::Property(property, labels))
         }
@@ -1127,6 +1132,14 @@ impl<'a> TemplateLanguage<'a> for CommitTemplateLanguage<'a, '_> {
     ) -> TemplateParseResult<Property<'a, Self::Context>> {
         build_commit_keyword(self, name, span)
     }
+
+    fn build_method(
+        &self,
+        property: Property<'a, Self::Context>,
+        function: &FunctionCallNode,
+    ) -> TemplateParseResult<Property<'a, Self::Context>> {
+        build_core_method(self, property, function)
+    }
 }
 
 pub fn parse_commit_template<'a>(
@@ -1157,6 +1170,14 @@ mod tests {
             span: pest::Span,
         ) -> TemplateParseResult<Property<'static, Self::Context>> {
             Err(TemplateParseError::no_such_keyword(name, span))
+        }
+
+        fn build_method(
+            &self,
+            property: Property<'static, Self::Context>,
+            function: &FunctionCallNode,
+        ) -> TemplateParseResult<Property<'static, Self::Context>> {
+            build_core_method(self, property, function)
         }
     }
 
