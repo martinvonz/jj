@@ -627,6 +627,15 @@ trait TemplateLanguage<'a> {
     ) -> TemplateParseResult<Property<'a, Self::Context>>;
 }
 
+/// Provides access to basic template property types.
+trait IntoTemplateProperty<'a, C> {
+    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>>;
+    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>>;
+
+    fn into_plain_text(self) -> Box<dyn TemplateProperty<C, Output = String> + 'a>;
+    fn into_template(self) -> Box<dyn Template<C> + 'a>;
+}
+
 enum Property<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
@@ -637,7 +646,7 @@ enum Property<'a, I> {
     Timestamp(Box<dyn TemplateProperty<I, Output = Timestamp> + 'a>),
 }
 
-impl<'a, I: 'a> Property<'a, I> {
+impl<'a, I: 'a> IntoTemplateProperty<'a, I> for Property<'a, I> {
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<I, Output = bool> + 'a>> {
         match self {
             Property::String(property) => {
