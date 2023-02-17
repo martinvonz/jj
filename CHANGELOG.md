@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* Modify/delete conflicts now include context lines
+  [#1244](https://github.com/martinvonz/jj/issues/1244).
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes
