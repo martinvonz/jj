@@ -152,7 +152,7 @@ content_hash! {
 
 content_hash! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    pub struct ConflictPart {
+    pub struct ConflictTerm {
         // TODO: Store e.g. CommitId here too? Labels (theirs/ours/base)? Would those still be
         //       useful e.g. after rebasing this conflict?
         pub value: TreeValue,
@@ -166,8 +166,8 @@ content_hash! {
         // In a simple 3-way merge of B and C with merge base A, the conflict will be { add: [B, C],
         // remove: [A] }. Also note that a conflict of the form { add: [A], remove: [] } is the
         // same as non-conflict A.
-        pub removes: Vec<ConflictPart>,
-        pub adds: Vec<ConflictPart>,
+        pub removes: Vec<ConflictTerm>,
+        pub adds: Vec<ConflictTerm>,
     }
 }
 

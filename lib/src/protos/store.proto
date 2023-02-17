@@ -63,10 +63,10 @@ message Commit {
 }
 
 message Conflict {
-  message Part {
+  message Term {
     TreeValue content = 1;
   }
 
-  repeated Part removes = 1;
-  repeated Part adds = 2;
+  repeated Term removes = 1;
+  repeated Term adds = 2;
 }

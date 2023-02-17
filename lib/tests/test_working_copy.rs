@@ -21,7 +21,7 @@ use std::os::unix::net::UnixListener;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
+use jujutsu_lib::backend::{Conflict, ConflictTerm, TreeValue};
 use jujutsu_lib::gitignore::GitIgnoreFile;
 #[cfg(unix)]
 use jujutsu_lib::op_store::OperationId;
@@ -121,20 +121,20 @@ fn test_checkout_file_transitions(use_git: bool) {
                 let left_file_id = testutils::write_file(store, path, "left file contents");
                 let right_file_id = testutils::write_file(store, path, "right file contents");
                 let conflict = Conflict {
-                    removes: vec![ConflictPart {
+                    removes: vec![ConflictTerm {
                         value: TreeValue::File {
                             id: base_file_id,
                             executable: false,
                         },
                     }],
                     adds: vec![
-                        ConflictPart {
+                        ConflictTerm {
                             value: TreeValue::File {
                                 id: left_file_id,
                                 executable: false,
                             },
                         },
-                        ConflictPart {
+                        ConflictTerm {
                             value: TreeValue::File {
                                 id: right_file_id,
                                 executable: false,

@@ -93,15 +93,15 @@ pub mod commit {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Conflict {
     #[prost(message, repeated, tag = "1")]
-    pub removes: ::prost::alloc::vec::Vec<conflict::Part>,
+    pub removes: ::prost::alloc::vec::Vec<conflict::Term>,
     #[prost(message, repeated, tag = "2")]
-    pub adds: ::prost::alloc::vec::Vec<conflict::Part>,
+    pub adds: ::prost::alloc::vec::Vec<conflict::Term>,
 }
 /// Nested message and enum types in `Conflict`.
 pub mod conflict {
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct Part {
+    pub struct Term {
         #[prost(message, optional, tag = "1")]
         pub content: ::core::option::Option<super::TreeValue>,
     }

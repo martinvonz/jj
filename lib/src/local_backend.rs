@@ -24,7 +24,7 @@ use tempfile::{NamedTempFile, PersistError};
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictPart, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
+    ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
     Tree, TreeId, TreeValue,
 };
 use crate::content_hash::blake2b_hash;
@@ -401,34 +401,34 @@ fn signature_from_proto(proto: crate::protos::store::commit::Signature) -> Signa
 
 fn conflict_to_proto(conflict: &Conflict) -> crate::protos::store::Conflict {
     let mut proto = crate::protos::store::Conflict::default();
-    for part in &conflict.adds {
-        proto.adds.push(conflict_part_to_proto(part));
+    for term in &conflict.adds {
+        proto.adds.push(conflict_term_to_proto(term));
     }
-    for part in &conflict.removes {
-        proto.removes.push(conflict_part_to_proto(part));
+    for term in &conflict.removes {
+        proto.removes.push(conflict_term_to_proto(term));
     }
     proto
 }
 
 fn conflict_from_proto(proto: crate::protos::store::Conflict) -> Conflict {
     let mut conflict = Conflict::default();
-    for part in proto.removes {
-        conflict.removes.push(conflict_part_from_proto(part))
+    for term in proto.removes {
+        conflict.removes.push(conflict_term_from_proto(term))
     }
-    for part in proto.adds {
-        conflict.adds.push(conflict_part_from_proto(part))
+    for term in proto.adds {
+        conflict.adds.push(conflict_term_from_proto(term))
     }
     conflict
 }
 
-fn conflict_part_from_proto(proto: crate::protos::store::conflict::Part) -> ConflictPart {
-    ConflictPart {
+fn conflict_term_from_proto(proto: crate::protos::store::conflict::Term) -> ConflictTerm {
+    ConflictTerm {
         value: tree_value_from_proto(proto.content.unwrap()),
     }
 }
 
-fn conflict_part_to_proto(part: &ConflictPart) -> crate::protos::store::conflict::Part {
-    crate::protos::store::conflict::Part {
+fn conflict_term_to_proto(part: &ConflictTerm) -> crate::protos::store::conflict::Term {
+    crate::protos::store::conflict::Term {
         content: Some(tree_value_to_proto(&part.value)),
     }
 }

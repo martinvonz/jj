@@ -17,7 +17,7 @@ use std::io::{Cursor, Write};
 
 use itertools::Itertools;
 
-use crate::backend::{BackendResult, Conflict, ConflictId, ConflictPart, ObjectId, TreeValue};
+use crate::backend::{BackendResult, Conflict, ConflictId, ConflictTerm, ObjectId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
 use crate::files::{ConflictHunk, MergeHunk, MergeResult};
@@ -30,8 +30,8 @@ const CONFLICT_DIFF_LINE: &[u8] = b"%%%%%%%\n";
 const CONFLICT_MINUS_LINE: &[u8] = b"-------\n";
 const CONFLICT_PLUS_LINE: &[u8] = b"+++++++\n";
 
-fn describe_conflict_part(part: &ConflictPart) -> String {
-    match &part.value {
+fn describe_conflict_term(term: &ConflictTerm) -> String {
+    match &term.value {
         TreeValue::File {
             id,
             executable: false,
@@ -62,21 +62,21 @@ fn describe_conflict_part(part: &ConflictPart) -> String {
 /// Give a summary description of a conflict's "adds" and "removes"
 pub fn describe_conflict(conflict: &Conflict, file: &mut dyn Write) -> std::io::Result<()> {
     file.write_all(b"Conflict:\n")?;
-    for part in &conflict.removes {
-        file.write_all(format!("  Removing {}\n", describe_conflict_part(part)).as_bytes())?;
+    for term in &conflict.removes {
+        file.write_all(format!("  Removing {}\n", describe_conflict_term(term)).as_bytes())?;
     }
-    for part in &conflict.adds {
-        file.write_all(format!("  Adding {}\n", describe_conflict_part(part)).as_bytes())?;
+    for term in &conflict.adds {
+        file.write_all(format!("  Adding {}\n", describe_conflict_term(term)).as_bytes())?;
     }
     Ok(())
 }
 
-fn file_parts(parts: &[ConflictPart]) -> Vec<&ConflictPart> {
-    parts
+fn file_terms(terms: &[ConflictTerm]) -> Vec<&ConflictTerm> {
+    terms
         .iter()
-        .filter(|part| {
+        .filter(|term| {
             matches!(
-                part.value,
+                term.value,
                 TreeValue::File {
                     executable: false,
                     ..
@@ -86,11 +86,11 @@ fn file_parts(parts: &[ConflictPart]) -> Vec<&ConflictPart> {
         .collect_vec()
 }
 
-fn get_file_contents(store: &Store, path: &RepoPath, part: &ConflictPart) -> Vec<u8> {
+fn get_file_contents(store: &Store, path: &RepoPath, term: &ConflictTerm) -> Vec<u8> {
     if let TreeValue::File {
         id,
         executable: false,
-    } = &part.value
+    } = &term.value
     {
         let mut content: Vec<u8> = vec![];
         store
@@ -100,7 +100,7 @@ fn get_file_contents(store: &Store, path: &RepoPath, part: &ConflictPart) -> Vec
             .unwrap();
         content
     } else {
-        panic!("unexpectedly got a non-file conflict part");
+        panic!("unexpectedly got a non-file conflict term");
     }
 }
 
@@ -136,7 +136,7 @@ pub fn materialize_conflict(
 ) -> std::io::Result<()> {
     match extract_file_conflict_as_single_hunk(store, path, conflict) {
         None => {
-            // Unless all parts are regular files, we can't do much better than to try to
+            // Unless all terms are regular files, we can't do much better than to try to
             // describe the conflict.
             describe_conflict(conflict, output)
         }
@@ -144,24 +144,24 @@ pub fn materialize_conflict(
     }
 }
 
-/// Only works if all parts of the conflict are regular, non-executable files
+/// Only works if all terms of the conflict are regular, non-executable files
 pub fn extract_file_conflict_as_single_hunk(
     store: &Store,
     path: &RepoPath,
     conflict: &Conflict,
 ) -> Option<ConflictHunk> {
-    let file_adds = file_parts(&conflict.adds);
-    let file_removes = file_parts(&conflict.removes);
+    let file_adds = file_terms(&conflict.adds);
+    let file_removes = file_terms(&conflict.removes);
     if file_adds.len() != conflict.adds.len() || file_removes.len() != conflict.removes.len() {
         return None;
     }
     let mut added_content = file_adds
         .iter()
-        .map(|part| get_file_contents(store, path, part))
+        .map(|term| get_file_contents(store, path, term))
         .collect_vec();
     let mut removed_content = file_removes
         .iter()
-        .map(|part| get_file_contents(store, path, part))
+        .map(|term| get_file_contents(store, path, term))
         .collect_vec();
     // If the conflict had removed the file on one side, we pretend that the file
     // was empty there.

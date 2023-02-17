@@ -24,7 +24,7 @@ use prost::Message;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictPart, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
+    ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
     Tree, TreeId, TreeValue,
 };
 use crate::repo_path::{RepoPath, RepoPathComponent};
@@ -370,15 +370,15 @@ impl Backend for GitBackend {
         file.read_to_string(&mut data)?;
         let json: serde_json::Value = serde_json::from_str(&data).unwrap();
         Ok(Conflict {
-            removes: conflict_part_list_from_json(json.get("removes").unwrap()),
-            adds: conflict_part_list_from_json(json.get("adds").unwrap()),
+            removes: conflict_term_list_from_json(json.get("removes").unwrap()),
+            adds: conflict_term_list_from_json(json.get("adds").unwrap()),
         })
     }
 
     fn write_conflict(&self, _path: &RepoPath, conflict: &Conflict) -> BackendResult<ConflictId> {
         let json = serde_json::json!({
-            "removes": conflict_part_list_to_json(&conflict.removes),
-            "adds": conflict_part_list_to_json(&conflict.adds),
+            "removes": conflict_term_list_to_json(&conflict.removes),
+            "adds": conflict_term_list_to_json(&conflict.adds),
         });
         let json_string = json.to_string();
         let bytes = json_string.as_bytes();
@@ -548,27 +548,27 @@ impl Backend for GitBackend {
     }
 }
 
-fn conflict_part_list_to_json(parts: &[ConflictPart]) -> serde_json::Value {
-    serde_json::Value::Array(parts.iter().map(conflict_part_to_json).collect())
+fn conflict_term_list_to_json(parts: &[ConflictTerm]) -> serde_json::Value {
+    serde_json::Value::Array(parts.iter().map(conflict_term_to_json).collect())
 }
 
-fn conflict_part_list_from_json(json: &serde_json::Value) -> Vec<ConflictPart> {
+fn conflict_term_list_from_json(json: &serde_json::Value) -> Vec<ConflictTerm> {
     json.as_array()
         .unwrap()
         .iter()
-        .map(conflict_part_from_json)
+        .map(conflict_term_from_json)
         .collect()
 }
 
-fn conflict_part_to_json(part: &ConflictPart) -> serde_json::Value {
+fn conflict_term_to_json(part: &ConflictTerm) -> serde_json::Value {
     serde_json::json!({
         "value": tree_value_to_json(&part.value),
     })
 }
 
-fn conflict_part_from_json(json: &serde_json::Value) -> ConflictPart {
+fn conflict_term_from_json(json: &serde_json::Value) -> ConflictTerm {
     let json_value = json.get("value").unwrap();
-    ConflictPart {
+    ConflictTerm {
         value: tree_value_from_json(json_value),
     }
 }
