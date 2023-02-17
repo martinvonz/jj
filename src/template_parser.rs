@@ -634,52 +634,43 @@ impl<'a, I: 'a> Property<'a, I> {
     }
 }
 
-struct PropertyAndLabels<'a, C>(Property<'a, C>, Vec<String>);
-
-impl<'a, C: 'a> PropertyAndLabels<'a, C> {
-    fn into_template(self) -> Box<dyn Template<C> + 'a> {
-        let PropertyAndLabels(property, labels) = self;
-        if labels.is_empty() {
-            property.into_template()
-        } else {
-            Box::new(LabelTemplate::new(
-                property.into_template(),
-                Literal(labels),
-            ))
-        }
-    }
-}
-
 enum Expression<'a, C> {
-    Property(PropertyAndLabels<'a, C>),
+    Property(Property<'a, C>, Vec<String>),
     Template(Box<dyn Template<C> + 'a>),
 }
 
 impl<'a, C: 'a> Expression<'a, C> {
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>> {
         match self {
-            Expression::Property(PropertyAndLabels(property, _)) => property.try_into_boolean(),
+            Expression::Property(property, _) => property.try_into_boolean(),
             Expression::Template(_) => None,
         }
     }
 
     fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>> {
         match self {
-            Expression::Property(PropertyAndLabels(property, _)) => property.try_into_integer(),
+            Expression::Property(property, _) => property.try_into_integer(),
             Expression::Template(_) => None,
         }
     }
 
     fn into_plain_text(self) -> Box<dyn TemplateProperty<C, Output = String> + 'a> {
         match self {
-            Expression::Property(PropertyAndLabels(property, _)) => property.into_plain_text(),
+            Expression::Property(property, _) => property.into_plain_text(),
             Expression::Template(template) => Box::new(PlainTextFormattedProperty::new(template)),
         }
     }
 
     fn into_template(self) -> Box<dyn Template<C> + 'a> {
         match self {
-            Expression::Property(property_labels) => property_labels.into_template(),
+            Expression::Property(property, labels) => {
+                let template = property.into_template();
+                if labels.is_empty() {
+                    template
+                } else {
+                    Box::new(LabelTemplate::new(template, Literal(labels)))
+                }
+            }
             Expression::Template(template) => template,
         }
     }
@@ -756,7 +747,7 @@ fn build_method_call<'a, I: 'a>(
     build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
 ) -> TemplateParseResult<Expression<'a, I>> {
     match build_expression(&method.object, build_keyword)? {
-        Expression::Property(PropertyAndLabels(property, mut labels)) => {
+        Expression::Property(property, mut labels) => {
             let property = match property {
                 Property::String(property) => {
                     build_string_method(property, &method.function, build_keyword)?
@@ -781,7 +772,7 @@ fn build_method_call<'a, I: 'a>(
                 }
             };
             labels.push(method.function.name.to_owned());
-            Ok(Expression::Property(PropertyAndLabels(property, labels)))
+            Ok(Expression::Property(property, labels))
         }
         Expression::Template(_) => Err(TemplateParseError::no_such_method(
             "Template",
@@ -1086,16 +1077,15 @@ fn build_expression<'a, C: 'a>(
         ExpressionKind::Identifier(name) => {
             let property = build_keyword(name, node.span)?;
             let labels = vec![(*name).to_owned()];
-            Ok(Expression::Property(PropertyAndLabels(property, labels)))
+            Ok(Expression::Property(property, labels))
         }
         ExpressionKind::Integer(value) => {
-            let term = PropertyAndLabels(Property::Integer(Box::new(Literal(*value))), vec![]);
-            Ok(Expression::Property(term))
+            let property = Property::Integer(Box::new(Literal(*value)));
+            Ok(Expression::Property(property, vec![]))
         }
         ExpressionKind::String(value) => {
-            let term =
-                PropertyAndLabels(Property::String(Box::new(Literal(value.clone()))), vec![]);
-            Ok(Expression::Property(term))
+            let property = Property::String(Box::new(Literal(value.clone())));
+            Ok(Expression::Property(property, vec![]))
         }
         ExpressionKind::List(nodes) => {
             let templates = nodes
