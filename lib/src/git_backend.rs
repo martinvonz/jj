@@ -369,16 +369,22 @@ impl Backend for GitBackend {
         let mut data = String::new();
         file.read_to_string(&mut data)?;
         let json: serde_json::Value = serde_json::from_str(&data).unwrap();
-        Ok(Conflict {
-            removes: conflict_term_list_from_json(json.get("removes").unwrap()),
-            adds: conflict_term_list_from_json(json.get("adds").unwrap()),
-        })
+        let mut terms = vec![];
+        terms.extend(conflict_part_list_from_json(
+            json.get("removes").unwrap(),
+            true,
+        ));
+        terms.extend(conflict_part_list_from_json(
+            json.get("adds").unwrap(),
+            false,
+        ));
+        Ok(Conflict { terms })
     }
 
     fn write_conflict(&self, _path: &RepoPath, conflict: &Conflict) -> BackendResult<ConflictId> {
         let json = serde_json::json!({
-            "removes": conflict_term_list_to_json(&conflict.removes),
-            "adds": conflict_term_list_to_json(&conflict.adds),
+            "removes": conflict_part_list_to_json(&conflict.terms, true),
+            "adds": conflict_part_list_to_json(&conflict.terms, false),
         });
         let json_string = json.to_string();
         let bytes = json_string.as_bytes();
@@ -548,28 +554,35 @@ impl Backend for GitBackend {
     }
 }
 
-fn conflict_term_list_to_json(parts: &[ConflictTerm]) -> serde_json::Value {
-    serde_json::Value::Array(parts.iter().map(conflict_term_to_json).collect())
+fn conflict_part_list_to_json(terms: &[ConflictTerm], negative: bool) -> serde_json::Value {
+    serde_json::Value::Array(
+        terms
+            .iter()
+            .filter(|term| term.negative == negative)
+            .map(conflict_part_to_json)
+            .collect(),
+    )
 }
 
-fn conflict_term_list_from_json(json: &serde_json::Value) -> Vec<ConflictTerm> {
+fn conflict_part_list_from_json(json: &serde_json::Value, negative: bool) -> Vec<ConflictTerm> {
     json.as_array()
         .unwrap()
         .iter()
-        .map(conflict_term_from_json)
+        .map(|value| conflict_part_from_json(value, negative))
         .collect()
 }
 
-fn conflict_term_to_json(part: &ConflictTerm) -> serde_json::Value {
+fn conflict_part_to_json(part: &ConflictTerm) -> serde_json::Value {
     serde_json::json!({
         "value": tree_value_to_json(&part.value),
     })
 }
 
-fn conflict_term_from_json(json: &serde_json::Value) -> ConflictTerm {
+fn conflict_part_from_json(json: &serde_json::Value, negative: bool) -> ConflictTerm {
     let json_value = json.get("value").unwrap();
     ConflictTerm {
         value: tree_value_from_json(json_value),
+        negative,
     }
 }
 

@@ -611,29 +611,32 @@ fn merge_tree_value(
             // resolved state, the absence of a state, or a conflicted state.
             let mut conflict = Conflict::default();
             if let Some(base) = maybe_base {
-                conflict.removes.push(ConflictTerm {
+                conflict.terms.push(ConflictTerm {
                     value: base.clone(),
+                    negative: true,
                 });
             }
             if let Some(side1) = maybe_side1 {
-                conflict.adds.push(ConflictTerm {
+                conflict.terms.push(ConflictTerm {
                     value: side1.clone(),
+                    negative: false,
                 });
             }
             if let Some(side2) = maybe_side2 {
-                conflict.adds.push(ConflictTerm {
+                conflict.terms.push(ConflictTerm {
                     value: side2.clone(),
+                    negative: false,
                 });
             }
             let filename = dir.join(basename);
             let conflict = simplify_conflict(store, &filename, conflict)?;
-            if conflict.adds.is_empty() {
+            if conflict.terms.iter().all(|term| term.negative) {
                 // If there are no values to add, then the path doesn't exist
                 return Ok(None);
             }
-            if conflict.removes.is_empty() && conflict.adds.len() == 1 {
-                // A single add means that the current state is that state.
-                return Ok(Some(conflict.adds[0].value.clone()));
+            if conflict.terms.len() == 1 && !conflict.terms[0].negative {
+                // A single positive term means that the current state is that state.
+                return Ok(Some(conflict.terms[0].value.clone()));
             }
             if let Some((merged_content, executable)) =
                 try_resolve_file_conflict(store, &filename, &conflict)?
@@ -655,7 +658,7 @@ fn try_resolve_file_conflict(
 ) -> Result<Option<(Vec<u8>, bool)>, TreeMergeError> {
     // If the file was missing from any side (typically a modify/delete conflict),
     // we can't automatically merge it.
-    if conflict.adds.len() != conflict.removes.len() + 1 {
+    if conflict.num_positive() != conflict.num_negative() + 1 {
         return Ok(None);
     }
 
@@ -667,30 +670,20 @@ fn try_resolve_file_conflict(
     let mut regular_delta = 0;
     let mut removed_file_ids = vec![];
     let mut added_file_ids = vec![];
-    for term in &conflict.removes {
+    for term in &conflict.terms {
         match &term.value {
             TreeValue::File { id, executable } => {
+                let delta = if term.negative { -1 } else { 1 };
                 if *executable {
-                    exec_delta -= 1;
+                    exec_delta += delta;
                 } else {
-                    regular_delta -= 1;
+                    regular_delta += delta;
                 }
-                removed_file_ids.push(id.clone());
-            }
-            _ => {
-                return Ok(None);
-            }
-        }
-    }
-    for term in &conflict.adds {
-        match &term.value {
-            TreeValue::File { id, executable } => {
-                if *executable {
-                    exec_delta += 1;
+                if term.negative {
+                    removed_file_ids.push(id.clone());
                 } else {
-                    regular_delta += 1;
+                    added_file_ids.push(id.clone());
                 }
-                added_file_ids.push(id.clone());
             }
             _ => {
                 return Ok(None);
@@ -750,8 +743,10 @@ fn tree_value_to_conflict(
             Ok(conflict)
         }
         other => Ok(Conflict {
-            removes: vec![],
-            adds: vec![ConflictTerm { value: other }],
+            terms: vec![ConflictTerm {
+                value: other,
+                negative: false,
+            }],
         }),
     }
 }
@@ -793,45 +788,40 @@ fn simplify_conflict(
     // TODO: describe this case
 
     // First expand any diffs with nested conflicts.
-    let mut new_removes = vec![];
-    let mut new_adds = vec![];
-    for term in conflict.adds {
+    let mut new_terms = vec![];
+    for term in conflict.terms {
         match term.value {
             TreeValue::Conflict(_) => {
                 let conflict = tree_value_to_conflict(store, path, term.value)?;
-                new_removes.extend_from_slice(&conflict.removes);
-                new_adds.extend_from_slice(&conflict.adds);
+                for sub_term in conflict.terms {
+                    new_terms.push(ConflictTerm {
+                        value: sub_term.value,
+                        negative: term.negative ^ sub_term.negative,
+                    });
+                }
             }
             _ => {
-                new_adds.push(term);
-            }
-        }
-    }
-    for term in conflict.removes {
-        match term.value {
-            TreeValue::Conflict(_) => {
-                let conflict = tree_value_to_conflict(store, path, term.value)?;
-                new_removes.extend_from_slice(&conflict.adds);
-                new_adds.extend_from_slice(&conflict.removes);
-            }
-            _ => {
-                new_removes.push(term);
+                new_terms.push(term);
             }
         }
     }
 
-    // Remove pairs of entries that match in the removes and adds.
-    let mut add_index = 0;
-    while add_index < new_adds.len() {
-        let add = &new_adds[add_index];
-        add_index += 1;
-        for (remove_index, remove) in new_removes.iter().enumerate() {
-            if remove.value == add.value {
-                new_removes.remove(remove_index);
-                add_index -= 1;
-                new_adds.remove(add_index);
+    // Remove positive and negative terms that match.
+    let mut i = 0;
+    while i < new_terms.len() - 1 {
+        let mut found = false;
+        for j in (i + 1)..new_terms.len() {
+            if new_terms[i].negative != new_terms[j].negative
+                && new_terms[i].value == new_terms[j].value
+            {
+                new_terms.remove(j);
+                new_terms.remove(i);
+                found = true;
                 break;
             }
+        }
+        if !found {
+            i += 1;
         }
     }
 
@@ -839,8 +829,5 @@ fn simplify_conflict(
     // {+A+A}, that would become just {+A}. Similarly {+B-A+B} would be just
     // {+B-A}.
 
-    Ok(Conflict {
-        adds: new_adds,
-        removes: new_removes,
-    })
+    Ok(Conflict { terms: new_terms })
 }

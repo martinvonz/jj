@@ -401,33 +401,38 @@ fn signature_from_proto(proto: crate::protos::store::commit::Signature) -> Signa
 
 fn conflict_to_proto(conflict: &Conflict) -> crate::protos::store::Conflict {
     let mut proto = crate::protos::store::Conflict::default();
-    for term in &conflict.adds {
-        proto.adds.push(conflict_term_to_proto(term));
-    }
-    for term in &conflict.removes {
-        proto.removes.push(conflict_term_to_proto(term));
+    for term in &conflict.terms {
+        if term.negative {
+            proto.removes.push(conflict_part_to_proto(term));
+        } else {
+            proto.adds.push(conflict_part_to_proto(term));
+        }
     }
     proto
 }
 
 fn conflict_from_proto(proto: crate::protos::store::Conflict) -> Conflict {
     let mut conflict = Conflict::default();
-    for term in proto.removes {
-        conflict.removes.push(conflict_term_from_proto(term))
+    for part in proto.removes {
+        conflict.terms.push(conflict_part_from_proto(part, true))
     }
-    for term in proto.adds {
-        conflict.adds.push(conflict_term_from_proto(term))
+    for part in proto.adds {
+        conflict.terms.push(conflict_part_from_proto(part, false))
     }
     conflict
 }
 
-fn conflict_term_from_proto(proto: crate::protos::store::conflict::Term) -> ConflictTerm {
+fn conflict_part_from_proto(
+    proto: crate::protos::store::conflict::Term,
+    negative: bool,
+) -> ConflictTerm {
     ConflictTerm {
         value: tree_value_from_proto(proto.content.unwrap()),
+        negative,
     }
 }
 
-fn conflict_term_to_proto(part: &ConflictTerm) -> crate::protos::store::conflict::Term {
+fn conflict_part_to_proto(part: &ConflictTerm) -> crate::protos::store::conflict::Term {
     crate::protos::store::conflict::Term {
         content: Some(tree_value_to_proto(&part.value)),
     }

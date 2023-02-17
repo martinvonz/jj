@@ -62,11 +62,9 @@ fn describe_conflict_term(term: &ConflictTerm) -> String {
 /// Give a summary description of a conflict's "adds" and "removes"
 pub fn describe_conflict(conflict: &Conflict, file: &mut dyn Write) -> std::io::Result<()> {
     file.write_all(b"Conflict:\n")?;
-    for term in &conflict.removes {
-        file.write_all(format!("  Removing {}\n", describe_conflict_term(term)).as_bytes())?;
-    }
-    for term in &conflict.adds {
-        file.write_all(format!("  Adding {}\n", describe_conflict_term(term)).as_bytes())?;
+    for term in &conflict.terms {
+        let action = if term.negative { "Removing" } else { "Adding" };
+        file.write_all(format!("  {action} {}\n", describe_conflict_term(term)).as_bytes())?;
     }
     Ok(())
 }
@@ -150,17 +148,18 @@ pub fn extract_file_conflict_as_single_hunk(
     path: &RepoPath,
     conflict: &Conflict,
 ) -> Option<ConflictHunk> {
-    let file_adds = file_terms(&conflict.adds);
-    let file_removes = file_terms(&conflict.removes);
-    if file_adds.len() != conflict.adds.len() || file_removes.len() != conflict.removes.len() {
+    let file_terms = file_terms(&conflict.terms);
+    if file_terms.len() != conflict.terms.len() {
         return None;
     }
-    let mut added_content = file_adds
+    let mut added_content = file_terms
         .iter()
+        .filter(|term| !term.negative)
         .map(|term| get_file_contents(store, path, term))
         .collect_vec();
-    let mut removed_content = file_removes
+    let mut removed_content = file_terms
         .iter()
+        .filter(|term| term.negative)
         .map(|term| get_file_contents(store, path, term))
         .collect_vec();
     // If the conflict had removed the file on one side, we pretend that the file
@@ -399,25 +398,26 @@ pub fn update_conflict_from_content(
         return Ok(Some(conflict_id.clone()));
     }
 
-    let mut removed_content = vec![vec![]; conflict.removes.len()];
-    let mut added_content = vec![vec![]; conflict.adds.len()];
-    if let Some(hunks) = parse_conflict(content, conflict.removes.len(), conflict.adds.len()) {
+    let mut reconstructed_content = vec![vec![]; conflict.terms.len()];
+    if let Some(hunks) = parse_conflict(content, conflict.num_negative(), conflict.num_positive()) {
         for hunk in hunks {
             match hunk {
                 MergeHunk::Resolved(slice) => {
-                    for buf in &mut removed_content {
-                        buf.extend_from_slice(&slice);
-                    }
-                    for buf in &mut added_content {
+                    for buf in &mut reconstructed_content {
                         buf.extend_from_slice(&slice);
                     }
                 }
                 MergeHunk::Conflict(ConflictHunk { removes, adds }) => {
-                    for (i, buf) in removes.iter().enumerate() {
-                        removed_content[i].extend_from_slice(buf);
-                    }
-                    for (i, buf) in adds.iter().enumerate() {
-                        added_content[i].extend_from_slice(buf);
+                    assert_eq!(conflict.terms.len(), removes.len() + adds.len());
+                    let mut removes_iter = removes.iter();
+                    let mut adds_iter = adds.iter();
+                    for (i, term) in conflict.terms.iter().enumerate() {
+                        if term.negative {
+                            reconstructed_content[i]
+                                .extend_from_slice(removes_iter.next().unwrap());
+                        } else {
+                            reconstructed_content[i].extend_from_slice(adds_iter.next().unwrap());
+                        }
                     }
                 }
             }
@@ -425,22 +425,14 @@ pub fn update_conflict_from_content(
         // Now write the new files contents we found by parsing the file
         // with conflict markers. Update the Conflict object with the new
         // FileIds.
-        for (i, buf) in removed_content.iter().enumerate() {
-            let file_id = store.write_file(path, &mut Cursor::new(buf))?;
-            if let TreeValue::File { id, executable: _ } = &mut conflict.removes[i].value {
+        for (i, term) in conflict.terms.iter_mut().enumerate() {
+            let file_id = store.write_file(path, &mut Cursor::new(&reconstructed_content[i]))?;
+            if let TreeValue::File { id, executable: _ } = &mut term.value {
                 *id = file_id;
             } else {
                 // TODO: This can actually happen. We should check earlier
                 // that the we only attempt to parse the conflicts if it's a
                 // file-only conflict.
-                panic!("Found conflict markers in merge of non-files");
-            }
-        }
-        for (i, buf) in added_content.iter().enumerate() {
-            let file_id = store.write_file(path, &mut Cursor::new(buf))?;
-            if let TreeValue::File { id, executable: _ } = &mut conflict.adds[i].value {
-                *id = file_id;
-            } else {
                 panic!("Found conflict markers in merge of non-files");
             }
         }

@@ -156,18 +156,44 @@ content_hash! {
         // TODO: Store e.g. CommitId here too? Labels (theirs/ours/base)? Would those still be
         //       useful e.g. after rebasing this conflict?
         pub value: TreeValue,
+        pub negative: bool,
+    }
+}
+
+impl ConflictTerm {
+    pub fn positive(value: TreeValue) -> Self {
+        Self {
+            value,
+            negative: false,
+        }
+    }
+
+    pub fn negative(value: TreeValue) -> Self {
+        Self {
+            value,
+            negative: true,
+        }
     }
 }
 
 content_hash! {
     #[derive(Default, Debug, PartialEq, Eq, Clone)]
     pub struct Conflict {
-        // A conflict is represented by a list of positive and negative states that need to be applied.
-        // In a simple 3-way merge of B and C with merge base A, the conflict will be { add: [B, C],
-        // remove: [A] }. Also note that a conflict of the form { add: [A], remove: [] } is the
-        // same as non-conflict A.
-        pub removes: Vec<ConflictTerm>,
-        pub adds: Vec<ConflictTerm>,
+        // A conflict is represented by a list of positive and negative states that need to be
+        // applied. In a simple 3-way merge of B and C with merge base A, the conflict will be
+        // `B+(C-A)`. Also note that a conflict of the form `A` (i.e. `+A`) is the same as
+        // non-conflict A.
+        pub terms: Vec<ConflictTerm>,
+    }
+}
+
+impl Conflict {
+    pub fn num_negative(&self) -> usize {
+        self.terms.iter().filter(|term| term.negative).count()
+    }
+
+    pub fn num_positive(&self) -> usize {
+        self.terms.iter().filter(|term| !term.negative).count()
     }
 }
 

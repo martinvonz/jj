@@ -2484,8 +2484,8 @@ fn print_conflicted_paths(
         std::iter::zip(conflicts.iter(), formatted_paths)
     {
         let conflict = tree.store().read_conflict(repo_path, conflict_id)?;
-        let n_adds = conflict.adds.len();
-        let sides = n_adds.max(conflict.removes.len() + 1);
+        let n_adds = conflict.num_positive();
+        let sides = n_adds.max(conflict.num_negative() + 1);
         let deletions = sides - n_adds;
 
         let mut seen_objects = BTreeMap::new(); // Sort for consistency and easier testing
@@ -2502,9 +2502,9 @@ fn print_conflicted_paths(
         // TODO: We might decide it's OK for `jj resolve` to ignore special files in the
         // `removes` of a conflict (see e.g. https://github.com/martinvonz/jj/pull/978). In
         // that case, `conflict.removes` should be removed below.
-        for object in itertools::chain(conflict.adds.iter(), conflict.removes.iter()) {
+        for term in conflict.terms.iter() {
             seen_objects.insert(
-                match object.value {
+                match term.value {
                     TreeValue::File {
                         executable: false, ..
                     } => continue,

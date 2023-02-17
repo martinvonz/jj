@@ -121,25 +121,19 @@ fn test_checkout_file_transitions(use_git: bool) {
                 let left_file_id = testutils::write_file(store, path, "left file contents");
                 let right_file_id = testutils::write_file(store, path, "right file contents");
                 let conflict = Conflict {
-                    removes: vec![ConflictTerm {
-                        value: TreeValue::File {
+                    terms: vec![
+                        ConflictTerm::negative(TreeValue::File {
                             id: base_file_id,
                             executable: false,
-                        },
-                    }],
-                    adds: vec![
-                        ConflictTerm {
-                            value: TreeValue::File {
-                                id: left_file_id,
-                                executable: false,
-                            },
-                        },
-                        ConflictTerm {
-                            value: TreeValue::File {
-                                id: right_file_id,
-                                executable: false,
-                            },
-                        },
+                        }),
+                        ConflictTerm::positive(TreeValue::File {
+                            id: left_file_id,
+                            executable: false,
+                        }),
+                        ConflictTerm::positive(TreeValue::File {
+                            id: right_file_id,
+                            executable: false,
+                        }),
                     ],
                 };
                 let conflict_id = store.write_conflict(path, &conflict).unwrap();
