@@ -632,7 +632,7 @@ trait IntoTemplateProperty<'a, C> {
     fn into_template(self) -> Box<dyn Template<C> + 'a>;
 }
 
-enum Property<'a, I> {
+enum CoreTemplatePropertyKind<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
     Integer(Box<dyn TemplateProperty<I, Output = i64> + 'a>),
@@ -642,27 +642,27 @@ enum Property<'a, I> {
     Timestamp(Box<dyn TemplateProperty<I, Output = Timestamp> + 'a>),
 }
 
-impl<'a, I: 'a> IntoTemplateProperty<'a, I> for Property<'a, I> {
+impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> {
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<I, Output = bool> + 'a>> {
         match self {
-            Property::String(property) => {
+            CoreTemplatePropertyKind::String(property) => {
                 Some(Box::new(TemplateFunction::new(property, |s| !s.is_empty())))
             }
-            Property::Boolean(property) => Some(property),
+            CoreTemplatePropertyKind::Boolean(property) => Some(property),
             _ => None,
         }
     }
 
     fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<I, Output = i64> + 'a>> {
         match self {
-            Property::Integer(property) => Some(property),
+            CoreTemplatePropertyKind::Integer(property) => Some(property),
             _ => None,
         }
     }
 
     fn into_plain_text(self) -> Box<dyn TemplateProperty<I, Output = String> + 'a> {
         match self {
-            Property::String(property) => property,
+            CoreTemplatePropertyKind::String(property) => property,
             _ => Box::new(PlainTextFormattedProperty::new(self.into_template())),
         }
     }
@@ -674,13 +674,13 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for Property<'a, I> {
             Box::new(FormattablePropertyTemplate::new(property))
         }
         match self {
-            Property::String(property) => wrap(property),
-            Property::Boolean(property) => wrap(property),
-            Property::Integer(property) => wrap(property),
-            Property::CommitOrChangeId(property) => wrap(property),
-            Property::ShortestIdPrefix(property) => wrap(property),
-            Property::Signature(property) => wrap(property),
-            Property::Timestamp(property) => wrap(property),
+            CoreTemplatePropertyKind::String(property) => wrap(property),
+            CoreTemplatePropertyKind::Boolean(property) => wrap(property),
+            CoreTemplatePropertyKind::Integer(property) => wrap(property),
+            CoreTemplatePropertyKind::CommitOrChangeId(property) => wrap(property),
+            CoreTemplatePropertyKind::ShortestIdPrefix(property) => wrap(property),
+            CoreTemplatePropertyKind::Signature(property) => wrap(property),
+            CoreTemplatePropertyKind::Timestamp(property) => wrap(property),
         }
     }
 }
@@ -821,21 +821,31 @@ fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
 
 fn build_core_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
-    property: Property<'a, L::Context>,
+    property: CoreTemplatePropertyKind<'a, L::Context>,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<L::Property> {
     match property {
-        Property::String(property) => build_string_method(language, property, function),
-        Property::Boolean(property) => build_boolean_method(language, property, function),
-        Property::Integer(property) => build_integer_method(language, property, function),
-        Property::CommitOrChangeId(property) => {
+        CoreTemplatePropertyKind::String(property) => {
+            build_string_method(language, property, function)
+        }
+        CoreTemplatePropertyKind::Boolean(property) => {
+            build_boolean_method(language, property, function)
+        }
+        CoreTemplatePropertyKind::Integer(property) => {
+            build_integer_method(language, property, function)
+        }
+        CoreTemplatePropertyKind::CommitOrChangeId(property) => {
             build_commit_or_change_id_method(language, property, function)
         }
-        Property::ShortestIdPrefix(property) => {
+        CoreTemplatePropertyKind::ShortestIdPrefix(property) => {
             build_shortest_id_prefix_method(language, property, function)
         }
-        Property::Signature(property) => build_signature_method(language, property, function),
-        Property::Timestamp(property) => build_timestamp_method(language, property, function),
+        CoreTemplatePropertyKind::Signature(property) => {
+            build_signature_method(language, property, function)
+        }
+        CoreTemplatePropertyKind::Timestamp(property) => {
+            build_timestamp_method(language, property, function)
+        }
     }
 }
 
@@ -1073,7 +1083,7 @@ fn build_commit_keyword<'a>(
     language: &CommitTemplateLanguage<'a, '_>,
     name: &str,
     span: pest::Span,
-) -> TemplateParseResult<Property<'a, Commit>> {
+) -> TemplateParseResult<CoreTemplatePropertyKind<'a, Commit>> {
     fn wrap_fn<'a, O>(
         f: impl Fn(&Commit) -> O + 'a,
     ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'a> {
@@ -1158,50 +1168,50 @@ struct CommitTemplateLanguage<'a, 'b> {
 
 impl<'a> TemplateLanguage<'a> for CommitTemplateLanguage<'a, '_> {
     type Context = Commit;
-    type Property = Property<'a, Commit>;
+    type Property = CoreTemplatePropertyKind<'a, Commit>;
 
     // TODO: maybe generate wrap_<type>() by macro?
     fn wrap_string(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'a>,
     ) -> Self::Property {
-        Property::String(property)
+        CoreTemplatePropertyKind::String(property)
     }
     fn wrap_boolean(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'a>,
     ) -> Self::Property {
-        Property::Boolean(property)
+        CoreTemplatePropertyKind::Boolean(property)
     }
     fn wrap_integer(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'a>,
     ) -> Self::Property {
-        Property::Integer(property)
+        CoreTemplatePropertyKind::Integer(property)
     }
     fn wrap_commit_or_change_id(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'a>> + 'a>,
     ) -> Self::Property {
-        Property::CommitOrChangeId(property)
+        CoreTemplatePropertyKind::CommitOrChangeId(property)
     }
     fn wrap_shortest_id_prefix(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'a>,
     ) -> Self::Property {
-        Property::ShortestIdPrefix(property)
+        CoreTemplatePropertyKind::ShortestIdPrefix(property)
     }
     fn wrap_signature(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'a>,
     ) -> Self::Property {
-        Property::Signature(property)
+        CoreTemplatePropertyKind::Signature(property)
     }
     fn wrap_timestamp(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'a>,
     ) -> Self::Property {
-        Property::Timestamp(property)
+        CoreTemplatePropertyKind::Timestamp(property)
     }
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property> {
@@ -1238,25 +1248,25 @@ mod tests {
 
     impl TemplateLanguage<'static> for MinimalTemplateLanguage {
         type Context = ();
-        type Property = Property<'static, ()>;
+        type Property = CoreTemplatePropertyKind<'static, ()>;
 
         fn wrap_string(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'static>,
         ) -> Self::Property {
-            Property::String(property)
+            CoreTemplatePropertyKind::String(property)
         }
         fn wrap_boolean(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'static>,
         ) -> Self::Property {
-            Property::Boolean(property)
+            CoreTemplatePropertyKind::Boolean(property)
         }
         fn wrap_integer(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'static>,
         ) -> Self::Property {
-            Property::Integer(property)
+            CoreTemplatePropertyKind::Integer(property)
         }
         fn wrap_commit_or_change_id(
             &self,
@@ -1264,25 +1274,25 @@ mod tests {
                 dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'static>> + 'static,
             >,
         ) -> Self::Property {
-            Property::CommitOrChangeId(property)
+            CoreTemplatePropertyKind::CommitOrChangeId(property)
         }
         fn wrap_shortest_id_prefix(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'static>,
         ) -> Self::Property {
-            Property::ShortestIdPrefix(property)
+            CoreTemplatePropertyKind::ShortestIdPrefix(property)
         }
         fn wrap_signature(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'static>,
         ) -> Self::Property {
-            Property::Signature(property)
+            CoreTemplatePropertyKind::Signature(property)
         }
         fn wrap_timestamp(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'static>,
         ) -> Self::Property {
-            Property::Timestamp(property)
+            CoreTemplatePropertyKind::Timestamp(property)
         }
 
         fn build_keyword(
@@ -1331,7 +1341,7 @@ mod tests {
 
     fn parse(
         template_text: &str,
-    ) -> TemplateParseResult<Expression<'static, (), Property<'static, ()>>> {
+    ) -> TemplateParseResult<Expression<'static, (), CoreTemplatePropertyKind<'static, ()>>> {
         let node = parse_template(template_text)?;
         build_expression(&MinimalTemplateLanguage, &node)
     }
@@ -1416,7 +1426,7 @@ mod tests {
 
     #[test]
     fn test_integer_literal() {
-        fn extract<'a>(x: Expression<'a, (), Property<'a, ()>>) -> i64 {
+        fn extract<'a>(x: Expression<'a, (), CoreTemplatePropertyKind<'a, ()>>) -> i64 {
             x.try_into_integer().unwrap().extract(&())
         }
 
