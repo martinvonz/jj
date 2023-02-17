@@ -748,29 +748,7 @@ fn build_method_call<'a, I: 'a>(
 ) -> TemplateParseResult<Expression<'a, I>> {
     match build_expression(&method.object, build_keyword)? {
         Expression::Property(property, mut labels) => {
-            let property = match property {
-                Property::String(property) => {
-                    build_string_method(property, &method.function, build_keyword)?
-                }
-                Property::Boolean(property) => {
-                    build_boolean_method(property, &method.function, build_keyword)?
-                }
-                Property::Integer(property) => {
-                    build_integer_method(property, &method.function, build_keyword)?
-                }
-                Property::CommitOrChangeId(property) => {
-                    build_commit_or_change_id_method(property, &method.function, build_keyword)?
-                }
-                Property::ShortestIdPrefix(property) => {
-                    build_shortest_id_prefix_method(property, &method.function, build_keyword)?
-                }
-                Property::Signature(property) => {
-                    build_signature_method(property, &method.function, build_keyword)?
-                }
-                Property::Timestamp(property) => {
-                    build_timestamp_method(property, &method.function, build_keyword)?
-                }
-            };
+            let property = build_core_method(property, &method.function, build_keyword)?;
             labels.push(method.function.name.to_owned());
             Ok(Expression::Property(property, labels))
         }
@@ -788,6 +766,26 @@ fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
     Box::new(TemplateFunction::new(first, move |value| {
         second.extract(&value)
     }))
+}
+
+fn build_core_method<'a, I: 'a>(
+    property: Property<'a, I>,
+    function: &FunctionCallNode,
+    build_keyword: &impl Fn(&str, pest::Span) -> TemplateParseResult<Property<'a, I>>,
+) -> TemplateParseResult<Property<'a, I>> {
+    match property {
+        Property::String(property) => build_string_method(property, function, build_keyword),
+        Property::Boolean(property) => build_boolean_method(property, function, build_keyword),
+        Property::Integer(property) => build_integer_method(property, function, build_keyword),
+        Property::CommitOrChangeId(property) => {
+            build_commit_or_change_id_method(property, function, build_keyword)
+        }
+        Property::ShortestIdPrefix(property) => {
+            build_shortest_id_prefix_method(property, function, build_keyword)
+        }
+        Property::Signature(property) => build_signature_method(property, function, build_keyword),
+        Property::Timestamp(property) => build_timestamp_method(property, function, build_keyword),
+    }
 }
 
 fn build_string_method<'a, I: 'a>(
