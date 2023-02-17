@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::backend::{Conflict, ConflictPart, FileId, TreeValue};
+use jujutsu_lib::backend::{Conflict, ConflictTerm, FileId, TreeValue};
 use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict, update_conflict_from_content};
 use jujutsu_lib::files::{ConflictHunk, MergeHunk};
 use jujutsu_lib::repo::Repo;
@@ -20,8 +20,8 @@ use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::Store;
 use testutils::TestRepo;
 
-fn file_conflict_part(file_id: &FileId) -> ConflictPart {
-    ConflictPart {
+fn file_conflict_term(file_id: &FileId) -> ConflictTerm {
+    ConflictTerm {
         value: TreeValue::File {
             id: file_id.clone(),
             executable: false,
@@ -69,8 +69,8 @@ line 5
     );
 
     let mut conflict = Conflict {
-        removes: vec![file_conflict_part(&base_id)],
-        adds: vec![file_conflict_part(&left_id), file_conflict_part(&right_id)],
+        removes: vec![file_conflict_term(&base_id)],
+        adds: vec![file_conflict_term(&left_id), file_conflict_term(&right_id)],
     };
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
@@ -150,10 +150,10 @@ line 5
 
     // left modifies a line, right deletes the same line.
     let conflict = Conflict {
-        removes: vec![file_conflict_part(&base_id)],
+        removes: vec![file_conflict_term(&base_id)],
         adds: vec![
-            file_conflict_part(&modified_id),
-            file_conflict_part(&deleted_id),
+            file_conflict_term(&modified_id),
+            file_conflict_term(&deleted_id),
         ],
     };
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
@@ -172,10 +172,10 @@ line 5
 
     // right modifies a line, left deletes the same line.
     let conflict = Conflict {
-        removes: vec![file_conflict_part(&base_id)],
+        removes: vec![file_conflict_term(&base_id)],
         adds: vec![
-            file_conflict_part(&deleted_id),
-            file_conflict_part(&modified_id),
+            file_conflict_term(&deleted_id),
+            file_conflict_term(&modified_id),
         ],
     };
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
@@ -194,8 +194,8 @@ line 5
 
     // modify/delete conflict at the file level
     let conflict = Conflict {
-        removes: vec![file_conflict_part(&base_id)],
-        adds: vec![file_conflict_part(&modified_id)],
+        removes: vec![file_conflict_term(&base_id)],
+        adds: vec![file_conflict_term(&modified_id)],
     };
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     <<<<<<<
@@ -381,10 +381,10 @@ fn test_update_conflict_from_content() {
     let left_file_id = testutils::write_file(store, &path, "left 1\nline 2\nleft 3\n");
     let right_file_id = testutils::write_file(store, &path, "right 1\nline 2\nright 3\n");
     let conflict = Conflict {
-        removes: vec![file_conflict_part(&base_file_id)],
+        removes: vec![file_conflict_term(&base_file_id)],
         adds: vec![
-            file_conflict_part(&left_file_id),
-            file_conflict_part(&right_file_id),
+            file_conflict_term(&left_file_id),
+            file_conflict_term(&right_file_id),
         ],
     };
     let conflict_id = store.write_conflict(&path, &conflict).unwrap();
@@ -424,10 +424,10 @@ fn test_update_conflict_from_content() {
     assert_eq!(
         new_conflict,
         Conflict {
-            removes: vec![file_conflict_part(&new_base_file_id)],
+            removes: vec![file_conflict_term(&new_base_file_id)],
             adds: vec![
-                file_conflict_part(&new_left_file_id),
-                file_conflict_part(&new_right_file_id)
+                file_conflict_term(&new_left_file_id),
+                file_conflict_term(&new_right_file_id)
             ]
         }
     )

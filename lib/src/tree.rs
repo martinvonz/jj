@@ -23,7 +23,7 @@ use itertools::Itertools;
 use thiserror::Error;
 
 use crate::backend::{
-    BackendError, Conflict, ConflictId, ConflictPart, FileId, ObjectId,
+    BackendError, Conflict, ConflictId, ConflictTerm, FileId, ObjectId,
     TreeEntriesNonRecursiveIterator, TreeEntry, TreeId, TreeValue,
 };
 use crate::files::MergeResult;
@@ -611,17 +611,17 @@ fn merge_tree_value(
             // resolved state, the absence of a state, or a conflicted state.
             let mut conflict = Conflict::default();
             if let Some(base) = maybe_base {
-                conflict.removes.push(ConflictPart {
+                conflict.removes.push(ConflictTerm {
                     value: base.clone(),
                 });
             }
             if let Some(side1) = maybe_side1 {
-                conflict.adds.push(ConflictPart {
+                conflict.adds.push(ConflictTerm {
                     value: side1.clone(),
                 });
             }
             if let Some(side2) = maybe_side2 {
-                conflict.adds.push(ConflictPart {
+                conflict.adds.push(ConflictTerm {
                     value: side2.clone(),
                 });
             }
@@ -667,8 +667,8 @@ fn try_resolve_file_conflict(
     let mut regular_delta = 0;
     let mut removed_file_ids = vec![];
     let mut added_file_ids = vec![];
-    for part in &conflict.removes {
-        match &part.value {
+    for term in &conflict.removes {
+        match &term.value {
             TreeValue::File { id, executable } => {
                 if *executable {
                     exec_delta -= 1;
@@ -682,8 +682,8 @@ fn try_resolve_file_conflict(
             }
         }
     }
-    for part in &conflict.adds {
-        match &part.value {
+    for term in &conflict.adds {
+        match &term.value {
             TreeValue::File { id, executable } => {
                 if *executable {
                     exec_delta += 1;
@@ -739,19 +739,19 @@ fn try_resolve_file_conflict(
     }
 }
 
-fn conflict_part_to_conflict(
+fn conflict_term_to_conflict(
     store: &Store,
     path: &RepoPath,
-    part: &ConflictPart,
+    term: &ConflictTerm,
 ) -> Result<Conflict, BackendError> {
-    match &part.value {
+    match &term.value {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(path, id)?;
             Ok(conflict)
         }
         other => Ok(Conflict {
             removes: vec![],
-            adds: vec![ConflictPart {
+            adds: vec![ConflictTerm {
                 value: other.clone(),
             }],
         }),
@@ -797,27 +797,27 @@ fn simplify_conflict(
     // First expand any diffs with nested conflicts.
     let mut new_removes = vec![];
     let mut new_adds = vec![];
-    for part in &conflict.adds {
-        match part.value {
+    for term in &conflict.adds {
+        match term.value {
             TreeValue::Conflict(_) => {
-                let conflict = conflict_part_to_conflict(store, path, part)?;
+                let conflict = conflict_term_to_conflict(store, path, term)?;
                 new_removes.extend_from_slice(&conflict.removes);
                 new_adds.extend_from_slice(&conflict.adds);
             }
             _ => {
-                new_adds.push(part.clone());
+                new_adds.push(term.clone());
             }
         }
     }
-    for part in &conflict.removes {
-        match part.value {
+    for term in &conflict.removes {
+        match term.value {
             TreeValue::Conflict(_) => {
-                let conflict = conflict_part_to_conflict(store, path, part)?;
+                let conflict = conflict_term_to_conflict(store, path, term)?;
                 new_removes.extend_from_slice(&conflict.adds);
                 new_adds.extend_from_slice(&conflict.removes);
             }
             _ => {
-                new_removes.push(part.clone());
+                new_removes.push(term.clone());
             }
         }
     }
