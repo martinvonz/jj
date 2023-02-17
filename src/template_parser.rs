@@ -586,6 +586,35 @@ trait TemplateLanguage<'a> {
     type Context: 'a;
     // TODO: type Property;
 
+    fn wrap_string(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'a>,
+    ) -> Property<'a, Self::Context>;
+    fn wrap_boolean(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'a>,
+    ) -> Property<'a, Self::Context>;
+    fn wrap_integer(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'a>,
+    ) -> Property<'a, Self::Context>;
+    fn wrap_commit_or_change_id(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'a>> + 'a>,
+    ) -> Property<'a, Self::Context>;
+    fn wrap_shortest_id_prefix(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'a>,
+    ) -> Property<'a, Self::Context>;
+    fn wrap_signature(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'a>,
+    ) -> Property<'a, Self::Context>;
+    fn wrap_timestamp(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'a>,
+    ) -> Property<'a, Self::Context>;
+
     fn build_keyword(
         &self,
         name: &str,
@@ -815,7 +844,7 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
             let [needle_node] = expect_exact_arguments(function)?;
             // TODO: or .try_into_string() to disable implicit type cast?
             let needle_property = build_expression(language, needle_node)?.into_plain_text();
-            Property::Boolean(chain_properties(
+            language.wrap_boolean(chain_properties(
                 (self_property, needle_property),
                 TemplatePropertyFn(|(haystack, needle): &(String, String)| {
                     haystack.contains(needle)
@@ -824,7 +853,7 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
         }
         "first_line" => {
             expect_no_arguments(function)?;
-            Property::String(chain_properties(
+            language.wrap_string(chain_properties(
                 self_property,
                 TemplatePropertyFn(|s: &String| s.lines().next().unwrap_or_default().to_string()),
             ))
@@ -870,7 +899,7 @@ fn build_commit_or_change_id_method<'a, L: TemplateLanguage<'a>>(
     let property = match function.name {
         "short" => {
             let len_property = parse_optional_integer(function)?;
-            Property::String(chain_properties(
+            language.wrap_string(chain_properties(
                 (self_property, len_property),
                 TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
                     id.short(len.and_then(|l| l.try_into().ok()).unwrap_or(12))
@@ -879,7 +908,7 @@ fn build_commit_or_change_id_method<'a, L: TemplateLanguage<'a>>(
         }
         "shortest" => {
             let len_property = parse_optional_integer(function)?;
-            Property::ShortestIdPrefix(chain_properties(
+            language.wrap_shortest_id_prefix(chain_properties(
                 (self_property, len_property),
                 TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
                     id.shortest(len.and_then(|l| l.try_into().ok()).unwrap_or(0))
@@ -897,21 +926,21 @@ fn build_commit_or_change_id_method<'a, L: TemplateLanguage<'a>>(
 }
 
 fn build_shortest_id_prefix_method<'a, L: TemplateLanguage<'a>>(
-    _language: &L,
+    language: &L,
     self_property: impl TemplateProperty<L::Context, Output = ShortestIdPrefix> + 'a,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<Property<'a, L::Context>> {
     let property = match function.name {
         "prefix" => {
             expect_no_arguments(function)?;
-            Property::String(chain_properties(
+            language.wrap_string(chain_properties(
                 self_property,
                 TemplatePropertyFn(|id: &ShortestIdPrefix| id.prefix.clone()),
             ))
         }
         "rest" => {
             expect_no_arguments(function)?;
-            Property::String(chain_properties(
+            language.wrap_string(chain_properties(
                 self_property,
                 TemplatePropertyFn(|id: &ShortestIdPrefix| id.rest.clone()),
             ))
@@ -927,28 +956,28 @@ fn build_shortest_id_prefix_method<'a, L: TemplateLanguage<'a>>(
 }
 
 fn build_signature_method<'a, L: TemplateLanguage<'a>>(
-    _language: &L,
+    language: &L,
     self_property: impl TemplateProperty<L::Context, Output = Signature> + 'a,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<Property<'a, L::Context>> {
     let property = match function.name {
         "name" => {
             expect_no_arguments(function)?;
-            Property::String(chain_properties(
+            language.wrap_string(chain_properties(
                 self_property,
                 TemplatePropertyFn(|signature: &Signature| signature.name.clone()),
             ))
         }
         "email" => {
             expect_no_arguments(function)?;
-            Property::String(chain_properties(
+            language.wrap_string(chain_properties(
                 self_property,
                 TemplatePropertyFn(|signature: &Signature| signature.email.clone()),
             ))
         }
         "username" => {
             expect_no_arguments(function)?;
-            Property::String(chain_properties(
+            language.wrap_string(chain_properties(
                 self_property,
                 TemplatePropertyFn(|signature: &Signature| {
                     let (username, _) = split_email(&signature.email);
@@ -958,7 +987,7 @@ fn build_signature_method<'a, L: TemplateLanguage<'a>>(
         }
         "timestamp" => {
             expect_no_arguments(function)?;
-            Property::Timestamp(chain_properties(
+            language.wrap_timestamp(chain_properties(
                 self_property,
                 TemplatePropertyFn(|signature: &Signature| signature.timestamp.clone()),
             ))
@@ -969,14 +998,14 @@ fn build_signature_method<'a, L: TemplateLanguage<'a>>(
 }
 
 fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
-    _language: &L,
+    language: &L,
     self_property: impl TemplateProperty<L::Context, Output = Timestamp> + 'a,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<Property<'a, L::Context>> {
     let property = match function.name {
         "ago" => {
             expect_no_arguments(function)?;
-            Property::String(chain_properties(
+            language.wrap_string(chain_properties(
                 self_property,
                 TemplatePropertyFn(time_util::format_timestamp_relative_to_now),
             ))
@@ -1047,35 +1076,35 @@ fn build_commit_keyword<'a>(
     }
     let repo = language.repo;
     let property = match name {
-        "description" => Property::String(wrap_fn(|commit| {
+        "description" => language.wrap_string(wrap_fn(|commit| {
             cli_util::complete_newline(commit.description())
         })),
-        "change_id" => Property::CommitOrChangeId(wrap_fn(move |commit| {
+        "change_id" => language.wrap_commit_or_change_id(wrap_fn(move |commit| {
             CommitOrChangeId::change_id(repo, commit.change_id())
         })),
-        "commit_id" => Property::CommitOrChangeId(wrap_fn(move |commit| {
+        "commit_id" => language.wrap_commit_or_change_id(wrap_fn(move |commit| {
             CommitOrChangeId::commit_id(repo, commit.id())
         })),
-        "author" => Property::Signature(wrap_fn(|commit| commit.author().clone())),
-        "committer" => Property::Signature(wrap_fn(|commit| commit.committer().clone())),
-        "working_copies" => Property::String(Box::new(WorkingCopiesProperty { repo })),
+        "author" => language.wrap_signature(wrap_fn(|commit| commit.author().clone())),
+        "committer" => language.wrap_signature(wrap_fn(|commit| commit.committer().clone())),
+        "working_copies" => language.wrap_string(Box::new(WorkingCopiesProperty { repo })),
         "current_working_copy" => {
             let workspace_id = language.workspace_id.clone();
-            Property::Boolean(wrap_fn(move |commit| {
+            language.wrap_boolean(wrap_fn(move |commit| {
                 Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id)
             }))
         }
-        "branches" => Property::String(Box::new(BranchProperty { repo })),
-        "tags" => Property::String(Box::new(TagProperty { repo })),
-        "git_refs" => Property::String(Box::new(GitRefsProperty { repo })),
-        "git_head" => Property::String(Box::new(GitHeadProperty::new(repo))),
-        "divergent" => Property::Boolean(wrap_fn(move |commit| {
+        "branches" => language.wrap_string(Box::new(BranchProperty { repo })),
+        "tags" => language.wrap_string(Box::new(TagProperty { repo })),
+        "git_refs" => language.wrap_string(Box::new(GitRefsProperty { repo })),
+        "git_head" => language.wrap_string(Box::new(GitHeadProperty::new(repo))),
+        "divergent" => language.wrap_boolean(wrap_fn(move |commit| {
             // The given commit could be hidden in e.g. obslog.
             let maybe_entries = repo.resolve_change_id(commit.change_id());
             maybe_entries.map_or(0, |entries| entries.len()) > 1
         })),
-        "conflict" => Property::Boolean(wrap_fn(|commit| commit.tree().has_conflict())),
-        "empty" => Property::Boolean(wrap_fn(move |commit| {
+        "conflict" => language.wrap_boolean(wrap_fn(|commit| commit.tree().has_conflict())),
+        "empty" => language.wrap_boolean(wrap_fn(move |commit| {
             commit.tree().id() == rewrite::merge_commit_trees(repo, &commit.parents()).id()
         })),
         _ => return Err(TemplateParseError::no_such_keyword(name, span)),
@@ -1095,11 +1124,11 @@ fn build_expression<'a, L: TemplateLanguage<'a>>(
             Ok(Expression::Property(property, labels))
         }
         ExpressionKind::Integer(value) => {
-            let property = Property::Integer(Box::new(Literal(*value)));
+            let property = language.wrap_integer(Box::new(Literal(*value)));
             Ok(Expression::Property(property, vec![]))
         }
         ExpressionKind::String(value) => {
-            let property = Property::String(Box::new(Literal(value.clone())));
+            let property = language.wrap_string(Box::new(Literal(value.clone())));
             Ok(Expression::Property(property, vec![]))
         }
         ExpressionKind::List(nodes) => {
@@ -1124,6 +1153,50 @@ struct CommitTemplateLanguage<'a, 'b> {
 
 impl<'a> TemplateLanguage<'a> for CommitTemplateLanguage<'a, '_> {
     type Context = Commit;
+
+    // TODO: maybe generate wrap_<type>() by macro?
+    fn wrap_string(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'a>,
+    ) -> Property<'a, Self::Context> {
+        Property::String(property)
+    }
+    fn wrap_boolean(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'a>,
+    ) -> Property<'a, Self::Context> {
+        Property::Boolean(property)
+    }
+    fn wrap_integer(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'a>,
+    ) -> Property<'a, Self::Context> {
+        Property::Integer(property)
+    }
+    fn wrap_commit_or_change_id(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'a>> + 'a>,
+    ) -> Property<'a, Self::Context> {
+        Property::CommitOrChangeId(property)
+    }
+    fn wrap_shortest_id_prefix(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'a>,
+    ) -> Property<'a, Self::Context> {
+        Property::ShortestIdPrefix(property)
+    }
+    fn wrap_signature(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'a>,
+    ) -> Property<'a, Self::Context> {
+        Property::Signature(property)
+    }
+    fn wrap_timestamp(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'a>,
+    ) -> Property<'a, Self::Context> {
+        Property::Timestamp(property)
+    }
 
     fn build_keyword(
         &self,
@@ -1163,6 +1236,51 @@ mod tests {
 
     impl TemplateLanguage<'static> for MinimalTemplateLanguage {
         type Context = ();
+
+        fn wrap_string(
+            &self,
+            property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'static>,
+        ) -> Property<'static, Self::Context> {
+            Property::String(property)
+        }
+        fn wrap_boolean(
+            &self,
+            property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'static>,
+        ) -> Property<'static, Self::Context> {
+            Property::Boolean(property)
+        }
+        fn wrap_integer(
+            &self,
+            property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'static>,
+        ) -> Property<'static, Self::Context> {
+            Property::Integer(property)
+        }
+        fn wrap_commit_or_change_id(
+            &self,
+            property: Box<
+                dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'static>> + 'static,
+            >,
+        ) -> Property<'static, Self::Context> {
+            Property::CommitOrChangeId(property)
+        }
+        fn wrap_shortest_id_prefix(
+            &self,
+            property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'static>,
+        ) -> Property<'static, Self::Context> {
+            Property::ShortestIdPrefix(property)
+        }
+        fn wrap_signature(
+            &self,
+            property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'static>,
+        ) -> Property<'static, Self::Context> {
+            Property::Signature(property)
+        }
+        fn wrap_timestamp(
+            &self,
+            property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'static>,
+        ) -> Property<'static, Self::Context> {
+            Property::Timestamp(property)
+        }
 
         fn build_keyword(
             &self,
