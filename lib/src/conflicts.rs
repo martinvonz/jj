@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::max;
 use std::io::{Cursor, Write};
 
 use itertools::Itertools;
@@ -154,14 +155,19 @@ pub fn extract_file_conflict_as_single_hunk(
     if file_adds.len() != conflict.adds.len() || file_removes.len() != conflict.removes.len() {
         return None;
     }
-    let added_content = file_adds
+    let mut added_content = file_adds
         .iter()
         .map(|part| get_file_contents(store, path, part))
         .collect_vec();
-    let removed_content = file_removes
+    let mut removed_content = file_removes
         .iter()
         .map(|part| get_file_contents(store, path, part))
         .collect_vec();
+    // If the conflict had removed the file on one side, we pretend that the file
+    // was empty there.
+    let l = max(added_content.len(), removed_content.len() + 1);
+    added_content.resize(l, vec![]);
+    removed_content.resize(l - 1, vec![]);
 
     Some(ConflictHunk {
         removes: removed_content,

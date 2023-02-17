@@ -356,8 +356,8 @@ fn test_baseless_conflict_input_files() {
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
     <<<<<<<
-    +++++++
-    a
+    %%%%%%%
+    +a
     +++++++
     b
     >>>>>>>
@@ -427,15 +427,14 @@ fn test_edit_delete_conflict_input_files() {
     <<<<<<<
     %%%%%%%
     -base
-    +a
+    +++++++
+    a
     >>>>>>>
     "###);
 
     check_resolve_produces_input_file(&mut test_env, &repo_path, "base", "base\n");
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "left", "");
-    // Note that `a` ended up in "right" rather than "left". It's unclear if this
-    // can or should be fixed.
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "right", "a\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "left", "a\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "right", "");
 }
 
 #[test]

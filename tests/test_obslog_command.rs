@@ -49,8 +49,10 @@ fn test_obslog_with_or_without_diff() {
     │  Resolved conflict in file1:
     │     1    1: <<<<<<<resolved
     │     2     : %%%%%%%
-    │     3     : +bar
-    │     4     : >>>>>>>
+    │     3     :  foo
+    │     4     : +bar
+    │     5     : +++++++
+    │     6     : >>>>>>>
     o  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
     │  my description
     o  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
@@ -86,10 +88,12 @@ fn test_obslog_with_or_without_diff() {
     index e155302a24...2ab19ae607 100644
     --- a/file1
     +++ b/file1
-    @@ -1,4 +1,1 @@
+    @@ -1,6 +1,1 @@
     -<<<<<<<
     -%%%%%%%
+    - foo
     -+bar
+    -+++++++
     ->>>>>>>
     +resolved
     rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict

@@ -197,12 +197,16 @@ line 5
         removes: vec![file_conflict_part(&base_id)],
         adds: vec![file_conflict_part(&modified_id)],
     };
-    // TODO: THis should have context around the conflict (#1244)
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     <<<<<<<
     %%%%%%%
+     line 1
+     line 2
     -line 3
     +modified
+     line 4
+     line 5
+    +++++++
     >>>>>>>
     "###
     );
