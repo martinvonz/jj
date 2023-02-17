@@ -584,47 +584,43 @@ fn expand_aliases<'i>(
 /// Callbacks to build language-specific evaluation objects from AST nodes.
 trait TemplateLanguage<'a> {
     type Context: 'a;
-    // TODO: type Property;
+    type Property: IntoTemplateProperty<'a, Self::Context>;
 
     fn wrap_string(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'a>,
-    ) -> Property<'a, Self::Context>;
+    ) -> Self::Property;
     fn wrap_boolean(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'a>,
-    ) -> Property<'a, Self::Context>;
+    ) -> Self::Property;
     fn wrap_integer(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'a>,
-    ) -> Property<'a, Self::Context>;
+    ) -> Self::Property;
     fn wrap_commit_or_change_id(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'a>> + 'a>,
-    ) -> Property<'a, Self::Context>;
+    ) -> Self::Property;
     fn wrap_shortest_id_prefix(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'a>,
-    ) -> Property<'a, Self::Context>;
+    ) -> Self::Property;
     fn wrap_signature(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'a>,
-    ) -> Property<'a, Self::Context>;
+    ) -> Self::Property;
     fn wrap_timestamp(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'a>,
-    ) -> Property<'a, Self::Context>;
+    ) -> Self::Property;
 
-    fn build_keyword(
-        &self,
-        name: &str,
-        span: pest::Span,
-    ) -> TemplateParseResult<Property<'a, Self::Context>>;
+    fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property>;
     fn build_method(
         &self,
-        property: Property<'a, Self::Context>,
+        property: Self::Property,
         function: &FunctionCallNode,
-    ) -> TemplateParseResult<Property<'a, Self::Context>>;
+    ) -> TemplateParseResult<Self::Property>;
 }
 
 /// Provides access to basic template property types.
@@ -689,12 +685,12 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for Property<'a, I> {
     }
 }
 
-enum Expression<'a, C> {
-    Property(Property<'a, C>, Vec<String>),
+enum Expression<'a, C, P> {
+    Property(P, Vec<String>),
     Template(Box<dyn Template<C> + 'a>),
 }
 
-impl<'a, C: 'a> Expression<'a, C> {
+impl<'a, C: 'a, P: IntoTemplateProperty<'a, C>> Expression<'a, C, P> {
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>> {
         match self {
             Expression::Property(property, _) => property.try_into_boolean(),
@@ -800,7 +796,7 @@ fn split_email(email: &str) -> (&str, Option<&str>) {
 fn build_method_call<'a, L: TemplateLanguage<'a>>(
     language: &L,
     method: &MethodCallNode,
-) -> TemplateParseResult<Expression<'a, L::Context>> {
+) -> TemplateParseResult<Expression<'a, L::Context, L::Property>> {
     match build_expression(language, &method.object)? {
         Expression::Property(property, mut labels) => {
             let property = language.build_method(property, &method.function)?;
@@ -827,7 +823,7 @@ fn build_core_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
     property: Property<'a, L::Context>,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Property<'a, L::Context>> {
+) -> TemplateParseResult<L::Property> {
     match property {
         Property::String(property) => build_string_method(language, property, function),
         Property::Boolean(property) => build_boolean_method(language, property, function),
@@ -847,7 +843,7 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
     self_property: impl TemplateProperty<L::Context, Output = String> + 'a,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Property<'a, L::Context>> {
+) -> TemplateParseResult<L::Property> {
     let property = match function.name {
         "contains" => {
             let [needle_node] = expect_exact_arguments(function)?;
@@ -876,7 +872,7 @@ fn build_boolean_method<'a, L: TemplateLanguage<'a>>(
     _language: &L,
     _self_property: impl TemplateProperty<L::Context, Output = bool> + 'a,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Property<'a, L::Context>> {
+) -> TemplateParseResult<L::Property> {
     Err(TemplateParseError::no_such_method("Boolean", function))
 }
 
@@ -884,7 +880,7 @@ fn build_integer_method<'a, L: TemplateLanguage<'a>>(
     _language: &L,
     _self_property: impl TemplateProperty<L::Context, Output = i64> + 'a,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Property<'a, L::Context>> {
+) -> TemplateParseResult<L::Property> {
     Err(TemplateParseError::no_such_method("Integer", function))
 }
 
@@ -892,7 +888,7 @@ fn build_commit_or_change_id_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
     self_property: impl TemplateProperty<L::Context, Output = CommitOrChangeId<'a>> + 'a,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Property<'a, L::Context>> {
+) -> TemplateParseResult<L::Property> {
     let parse_optional_integer = |function| -> Result<Option<_>, TemplateParseError> {
         let ([], [len_node]) = expect_arguments(function)?;
         len_node
@@ -938,7 +934,7 @@ fn build_shortest_id_prefix_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
     self_property: impl TemplateProperty<L::Context, Output = ShortestIdPrefix> + 'a,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Property<'a, L::Context>> {
+) -> TemplateParseResult<L::Property> {
     let property = match function.name {
         "prefix" => {
             expect_no_arguments(function)?;
@@ -968,7 +964,7 @@ fn build_signature_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
     self_property: impl TemplateProperty<L::Context, Output = Signature> + 'a,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Property<'a, L::Context>> {
+) -> TemplateParseResult<L::Property> {
     let property = match function.name {
         "name" => {
             expect_no_arguments(function)?;
@@ -1010,7 +1006,7 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
     self_property: impl TemplateProperty<L::Context, Output = Timestamp> + 'a,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Property<'a, L::Context>> {
+) -> TemplateParseResult<L::Property> {
     let property = match function.name {
         "ago" => {
             expect_no_arguments(function)?;
@@ -1027,7 +1023,7 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
 fn build_global_function<'a, L: TemplateLanguage<'a>>(
     language: &L,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Expression<'a, L::Context>> {
+) -> TemplateParseResult<Expression<'a, L::Context, L::Property>> {
     let expression = match function.name {
         "label" => {
             let [label_node, content_node] = expect_exact_arguments(function)?;
@@ -1125,7 +1121,7 @@ fn build_commit_keyword<'a>(
 fn build_expression<'a, L: TemplateLanguage<'a>>(
     language: &L,
     node: &ExpressionNode,
-) -> TemplateParseResult<Expression<'a, L::Context>> {
+) -> TemplateParseResult<Expression<'a, L::Context, L::Property>> {
     match &node.kind {
         ExpressionKind::Identifier(name) => {
             let property = language.build_keyword(name, node.span)?;
@@ -1162,64 +1158,61 @@ struct CommitTemplateLanguage<'a, 'b> {
 
 impl<'a> TemplateLanguage<'a> for CommitTemplateLanguage<'a, '_> {
     type Context = Commit;
+    type Property = Property<'a, Commit>;
 
     // TODO: maybe generate wrap_<type>() by macro?
     fn wrap_string(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'a>,
-    ) -> Property<'a, Self::Context> {
+    ) -> Self::Property {
         Property::String(property)
     }
     fn wrap_boolean(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'a>,
-    ) -> Property<'a, Self::Context> {
+    ) -> Self::Property {
         Property::Boolean(property)
     }
     fn wrap_integer(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'a>,
-    ) -> Property<'a, Self::Context> {
+    ) -> Self::Property {
         Property::Integer(property)
     }
     fn wrap_commit_or_change_id(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'a>> + 'a>,
-    ) -> Property<'a, Self::Context> {
+    ) -> Self::Property {
         Property::CommitOrChangeId(property)
     }
     fn wrap_shortest_id_prefix(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'a>,
-    ) -> Property<'a, Self::Context> {
+    ) -> Self::Property {
         Property::ShortestIdPrefix(property)
     }
     fn wrap_signature(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'a>,
-    ) -> Property<'a, Self::Context> {
+    ) -> Self::Property {
         Property::Signature(property)
     }
     fn wrap_timestamp(
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'a>,
-    ) -> Property<'a, Self::Context> {
+    ) -> Self::Property {
         Property::Timestamp(property)
     }
 
-    fn build_keyword(
-        &self,
-        name: &str,
-        span: pest::Span,
-    ) -> TemplateParseResult<Property<'a, Self::Context>> {
+    fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property> {
         build_commit_keyword(self, name, span)
     }
 
     fn build_method(
         &self,
-        property: Property<'a, Self::Context>,
+        property: Self::Property,
         function: &FunctionCallNode,
-    ) -> TemplateParseResult<Property<'a, Self::Context>> {
+    ) -> TemplateParseResult<Self::Property> {
         build_core_method(self, property, function)
     }
 }
@@ -1245,23 +1238,24 @@ mod tests {
 
     impl TemplateLanguage<'static> for MinimalTemplateLanguage {
         type Context = ();
+        type Property = Property<'static, ()>;
 
         fn wrap_string(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'static>,
-        ) -> Property<'static, Self::Context> {
+        ) -> Self::Property {
             Property::String(property)
         }
         fn wrap_boolean(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'static>,
-        ) -> Property<'static, Self::Context> {
+        ) -> Self::Property {
             Property::Boolean(property)
         }
         fn wrap_integer(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'static>,
-        ) -> Property<'static, Self::Context> {
+        ) -> Self::Property {
             Property::Integer(property)
         }
         fn wrap_commit_or_change_id(
@@ -1269,25 +1263,25 @@ mod tests {
             property: Box<
                 dyn TemplateProperty<Self::Context, Output = CommitOrChangeId<'static>> + 'static,
             >,
-        ) -> Property<'static, Self::Context> {
+        ) -> Self::Property {
             Property::CommitOrChangeId(property)
         }
         fn wrap_shortest_id_prefix(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = ShortestIdPrefix> + 'static>,
-        ) -> Property<'static, Self::Context> {
+        ) -> Self::Property {
             Property::ShortestIdPrefix(property)
         }
         fn wrap_signature(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'static>,
-        ) -> Property<'static, Self::Context> {
+        ) -> Self::Property {
             Property::Signature(property)
         }
         fn wrap_timestamp(
             &self,
             property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'static>,
-        ) -> Property<'static, Self::Context> {
+        ) -> Self::Property {
             Property::Timestamp(property)
         }
 
@@ -1295,15 +1289,15 @@ mod tests {
             &self,
             name: &str,
             span: pest::Span,
-        ) -> TemplateParseResult<Property<'static, Self::Context>> {
+        ) -> TemplateParseResult<Self::Property> {
             Err(TemplateParseError::no_such_keyword(name, span))
         }
 
         fn build_method(
             &self,
-            property: Property<'static, Self::Context>,
+            property: Self::Property,
             function: &FunctionCallNode,
-        ) -> TemplateParseResult<Property<'static, Self::Context>> {
+        ) -> TemplateParseResult<Self::Property> {
             build_core_method(self, property, function)
         }
     }
@@ -1335,7 +1329,9 @@ mod tests {
         WithTemplateAliasesMap(aliases_map)
     }
 
-    fn parse(template_text: &str) -> TemplateParseResult<Expression<'static, ()>> {
+    fn parse(
+        template_text: &str,
+    ) -> TemplateParseResult<Expression<'static, (), Property<'static, ()>>> {
         let node = parse_template(template_text)?;
         build_expression(&MinimalTemplateLanguage, &node)
     }
@@ -1420,7 +1416,9 @@ mod tests {
 
     #[test]
     fn test_integer_literal() {
-        let extract = |x: Expression<()>| x.try_into_integer().unwrap().extract(&());
+        fn extract<'a>(x: Expression<'a, (), Property<'a, ()>>) -> i64 {
+            x.try_into_integer().unwrap().extract(&())
+        }
 
         assert_eq!(extract(parse("0").unwrap()), 0);
         assert_eq!(extract(parse("(42)").unwrap()), 42);
