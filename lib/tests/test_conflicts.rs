@@ -14,7 +14,6 @@
 
 use jujutsu_lib::backend::{Conflict, ConflictTerm, FileId, TreeValue};
 use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict, update_conflict_from_content};
-use jujutsu_lib::files::{ConflictHunk, MergeHunk};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::Store;
@@ -231,7 +230,7 @@ line 5
 
 #[test]
 fn test_parse_conflict_simple() {
-    assert_eq!(
+    insta::assert_debug_snapshot!(
         parse_conflict(
             b"line 1
 <<<<<<<
@@ -248,20 +247,33 @@ line 5
             1,
             2
         ),
-        Some(vec![
-            MergeHunk::Resolved(b"line 1\n".to_vec()),
-            MergeHunk::Conflict(ConflictHunk {
-                removes: vec![b"line 2\nline 3\nline 4\n".to_vec()],
-                adds: vec![b"line 2\nleft\nline 4\n".to_vec(), b"right\n".to_vec()]
-            }),
-            MergeHunk::Resolved(b"line 5\n".to_vec())
-        ])
+        @r###"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflict {
+                removes: [
+                    "line 2\nline 3\nline 4\n",
+                ],
+                adds: [
+                    "line 2\nleft\nline 4\n",
+                    "right\n",
+                ],
+            },
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "###
     )
 }
 
 #[test]
 fn test_parse_conflict_multi_way() {
-    assert_eq!(
+    insta::assert_debug_snapshot!(
         parse_conflict(
             b"line 1
 <<<<<<<
@@ -283,21 +295,29 @@ line 5
             2,
             3
         ),
-        Some(vec![
-            MergeHunk::Resolved(b"line 1\n".to_vec()),
-            MergeHunk::Conflict(ConflictHunk {
-                removes: vec![
-                    b"line 2\nline 3\nline 4\n".to_vec(),
-                    b"line 2\nline 3\nline 4\n".to_vec()
+        @r###"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflict {
+                removes: [
+                    "line 2\nline 3\nline 4\n",
+                    "line 2\nline 3\nline 4\n",
                 ],
-                adds: vec![
-                    b"line 2\nleft\nline 4\n".to_vec(),
-                    b"right\n".to_vec(),
-                    b"line 2\nforward\nline 3\nline 4\n".to_vec()
-                ]
-            }),
-            MergeHunk::Resolved(b"line 5\n".to_vec())
-        ])
+                adds: [
+                    "line 2\nleft\nline 4\n",
+                    "right\n",
+                    "line 2\nforward\nline 3\nline 4\n",
+                ],
+            },
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "###
     )
 }
 
