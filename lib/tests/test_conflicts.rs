@@ -112,6 +112,106 @@ line 5
 }
 
 #[test]
+fn test_materialize_parse_roundtrip() {
+    let test_repo = TestRepo::init(false);
+    let store = test_repo.repo.store();
+
+    let path = RepoPath::from_internal_string("file");
+    let base_id = testutils::write_file(
+        store,
+        &path,
+        "line 1
+line 2
+line 3
+line 4
+line 5
+",
+    );
+    let left_id = testutils::write_file(
+        store,
+        &path,
+        "line 1 left
+line 2 left
+line 3
+line 4
+line 5 left
+",
+    );
+    let right_id = testutils::write_file(
+        store,
+        &path,
+        "line 1 right
+line 2
+line 3
+line 4 right
+line 5 right
+",
+    );
+
+    let conflict = Conflict {
+        removes: vec![file_conflict_term(&base_id)],
+        adds: vec![file_conflict_term(&left_id), file_conflict_term(&right_id)],
+    };
+    let mut result: Vec<u8> = vec![];
+    materialize_conflict(store, &path, &conflict, &mut result).unwrap();
+    insta::assert_snapshot!(
+        String::from_utf8(result.clone()).unwrap(),
+        @r###"
+    <<<<<<<
+    %%%%%%%
+    -line 1
+    +line 1 right
+     line 2
+    +++++++
+    line 1 left
+    line 2 left
+    >>>>>>>
+    line 3
+    <<<<<<<
+    %%%%%%%
+     line 4
+    -line 5
+    +line 5 left
+    +++++++
+    line 4 right
+    line 5 right
+    >>>>>>>
+    "###
+    );
+
+    // TODO: The first add should always be from the left side
+    insta::assert_debug_snapshot!(
+        parse_conflict(&result, conflict.removes.len(), conflict.adds.len()),
+        @r###"
+    Some(
+        [
+            Conflict {
+                removes: [
+                    "line 1\nline 2\n",
+                ],
+                adds: [
+                    "line 1 right\nline 2\n",
+                    "line 1 left\nline 2 left\n",
+                ],
+            },
+            Resolved(
+                "line 3\n",
+            ),
+            Conflict {
+                removes: [
+                    "line 4\nline 5\n",
+                ],
+                adds: [
+                    "line 4\nline 5 left\n",
+                    "line 4 right\nline 5 right\n",
+                ],
+            },
+        ],
+    )
+    "###);
+}
+
+#[test]
 fn test_materialize_conflict_modify_delete() {
     let test_repo = TestRepo::init(false);
     let store = test_repo.repo.store();
