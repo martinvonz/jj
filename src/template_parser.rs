@@ -619,6 +619,45 @@ pub trait TemplateLanguage<'a> {
     ) -> TemplateParseResult<Self::Property>;
 }
 
+/// Implements `TemplateLanguage::wrap_<type>()` functions.
+///
+/// - `impl_core_wrap_property_fns('a)` for `CoreTemplatePropertyKind`,
+/// - `impl_core_wrap_property_fns('a, MyKind::Core)` for `MyKind::Core(..)`.
+macro_rules! impl_core_wrap_property_fns {
+    ($a:lifetime) => {
+        $crate::template_parser::impl_core_wrap_property_fns!($a, std::convert::identity);
+    };
+    ($a:lifetime, $outer:path) => {
+        $crate::template_parser::impl_wrap_property_fns!(
+            $a, $crate::template_parser::CoreTemplatePropertyKind, $outer, {
+                wrap_string(String) => String,
+                wrap_boolean(bool) => Boolean,
+                wrap_integer(i64) => Integer,
+                wrap_signature(jujutsu_lib::backend::Signature) => Signature,
+                wrap_timestamp(jujutsu_lib::backend::Timestamp) => Timestamp,
+            }
+        );
+    };
+}
+
+macro_rules! impl_wrap_property_fns {
+    ($a:lifetime, $kind:path, $outer:path, { $( $func:ident($ty:ty) => $var:ident, )+ }) => {
+        $(
+            fn $func(
+                &self,
+                property: Box<
+                    dyn $crate::templater::TemplateProperty<Self::Context, Output = $ty> + $a
+                >,
+            ) -> Self::Property {
+                use $kind as Kind; // https://github.com/rust-lang/rust/issues/48067
+                $outer(Kind::$var(property))
+            }
+        )+
+    };
+}
+
+pub(crate) use {impl_core_wrap_property_fns, impl_wrap_property_fns};
+
 /// Provides access to basic template property types.
 pub trait IntoTemplateProperty<'a, C> {
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>>;
@@ -1033,36 +1072,7 @@ mod tests {
         type Context = ();
         type Property = CoreTemplatePropertyKind<'static, ()>;
 
-        fn wrap_string(
-            &self,
-            property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'static>,
-        ) -> Self::Property {
-            CoreTemplatePropertyKind::String(property)
-        }
-        fn wrap_boolean(
-            &self,
-            property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'static>,
-        ) -> Self::Property {
-            CoreTemplatePropertyKind::Boolean(property)
-        }
-        fn wrap_integer(
-            &self,
-            property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'static>,
-        ) -> Self::Property {
-            CoreTemplatePropertyKind::Integer(property)
-        }
-        fn wrap_signature(
-            &self,
-            property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'static>,
-        ) -> Self::Property {
-            CoreTemplatePropertyKind::Signature(property)
-        }
-        fn wrap_timestamp(
-            &self,
-            property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'static>,
-        ) -> Self::Property {
-            CoreTemplatePropertyKind::Timestamp(property)
-        }
+        impl_core_wrap_property_fns!('static);
 
         fn build_keyword(
             &self,
