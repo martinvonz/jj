@@ -16,7 +16,7 @@ use std::cmp::max;
 use std::io;
 
 use itertools::Itertools as _;
-use jujutsu_lib::backend::{ChangeId, CommitId, ObjectId as _, Signature, Timestamp};
+use jujutsu_lib::backend::{ChangeId, CommitId, ObjectId as _};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::hex_util::to_reverse_hex;
 use jujutsu_lib::op_store::WorkspaceId;
@@ -43,37 +43,7 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
     type Context = Commit;
     type Property = CommitTemplatePropertyKind<'repo>;
 
-    // TODO: maybe generate wrap_<type>() by macro?
-    fn wrap_string(
-        &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'repo>,
-    ) -> Self::Property {
-        CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::String(property))
-    }
-    fn wrap_boolean(
-        &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'repo>,
-    ) -> Self::Property {
-        CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Boolean(property))
-    }
-    fn wrap_integer(
-        &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'repo>,
-    ) -> Self::Property {
-        CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Integer(property))
-    }
-    fn wrap_signature(
-        &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'repo>,
-    ) -> Self::Property {
-        CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Signature(property))
-    }
-    fn wrap_timestamp(
-        &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'repo>,
-    ) -> Self::Property {
-        CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Timestamp(property))
-    }
+    template_parser::impl_core_wrap_property_fns!('repo, CommitTemplatePropertyKind::Core);
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property> {
         build_commit_keyword(self, name, span)
