@@ -425,10 +425,10 @@ fn test_edit_delete_conflict_input_files() {
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
     <<<<<<<
-    %%%%%%%
-    -base
     +++++++
     a
+    %%%%%%%
+    -base
     >>>>>>>
     "###);
 

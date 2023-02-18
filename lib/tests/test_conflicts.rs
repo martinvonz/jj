@@ -67,6 +67,8 @@ line 5
 ",
     );
 
+    // The left side should come first. The diff should be use the smaller (right)
+    // side, and the left side should be a snapshot.
     let mut conflict = Conflict {
         removes: vec![file_conflict_term(&base_id)],
         adds: vec![file_conflict_term(&left_id), file_conflict_term(&right_id)],
@@ -77,19 +79,20 @@ line 5
     line 1
     line 2
     <<<<<<<
-    %%%%%%%
-    -line 3
-    +right 3.1
     +++++++
     left 3.1
     left 3.2
     left 3.3
+    %%%%%%%
+    -line 3
+    +right 3.1
     >>>>>>>
     line 4
     line 5
     "###
     );
-    // Test with the larger diff first. We still want the small diff.
+    // Swap the positive terms in the conflict. The diff should still use the right
+    // side, but now the right side should come first.
     conflict.adds.reverse();
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
@@ -158,13 +161,13 @@ line 5 right
         String::from_utf8(result.clone()).unwrap(),
         @r###"
     <<<<<<<
+    +++++++
+    line 1 left
+    line 2 left
     %%%%%%%
     -line 1
     +line 1 right
      line 2
-    +++++++
-    line 1 left
-    line 2 left
     >>>>>>>
     line 3
     <<<<<<<
@@ -179,7 +182,7 @@ line 5 right
     "###
     );
 
-    // TODO: The first add should always be from the left side
+    // The first add should always be from the left side
     insta::assert_debug_snapshot!(
         parse_conflict(&result, conflict.removes.len(), conflict.adds.len()),
         @r###"
@@ -190,8 +193,8 @@ line 5 right
                     "line 1\nline 2\n",
                 ],
                 adds: [
-                    "line 1 right\nline 2\n",
                     "line 1 left\nline 2 left\n",
+                    "line 1 right\nline 2\n",
                 ],
             },
             Resolved(
@@ -259,10 +262,10 @@ line 5
     line 1
     line 2
     <<<<<<<
-    %%%%%%%
-    -line 3
     +++++++
     modified
+    %%%%%%%
+    -line 3
     >>>>>>>
     line 4
     line 5

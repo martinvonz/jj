@@ -192,38 +192,53 @@ pub fn materialize_merge_result(
                     MergeHunk::Resolved(content) => {
                         output.write_all(&content)?;
                     }
-                    MergeHunk::Conflict(ConflictHunk {
-                        mut removes,
-                        mut adds,
-                    }) => {
+                    MergeHunk::Conflict(ConflictHunk { removes, adds }) => {
                         output.write_all(CONFLICT_START_LINE)?;
-                        while !removes.is_empty() && !adds.is_empty() {
-                            let left = &removes[0];
-                            let mut diffs = vec![];
-                            for right in &adds {
-                                diffs.push(
-                                    Diff::for_tokenizer(&[left, right], &find_line_ranges)
-                                        .hunks()
-                                        .collect_vec(),
-                                );
+                        let mut add_index = 0;
+                        for left in removes {
+                            if add_index == adds.len() {
+                                // If we have no more positive terms, emit the remaining negative
+                                // terms as snapshots.
+                                output.write_all(CONFLICT_MINUS_LINE)?;
+                                output.write_all(&left)?;
+                                continue;
                             }
-                            let min_diff_index = diffs
-                                .iter()
-                                .position_min_by_key(|diff| diff_size(diff))
-                                .unwrap();
+                            let diff1 =
+                                Diff::for_tokenizer(&[&left, &adds[add_index]], &find_line_ranges)
+                                    .hunks()
+                                    .collect_vec();
+                            // Check if the diff against the next positive term is better. Since
+                            // we want to preserve the order of the terms, we don't match against
+                            // any later positive terms.
+                            if add_index < adds.len() {
+                                let diff2 = Diff::for_tokenizer(
+                                    &[&left, &adds[add_index + 1]],
+                                    &find_line_ranges,
+                                )
+                                .hunks()
+                                .collect_vec();
+                                if diff_size(&diff2) < diff_size(&diff1) {
+                                    // If the next positive term is a better match, emit
+                                    // the current positive term as a snapshot and the next
+                                    // positive term as a diff.
+                                    output.write_all(CONFLICT_PLUS_LINE)?;
+                                    output.write_all(&adds[add_index])?;
+                                    output.write_all(CONFLICT_DIFF_LINE)?;
+                                    write_diff_hunks(&diff2, output)?;
+                                    add_index += 2;
+                                    continue;
+                                }
+                            }
+
                             output.write_all(CONFLICT_DIFF_LINE)?;
-                            write_diff_hunks(&diffs[min_diff_index], output)?;
-                            removes.remove(0);
-                            adds.remove(min_diff_index);
+                            write_diff_hunks(&diff1, output)?;
+                            add_index += 1;
                         }
 
-                        for slice in removes {
-                            output.write_all(CONFLICT_MINUS_LINE)?;
-                            output.write_all(&slice)?;
-                        }
-                        for slice in adds {
+                        //  Emit the remaining positive terms as snapshots.
+                        for slice in &adds[add_index..] {
                             output.write_all(CONFLICT_PLUS_LINE)?;
-                            output.write_all(&slice)?;
+                            output.write_all(slice)?;
                         }
                         output.write_all(CONFLICT_END_LINE)?;
                     }
