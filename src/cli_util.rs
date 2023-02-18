@@ -57,10 +57,11 @@ use jujutsu_lib::{dag_walk, file_util, git, revset};
 use thiserror::Error;
 use tracing_subscriber::prelude::*;
 
+use crate::commit_templater;
 use crate::config::{AnnotatedValue, CommandNameAndArgs, LayeredConfigs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
-use crate::template_parser::{self, TemplateAliasesMap, TemplateParseError};
+use crate::template_parser::{TemplateAliasesMap, TemplateParseError};
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
 
@@ -814,7 +815,7 @@ impl WorkspaceCommandHelper {
         &self,
         template_text: &str,
     ) -> Result<Box<dyn Template<Commit> + '_>, TemplateParseError> {
-        template_parser::parse_commit_template(
+        commit_templater::parse(
             &self.repo,
             self.workspace_id(),
             template_text,
@@ -1563,7 +1564,7 @@ fn parse_commit_summary_template<'a>(
     settings: &UserSettings,
 ) -> Result<Box<dyn Template<Commit> + 'a>, CommandError> {
     let template_text = settings.config().get_string("templates.commit_summary")?;
-    Ok(template_parser::parse_commit_template(
+    Ok(commit_templater::parse(
         repo,
         workspace_id,
         &template_text,

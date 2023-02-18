@@ -17,6 +17,7 @@
 pub mod cleanup_guard;
 pub mod cli_util;
 pub mod commands;
+pub mod commit_templater;
 pub mod config;
 pub mod diff_util;
 pub mod formatter;
