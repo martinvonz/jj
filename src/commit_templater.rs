@@ -168,6 +168,13 @@ fn build_commit_keyword<'repo>(
     ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'repo> {
         Box::new(TemplatePropertyFn(f))
     }
+    fn wrap_repo_fn<'repo, O>(
+        repo: &'repo dyn Repo,
+        f: impl Fn(&dyn Repo, &Commit) -> O + 'repo,
+    ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'repo> {
+        wrap_fn(move |commit| f(repo, commit))
+    }
+
     let repo = language.repo;
     let property = match name {
         "description" => language.wrap_string(wrap_fn(|commit| {
@@ -181,17 +188,17 @@ fn build_commit_keyword<'repo>(
         })),
         "author" => language.wrap_signature(wrap_fn(|commit| commit.author().clone())),
         "committer" => language.wrap_signature(wrap_fn(|commit| commit.committer().clone())),
-        "working_copies" => language.wrap_string(Box::new(WorkingCopiesProperty { repo })),
+        "working_copies" => language.wrap_string(wrap_repo_fn(repo, extract_working_copies)),
         "current_working_copy" => {
             let workspace_id = language.workspace_id.clone();
             language.wrap_boolean(wrap_fn(move |commit| {
                 Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id)
             }))
         }
-        "branches" => language.wrap_string(Box::new(BranchProperty { repo })),
-        "tags" => language.wrap_string(Box::new(TagProperty { repo })),
-        "git_refs" => language.wrap_string(Box::new(GitRefsProperty { repo })),
-        "git_head" => language.wrap_string(Box::new(GitHeadProperty::new(repo))),
+        "branches" => language.wrap_string(wrap_repo_fn(repo, extract_branches)),
+        "tags" => language.wrap_string(wrap_repo_fn(repo, extract_tags)),
+        "git_refs" => language.wrap_string(wrap_repo_fn(repo, extract_git_refs)),
+        "git_head" => language.wrap_string(wrap_repo_fn(repo, extract_git_head)),
         "divergent" => language.wrap_boolean(wrap_fn(move |commit| {
             // The given commit could be hidden in e.g. obslog.
             let maybe_entries = repo.resolve_change_id(commit.change_id());
@@ -206,138 +213,92 @@ fn build_commit_keyword<'repo>(
     Ok(property)
 }
 
-struct WorkingCopiesProperty<'repo> {
-    pub repo: &'repo dyn Repo,
-}
-
-impl TemplateProperty<Commit> for WorkingCopiesProperty<'_> {
-    type Output = String;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        let wc_commit_ids = self.repo.view().wc_commit_ids();
-        if wc_commit_ids.len() <= 1 {
-            return "".to_string();
-        }
-        let mut names = vec![];
-        for (workspace_id, wc_commit_id) in wc_commit_ids.iter().sorted() {
-            if wc_commit_id == context.id() {
-                names.push(format!("{}@", workspace_id.as_str()));
-            }
-        }
-        names.join(" ")
+fn extract_working_copies(repo: &dyn Repo, commit: &Commit) -> String {
+    let wc_commit_ids = repo.view().wc_commit_ids();
+    if wc_commit_ids.len() <= 1 {
+        return "".to_string();
     }
-}
-
-struct BranchProperty<'repo> {
-    pub repo: &'repo dyn Repo,
-}
-
-impl TemplateProperty<Commit> for BranchProperty<'_> {
-    type Output = String;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        let mut names = vec![];
-        for (branch_name, branch_target) in self.repo.view().branches() {
-            let local_target = branch_target.local_target.as_ref();
-            if let Some(local_target) = local_target {
-                if local_target.has_add(context.id()) {
-                    if local_target.is_conflict() {
-                        names.push(format!("{branch_name}??"));
-                    } else if branch_target
-                        .remote_targets
-                        .values()
-                        .any(|remote_target| remote_target != local_target)
-                    {
-                        names.push(format!("{branch_name}*"));
-                    } else {
-                        names.push(branch_name.clone());
-                    }
-                }
-            }
-            for (remote_name, remote_target) in &branch_target.remote_targets {
-                if Some(remote_target) != local_target && remote_target.has_add(context.id()) {
-                    if remote_target.is_conflict() {
-                        names.push(format!("{branch_name}@{remote_name}?"));
-                    } else {
-                        names.push(format!("{branch_name}@{remote_name}"));
-                    }
-                }
-            }
+    let mut names = vec![];
+    for (workspace_id, wc_commit_id) in wc_commit_ids.iter().sorted() {
+        if wc_commit_id == commit.id() {
+            names.push(format!("{}@", workspace_id.as_str()));
         }
-        names.join(" ")
     }
+    names.join(" ")
 }
 
-struct TagProperty<'repo> {
-    pub repo: &'repo dyn Repo,
-}
-
-impl TemplateProperty<Commit> for TagProperty<'_> {
-    type Output = String;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        let mut names = vec![];
-        for (tag_name, target) in self.repo.view().tags() {
-            if target.has_add(context.id()) {
-                if target.is_conflict() {
-                    names.push(format!("{tag_name}?"));
+fn extract_branches(repo: &dyn Repo, commit: &Commit) -> String {
+    let mut names = vec![];
+    for (branch_name, branch_target) in repo.view().branches() {
+        let local_target = branch_target.local_target.as_ref();
+        if let Some(local_target) = local_target {
+            if local_target.has_add(commit.id()) {
+                if local_target.is_conflict() {
+                    names.push(format!("{branch_name}??"));
+                } else if branch_target
+                    .remote_targets
+                    .values()
+                    .any(|remote_target| remote_target != local_target)
+                {
+                    names.push(format!("{branch_name}*"));
                 } else {
-                    names.push(tag_name.clone());
+                    names.push(branch_name.clone());
                 }
             }
         }
-        names.join(" ")
-    }
-}
-
-struct GitRefsProperty<'repo> {
-    pub repo: &'repo dyn Repo,
-}
-
-impl TemplateProperty<Commit> for GitRefsProperty<'_> {
-    type Output = String;
-
-    fn extract(&self, context: &Commit) -> Self::Output {
-        // TODO: We should keep a map from commit to ref names so we don't have to walk
-        // all refs here.
-        let mut names = vec![];
-        for (name, target) in self.repo.view().git_refs() {
-            if target.has_add(context.id()) {
-                if target.is_conflict() {
-                    names.push(format!("{name}?"));
+        for (remote_name, remote_target) in &branch_target.remote_targets {
+            if Some(remote_target) != local_target && remote_target.has_add(commit.id()) {
+                if remote_target.is_conflict() {
+                    names.push(format!("{branch_name}@{remote_name}?"));
                 } else {
-                    names.push(name.clone());
+                    names.push(format!("{branch_name}@{remote_name}"));
                 }
             }
         }
-        names.join(" ")
     }
+    names.join(" ")
 }
 
-struct GitHeadProperty<'repo> {
-    repo: &'repo dyn Repo,
-}
-
-impl<'repo> GitHeadProperty<'repo> {
-    pub fn new(repo: &'repo dyn Repo) -> Self {
-        Self { repo }
-    }
-}
-
-impl TemplateProperty<Commit> for GitHeadProperty<'_> {
-    type Output = String;
-
-    fn extract(&self, context: &Commit) -> String {
-        match self.repo.view().git_head() {
-            Some(ref_target) if ref_target.has_add(context.id()) => {
-                if ref_target.is_conflict() {
-                    "HEAD@git?".to_string()
-                } else {
-                    "HEAD@git".to_string()
-                }
+fn extract_tags(repo: &dyn Repo, commit: &Commit) -> String {
+    let mut names = vec![];
+    for (tag_name, target) in repo.view().tags() {
+        if target.has_add(commit.id()) {
+            if target.is_conflict() {
+                names.push(format!("{tag_name}?"));
+            } else {
+                names.push(tag_name.clone());
             }
-            _ => "".to_string(),
         }
+    }
+    names.join(" ")
+}
+
+fn extract_git_refs(repo: &dyn Repo, commit: &Commit) -> String {
+    // TODO: We should keep a map from commit to ref names so we don't have to walk
+    // all refs here.
+    let mut names = vec![];
+    for (name, target) in repo.view().git_refs() {
+        if target.has_add(commit.id()) {
+            if target.is_conflict() {
+                names.push(format!("{name}?"));
+            } else {
+                names.push(name.clone());
+            }
+        }
+    }
+    names.join(" ")
+}
+
+fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> String {
+    match repo.view().git_head() {
+        Some(ref_target) if ref_target.has_add(commit.id()) => {
+            if ref_target.is_conflict() {
+                "HEAD@git?".to_string()
+            } else {
+                "HEAD@git".to_string()
+            }
+        }
+        _ => "".to_string(),
     }
 }
 
