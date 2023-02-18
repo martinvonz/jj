@@ -40,7 +40,7 @@ use crate::{cli_util, time_util};
 #[grammar = "template.pest"]
 struct TemplateParser;
 
-type TemplateParseResult<T> = Result<T, TemplateParseError>;
+pub type TemplateParseResult<T> = Result<T, TemplateParseError>;
 
 #[derive(Clone, Debug)]
 pub struct TemplateParseError {
@@ -79,7 +79,7 @@ pub enum TemplateParseErrorKind {
 }
 
 impl TemplateParseError {
-    fn with_span(kind: TemplateParseErrorKind, span: pest::Span<'_>) -> Self {
+    pub fn with_span(kind: TemplateParseErrorKind, span: pest::Span<'_>) -> Self {
         let pest_error = Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
                 message: kind.to_string(),
@@ -93,7 +93,7 @@ impl TemplateParseError {
         }
     }
 
-    fn with_span_and_origin(
+    pub fn with_span_and_origin(
         kind: TemplateParseErrorKind,
         span: pest::Span<'_>,
         origin: Self,
@@ -111,18 +111,18 @@ impl TemplateParseError {
         }
     }
 
-    fn no_such_keyword(name: impl Into<String>, span: pest::Span<'_>) -> Self {
+    pub fn no_such_keyword(name: impl Into<String>, span: pest::Span<'_>) -> Self {
         TemplateParseError::with_span(TemplateParseErrorKind::NoSuchKeyword(name.into()), span)
     }
 
-    fn no_such_function(function: &FunctionCallNode) -> Self {
+    pub fn no_such_function(function: &FunctionCallNode) -> Self {
         TemplateParseError::with_span(
             TemplateParseErrorKind::NoSuchFunction(function.name.to_owned()),
             function.name_span,
         )
     }
 
-    fn no_such_method(type_name: impl Into<String>, function: &FunctionCallNode) -> Self {
+    pub fn no_such_method(type_name: impl Into<String>, function: &FunctionCallNode) -> Self {
         TemplateParseError::with_span(
             TemplateParseErrorKind::NoSuchMethod {
                 type_name: type_name.into(),
@@ -132,28 +132,37 @@ impl TemplateParseError {
         )
     }
 
-    fn invalid_argument_count_exact(count: usize, span: pest::Span<'_>) -> Self {
+    pub fn invalid_argument_count_exact(count: usize, span: pest::Span<'_>) -> Self {
         TemplateParseError::with_span(
             TemplateParseErrorKind::InvalidArgumentCountExact(count),
             span,
         )
     }
 
-    fn invalid_argument_count_range(count: RangeInclusive<usize>, span: pest::Span<'_>) -> Self {
+    pub fn invalid_argument_count_range(
+        count: RangeInclusive<usize>,
+        span: pest::Span<'_>,
+    ) -> Self {
         TemplateParseError::with_span(
             TemplateParseErrorKind::InvalidArgumentCountRange(count),
             span,
         )
     }
 
-    fn invalid_argument_count_range_from(count: RangeFrom<usize>, span: pest::Span<'_>) -> Self {
+    pub fn invalid_argument_count_range_from(
+        count: RangeFrom<usize>,
+        span: pest::Span<'_>,
+    ) -> Self {
         TemplateParseError::with_span(
             TemplateParseErrorKind::InvalidArgumentCountRangeFrom(count),
             span,
         )
     }
 
-    fn invalid_argument_type(expected_type_name: impl Into<String>, span: pest::Span<'_>) -> Self {
+    pub fn invalid_argument_type(
+        expected_type_name: impl Into<String>,
+        span: pest::Span<'_>,
+    ) -> Self {
         TemplateParseError::with_span(
             TemplateParseErrorKind::InvalidArgumentType(expected_type_name.into()),
             span,
@@ -208,7 +217,7 @@ impl error::Error for TemplateParseError {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExpressionNode<'i> {
     kind: ExpressionKind<'i>,
-    span: pest::Span<'i>,
+    pub span: pest::Span<'i>,
 }
 
 impl<'i> ExpressionNode<'i> {
@@ -230,11 +239,11 @@ enum ExpressionKind<'i> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct FunctionCallNode<'i> {
-    name: &'i str,
-    name_span: pest::Span<'i>,
-    args: Vec<ExpressionNode<'i>>,
-    args_span: pest::Span<'i>,
+pub struct FunctionCallNode<'i> {
+    pub name: &'i str,
+    pub name_span: pest::Span<'i>,
+    pub args: Vec<ExpressionNode<'i>>,
+    pub args_span: pest::Span<'i>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -454,7 +463,7 @@ impl fmt::Display for TemplateAliasId<'_> {
 }
 
 /// Expand aliases recursively.
-fn expand_aliases<'i>(
+pub fn expand_aliases<'i>(
     node: ExpressionNode<'i>,
     aliases_map: &'i TemplateAliasesMap,
 ) -> TemplateParseResult<ExpressionNode<'i>> {
@@ -582,7 +591,7 @@ fn expand_aliases<'i>(
 }
 
 /// Callbacks to build language-specific evaluation objects from AST nodes.
-trait TemplateLanguage<'a> {
+pub trait TemplateLanguage<'a> {
     type Context: 'a;
     type Property: IntoTemplateProperty<'a, Self::Context>;
 
@@ -616,7 +625,7 @@ trait TemplateLanguage<'a> {
 }
 
 /// Provides access to basic template property types.
-trait IntoTemplateProperty<'a, C> {
+pub trait IntoTemplateProperty<'a, C> {
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>>;
     fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>>;
 
@@ -624,7 +633,7 @@ trait IntoTemplateProperty<'a, C> {
     fn into_template(self) -> Box<dyn Template<C> + 'a>;
 }
 
-enum CoreTemplatePropertyKind<'a, I> {
+pub enum CoreTemplatePropertyKind<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
     Integer(Box<dyn TemplateProperty<I, Output = i64> + 'a>),
@@ -673,34 +682,34 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
     }
 }
 
-enum Expression<'a, C, P> {
+pub enum Expression<'a, C, P> {
     Property(P, Vec<String>),
     Template(Box<dyn Template<C> + 'a>),
 }
 
 impl<'a, C: 'a, P: IntoTemplateProperty<'a, C>> Expression<'a, C, P> {
-    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>> {
+    pub fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>> {
         match self {
             Expression::Property(property, _) => property.try_into_boolean(),
             Expression::Template(_) => None,
         }
     }
 
-    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>> {
+    pub fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>> {
         match self {
             Expression::Property(property, _) => property.try_into_integer(),
             Expression::Template(_) => None,
         }
     }
 
-    fn into_plain_text(self) -> Box<dyn TemplateProperty<C, Output = String> + 'a> {
+    pub fn into_plain_text(self) -> Box<dyn TemplateProperty<C, Output = String> + 'a> {
         match self {
             Expression::Property(property, _) => property.into_plain_text(),
             Expression::Template(template) => Box::new(PlainTextFormattedProperty::new(template)),
         }
     }
 
-    fn into_template(self) -> Box<dyn Template<C> + 'a> {
+    pub fn into_template(self) -> Box<dyn Template<C> + 'a> {
         match self {
             Expression::Property(property, labels) => {
                 let template = property.into_template();
@@ -715,7 +724,7 @@ impl<'a, C: 'a, P: IntoTemplateProperty<'a, C>> Expression<'a, C, P> {
     }
 }
 
-fn expect_no_arguments(function: &FunctionCallNode) -> TemplateParseResult<()> {
+pub fn expect_no_arguments(function: &FunctionCallNode) -> TemplateParseResult<()> {
     if function.args.is_empty() {
         Ok(())
     } else {
@@ -727,7 +736,7 @@ fn expect_no_arguments(function: &FunctionCallNode) -> TemplateParseResult<()> {
 }
 
 /// Extracts exactly N required arguments.
-fn expect_exact_arguments<'a, 'i, const N: usize>(
+pub fn expect_exact_arguments<'a, 'i, const N: usize>(
     function: &'a FunctionCallNode<'i>,
 ) -> TemplateParseResult<&'a [ExpressionNode<'i>; N]> {
     function
@@ -738,7 +747,7 @@ fn expect_exact_arguments<'a, 'i, const N: usize>(
 }
 
 /// Extracts N required arguments and remainders.
-fn expect_some_arguments<'a, 'i, const N: usize>(
+pub fn expect_some_arguments<'a, 'i, const N: usize>(
     function: &'a FunctionCallNode<'i>,
 ) -> TemplateParseResult<(&'a [ExpressionNode<'i>; N], &'a [ExpressionNode<'i>])> {
     if function.args.len() >= N {
@@ -753,7 +762,7 @@ fn expect_some_arguments<'a, 'i, const N: usize>(
 }
 
 /// Extracts N required arguments and M optional arguments.
-fn expect_arguments<'a, 'i, const N: usize, const M: usize>(
+pub fn expect_arguments<'a, 'i, const N: usize, const M: usize>(
     function: &'a FunctionCallNode<'i>,
 ) -> TemplateParseResult<(
     &'a [ExpressionNode<'i>; N],
@@ -798,7 +807,7 @@ fn build_method_call<'a, L: TemplateLanguage<'a>>(
     }
 }
 
-fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
+pub fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
     first: impl TemplateProperty<I, Output = J> + 'a,
     second: impl TemplateProperty<J, Output = O> + 'a,
 ) -> Box<dyn TemplateProperty<I, Output = O> + 'a> {
@@ -807,7 +816,7 @@ fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
     }))
 }
 
-fn build_core_method<'a, L: TemplateLanguage<'a>>(
+pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
     property: CoreTemplatePropertyKind<'a, L::Context>,
     function: &FunctionCallNode,
@@ -1110,7 +1119,7 @@ fn build_commit_keyword<'a>(
 }
 
 /// Builds template evaluation tree from AST nodes.
-fn build_expression<'a, L: TemplateLanguage<'a>>(
+pub fn build_expression<'a, L: TemplateLanguage<'a>>(
     language: &L,
     node: &ExpressionNode,
 ) -> TemplateParseResult<Expression<'a, L::Context, L::Property>> {
