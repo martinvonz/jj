@@ -21,7 +21,12 @@ pub enum OperationCommands {
 
 /// Show the operation log
 #[derive(clap::Args, Clone, Debug)]
-pub struct OperationLogArgs {}
+pub struct OperationLogArgs {
+    /// Render each operation using the given template (the syntax is not yet
+    /// documented and is likely to change)
+    #[arg(long, short = 'T')]
+    template: Option<String>,
+}
 
 /// Restore to the state at an operation
 #[derive(clap::Args, Clone, Debug)]
@@ -41,14 +46,17 @@ pub struct OperationUndoArgs {
 fn cmd_op_log(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &OperationLogArgs,
+    args: &OperationLogArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let head_op = repo.operation().clone();
     let head_op_id = head_op.id().clone();
 
-    let template_string = command.settings().config().get_string("templates.op_log")?;
+    let template_string = match &args.template {
+        Some(value) => value.to_owned(),
+        None => command.settings().config().get_string("templates.op_log")?,
+    };
     let template = operation_templater::parse(
         repo,
         &template_string,

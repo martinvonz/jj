@@ -129,6 +129,25 @@ fn test_op_log() {
 }
 
 #[test]
+fn test_op_log_template() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
+
+    insta::assert_snapshot!(render(r#"id "\n""#), @r###"
+    @  a99a3fd5c51e8f7ccb9ae2f9fb749612a23f0a7cf25d8c644f36c35c077449ce3c66f49d098a5a704ca5e47089a7f019563a5b8cbc7d451619e0f90c82241ceb
+    o  56b94dfc38e7d54340377f566e96ab97dc6163ea7841daf49fb2e1d1ceb27e26274db1245835a1a421fb9d06e6e0fe1e4f4aa1b0258c6e86df676ad9111d0dab
+    "###);
+    insta::assert_snapshot!(
+        render(r#"separate(" ", id.short(5), current_operation, user,
+                                time.start(), time.end(), time.duration()) "\n""#), @r###"
+    @  a99a3 true test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
+    o  56b94 false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
+    "###);
+}
+
+#[test]
 fn test_op_log_configurable() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
