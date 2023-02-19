@@ -34,43 +34,43 @@ use crate::templater::{
     TemplatePropertyFn,
 };
 
-struct CommitTemplateLanguage<'a, 'b> {
-    repo: &'a dyn Repo,
+struct CommitTemplateLanguage<'repo, 'b> {
+    repo: &'repo dyn Repo,
     workspace_id: &'b WorkspaceId,
 }
 
-impl<'a> TemplateLanguage<'a> for CommitTemplateLanguage<'a, '_> {
+impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
     type Context = Commit;
-    type Property = CommitTemplatePropertyKind<'a>;
+    type Property = CommitTemplatePropertyKind<'repo>;
 
     // TODO: maybe generate wrap_<type>() by macro?
     fn wrap_string(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'a>,
+        property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'repo>,
     ) -> Self::Property {
         CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::String(property))
     }
     fn wrap_boolean(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'a>,
+        property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'repo>,
     ) -> Self::Property {
         CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Boolean(property))
     }
     fn wrap_integer(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'a>,
+        property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'repo>,
     ) -> Self::Property {
         CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Integer(property))
     }
     fn wrap_signature(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'a>,
+        property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'repo>,
     ) -> Self::Property {
         CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Signature(property))
     }
     fn wrap_timestamp(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'a>,
+        property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'repo>,
     ) -> Self::Property {
         CommitTemplatePropertyKind::Core(CoreTemplatePropertyKind::Timestamp(property))
     }
@@ -100,54 +100,54 @@ impl<'a> TemplateLanguage<'a> for CommitTemplateLanguage<'a, '_> {
 
 // If we need to add multiple languages that support Commit types, this can be
 // turned into a trait which extends TemplateLanguage.
-impl<'a> CommitTemplateLanguage<'a, '_> {
+impl<'repo> CommitTemplateLanguage<'repo, '_> {
     fn wrap_commit_or_change_id(
         &self,
-        property: Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId<'a>> + 'a>,
-    ) -> CommitTemplatePropertyKind<'a> {
+        property: Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo>,
+    ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::CommitOrChangeId(property)
     }
 
     fn wrap_shortest_id_prefix(
         &self,
-        property: Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'a>,
-    ) -> CommitTemplatePropertyKind<'a> {
+        property: Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>,
+    ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::ShortestIdPrefix(property)
     }
 }
 
-enum CommitTemplatePropertyKind<'a> {
-    Core(CoreTemplatePropertyKind<'a, Commit>),
-    CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId<'a>> + 'a>),
-    ShortestIdPrefix(Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'a>),
+enum CommitTemplatePropertyKind<'repo> {
+    Core(CoreTemplatePropertyKind<'repo, Commit>),
+    CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo>),
+    ShortestIdPrefix(Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>),
 }
 
-impl<'a> IntoTemplateProperty<'a, Commit> for CommitTemplatePropertyKind<'a> {
-    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Commit, Output = bool> + 'a>> {
+impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'repo> {
+    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Commit, Output = bool> + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_boolean(),
             _ => None,
         }
     }
 
-    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<Commit, Output = i64> + 'a>> {
+    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<Commit, Output = i64> + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_integer(),
             _ => None,
         }
     }
 
-    fn into_plain_text(self) -> Box<dyn TemplateProperty<Commit, Output = String> + 'a> {
+    fn into_plain_text(self) -> Box<dyn TemplateProperty<Commit, Output = String> + 'repo> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.into_plain_text(),
             _ => Box::new(PlainTextFormattedProperty::new(self.into_template())),
         }
     }
 
-    fn into_template(self) -> Box<dyn Template<Commit> + 'a> {
-        fn wrap<'a, O: Template<()> + 'a>(
-            property: Box<dyn TemplateProperty<Commit, Output = O> + 'a>,
-        ) -> Box<dyn Template<Commit> + 'a> {
+    fn into_template(self) -> Box<dyn Template<Commit> + 'repo> {
+        fn wrap<'repo, O: Template<()> + 'repo>(
+            property: Box<dyn TemplateProperty<Commit, Output = O> + 'repo>,
+        ) -> Box<dyn Template<Commit> + 'repo> {
             Box::new(FormattablePropertyTemplate::new(property))
         }
         match self {
@@ -158,14 +158,14 @@ impl<'a> IntoTemplateProperty<'a, Commit> for CommitTemplatePropertyKind<'a> {
     }
 }
 
-fn build_commit_keyword<'a>(
-    language: &CommitTemplateLanguage<'a, '_>,
+fn build_commit_keyword<'repo>(
+    language: &CommitTemplateLanguage<'repo, '_>,
     name: &str,
     span: pest::Span,
-) -> TemplateParseResult<CommitTemplatePropertyKind<'a>> {
-    fn wrap_fn<'a, O>(
-        f: impl Fn(&Commit) -> O + 'a,
-    ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'a> {
+) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
+    fn wrap_fn<'repo, O>(
+        f: impl Fn(&Commit) -> O + 'repo,
+    ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'repo> {
         Box::new(TemplatePropertyFn(f))
     }
     let repo = language.repo;
@@ -206,8 +206,8 @@ fn build_commit_keyword<'a>(
     Ok(property)
 }
 
-struct WorkingCopiesProperty<'a> {
-    pub repo: &'a dyn Repo,
+struct WorkingCopiesProperty<'repo> {
+    pub repo: &'repo dyn Repo,
 }
 
 impl TemplateProperty<Commit> for WorkingCopiesProperty<'_> {
@@ -228,8 +228,8 @@ impl TemplateProperty<Commit> for WorkingCopiesProperty<'_> {
     }
 }
 
-struct BranchProperty<'a> {
-    pub repo: &'a dyn Repo,
+struct BranchProperty<'repo> {
+    pub repo: &'repo dyn Repo,
 }
 
 impl TemplateProperty<Commit> for BranchProperty<'_> {
@@ -268,8 +268,8 @@ impl TemplateProperty<Commit> for BranchProperty<'_> {
     }
 }
 
-struct TagProperty<'a> {
-    pub repo: &'a dyn Repo,
+struct TagProperty<'repo> {
+    pub repo: &'repo dyn Repo,
 }
 
 impl TemplateProperty<Commit> for TagProperty<'_> {
@@ -290,8 +290,8 @@ impl TemplateProperty<Commit> for TagProperty<'_> {
     }
 }
 
-struct GitRefsProperty<'a> {
-    pub repo: &'a dyn Repo,
+struct GitRefsProperty<'repo> {
+    pub repo: &'repo dyn Repo,
 }
 
 impl TemplateProperty<Commit> for GitRefsProperty<'_> {
@@ -314,12 +314,12 @@ impl TemplateProperty<Commit> for GitRefsProperty<'_> {
     }
 }
 
-struct GitHeadProperty<'a> {
-    repo: &'a dyn Repo,
+struct GitHeadProperty<'repo> {
+    repo: &'repo dyn Repo,
 }
 
-impl<'a> GitHeadProperty<'a> {
-    pub fn new(repo: &'a dyn Repo) -> Self {
+impl<'repo> GitHeadProperty<'repo> {
+    pub fn new(repo: &'repo dyn Repo) -> Self {
         Self { repo }
     }
 }
@@ -343,14 +343,14 @@ impl TemplateProperty<Commit> for GitHeadProperty<'_> {
 
 /// Type-erased `CommitId`/`ChangeId`.
 #[derive(Clone)]
-struct CommitOrChangeId<'a> {
-    repo: &'a dyn Repo,
+struct CommitOrChangeId<'repo> {
+    repo: &'repo dyn Repo,
     id_bytes: Vec<u8>,
     is_commit_id: bool,
 }
 
-impl<'a> CommitOrChangeId<'a> {
-    pub fn commit_id(repo: &'a dyn Repo, id: &CommitId) -> Self {
+impl<'repo> CommitOrChangeId<'repo> {
+    pub fn commit_id(repo: &'repo dyn Repo, id: &CommitId) -> Self {
         CommitOrChangeId {
             repo,
             id_bytes: id.to_bytes(),
@@ -358,7 +358,7 @@ impl<'a> CommitOrChangeId<'a> {
         }
     }
 
-    pub fn change_id(repo: &'a dyn Repo, id: &ChangeId) -> Self {
+    pub fn change_id(repo: &'repo dyn Repo, id: &ChangeId) -> Self {
         CommitOrChangeId {
             repo,
             id_bytes: id.to_bytes(),
@@ -410,11 +410,11 @@ impl Template<()> for CommitOrChangeId<'_> {
     }
 }
 
-fn build_commit_or_change_id_method<'a>(
-    language: &CommitTemplateLanguage<'a, '_>,
-    self_property: impl TemplateProperty<Commit, Output = CommitOrChangeId<'a>> + 'a,
+fn build_commit_or_change_id_method<'repo>(
+    language: &CommitTemplateLanguage<'repo, '_>,
+    self_property: impl TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo,
     function: &FunctionCallNode,
-) -> TemplateParseResult<CommitTemplatePropertyKind<'a>> {
+) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
     let parse_optional_integer = |function| -> Result<Option<_>, TemplateParseError> {
         let ([], [len_node]) = template_parser::expect_arguments(function)?;
         len_node
@@ -472,11 +472,11 @@ impl Template<()> for ShortestIdPrefix {
     }
 }
 
-fn build_shortest_id_prefix_method<'a>(
-    language: &CommitTemplateLanguage<'a, '_>,
-    self_property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'a,
+fn build_shortest_id_prefix_method<'repo>(
+    language: &CommitTemplateLanguage<'repo, '_>,
+    self_property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
     function: &FunctionCallNode,
-) -> TemplateParseResult<CommitTemplatePropertyKind<'a>> {
+) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
     let property = match function.name {
         "prefix" => {
             template_parser::expect_no_arguments(function)?;
@@ -502,12 +502,12 @@ fn build_shortest_id_prefix_method<'a>(
     Ok(property)
 }
 
-pub fn parse<'a>(
-    repo: &'a dyn Repo,
+pub fn parse<'repo>(
+    repo: &'repo dyn Repo,
     workspace_id: &WorkspaceId,
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
-) -> TemplateParseResult<Box<dyn Template<Commit> + 'a>> {
+) -> TemplateParseResult<Box<dyn Template<Commit> + 'repo>> {
     let language = CommitTemplateLanguage { repo, workspace_id };
     let node = template_parser::parse_template(template_text)?;
     let node = template_parser::expand_aliases(node, aliases_map)?;
