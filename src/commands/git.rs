@@ -111,7 +111,7 @@ pub struct GitCloneArgs {
 /// all branches. Use `--change` to generate branch names based on the change
 /// IDs of specific commits.
 #[derive(clap::Args, Clone, Debug)]
-#[command(group(ArgGroup::new("what").args(&["branch", "all", "change"])))]
+#[command(group(ArgGroup::new("what").args(&["branch", "all", "change", "deleted"])))]
 pub struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
     #[arg(long)]
@@ -122,6 +122,9 @@ pub struct GitPushArgs {
     /// Push all branches
     #[arg(long)]
     all: bool,
+    /// Push all deleted branches
+    #[arg(long)]
+    deleted: bool,
     /// Push this commit by creating a branch based on its change ID (can be
     /// repeated)
     #[arg(long)]
@@ -524,7 +527,7 @@ fn cmd_git_push(
     let mut tx;
     let mut branch_updates = vec![];
     let mut seen_branches = hashset! {};
-    if args.all {
+    if args.all || args.deleted {
         // TODO: Is it useful to warn about conflicted branches?
         for (branch_name, branch_target) in workspace_command.repo().view().branches() {
             if !seen_branches.insert(branch_name.clone()) {
@@ -536,12 +539,17 @@ fn cmd_git_push(
                 BranchPushAction::LocalConflicted => {}
                 BranchPushAction::RemoteConflicted => {}
                 BranchPushAction::Update(update) => {
-                    branch_updates.push((branch_name.clone(), update));
+                    if args.all || branch_target.local_target.is_none() {
+                        branch_updates.push((branch_name.clone(), update));
+                    }
                 }
             }
         }
-        tx = workspace_command
-            .start_transaction(&format!("push all branches to git remote {}", &remote));
+        tx = workspace_command.start_transaction(&format!(
+            "push all {}branches to git remote {}",
+            if args.deleted { "deleted " } else { "" },
+            &remote
+        ));
     } else if !args.branch.is_empty() {
         for branch_name in &args.branch {
             if !seen_branches.insert(branch_name.clone()) {
