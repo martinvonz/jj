@@ -121,6 +121,56 @@ fn test_rebase_branch() {
     o  a
     o
     "###);
+
+    // Test rebasing multiple branches at once
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b=e", "-b=d", "-d=b"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 2 commits
+    Working copy now at: 9ca2a1544e5d e
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o  d
+    │ @  e
+    ├─╯
+    │ o  c
+    ├─╯
+    o  b
+    o  a
+    o
+    "###);
+
+    // Same test but with more than one revision per argument and same revision
+    // repeated in more than one argument
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-b=e|d", "-b=d", "-d=b"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "e|d" resolved to more than one revision
+    Hint: The revset "e|d" resolved to these revisions:
+    e52756c82985 e
+    514fa6b265d4 d
+    If this was intentional, specify the `--allow-large-revsets` argument
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["rebase", "-b=e|d", "-b=d", "-d=b", "--allow-large-revsets"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 2 commits
+    Working copy now at: 817e3fb0dc64 e
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o  d
+    │ @  e
+    ├─╯
+    │ o  c
+    ├─╯
+    o  b
+    o  a
+    o
+    "###);
 }
 
 #[test]

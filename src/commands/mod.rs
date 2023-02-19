@@ -730,9 +730,13 @@ struct SplitArgs {
 #[command(verbatim_doc_comment)]
 #[command(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revision"])))]
 struct RebaseArgs {
-    /// Rebase the whole branch (relative to destination's ancestors)
+    /// Rebase the whole branch relative to destination's ancestors (can be
+    /// repeated)
+    ///
+    /// `jj rebase -b=br -d=dst` is equivalent to `jj rebase '-s=roots(dst..br)'
+    /// -d=dst`.
     #[arg(long, short)]
-    branch: Option<RevisionArg>,
+    branch: Vec<RevisionArg>,
 
     /// Rebase specified revision(s) together their tree of descendants (can be
     /// repeated)
@@ -2782,13 +2786,21 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
             &source_commits,
         )?;
     } else {
-        let branch_str = args.branch.as_deref().unwrap_or("@");
+        let branch_commits = if args.branch.is_empty() {
+            IndexSet::from([workspace_command.resolve_single_rev("@")?])
+        } else {
+            resolve_mutliple_nonempty_revsets_flag_guarded(
+                &workspace_command,
+                &args.branch,
+                args.allow_large_revsets,
+            )?
+        };
         rebase_branch(
             ui,
             command,
             &mut workspace_command,
             &new_parents,
-            branch_str,
+            &branch_commits,
         )?;
     }
     Ok(())
@@ -2799,36 +2811,26 @@ fn rebase_branch(
     command: &CommandHelper,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
-    branch_str: &str,
+    branch_commits: &IndexSet<Commit>,
 ) -> Result<(), CommandError> {
-    let branch_commit = workspace_command.resolve_single_rev(branch_str)?;
-    check_rebase_destinations(workspace_command.repo(), new_parents, &branch_commit)?;
     let parent_ids = new_parents
         .iter()
         .map(|commit| commit.id().clone())
         .collect_vec();
+    let branch_commit_ids = branch_commits
+        .iter()
+        .map(|commit| commit.id().clone())
+        .collect_vec();
     let roots_expression = RevsetExpression::commits(parent_ids)
-        .range(&RevsetExpression::commit(branch_commit.id().clone()))
+        .range(&RevsetExpression::commits(branch_commit_ids))
         .roots();
-    let root_commits: Vec<_> = workspace_command
+    let root_commits: IndexSet<_> = workspace_command
         .evaluate_revset(&roots_expression)
         .unwrap()
         .iter()
         .commits(workspace_command.repo().store())
         .try_collect()?;
-
-    let mut tx = workspace_command
-        .start_transaction(&format!("rebase branch at {}", branch_commit.id().hex()));
-    let mut num_rebased = 0;
-    for root_commit in &root_commits {
-        tx.base_workspace_helper().check_rewritable(root_commit)?;
-        rebase_commit(command.settings(), tx.mut_repo(), root_commit, new_parents)?;
-        num_rebased += 1;
-    }
-    num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
-    writeln!(ui, "Rebased {num_rebased} commits")?;
-    tx.finish(ui)?;
-    Ok(())
+    rebase_descendants(ui, command, workspace_command, new_parents, &root_commits)
 }
 
 fn rebase_descendants(
