@@ -994,11 +994,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
         }
         "if" => {
             let ([condition_node, true_node], [false_node]) = expect_arguments(function)?;
-            let condition = build_expression(language, condition_node)?
-                .try_into_boolean()
-                .ok_or_else(|| {
-                    TemplateParseError::invalid_argument_type("Boolean", condition_node.span)
-                })?;
+            let condition = expect_boolean_expression(language, condition_node)?;
             let true_template = build_expression(language, true_node)?.into_template();
             let false_template = false_node
                 .map(|node| build_expression(language, node))
@@ -1058,6 +1054,24 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
             build_expression(language, subst).map_err(|e| e.within_alias_expansion(*id, node.span))
         }
     }
+}
+
+pub fn expect_boolean_expression<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    node: &ExpressionNode,
+) -> TemplateParseResult<Box<dyn TemplateProperty<L::Context, Output = bool> + 'a>> {
+    build_expression(language, node)?
+        .try_into_boolean()
+        .ok_or_else(|| TemplateParseError::invalid_argument_type("Boolean", node.span))
+}
+
+pub fn expect_integer_expression<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    node: &ExpressionNode,
+) -> TemplateParseResult<Box<dyn TemplateProperty<L::Context, Output = i64> + 'a>> {
+    build_expression(language, node)?
+        .try_into_integer()
+        .ok_or_else(|| TemplateParseError::invalid_argument_type("Integer", node.span))
 }
 
 #[cfg(test)]

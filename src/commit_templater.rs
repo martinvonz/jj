@@ -334,13 +334,7 @@ fn build_commit_or_change_id_method<'repo>(
     let parse_optional_integer = |function| -> Result<Option<_>, TemplateParseError> {
         let ([], [len_node]) = template_parser::expect_arguments(function)?;
         len_node
-            .map(|node| {
-                template_parser::build_expression(language, node).and_then(|p| {
-                    p.try_into_integer().ok_or_else(|| {
-                        TemplateParseError::invalid_argument_type("Integer", node.span)
-                    })
-                })
-            })
+            .map(|node| template_parser::expect_integer_expression(language, node))
             .transpose()
     };
     let property = match function.name {
