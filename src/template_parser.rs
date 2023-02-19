@@ -25,9 +25,9 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::templater::{
-    ConditionalTemplate, FormattablePropertyTemplate, IntoTemplate, LabelTemplate, ListTemplate,
-    Literal, PlainTextFormattedProperty, SeparateTemplate, Template, TemplateFunction,
-    TemplateProperty, TemplatePropertyFn,
+    ConditionalTemplate, IntoTemplate, LabelTemplate, ListTemplate, Literal,
+    PlainTextFormattedProperty, SeparateTemplate, Template, TemplateFunction, TemplateProperty,
+    TemplatePropertyFn,
 };
 use crate::time_util;
 
@@ -702,17 +702,12 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
 
 impl<'a, I: 'a> IntoTemplate<'a, I> for CoreTemplatePropertyKind<'a, I> {
     fn into_template(self) -> Box<dyn Template<I> + 'a> {
-        fn wrap<'a, I: 'a, O: Template<()> + 'a>(
-            property: Box<dyn TemplateProperty<I, Output = O> + 'a>,
-        ) -> Box<dyn Template<I> + 'a> {
-            Box::new(FormattablePropertyTemplate::new(property))
-        }
         match self {
-            CoreTemplatePropertyKind::String(property) => wrap(property),
-            CoreTemplatePropertyKind::Boolean(property) => wrap(property),
-            CoreTemplatePropertyKind::Integer(property) => wrap(property),
-            CoreTemplatePropertyKind::Signature(property) => wrap(property),
-            CoreTemplatePropertyKind::Timestamp(property) => wrap(property),
+            CoreTemplatePropertyKind::String(property) => property.into_template(),
+            CoreTemplatePropertyKind::Boolean(property) => property.into_template(),
+            CoreTemplatePropertyKind::Integer(property) => property.into_template(),
+            CoreTemplatePropertyKind::Signature(property) => property.into_template(),
+            CoreTemplatePropertyKind::Timestamp(property) => property.into_template(),
         }
     }
 }
