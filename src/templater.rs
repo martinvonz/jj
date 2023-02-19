@@ -303,6 +303,15 @@ where
     }
 }
 
+impl<'a, C: 'a, O> IntoTemplate<'a, C> for Box<dyn TemplateProperty<C, Output = O> + 'a>
+where
+    O: Template<()> + 'a,
+{
+    fn into_template(self) -> Box<dyn Template<C> + 'a> {
+        Box::new(FormattablePropertyTemplate::new(self))
+    }
+}
+
 /// Adapter to turn template back to string property.
 pub struct PlainTextFormattedProperty<T> {
     template: T,

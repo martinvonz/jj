@@ -30,8 +30,7 @@ use crate::template_parser::{
     TemplateLanguage, TemplateParseError, TemplateParseResult,
 };
 use crate::templater::{
-    FormattablePropertyTemplate, IntoTemplate, PlainTextFormattedProperty, Template,
-    TemplateProperty, TemplatePropertyFn,
+    IntoTemplate, PlainTextFormattedProperty, Template, TemplateProperty, TemplatePropertyFn,
 };
 
 struct CommitTemplateLanguage<'repo, 'b> {
@@ -117,15 +116,10 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
 
 impl<'repo> IntoTemplate<'repo, Commit> for CommitTemplatePropertyKind<'repo> {
     fn into_template(self) -> Box<dyn Template<Commit> + 'repo> {
-        fn wrap<'repo, O: Template<()> + 'repo>(
-            property: Box<dyn TemplateProperty<Commit, Output = O> + 'repo>,
-        ) -> Box<dyn Template<Commit> + 'repo> {
-            Box::new(FormattablePropertyTemplate::new(property))
-        }
         match self {
             CommitTemplatePropertyKind::Core(property) => property.into_template(),
-            CommitTemplatePropertyKind::CommitOrChangeId(property) => wrap(property),
-            CommitTemplatePropertyKind::ShortestIdPrefix(property) => wrap(property),
+            CommitTemplatePropertyKind::CommitOrChangeId(property) => property.into_template(),
+            CommitTemplatePropertyKind::ShortestIdPrefix(property) => property.into_template(),
         }
     }
 }
