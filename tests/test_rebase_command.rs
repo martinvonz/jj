@@ -426,6 +426,82 @@ fn test_rebase_with_descendants() {
     o  a
     o
     "###);
+
+    // Rebase several subtrees at once.
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s=c", "-s=d", "-d=a"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 2 commits
+    Working copy now at: 92c2bc9a8623 d
+    Added 0 files, modified 0 files, removed 2 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  d
+    │ o  c
+    ├─╯
+    │ o  b
+    o │  a
+    ├─╯
+    o
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    // Reminder of the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  d
+    o    c
+    ├─╮
+    o │  b
+    │ o  a
+    ├─╯
+    o
+    "###);
+
+    // `d` was a descendant of `b`, and both are moved to be direct descendants of
+    // `a`. `c` remains a descendant of `b`.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s=b", "-s=d", "-d=a"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 3 commits
+    Working copy now at: f1e71cb78a06 d
+    Added 0 files, modified 0 files, removed 2 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o  c
+    │ @  d
+    o │  b
+    ├─╯
+    o  a
+    o
+    "###);
+
+    // Same test as above, but with duplicate commits and multiple commits per
+    // argument
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s=b|d", "-s=d", "-d=a"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "b|d" resolved to more than one revision
+    Hint: The revset "b|d" resolved to these revisions:
+    df54a9fd85ae d
+    d370aee184ba b
+    If this was intentional, specify the `--allow-large-revsets` argument
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["rebase", "-s=b|d", "-s=d", "-d=a", "--allow-large-revsets"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 3 commits
+    Working copy now at: d17539f7ea7c d
+    Added 0 files, modified 0 files, removed 2 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o  c
+    o  b
+    │ @  d
+    ├─╯
+    o  a
+    o
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {

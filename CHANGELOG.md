@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj restore` without `--from` works correctly even if `@` is a merge
   commit.
 
+* `jj rebase` now accepts multiple `-s` arguments. Revsets with multiple commits
+  are allowed with `--allow-large-revsets`.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines
