@@ -7,10 +7,8 @@ use jujutsu_lib::operation::Operation;
 use crate::cli_util::{user_error, CommandError, CommandHelper};
 use crate::formatter::Formatter;
 use crate::graphlog::{get_graphlog, Edge};
-use crate::templater::Template;
-use crate::time_util::{
-    format_absolute_timestamp, format_duration, format_timestamp_relative_to_now,
-};
+use crate::templater::{Template, TimestampRange};
+use crate::time_util::format_timestamp_relative_to_now;
 use crate::ui::Ui;
 
 /// Commands for working with the operation log
@@ -71,22 +69,19 @@ fn cmd_op_log(
                 metadata.hostname
             )?;
             formatter.write_str(" ")?;
+            let time_range = TimestampRange {
+                start: metadata.start_time.clone(),
+                end: metadata.end_time.clone(),
+            };
             if self.relative_timestamps {
-                let mut f = timeago::Formatter::new();
-                f.min_unit(timeago::TimeUnit::Microseconds).ago("");
-                let mut duration = format_duration(&metadata.start_time, &metadata.end_time, &f);
-                if duration == "now" {
-                    duration = "less than a microsecond".to_string()
-                }
-                let start = format_timestamp_relative_to_now(&metadata.start_time);
-                write!(formatter.labeled("time"), "{start}, lasted {duration}")?;
-            } else {
+                let start = format_timestamp_relative_to_now(&time_range.start);
                 write!(
                     formatter.labeled("time"),
-                    "{} - {}",
-                    format_absolute_timestamp(&metadata.start_time),
-                    format_absolute_timestamp(&metadata.end_time)
+                    "{start}, lasted {duration}",
+                    duration = time_range.duration()
                 )?;
+            } else {
+                time_range.format(&(), formatter)?;
             }
             formatter.write_str("\n")?;
             write!(

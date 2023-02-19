@@ -27,7 +27,7 @@ use thiserror::Error;
 use crate::templater::{
     ConditionalTemplate, IntoTemplate, LabelTemplate, ListTemplate, Literal,
     PlainTextFormattedProperty, SeparateTemplate, Template, TemplateFunction, TemplateProperty,
-    TemplatePropertyFn,
+    TemplatePropertyFn, TimestampRange,
 };
 use crate::time_util;
 
@@ -610,6 +610,10 @@ pub trait TemplateLanguage<'a> {
         &self,
         property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'a>,
     ) -> Self::Property;
+    fn wrap_timestamp_range(
+        &self,
+        property: Box<dyn TemplateProperty<Self::Context, Output = TimestampRange> + 'a>,
+    ) -> Self::Property;
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property>;
     fn build_method(
@@ -635,6 +639,7 @@ macro_rules! impl_core_wrap_property_fns {
                 wrap_integer(i64) => Integer,
                 wrap_signature(jujutsu_lib::backend::Signature) => Signature,
                 wrap_timestamp(jujutsu_lib::backend::Timestamp) => Timestamp,
+                wrap_timestamp_range($crate::templater::TimestampRange) => TimestampRange,
             }
         );
     };
@@ -672,6 +677,7 @@ pub enum CoreTemplatePropertyKind<'a, I> {
     Integer(Box<dyn TemplateProperty<I, Output = i64> + 'a>),
     Signature(Box<dyn TemplateProperty<I, Output = Signature> + 'a>),
     Timestamp(Box<dyn TemplateProperty<I, Output = Timestamp> + 'a>),
+    TimestampRange(Box<dyn TemplateProperty<I, Output = TimestampRange> + 'a>),
 }
 
 impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> {
@@ -708,6 +714,7 @@ impl<'a, I: 'a> IntoTemplate<'a, I> for CoreTemplatePropertyKind<'a, I> {
             CoreTemplatePropertyKind::Integer(property) => property.into_template(),
             CoreTemplatePropertyKind::Signature(property) => property.into_template(),
             CoreTemplatePropertyKind::Timestamp(property) => property.into_template(),
+            CoreTemplatePropertyKind::TimestampRange(property) => property.into_template(),
         }
     }
 }
@@ -869,6 +876,9 @@ pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
         CoreTemplatePropertyKind::Timestamp(property) => {
             build_timestamp_method(language, property, function)
         }
+        CoreTemplatePropertyKind::TimestampRange(property) => {
+            build_timestamp_range_method(language, property, function)
+        }
     }
 }
 
@@ -973,6 +983,43 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
             ))
         }
         _ => return Err(TemplateParseError::no_such_method("Timestamp", function)),
+    };
+    Ok(property)
+}
+
+fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    self_property: impl TemplateProperty<L::Context, Output = TimestampRange> + 'a,
+    function: &FunctionCallNode,
+) -> TemplateParseResult<L::Property> {
+    let property = match function.name {
+        "start" => {
+            expect_no_arguments(function)?;
+            language.wrap_timestamp(chain_properties(
+                self_property,
+                TemplatePropertyFn(|time_range: &TimestampRange| time_range.start.clone()),
+            ))
+        }
+        "end" => {
+            expect_no_arguments(function)?;
+            language.wrap_timestamp(chain_properties(
+                self_property,
+                TemplatePropertyFn(|time_range: &TimestampRange| time_range.end.clone()),
+            ))
+        }
+        "duration" => {
+            expect_no_arguments(function)?;
+            language.wrap_string(chain_properties(
+                self_property,
+                TemplatePropertyFn(TimestampRange::duration),
+            ))
+        }
+        _ => {
+            return Err(TemplateParseError::no_such_method(
+                "TimestampRange",
+                function,
+            ))
+        }
     };
     Ok(property)
 }
