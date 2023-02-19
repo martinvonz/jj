@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* The `ui.oplog-relative-timestamps` option has been removed. Use the
+  `format_time_range()` template alias instead. For details, see
+  [the documentation](docs/config.md).
+
 ### New features
 
 * `jj git push --deleted` will remove all locally deleted branches from the remote.

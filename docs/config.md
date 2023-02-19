@@ -165,11 +165,11 @@ Can be customized by the `format_timestamp()` template alias.
 ```
 
 `jj op log` defaults to relative timestamps. To use absolute timestamps, you
-will need to modify an option.
+will need to modify the `format_time_range()` template alias.
 
 ```toml
-[ui]
-oplog-relative-timestamps=false
+[template-aliases]
+'format_time_range(time_range)' = 'time_range.start() " - " time_range.end()'
 ```
 
 ### Author format

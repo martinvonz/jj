@@ -33,7 +33,7 @@ fn test_op_log() {
             "op",
             "log",
             "--config-toml",
-            "ui.oplog-relative-timestamps=false",
+            "template-aliases.'format_time_range(x)' = 'x'",
         ],
     );
     insta::assert_snapshot!(&stdout, @r###"

@@ -23,6 +23,7 @@ pub mod diff_util;
 pub mod formatter;
 pub mod graphlog;
 pub mod merge_tools;
+pub mod operation_templater;
 mod progress;
 pub mod template_parser;
 pub mod templater;
