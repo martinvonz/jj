@@ -733,9 +733,15 @@ struct RebaseArgs {
     /// Rebase the whole branch (relative to destination's ancestors)
     #[arg(long, short)]
     branch: Option<RevisionArg>,
-    /// Rebase this revision and its descendants
+
+    /// Rebase specified revision(s) together their tree of descendants (can be
+    /// repeated)
+    ///
+    /// Each specified revision will become a direct child of the destination
+    /// revision(s), even if some of the source revisions are descendants
+    /// of others.
     #[arg(long, short)]
-    source: Option<RevisionArg>,
+    source: Vec<RevisionArg>,
     /// Rebase only this revision, rebasing descendants onto this revision's
     /// parent(s)
     #[arg(long, short)]
@@ -2762,13 +2768,18 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
     .collect_vec();
     if let Some(rev_str) = &args.revision {
         rebase_revision(ui, command, &mut workspace_command, &new_parents, rev_str)?;
-    } else if let Some(source_str) = &args.source {
+    } else if !args.source.is_empty() {
+        let source_commits = resolve_mutliple_nonempty_revsets_flag_guarded(
+            &workspace_command,
+            &args.source,
+            args.allow_large_revsets,
+        )?;
         rebase_descendants(
             ui,
             command,
             &mut workspace_command,
             &new_parents,
-            source_str,
+            &source_commits,
         )?;
     } else {
         let branch_str = args.branch.as_deref().unwrap_or("@");
@@ -2825,17 +2836,27 @@ fn rebase_descendants(
     command: &CommandHelper,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
-    source_str: &str,
+    old_commits: &IndexSet<Commit>,
 ) -> Result<(), CommandError> {
-    let old_commit = workspace_command.resolve_single_rev(source_str)?;
-    workspace_command.check_rewritable(&old_commit)?;
-    check_rebase_destinations(workspace_command.repo(), new_parents, &old_commit)?;
-    let mut tx = workspace_command.start_transaction(&format!(
-        "rebase commit {} and descendants",
-        old_commit.id().hex()
-    ));
-    rebase_commit(command.settings(), tx.mut_repo(), &old_commit, new_parents)?;
-    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())? + 1;
+    for old_commit in old_commits.iter() {
+        workspace_command.check_rewritable(old_commit)?;
+        check_rebase_destinations(workspace_command.repo(), new_parents, old_commit)?;
+    }
+    let tx_message = if old_commits.len() == 1 {
+        format!(
+            "rebase commit {} and descendants",
+            old_commits.first().unwrap().id().hex()
+        )
+    } else {
+        format!("rebase {} commits and their descendants", old_commits.len())
+    };
+    let mut tx = workspace_command.start_transaction(&tx_message);
+    // `rebase_descendants` takes care of sorting in reverse topological order, so
+    // no need to do it here.
+    for old_commit in old_commits {
+        rebase_commit(command.settings(), tx.mut_repo(), old_commit, new_parents)?;
+    }
+    let num_rebased = old_commits.len() + tx.mut_repo().rebase_descendants(command.settings())?;
     writeln!(ui, "Rebased {num_rebased} commits")?;
     tx.finish(ui)?;
     Ok(())
