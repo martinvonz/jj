@@ -26,6 +26,19 @@ label(if(current_working_copy, "working_copy"),
 )
 '''
 
+op_log = '''
+label(if(current_operation, "head"),
+  separate(" ",
+    id.short(),
+    user,
+    format_time_range(time),
+  )
+  "\n"
+  description.first_line() "\n"
+  tags
+)
+'''
+
 # Defined as alias to allow 'log -T show'
 show = 'show'
 
@@ -35,6 +48,8 @@ show = 'show'
 # Hook points for users to customize the default templates:
 'format_short_id(id)' = 'id.shortest(12)'
 'format_short_signature(signature)' = 'signature.email()'
+'format_time_range(time_range)' = '''
+  time_range.start().ago() label("time", ", lasted ") time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp'
 
 # TODO: Add branches, tags, etc

@@ -811,6 +811,10 @@ impl WorkspaceCommandHelper {
         }
     }
 
+    pub fn template_aliases_map(&self) -> &TemplateAliasesMap {
+        &self.template_aliases_map
+    }
+
     pub fn parse_commit_template(
         &self,
         template_text: &str,

@@ -1,14 +1,11 @@
-use std::io;
-
 use clap::Subcommand;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::operation::Operation;
 
 use crate::cli_util::{user_error, CommandError, CommandHelper};
-use crate::formatter::Formatter;
 use crate::graphlog::{get_graphlog, Edge};
-use crate::templater::{Template, TimestampRange};
-use crate::time_util::format_timestamp_relative_to_now;
+use crate::operation_templater;
+use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Commands for working with the operation log
@@ -50,59 +47,17 @@ fn cmd_op_log(
     let repo = workspace_command.repo();
     let head_op = repo.operation().clone();
     let head_op_id = head_op.id().clone();
+
+    let template_string = command.settings().config().get_string("templates.op_log")?;
+    let template = operation_templater::parse(
+        repo,
+        &template_string,
+        workspace_command.template_aliases_map(),
+    )?;
+
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
-    struct OpTemplate {
-        relative_timestamps: bool,
-    }
-    impl Template<Operation> for OpTemplate {
-        fn format(&self, op: &Operation, formatter: &mut dyn Formatter) -> io::Result<()> {
-            // TODO: Make this templated
-            write!(formatter.labeled("id"), "{}", &op.id().hex()[0..12])?;
-            formatter.write_str(" ")?;
-            let metadata = &op.store_operation().metadata;
-            write!(
-                formatter.labeled("user"),
-                "{}@{}",
-                metadata.username,
-                metadata.hostname
-            )?;
-            formatter.write_str(" ")?;
-            let time_range = TimestampRange {
-                start: metadata.start_time.clone(),
-                end: metadata.end_time.clone(),
-            };
-            if self.relative_timestamps {
-                let start = format_timestamp_relative_to_now(&time_range.start);
-                write!(
-                    formatter.labeled("time"),
-                    "{start}, lasted {duration}",
-                    duration = time_range.duration()
-                )?;
-            } else {
-                time_range.format(&(), formatter)?;
-            }
-            formatter.write_str("\n")?;
-            write!(
-                formatter.labeled("description"),
-                "{}",
-                &metadata.description
-            )?;
-            for (key, value) in &metadata.tags {
-                write!(formatter.labeled("tags"), "\n{key}: {value}")?;
-            }
-            Ok(())
-        }
-
-        fn has_content(&self, _: &Operation) -> bool {
-            true
-        }
-    }
-    let template = OpTemplate {
-        relative_timestamps: command.settings().oplog_relative_timestamps(),
-    };
-
     let mut graph = get_graphlog(command.settings(), formatter.raw());
     for op in topo_order_reverse(
         vec![head_op],
@@ -115,16 +70,8 @@ fn cmd_op_log(
         }
         let is_head_op = op.id() == &head_op_id;
         let mut buffer = vec![];
-        {
-            let mut formatter = ui.new_formatter(&mut buffer);
-            formatter.with_label("op-log", |formatter| {
-                if is_head_op {
-                    formatter.with_label("head", |formatter| template.format(&op, formatter))
-                } else {
-                    template.format(&op, formatter)
-                }
-            })?;
-        }
+        ui.new_formatter(&mut buffer)
+            .with_label("op-log", |formatter| template.format(&op, formatter))?;
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
         }

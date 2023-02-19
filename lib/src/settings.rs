@@ -158,12 +158,6 @@ impl UserSettings {
             .unwrap_or(false)
     }
 
-    pub fn oplog_relative_timestamps(&self) -> bool {
-        self.config
-            .get_bool("ui.oplog-relative-timestamps")
-            .unwrap_or(true)
-    }
-
     pub fn config(&self) -> &config::Config {
         &self.config
     }
