@@ -38,7 +38,6 @@ use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPath};
-use crate::revset_graph_iterator::RevsetGraphIterator;
 use crate::rewrite;
 use crate::store::Store;
 
@@ -1571,10 +1570,6 @@ impl<'revset, 'index> RevsetIterator<'revset, 'index> {
         ReverseRevsetIterator {
             entries: self.into_iter().collect_vec(),
         }
-    }
-
-    pub fn graph(self) -> RevsetGraphIterator<'revset, 'index> {
-        RevsetGraphIterator::new(self)
     }
 
     fn into_predicate_fn(self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + 'revset> {
