@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* `jj git push --deleted` will remove all locally deleted branches from the remote.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines

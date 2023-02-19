@@ -369,3 +369,20 @@ fn test_git_push_missing_committer() {
     Error: Won't push commit f73024ee65ec since it has no description and it has no author and/or committer set
     "###);
 }
+
+#[test]
+fn test_git_push_deleted() {
+    let (test_env, workspace_root) = set_up();
+
+    test_env.jj_cmd_success(&workspace_root, &["branch", "delete", "branch1"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--deleted"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Delete branch branch1 from 45a3aa29e907
+    "###);
+    let stdout =
+        test_env.jj_cmd_success(&workspace_root, &["git", "push", "--deleted", "--dry-run"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+}
