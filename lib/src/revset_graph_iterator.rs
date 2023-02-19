@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::index::{IndexEntry, IndexPosition};
 use crate::nightly_shims::BTreeMapExt;
-use crate::revset::RevsetIterator;
+use crate::revset::{Revset, RevsetIterator};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct RevsetGraphEdge {
@@ -134,9 +134,9 @@ pub struct RevsetGraphIterator<'revset, 'index> {
 }
 
 impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
-    pub fn new(iter: RevsetIterator<'revset, 'index>) -> RevsetGraphIterator<'revset, 'index> {
+    pub fn new(revset: &'revset dyn Revset<'index>) -> RevsetGraphIterator<'revset, 'index> {
         RevsetGraphIterator {
-            input_set_iter: iter,
+            input_set_iter: revset.iter(),
             look_ahead: Default::default(),
             min_position: IndexPosition::MAX,
             edges: Default::default(),
