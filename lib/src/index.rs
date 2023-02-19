@@ -69,6 +69,7 @@ pub trait Index {
 
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
 
+    /// Parents before children
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry>;
 }
 
@@ -920,6 +921,7 @@ impl<'a> CompositeIndex<'a> {
         candidate_positions
     }
 
+    /// Parents before children
     pub fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry<'a>> {
         let mut entries_by_generation = input
             .into_iter()
