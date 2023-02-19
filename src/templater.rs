@@ -73,6 +73,40 @@ impl Template<()> for Timestamp {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TimestampRange {
+    // Could be aliased to Range<Timestamp> if needed.
+    pub start: Timestamp,
+    pub end: Timestamp,
+}
+
+impl TimestampRange {
+    // TODO: Introduce duration type, and move formatting to it.
+    pub fn duration(&self) -> String {
+        let mut f = timeago::Formatter::new();
+        f.min_unit(timeago::TimeUnit::Microseconds).ago("");
+        let duration = time_util::format_duration(&self.start, &self.end, &f);
+        if duration == "now" {
+            "less than a microsecond".to_owned()
+        } else {
+            duration
+        }
+    }
+}
+
+impl Template<()> for TimestampRange {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        self.start.format(&(), formatter)?;
+        write!(formatter, " - ")?;
+        self.end.format(&(), formatter)?;
+        Ok(())
+    }
+
+    fn has_content(&self, _: &()) -> bool {
+        true
+    }
+}
+
 impl Template<()> for bool {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(if *self { "true" } else { "false" })
