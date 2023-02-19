@@ -25,9 +25,9 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::templater::{
-    ConditionalTemplate, FormattablePropertyTemplate, LabelTemplate, ListTemplate, Literal,
-    PlainTextFormattedProperty, SeparateTemplate, Template, TemplateFunction, TemplateProperty,
-    TemplatePropertyFn,
+    ConditionalTemplate, FormattablePropertyTemplate, IntoTemplate, LabelTemplate, ListTemplate,
+    Literal, PlainTextFormattedProperty, SeparateTemplate, Template, TemplateFunction,
+    TemplateProperty, TemplatePropertyFn,
 };
 use crate::time_util;
 
@@ -659,12 +659,11 @@ macro_rules! impl_wrap_property_fns {
 pub(crate) use {impl_core_wrap_property_fns, impl_wrap_property_fns};
 
 /// Provides access to basic template property types.
-pub trait IntoTemplateProperty<'a, C> {
+pub trait IntoTemplateProperty<'a, C>: IntoTemplate<'a, C> {
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>>;
     fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>>;
 
     fn into_plain_text(self) -> Box<dyn TemplateProperty<C, Output = String> + 'a>;
-    fn into_template(self) -> Box<dyn Template<C> + 'a>;
 }
 
 pub enum CoreTemplatePropertyKind<'a, I> {
@@ -699,7 +698,9 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
             _ => Box::new(PlainTextFormattedProperty::new(self.into_template())),
         }
     }
+}
 
+impl<'a, I: 'a> IntoTemplate<'a, I> for CoreTemplatePropertyKind<'a, I> {
     fn into_template(self) -> Box<dyn Template<I> + 'a> {
         fn wrap<'a, I: 'a, O: Template<()> + 'a>(
             property: Box<dyn TemplateProperty<I, Output = O> + 'a>,
@@ -742,8 +743,10 @@ impl<'a, C: 'a, P: IntoTemplateProperty<'a, C>> Expression<'a, C, P> {
             Expression::Template(template) => Box::new(PlainTextFormattedProperty::new(template)),
         }
     }
+}
 
-    pub fn into_template(self) -> Box<dyn Template<C> + 'a> {
+impl<'a, C: 'a, P: IntoTemplate<'a, C>> IntoTemplate<'a, C> for Expression<'a, C, P> {
+    fn into_template(self) -> Box<dyn Template<C> + 'a> {
         match self {
             Expression::Property(property, labels) => {
                 let template = property.into_template();

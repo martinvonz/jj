@@ -25,6 +25,10 @@ pub trait Template<C> {
     fn has_content(&self, context: &C) -> bool;
 }
 
+pub trait IntoTemplate<'a, C> {
+    fn into_template(self) -> Box<dyn Template<C> + 'a>;
+}
+
 impl<C, T: Template<C> + ?Sized> Template<C> for Box<T> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         <T as Template<C>>::format(self, context, formatter)
