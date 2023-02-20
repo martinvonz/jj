@@ -923,15 +923,9 @@ impl<'a> CompositeIndex<'a> {
 
     /// Parents before children
     pub fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry<'a>> {
-        let mut entries_by_generation = input
-            .into_iter()
-            .map(|id| IndexEntryByPosition(self.entry_by_id(id).unwrap()))
-            .collect_vec();
-        entries_by_generation.sort();
+        let mut entries_by_generation = input.map(|id| self.entry_by_id(id).unwrap()).collect_vec();
+        entries_by_generation.sort_unstable_by_key(|e| e.pos);
         entries_by_generation
-            .into_iter()
-            .map(|key| key.0)
-            .collect_vec()
     }
 }
 
