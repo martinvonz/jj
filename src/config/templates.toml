@@ -27,7 +27,7 @@ label(if(current_working_copy, "working_copy"),
 '''
 
 op_log = '''
-label(if(current_operation, "head"),
+label(if(current_operation, "current_operation"),
   separate(" ",
     id.short(),
     user,
