@@ -43,12 +43,35 @@ fn test_restore() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
 
-    // Can restore from other revision
+    // Can restore another revision from its parents
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r=@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    A file2
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "-c=@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created e989e4b86680 (no description set)
+    Rebased 1 descendant commits
+    Working copy now at: b47256590e11 (no description set)
+    Parent commit      : e989e4b86680 (no description set)
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r=@-"]);
+    insta::assert_snapshot!(stdout, @"");
+
+    // Cannot restore the root revision
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-c=root"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot rewrite the root commit
+    "###);
+
+    // Can restore this revision from another revision
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 9cb58509136b (no description set)
-    Working copy now at: 9cb58509136b (no description set)
+    Created 1dd6eb63d587 (no description set)
+    Working copy now at: 1dd6eb63d587 (no description set)
     Parent commit      : 1a986a275de6 (no description set)
     Added 1 files, modified 0 files, removed 2 files
     "###);
@@ -61,10 +84,10 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 5ed06151e039 (no description set)
+    Created ec9d5b59c3cf (no description set)
     Rebased 1 descendant commits
-    Working copy now at: ca6c95b68bd2 (no description set)
-    Parent commit      : 5ed06151e039 (no description set)
+    Working copy now at: d6f3c6815772 (no description set)
+    Parent commit      : ec9d5b59c3cf (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -79,10 +102,10 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created c83e17dc46fd (no description set)
+    Created 5f6eb3d5c5bf (no description set)
     Rebased 1 descendant commits
-    Working copy now at: df9fb6892f99 (no description set)
-    Parent commit      : c83e17dc46fd (no description set)
+    Working copy now at: 525afd5d4a26 (no description set)
+    Parent commit      : 5f6eb3d5c5bf (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -97,8 +120,8 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "file2", "file3"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 28647642d4a5 (no description set)
-    Working copy now at: 28647642d4a5 (no description set)
+    Created 569ce73d04fb (no description set)
+    Working copy now at: 569ce73d04fb (no description set)
     Parent commit      : 1a986a275de6 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);

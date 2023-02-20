@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git clone` now supports the `--colocate` flag to create the git repo
   in the same directory as the jj repo.
 
+* `jj restore` gained a new option `--changes-in` to restore files
+  from a merge revision's parents. This undoes the changes that `jj diff -r`
+  would show.
+
+
 ### Fixed bugs
 
 ## [0.8.0] - 2023-07-09
