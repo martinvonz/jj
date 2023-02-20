@@ -17,6 +17,39 @@ use crate::common::TestEnvironment;
 
 pub mod common;
 
+/// Add a remote containing a branch with the same name
+fn add_git_remote(test_env: &TestEnvironment, repo_path: &Path, remote: &str) {
+    let git_repo_path = test_env.env_root().join(remote);
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    let signature =
+        git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
+    let mut tree_builder = git_repo.treebuilder(None).unwrap();
+    let file_oid = git_repo.blob(b"content").unwrap();
+    tree_builder
+        .insert("file", file_oid, git2::FileMode::Blob.into())
+        .unwrap();
+    let tree_oid = tree_builder.write().unwrap();
+    let tree = git_repo.find_tree(tree_oid).unwrap();
+    git_repo
+        .commit(
+            Some(&format!("refs/heads/{remote}")),
+            &signature,
+            &signature,
+            "message",
+            &tree,
+            &[],
+        )
+        .unwrap();
+    test_env.jj_cmd_success(
+        repo_path,
+        &["git", "remote", "add", remote, &format!("../{remote}")],
+    );
+}
+
+fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(repo_path, &["branch", "list"])
+}
+
 #[test]
 fn test_git_fetch_default_remote() {
     let test_env = TestEnvironment::default();
@@ -148,37 +181,4 @@ fn test_git_fetch_prune_before_updating_tips() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin/subname: 9f01a0e04879 message
     "###);
-}
-
-/// Add a remote containing a branch with the same name
-fn add_git_remote(test_env: &TestEnvironment, repo_path: &Path, remote: &str) {
-    let git_repo_path = test_env.env_root().join(remote);
-    let git_repo = git2::Repository::init(git_repo_path).unwrap();
-    let signature =
-        git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
-    let mut tree_builder = git_repo.treebuilder(None).unwrap();
-    let file_oid = git_repo.blob(b"content").unwrap();
-    tree_builder
-        .insert("file", file_oid, git2::FileMode::Blob.into())
-        .unwrap();
-    let tree_oid = tree_builder.write().unwrap();
-    let tree = git_repo.find_tree(tree_oid).unwrap();
-    git_repo
-        .commit(
-            Some(&format!("refs/heads/{remote}")),
-            &signature,
-            &signature,
-            "message",
-            &tree,
-            &[],
-        )
-        .unwrap();
-    test_env.jj_cmd_success(
-        repo_path,
-        &["git", "remote", "add", remote, &format!("../{remote}")],
-    );
-}
-
-fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list"])
 }
