@@ -480,8 +480,8 @@ struct DuplicateArgs {
 /// Abandon a revision
 ///
 /// Abandon a revision, rebasing descendants onto its parent(s). The behavior is
-/// similar to `jj restore`; the difference is that `jj abandon` gives you a new
-/// change, while `jj restore` updates the existing change.
+/// similar to `jj restore --changes-in`; the difference is that `jj abandon`
+/// gives you a new change, while `jj restore` updates the existing change.
 #[derive(clap::Args, Clone, Debug)]
 struct AbandonArgs {
     /// The revision(s) to abandon
@@ -684,23 +684,43 @@ struct ResolveArgs {
 /// as they had in the source (`--from`). This is typically used for undoing
 /// changes to some paths in the working copy (`jj restore <paths>`).
 ///
+/// If only one of `--from` or `--to` is specified, the other one defaults to
+/// the working copy.
+///
 /// When neither `--from` nor `--to` is specified, the command restores into the
-/// working copy from its parent. If one of `--from` or `--to` is specified, the
-/// other one defaults to the working copy.
+/// working copy from its parent(s). `jj restore` without arguments is similar
+/// to `jj abandon`, except that it leaves an empty revision with its
+/// description and other metadata preserved.
 ///
 /// See `jj diffedit` if you'd like to restore portions of files rather than
 /// entire files.
 #[derive(clap::Args, Clone, Debug)]
 struct RestoreArgs {
+    /// Restore only these paths (instead of all paths)
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    paths: Vec<String>,
     /// Revision to restore from (source)
     #[arg(long)]
     from: Option<RevisionArg>,
     /// Revision to restore into (destination)
     #[arg(long)]
     to: Option<RevisionArg>,
-    /// Restore only these paths (instead of all paths)
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
-    paths: Vec<String>,
+    /// Undo the changes in a revision as compared to the merge of its parents.
+    ///
+    /// This undoes the changes that can be seen with `jj diff -r REVISION`. If
+    /// `REVISION` only has a single parent, this option is equivalent to `jj
+    ///  restore --to REVISION --from REVISION-`.
+    ///
+    /// The default behavior of `jj restore` is equivalent to `jj restore
+    /// --changes-in @`.
+    //
+    // If we followed the pattern of `jj diff` and `jj diffedit`, this option
+    // could simply be called `--revision`/`-r`. However, that would make it
+    // likely that someone unfamiliar with this pattern would use `-r` when they
+    // wanted `--from`. This would make a different revision empty, and the user
+    // might not even realize something went wrong.
+    #[arg(long, short, value_name="REVISION", conflicts_with_all=["to", "from"])]
+    changes_in: Option<RevisionArg>,
 }
 
 /// Touch up the content changes in a revision with a diff editor
@@ -721,7 +741,7 @@ struct RestoreArgs {
 /// changes into or out of the parent revision.
 #[derive(clap::Args, Clone, Debug)]
 struct DiffeditArgs {
-    /// The revision to touch up. Defaults to @ if --to/--from are not
+    /// The revision to touch up. Defaults to @ if neither --to nor --from are
     /// specified.
     #[arg(long, short)]
     revision: Option<RevisionArg>,
@@ -2853,7 +2873,8 @@ fn cmd_restore(
             .resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?
             .tree();
     } else {
-        to_commit = workspace_command.resolve_single_rev("@", ui)?;
+        to_commit =
+            workspace_command.resolve_single_rev(args.changes_in.as_deref().unwrap_or("@"), ui)?;
         from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &to_commit.parents())?;
     }
     workspace_command.check_rewritable(&to_commit)?;

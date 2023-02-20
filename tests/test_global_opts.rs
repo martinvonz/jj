@@ -417,7 +417,7 @@ fn test_help() {
     Usage: jj diffedit [OPTIONS]
 
     Options:
-      -r, --revision <REVISION>  The revision to touch up. Defaults to @ if --to/--from are not specified
+      -r, --revision <REVISION>  The revision to touch up. Defaults to @ if neither --to nor --from are specified
           --from <FROM>          Show changes from this revision. Defaults to @ if --to is specified
           --to <TO>              Edit changes in this revision. Defaults to @ if --from is specified
       -h, --help                 Print help (see more with '--help')
