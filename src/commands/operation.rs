@@ -79,7 +79,7 @@ fn cmd_op_log(
         let is_head_op = op.id() == &head_op_id;
         let mut buffer = vec![];
         ui.new_formatter(&mut buffer)
-            .with_label("op-log", |formatter| template.format(&op, formatter))?;
+            .with_label("op_log", |formatter| template.format(&op, formatter))?;
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
         }
