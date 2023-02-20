@@ -151,10 +151,10 @@ fn build_commit_keyword<'repo>(
             cli_util::complete_newline(commit.description())
         })),
         "change_id" => language.wrap_commit_or_change_id(wrap_fn(move |commit| {
-            CommitOrChangeId::change_id(repo, commit.change_id())
+            CommitOrChangeId::new(repo, IdKind::Change(commit.change_id().to_owned()))
         })),
         "commit_id" => language.wrap_commit_or_change_id(wrap_fn(move |commit| {
-            CommitOrChangeId::commit_id(repo, commit.id())
+            CommitOrChangeId::new(repo, IdKind::Commit(commit.id().to_owned()))
         })),
         "author" => language.wrap_signature(wrap_fn(|commit| commit.author().clone())),
         "committer" => language.wrap_signature(wrap_fn(|commit| commit.committer().clone())),
@@ -272,38 +272,31 @@ fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> String {
     }
 }
 
-/// Type-erased `CommitId`/`ChangeId`.
 #[derive(Clone)]
 struct CommitOrChangeId<'repo> {
     repo: &'repo dyn Repo,
-    id_bytes: Vec<u8>,
-    is_commit_id: bool,
+    id: IdKind,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum IdKind {
+    Commit(CommitId),
+    Change(ChangeId),
 }
 
 impl<'repo> CommitOrChangeId<'repo> {
-    pub fn commit_id(repo: &'repo dyn Repo, id: &CommitId) -> Self {
-        CommitOrChangeId {
-            repo,
-            id_bytes: id.to_bytes(),
-            is_commit_id: true,
-        }
-    }
-
-    pub fn change_id(repo: &'repo dyn Repo, id: &ChangeId) -> Self {
-        CommitOrChangeId {
-            repo,
-            id_bytes: id.to_bytes(),
-            is_commit_id: false,
-        }
+    pub fn new(repo: &'repo dyn Repo, id: IdKind) -> Self {
+        CommitOrChangeId { repo, id }
     }
 
     pub fn hex(&self) -> String {
-        if self.is_commit_id {
-            hex::encode(&self.id_bytes)
-        } else {
-            // TODO: We can avoid the unwrap() and make this more efficient by converting
-            // straight from bytes.
-            to_reverse_hex(&hex::encode(&self.id_bytes)).unwrap()
+        match &self.id {
+            IdKind::Commit(id) => id.hex(),
+            IdKind::Change(id) => {
+                // TODO: We can avoid the unwrap() and make this more efficient by converting
+                // straight from bytes.
+                to_reverse_hex(&id.hex()).unwrap()
+            }
         }
     }
 
@@ -317,13 +310,9 @@ impl<'repo> CommitOrChangeId<'repo> {
     /// length of the shortest unique prefix
     pub fn shortest(&self, total_len: usize) -> ShortestIdPrefix {
         let mut hex = self.hex();
-        let prefix_len = if self.is_commit_id {
-            self.repo
-                .index()
-                .shortest_unique_commit_id_prefix_len(&CommitId::from_bytes(&self.id_bytes))
-        } else {
-            self.repo
-                .shortest_unique_change_id_prefix_len(&ChangeId::from_bytes(&self.id_bytes))
+        let prefix_len = match &self.id {
+            IdKind::Commit(id) => self.repo.index().shortest_unique_commit_id_prefix_len(id),
+            IdKind::Change(id) => self.repo.shortest_unique_change_id_prefix_len(id),
         };
         hex.truncate(max(prefix_len, total_len));
         let rest = hex.split_off(prefix_len);
@@ -337,7 +326,7 @@ impl Template<()> for CommitOrChangeId<'_> {
     }
 
     fn has_content(&self, _: &()) -> bool {
-        !self.id_bytes.is_empty()
+        true // a valid CommitId/ChangeId should never be empty
     }
 }
 
