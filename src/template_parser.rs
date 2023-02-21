@@ -906,6 +906,20 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
                 TemplatePropertyFn(|s: &String| s.lines().next().unwrap_or_default().to_string()),
             ))
         }
+        "upper" => {
+            expect_no_arguments(function)?;
+            language.wrap_string(chain_properties(
+                self_property,
+                TemplatePropertyFn(|s: &String| s.to_uppercase()),
+            ))
+        }
+        "lower" => {
+            expect_no_arguments(function)?;
+            language.wrap_string(chain_properties(
+                self_property,
+                TemplatePropertyFn(|s: &String| s.to_lowercase()),
+            ))
+        }
         _ => return Err(TemplateParseError::no_such_method("String", function)),
     };
     Ok(property)

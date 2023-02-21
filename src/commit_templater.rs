@@ -382,6 +382,21 @@ impl Template<()> for ShortestIdPrefix {
     }
 }
 
+impl ShortestIdPrefix {
+    fn to_upper(&self) -> Self {
+        Self {
+            prefix: self.prefix.to_ascii_uppercase(),
+            rest: self.rest.to_ascii_uppercase(),
+        }
+    }
+    fn to_lower(&self) -> Self {
+        Self {
+            prefix: self.prefix.to_ascii_lowercase(),
+            rest: self.rest.to_ascii_lowercase(),
+        }
+    }
+}
+
 fn build_shortest_id_prefix_method<'repo>(
     language: &CommitTemplateLanguage<'repo, '_>,
     self_property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
@@ -400,6 +415,20 @@ fn build_shortest_id_prefix_method<'repo>(
             language.wrap_string(template_parser::chain_properties(
                 self_property,
                 TemplatePropertyFn(|id: &ShortestIdPrefix| id.rest.clone()),
+            ))
+        }
+        "upper" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_shortest_id_prefix(template_parser::chain_properties(
+                self_property,
+                TemplatePropertyFn(|id: &ShortestIdPrefix| id.to_upper()),
+            ))
+        }
+        "lower" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_shortest_id_prefix(template_parser::chain_properties(
+                self_property,
+                TemplatePropertyFn(|id: &ShortestIdPrefix| id.to_lower()),
             ))
         }
         _ => {

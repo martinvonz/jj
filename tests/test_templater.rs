@@ -389,6 +389,20 @@ fn test_templater_separate_function() {
 }
 
 #[test]
+fn test_templater_upper_lower() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
+
+    insta::assert_snapshot!(
+      render(r#"change_id.shortest(4).upper() change_id.shortest(4).upper().lower()"#),
+      @"[1m[38;5;5mZ[0m[38;5;8mZZZ[39m[1m[38;5;5mz[0m[38;5;8mzzz[39m");
+    insta::assert_snapshot!(
+      render(r#""Hello".upper() "Hello".lower()"#), @"HELLOhello");
+}
+
+#[test]
 fn test_templater_alias() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
