@@ -152,6 +152,15 @@ Can be customized by the `format_short_id()` template alias.
 'format_short_id(id)' = 'id.short(12)'
 ```
 
+To customize these separately, use the `format_short_commit_id()` and
+`format_short_change_id()` aliases:
+
+```toml
+[template-aliases]
+# Uppercase change ids. `jj` treats change and commit ids as case-insensitive.
+'format_short_change_id(id)' = 'format_short_id(id).upper()'
+```
+
 ### Relative timestamps
 
 Can be customized by the `format_timestamp()` template alias.

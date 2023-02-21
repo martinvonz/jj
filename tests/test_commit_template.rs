@@ -177,15 +177,39 @@ fn test_log_customize_short_id() {
 
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
 
+    // Customize both the commit and the change id
     let decl = "template-aliases.'format_short_id(id)'";
     let stdout = test_env.jj_cmd_success(
         &repo_path,
-        &["log", "--config-toml", &format!("{decl}='id.shortest()'")],
+        &[
+            "log",
+            "--config-toml",
+            &format!("{decl}='id.shortest(5).prefix().upper() \"_\" id.shortest(5).rest()'"),
+        ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    @  q test.user@example.com 2001-02-03 04:05:08.000 +07:00 6
+    @  Q_pvun test.user@example.com 2001-02-03 04:05:08.000 +07:00 6_9542
     │  (empty) first
-    o  z 1970-01-01 00:00:00.000 +00:00 0
+    o  Z_zzzz 1970-01-01 00:00:00.000 +00:00 0_0000
+       (empty) (no description set)
+    "###);
+
+    // Customize only the change id
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "--config-toml",
+            r#"
+                [template-aliases]
+                'format_short_change_id(id)'='format_short_id(id).upper()'
+            "#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  QPVUNTSMWLQT test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
+    │  (empty) first
+    o  ZZZZZZZZZZZZ 1970-01-01 00:00:00.000 +00:00 000000000000
        (empty) (no description set)
     "###);
 }
