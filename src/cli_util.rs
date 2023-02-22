@@ -640,8 +640,7 @@ impl WorkspaceCommandHelper {
         &mut self,
     ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
         self.check_working_copy_writable()?;
-        let wc_commit_id = self.repo.view().get_wc_commit_id(self.workspace_id());
-        let wc_commit = if let Some(wc_commit_id) = wc_commit_id {
+        let wc_commit = if let Some(wc_commit_id) = self.get_wc_commit_id() {
             self.repo.store().get_commit(wc_commit_id)?
         } else {
             return Err(user_error("Nothing checked out in this workspace"));
@@ -668,6 +667,10 @@ impl WorkspaceCommandHelper {
 
     pub fn workspace_id(&self) -> &WorkspaceId {
         self.workspace.workspace_id()
+    }
+
+    pub fn get_wc_commit_id(&self) -> Option<&CommitId> {
+        self.repo.view().get_wc_commit_id(self.workspace_id())
     }
 
     pub fn working_copy_shared_with_git(&self) -> bool {
