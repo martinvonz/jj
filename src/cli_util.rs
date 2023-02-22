@@ -947,6 +947,34 @@ impl WorkspaceCommandHelper {
         Ok(())
     }
 
+    fn update_working_copy(
+        &mut self,
+        ui: &mut Ui,
+        maybe_old_commit: Option<&Commit>,
+    ) -> Result<(), CommandError> {
+        assert!(self.may_update_working_copy);
+        let workspace_id = self.workspace_id().to_owned();
+        let summary_template = parse_commit_summary_template(
+            &self.repo,
+            &workspace_id,
+            &self.template_aliases_map,
+            &self.settings,
+        )
+        .expect("parse error should be confined by WorkspaceCommandHelper::new()");
+        let stats = update_working_copy(
+            ui,
+            &self.repo,
+            &workspace_id,
+            self.workspace.working_copy_mut(),
+            maybe_old_commit,
+            &summary_template,
+        )?;
+        if let Some(stats) = stats {
+            print_checkout_stats(ui, stats)?;
+        }
+        Ok(())
+    }
+
     pub fn start_transaction(&mut self, description: &str) -> WorkspaceCommandTransaction {
         let tx = start_repo_transaction(&self.repo, &self.settings, &self.string_args, description);
         WorkspaceCommandTransaction { helper: self, tx }
@@ -977,25 +1005,7 @@ impl WorkspaceCommandHelper {
             .transpose()?;
         self.repo = tx.commit();
         if self.may_update_working_copy {
-            let workspace_id = self.workspace_id().to_owned();
-            let summary_template = parse_commit_summary_template(
-                &self.repo,
-                &workspace_id,
-                &self.template_aliases_map,
-                &self.settings,
-            )
-            .expect("parse error should be confined by WorkspaceCommandHelper::new()");
-            let stats = update_working_copy(
-                ui,
-                &self.repo,
-                &workspace_id,
-                self.workspace.working_copy_mut(),
-                maybe_old_commit.as_ref(),
-                &summary_template,
-            )?;
-            if let Some(stats) = stats {
-                print_checkout_stats(ui, stats)?;
-            }
+            self.update_working_copy(ui, maybe_old_commit.as_ref())?;
         }
         let settings = &self.settings;
         if settings.user_name() == UserSettings::user_name_placeholder()
