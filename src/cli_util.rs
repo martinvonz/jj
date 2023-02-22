@@ -953,6 +953,13 @@ impl WorkspaceCommandHelper {
         maybe_old_commit: Option<&Commit>,
     ) -> Result<(), CommandError> {
         assert!(self.may_update_working_copy);
+        let new_commit = match self.get_wc_commit_id() {
+            Some(commit_id) => self.repo.store().get_commit(commit_id)?,
+            None => {
+                // It seems the workspace was deleted, so we shouldn't try to update it.
+                return Ok(());
+            }
+        };
         let workspace_id = self.workspace_id().to_owned();
         let summary_template = parse_commit_summary_template(
             &self.repo,
@@ -964,9 +971,9 @@ impl WorkspaceCommandHelper {
         let stats = update_working_copy(
             ui,
             &self.repo,
-            &workspace_id,
             self.workspace.working_copy_mut(),
             maybe_old_commit,
+            &new_commit,
             &summary_template,
         )?;
         if let Some(stats) = stats {
@@ -1510,19 +1517,11 @@ fn append_large_revsets_hint_if_multiple_revisions(err: CommandError) -> Command
 pub fn update_working_copy(
     ui: &mut Ui,
     repo: &Arc<ReadonlyRepo>,
-    workspace_id: &WorkspaceId,
     wc: &mut WorkingCopy,
     old_commit: Option<&Commit>,
+    new_commit: &Commit,
     summary_template: &dyn Template<Commit>,
 ) -> Result<Option<CheckoutStats>, CommandError> {
-    let new_commit_id = match repo.view().get_wc_commit_id(workspace_id) {
-        Some(new_commit_id) => new_commit_id,
-        None => {
-            // It seems the workspace was deleted, so we shouldn't try to update it.
-            return Ok(None);
-        }
-    };
-    let new_commit = repo.store().get_commit(new_commit_id)?;
     let old_tree_id = old_commit.map(|commit| commit.tree_id().clone());
     let stats = if Some(new_commit.tree_id()) != old_tree_id.as_ref() {
         // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
@@ -1547,9 +1546,9 @@ pub fn update_working_copy(
         locked_wc.finish(repo.op_id().clone());
         None
     };
-    if Some(&new_commit) != old_commit {
+    if Some(new_commit) != old_commit {
         ui.write("Working copy now at: ")?;
-        summary_template.format(&new_commit, ui.stdout_formatter().as_mut())?;
+        summary_template.format(new_commit, ui.stdout_formatter().as_mut())?;
         ui.write("\n")?;
     }
     Ok(stats)
