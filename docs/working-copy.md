@@ -84,3 +84,12 @@ A's working copy will become stale. By "stale", we mean that the files in the
 working copy don't match the desired commit indicated by the `@` symbol in
 `jj log`. When that happens, use `jj workspace update-stale` to update the files
 in the working copy.
+
+If that doesn't work for some reason, you probably found a bug in `jj`. Check if
+it's already been reported, and if not, please report it if possible. If
+possible, it would help if you could archive the repository including the `.git`
+and `.jj` folders and share it.
+
+To recover from a bad situation, you can use `jj log --ignore-working-copy` to
+find a safe revision, `jj new --ignore-working-copy SAFE_REVISION` to switch to
+it. Then, try `jj workspace update-stale` again.
