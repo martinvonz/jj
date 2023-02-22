@@ -960,22 +960,17 @@ impl WorkspaceCommandHelper {
                 return Ok(());
             }
         };
-        let workspace_id = self.workspace_id().to_owned();
-        let summary_template = parse_commit_summary_template(
-            &self.repo,
-            &workspace_id,
-            &self.template_aliases_map,
-            &self.settings,
-        )
-        .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         let stats = update_working_copy(
-            ui,
             &self.repo,
             self.workspace.working_copy_mut(),
             maybe_old_commit,
             &new_commit,
-            &summary_template,
         )?;
+        if Some(&new_commit) != maybe_old_commit {
+            ui.write("Working copy now at: ")?;
+            self.write_commit_summary(ui.stdout_formatter().as_mut(), &new_commit)?;
+            ui.write("\n")?;
+        }
         if let Some(stats) = stats {
             print_checkout_stats(ui, stats)?;
         }
@@ -1515,12 +1510,10 @@ fn append_large_revsets_hint_if_multiple_revisions(err: CommandError) -> Command
 }
 
 pub fn update_working_copy(
-    ui: &mut Ui,
     repo: &Arc<ReadonlyRepo>,
     wc: &mut WorkingCopy,
     old_commit: Option<&Commit>,
     new_commit: &Commit,
-    summary_template: &dyn Template<Commit>,
 ) -> Result<Option<CheckoutStats>, CommandError> {
     let old_tree_id = old_commit.map(|commit| commit.tree_id().clone());
     let stats = if Some(new_commit.tree_id()) != old_tree_id.as_ref() {
@@ -1546,11 +1539,6 @@ pub fn update_working_copy(
         locked_wc.finish(repo.op_id().clone());
         None
     };
-    if Some(new_commit) != old_commit {
-        ui.write("Working copy now at: ")?;
-        summary_template.format(new_commit, ui.stdout_formatter().as_mut())?;
-        ui.write("\n")?;
-    }
     Ok(stats)
 }
 
