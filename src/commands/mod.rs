@@ -1314,10 +1314,8 @@ fn cmd_status(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let maybe_wc_commit_id = repo
-        .view()
-        .get_wc_commit_id(workspace_command.workspace_id());
-    let maybe_wc_commit = maybe_wc_commit_id
+    let maybe_wc_commit = workspace_command
+        .get_wc_commit_id()
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
     ui.request_pager();
@@ -1416,8 +1414,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let revset_expression =
         workspace_command.parse_revset(args.revisions.as_deref().unwrap_or(&default_revset))?;
     let repo = workspace_command.repo();
-    let workspace_id = workspace_command.workspace_id();
-    let wc_commit_id = repo.view().get_wc_commit_id(workspace_id);
+    let wc_commit_id = workspace_command.get_wc_commit_id();
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let revset = workspace_command.evaluate_revset(&revset_expression)?;
     let revset = if !args.paths.is_empty() {
@@ -1554,11 +1551,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     let workspace_command = command.workspace_helper(ui)?;
 
     let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
-    let workspace_id = workspace_command.workspace_id();
-    let wc_commit_id = workspace_command
-        .repo()
-        .view()
-        .get_wc_commit_id(workspace_id);
+    let wc_commit_id = workspace_command.get_wc_commit_id();
 
     let diff_formats =
         diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch);
@@ -1773,9 +1766,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     let mut workspace_command = command.workspace_helper(ui)?;
 
     let commit_id = workspace_command
-        .repo()
-        .view()
-        .get_wc_commit_id(workspace_command.workspace_id())
+        .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
     let description = if let Some(message) = &args.message {
@@ -1924,12 +1915,7 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable(&new_commit)?;
-    if workspace_command
-        .repo()
-        .view()
-        .get_wc_commit_id(workspace_command.workspace_id())
-        == Some(new_commit.id())
-    {
+    if workspace_command.get_wc_commit_id() == Some(new_commit.id()) {
         ui.write("Already editing that commit\n")?;
     } else {
         let mut tx =
