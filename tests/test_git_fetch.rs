@@ -665,3 +665,43 @@ fn test_git_fetch_undo() {
     o  000000000000
     "###);
 }
+
+#[test]
+fn test_git_fetch_remove_fetch() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "origin");
+
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "origin"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    origin: 230dd059e1b0 (no description set)
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    origin (conflicted):
+      + 230dd059e1b0 (no description set)
+      + ffecd2d67827 message
+      @origin (behind by 1 commits): ffecd2d67827 message
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["git", "remote", "remove", "origin"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    origin (conflicted):
+      + 230dd059e1b0 (no description set)
+      + ffecd2d67827 message
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["git", "remote", "add", "origin", "../origin"]);
+
+    // Check that origin@origin is properly recreated
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    origin (conflicted):
+      + 230dd059e1b0 (no description set)
+      + ffecd2d67827 message
+      @origin (behind by 1 commits): ffecd2d67827 message
+    "###);
+}

@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed a bug that could get partially resolved conflicts to be interpreted
   incorrectly.
 
+* `jj git fetch`: when re-adding a remote repository that had been previously
+  removed, in some situations the remote branches were not recreated.
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes
