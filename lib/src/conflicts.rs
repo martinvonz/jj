@@ -195,26 +195,25 @@ pub fn materialize_merge_result(
                     MergeHunk::Conflict(ConflictHunk { removes, adds }) => {
                         output.write_all(CONFLICT_START_LINE)?;
                         let mut add_index = 0;
-                        for left in removes {
+                        for left in &removes {
                             if add_index == adds.len() {
                                 // If we have no more positive terms, emit the remaining negative
                                 // terms as snapshots.
                                 output.write_all(CONFLICT_MINUS_LINE)?;
-                                output.write_all(&left)?;
+                                output.write_all(left)?;
                                 continue;
                             }
                             let diff1 =
-                                Diff::for_tokenizer(&[&left, &adds[add_index]], &find_line_ranges)
+                                Diff::for_tokenizer(&[left, &adds[add_index]], &find_line_ranges)
                                     .hunks()
                                     .collect_vec();
                             // Check if the diff against the next positive term is better. Since
                             // we want to preserve the order of the terms, we don't match against
                             // any later positive terms.
                             if let Some(right2) = adds.get(add_index + 1) {
-                                let diff2 =
-                                    Diff::for_tokenizer(&[&left, right2], &find_line_ranges)
-                                        .hunks()
-                                        .collect_vec();
+                                let diff2 = Diff::for_tokenizer(&[left, right2], &find_line_ranges)
+                                    .hunks()
+                                    .collect_vec();
                                 if diff_size(&diff2) < diff_size(&diff1) {
                                     // If the next positive term is a better match, emit
                                     // the current positive term as a snapshot and the next
