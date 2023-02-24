@@ -24,7 +24,7 @@ fn add_git_remote(test_env: &TestEnvironment, repo_path: &Path, remote: &str) {
     let signature =
         git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
     let mut tree_builder = git_repo.treebuilder(None).unwrap();
-    let file_oid = git_repo.blob(b"content").unwrap();
+    let file_oid = git_repo.blob(remote.as_bytes()).unwrap();
     tree_builder
         .insert("file", file_oid, git2::FileMode::Blob.into())
         .unwrap();
@@ -85,7 +85,7 @@ fn test_git_fetch_default_remote() {
 
     test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    origin: 9f01a0e04879 message
+    origin: ffecd2d67827 message
     "###);
 }
 
@@ -98,7 +98,7 @@ fn test_git_fetch_single_remote() {
 
     test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote", "rem1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    rem1: 9f01a0e04879 message
+    rem1: 6a21102783e8 message
     "###);
 }
 
@@ -112,7 +112,7 @@ fn test_git_fetch_single_remote_from_config() {
 
     test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    rem1: 9f01a0e04879 message
+    rem1: 6a21102783e8 message
     "###);
 }
 
@@ -129,8 +129,8 @@ fn test_git_fetch_multiple_remotes() {
         &["git", "fetch", "--remote", "rem1", "--remote", "rem2"],
     );
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    rem1: 9f01a0e04879 message
-    rem2: 9f01a0e04879 message
+    rem1: 6a21102783e8 message
+    rem2: 2497a8a08f85 message
     "###);
 }
 
@@ -145,8 +145,8 @@ fn test_git_fetch_multiple_remotes_from_config() {
 
     test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    rem1: 9f01a0e04879 message
-    rem2: 9f01a0e04879 message
+    rem1: 6a21102783e8 message
+    rem2: 2497a8a08f85 message
     "###);
 }
 
@@ -192,7 +192,7 @@ fn test_git_fetch_prune_before_updating_tips() {
     add_git_remote(&test_env, &repo_path, "origin");
     test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    origin: 9f01a0e04879 message
+    origin: ffecd2d67827 message
     "###);
 
     // Remove origin branch in git repo and create origin/subname
@@ -205,7 +205,7 @@ fn test_git_fetch_prune_before_updating_tips() {
 
     test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    origin/subname: 9f01a0e04879 message
+    origin/subname: ffecd2d67827 message
     "###);
 }
 
@@ -231,8 +231,8 @@ fn test_git_fetch_conflicting_branches() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1 (conflicted):
       + fcdbbd731496 (no description set)
-      + 9f01a0e04879 message
-      @rem1 (behind by 1 commits): 9f01a0e04879 message
+      + 6a21102783e8 message
+      @rem1 (behind by 1 commits): 6a21102783e8 message
     "###);
 }
 
@@ -262,8 +262,8 @@ fn test_git_fetch_conflicting_branches_colocated() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1 (conflicted):
       + f652c32197cf (no description set)
-      + 9f01a0e04879 message
-      @rem1 (behind by 1 commits): 9f01a0e04879 message
+      + 6a21102783e8 message
+      @rem1 (behind by 1 commits): 6a21102783e8 message
     "###);
 }
 
