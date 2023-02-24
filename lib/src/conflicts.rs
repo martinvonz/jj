@@ -210,13 +210,11 @@ pub fn materialize_merge_result(
                             // Check if the diff against the next positive term is better. Since
                             // we want to preserve the order of the terms, we don't match against
                             // any later positive terms.
-                            if add_index < adds.len() {
-                                let diff2 = Diff::for_tokenizer(
-                                    &[&left, &adds[add_index + 1]],
-                                    &find_line_ranges,
-                                )
-                                .hunks()
-                                .collect_vec();
+                            if let Some(right2) = adds.get(add_index + 1) {
+                                let diff2 =
+                                    Diff::for_tokenizer(&[&left, right2], &find_line_ranges)
+                                        .hunks()
+                                        .collect_vec();
                                 if diff_size(&diff2) < diff_size(&diff1) {
                                     // If the next positive term is a better match, emit
                                     // the current positive term as a snapshot and the next
