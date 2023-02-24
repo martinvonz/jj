@@ -115,6 +115,137 @@ line 5
 }
 
 #[test]
+fn test_materialize_conflict_multi_rebase_conflicts() {
+    let test_repo = TestRepo::init(false);
+    let store = test_repo.repo.store();
+
+    // Create changes (a, b, c) on top of the base, and linearize them.
+    let path = RepoPath::from_internal_string("file");
+    let base_id = testutils::write_file(
+        store,
+        &path,
+        "line 1
+line 2 base
+line 3
+",
+    );
+    let a_id = testutils::write_file(
+        store,
+        &path,
+        "line 1
+line 2 a.1
+line 2 a.2
+line 2 a.3
+line 3
+",
+    );
+    let b_id = testutils::write_file(
+        store,
+        &path,
+        "line 1
+line 2 b.1
+line 2 b.2
+line 3
+",
+    );
+    let c_id = testutils::write_file(
+        store,
+        &path,
+        "line 1
+line 2 c.1
+line 3
+",
+    );
+
+    // The order of (a, b, c) should be preserved. For all cases, the "a" side
+    // should be a snapshot.
+    let conflict = Conflict {
+        removes: vec![file_conflict_term(&base_id), file_conflict_term(&base_id)],
+        adds: vec![
+            file_conflict_term(&a_id),
+            file_conflict_term(&b_id),
+            file_conflict_term(&c_id),
+        ],
+    };
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, &path, &conflict),
+        @r###"
+    line 1
+    <<<<<<<
+    +++++++
+    line 2 a.1
+    line 2 a.2
+    line 2 a.3
+    %%%%%%%
+    -line 2 base
+    +line 2 b.1
+    +line 2 b.2
+    %%%%%%%
+    -line 2 base
+    +line 2 c.1
+    >>>>>>>
+    line 3
+    "###
+    );
+    let conflict = Conflict {
+        removes: vec![file_conflict_term(&base_id), file_conflict_term(&base_id)],
+        adds: vec![
+            file_conflict_term(&c_id),
+            file_conflict_term(&b_id),
+            file_conflict_term(&a_id),
+        ],
+    };
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, &path, &conflict),
+        @r###"
+    line 1
+    <<<<<<<
+    %%%%%%%
+    -line 2 base
+    +line 2 c.1
+    %%%%%%%
+    -line 2 base
+    +line 2 b.1
+    +line 2 b.2
+    +++++++
+    line 2 a.1
+    line 2 a.2
+    line 2 a.3
+    >>>>>>>
+    line 3
+    "###
+    );
+    let conflict = Conflict {
+        removes: vec![file_conflict_term(&base_id), file_conflict_term(&base_id)],
+        adds: vec![
+            file_conflict_term(&c_id),
+            file_conflict_term(&a_id),
+            file_conflict_term(&b_id),
+        ],
+    };
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, &path, &conflict),
+        @r###"
+    line 1
+    <<<<<<<
+    %%%%%%%
+    -line 2 base
+    +line 2 c.1
+    +++++++
+    line 2 a.1
+    line 2 a.2
+    line 2 a.3
+    %%%%%%%
+    -line 2 base
+    +line 2 b.1
+    +line 2 b.2
+    >>>>>>>
+    line 3
+    "###
+    );
+}
+
+#[test]
 fn test_materialize_parse_roundtrip() {
     let test_repo = TestRepo::init(false);
     let store = test_repo.repo.store();
