@@ -192,11 +192,21 @@ fn cmd_git_remote_remove(
             branches_to_delete.push(branch.clone());
         }
     }
-    if !branches_to_delete.is_empty() {
+    let prefix = format!("refs/remotes/{}/", args.remote);
+    let git_refs_to_delete = repo
+        .view()
+        .git_refs()
+        .keys()
+        .filter_map(|r| r.starts_with(&prefix).then(|| r.clone()))
+        .collect_vec();
+    if !branches_to_delete.is_empty() || !git_refs_to_delete.is_empty() {
         let mut tx =
             workspace_command.start_transaction(&format!("remove git remote {}", &args.remote));
         for branch in branches_to_delete {
             tx.mut_repo().remove_remote_branch(&branch, &args.remote);
+        }
+        for git_ref in git_refs_to_delete {
+            tx.mut_repo().remove_git_ref(&git_ref);
         }
         tx.finish(ui)?;
     }
