@@ -230,6 +230,28 @@ fn cmd_git_remote_rename(
     let mut tx = workspace_command
         .start_transaction(&format!("rename git remote {} to {}", &args.old, &args.new));
     tx.mut_repo().rename_remote(&args.old, &args.new);
+
+    let prefix = format!("refs/remotes/{}/", args.old);
+    let git_refs = tx
+        .mut_repo()
+        .view()
+        .git_refs()
+        .iter()
+        .filter_map(|(r, target)| {
+            r.strip_prefix(&prefix).map(|p| {
+                (
+                    r.clone(),
+                    format!("refs/remotes/{}/{p}", args.new),
+                    target.clone(),
+                )
+            })
+        })
+        .collect_vec();
+    for (old, new, target) in git_refs {
+        tx.mut_repo().remove_git_ref(&old);
+        tx.mut_repo().set_git_ref(new, target);
+    }
+
     if tx.mut_repo().has_changes() {
         tx.finish(ui)?;
     }

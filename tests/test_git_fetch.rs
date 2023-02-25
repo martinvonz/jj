@@ -705,3 +705,41 @@ fn test_git_fetch_remove_fetch() {
       @origin (behind by 1 commits): ffecd2d67827 message
     "###);
 }
+
+#[test]
+fn test_git_fetch_rename_fetch() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "origin");
+
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "origin"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    origin: 230dd059e1b0 (no description set)
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    origin (conflicted):
+      + 230dd059e1b0 (no description set)
+      + ffecd2d67827 message
+      @origin (behind by 1 commits): ffecd2d67827 message
+    "###);
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["git", "remote", "rename", "origin", "upstream"],
+    );
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    origin (conflicted):
+      + 230dd059e1b0 (no description set)
+      + ffecd2d67827 message
+      @upstream (behind by 1 commits): ffecd2d67827 message
+    "###);
+
+    // Check that jj indicates that nothing has changed
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote", "upstream"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+}
