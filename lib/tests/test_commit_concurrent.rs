@@ -17,9 +17,9 @@ use std::sync::Arc;
 use std::thread;
 
 use jujutsu_lib::dag_walk;
-use jujutsu_lib::repo::{ReadonlyRepo, Repo, StoreFactories};
+use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use test_case::test_case;
-use testutils::{write_random_commit, TestWorkspace};
+use testutils::{load_repo_at_head, write_random_commit, TestWorkspace};
 
 fn count_non_merge_operations(repo: &Arc<ReadonlyRepo>) -> usize {
     let op_store = repo.op_store();
@@ -86,9 +86,7 @@ fn test_commit_parallel_instances(use_git: bool) {
     let mut threads = vec![];
     for _ in 0..num_threads {
         let settings = settings.clone();
-        let repo =
-            ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
-                .unwrap();
+        let repo = load_repo_at_head(&settings, repo.repo_path());
         let handle = thread::spawn(move || {
             let mut tx = repo.start_transaction(&settings, "test");
             write_random_commit(tx.mut_repo(), &settings);
@@ -101,8 +99,7 @@ fn test_commit_parallel_instances(use_git: bool) {
     }
     // One commit per thread plus the commit from the initial working-copy commit on
     // top of the root commit
-    let repo = ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
-        .unwrap();
+    let repo = load_repo_at_head(&settings, repo.repo_path());
     assert_eq!(repo.view().heads().len(), num_threads + 1);
 
     // One addition operation for initializing the repo, one for checking out the

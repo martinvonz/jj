@@ -24,7 +24,7 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::local_backend::LocalBackend;
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::rewrite::RebasedDescendant;
 use jujutsu_lib::settings::UserSettings;
@@ -149,6 +149,12 @@ impl TestWorkspace {
     pub fn root_dir(&self) -> PathBuf {
         self.temp_dir.path().join("repo").join("..")
     }
+}
+
+pub fn load_repo_at_head(settings: &UserSettings, repo_path: &Path) -> Arc<ReadonlyRepo> {
+    RepoLoader::init(settings, repo_path, &StoreFactories::default())
+        .load_at_head(settings)
+        .unwrap()
 }
 
 pub fn read_file(store: &Store, path: &RepoPath, id: &FileId) -> Vec<u8> {

@@ -180,14 +180,6 @@ impl ReadonlyRepo {
         }))
     }
 
-    pub fn load_at_head(
-        user_settings: &UserSettings,
-        repo_path: &Path,
-        store_factories: &StoreFactories,
-    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<BackendError>> {
-        RepoLoader::init(user_settings, repo_path, store_factories).load_at_head(user_settings)
-    }
-
     pub fn loader(&self) -> RepoLoader {
         RepoLoader {
             repo_path: self.repo_path.clone(),
