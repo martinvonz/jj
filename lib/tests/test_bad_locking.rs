@@ -14,10 +14,10 @@
 
 use std::path::Path;
 
-use jujutsu_lib::repo::{ReadonlyRepo, Repo, StoreFactories};
+use jujutsu_lib::repo::{Repo, StoreFactories};
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
-use testutils::{create_random_commit, TestWorkspace};
+use testutils::{create_random_commit, load_repo_at_head, TestWorkspace};
 
 fn copy_directory(src: &Path, dst: &Path) {
     std::fs::create_dir(dst).ok();
@@ -192,14 +192,10 @@ fn test_bad_locking_interrupted(use_git: bool) {
 
     copy_directory(backup_path.path(), &op_heads_dir);
     // Reload the repo and check that only the new head is present.
-    let reloaded_repo =
-        ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
-            .unwrap();
+    let reloaded_repo = load_repo_at_head(&settings, repo.repo_path());
     assert_eq!(reloaded_repo.op_id(), &op_id);
     // Reload once more to make sure that the .jj/op_heads/ directory was updated
     // correctly.
-    let reloaded_repo =
-        ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
-            .unwrap();
+    let reloaded_repo = load_repo_at_head(&settings, repo.repo_path());
     assert_eq!(reloaded_repo.op_id(), &op_id);
 }
