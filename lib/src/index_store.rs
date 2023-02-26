@@ -75,8 +75,14 @@ impl IndexStore {
         }
     }
 
-    pub fn write_index(&self, index: MutableIndex) -> io::Result<Arc<ReadonlyIndex>> {
-        index.save_in(self.dir.clone())
+    pub fn write_index(
+        &self,
+        index: MutableIndex,
+        op_id: &OperationId,
+    ) -> io::Result<Arc<ReadonlyIndex>> {
+        let index = index.save_in(self.dir.clone())?;
+        self.associate_file_with_operation(&index, op_id)?;
+        Ok(index)
     }
 
     fn load_index_at_operation(
@@ -161,7 +167,7 @@ impl IndexStore {
     }
 
     /// Records a link from the given operation to the this index version.
-    pub fn associate_file_with_operation(
+    fn associate_file_with_operation(
         &self,
         index: &ReadonlyIndex,
         op_id: &OperationId,
