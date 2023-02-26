@@ -342,7 +342,7 @@ pub fn fetch(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     remote_name: &str,
-    globs: &[&str],
+    branch_name_globs: Option<&[&str]>,
     callbacks: RemoteCallbacks<'_>,
     git_settings: &GitSettings,
 ) -> Result<Option<String>, GitFetchError> {
@@ -364,15 +364,19 @@ pub fn fetch(
     fetch_options.proxy_options(proxy_options);
     let callbacks = callbacks.into_git();
     fetch_options.remote_callbacks(callbacks);
-    if globs.iter().any(|g| g.contains(|c| ":^".contains(c))) {
-        return Err(GitFetchError::InvalidGlob);
-    }
-    // At this point, we are only updating Git's remote tracking branches, not the
-    // local branches.
-    let refspecs = globs
-        .iter()
-        .map(|glob| format!("+refs/heads/{glob}:refs/remotes/{remote_name}/{glob}"))
-        .collect_vec();
+    let refspecs = if let Some(globs) = branch_name_globs {
+        if globs.iter().any(|g| g.contains(|c| ":^".contains(c))) {
+            return Err(GitFetchError::InvalidGlob);
+        }
+        // At this point, we are only updating Git's remote tracking branches, not the
+        // local branches.
+        globs
+            .iter()
+            .map(|glob| format!("+refs/heads/{glob}:refs/remotes/{remote_name}/{glob}"))
+            .collect_vec()
+    } else {
+        vec![]
+    };
     tracing::debug!("remote.download");
     remote.download(&refspecs, Some(&mut fetch_options))?;
     tracing::debug!("remote.prune");

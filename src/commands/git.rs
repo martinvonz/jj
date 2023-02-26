@@ -302,7 +302,7 @@ fn cmd_git_fetch(
                 tx.mut_repo(),
                 &git_repo,
                 &remote,
-                &branches,
+                (!branches.is_empty()).then(|| &*branches),
                 cb,
                 &command.settings().git_settings(),
             )
@@ -430,7 +430,7 @@ fn do_git_clone(
             fetch_tx.mut_repo(),
             &git_repo,
             remote_name,
-            &[],
+            None,
             cb,
             &command.settings().git_settings(),
         )
