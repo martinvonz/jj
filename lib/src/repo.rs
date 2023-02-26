@@ -80,7 +80,7 @@ pub struct ReadonlyRepo {
     op_heads_store: Arc<dyn OpHeadsStore>,
     operation: Operation,
     settings: RepoSettings,
-    index_store: Arc<DefaultIndexStore>,
+    index_store: Arc<dyn IndexStore>,
     index: OnceCell<Arc<ReadonlyIndex>>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
     change_id_index: OnceCell<ChangeIdIndex>,
@@ -108,12 +108,17 @@ impl ReadonlyRepo {
         }
     }
 
+    pub fn default_index_store_factory() -> impl FnOnce(&Path) -> Box<dyn IndexStore> {
+        |store_path| Box::new(DefaultIndexStore::init(store_path))
+    }
+
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
         op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
+        index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
     ) -> Result<Arc<ReadonlyRepo>, PathError> {
         let repo_path = repo_path.canonicalize().context(repo_path)?;
 
@@ -158,7 +163,10 @@ impl ReadonlyRepo {
 
         let index_path = repo_path.join("index");
         fs::create_dir(&index_path).context(&index_path)?;
-        let index_store = Arc::new(DefaultIndexStore::init(&index_path));
+        let index_store = index_store_factory(&index_path);
+        let index_type_path = index_path.join("type");
+        fs::write(&index_type_path, index_store.name()).context(&index_type_path)?;
+        let index_store = Arc::from(index_store);
 
         let view = View::new(root_view);
         Ok(Arc::new(ReadonlyRepo {
@@ -224,7 +232,7 @@ impl ReadonlyRepo {
         &self.op_heads_store
     }
 
-    pub fn index_store(&self) -> &Arc<DefaultIndexStore> {
+    pub fn index_store(&self) -> &Arc<dyn IndexStore> {
         &self.index_store
     }
 
@@ -288,11 +296,13 @@ impl Repo for Arc<ReadonlyRepo> {
 type BackendFactory = Box<dyn Fn(&Path) -> Box<dyn Backend>>;
 type OpStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpStore>>;
 type OpHeadsStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpHeadsStore>>;
+type IndexStoreFactory = Box<dyn Fn(&Path) -> Box<dyn IndexStore>>;
 
 pub struct StoreFactories {
     backend_factories: HashMap<String, BackendFactory>,
     op_store_factories: HashMap<String, OpStoreFactory>,
     op_heads_store_factories: HashMap<String, OpHeadsStoreFactory>,
+    index_store_factories: HashMap<String, IndexStoreFactory>,
 }
 
 impl Default for StoreFactories {
@@ -321,6 +331,12 @@ impl Default for StoreFactories {
             Box::new(|store_path| Box::new(SimpleOpHeadsStore::load(store_path))),
         );
 
+        // Index
+        factories.add_index_store(
+            "default",
+            Box::new(|store_path| Box::new(DefaultIndexStore::load(store_path))),
+        );
+
         factories
     }
 }
@@ -345,6 +361,7 @@ impl StoreFactories {
             backend_factories: HashMap::new(),
             op_store_factories: HashMap::new(),
             op_heads_store_factories: HashMap::new(),
+            index_store_factories: HashMap::new(),
         }
     }
 
@@ -448,6 +465,39 @@ impl StoreFactories {
             })?;
         Ok(op_heads_store_factory(store_path))
     }
+
+    pub fn add_index_store(&mut self, name: &str, factory: IndexStoreFactory) {
+        self.index_store_factories.insert(name.to_string(), factory);
+    }
+
+    pub fn load_index_store(
+        &self,
+        store_path: &Path,
+    ) -> Result<Box<dyn IndexStore>, StoreLoadError> {
+        let index_store_type = match fs::read_to_string(store_path.join("type")) {
+            Ok(content) => content,
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                // For compatibility with existing repos. TODO: Delete in 0.9+
+                let default_type = String::from("default");
+                fs::write(store_path.join("type"), &default_type).unwrap();
+                default_type
+            }
+            Err(err) => {
+                return Err(StoreLoadError::ReadError {
+                    store: "index",
+                    source: err,
+                });
+            }
+        };
+        let index_store_factory = self
+            .index_store_factories
+            .get(&index_store_type)
+            .ok_or_else(|| StoreLoadError::UnsupportedType {
+                store: "index",
+                store_type: index_store_type.to_string(),
+            })?;
+        Ok(index_store_factory(store_path))
+    }
 }
 
 #[derive(Clone)]
@@ -457,7 +507,7 @@ pub struct RepoLoader {
     store: Arc<Store>,
     op_store: Arc<dyn OpStore>,
     op_heads_store: Arc<dyn OpHeadsStore>,
-    index_store: Arc<DefaultIndexStore>,
+    index_store: Arc<dyn IndexStore>,
 }
 
 impl RepoLoader {
@@ -471,7 +521,7 @@ impl RepoLoader {
         let op_store = Arc::from(store_factories.load_op_store(&repo_path.join("op_store"))?);
         let op_heads_store =
             Arc::from(store_factories.load_op_heads_store(&repo_path.join("op_heads"))?);
-        let index_store = Arc::new(DefaultIndexStore::load(&repo_path.join("index")));
+        let index_store = Arc::from(store_factories.load_index_store(&repo_path.join("index"))?);
         Ok(Self {
             repo_path: repo_path.to_path_buf(),
             repo_settings,
@@ -490,7 +540,7 @@ impl RepoLoader {
         &self.store
     }
 
-    pub fn index_store(&self) -> &Arc<DefaultIndexStore> {
+    pub fn index_store(&self) -> &Arc<dyn IndexStore> {
         &self.index_store
     }
 

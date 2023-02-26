@@ -517,3 +517,29 @@ fn test_index_commits_incremental_squashed(use_git: bool) {
     let repo = create_n_commits(&settings, &repo, 10);
     assert_eq!(commits_by_level(&repo), vec![71, 20]);
 }
+
+/// Test that .jj/repo/index/type is created when the repo is created, and that
+/// it is created when an old repo is loaded.
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_index_store_type(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+
+    assert_eq!(repo.index().num_commits(), 1);
+    let index_store_type_path = repo.repo_path().join("index").join("type");
+    assert_eq!(
+        std::fs::read_to_string(&index_store_type_path).unwrap(),
+        "default"
+    );
+    // Remove the file to simulate an old repo. Loading the repo should result in
+    // the file being created.
+    std::fs::remove_file(&index_store_type_path).unwrap();
+    let repo = load_repo_at_head(&settings, repo.repo_path());
+    assert_eq!(
+        std::fs::read_to_string(&index_store_type_path).unwrap(),
+        "default"
+    );
+    assert_eq!(repo.index().num_commits(), 1);
+}

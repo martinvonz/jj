@@ -524,6 +524,7 @@ impl GitRepoData {
             |store_path| Box::new(GitBackend::init_external(store_path, &git_repo_dir)),
             ReadonlyRepo::default_op_store_factory(),
             ReadonlyRepo::default_op_heads_store_factory(),
+            ReadonlyRepo::default_index_store_factory(),
         )
         .unwrap();
         Self {
@@ -1089,6 +1090,7 @@ fn test_init() {
         |store_path| Box::new(GitBackend::init_external(store_path, &git_repo_dir)),
         ReadonlyRepo::default_op_store_factory(),
         ReadonlyRepo::default_op_heads_store_factory(),
+        ReadonlyRepo::default_index_store_factory(),
     )
     .unwrap();
     // The refs were *not* imported -- it's the caller's responsibility to import
@@ -1347,6 +1349,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
         |store_path| Box::new(GitBackend::init_external(store_path, &clone_repo_dir)),
         ReadonlyRepo::default_op_store_factory(),
         ReadonlyRepo::default_op_heads_store_factory(),
+        ReadonlyRepo::default_index_store_factory(),
     )
     .unwrap();
     let mut tx = jj_repo.start_transaction(settings, "test");

@@ -40,6 +40,8 @@ pub enum IndexWriteError {
 }
 
 pub trait IndexStore: Send + Sync + Debug {
+    fn name(&self) -> &str;
+
     fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex>;
 
     fn write_index(
@@ -167,6 +169,10 @@ impl DefaultIndexStore {
 }
 
 impl IndexStore for DefaultIndexStore {
+    fn name(&self) -> &str {
+        "default"
+    }
+
     fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex> {
         let op_id_hex = op.id().hex();
         let op_id_file = self.dir.join("operations").join(op_id_hex);
