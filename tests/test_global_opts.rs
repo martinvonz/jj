@@ -14,6 +14,8 @@
 
 use std::ffi::OsString;
 
+use itertools::Itertools;
+
 use crate::common::{get_stderr_string, TestEnvironment};
 
 pub mod common;
@@ -170,6 +172,35 @@ fn test_no_workspace_directory() {
     Hint: It looks like this is a git repo. You can create a jj repo backed by it by running this:
     jj init --git-repo=.
     "###);
+}
+
+#[test]
+fn test_broken_repo_structure() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let store_type_path = repo_path
+        .join(".jj")
+        .join("repo")
+        .join("store")
+        .join("type");
+
+    // Test the error message when the commit backend is of unknown type.
+    std::fs::write(&store_type_path, "unknown").unwrap();
+    let stderr = test_env.jj_cmd_internal_error(&repo_path, &["log"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Internal error: This version of the jj binary doesn't support this type of repo: Unsupported commit backend type 'unknown'
+    "###);
+
+    // Test the error message when the file indicating the commit backend type
+    // cannot be read.
+    std::fs::remove_file(&store_type_path).unwrap();
+    std::fs::create_dir(&store_type_path).unwrap();
+    let stderr = test_env.jj_cmd_internal_error(&repo_path, &["log"]);
+    // Trim off the OS-specific error message.
+    let stderr = stderr.split(':').take(3).join(":");
+    insta::assert_snapshot!(stderr, @"Internal error: The repository appears broken or inaccessible: Failed to read commit backend type");
 }
 
 #[test]

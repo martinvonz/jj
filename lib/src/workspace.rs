@@ -27,6 +27,7 @@ use crate::op_store::{self, OpStore, OperationMetadata, WorkspaceId};
 use crate::operation::Operation;
 use crate::repo::{
     CheckOutCommitError, IoResultExt, PathError, ReadonlyRepo, Repo, RepoLoader, StoreFactories,
+    StoreLoadError,
 };
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
@@ -49,6 +50,8 @@ pub enum WorkspaceLoadError {
     RepoDoesNotExist(PathBuf),
     #[error("There is no Jujutsu repo in {0}")]
     NoWorkspaceHere(PathBuf),
+    #[error("Cannot read the repo: {0}")]
+    StoreLoadError(#[from] StoreLoadError),
     #[error("Repo path could not be interpreted as Unicode text")]
     NonUnicodePath,
     #[error(transparent)]
@@ -233,7 +236,8 @@ impl Workspace {
         store_factories: &StoreFactories,
     ) -> Result<Self, WorkspaceLoadError> {
         let loader = WorkspaceLoader::init(workspace_path)?;
-        Ok(loader.load(user_settings, store_factories)?)
+        let workspace = loader.load(user_settings, store_factories)?;
+        Ok(workspace)
     }
 
     pub fn workspace_root(&self) -> &PathBuf {
@@ -314,7 +318,7 @@ impl WorkspaceLoader {
         user_settings: &UserSettings,
         store_factories: &StoreFactories,
     ) -> Result<Workspace, WorkspaceLoadError> {
-        let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories);
+        let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories)?;
         let working_copy = WorkingCopy::load(
             repo_loader.store().clone(),
             self.workspace_root.clone(),

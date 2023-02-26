@@ -39,7 +39,7 @@ use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, Works
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
-    RewriteRootCommit, StoreFactories,
+    RewriteRootCommit, StoreFactories, StoreLoadError,
 };
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
@@ -1203,6 +1203,16 @@ jj init --git-repo=.",
         )),
         WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
         WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
+        WorkspaceLoadError::StoreLoadError(err @ StoreLoadError::UnsupportedType { .. }) => {
+            CommandError::InternalError(format!(
+                "This version of the jj binary doesn't support this type of repo: {err}"
+            ))
+        }
+        WorkspaceLoadError::StoreLoadError(err @ StoreLoadError::ReadError { .. }) => {
+            CommandError::InternalError(format!(
+                "The repository appears broken or inaccessible: {err}"
+            ))
+        }
     }
 }
 
