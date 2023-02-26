@@ -85,7 +85,7 @@ pub struct GitRemoteListArgs {}
 /// Fetch from a Git remote
 #[derive(clap::Args, Clone, Debug)]
 pub struct GitFetchArgs {
-    /// Fetch only some of the branches (caution: known bugs)
+    /// Fetch only some of the branches
     ///
     /// Any `*` in the argument is expanded as a glob. So, one `--branch` can
     /// match several branches.
