@@ -590,10 +590,6 @@ fn test_git_fetch_some_of_many_branches() {
     "###);
 }
 
-// TODO: Fix the bug this test demonstrates. (https://github.com/martinvonz/jj/issues/1300)
-// The issue likely stems from the fact that `jj undo` does not undo the fetch
-// inside the git repo backing the `target` repo. It is unclear whether it
-// should.
 #[test]
 fn test_git_fetch_undo() {
     let test_env = TestEnvironment::default();
@@ -646,11 +642,8 @@ fn test_git_fetch_undo() {
     // Now try to fetch just one branch
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
-    // BUG: Both branches got fetched.
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     o  c7d4bdcbc215 descr_for_b b
-    │ o  359a9a02457d descr_for_a1 a1
-    ├─╯
     o  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
     ├─╯
@@ -733,5 +726,149 @@ fn test_git_fetch_rename_fetch() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote", "upstream"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
+    "###);
+}
+
+#[test]
+fn test_git_fetch_removed_branch() {
+    let test_env = TestEnvironment::default();
+    let source_git_repo_path = test_env.env_root().join("source");
+    let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
+
+    // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
+    let stdout =
+        test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "target"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Fetching into new repo in "$TEST_ENV/target"
+    Nothing changed.
+    "###);
+    let target_jj_repo_path = test_env.env_root().join("target");
+
+    let source_log =
+        create_colocated_repo_and_branches_from_trunk1(&test_env, &source_git_repo_path);
+    insta::assert_snapshot!(source_log, @r###"
+       ===== Source git repo contents =====
+    @  c7d4bdcbc215 descr_for_b b
+    │ o  decaa3966c83 descr_for_a2 a2
+    ├─╯
+    │ o  359a9a02457d descr_for_a1 a1
+    ├─╯
+    o  ff36dc55760e descr_for_trunk1 master trunk1
+    o  000000000000
+    "###);
+
+    // Fetch all branches
+    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
+    o  c7d4bdcbc215 descr_for_b b
+    │ o  decaa3966c83 descr_for_a2 a2
+    ├─╯
+    │ o  359a9a02457d descr_for_a1 a1
+    ├─╯
+    o  ff36dc55760e descr_for_trunk1 master trunk1
+    │ @  230dd059e1b0
+    ├─╯
+    o  000000000000
+    "###);
+
+    // Remove a2 branch in origin
+    test_env.jj_cmd_success(&source_git_repo_path, &["branch", "forget", "a2"]);
+
+    // Fetch branch a1 from origin and check that a2 is still there
+    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "a1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
+    o  c7d4bdcbc215 descr_for_b b
+    │ o  decaa3966c83 descr_for_a2 a2
+    ├─╯
+    │ o  359a9a02457d descr_for_a1 a1
+    ├─╯
+    o  ff36dc55760e descr_for_trunk1 master trunk1
+    │ @  230dd059e1b0
+    ├─╯
+    o  000000000000
+    "###);
+
+    // Fetch branches a2 from origin, and check that it has been removed locally
+    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "a2"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
+    o  c7d4bdcbc215 descr_for_b b
+    │ o  359a9a02457d descr_for_a1 a1
+    ├─╯
+    o  ff36dc55760e descr_for_trunk1 master trunk1
+    │ @  230dd059e1b0
+    ├─╯
+    o  000000000000
+    "###);
+}
+
+#[test]
+fn test_git_fetch_removed_parent_branch() {
+    let test_env = TestEnvironment::default();
+    let source_git_repo_path = test_env.env_root().join("source");
+    let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
+
+    // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
+    let stdout =
+        test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "target"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Fetching into new repo in "$TEST_ENV/target"
+    Nothing changed.
+    "###);
+    let target_jj_repo_path = test_env.env_root().join("target");
+
+    let source_log =
+        create_colocated_repo_and_branches_from_trunk1(&test_env, &source_git_repo_path);
+    insta::assert_snapshot!(source_log, @r###"
+       ===== Source git repo contents =====
+    @  c7d4bdcbc215 descr_for_b b
+    │ o  decaa3966c83 descr_for_a2 a2
+    ├─╯
+    │ o  359a9a02457d descr_for_a1 a1
+    ├─╯
+    o  ff36dc55760e descr_for_trunk1 master trunk1
+    o  000000000000
+    "###);
+
+    // Fetch all branches
+    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
+    o  c7d4bdcbc215 descr_for_b b
+    │ o  decaa3966c83 descr_for_a2 a2
+    ├─╯
+    │ o  359a9a02457d descr_for_a1 a1
+    ├─╯
+    o  ff36dc55760e descr_for_trunk1 master trunk1
+    │ @  230dd059e1b0
+    ├─╯
+    o  000000000000
+    "###);
+
+    // Remove all branches in origin.
+    test_env.jj_cmd_success(&source_git_repo_path, &["branch", "forget", "--glob", "*"]);
+
+    // Fetch branches master, trunk1 and a1 from origin and check that only those
+    // branches have been removed and that others were not rebased because of
+    // abandoned commits.
+    let stdout = test_env.jj_cmd_success(
+        &target_jj_repo_path,
+        &[
+            "git", "fetch", "--branch", "master", "--branch", "trunk1", "--branch", "a1",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
+    o  c7d4bdcbc215 descr_for_b b
+    │ o  decaa3966c83 descr_for_a2 a2
+    ├─╯
+    o  ff36dc55760e descr_for_trunk1
+    │ @  230dd059e1b0
+    ├─╯
+    o  000000000000
     "###);
 }

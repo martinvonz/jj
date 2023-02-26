@@ -424,7 +424,23 @@ pub fn fetch(
     tracing::debug!("remote.disconnect");
     remote.disconnect()?;
     tracing::debug!("import_refs");
-    import_refs(mut_repo, git_repo, git_settings).map_err(|err| match err {
+    if let Some(globs) = branch_name_globs {
+        let pattern = format!(
+            "^refs/remotes/{remote_name}/({})$",
+            globs.iter().map(|glob| glob.replace('*', ".*")).join("|")
+        );
+        tracing::debug!(?globs, ?pattern, "globs as regex");
+        let regex = regex::Regex::new(&pattern).map_err(|_| GitFetchError::InvalidGlob)?;
+        import_some_refs(
+            mut_repo,
+            git_repo,
+            git_settings,
+            move |git_ref_name: &str| -> bool { regex.is_match(git_ref_name) },
+        )
+    } else {
+        import_refs(mut_repo, git_repo, git_settings)
+    }
+    .map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
     Ok(default_branch)
