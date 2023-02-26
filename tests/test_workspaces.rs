@@ -122,17 +122,21 @@ fn test_workspaces_conflicting_edits() {
     Hint: Run `jj workspace update-stale` to update it.
     "###);
     let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "update-stale"]);
-    // It was detected that the working copy is now stale
-    // TODO: Since there was an uncommitted change in the working copy, it should
+    // It was detected that the working copy is now stale.
+    // Since there was an uncommitted change in the working copy, it should
     // have been committed first (causing divergence)
     insta::assert_snapshot!(stdout, @r###"
+    Concurrent modification detected, resolving automatically.
+    Rebased 1 descendant commits onto commits rewritten by other operation
     Working copy now at: a1896a17282f (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
-    o  fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
-    │ @  a1896a17282f19089a5cec44358d6609910e0513 secondary@
+    o  8d90dc175c874af0dff032d611029dc722d4e108 (divergent)
+    │ o  fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
+    ├─╯
+    │ @  a1896a17282f19089a5cec44358d6609910e0513 secondary@ (divergent)
     ├─╯
     o  c0d4a99ef98ada7da8dc73a778bbb747c4178385
     o  0000000000000000000000000000000000000000
@@ -141,8 +145,10 @@ fn test_workspaces_conflicting_edits() {
     let stdout = get_log_output(&test_env, &secondary_path);
     assert!(!stdout.starts_with("The working copy is stale"));
     insta::assert_snapshot!(stdout, @r###"
-    o  fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
-    │ @  a1896a17282f19089a5cec44358d6609910e0513 secondary@
+    o  8d90dc175c874af0dff032d611029dc722d4e108 (divergent)
+    │ o  fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
+    ├─╯
+    │ @  a1896a17282f19089a5cec44358d6609910e0513 secondary@ (divergent)
     ├─╯
     o  c0d4a99ef98ada7da8dc73a778bbb747c4178385
     o  0000000000000000000000000000000000000000
@@ -232,6 +238,40 @@ fn test_workspaces_update_stale_noop() {
     insta::assert_snapshot!(stdout, @r###"
     @  add workspace 'default'
     o  initialize repo
+    "###);
+}
+
+/// Test "update-stale" in a dirty, but not stale working copy.
+#[test]
+fn test_workspaces_update_stale_snapshot() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    let main_path = test_env.env_root().join("main");
+    let secondary_path = test_env.env_root().join("secondary");
+
+    std::fs::write(main_path.join("file"), "changed in main\n").unwrap();
+    test_env.jj_cmd_success(&main_path, &["new"]);
+    test_env.jj_cmd_success(&main_path, &["workspace", "add", "../secondary"]);
+
+    // Record new operation in one workspace.
+    test_env.jj_cmd_success(&main_path, &["new"]);
+
+    // Snapshot the other working copy, which unfortunately results in concurrent
+    // operations, but should be resolved cleanly.
+    std::fs::write(secondary_path.join("file"), "changed in second\n").unwrap();
+    let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "update-stale"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Concurrent modification detected, resolving automatically.
+    Nothing to do (the working copy is not stale).
+    "###);
+
+    insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
+    @  4976dfa88529814c4dd8c06253fbd82d076b79f8 secondary@
+    │ o  8357b22214ba8adb6d2d378fa5b85274f1c7967c default@
+    │ o  1a769966ed69fa7abadbd2d899e2be1025cb04fb
+    ├─╯
+    o  b4a6c25e777817db67fdcbd50f1dd3b74b46b5f1
+    o  0000000000000000000000000000000000000000
     "###);
 }
 
