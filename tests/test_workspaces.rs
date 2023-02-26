@@ -285,7 +285,10 @@ fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
         &[
             "log",
             "-T",
-            r#"commit_id " " working_copies"#,
+            r#"separate(" ",
+                 commit_id,
+                 working_copies,
+                 if(divergent, "(divergent)"))"#,
             "-r",
             "all()",
         ],
