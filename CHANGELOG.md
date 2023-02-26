@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the new name. If a new remote with the old name and containing the same
   branches was added, the remote branches may not be recreated in some cases.
 
+* `jj workspace update-stale` now snapshots the working-copy changes before
+  updating to the new working-copy commit.
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes

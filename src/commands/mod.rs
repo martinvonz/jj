@@ -3227,7 +3227,18 @@ fn cmd_workspace_update_stale(
     command: &CommandHelper,
     _args: &WorkspaceUpdateStaleArgs,
 ) -> Result<(), CommandError> {
+    // Snapshot the current working copy on top of the last known working-copy
+    // operation, then merge the concurrent operations. The wc_commit_id of the
+    // merged repo wouldn't change because the old one wins, but it's probably
+    // fine if we picked the new wc_commit_id.
+    let known_wc_commit = {
+        let mut workspace_command = command.for_stale_working_copy(ui)?;
+        workspace_command.snapshot(ui)?;
+        let wc_commit_id = workspace_command.get_wc_commit_id().unwrap();
+        workspace_command.repo().store().get_commit(wc_commit_id)?
+    };
     let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
+
     let repo = workspace_command.repo().clone();
     let (mut locked_wc, desired_wc_commit) =
         workspace_command.unsafe_start_working_copy_mutation()?;
@@ -3237,7 +3248,11 @@ fn cmd_workspace_update_stale(
             ui.write("Nothing to do (the working copy is not stale).\n")?;
         }
         Err(_) => {
-            // TODO: First commit the working copy
+            // The same check as start_working_copy_mutation(), but with the stale
+            // working-copy commit.
+            if known_wc_commit.tree_id() != locked_wc.old_tree_id() {
+                return Err(user_error("Concurrent working copy operation. Try again."));
+            }
             let stats = locked_wc
                 .check_out(&desired_wc_commit.tree())
                 .map_err(|err| {
