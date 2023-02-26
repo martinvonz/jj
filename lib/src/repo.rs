@@ -330,6 +330,20 @@ impl Default for StoreFactories {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum StoreLoadError {
+    #[error("Unsupported {store} backend type '{store_type}'")]
+    UnsupportedType {
+        store: &'static str,
+        store_type: String,
+    },
+    #[error("Failed to read {store} backend type: {source}")]
+    ReadError {
+        store: &'static str,
+        source: io::Error,
+    },
+}
+
 impl StoreFactories {
     pub fn empty() -> Self {
         StoreFactories {
@@ -343,7 +357,7 @@ impl StoreFactories {
         self.backend_factories.insert(name.to_string(), factory);
     }
 
-    pub fn load_backend(&self, store_path: &Path) -> Box<dyn Backend> {
+    pub fn load_backend(&self, store_path: &Path) -> Result<Box<dyn Backend>, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete in 0.8+.
         if store_path.join("backend").is_file() {
             fs::rename(store_path.join("backend"), store_path.join("type"))
@@ -361,22 +375,27 @@ impl StoreFactories {
                 fs::write(store_path.join("type"), &inferred_type).unwrap();
                 inferred_type
             }
-            Err(_) => {
-                panic!("Failed to read backend type");
+            Err(err) => {
+                return Err(StoreLoadError::ReadError {
+                    store: "commit",
+                    source: err,
+                });
             }
         };
-        let backend_factory = self
-            .backend_factories
-            .get(&backend_type)
-            .expect("Unexpected backend type");
-        backend_factory(store_path)
+        let backend_factory = self.backend_factories.get(&backend_type).ok_or_else(|| {
+            StoreLoadError::UnsupportedType {
+                store: "commit",
+                store_type: backend_type.to_string(),
+            }
+        })?;
+        Ok(backend_factory(store_path))
     }
 
     pub fn add_op_store(&mut self, name: &str, factory: OpStoreFactory) {
         self.op_store_factories.insert(name.to_string(), factory);
     }
 
-    pub fn load_op_store(&self, store_path: &Path) -> Box<dyn OpStore> {
+    pub fn load_op_store(&self, store_path: &Path) -> Result<Box<dyn OpStore>, StoreLoadError> {
         let op_store_type = match fs::read_to_string(store_path.join("type")) {
             Ok(content) => content,
             Err(err) if err.kind() == ErrorKind::NotFound => {
@@ -385,15 +404,20 @@ impl StoreFactories {
                 fs::write(store_path.join("type"), &default_type).unwrap();
                 default_type
             }
-            Err(_) => {
-                panic!("Failed to read op_store type");
+            Err(err) => {
+                return Err(StoreLoadError::ReadError {
+                    store: "operation",
+                    source: err,
+                });
             }
         };
-        let op_store_factory = self
-            .op_store_factories
-            .get(&op_store_type)
-            .expect("Unexpected op_store type");
-        op_store_factory(store_path)
+        let op_store_factory = self.op_store_factories.get(&op_store_type).ok_or_else(|| {
+            StoreLoadError::UnsupportedType {
+                store: "operation",
+                store_type: op_store_type.to_string(),
+            }
+        })?;
+        Ok(op_store_factory(store_path))
     }
 
     pub fn add_op_heads_store(&mut self, name: &str, factory: OpHeadsStoreFactory) {
@@ -401,7 +425,10 @@ impl StoreFactories {
             .insert(name.to_string(), factory);
     }
 
-    pub fn load_op_heads_store(&self, store_path: &Path) -> Box<dyn OpHeadsStore> {
+    pub fn load_op_heads_store(
+        &self,
+        store_path: &Path,
+    ) -> Result<Box<dyn OpHeadsStore>, StoreLoadError> {
         let op_heads_store_type = match fs::read_to_string(store_path.join("type")) {
             Ok(content) => content,
             Err(err) if err.kind() == ErrorKind::NotFound => {
@@ -410,15 +437,21 @@ impl StoreFactories {
                 fs::write(store_path.join("type"), &default_type).unwrap();
                 default_type
             }
-            Err(_) => {
-                panic!("Failed to read op_heads_store type");
+            Err(err) => {
+                return Err(StoreLoadError::ReadError {
+                    store: "operation heads",
+                    source: err,
+                });
             }
         };
         let op_heads_store_factory = self
             .op_heads_store_factories
             .get(&op_heads_store_type)
-            .expect("Unexpected op_heads_store type");
-        op_heads_store_factory(store_path)
+            .ok_or_else(|| StoreLoadError::UnsupportedType {
+                store: "operation heads",
+                store_type: op_heads_store_type.to_string(),
+            })?;
+        Ok(op_heads_store_factory(store_path))
     }
 }
 
@@ -437,21 +470,21 @@ impl RepoLoader {
         user_settings: &UserSettings,
         repo_path: &Path,
         store_factories: &StoreFactories,
-    ) -> Self {
-        let store = Store::new(store_factories.load_backend(&repo_path.join("store")));
+    ) -> Result<Self, StoreLoadError> {
+        let store = Store::new(store_factories.load_backend(&repo_path.join("store"))?);
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
-        let op_store = Arc::from(store_factories.load_op_store(&repo_path.join("op_store")));
+        let op_store = Arc::from(store_factories.load_op_store(&repo_path.join("op_store"))?);
         let op_heads_store =
-            Arc::from(store_factories.load_op_heads_store(&repo_path.join("op_heads")));
+            Arc::from(store_factories.load_op_heads_store(&repo_path.join("op_heads"))?);
         let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
-        Self {
+        Ok(Self {
             repo_path: repo_path.to_path_buf(),
             repo_settings,
             store,
             op_store,
             op_heads_store,
             index_store,
-        }
+        })
     }
 
     pub fn repo_path(&self) -> &PathBuf {
