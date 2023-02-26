@@ -340,6 +340,157 @@ fn test_import_refs_reimport_all_from_root_removed() {
     assert!(!tx.mut_repo().view().heads().contains(&jj_id(&commit)));
 }
 
+#[test]
+fn test_import_some_refs() {
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
+    let test_workspace = TestRepo::init(true);
+    let repo = &test_workspace.repo;
+    let git_repo = repo.store().git_repo().unwrap();
+
+    let commit_main = empty_git_commit(&git_repo, "refs/remotes/origin/main", &[]);
+    let commit_feat1 = empty_git_commit(&git_repo, "refs/remotes/origin/feature1", &[&commit_main]);
+    let commit_feat2 =
+        empty_git_commit(&git_repo, "refs/remotes/origin/feature2", &[&commit_feat1]);
+    let commit_feat3 =
+        empty_git_commit(&git_repo, "refs/remotes/origin/feature3", &[&commit_feat1]);
+    let commit_feat4 =
+        empty_git_commit(&git_repo, "refs/remotes/origin/feature4", &[&commit_feat3]);
+    let commit_ign = empty_git_commit(&git_repo, "refs/remotes/origin/ignored", &[]);
+
+    // Import branches feature1, feature2, and feature3.
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
+        ref_name.starts_with("refs/remotes/origin/feature")
+    })
+    .unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit();
+
+    // There are two heads, feature2 and feature4.
+    let view = repo.view();
+    let expected_heads = hashset! {
+            jj_id(&commit_feat2),
+            jj_id(&commit_feat4),
+    };
+    assert_eq!(*view.heads(), expected_heads);
+
+    // Check that branches feature[1-4] have been locally imported and are known to
+    // be present on origin as well.
+    assert_eq!(view.branches().len(), 4);
+    let commit_feat1_target = RefTarget::Normal(jj_id(&commit_feat1));
+    let commit_feat2_target = RefTarget::Normal(jj_id(&commit_feat2));
+    let commit_feat3_target = RefTarget::Normal(jj_id(&commit_feat3));
+    let commit_feat4_target = RefTarget::Normal(jj_id(&commit_feat4));
+    let expected_feature1_branch = BranchTarget {
+        local_target: Some(RefTarget::Normal(jj_id(&commit_feat1))),
+        remote_targets: btreemap! { "origin".to_string() => commit_feat1_target },
+    };
+    assert_eq!(
+        view.branches().get("feature1"),
+        Some(expected_feature1_branch).as_ref()
+    );
+    let expected_feature2_branch = BranchTarget {
+        local_target: Some(RefTarget::Normal(jj_id(&commit_feat2))),
+        remote_targets: btreemap! { "origin".to_string() => commit_feat2_target },
+    };
+    assert_eq!(
+        view.branches().get("feature2"),
+        Some(expected_feature2_branch).as_ref()
+    );
+    let expected_feature3_branch = BranchTarget {
+        local_target: Some(RefTarget::Normal(jj_id(&commit_feat3))),
+        remote_targets: btreemap! { "origin".to_string() => commit_feat3_target },
+    };
+    assert_eq!(
+        view.branches().get("feature3"),
+        Some(expected_feature3_branch).as_ref()
+    );
+    let expected_feature4_branch = BranchTarget {
+        local_target: Some(RefTarget::Normal(jj_id(&commit_feat4))),
+        remote_targets: btreemap! { "origin".to_string() => commit_feat4_target },
+    };
+    assert_eq!(
+        view.branches().get("feature4"),
+        Some(expected_feature4_branch).as_ref()
+    );
+    assert_eq!(view.branches().get("main"), None,);
+    assert!(!view.heads().contains(&jj_id(&commit_main)));
+    assert_eq!(view.branches().get("ignored"), None,);
+    assert!(!view.heads().contains(&jj_id(&commit_ign)));
+
+    // Delete branch feature1, feature3 and feature4 in git repository and import
+    // branch feature2 only. That should have no impact on the jj repository.
+    delete_git_ref(&git_repo, "refs/remotes/origin/feature1");
+    delete_git_ref(&git_repo, "refs/remotes/origin/feature3");
+    delete_git_ref(&git_repo, "refs/remotes/origin/feature4");
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
+        ref_name == "refs/remotes/origin/feature2"
+    })
+    .unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit();
+
+    // feature2 and feature4 will still be heads, and all four branches should be
+    // present.
+    let view = repo.view();
+    assert_eq!(view.branches().len(), 4);
+    assert_eq!(*view.heads(), expected_heads);
+
+    // Import feature1: this should cause the branch to be deleted, but the
+    // corresponding commit should stay because it is reachable from feature2.
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
+        ref_name == "refs/remotes/origin/feature1"
+    })
+    .unwrap();
+    // No descendant should be rewritten.
+    assert_eq!(tx.mut_repo().rebase_descendants(&settings).unwrap(), 0);
+    let repo = tx.commit();
+
+    // feature2 and feature4 should still be the heads, and all three branches
+    // feature2, feature3, and feature3 should exist.
+    let view = repo.view();
+    assert_eq!(view.branches().len(), 3);
+    assert_eq!(*view.heads(), expected_heads);
+
+    // Import feature3: this should cause the branch to be deleted, but
+    // feature4 should be left alone even though it is no longer in git.
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
+        ref_name == "refs/remotes/origin/feature3"
+    })
+    .unwrap();
+    // No descendant should be rewritten
+    assert_eq!(tx.mut_repo().rebase_descendants(&settings).unwrap(), 0);
+    let repo = tx.commit();
+
+    // feature2 and feature4 should still be the heads, and both branches
+    // should exist.
+    let view = repo.view();
+    assert_eq!(view.branches().len(), 2);
+    assert_eq!(*view.heads(), expected_heads);
+
+    // Import feature4: both the head and the branch will disappear.
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
+        ref_name == "refs/remotes/origin/feature4"
+    })
+    .unwrap();
+    // No descendant should be rewritten
+    assert_eq!(tx.mut_repo().rebase_descendants(&settings).unwrap(), 0);
+    let repo = tx.commit();
+
+    // feature2 should now be the only head and only branch.
+    let view = repo.view();
+    assert_eq!(view.branches().len(), 1);
+    let expected_heads = hashset! {
+            jj_id(&commit_feat2),
+    };
+    assert_eq!(*view.heads(), expected_heads);
+}
+
 fn git_ref(git_repo: &git2::Repository, name: &str, target: Oid) {
     git_repo.reference(name, target, true, "").unwrap();
 }

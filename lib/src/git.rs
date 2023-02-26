@@ -68,17 +68,33 @@ pub fn import_refs(
     git_repo: &git2::Repository,
     git_settings: &GitSettings,
 ) -> Result<(), GitImportError> {
+    import_some_refs(mut_repo, git_repo, git_settings, |_| true)
+}
+
+/// Reflect changes made in the underlying Git repo in the Jujutsu repo.
+/// Only branches whose git full reference name pass the filter will be
+/// considered for addition, update, or deletion.
+pub fn import_some_refs(
+    mut_repo: &mut MutableRepo,
+    git_repo: &git2::Repository,
+    git_settings: &GitSettings,
+    git_ref_filter: impl Fn(&str) -> bool,
+) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
     let mut existing_git_refs = mut_repo.view().git_refs().clone();
-    let mut old_git_heads = existing_git_refs
-        .values()
-        .flat_map(|old_target| old_target.adds())
-        .collect_vec();
+    let mut old_git_heads = vec![];
+    let mut new_git_heads = HashSet::new();
+    for (ref_name, old_target) in &existing_git_refs {
+        if git_ref_filter(ref_name) {
+            old_git_heads.extend(old_target.adds());
+        } else {
+            new_git_heads.extend(old_target.adds());
+        }
+    }
     if let Some(old_git_head) = mut_repo.view().git_head() {
         old_git_heads.extend(old_git_head.adds());
     }
 
-    let mut new_git_heads = HashSet::new();
     // TODO: Should this be a separate function? We may not always want to import
     // the Git HEAD (and add it to our set of heads).
     if let Ok(head_git_commit) = git_repo
@@ -121,6 +137,9 @@ pub fn import_refs(
         };
         let id = CommitId::from_bytes(git_commit.id().as_bytes());
         new_git_heads.insert(id.clone());
+        if !git_ref_filter(&full_name) {
+            continue;
+        }
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
         let old_target = existing_git_refs.remove(&full_name);
@@ -134,8 +153,10 @@ pub fn import_refs(
         }
     }
     for (full_name, target) in existing_git_refs {
-        mut_repo.remove_git_ref(&full_name);
-        changed_git_refs.insert(full_name, (Some(target), None));
+        if git_ref_filter(&full_name) {
+            mut_repo.remove_git_ref(&full_name);
+            changed_git_refs.insert(full_name, (Some(target), None));
+        }
     }
     for (full_name, (old_git_target, new_git_target)) in changed_git_refs {
         if let Some(ref_name) = parse_git_ref(&full_name) {
@@ -157,8 +178,12 @@ pub fn import_refs(
     }
 
     // Find commits that are no longer referenced in the git repo and abandon them
-    // in jj as well.
-    let new_git_heads = new_git_heads.into_iter().collect_vec();
+    // in jj as well. We must remove non-existing commits from new_git_heads, as
+    // they could have come from branches which were never fetched.
+    let new_git_heads = new_git_heads
+        .into_iter()
+        .filter(|id| mut_repo.index().has_id(id))
+        .collect_vec();
     // We could use mut_repo.record_rewrites() here but we know we only need to care
     // about abandoned commits for now. We may want to change this if we ever
     // add a way of preserving change IDs across rewrites by `git` (e.g. by
