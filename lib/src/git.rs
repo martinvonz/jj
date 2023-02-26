@@ -342,7 +342,7 @@ pub fn fetch(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     remote_name: &str,
-    globs: &[String],
+    globs: &[&str],
     callbacks: RemoteCallbacks<'_>,
     git_settings: &GitSettings,
 ) -> Result<Option<String>, GitFetchError> {

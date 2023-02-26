@@ -295,13 +295,14 @@ fn cmd_git_fetch(
         "fetch from git remote(s) {}",
         remotes.iter().join(",")
     ));
+    let branches = args.branch.iter().map(|b| b.as_str()).collect_vec();
     for remote in remotes {
         with_remote_callbacks(ui, |cb| {
             git::fetch(
                 tx.mut_repo(),
                 &git_repo,
                 &remote,
-                &args.branch,
+                &branches,
                 cb,
                 &command.settings().git_settings(),
             )
