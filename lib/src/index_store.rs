@@ -21,6 +21,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use tempfile::NamedTempFile;
+use thiserror::Error;
 
 use crate::backend::CommitId;
 use crate::commit::Commit;
@@ -30,6 +31,12 @@ use crate::index::{Index, IndexLoadError, MutableIndex, ReadonlyIndex};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::store::Store;
+
+#[derive(Debug, Error)]
+pub enum IndexWriteError {
+    #[error("{0}")]
+    Other(String),
+}
 
 pub struct IndexStore {
     dir: PathBuf,
@@ -79,9 +86,16 @@ impl IndexStore {
         &self,
         index: MutableIndex,
         op_id: &OperationId,
-    ) -> io::Result<Arc<ReadonlyIndex>> {
-        let index = index.save_in(self.dir.clone())?;
-        self.associate_file_with_operation(&index, op_id)?;
+    ) -> Result<Arc<ReadonlyIndex>, IndexWriteError> {
+        let index = index.save_in(self.dir.clone()).map_err(|err| {
+            IndexWriteError::Other(format!("Failed to write commit index file: {err:?}"))
+        })?;
+        self.associate_file_with_operation(&index, op_id)
+            .map_err(|err| {
+                IndexWriteError::Other(format!(
+                    "Failed to associate commit index file with a operation {op_id:?}: {err:?}"
+                ))
+            })?;
         Ok(index)
     }
 
