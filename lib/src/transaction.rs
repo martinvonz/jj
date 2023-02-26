@@ -97,7 +97,6 @@ impl Transaction {
         );
         let base_repo = mut_repo.base_repo().clone();
         let (mut_index, view) = mut_repo.consume();
-        let index = base_repo.index_store().write_index(mut_index).unwrap();
 
         let view_id = base_repo.op_store().write_view(view.store_view()).unwrap();
         self.op_metadata.end_time = self.end_time.unwrap_or_else(Timestamp::now);
@@ -113,9 +112,9 @@ impl Transaction {
             .unwrap();
         let operation = Operation::new(base_repo.op_store().clone(), new_op_id, store_operation);
 
-        base_repo
+        let index = base_repo
             .index_store()
-            .associate_file_with_operation(&index, operation.id())
+            .write_index(mut_index, operation.id())
             .unwrap();
         UnpublishedOperation::new(base_repo.loader(), operation, view, index)
     }
