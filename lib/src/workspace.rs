@@ -21,6 +21,7 @@ use thiserror::Error;
 
 use crate::backend::Backend;
 use crate::git_backend::GitBackend;
+use crate::index_store::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OpStore, WorkspaceId};
@@ -161,6 +162,7 @@ impl Workspace {
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
         op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
+        index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
         let repo_dir = jj_dir.join("repo");
@@ -171,6 +173,7 @@ impl Workspace {
             backend_factory,
             op_store_factory,
             op_heads_store_factory,
+            index_store_factory,
         )?;
         let (working_copy, repo) = init_working_copy(
             user_settings,
@@ -195,6 +198,7 @@ impl Workspace {
             backend_factory,
             ReadonlyRepo::default_op_store_factory(),
             ReadonlyRepo::default_op_heads_store_factory(),
+            ReadonlyRepo::default_index_store_factory(),
         )
     }
 
