@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
@@ -38,64 +39,33 @@ pub enum IndexWriteError {
     Other(String),
 }
 
-pub struct IndexStore {
-    dir: PathBuf,
-}
+pub trait IndexStore: Send + Sync + Debug {
+    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex>;
 
-impl IndexStore {
-    pub fn init(dir: &Path) -> Self {
-        std::fs::create_dir(dir.join("operations")).unwrap();
-        IndexStore {
-            dir: dir.to_owned(),
-        }
-    }
-
-    pub fn load(dir: &Path) -> IndexStore {
-        IndexStore {
-            dir: dir.to_owned(),
-        }
-    }
-
-    pub fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex> {
-        let op_id_hex = op.id().hex();
-        let op_id_file = self.dir.join("operations").join(op_id_hex);
-        if op_id_file.exists() {
-            match self.load_index_at_operation(
-                store.commit_id_length(),
-                store.change_id_length(),
-                op.id(),
-            ) {
-                Err(IndexLoadError::IndexCorrupt(_)) => {
-                    // If the index was corrupt (maybe it was written in a different format),
-                    // we just reindex.
-                    // TODO: Move this message to a callback or something.
-                    println!("The index was corrupt (maybe the format has changed). Reindexing...");
-                    std::fs::remove_dir_all(self.dir.join("operations")).unwrap();
-                    std::fs::create_dir(self.dir.join("operations")).unwrap();
-                    self.index_at_operation(store, op).unwrap()
-                }
-                result => result.unwrap(),
-            }
-        } else {
-            self.index_at_operation(store, op).unwrap()
-        }
-    }
-
-    pub fn write_index(
+    fn write_index(
         &self,
         index: MutableIndex,
         op_id: &OperationId,
-    ) -> Result<Arc<ReadonlyIndex>, IndexWriteError> {
-        let index = index.save_in(self.dir.clone()).map_err(|err| {
-            IndexWriteError::Other(format!("Failed to write commit index file: {err:?}"))
-        })?;
-        self.associate_file_with_operation(&index, op_id)
-            .map_err(|err| {
-                IndexWriteError::Other(format!(
-                    "Failed to associate commit index file with a operation {op_id:?}: {err:?}"
-                ))
-            })?;
-        Ok(index)
+    ) -> Result<Arc<ReadonlyIndex>, IndexWriteError>;
+}
+
+#[derive(Debug)]
+pub struct DefaultIndexStore {
+    dir: PathBuf,
+}
+
+impl DefaultIndexStore {
+    pub fn init(dir: &Path) -> Self {
+        std::fs::create_dir(dir.join("operations")).unwrap();
+        DefaultIndexStore {
+            dir: dir.to_owned(),
+        }
+    }
+
+    pub fn load(dir: &Path) -> DefaultIndexStore {
+        DefaultIndexStore {
+            dir: dir.to_owned(),
+        }
     }
 
     fn load_index_at_operation(
@@ -193,6 +163,50 @@ impl IndexStore {
             self.dir.join("operations").join(op_id.hex()),
         )?;
         Ok(())
+    }
+}
+
+impl IndexStore for DefaultIndexStore {
+    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex> {
+        let op_id_hex = op.id().hex();
+        let op_id_file = self.dir.join("operations").join(op_id_hex);
+        if op_id_file.exists() {
+            match self.load_index_at_operation(
+                store.commit_id_length(),
+                store.change_id_length(),
+                op.id(),
+            ) {
+                Err(IndexLoadError::IndexCorrupt(_)) => {
+                    // If the index was corrupt (maybe it was written in a different format),
+                    // we just reindex.
+                    // TODO: Move this message to a callback or something.
+                    println!("The index was corrupt (maybe the format has changed). Reindexing...");
+                    std::fs::remove_dir_all(self.dir.join("operations")).unwrap();
+                    std::fs::create_dir(self.dir.join("operations")).unwrap();
+                    self.index_at_operation(store, op).unwrap()
+                }
+                result => result.unwrap(),
+            }
+        } else {
+            self.index_at_operation(store, op).unwrap()
+        }
+    }
+
+    fn write_index(
+        &self,
+        index: MutableIndex,
+        op_id: &OperationId,
+    ) -> Result<Arc<ReadonlyIndex>, IndexWriteError> {
+        let index = index.save_in(self.dir.clone()).map_err(|err| {
+            IndexWriteError::Other(format!("Failed to write commit index file: {err:?}"))
+        })?;
+        self.associate_file_with_operation(&index, op_id)
+            .map_err(|err| {
+                IndexWriteError::Other(format!(
+                    "Failed to associate commit index file with a operation {op_id:?}: {err:?}"
+                ))
+            })?;
+        Ok(index)
     }
 }
 

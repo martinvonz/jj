@@ -32,7 +32,7 @@ use crate::git_backend::GitBackend;
 use crate::index::{
     HexPrefix, Index, IndexEntry, IndexPosition, MutableIndex, PrefixResolution, ReadonlyIndex,
 };
-use crate::index_store::IndexStore;
+use crate::index_store::{DefaultIndexStore, IndexStore};
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
@@ -80,7 +80,7 @@ pub struct ReadonlyRepo {
     op_heads_store: Arc<dyn OpHeadsStore>,
     operation: Operation,
     settings: RepoSettings,
-    index_store: Arc<IndexStore>,
+    index_store: Arc<DefaultIndexStore>,
     index: OnceCell<Arc<ReadonlyIndex>>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
     change_id_index: OnceCell<ChangeIdIndex>,
@@ -158,7 +158,7 @@ impl ReadonlyRepo {
 
         let index_path = repo_path.join("index");
         fs::create_dir(&index_path).context(&index_path)?;
-        let index_store = Arc::new(IndexStore::init(&index_path));
+        let index_store = Arc::new(DefaultIndexStore::init(&index_path));
 
         let view = View::new(root_view);
         Ok(Arc::new(ReadonlyRepo {
@@ -224,7 +224,7 @@ impl ReadonlyRepo {
         &self.op_heads_store
     }
 
-    pub fn index_store(&self) -> &Arc<IndexStore> {
+    pub fn index_store(&self) -> &Arc<DefaultIndexStore> {
         &self.index_store
     }
 
@@ -457,7 +457,7 @@ pub struct RepoLoader {
     store: Arc<Store>,
     op_store: Arc<dyn OpStore>,
     op_heads_store: Arc<dyn OpHeadsStore>,
-    index_store: Arc<IndexStore>,
+    index_store: Arc<DefaultIndexStore>,
 }
 
 impl RepoLoader {
@@ -471,7 +471,7 @@ impl RepoLoader {
         let op_store = Arc::from(store_factories.load_op_store(&repo_path.join("op_store"))?);
         let op_heads_store =
             Arc::from(store_factories.load_op_heads_store(&repo_path.join("op_heads"))?);
-        let index_store = Arc::new(IndexStore::load(&repo_path.join("index")));
+        let index_store = Arc::new(DefaultIndexStore::load(&repo_path.join("index")));
         Ok(Self {
             repo_path: repo_path.to_path_buf(),
             repo_settings,
@@ -490,7 +490,7 @@ impl RepoLoader {
         &self.store
     }
 
-    pub fn index_store(&self) -> &Arc<IndexStore> {
+    pub fn index_store(&self) -> &Arc<DefaultIndexStore> {
         &self.index_store
     }
 

@@ -17,6 +17,7 @@ use std::sync::Arc;
 use crate::backend::Timestamp;
 use crate::dag_walk::closest_common_node;
 use crate::index::ReadonlyIndex;
+use crate::index_store::IndexStore;
 use crate::op_store;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
