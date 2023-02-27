@@ -312,6 +312,15 @@ fn test_config_edit_repo() {
     test_env.jj_cmd_success(&repo_path, &["config", "edit", "--repo"]);
 }
 
+#[test]
+fn test_config_edit_repo_outside_repo() {
+    let test_env = TestEnvironment::default();
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["config", "edit", "--repo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: There is no jj repo in "."
+    "###);
+}
+
 fn find_stdout_lines(keyname_pattern: &str, stdout: &str) -> String {
     let key_line_re = Regex::new(&format!(r"(?m)^{keyname_pattern}=.*$")).unwrap();
     key_line_re
