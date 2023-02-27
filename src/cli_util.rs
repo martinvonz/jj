@@ -920,9 +920,12 @@ impl WorkspaceCommandHelper {
         };
         let new_tree_id = locked_wc.snapshot(base_ignores)?;
         if new_tree_id != *wc_commit.tree_id() {
-            let mut tx = self
-                .repo
-                .start_transaction(&self.settings, "snapshot working copy");
+            let mut tx = start_repo_transaction(
+                &self.repo,
+                &self.settings,
+                &self.string_args,
+                "snapshot working copy",
+            );
             let mut_repo = tx.mut_repo();
             let commit = mut_repo
                 .rewrite_commit(&self.settings, &wc_commit)

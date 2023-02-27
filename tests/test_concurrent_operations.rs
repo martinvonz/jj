@@ -49,11 +49,12 @@ fn test_concurrent_operations_auto_rebase() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  eac5ad986688 test-username@host.example.com 22 years ago, lasted less than a microsecond
+    @  cde29280d4a9 test-username@host.example.com 22 years ago, lasted less than a microsecond
     │  describe commit 123ed18e4c4c0d77428df41112bc02ffc83fb935
     │  args: jj describe -m initial
-    o  09a674690d20 test-username@host.example.com 22 years ago, lasted less than a microsecond
+    o  7c212e0863fd test-username@host.example.com 22 years ago, lasted less than a microsecond
     │  snapshot working copy
+    │  args: jj describe -m initial
     o  a99a3fd5c51e test-username@host.example.com 22 years ago, lasted less than a microsecond
     │  add workspace 'default'
     o  56b94dfc38e7 test-username@host.example.com 22 years ago, lasted less than a microsecond
