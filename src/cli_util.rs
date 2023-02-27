@@ -395,7 +395,7 @@ impl CommandHelper {
         let loader = self.workspace_loader()?;
         loader
             .load(&self.settings, &self.store_factories)
-            .map_err(|e| user_error(format!("{}: {}", e, e.error)))
+            .map_err(|err| map_workspace_load_error(err, &self.global_args))
     }
 
     pub fn resolve_operation(
@@ -1176,7 +1176,11 @@ fn init_workspace_loader(
             .unwrap_or(cwd)
             .to_owned()
     };
-    WorkspaceLoader::init(&workspace_root).map_err(|err| match err {
+    WorkspaceLoader::init(&workspace_root).map_err(|err| map_workspace_load_error(err, global_args))
+}
+
+fn map_workspace_load_error(err: WorkspaceLoadError, global_args: &GlobalArgs) -> CommandError {
+    match err {
         WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
             // Prefer user-specified workspace_path_str instead of absolute wc_path.
             let workspace_path_str = global_args.repository.as_deref().unwrap_or(".");
@@ -1199,7 +1203,7 @@ jj init --git-repo=.",
         )),
         WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
         WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
-    })
+    }
 }
 
 pub fn start_repo_transaction(

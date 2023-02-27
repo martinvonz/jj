@@ -313,13 +313,14 @@ impl WorkspaceLoader {
         &self,
         user_settings: &UserSettings,
         store_factories: &StoreFactories,
-    ) -> Result<Workspace, PathError> {
+    ) -> Result<Workspace, WorkspaceLoadError> {
         let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories);
         let working_copy = WorkingCopy::load(
             repo_loader.store().clone(),
             self.workspace_root.clone(),
             self.working_copy_state_path.clone(),
         );
-        Workspace::new(&self.workspace_root, working_copy, repo_loader)
+        let workspace = Workspace::new(&self.workspace_root, working_copy, repo_loader)?;
+        Ok(workspace)
     }
 }
