@@ -149,6 +149,92 @@ fn test_workspaces_conflicting_edits() {
     "###);
 }
 
+/// Test a clean working copy that gets rewritten from another workspace
+#[test]
+fn test_workspaces_updated_by_other() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    let main_path = test_env.env_root().join("main");
+    let secondary_path = test_env.env_root().join("secondary");
+
+    std::fs::write(main_path.join("file"), "contents\n").unwrap();
+    test_env.jj_cmd_success(&main_path, &["new"]);
+
+    test_env.jj_cmd_success(&main_path, &["workspace", "add", "../secondary"]);
+
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    o  265af0cdbcc7bb33e3734ad72565c943ce3fb0d4 secondary@
+    │ @  351099fa72cfbb1b34e410e89821efc623295974 default@
+    ├─╯
+    o  cf911c223d3e24e001fc8264d6dbf0610804fc40
+    o  0000000000000000000000000000000000000000
+    "###);
+
+    // Rewrite the check-out commit in one workspace.
+    std::fs::write(main_path.join("file"), "changed in main\n").unwrap();
+    let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: fe8f41ed01d6 (no description set)
+    "###);
+
+    // The secondary workspace's working-copy commit was updated.
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    @  fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
+    │ o  a1896a17282f19089a5cec44358d6609910e0513 secondary@
+    ├─╯
+    o  c0d4a99ef98ada7da8dc73a778bbb747c4178385
+    o  0000000000000000000000000000000000000000
+    "###);
+    let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The working copy is stale (not updated since operation 815bb8fcbd7a).
+    Hint: Run `jj workspace update-stale` to update it.
+    "###);
+    let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "update-stale"]);
+    // It was detected that the working copy is now stale, but clean. So no
+    // divergent commit should be created.
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: a1896a17282f (no description set)
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
+    @r###"
+    o  fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
+    │ @  a1896a17282f19089a5cec44358d6609910e0513 secondary@
+    ├─╯
+    o  c0d4a99ef98ada7da8dc73a778bbb747c4178385
+    o  0000000000000000000000000000000000000000
+    "###);
+}
+
+#[test]
+fn test_workspaces_update_stale_noop() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    let main_path = test_env.env_root().join("main");
+
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "update-stale"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing to do (the working copy is not stale).
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(
+        &main_path,
+        &["workspace", "update-stale", "--ignore-working-copy"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: This command must be able to update the working copy.
+    Hint: Don't use --ignore-working-copy.
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&main_path, &["op", "log", "-Tdescription"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  add workspace 'default'
+    o  initialize repo
+    "###);
+}
+
 /// Test forgetting workspaces
 #[test]
 fn test_workspaces_forget() {
