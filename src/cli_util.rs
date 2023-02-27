@@ -361,6 +361,10 @@ impl CommandHelper {
         self.layered_configs.resolved_config_values(prefix)
     }
 
+    pub fn workspace_loader(&self) -> Result<&WorkspaceLoader, CommandError> {
+        self.maybe_workspace_loader.as_ref().map_err(Clone::clone)
+    }
+
     fn workspace_helper_internal(
         &self,
         ui: &mut Ui,
@@ -388,7 +392,7 @@ impl CommandHelper {
     }
 
     pub fn load_workspace(&self) -> Result<Workspace, CommandError> {
-        let loader = self.maybe_workspace_loader.as_ref().map_err(Clone::clone)?;
+        let loader = self.workspace_loader()?;
         loader
             .load(&self.settings, &self.store_factories)
             .map_err(|e| user_error(format!("{}: {}", e, e.error)))
