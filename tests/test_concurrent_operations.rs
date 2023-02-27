@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use regex::Regex;
-
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -123,37 +121,17 @@ fn test_concurrent_operations_wc_modified() {
     "###);
 
     // The working copy should be committed after merging the operations
-    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
-    insta::assert_snapshot!(redact_op_log(&stdout), @r###"
-    @  
-    │  snapshot working copy
-    o    
-    ├─╮  resolve concurrent operations
-    │ │  
-    o │  
-    │ │  new empty commit
-    │ │  
-    │ o  
-    ├─╯  new empty commit
-    │    
-    o  
-    │  describe commit cf911c223d3e24e001fc8264d6dbf0610804fc40
-    │  
-    o  
-    │  snapshot working copy
-    o  
-    │  
-    o  
-       initialize repo
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-Tdescription"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  snapshot working copy
+    o    resolve concurrent operations
+    ├─╮
+    o │  new empty commit
+    │ o  new empty commit
+    ├─╯
+    o  describe commit cf911c223d3e24e001fc8264d6dbf0610804fc40
+    o  snapshot working copy
+    o  add workspace 'default'
+    o  initialize repo
     "###);
-}
-
-fn redact_op_log(stdout: &str) -> String {
-    let mut lines = vec![];
-    // Filter out the operation id etc, and the CLI arguments
-    let unwanted = Regex::new(r" ([0-9a-f]+|args:) .*").unwrap();
-    for line in stdout.lines() {
-        lines.push(unwanted.replace(line, " ").to_string());
-    }
-    lines.join("\n")
 }
