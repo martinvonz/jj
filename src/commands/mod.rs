@@ -42,7 +42,7 @@ use jujutsu_lib::revset_graph_iterator::{
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree::{merge_trees, Tree};
-use jujutsu_lib::workspace::{Workspace, WorkspaceLoader};
+use jujutsu_lib::workspace::Workspace;
 use jujutsu_lib::{conflicts, file_util, revset};
 use maplit::{hashmap, hashset};
 
@@ -1109,7 +1109,7 @@ fn cmd_config_list(
 }
 
 fn cmd_config_edit(
-    ui: &mut Ui,
+    _ui: &mut Ui,
     command: &CommandHelper,
     args: &ConfigEditArgs,
 ) -> Result<(), CommandError> {
@@ -1117,12 +1117,8 @@ fn cmd_config_edit(
         // TODO(#531): Special-case for editors that can't handle viewing directories?
         config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
     } else if args.config_args.repo {
-        let workspace_command = command.workspace_helper(ui)?;
-        let workspace_path = workspace_command.workspace_root();
-        WorkspaceLoader::init(workspace_path)
-            .unwrap()
-            .repo_path()
-            .join("config.toml")
+        let workspace_loader = command.workspace_loader()?;
+        workspace_loader.repo_path().join("config.toml")
     } else {
         // Shouldn't be reachable unless clap ArgGroup is broken.
         panic!("No config_level provided");
