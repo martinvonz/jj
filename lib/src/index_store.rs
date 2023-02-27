@@ -16,7 +16,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -43,18 +43,22 @@ pub struct IndexStore {
 }
 
 impl IndexStore {
-    pub fn init(dir: PathBuf) -> Self {
+    pub fn init(dir: &Path) -> Self {
         std::fs::create_dir(dir.join("operations")).unwrap();
-        IndexStore { dir }
+        IndexStore {
+            dir: dir.to_owned(),
+        }
     }
 
     pub fn reinit(&self) {
         std::fs::remove_dir_all(self.dir.join("operations")).unwrap();
-        IndexStore::init(self.dir.clone());
+        IndexStore::init(&self.dir);
     }
 
-    pub fn load(dir: PathBuf) -> IndexStore {
-        IndexStore { dir }
+    pub fn load(dir: &Path) -> IndexStore {
+        IndexStore {
+            dir: dir.to_owned(),
+        }
     }
 
     pub fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex> {
@@ -116,7 +120,7 @@ impl IndexStore {
         let mut index_file = File::open(index_file_path).unwrap();
         ReadonlyIndex::load_from(
             &mut index_file,
-            self.dir.clone(),
+            self.dir.to_owned(),
             index_file_id_hex,
             commit_id_length,
             change_id_length,

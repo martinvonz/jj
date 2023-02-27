@@ -158,7 +158,7 @@ impl ReadonlyRepo {
 
         let index_path = repo_path.join("index");
         fs::create_dir(&index_path).context(&index_path)?;
-        let index_store = Arc::new(IndexStore::init(index_path));
+        let index_store = Arc::new(IndexStore::init(&index_path));
 
         let view = View::new(root_view);
         Ok(Arc::new(ReadonlyRepo {
@@ -471,7 +471,7 @@ impl RepoLoader {
         let op_store = Arc::from(store_factories.load_op_store(&repo_path.join("op_store"))?);
         let op_heads_store =
             Arc::from(store_factories.load_op_heads_store(&repo_path.join("op_heads"))?);
-        let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
+        let index_store = Arc::new(IndexStore::load(&repo_path.join("index")));
         Ok(Self {
             repo_path: repo_path.to_path_buf(),
             repo_settings,
