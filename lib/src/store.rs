@@ -26,7 +26,7 @@ use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 
 /// Wraps the low-level backend and makes it return more convenient types. Also
-/// adds the root commit and adds caching.
+/// adds caching.
 #[derive(Debug)]
 pub struct Store {
     backend: Box<dyn Backend>,
