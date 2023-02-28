@@ -23,8 +23,7 @@ use crate::backend::Backend;
 use crate::git_backend::GitBackend;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
-use crate::op_store::{self, OpStore, OperationMetadata, WorkspaceId};
-use crate::operation::Operation;
+use crate::op_store::{OpStore, WorkspaceId};
 use crate::repo::{
     CheckOutCommitError, IoResultExt, PathError, ReadonlyRepo, Repo, RepoLoader, StoreFactories,
     StoreLoadError,
@@ -161,12 +160,7 @@ impl Workspace {
         workspace_root: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
-        op_heads_store_factory: impl FnOnce(
-            &Path,
-            &Arc<dyn OpStore>,
-            &op_store::View,
-            OperationMetadata,
-        ) -> (Box<dyn OpHeadsStore>, Operation),
+        op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
         let repo_dir = jj_dir.join("repo");
