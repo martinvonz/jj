@@ -297,7 +297,7 @@ fn test_log_shortest_accessors() {
     test_env.add_config(
         r###"
         [template-aliases]
-        'format_id(id)' = 'id.shortest(12).prefix() "[" id.shortest(12).rest() "]"'
+        'format_id(id)' = 'id.shortest(12).prefix() ++ "[" ++ id.shortest(12).rest() ++ "]"'
         "###,
     );
 
@@ -305,7 +305,7 @@ fn test_log_shortest_accessors() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "c", "original"]);
     insta::assert_snapshot!(
-        render("original", r#"format_id(change_id) " " format_id(commit_id)"#),
+        render("original", r#"format_id(change_id) ++ " " ++ format_id(commit_id)"#),
         @"q[pvuntsmwlqt] b[a1a30916d29]");
 
     // Create a chain of 10 commits
@@ -319,11 +319,11 @@ fn test_log_shortest_accessors() {
     }
 
     insta::assert_snapshot!(
-        render("original", r#"format_id(change_id) " " format_id(commit_id)"#),
+        render("original", r#"format_id(change_id) ++ " " ++ format_id(commit_id)"#),
         @"qpv[untsmwlqt] ba1[a30916d29]");
 
     insta::assert_snapshot!(
-        render(":@", r#"change_id.shortest() " " commit_id.shortest() "\n""#),
+        render(":@", r#"change_id.shortest() ++ " " ++ commit_id.shortest() ++ "\n""#),
         @r###"
     wq 03
     km f7
@@ -339,7 +339,7 @@ fn test_log_shortest_accessors() {
     "###);
 
     insta::assert_snapshot!(
-        render(":@", r#"format_id(change_id) " " format_id(commit_id) "\n""#),
+        render(":@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
         @r###"
     wq[nwkozpkust] 03[f51310b83e]
     km[kuslswpqwq] f7[7fb1909080]
@@ -494,7 +494,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     test_env.add_config(
         r###"
         [template-aliases]
-        'format_id(id)' = 'id.shortest(12).prefix() "[" id.shortest(12).rest() "]"'
+        'format_id(id)' = 'id.shortest(12).prefix() ++ "[" ++ id.shortest(12).rest() ++ "]"'
         "###,
     );
 
@@ -609,7 +609,7 @@ fn test_log_divergence() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    let template = r#"description.first_line() if(divergent, " !divergence!")"#;
+    let template = r#"description.first_line() ++ if(divergent, " !divergence!")"#;
 
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 1"]);

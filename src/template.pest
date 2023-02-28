@@ -13,9 +13,9 @@
 // limitations under the License.
 
 // Example:
-// "commit: " short(commit_id) "\n"
-// predecessors % ("predecessor: " commit_id)
-// parents % (commit_id " is a parent of " super.commit_id)
+// "commit: " ++ short(commit_id) ++ "\n"
+// predecessors % ("predecessor: " ++ commit_id)
+// parents % (commit_id ++ " is a parent of " ++ super.commit_id)
 
 whitespace = _{ " " | "\n" }
 
@@ -41,7 +41,6 @@ formal_parameters = {
   | ""
 }
 
-// Note that "x(y)" is a function call but "x (y)" concatenates "x" and "y"
 primary = _{
   ("(" ~ whitespace* ~ template ~ whitespace* ~ ")")
   | function
@@ -55,7 +54,7 @@ term = {
 }
 
 list = _{
-  term ~ (whitespace+ ~ term)+
+  term ~ (whitespace* ~ "++" ~ whitespace* ~ term)+
 }
 
 template = { list | term }

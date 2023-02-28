@@ -11,7 +11,7 @@ label(if(current_working_copy, "working_copy"),
   concat(
     separate(" ",
       if(divergent,
-        label("divergent", format_short_change_id(change_id) "??"),
+        label("divergent", format_short_change_id(change_id) ++ "??"),
         format_short_change_id(change_id)),
       format_short_signature(author),
       format_timestamp(committer.timestamp()),
@@ -21,11 +21,11 @@ label(if(current_working_copy, "working_copy"),
       git_head,
       format_short_commit_id(commit_id),
       if(conflict, label("conflict", "conflict")),
-    ) "\n",
+    ) ++ "\n",
     separate(" ",
       if(empty, label("empty", "(empty)")),
       if(description, description.first_line(), description_placeholder),
-    ) "\n",
+    ) ++ "\n",
   ),
 )
 '''
@@ -37,8 +37,8 @@ label(if(current_operation, "current_operation"),
       id.short(),
       user,
       format_time_range(time),
-    ) "\n",
-    description.first_line() "\n",
+    ) ++ "\n",
+    description.first_line() ++ "\n",
     tags,
   ),
 )
@@ -56,19 +56,19 @@ show = 'show'
 'format_short_commit_id(id)' = 'format_short_id(id)'
 'format_short_signature(signature)' = 'signature.email()'
 'format_time_range(time_range)' = '''
-  time_range.start().ago() label("time", ", lasted ") time_range.duration()'''
+  time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp'
 
 # TODO: Add branches, tags, etc
 # TODO: Indent the description like Git does
 'show' = '''
 concat(
-  "Commit ID: " commit_id "\n",
-  "Change ID: " change_id "\n",
-  "Author: " author " (" format_timestamp(author.timestamp()) ")\n",
-  "Committer: " committer " (" format_timestamp(committer.timestamp()) ")\n",
+  "Commit ID: " ++ commit_id ++ "\n",
+  "Change ID: " ++ change_id ++ "\n",
+  "Author: " ++ author ++ " (" ++ format_timestamp(author.timestamp()) ++ ")\n",
+  "Committer: " ++ committer ++ " (" ++ format_timestamp(committer.timestamp()) ++ ")\n",
   "\n",
-  if(description, description, description_placeholder "\n"),
+  if(description, description, description_placeholder ++ "\n"),
   "\n",
 )
 '''

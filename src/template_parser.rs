@@ -1254,16 +1254,16 @@ mod tests {
     #[test]
     fn test_parse_tree_eq() {
         assert_eq!(
-            normalize_tree(parse_template(r#" commit_id.short(1 )  description"#).unwrap()),
-            normalize_tree(parse_template(r#"commit_id.short( 1 ) (description)"#).unwrap()),
+            normalize_tree(parse_template(r#" commit_id.short(1 )  ++ description"#).unwrap()),
+            normalize_tree(parse_template(r#"commit_id.short( 1 )++(description)"#).unwrap()),
         );
         assert_ne!(
             normalize_tree(parse_template(r#" "ab" "#).unwrap()),
-            normalize_tree(parse_template(r#" "a" "b" "#).unwrap()),
+            normalize_tree(parse_template(r#" "a" ++ "b" "#).unwrap()),
         );
         assert_ne!(
-            normalize_tree(parse_template(r#" "foo" "0" "#).unwrap()),
-            normalize_tree(parse_template(r#" "foo" 0 "#).unwrap()),
+            normalize_tree(parse_template(r#" "foo" ++ "0" "#).unwrap()),
+            normalize_tree(parse_template(r#" "foo" ++ 0 "#).unwrap()),
         );
     }
 
@@ -1335,24 +1335,24 @@ mod tests {
     #[test]
     fn test_expand_symbol_alias() {
         assert_eq!(
-            with_aliases([("AB", "a b")])
-                .parse_normalized("AB c")
+            with_aliases([("AB", "a ++ b")])
+                .parse_normalized("AB ++ c")
                 .unwrap(),
-            parse_normalized("(a b) c").unwrap(),
+            parse_normalized("(a ++ b) ++ c").unwrap(),
         );
         assert_eq!(
-            with_aliases([("AB", "a b")])
+            with_aliases([("AB", "a ++ b")])
                 .parse_normalized("if(AB, label(c, AB))")
                 .unwrap(),
-            parse_normalized("if((a b), label(c, (a b)))").unwrap(),
+            parse_normalized("if((a ++ b), label(c, (a ++ b)))").unwrap(),
         );
 
         // Multi-level substitution.
         assert_eq!(
-            with_aliases([("A", "BC"), ("BC", "b C"), ("C", "c")])
+            with_aliases([("A", "BC"), ("BC", "b ++ C"), ("C", "c")])
                 .parse_normalized("A")
                 .unwrap(),
-            parse_normalized("b c").unwrap(),
+            parse_normalized("b ++ c").unwrap(),
         );
 
         // Method receiver and arguments should be expanded.
@@ -1375,7 +1375,7 @@ mod tests {
             TemplateParseErrorKind::BadAliasExpansion("A".to_owned()),
         );
         assert_eq!(
-            with_aliases([("A", "B"), ("B", "b C"), ("C", "c B")])
+            with_aliases([("A", "B"), ("B", "b ++ C"), ("C", "c ++ B")])
                 .parse("A")
                 .unwrap_err()
                 .kind,
@@ -1404,48 +1404,48 @@ mod tests {
             parse_normalized("a").unwrap(),
         );
         assert_eq!(
-            with_aliases([("F( x, y )", "x y")])
+            with_aliases([("F( x, y )", "x ++ y")])
                 .parse_normalized("F(a, b)")
                 .unwrap(),
-            parse_normalized("a b").unwrap(),
+            parse_normalized("a ++ b").unwrap(),
         );
 
         // Arguments should be resolved in the current scope.
         assert_eq!(
             with_aliases([("F(x,y)", "if(x, y)")])
-                .parse_normalized("F(a y, b x)")
+                .parse_normalized("F(a ++ y, b ++ x)")
                 .unwrap(),
-            parse_normalized("if((a y), (b x))").unwrap(),
+            parse_normalized("if((a ++ y), (b ++ x))").unwrap(),
         );
-        // F(a) -> if(G(a), y) -> if((x a), y)
+        // F(a) -> if(G(a), y) -> if((x ++ a), y)
         assert_eq!(
-            with_aliases([("F(x)", "if(G(x), y)"), ("G(y)", "x y")])
+            with_aliases([("F(x)", "if(G(x), y)"), ("G(y)", "x ++ y")])
                 .parse_normalized("F(a)")
                 .unwrap(),
-            parse_normalized("if((x a), y)").unwrap(),
+            parse_normalized("if((x ++ a), y)").unwrap(),
         );
-        // F(G(a)) -> F(x a) -> if(G(x a), y) -> if((x (x a)), y)
+        // F(G(a)) -> F(x ++ a) -> if(G(x ++ a), y) -> if((x ++ (x ++ a)), y)
         assert_eq!(
-            with_aliases([("F(x)", "if(G(x), y)"), ("G(y)", "x y")])
+            with_aliases([("F(x)", "if(G(x), y)"), ("G(y)", "x ++ y")])
                 .parse_normalized("F(G(a))")
                 .unwrap(),
-            parse_normalized("if((x (x a)), y)").unwrap(),
+            parse_normalized("if((x ++ (x ++ a)), y)").unwrap(),
         );
 
         // Function parameter should precede the symbol alias.
         assert_eq!(
             with_aliases([("F(X)", "X"), ("X", "x")])
-                .parse_normalized("F(a) X")
+                .parse_normalized("F(a) ++ X")
                 .unwrap(),
-            parse_normalized("a x").unwrap(),
+            parse_normalized("a ++ x").unwrap(),
         );
 
         // Function parameter shouldn't be expanded in symbol alias.
         assert_eq!(
-            with_aliases([("F(x)", "x A"), ("A", "x")])
+            with_aliases([("F(x)", "x ++ A"), ("A", "x")])
                 .parse_normalized("F(a)")
                 .unwrap(),
-            parse_normalized("a x").unwrap(),
+            parse_normalized("a ++ x").unwrap(),
         );
 
         // Function and symbol aliases reside in separate namespaces.
@@ -1474,7 +1474,7 @@ mod tests {
             TemplateParseErrorKind::InvalidArgumentCountExact(1),
         );
         assert_eq!(
-            with_aliases([("F(x,y)", "x y")])
+            with_aliases([("F(x,y)", "x ++ y")])
                 .parse("F(a,b,c)")
                 .unwrap_err()
                 .kind,

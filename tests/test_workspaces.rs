@@ -342,7 +342,7 @@ fn test_list_workspaces_template() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
     test_env.add_config(
         r#"
-        templates.commit_summary = """commit_id.short() " " description.first_line()
+        templates.commit_summary = """commit_id.short() ++ " " ++ description.first_line() ++
                                       if(current_working_copy, " (current)")"""
         "#,
     );

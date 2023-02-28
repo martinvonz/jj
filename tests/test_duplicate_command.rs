@@ -322,12 +322,13 @@ fn test_rebase_duplicates() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    let template = r#"commit_id.short() "   " description.first_line()"#;
+    let template = r#"commit_id.short() ++ "   " ++ description.first_line()"#;
     test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }
 
 fn get_log_output_with_ts(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    let template =
-        r#"commit_id.short() "   " description.first_line() " @ " committer.timestamp()"#;
+    let template = r###"
+    commit_id.short() ++ "   " ++ description.first_line() ++ " @ " ++ committer.timestamp()
+    "###;
     test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }

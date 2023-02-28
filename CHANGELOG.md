@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `format_time_range()` template alias instead. For details, see
   [the documentation](docs/config.md).
 
+* Implicit concatenation of template expressions has been disabled. Use
+  `++` operator, `concat()`, or `separate()` function instead.
+  Example: `description ++ "\n"`
+
 ### New features
 
 * `jj git push --deleted` will remove all locally deleted branches from the remote.

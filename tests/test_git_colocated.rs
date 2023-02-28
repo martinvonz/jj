@@ -312,7 +312,7 @@ fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> St
 }
 
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
-    let template = r#"commit_id " " branches"#;
+    let template = r#"commit_id ++ " " ++ branches"#;
     test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
