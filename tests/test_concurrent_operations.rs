@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -69,8 +71,7 @@ fn test_concurrent_operations_auto_rebase() {
     );
 
     // We should be informed about the concurrent modification
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id \" \" description"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     Concurrent modification detected, resolving automatically.
     Rebased 1 descendant commits onto commits rewritten by other operation
     o  3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
@@ -101,8 +102,7 @@ fn test_concurrent_operations_wc_modified() {
     std::fs::write(repo_path.join("file"), "modified\n").unwrap();
 
     // We should be informed about the concurrent modification
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id \" \" description"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     Concurrent modification detected, resolving automatically.
     @  4eb0610031b7cd148ff9f729a673a3f815033170 new child1
     │ o  4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
@@ -135,4 +135,9 @@ fn test_concurrent_operations_wc_modified() {
     o  add workspace 'default'
     o  initialize repo
     "###);
+}
+
+fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
+    let template = r#"commit_id " " description"#;
+    test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }

@@ -64,16 +64,8 @@ fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, paren
 }
 
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
-    test_env.jj_cmd_success(
-        workspace_root,
-        &[
-            "log",
-            "-T",
-            r#"commit_id.short() " " description.first_line() " " branches"#,
-            "-r",
-            "all()",
-        ],
-    )
+    let template = r#"commit_id.short() " " description.first_line() " " branches"#;
+    test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r", "all()"])
 }
 
 #[test]

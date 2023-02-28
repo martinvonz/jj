@@ -102,5 +102,6 @@ fn test_branch_forget_glob() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    test_env.jj_cmd_success(cwd, &["log", "-T", r#"branches " " commit_id.short()"#])
+    let template = r#"branches " " commit_id.short()"#;
+    test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }

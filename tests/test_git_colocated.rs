@@ -292,28 +292,28 @@ fn test_git_colocated_squash_undo() {
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
     o  qpvuntsmwlqt 2f376ea1478c A master !divergence!
     │ @  rlvkpnrzqnoo 8f71e3b6a3be
-    │ o  qpvuntsmwlqt a86754f975f9 A  !divergence!
+    │ o  qpvuntsmwlqt a86754f975f9 A !divergence!
     ├─╯
     o  zzzzzzzzzzzz 000000000000
     "###);
 }
 
 fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(
-        repo_path,
-        &[
-            "log",
-            "-T",
-            r#"change_id.short() " " commit_id.short() " " description.first_line() " " branches if(divergent, " !divergence!")"#,
-        ],
+    let template = r###"
+    separate(" ",
+      change_id.short(),
+      commit_id.short(),
+      description.first_line(),
+      branches,
+      if(divergent, "!divergence!"),
     )
+    "###;
+    test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }
 
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
-    test_env.jj_cmd_success(
-        workspace_root,
-        &["log", "-T", "commit_id \" \" branches", "-r=all()"],
-    )
+    let template = r#"commit_id " " branches"#;
+    test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
 #[test]
