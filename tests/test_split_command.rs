@@ -136,6 +136,6 @@ fn test_split_by_paths() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r#"change_id.short() " " empty"#;
+    let template = r#"change_id.short() ++ " " ++ empty"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }

@@ -320,7 +320,7 @@ fn test_move_partial() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r#"commit_id.short() " " branches"#;
+    let template = r#"commit_id.short() ++ " " ++ branches"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
 

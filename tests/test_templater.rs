@@ -63,7 +63,7 @@ fn test_templater_branches() {
     test_env.jj_cmd_success(&origin_path, &["git", "export"]);
     test_env.jj_cmd_success(&workspace_root, &["git", "fetch"]);
 
-    let template = r#"commit_id.short() " " branches"#;
+    let template = r#"commit_id.short() ++ " " ++ branches"#;
     let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
     insta::assert_snapshot!(output, @r###"
     o  b1bb3766d584 branch3??
@@ -90,13 +90,13 @@ fn test_templater_parsed_tree() {
     insta::assert_snapshot!(render(r#"  commit_id.short()  "#), @"000000000000");
 
     // Multiple terms
-    insta::assert_snapshot!(render(r#"  commit_id.short()  empty "#), @"000000000000true");
+    insta::assert_snapshot!(render(r#"  commit_id.short()  ++ empty "#), @"000000000000true");
 
     // Parenthesized single term
     insta::assert_snapshot!(render(r#"(commit_id.short())"#), @"000000000000");
 
     // Parenthesized multiple terms and concatenation
-    insta::assert_snapshot!(render(r#"(commit_id.short() " ") empty"#), @"000000000000 true");
+    insta::assert_snapshot!(render(r#"(commit_id.short() ++ " ") ++ empty"#), @"000000000000 true");
 
     // Parenthesized "if" condition
     insta::assert_snapshot!(render(r#"if((divergent), "t", "f")"#), @"f");
@@ -113,12 +113,12 @@ fn test_templater_parse_error() {
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
 
     insta::assert_snapshot!(render_err(r#"description ()"#), @r###"
-    Error: Failed to parse template:  --> 1:14
+    Error: Failed to parse template:  --> 1:13
       |
     1 | description ()
-      |              ^---
+      |             ^---
       |
-      = expected template
+      = expected EOI
     "###);
 
     insta::assert_snapshot!(render_err(r#"foo"#), @r###"
@@ -165,11 +165,11 @@ fn test_templater_parse_error() {
       = Method "foo" doesn't exist for type "Integer"
     "###);
 
-    insta::assert_snapshot!(render_err(r#"("foo" "bar").baz()"#), @r###"
-    Error: Failed to parse template:  --> 1:15
+    insta::assert_snapshot!(render_err(r#"("foo" ++ "bar").baz()"#), @r###"
+    Error: Failed to parse template:  --> 1:18
       |
-    1 | ("foo" "bar").baz()
-      |               ^-^
+    1 | ("foo" ++ "bar").baz()
+      |                  ^-^
       |
       = Method "baz" doesn't exist for type "Template"
     "###);
@@ -370,8 +370,8 @@ fn test_templater_separate_function() {
         @"[38;5;3ma[39m b");
 
     // List template
-    insta::assert_snapshot!(render(r#"separate(" ", "a", ("" ""))"#), @"a");
-    insta::assert_snapshot!(render(r#"separate(" ", "a", ("" "b"))"#), @"a b");
+    insta::assert_snapshot!(render(r#"separate(" ", "a", ("" ++ ""))"#), @"a");
+    insta::assert_snapshot!(render(r#"separate(" ", "a", ("" ++ "b"))"#), @"a b");
 
     // Nested separate
     insta::assert_snapshot!(
@@ -408,10 +408,10 @@ fn test_templater_upper_lower() {
     let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
     insta::assert_snapshot!(
-      render(r#"change_id.shortest(4).upper() change_id.shortest(4).upper().lower()"#),
+      render(r#"change_id.shortest(4).upper() ++ change_id.shortest(4).upper().lower()"#),
       @"[1m[38;5;5mZ[0m[38;5;8mZZZ[39m[1m[38;5;5mz[0m[38;5;8mzzz[39m");
     insta::assert_snapshot!(
-      render(r#""Hello".upper() "Hello".lower()"#), @"HELLOhello");
+      render(r#""Hello".upper() ++ "Hello".lower()"#), @"HELLOhello");
 }
 
 #[test]
@@ -439,11 +439,11 @@ fn test_templater_alias() {
     insta::assert_snapshot!(render("my_commit_id"), @"000000000000");
     insta::assert_snapshot!(render("identity(my_commit_id)"), @"000000000000");
 
-    insta::assert_snapshot!(render_err("commit_id syntax_error"), @r###"
-    Error: Failed to parse template:  --> 1:11
+    insta::assert_snapshot!(render_err("commit_id ++ syntax_error"), @r###"
+    Error: Failed to parse template:  --> 1:14
       |
-    1 | commit_id syntax_error
-      |           ^----------^
+    1 | commit_id ++ syntax_error
+      |              ^----------^
       |
       = Alias "syntax_error" cannot be expanded
      --> 1:5
@@ -454,11 +454,11 @@ fn test_templater_alias() {
       = expected identifier
     "###);
 
-    insta::assert_snapshot!(render_err("commit_id name_error"), @r###"
-    Error: Failed to parse template:  --> 1:11
+    insta::assert_snapshot!(render_err("commit_id ++ name_error"), @r###"
+    Error: Failed to parse template:  --> 1:14
       |
-    1 | commit_id name_error
-      |           ^--------^
+    1 | commit_id ++ name_error
+      |              ^--------^
       |
       = Alias "name_error" cannot be expanded
      --> 1:1
@@ -490,11 +490,11 @@ fn test_templater_alias() {
       = Expected argument of type "Integer"
     "###);
 
-    insta::assert_snapshot!(render_err("commit_id recurse"), @r###"
-    Error: Failed to parse template:  --> 1:11
+    insta::assert_snapshot!(render_err("commit_id ++ recurse"), @r###"
+    Error: Failed to parse template:  --> 1:14
       |
-    1 | commit_id recurse
-      |           ^-----^
+    1 | commit_id ++ recurse
+      |              ^-----^
       |
       = Alias "recurse" cannot be expanded
      --> 1:1

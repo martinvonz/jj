@@ -233,7 +233,7 @@ fn test_squash_partial() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    let template = r#"commit_id.short() " " branches"#;
+    let template = r#"commit_id.short() ++ " " ++ branches"#;
     test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }
 

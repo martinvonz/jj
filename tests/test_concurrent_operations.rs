@@ -138,6 +138,6 @@ fn test_concurrent_operations_wc_modified() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r#"commit_id " " description"#;
+    let template = r#"commit_id ++ " " ++ description"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
