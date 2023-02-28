@@ -35,7 +35,9 @@ use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::revset::{RevsetAliasesMap, RevsetExpression, RevsetIteratorExt};
+use jujutsu_lib::revset::{
+    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt,
+};
 use jujutsu_lib::revset_graph_iterator::{
     RevsetGraphEdge, RevsetGraphEdgeType, RevsetGraphIterator,
 };
@@ -1411,13 +1413,20 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         workspace_command.parse_revset(args.revisions.as_deref().unwrap_or(&default_revset))?;
     let repo = workspace_command.repo();
     let wc_commit_id = workspace_command.get_wc_commit_id();
+    let revset_expression = if !args.paths.is_empty() {
+        let repo_paths: Vec<_> = args
+            .paths
+            .iter()
+            .map(|path_arg| workspace_command.parse_file_path(path_arg))
+            .try_collect()?;
+        revset_expression.intersection(&RevsetExpression::filter(RevsetFilterPredicate::File(
+            Some(repo_paths),
+        )))
+    } else {
+        revset_expression
+    };
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let revset = workspace_command.evaluate_revset(&revset_expression)?;
-    let revset = if !args.paths.is_empty() {
-        revset::filter_by_diff(repo, matcher.as_ref(), revset)
-    } else {
-        revset
-    };
 
     let store = repo.store();
     let diff_formats =

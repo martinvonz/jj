@@ -17,13 +17,12 @@ use std::path::Path;
 use assert_matches::assert_matches;
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jujutsu_lib::git;
-use jujutsu_lib::matchers::{FilesMatcher, Matcher};
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    self, optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,
-    RevsetIteratorExt, RevsetWorkspaceContext,
+    optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,
+    RevsetFilterPredicate, RevsetIteratorExt, RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::workspace::Workspace;
@@ -1906,7 +1905,7 @@ fn test_evaluate_expression_difference(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_filter_by_diff(use_git: bool) {
+fn test_filter_by_file(use_git: bool) {
     let settings = testutils::user_settings();
     let test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
@@ -1962,15 +1961,12 @@ fn test_filter_by_diff(use_git: bool) {
         .write()
         .unwrap();
 
-    // matcher API:
     let resolve = |file_path: &RepoPath| -> Vec<CommitId> {
         let mut_repo = &*mut_repo;
-        let matcher = FilesMatcher::new(&[file_path.clone()]);
-        let candidates = RevsetExpression::all().evaluate(mut_repo, None).unwrap();
-        let commit_ids = revset::filter_by_diff(mut_repo, &matcher as &dyn Matcher, candidates)
-            .iter()
-            .commit_ids()
-            .collect();
+        let expression =
+            RevsetExpression::filter(RevsetFilterPredicate::File(Some(vec![file_path.clone()])));
+        let revset = expression.evaluate(mut_repo, None).unwrap();
+        let commit_ids = revset.iter().commit_ids().collect();
         commit_ids
     };
 

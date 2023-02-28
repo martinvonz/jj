@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Borrow;
 use std::cmp::{Ordering, Reverse};
 use std::collections::{HashMap, HashSet};
 use std::iter::Peekable;
@@ -2210,17 +2209,6 @@ fn build_predicate_fn<'index>(
             Box::new(move |entry| has_diff_from_parent(repo, entry, matcher.as_ref()))
         }
     }
-}
-
-pub fn filter_by_diff<'index>(
-    repo: &'index dyn Repo,
-    matcher: impl Borrow<dyn Matcher + 'index> + 'index,
-    candidates: Box<dyn Revset<'index> + 'index>,
-) -> Box<dyn Revset<'index> + 'index> {
-    Box::new(FilterRevset::<PurePredicateFn> {
-        candidates,
-        predicate: Box::new(move |entry| has_diff_from_parent(repo, entry, matcher.borrow())),
-    })
 }
 
 fn has_diff_from_parent(repo: &dyn Repo, entry: &IndexEntry<'_>, matcher: &dyn Matcher) -> bool {
