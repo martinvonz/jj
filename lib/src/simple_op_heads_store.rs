@@ -15,12 +15,10 @@
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use crate::lock::FileLock;
 use crate::op_heads_store::{OpHeadsStore, OpHeadsStoreLock};
-use crate::op_store;
-use crate::op_store::{OpStore, OperationId, OperationMetadata};
+use crate::op_store::OperationId;
 use crate::operation::Operation;
 
 pub struct SimpleOpHeadsStore {
@@ -36,26 +34,10 @@ impl Debug for SimpleOpHeadsStore {
 }
 
 impl SimpleOpHeadsStore {
-    pub fn init(
-        dir: &Path,
-        op_store: &Arc<dyn OpStore>,
-        root_view: &op_store::View,
-        operation_metadata: OperationMetadata,
-    ) -> (Self, Operation) {
-        let root_view_id = op_store.write_view(root_view).unwrap();
-        let init_operation = op_store::Operation {
-            view_id: root_view_id,
-            parents: vec![],
-            metadata: operation_metadata,
-        };
-        let init_operation_id = op_store.write_operation(&init_operation).unwrap();
-        let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
-
+    pub fn init(dir: &Path) -> Self {
         let op_heads_dir = dir.join("heads");
         fs::create_dir(&op_heads_dir).unwrap();
-        let op_heads_store = Self { dir: op_heads_dir };
-        op_heads_store.add_op_head(init_operation.id());
-        (op_heads_store, init_operation)
+        Self { dir: op_heads_dir }
     }
 
     pub fn load(dir: &Path) -> Self {

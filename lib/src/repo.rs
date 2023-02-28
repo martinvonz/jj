@@ -35,9 +35,7 @@ use crate::index::{
 use crate::index_store::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use crate::op_store::{
-    BranchTarget, OpStore, OperationId, OperationMetadata, RefTarget, WorkspaceId,
-};
+use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
 use crate::operation::Operation;
 use crate::refs::merge_ref_targets;
 use crate::rewrite::DescendantRebaser;
@@ -103,16 +101,10 @@ impl ReadonlyRepo {
         |store_path| Box::new(SimpleOpStore::init(store_path))
     }
 
-    pub fn default_op_heads_store_factory() -> impl FnOnce(
-        &Path,
-        &Arc<dyn OpStore>,
-        &op_store::View,
-        OperationMetadata,
-    ) -> (Box<dyn OpHeadsStore>, Operation) {
-        |store_path, op_store, view, operation_metadata| {
-            let (store, op) =
-                SimpleOpHeadsStore::init(store_path, op_store, view, operation_metadata);
-            (Box::new(store), op)
+    pub fn default_op_heads_store_factory() -> impl FnOnce(&Path) -> Box<dyn OpHeadsStore> {
+        |store_path| {
+            let store = SimpleOpHeadsStore::init(store_path);
+            Box::new(store)
         }
     }
 
@@ -121,12 +113,7 @@ impl ReadonlyRepo {
         repo_path: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
-        op_heads_store_factory: impl FnOnce(
-            &Path,
-            &Arc<dyn OpStore>,
-            &op_store::View,
-            OperationMetadata,
-        ) -> (Box<dyn OpHeadsStore>, Operation),
+        op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
     ) -> Result<Arc<ReadonlyRepo>, PathError> {
         let repo_path = repo_path.canonicalize().context(repo_path)?;
 
@@ -143,7 +130,7 @@ impl ReadonlyRepo {
         let op_store = op_store_factory(&op_store_path);
         let op_store_type_path = op_store_path.join("type");
         fs::write(&op_store_type_path, op_store.name()).context(&op_store_type_path)?;
-        let op_store = Arc::from(op_store);
+        let op_store: Arc<dyn OpStore> = Arc::from(op_store);
 
         let mut root_view = op_store::View::default();
         root_view.head_ids.insert(store.root_commit_id().clone());
@@ -155,8 +142,16 @@ impl ReadonlyRepo {
         fs::create_dir(&op_heads_path).context(&op_heads_path)?;
         let operation_metadata =
             crate::transaction::create_op_metadata(user_settings, "initialize repo".to_string());
-        let (op_heads_store, init_op) =
-            op_heads_store_factory(&op_heads_path, &op_store, &root_view, operation_metadata);
+        let root_view_id = op_store.write_view(&root_view).unwrap();
+        let init_operation = op_store::Operation {
+            view_id: root_view_id,
+            parents: vec![],
+            metadata: operation_metadata,
+        };
+        let init_operation_id = op_store.write_operation(&init_operation).unwrap();
+        let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
+        let op_heads_store = op_heads_store_factory(&op_heads_path);
+        op_heads_store.add_op_head(init_operation.id());
         let op_heads_type_path = op_heads_path.join("type");
         fs::write(&op_heads_type_path, op_heads_store.name()).context(&op_heads_type_path)?;
         let op_heads_store = Arc::from(op_heads_store);
@@ -171,7 +166,7 @@ impl ReadonlyRepo {
             store,
             op_store,
             op_heads_store,
-            operation: init_op,
+            operation: init_operation,
             settings: repo_settings,
             index_store,
             index: OnceCell::new(),
