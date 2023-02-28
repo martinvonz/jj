@@ -89,5 +89,6 @@ fn test_commit_without_working_copy() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    test_env.jj_cmd_success(cwd, &["log", "-T", r#"commit_id.short() " " description"#])
+    let template = r#"commit_id.short() " " description"#;
+    test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }

@@ -100,5 +100,6 @@ fn test_checkout_not_single_rev() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    test_env.jj_cmd_success(cwd, &["log", "-T", r#"commit_id " " description"#])
+    let template = r#"commit_id " " description"#;
+    test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }

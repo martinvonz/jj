@@ -43,15 +43,8 @@ fn test_log_author_timestamp_ago() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
 
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "--no-graph",
-            "-T",
-            r#"author.timestamp().ago() "\\n""#,
-        ],
-    );
+    let template = r#"author.timestamp().ago() "\n""#;
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-T", template]);
     let line_re = Regex::new(r"[0-9]+ years ago").unwrap();
     assert!(
         stdout.lines().all(|x| line_re.is_match(x)),
@@ -184,7 +177,7 @@ fn test_log_customize_short_id() {
         &[
             "log",
             "--config-toml",
-            &format!("{decl}='id.shortest(5).prefix().upper() \"_\" id.shortest(5).rest()'"),
+            &format!(r#"{decl}='id.shortest(5).prefix().upper() "_" id.shortest(5).rest()'"#),
         ],
     );
     insta::assert_snapshot!(stdout, @r###"

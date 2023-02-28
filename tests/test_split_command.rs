@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 pub mod common;
@@ -26,10 +28,9 @@ fn test_split_by_paths() {
     std::fs::write(repo_path.join("file2"), "foo").unwrap();
     std::fs::write(repo_path.join("file3"), "foo").unwrap();
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "change_id.short()"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsmwlqt
-    o  zzzzzzzzzzzz
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  qpvuntsmwlqt false
+    o  zzzzzzzzzzzz true
     "###);
 
     let edit_script = test_env.set_up_fake_editor();
@@ -64,11 +65,10 @@ fn test_split_by_paths() {
     JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "change_id.short()"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @  kkmpptxzrspx
-    o  qpvuntsmwlqt
-    o  zzzzzzzzzzzz
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  kkmpptxzrspx false
+    o  qpvuntsmwlqt false
+    o  zzzzzzzzzzzz true
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -91,9 +91,7 @@ fn test_split_by_paths() {
     Working copy now at: 28d4ec20efa9 (no description set)
     "###);
 
-    let stdout =
-        test_env.jj_cmd_success(&repo_path, &["log", "-T", r#"change_id.short() " " empty"#]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  kkmpptxzrspx false
     o  yqosqzytrlsw true
     o  qpvuntsmwlqt false
@@ -124,9 +122,7 @@ fn test_split_by_paths() {
     The given paths do not match any file: nonexistent
     "###);
 
-    let stdout =
-        test_env.jj_cmd_success(&repo_path, &["log", "-T", r#"change_id.short() " " empty"#]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  kkmpptxzrspx false
     o  kpqxywonksrl false
     o  qpvuntsmwlqt true
@@ -137,4 +133,9 @@ fn test_split_by_paths() {
     insta::assert_snapshot!(stdout, @r###"
     A file2
     "###);
+}
+
+fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
+    let template = r#"change_id.short() " " empty"#;
+    test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }

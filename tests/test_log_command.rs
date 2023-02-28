@@ -363,10 +363,15 @@ fn test_log_prefix_highlight_styled() {
 
     fn prefix_format(len: Option<usize>) -> String {
         format!(
-            r#"
-      "Change " change_id.shortest({0}) " " description.first_line()
-      " " commit_id.shortest({0}) " " branches
-    "#,
+            r###"
+            separate(" ",
+              "Change",
+              change_id.shortest({0}),
+              description.first_line(),
+              commit_id.shortest({0}),
+              branches,
+            )
+            "###,
             len.map(|l| l.to_string()).unwrap_or(String::default())
         )
     }
@@ -424,7 +429,7 @@ fn test_log_prefix_highlight_styled() {
     o  Change [1m[38;5;5mro[0m[38;5;8myxmykxtrkr[39m commit2 [1m[38;5;4m1f[0m[38;5;8m99a5e19891[39m
     o  Change [1m[38;5;5mmz[0m[38;5;8mvwutvlkqwt[39m commit1 [1m[38;5;4m7b[0m[38;5;8m1f7dee65b4[39m
     o  Change [1m[38;5;5mqpv[0m[38;5;8muntsmwlqt[39m initial [1m[38;5;4mba1[0m[38;5;8ma30916d29[39m [38;5;5moriginal[39m
-    o  Change [1m[38;5;5mzzz[0m[38;5;8mzzzzzzzzz[39m  [1m[38;5;4m00[0m[38;5;8m0000000000[39m
+    o  Change [1m[38;5;5mzzz[0m[38;5;8mzzzzzzzzz[39m [1m[38;5;4m00[0m[38;5;8m0000000000[39m
     "###
     );
     let stdout = test_env.jj_cmd_success(
@@ -450,7 +455,7 @@ fn test_log_prefix_highlight_styled() {
     o  Change [1m[38;5;5mro[0m[38;5;8my[39m commit2 [1m[38;5;4m1f[0m[38;5;8m9[39m
     o  Change [1m[38;5;5mmz[0m[38;5;8mv[39m commit1 [1m[38;5;4m7b[0m[38;5;8m1[39m
     o  Change [1m[38;5;5mqpv[0m initial [1m[38;5;4mba1[0m [38;5;5moriginal[39m
-    o  Change [1m[38;5;5mzzz[0m  [1m[38;5;4m00[0m[38;5;8m0[39m
+    o  Change [1m[38;5;5mzzz[0m [1m[38;5;4m00[0m[38;5;8m0[39m
     "###
     );
     let stdout = test_env.jj_cmd_success(
@@ -476,7 +481,7 @@ fn test_log_prefix_highlight_styled() {
     o  Change [1m[38;5;5mro[0m commit2 [1m[38;5;4m1f[0m
     o  Change [1m[38;5;5mmz[0m commit1 [1m[38;5;4m7b[0m
     o  Change [1m[38;5;5mqpv[0m initial [1m[38;5;4mba1[0m [38;5;5moriginal[39m
-    o  Change [1m[38;5;5mzzz[0m  [1m[38;5;4m00[0m
+    o  Change [1m[38;5;5mzzz[0m [1m[38;5;4m00[0m
     "###
     );
 }
@@ -493,10 +498,15 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
         "###,
     );
 
-    let prefix_format = r#"
-      "Change " format_id(change_id) " " description.first_line()
-      " " format_id(commit_id) " " branches
-    "#;
+    let prefix_format = r###"
+    separate(" ",
+      "Change",
+      format_id(change_id),
+      description.first_line(),
+      format_id(commit_id),
+      branches,
+    )
+    "###;
 
     std::fs::write(repo_path.join("file"), "original file\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
@@ -505,7 +515,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
         @r###"
     @  Change q[pvuntsmwlqt] initial b[a1a30916d29] original
-    o  Change z[zzzzzzzzzzz]  0[00000000000]
+    o  Change z[zzzzzzzzzzz] 0[00000000000]
     "###
     );
 
@@ -520,10 +530,10 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-T", prefix_format]),
         @r###"
-    @  Change w[qnwkozpkust]  44[4c3c5066d3]
+    @  Change w[qnwkozpkust] 44[4c3c5066d3]
     │ o  Change q[pvuntsmwlqt] initial ba[1a30916d29] original
     ├─╯
-    o  Change z[zzzzzzzzzzz]  00[0000000000]
+    o  Change z[zzzzzzzzzzz] 00[0000000000]
     "###
     );
     insta::assert_snapshot!(
@@ -599,17 +609,11 @@ fn test_log_divergence() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    let template = r#"description.first_line() if(divergent, " !divergence!")"#;
 
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 1"]);
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "-T",
-            r#"description.first_line() if(divergent, " !divergence!")"#,
-        ],
-    );
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     // No divergence
     insta::assert_snapshot!(stdout, @r###"
     @  description 1
@@ -621,14 +625,7 @@ fn test_log_divergence() {
         &repo_path,
         &["describe", "-m", "description 2", "--at-operation", "@-"],
     );
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "-T",
-            r#"description.first_line() if(divergent, " !divergence!")"#,
-        ],
-    );
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
     o  description 2 !divergence!

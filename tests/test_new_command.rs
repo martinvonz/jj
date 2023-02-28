@@ -299,14 +299,8 @@ fn test_new_insert_before_no_loop() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     setup_before_insertion(&test_env, &repo_path);
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "-T",
-            r#"commit_id.short() " " if(description, description, "root")"#,
-        ],
-    );
+    let template = r#"commit_id.short() " " if(description, description, "root")"#;
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
     @    7705d353bf5d F
     ├─╮
@@ -409,12 +403,11 @@ fn setup_before_insertion(test_env: &TestEnvironment, repo_path: &Path) {
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["log", "-T", "commit_id \" \" description"])
+    let template = r#"commit_id " " description"#;
+    test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }
 
 fn get_short_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(
-        repo_path,
-        &["log", "-T", r#"if(description, description, "root")"#],
-    )
+    let template = r#"if(description, description, "root")"#;
+    test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }
