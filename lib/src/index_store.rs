@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::index::{MutableIndex, ReadonlyIndex};
+use crate::default_index_store::{MutableIndex, ReadonlyIndex};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::store::Store;
