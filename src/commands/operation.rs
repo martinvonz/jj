@@ -22,8 +22,9 @@ pub enum OperationCommands {
 /// Show the operation log
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationLogArgs {
-    /// Render each operation using the given template (the syntax is not yet
-    /// documented and is likely to change)
+    /// Render each operation using the given template
+    ///
+    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
     #[arg(long, short = 'T')]
     template: Option<String>,
 }

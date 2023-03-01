@@ -336,8 +336,9 @@ struct LogArgs {
     /// Don't show the graph, show a flat list of revisions
     #[arg(long)]
     no_graph: bool,
-    /// Render each revision using the given template (the syntax is not yet
-    /// documented and is likely to change)
+    /// Render each revision using the given template
+    ///
+    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
     #[arg(long, short = 'T')]
     template: Option<String>,
     /// Show patch
@@ -357,8 +358,9 @@ struct ObslogArgs {
     /// Don't show the graph, show a flat list of revisions
     #[arg(long)]
     no_graph: bool,
-    /// Render each revision using the given template (the syntax is not yet
-    /// documented and is likely to change)
+    /// Render each revision using the given template
+    ///
+    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
     #[arg(long, short = 'T')]
     template: Option<String>,
     /// Show patch compared to the previous version of this change
