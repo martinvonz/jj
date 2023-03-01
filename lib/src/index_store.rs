@@ -50,11 +50,6 @@ impl IndexStore {
         }
     }
 
-    pub fn reinit(&self) {
-        std::fs::remove_dir_all(self.dir.join("operations")).unwrap();
-        IndexStore::init(&self.dir);
-    }
-
     pub fn load(dir: &Path) -> IndexStore {
         IndexStore {
             dir: dir.to_owned(),
