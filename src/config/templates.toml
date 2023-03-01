@@ -1,7 +1,9 @@
 [templates]
 commit_summary = '''
-format_short_commit_id(commit_id) " "
-if(description, description.first_line(), description_placeholder)
+separate(" ",
+  format_short_commit_id(commit_id),
+  if(description, description.first_line(), description_placeholder),
+)
 '''
 
 log = '''
@@ -20,8 +22,10 @@ label(if(current_working_copy, "working_copy"),
     if(conflict, label("conflict", "conflict")),
   )
   "\n"
-  if(empty, label("empty", "(empty)") " ")
-  if(description, description.first_line(), description_placeholder)
+  separate(" ",
+    if(empty, label("empty", "(empty)")),
+    if(description, description.first_line(), description_placeholder),
+  )
   "\n"
 )
 '''
