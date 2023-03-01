@@ -28,11 +28,12 @@ use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, O
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
+use crate::default_index_store::DefaultIndexStore;
 use crate::git_backend::GitBackend;
 use crate::index::{
     HexPrefix, Index, IndexEntry, IndexPosition, MutableIndex, PrefixResolution, ReadonlyIndex,
 };
-use crate::index_store::{DefaultIndexStore, IndexStore};
+use crate::index_store::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
