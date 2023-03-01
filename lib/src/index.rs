@@ -13,9 +13,35 @@
 // limitations under the License.
 
 use std::fmt::Debug;
+use std::sync::Arc;
+
+use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
-use crate::default_index_store::{IndexEntry, IndexPosition, IndexStats, RevWalk};
+use crate::default_index_store::{
+    IndexEntry, IndexPosition, IndexStats, MutableIndex, ReadonlyIndex, RevWalk,
+};
+use crate::op_store::OperationId;
+use crate::operation::Operation;
+use crate::store::Store;
+
+#[derive(Debug, Error)]
+pub enum IndexWriteError {
+    #[error("{0}")]
+    Other(String),
+}
+
+pub trait IndexStore: Send + Sync + Debug {
+    fn name(&self) -> &str;
+
+    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex>;
+
+    fn write_index(
+        &self,
+        index: MutableIndex,
+        op_id: &OperationId,
+    ) -> Result<Arc<ReadonlyIndex>, IndexWriteError>;
+}
 
 pub trait Index {
     fn num_commits(&self) -> u32;

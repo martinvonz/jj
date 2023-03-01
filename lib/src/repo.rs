@@ -32,8 +32,7 @@ use crate::default_index_store::{
     DefaultIndexStore, IndexEntry, IndexPosition, MutableIndex, ReadonlyIndex,
 };
 use crate::git_backend::GitBackend;
-use crate::index::{HexPrefix, Index, PrefixResolution};
-use crate::index_store::IndexStore;
+use crate::index::{HexPrefix, Index, IndexStore, PrefixResolution};
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};

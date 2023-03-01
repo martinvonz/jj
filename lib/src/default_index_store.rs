@@ -33,8 +33,7 @@ use thiserror::Error;
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::index::{HexPrefix, Index, PrefixResolution};
-use crate::index_store::{IndexStore, IndexWriteError};
+use crate::index::{HexPrefix, Index, IndexStore, IndexWriteError, PrefixResolution};
 #[cfg(not(feature = "map_first_last"))]
 // This import is used on Rust 1.61, but not on recent version.
 // TODO: Remove it when our MSRV becomes recent enough.
