@@ -27,11 +27,10 @@ a comparison with Git, including how workflows are different, see the
   and [how they interoperate with Git](#branches).
 * **Tags: Partial.** You can check out tagged commits by name (pointed to be
   either annotated or lightweight tags), but you cannot create new tags.
-* **.gitignore: Partial.** No support for ignores in `.git/info/exclude`
-  ([#65](https://github.com/martinvonz/jj/issues/65)) or via `core.excludesfile`
-  config ([#87](https://github.com/martinvonz/jj/issues/87)). Also, it uses a
-  native implementation, so please report a bug if you notice any difference
-  compared to `git`.  
+* **.gitignore: Yes.** Ignores in `.gitignore` files are supported. So are
+  ignores in `.git/info/exclude` or configured via Git's `core.excludesfile`
+  config. The `.gitignore` support uses a native implementation, so please
+  report a bug if you notice any difference compared to `git`.  
 * **.gitattributes: No.** There's [#53](https://github.com/martinvonz/jj/issues/53)
   about adding support for at least the `eol` attribute.
 * **Hooks: No.** There's [#405](https://github.com/martinvonz/jj/issues/405)
