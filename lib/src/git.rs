@@ -389,7 +389,9 @@ pub fn fetch(
     fetch_options.proxy_options(proxy_options);
     let callbacks = callbacks.into_git();
     fetch_options.remote_callbacks(callbacks);
-    let refspecs = if let Some(globs) = branch_name_globs {
+    let refspecs = {
+        // If no globs have been given, import all branches
+        let globs = branch_name_globs.unwrap_or(&["*"]);
         if globs.iter().any(|g| g.contains(|c| ":^".contains(c))) {
             return Err(GitFetchError::InvalidGlob);
         }
@@ -399,8 +401,6 @@ pub fn fetch(
             .iter()
             .map(|glob| format!("+refs/heads/{glob}:refs/remotes/{remote_name}/{glob}"))
             .collect_vec()
-    } else {
-        vec![]
     };
     tracing::debug!("remote.download");
     remote.download(&refspecs, Some(&mut fetch_options))?;
