@@ -21,7 +21,7 @@ use thiserror::Error;
 
 use crate::backend::Backend;
 use crate::git_backend::GitBackend;
-use crate::index_store::IndexStore;
+use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OpStore, WorkspaceId};
