@@ -31,8 +31,9 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, CommitId, ObjectId};
 use crate::commit::Commit;
+use crate::default_index_store::IndexEntry;
 use crate::hex_util::to_forward_hex;
-use crate::index::{HexPrefix, IndexEntry, PrefixResolution};
+use crate::index::{HexPrefix, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
@@ -2223,7 +2224,8 @@ fn has_diff_from_parent(repo: &dyn Repo, entry: &IndexEntry<'_>, matcher: &dyn M
 mod tests {
     use super::*;
     use crate::backend::ChangeId;
-    use crate::index::{Index, MutableIndex};
+    use crate::default_index_store::MutableIndex;
+    use crate::index::Index;
 
     /// Generator of unique 16-byte ChangeId excluding root id
     fn change_id_generator() -> impl FnMut() -> ChangeId {

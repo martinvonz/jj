@@ -15,7 +15,7 @@
 use std::cmp::min;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::index::{IndexEntry, IndexPosition};
+use crate::default_index_store::{IndexEntry, IndexPosition};
 use crate::nightly_shims::BTreeMapExt;
 use crate::revset::Revset;
 
