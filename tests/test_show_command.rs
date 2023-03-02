@@ -31,7 +31,7 @@ fn test_show() {
     Author: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
     Committer: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
 
-    (no description set)
+        (no description set)
     "###);
 }
 
@@ -60,6 +60,6 @@ fn test_show_relative_timestamps() {
     Author: Test User <test.user@example.com> (...timestamp...)
     Committer: Test User <test.user@example.com> (...timestamp...)
 
-    (no description set)
+        (no description set)
     "###);
 }
