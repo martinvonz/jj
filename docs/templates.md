@@ -55,6 +55,8 @@ The following operators are supported.
 
 The following functions are defined.
 
+* `indent(prefix: Template, content: Template) -> Template`: Indent
+  non-empty lines by the given `prefix`.
 * `label(label: Template, content: Template) -> Template`: Apply label to
   the content. The `label` is evaluated as a space-separated string.
 * `if(condition: Boolean, then: Template[, else: Template]) -> Template`:

@@ -317,6 +317,54 @@ fn test_templater_signature() {
 }
 
 #[test]
+fn test_templater_indent_function() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
+
+    // Empty line shouldn't be indented. Not using insta here because we test
+    // whitespace existence.
+    assert_eq!(render(r#"indent("__", "")"#), "");
+    assert_eq!(render(r#"indent("__", "\n")"#), "\n");
+    assert_eq!(render(r#"indent("__", "a\n\nb")"#), "__a\n\n__b");
+
+    // "\n" at end of labeled text
+    insta::assert_snapshot!(
+        render(r#"indent("__", label("error", "a\n") ++ label("warning", "b\n"))"#),
+        @r###"
+    [38;5;1m__a[39m
+    [38;5;3m__b[39m
+    "###);
+
+    // "\n" in labeled text
+    insta::assert_snapshot!(
+        render(r#"indent("__", label("error", "a") ++ label("warning", "b\nc"))"#),
+        @r###"
+    [38;5;1m__a[39m[38;5;3mb[39m
+    [38;5;3m__c[39m
+    "###);
+
+    // Labeled prefix + unlabeled content
+    insta::assert_snapshot!(
+        render(r#"indent(label("error", "XX"), "a\nb\n")"#),
+        @r###"
+    [38;5;1mXX[39ma
+    [38;5;1mXX[39mb
+    "###);
+
+    // Nested indent, silly but works
+    insta::assert_snapshot!(
+        render(r#"indent(label("hint", "A"),
+                         label("warning", indent(label("hint", "B"),
+                                                 label("error", "x\n") ++ "y")))"#),
+        @r###"
+    [38;5;6mAB[38;5;1mx[39m
+    [38;5;6mAB[38;5;3my[39m
+    "###);
+}
+
+#[test]
 fn test_templater_label_function() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
