@@ -25,7 +25,7 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::templater::{
-    ConditionalTemplate, IntoTemplate, LabelTemplate, ListTemplate, Literal,
+    ConditionalTemplate, IndentTemplate, IntoTemplate, LabelTemplate, ListTemplate, Literal,
     PlainTextFormattedProperty, SeparateTemplate, Template, TemplateFunction, TemplateProperty,
     TemplatePropertyFn, TimestampRange,
 };
@@ -1045,6 +1045,13 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
     function: &FunctionCallNode,
 ) -> TemplateParseResult<Expression<'a, L::Context, L::Property>> {
     let expression = match function.name {
+        "indent" => {
+            let [prefix_node, content_node] = expect_exact_arguments(function)?;
+            let prefix = build_expression(language, prefix_node)?.into_template();
+            let content = build_expression(language, content_node)?.into_template();
+            let template = Box::new(IndentTemplate::new(prefix, content));
+            Expression::Template(template)
+        }
         "label" => {
             let [label_node, content_node] = expect_exact_arguments(function)?;
             let label_property = build_expression(language, label_node)?.into_plain_text();

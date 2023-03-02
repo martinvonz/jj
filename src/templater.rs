@@ -97,6 +97,46 @@ impl Template<()> for i64 {
     }
 }
 
+/// Indents each line by the given prefix.
+pub struct IndentTemplate<S, T> {
+    prefix: S,
+    content: T,
+}
+
+impl<S, T> IndentTemplate<S, T> {
+    pub fn new<C>(prefix: S, content: T) -> Self
+    where
+        S: Template<C>,
+        T: Template<C>,
+    {
+        IndentTemplate { prefix, content }
+    }
+}
+
+impl<C, S, T> Template<C> for IndentTemplate<S, T>
+where
+    S: Template<C>,
+    T: Template<C>,
+{
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        let mut recorder = FormatRecorder::new();
+        self.content.format(context, &mut recorder)?;
+        let mut new_line = true;
+        recorder.replay_with(formatter, |formatter, data| {
+            for line in data.split_inclusive(|&c| c == b'\n') {
+                if new_line && line != b"\n" {
+                    // Prefix inherits the current labels. This is implementation detail
+                    // and may be fixed later.
+                    self.prefix.format(context, formatter)?;
+                }
+                formatter.write_all(line)?;
+                new_line = line.ends_with(b"\n");
+            }
+            Ok(())
+        })
+    }
+}
+
 pub struct LabelTemplate<T, L> {
     content: T,
     labels: L,
