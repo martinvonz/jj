@@ -21,8 +21,6 @@ use crate::time_util;
 
 pub trait Template<C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
-    /// Returns true if `format()` will generate output other than labels.
-    fn has_content(&self, context: &C) -> bool;
 }
 
 pub trait IntoTemplate<'a, C> {
@@ -32,10 +30,6 @@ pub trait IntoTemplate<'a, C> {
 impl<C, T: Template<C> + ?Sized> Template<C> for Box<T> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         <T as Template<C>>::format(self, context, formatter)
-    }
-
-    fn has_content(&self, context: &C) -> bool {
-        <T as Template<C>>::has_content(self, context)
     }
 }
 
@@ -47,29 +41,17 @@ impl Template<()> for Signature {
         write!(formatter, ">")?;
         Ok(())
     }
-
-    fn has_content(&self, _: &()) -> bool {
-        true
-    }
 }
 
 impl Template<()> for String {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(self)
     }
-
-    fn has_content(&self, _: &()) -> bool {
-        !self.is_empty()
-    }
 }
 
 impl Template<()> for Timestamp {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(&time_util::format_absolute_timestamp(self))
-    }
-
-    fn has_content(&self, _: &()) -> bool {
-        true
     }
 }
 
@@ -101,29 +83,17 @@ impl Template<()> for TimestampRange {
         self.end.format(&(), formatter)?;
         Ok(())
     }
-
-    fn has_content(&self, _: &()) -> bool {
-        true
-    }
 }
 
 impl Template<()> for bool {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(if *self { "true" } else { "false" })
     }
-
-    fn has_content(&self, _: &()) -> bool {
-        true
-    }
 }
 
 impl Template<()> for i64 {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter, "{self}")
-    }
-
-    fn has_content(&self, _: &()) -> bool {
-        true
     }
 }
 
@@ -158,10 +128,6 @@ where
         }
         Ok(())
     }
-
-    fn has_content(&self, context: &C) -> bool {
-        self.content.has_content(context)
-    }
 }
 
 pub struct ListTemplate<T>(pub Vec<T>);
@@ -172,10 +138,6 @@ impl<C, T: Template<C>> Template<C> for ListTemplate<T> {
             template.format(context, formatter)?
         }
         Ok(())
-    }
-
-    fn has_content(&self, context: &C) -> bool {
-        self.0.iter().any(|template| template.has_content(context))
     }
 }
 
@@ -224,12 +186,6 @@ where
             recorder?.replay(formatter)?;
         }
         Ok(())
-    }
-
-    fn has_content(&self, context: &C) -> bool {
-        self.contents
-            .iter()
-            .any(|template| template.has_content(context))
     }
 }
 
@@ -284,10 +240,6 @@ impl<C, O: Template<()>> Template<C> for Literal<O> {
     fn format(&self, _context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         self.0.format(&(), formatter)
     }
-
-    fn has_content(&self, _context: &C) -> bool {
-        self.0.has_content(&())
-    }
 }
 
 impl<C, O: Clone> TemplateProperty<C> for Literal<O> {
@@ -332,11 +284,6 @@ where
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let template = self.property.extract(context);
         template.format(&(), formatter)
-    }
-
-    fn has_content(&self, context: &C) -> bool {
-        let template = self.property.extract(context);
-        template.has_content(&())
     }
 }
 
@@ -407,16 +354,6 @@ where
             false_template.format(context, formatter)?;
         }
         Ok(())
-    }
-
-    fn has_content(&self, context: &C) -> bool {
-        if self.condition.extract(context) {
-            self.true_template.has_content(context)
-        } else if let Some(false_template) = &self.false_template {
-            false_template.has_content(context)
-        } else {
-            false
-        }
     }
 }
 
