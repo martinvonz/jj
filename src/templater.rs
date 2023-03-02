@@ -16,7 +16,7 @@ use std::io;
 
 use jujutsu_lib::backend::{Signature, Timestamp};
 
-use crate::formatter::{Formatter, PlainTextFormatter};
+use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::time_util;
 
 pub trait Template<C> {
@@ -204,21 +204,24 @@ where
     T: Template<C>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        // TemplateProperty may be evaluated twice, by has_content() and format().
-        // If that's too expensive, we can instead create a buffered formatter
-        // inheriting the state, and write to it to test the emptiness. In this case,
-        // the formatter should guarantee push/pop_label() is noop without content.
-        let mut content_templates = self
+        let mut content_recorders = self
             .contents
             .iter()
-            .filter(|template| template.has_content(context))
+            .filter_map(|template| {
+                let mut recorder = FormatRecorder::new();
+                match template.format(context, &mut recorder) {
+                    Ok(()) if recorder.data().is_empty() => None, // omit empty content
+                    Ok(()) => Some(Ok(recorder)),
+                    Err(e) => Some(Err(e)),
+                }
+            })
             .fuse();
-        if let Some(template) = content_templates.next() {
-            template.format(context, formatter)?;
+        if let Some(recorder) = content_recorders.next() {
+            recorder?.replay(formatter)?;
         }
-        for template in content_templates {
+        for recorder in content_recorders {
             self.separator.format(context, formatter)?;
-            template.format(context, formatter)?;
+            recorder?.replay(formatter)?;
         }
         Ok(())
     }
