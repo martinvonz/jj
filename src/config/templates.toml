@@ -8,7 +8,7 @@ separate(" ",
 
 log = '''
 label(if(current_working_copy, "working_copy"),
-  concat(
+  separate("\n",
     separate(" ",
       if(divergent,
         label("divergent", format_short_change_id(change_id) ++ "??"),
@@ -21,7 +21,7 @@ label(if(current_working_copy, "working_copy"),
       git_head,
       format_short_commit_id(commit_id),
       if(conflict, label("conflict", "conflict")),
-    ) ++ "\n",
+    ),
     separate(" ",
       if(empty, label("empty", "(empty)")),
       if(description, description.first_line(), description_placeholder),
@@ -32,13 +32,13 @@ label(if(current_working_copy, "working_copy"),
 
 op_log = '''
 label(if(current_operation, "current_operation"),
-  concat(
+  separate("\n",
     separate(" ",
       id.short(),
       user,
       format_time_range(time),
-    ) ++ "\n",
-    description.first_line() ++ "\n",
+    ),
+    description.first_line(),
     tags,
   ),
 )
