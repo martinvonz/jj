@@ -455,6 +455,93 @@ impl<W: Write> Formatter for ColorFormatter<W> {
     }
 }
 
+/// Like buffered formatter, but records `push`/`pop_label()` calls.
+///
+/// This allows you to manipulate the recorded data without losing labels.
+/// The recorded data and labels can be written to another formatter. If
+/// the destination formatter has already been labeled, the recorded labels
+/// will be stacked on top of the existing labels, and the subsequent data
+/// may be colorized differently.
+#[derive(Debug, Default)]
+pub struct FormatRecorder {
+    data: Vec<u8>,
+    label_ops: Vec<(usize, LabelOp)>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum LabelOp {
+    PushLabel(String),
+    PopLabel,
+}
+
+impl FormatRecorder {
+    pub fn new() -> Self {
+        FormatRecorder::default()
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
+    fn push_label_op(&mut self, op: LabelOp) {
+        self.label_ops.push((self.data.len(), op));
+    }
+
+    pub fn replay(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+        self.replay_with(formatter, |formatter, data| formatter.write_all(data))
+    }
+
+    pub fn replay_with(
+        &self,
+        formatter: &mut dyn Formatter,
+        mut write_data: impl FnMut(&mut dyn Formatter, &[u8]) -> io::Result<()>,
+    ) -> io::Result<()> {
+        let mut last_pos = 0;
+        let mut flush_data = |formatter: &mut dyn Formatter, pos| -> io::Result<()> {
+            if last_pos != pos {
+                write_data(formatter, &self.data[last_pos..pos])?;
+                last_pos = pos;
+            }
+            Ok(())
+        };
+        for (pos, op) in &self.label_ops {
+            flush_data(formatter, *pos)?;
+            match op {
+                LabelOp::PushLabel(label) => formatter.push_label(label)?,
+                LabelOp::PopLabel => formatter.pop_label()?,
+            }
+        }
+        flush_data(formatter, self.data.len())
+    }
+}
+
+impl Write for FormatRecorder {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        self.data.extend_from_slice(data);
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Formatter for FormatRecorder {
+    fn raw(&mut self) -> &mut dyn Write {
+        panic!("raw output isn't supported by FormatRecorder")
+    }
+
+    fn push_label(&mut self, label: &str) -> io::Result<()> {
+        self.push_label_op(LabelOp::PushLabel(label.to_owned()));
+        Ok(())
+    }
+
+    fn pop_label(&mut self) -> io::Result<()> {
+        self.push_label_op(LabelOp::PopLabel);
+        Ok(())
+    }
+}
+
 fn write_sanitized(output: &mut impl Write, buf: &[u8]) -> Result<(), Error> {
     if buf.contains(&b'\x1b') {
         let mut sanitized = Vec::with_capacity(buf.len());
@@ -473,6 +560,8 @@ fn write_sanitized(output: &mut impl Write, buf: &[u8]) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
+    use std::str;
+
     use super::*;
 
     fn config_from_string(text: &str) -> config::Config {
@@ -835,5 +924,41 @@ mod tests {
         formatter.pop_label().unwrap();
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
         @"[38;5;1m a1 [38;5;2m b1 [38;5;3m c [38;5;2m b2 [38;5;1m a2 [39m");
+    }
+
+    #[test]
+    fn test_format_recorder() {
+        let mut recorder = FormatRecorder::new();
+        recorder.write_str(" outer1 ").unwrap();
+        recorder.push_label("inner").unwrap();
+        recorder.write_str(" inner1 ").unwrap();
+        recorder.write_str(" inner2 ").unwrap();
+        recorder.pop_label().unwrap();
+        recorder.write_str(" outer2 ").unwrap();
+
+        insta::assert_snapshot!(
+            str::from_utf8(recorder.data()).unwrap(),
+            @" outer1  inner1  inner2  outer2 ");
+
+        // Replayed output should be labeled.
+        let config = config_from_string(r#" colors.inner = "red" "#);
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
+        recorder.replay(&mut formatter).unwrap();
+        insta::assert_snapshot!(
+            String::from_utf8(output).unwrap(),
+            @" outer1 [38;5;1m inner1  inner2 [39m outer2 ");
+
+        // Replayed output should be split at push/pop_label() call.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
+        recorder
+            .replay_with(&mut formatter, |formatter, data| {
+                write!(formatter, "<<{}>>", str::from_utf8(data).unwrap())
+            })
+            .unwrap();
+        insta::assert_snapshot!(
+            String::from_utf8(output).unwrap(),
+            @"<< outer1 >>[38;5;1m<< inner1  inner2 >>[39m<< outer2 >>");
     }
 }
