@@ -60,7 +60,6 @@ show = 'show'
 'format_timestamp(timestamp)' = 'timestamp'
 
 # TODO: Add branches, tags, etc
-# TODO: Indent the description like Git does
 'show' = '''
 concat(
   "Commit ID: " ++ commit_id ++ "\n",
@@ -68,7 +67,7 @@ concat(
   "Author: " ++ author ++ " (" ++ format_timestamp(author.timestamp()) ++ ")\n",
   "Committer: " ++ committer ++ " (" ++ format_timestamp(committer.timestamp()) ++ ")\n",
   "\n",
-  if(description, description, description_placeholder ++ "\n"),
+  indent("    ", if(description, description, description_placeholder ++ "\n")),
   "\n",
 )
 '''
