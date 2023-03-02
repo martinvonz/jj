@@ -320,10 +320,6 @@ impl Template<()> for CommitOrChangeId<'_> {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(&self.hex())
     }
-
-    fn has_content(&self, _: &()) -> bool {
-        true // a valid CommitId/ChangeId should never be empty
-    }
 }
 
 fn build_commit_or_change_id_method<'repo>(
@@ -375,10 +371,6 @@ impl Template<()> for ShortestIdPrefix {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.with_label("prefix", |fmt| fmt.write_str(&self.prefix))?;
         formatter.with_label("rest", |fmt| fmt.write_str(&self.rest))
-    }
-
-    fn has_content(&self, _: &()) -> bool {
-        !self.prefix.is_empty() || !self.rest.is_empty()
     }
 }
 

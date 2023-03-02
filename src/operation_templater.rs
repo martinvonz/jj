@@ -155,10 +155,6 @@ impl Template<()> for OperationId {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(&self.hex())
     }
-
-    fn has_content(&self, _: &()) -> bool {
-        !self.as_bytes().is_empty()
-    }
 }
 
 fn build_operation_id_method(
