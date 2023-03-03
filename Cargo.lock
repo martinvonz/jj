@@ -797,6 +797,7 @@ name = "jujutsu"
 version = "0.7.0"
 dependencies = [
  "assert_cmd",
+ "assert_matches",
  "chrono",
  "clap 4.0.32",
  "clap_complete",
