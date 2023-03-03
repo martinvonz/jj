@@ -258,6 +258,8 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
             Rule::escape => match part.as_str().as_bytes()[1] as char {
                 '"' => result.push('"'),
                 '\\' => result.push('\\'),
+                't' => result.push('\t'),
+                'r' => result.push('\r'),
                 'n' => result.push('\n'),
                 char => panic!("invalid escape: \\{char:?}"),
             },
@@ -1259,6 +1261,21 @@ mod tests {
         assert!(parse_template(r#" label("","") "#).is_ok());
         assert!(parse_template(r#" label("","",) "#).is_ok());
         assert!(parse_template(r#" label("",,"") "#).is_err());
+    }
+
+    #[test]
+    fn test_string_literal() {
+        // "\<char>" escapes
+        assert_eq!(
+            parse_into_kind(r#" "\t\r\n\"\\" "#),
+            Ok(ExpressionKind::String("\t\r\n\"\\".to_owned())),
+        );
+
+        // Invalid "\<char>" escape
+        assert_eq!(
+            parse_into_kind(r#" "\y" "#),
+            Err(TemplateParseErrorKind::SyntaxError),
+        );
     }
 
     #[test]
