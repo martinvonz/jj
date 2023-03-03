@@ -1146,32 +1146,9 @@ pub fn expect_integer_expression<'a, L: TemplateLanguage<'a>>(
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
+
     use super::*;
-
-    struct MinimalTemplateLanguage;
-
-    impl TemplateLanguage<'static> for MinimalTemplateLanguage {
-        type Context = ();
-        type Property = CoreTemplatePropertyKind<'static, ()>;
-
-        impl_core_wrap_property_fns!('static);
-
-        fn build_keyword(
-            &self,
-            name: &str,
-            span: pest::Span,
-        ) -> TemplateParseResult<Self::Property> {
-            Err(TemplateParseError::no_such_keyword(name, span))
-        }
-
-        fn build_method(
-            &self,
-            property: Self::Property,
-            function: &FunctionCallNode,
-        ) -> TemplateParseResult<Self::Property> {
-            build_core_method(self, property, function)
-        }
-    }
 
     #[derive(Debug)]
     struct WithTemplateAliasesMap(TemplateAliasesMap);
@@ -1200,11 +1177,10 @@ mod tests {
         WithTemplateAliasesMap(aliases_map)
     }
 
-    fn parse(
-        template_text: &str,
-    ) -> TemplateParseResult<Expression<'static, (), CoreTemplatePropertyKind<'static, ()>>> {
-        let node = parse_template(template_text)?;
-        build_expression(&MinimalTemplateLanguage, &node)
+    fn parse_into_kind(template_text: &str) -> Result<ExpressionKind, TemplateParseErrorKind> {
+        parse_template(template_text)
+            .map(|node| node.kind)
+            .map_err(|err| err.kind)
     }
 
     fn parse_normalized(template_text: &str) -> TemplateParseResult<ExpressionNode> {
@@ -1270,33 +1246,38 @@ mod tests {
     #[test]
     fn test_function_call_syntax() {
         // Trailing comma isn't allowed for empty argument
-        assert!(parse(r#" "".first_line() "#).is_ok());
-        assert!(parse(r#" "".first_line(,) "#).is_err());
+        assert!(parse_template(r#" "".first_line() "#).is_ok());
+        assert!(parse_template(r#" "".first_line(,) "#).is_err());
 
         // Trailing comma is allowed for the last argument
-        assert!(parse(r#" "".contains("") "#).is_ok());
-        assert!(parse(r#" "".contains("",) "#).is_ok());
-        assert!(parse(r#" "".contains("" ,  ) "#).is_ok());
-        assert!(parse(r#" "".contains(,"") "#).is_err());
-        assert!(parse(r#" "".contains("",,) "#).is_err());
-        assert!(parse(r#" "".contains("" , , ) "#).is_err());
-        assert!(parse(r#" label("","") "#).is_ok());
-        assert!(parse(r#" label("","",) "#).is_ok());
-        assert!(parse(r#" label("",,"") "#).is_err());
+        assert!(parse_template(r#" "".contains("") "#).is_ok());
+        assert!(parse_template(r#" "".contains("",) "#).is_ok());
+        assert!(parse_template(r#" "".contains("" ,  ) "#).is_ok());
+        assert!(parse_template(r#" "".contains(,"") "#).is_err());
+        assert!(parse_template(r#" "".contains("",,) "#).is_err());
+        assert!(parse_template(r#" "".contains("" , , ) "#).is_err());
+        assert!(parse_template(r#" label("","") "#).is_ok());
+        assert!(parse_template(r#" label("","",) "#).is_ok());
+        assert!(parse_template(r#" label("",,"") "#).is_err());
     }
 
     #[test]
     fn test_integer_literal() {
-        fn extract<'a>(x: Expression<'a, (), CoreTemplatePropertyKind<'a, ()>>) -> i64 {
-            x.try_into_integer().unwrap().extract(&())
-        }
+        assert_eq!(parse_into_kind("0"), Ok(ExpressionKind::Integer(0)));
+        assert_eq!(parse_into_kind("(42)"), Ok(ExpressionKind::Integer(42)));
+        assert_eq!(
+            parse_into_kind("00"),
+            Err(TemplateParseErrorKind::SyntaxError),
+        );
 
-        assert_eq!(extract(parse("0").unwrap()), 0);
-        assert_eq!(extract(parse("(42)").unwrap()), 42);
-        assert!(parse("00").is_err());
-
-        assert_eq!(extract(parse(&format!("{}", i64::MAX)).unwrap()), i64::MAX);
-        assert!(parse(&format!("{}", (i64::MAX as u64) + 1)).is_err());
+        assert_eq!(
+            parse_into_kind(&format!("{}", i64::MAX)),
+            Ok(ExpressionKind::Integer(i64::MAX)),
+        );
+        assert_matches!(
+            parse_into_kind(&format!("{}", (i64::MAX as u64) + 1)),
+            Err(TemplateParseErrorKind::ParseIntError(_))
+        );
     }
 
     #[test]
