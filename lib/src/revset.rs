@@ -2449,6 +2449,17 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_whitespace() {
+        let ascii_whitespaces: String = ('\x00'..='\x7f')
+            .filter(char::is_ascii_whitespace)
+            .collect();
+        assert_eq!(
+            parse(&format!("{ascii_whitespaces}all()")).unwrap(),
+            parse("all()").unwrap(),
+        );
+    }
+
+    #[test]
     fn test_parse_revset_alias_formal_parameter() {
         let mut aliases_map = RevsetAliasesMap::new();
         // Trailing comma isn't allowed for empty parameter

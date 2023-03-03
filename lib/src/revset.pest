@@ -22,7 +22,7 @@ symbol = {
   | literal_string
 }
 literal_string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
-whitespace = _{ " " }
+whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
 parents_op = { "-" }
 children_op = { "+" }
