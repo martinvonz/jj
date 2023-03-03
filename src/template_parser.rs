@@ -1246,6 +1246,17 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_whitespace() {
+        let ascii_whitespaces: String = ('\x00'..='\x7f')
+            .filter(char::is_ascii_whitespace)
+            .collect();
+        assert_eq!(
+            parse_normalized(&format!("{ascii_whitespaces}f()")).unwrap(),
+            parse_normalized("f()").unwrap(),
+        );
+    }
+
+    #[test]
     fn test_function_call_syntax() {
         // Trailing comma isn't allowed for empty argument
         assert!(parse_template(r#" "".first_line() "#).is_ok());
