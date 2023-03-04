@@ -59,7 +59,6 @@ use thiserror::Error;
 use toml_edit;
 use tracing_subscriber::prelude::*;
 
-use crate::commit_templater;
 use crate::config::{
     config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
 };
@@ -68,6 +67,7 @@ use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::template_parser::{TemplateAliasesMap, TemplateParseError};
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
+use crate::{commit_templater, text_util};
 
 #[derive(Clone, Debug)]
 pub enum CommandError {
@@ -1882,7 +1882,7 @@ impl DescriptionArg {
 
 impl From<String> for DescriptionArg {
     fn from(s: String) -> Self {
-        DescriptionArg(complete_newline(s))
+        DescriptionArg(text_util::complete_newline(s))
     }
 }
 
@@ -1896,14 +1896,6 @@ impl AsRef<str> for DescriptionArg {
     fn as_ref(&self) -> &str {
         self.as_str()
     }
-}
-
-pub fn complete_newline(s: impl Into<String>) -> String {
-    let mut s = s.into();
-    if !s.is_empty() && !s.ends_with('\n') {
-        s.push('\n');
-    }
-    s
 }
 
 #[derive(Clone, Debug)]

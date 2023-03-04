@@ -49,7 +49,7 @@ use jujutsu_lib::{conflicts, file_util, revset};
 use maplit::{hashmap, hashset};
 
 use crate::cli_util::{
-    self, check_stale_working_copy, get_config_file_path, print_checkout_stats,
+    check_stale_working_copy, get_config_file_path, print_checkout_stats,
     resolve_multiple_nonempty_revsets, resolve_mutliple_nonempty_revsets_flag_guarded,
     run_ui_editor, serialize_config_value, short_commit_hash, user_error, user_error_with_hint,
     write_config_value_to_file, Args, CommandError, CommandHelper, DescriptionArg, RevisionArg,
@@ -59,8 +59,8 @@ use crate::config::{AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{get_graphlog, Edge};
-use crate::template_parser;
 use crate::ui::Ui;
+use crate::{template_parser, text_util};
 
 #[derive(clap::Parser, Clone, Debug)]
 enum Commands {
@@ -1770,7 +1770,7 @@ fn edit_description(
         .filter(|line| !line.starts_with("JJ: "))
         .join("\n");
     description.truncate(description.trim_end_matches('\n').len());
-    Ok(cli_util::complete_newline(description))
+    Ok(text_util::complete_newline(description))
 }
 
 fn cmd_describe(
