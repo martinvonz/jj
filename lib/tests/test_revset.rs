@@ -2021,6 +2021,7 @@ fn test_revset_methods_empty_set(use_git: bool) {
 
     let revset = expression.evaluate(repo, None).unwrap();
     assert!(revset.is_empty());
+    assert_eq!(revset.len(), 0);
 
     let revset = expression.evaluate(repo, None).unwrap();
     assert_eq!(revset.iter().next(), None);
@@ -2047,6 +2048,7 @@ fn test_revset_methods(use_git: bool) {
 
     let revset = expression.evaluate(mut_repo, None).unwrap();
     assert!(!revset.is_empty());
+    assert_eq!(revset.len(), 3);
 
     // Two parallel iterators over the same revset don't interfere with each other.
     let revset = expression.evaluate(mut_repo, None).unwrap();

@@ -1526,6 +1526,8 @@ pub trait Revset<'index> {
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
 
     fn is_empty(&self) -> bool;
+
+    fn len(&self) -> usize;
 }
 
 trait ToPredicateFn<'index> {
@@ -1636,15 +1638,18 @@ impl<'index> RevsetIteratorState<'index> {
         }
     }
 
-    fn get(&mut self, pos: usize) -> Option<IndexEntry<'index>> {
-        while pos >= self.entries.len() {
-            match self.iter.as_mut().next() {
-                Some(entry) => {
-                    self.entries.push(entry);
-                }
-                None => break,
+    fn consume_one(&mut self) -> Option<&IndexEntry<'index>> {
+        match self.iter.as_mut().next() {
+            Some(entry) => {
+                self.entries.push(entry);
+                Some(self.entries.last().unwrap())
             }
+            None => None,
         }
+    }
+
+    fn get(&mut self, pos: usize) -> Option<IndexEntry<'index>> {
+        while pos >= self.entries.len() && self.consume_one().is_some() {}
 
         if pos < self.entries.len() {
             Some(self.entries[pos].clone())
@@ -1687,6 +1692,12 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
 
     fn is_empty(&self) -> bool {
         self.iter().next().is_none()
+    }
+
+    fn len(&self) -> usize {
+        let mut state = self.iter_state.lock().unwrap();
+        while state.consume_one().is_some() {}
+        state.entries.len()
     }
 }
 
