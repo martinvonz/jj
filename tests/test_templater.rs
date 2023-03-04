@@ -333,6 +333,45 @@ fn test_templater_signature() {
 }
 
 #[test]
+fn test_templater_fill_function() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
+
+    insta::assert_snapshot!(
+        render(r#"fill(20, "The quick fox jumps over the " ++
+                       label("error", "lazy") ++ " dog\n")"#),
+        @r###"
+    The quick fox jumps
+    over the [38;5;1mlazy[39m dog
+    "###);
+
+    // Word-wrap, then indent
+    insta::assert_snapshot!(
+        render(r#""START marker to help insta\n" ++
+                  indent("    ", fill(20, "The quick fox jumps over the " ++
+                                      label("error", "lazy") ++ " dog\n"))"#),
+        @r###"
+    START marker to help insta
+        The quick fox jumps
+        over the [38;5;1mlazy[39m dog
+    "###);
+
+    // Word-wrap indented (no special handling for leading spaces)
+    insta::assert_snapshot!(
+        render(r#""START marker to help insta\n" ++
+                  fill(20, indent("    ", "The quick fox jumps over the " ++
+                                  label("error", "lazy") ++ " dog\n"))"#),
+        @r###"
+    START marker to help insta
+        The quick fox
+    jumps over the [38;5;1mlazy[39m
+    dog
+    "###);
+}
+
+#[test]
 fn test_templater_indent_function() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

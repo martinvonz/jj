@@ -1071,6 +1071,16 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
     function: &FunctionCallNode,
 ) -> TemplateParseResult<Expression<L::Property>> {
     let property = match function.name {
+        "fill" => {
+            let [width_node, content_node] = expect_exact_arguments(function)?;
+            let width = expect_integer_expression(language, width_node)?;
+            let content = build_expression(language, content_node)?.into_template();
+            let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
+                let width = width.extract(context).try_into().unwrap_or(0);
+                text_util::write_wrapped(formatter, recorded, width)
+            });
+            language.wrap_template(template)
+        }
         "indent" => {
             let [prefix_node, content_node] = expect_exact_arguments(function)?;
             let prefix = build_expression(language, prefix_node)?.into_template();
