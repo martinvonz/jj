@@ -1524,9 +1524,7 @@ pub trait Revset<'index> {
     // All revsets currently iterate in order of descending index position
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
 
-    fn is_empty(&self) -> bool {
-        self.iter().next().is_none()
-    }
+    fn is_empty(&self) -> bool;
 }
 
 trait ToPredicateFn<'index> {
@@ -1643,6 +1641,10 @@ impl<'index> ToPredicateFn<'index> for RevsetImpl<'index> {
 impl<'index> Revset<'index> for RevsetImpl<'index> {
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
         self.inner.iter()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
     }
 }
 
