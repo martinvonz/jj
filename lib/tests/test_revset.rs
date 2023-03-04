@@ -2010,3 +2010,52 @@ fn test_evaluate_expression_file(use_git: bool) {
         vec![commit4.id().clone()]
     );
 }
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_revset_methods_empty_set(use_git: bool) {
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+
+    let expression = RevsetExpression::none();
+
+    let revset = expression.evaluate(repo, None).unwrap();
+    assert!(revset.is_empty());
+
+    let revset = expression.evaluate(repo, None).unwrap();
+    assert_eq!(revset.iter().next(), None);
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_revset_methods(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let mut_repo = tx.mut_repo();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit3]);
+    let _commit5 = graph_builder.commit_with_parents(&[&commit4]);
+
+    let expression = RevsetExpression::commits(vec![commit2.id().clone()])
+        .dag_range_to(&RevsetExpression::commits(vec![commit4.id().clone()]));
+
+    let revset = expression.evaluate(mut_repo, None).unwrap();
+    assert!(!revset.is_empty());
+
+    // Two parallel iterators over the same revset don't interfere with each other.
+    let revset = expression.evaluate(mut_repo, None).unwrap();
+    let mut iter1 = revset.iter().commit_ids();
+    let mut iter2 = revset.iter().commit_ids();
+    assert_eq!(iter1.next(), Some(commit4.id().clone()));
+    assert_eq!(iter2.next(), Some(commit4.id().clone()));
+    assert_eq!(iter2.next(), Some(commit3.id().clone()));
+    assert_eq!(iter2.next(), Some(commit2.id().clone()));
+    assert_eq!(iter1.next(), Some(commit3.id().clone()));
+    assert_eq!(iter1.next(), Some(commit2.id().clone()));
+}

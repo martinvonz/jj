@@ -17,8 +17,9 @@ use std::collections::{HashMap, HashSet};
 use std::iter::Peekable;
 use std::ops::Range;
 use std::path::Path;
+use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::{error, fmt};
 
 use itertools::Itertools;
@@ -1622,13 +1623,51 @@ impl<'index> Iterator for ReverseRevsetIterator<'index> {
     }
 }
 
+struct RevsetIteratorState<'index> {
+    iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'index>,
+    entries: Vec<IndexEntry<'index>>,
+}
+
+impl<'index> RevsetIteratorState<'index> {
+    fn new(iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'index>) -> Self {
+        Self {
+            iter,
+            entries: Vec::new(),
+        }
+    }
+
+    fn get(&mut self, pos: usize) -> Option<IndexEntry<'index>> {
+        while pos >= self.entries.len() {
+            match self.iter.as_mut().next() {
+                Some(entry) => {
+                    self.entries.push(entry);
+                }
+                None => break,
+            }
+        }
+
+        if pos < self.entries.len() {
+            Some(self.entries[pos].clone())
+        } else {
+            None
+        }
+    }
+}
+
 struct RevsetImpl<'index> {
-    inner: Box<dyn InternalRevset<'index> + 'index>,
+    iter_state: Mutex<RevsetIteratorState<'index>>,
+    // On drop, `inner` must outlive `iter_state`, so we declare it after
+    inner: Pin<Box<dyn InternalRevset<'index> + 'index>>,
 }
 
 impl<'index> RevsetImpl<'index> {
     fn new(revset: Box<dyn InternalRevset<'index> + 'index>) -> Self {
-        Self { inner: revset }
+        let revset = Box::into_pin(revset);
+        let iter = unsafe { std::mem::transmute(revset.iter()) };
+        Self {
+            iter_state: Mutex::new(RevsetIteratorState::new(iter)),
+            inner: revset,
+        }
     }
 }
 
@@ -1640,11 +1679,30 @@ impl<'index> ToPredicateFn<'index> for RevsetImpl<'index> {
 
 impl<'index> Revset<'index> for RevsetImpl<'index> {
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
-        self.inner.iter()
+        Box::new(RevsetImplIterator {
+            state: &self.iter_state,
+            pos: 0,
+        })
     }
 
     fn is_empty(&self) -> bool {
         self.iter().next().is_none()
+    }
+}
+
+struct RevsetImplIterator<'revset, 'index> {
+    state: &'revset Mutex<RevsetIteratorState<'index>>,
+    pos: usize,
+}
+
+impl<'index> Iterator for RevsetImplIterator<'_, 'index> {
+    type Item = IndexEntry<'index>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut state = self.state.lock().unwrap();
+        let entry = state.get(self.pos);
+        self.pos += 1;
+        entry
     }
 }
 
