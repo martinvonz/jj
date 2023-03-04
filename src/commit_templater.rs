@@ -23,7 +23,6 @@ use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::rewrite;
 
-use crate::cli_util;
 use crate::formatter::Formatter;
 use crate::template_parser::{
     self, CoreTemplatePropertyKind, FunctionCallNode, IntoTemplateProperty, TemplateAliasesMap,
@@ -33,6 +32,7 @@ use crate::templater::{
     self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
     TemplatePropertyFn,
 };
+use crate::text_util;
 
 struct CommitTemplateLanguage<'repo, 'b> {
     repo: &'repo dyn Repo,
@@ -158,7 +158,7 @@ fn build_commit_keyword<'repo>(
     let repo = language.repo;
     let property = match name {
         "description" => language.wrap_string(wrap_fn(|commit| {
-            cli_util::complete_newline(commit.description())
+            text_util::complete_newline(commit.description())
         })),
         "change_id" => language.wrap_commit_or_change_id(wrap_fn(move |commit| {
             CommitOrChangeId::new(repo, IdKind::Change(commit.change_id().to_owned()))

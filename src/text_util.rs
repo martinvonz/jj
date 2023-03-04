@@ -1,4 +1,4 @@
-// Copyright 2020 The Jujutsu Authors
+// Copyright 2022-2023 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![deny(unused_must_use)]
-
-pub mod cleanup_guard;
-pub mod cli_util;
-pub mod commands;
-pub mod commit_templater;
-pub mod config;
-pub mod diff_util;
-pub mod formatter;
-pub mod graphlog;
-pub mod merge_tools;
-pub mod operation_templater;
-mod progress;
-pub mod template_parser;
-pub mod templater;
-pub mod text_util;
-pub mod time_util;
-pub mod ui;
+pub fn complete_newline(s: impl Into<String>) -> String {
+    let mut s = s.into();
+    if !s.is_empty() && !s.ends_with('\n') {
+        s.push('\n');
+    }
+    s
+}
