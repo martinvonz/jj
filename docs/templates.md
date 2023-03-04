@@ -56,6 +56,8 @@ The following operators are supported.
 
 The following functions are defined.
 
+* `fill(width: Integer, content: Template) -> Template`: Fill lines at
+  the given `width`.
 * `indent(prefix: Template, content: Template) -> Template`: Indent
   non-empty lines by the given `prefix`.
 * `label(label: Template, content: Template) -> Template`: Apply label to
