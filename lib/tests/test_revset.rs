@@ -2025,6 +2025,7 @@ fn test_revset_methods_empty_set(use_git: bool) {
 
     let revset = expression.evaluate(repo, None).unwrap();
     assert_eq!(revset.iter().next(), None);
+    assert!(!revset.contains(repo.store().root_commit_id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -2041,7 +2042,7 @@ fn test_revset_methods(use_git: bool) {
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
     let commit4 = graph_builder.commit_with_parents(&[&commit3]);
-    let _commit5 = graph_builder.commit_with_parents(&[&commit4]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit4]);
 
     let expression = RevsetExpression::commits(vec![commit2.id().clone()])
         .dag_range_to(&RevsetExpression::commits(vec![commit4.id().clone()]));
@@ -2060,4 +2061,20 @@ fn test_revset_methods(use_git: bool) {
     assert_eq!(iter2.next(), Some(commit2.id().clone()));
     assert_eq!(iter1.next(), Some(commit3.id().clone()));
     assert_eq!(iter1.next(), Some(commit2.id().clone()));
+
+    // Test contains()
+    let revset = expression.evaluate(mut_repo, None).unwrap();
+    assert!(!revset.contains(commit1.id()));
+    assert!(revset.contains(commit2.id()));
+    assert!(revset.contains(commit3.id()));
+    assert!(revset.contains(commit4.id()));
+    assert!(!revset.contains(commit5.id()));
+
+    // Test that contains() works regardless of how many commits have been cached by
+    // iter()
+    for i in 0..3 {
+        let revset = expression.evaluate(mut_repo, None).unwrap();
+        let _ = revset.iter().take(i);
+        assert!(revset.contains(commit3.id()));
+    }
 }
