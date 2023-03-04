@@ -1905,7 +1905,7 @@ fn test_evaluate_expression_difference(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_filter_by_file(use_git: bool) {
+fn test_evaluate_expression_file(use_git: bool) {
     let settings = testutils::user_settings();
     let test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
