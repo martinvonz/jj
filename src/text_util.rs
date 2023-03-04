@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io;
+use std::{cmp, io};
 
 use crate::formatter::{FormatRecorder, Formatter};
 
@@ -140,9 +140,71 @@ pub fn wrap_bytes(text: &[u8], width: usize) -> Vec<&[u8]> {
     split_lines
 }
 
+/// Wraps lines at the given width preserving labels.
+///
+/// `textwrap::wrap()` can also process text containing ANSI escape sequences.
+/// The main difference is that this function will reset the style for each line
+/// and recreate it on the following line if the output `formatter` is
+/// a `ColorFormatter`.
+pub fn write_wrapped(
+    formatter: &mut dyn Formatter,
+    recorded_content: &FormatRecorder,
+    width: usize,
+) -> io::Result<()> {
+    let data = recorded_content.data();
+    let mut line_ranges = wrap_bytes(data, width)
+        .into_iter()
+        .map(|line| {
+            let start = byte_offset_from(data, line);
+            start..start + line.len()
+        })
+        .peekable();
+    // The recorded data ranges are contiguous, and the line ranges are increasing
+    // sequence (with some holes.) Both ranges should start from data[0].
+    recorded_content.replay_with(formatter, |formatter, data_range| {
+        while let Some(line_range) = line_ranges.peek() {
+            let start = cmp::max(data_range.start, line_range.start);
+            let end = cmp::min(data_range.end, line_range.end);
+            if start < end {
+                formatter.write_all(&data[start..end])?;
+            }
+            if data_range.end <= line_range.end {
+                break; // No more lines in this data range
+            }
+            line_ranges.next().unwrap();
+            if line_ranges.peek().is_some() {
+                writeln!(formatter)?; // Not the last line
+            }
+        }
+        Ok(())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::formatter::{ColorFormatter, PlainTextFormatter};
+
+    fn format_colored(write: impl FnOnce(&mut dyn Formatter) -> io::Result<()>) -> String {
+        let config = config::Config::builder()
+            .set_override("colors.cyan", "cyan")
+            .unwrap()
+            .set_override("colors.red", "red")
+            .unwrap()
+            .build()
+            .unwrap();
+        let mut output = Vec::new();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
+        write(&mut formatter).unwrap();
+        String::from_utf8(output).unwrap()
+    }
+
+    fn format_plain_text(write: impl FnOnce(&mut dyn Formatter) -> io::Result<()>) -> String {
+        let mut output = Vec::new();
+        let mut formatter = PlainTextFormatter::new(&mut output);
+        write(&mut formatter).unwrap();
+        String::from_utf8(output).unwrap()
+    }
 
     #[test]
     fn test_split_byte_line_to_words() {
@@ -273,5 +335,144 @@ mod tests {
         assert_eq!(lines[2].as_ptr(), text[5..].as_ptr());
         assert_eq!(lines[3].as_ptr(), text[6..].as_ptr());
         assert_eq!(lines[4].as_ptr(), text[14..].as_ptr());
+    }
+
+    #[test]
+    fn test_write_wrapped() {
+        // Split single label chunk
+        let mut recorder = FormatRecorder::new();
+        recorder.push_label("red").unwrap();
+        recorder.write_str("foo bar baz\nqux quux\n").unwrap();
+        recorder.pop_label().unwrap();
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_wrapped(formatter, &recorder, 7)),
+            @r###"
+        [38;5;1mfoo bar[39m
+        [38;5;1mbaz[39m
+        [38;5;1mqux[39m
+        [38;5;1mquux[39m
+        "###
+        );
+
+        // Multiple label chunks in a line
+        let mut recorder = FormatRecorder::new();
+        for (i, word) in ["foo ", "bar ", "baz\n", "qux ", "quux"].iter().enumerate() {
+            recorder.push_label(["red", "cyan"][i & 1]).unwrap();
+            recorder.write_str(word).unwrap();
+            recorder.pop_label().unwrap();
+        }
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_wrapped(formatter, &recorder, 7)),
+            @r###"
+        [38;5;1mfoo [39m[38;5;6mbar[39m
+        [38;5;1mbaz[39m
+        [38;5;6mqux[39m
+        [38;5;1mquux[39m
+        "###
+        );
+
+        // Empty lines should not cause panic
+        let mut recorder = FormatRecorder::new();
+        for (i, word) in ["", "foo", "", "bar baz", ""].iter().enumerate() {
+            recorder.push_label(["red", "cyan"][i & 1]).unwrap();
+            recorder.write_str(word).unwrap();
+            recorder.write_str("\n").unwrap();
+            recorder.pop_label().unwrap();
+        }
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_wrapped(formatter, &recorder, 10)),
+            @r###"
+        [38;5;1m[39m
+        [38;5;6mfoo[39m
+        [38;5;1m[39m
+        [38;5;6mbar baz[39m
+        [38;5;1m[39m
+        "###
+        );
+
+        // Split at label boundary
+        let mut recorder = FormatRecorder::new();
+        recorder.push_label("red").unwrap();
+        recorder.write_str("foo bar").unwrap();
+        recorder.pop_label().unwrap();
+        recorder.write_str(" ").unwrap();
+        recorder.push_label("cyan").unwrap();
+        recorder.write_str("baz\n").unwrap();
+        recorder.pop_label().unwrap();
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_wrapped(formatter, &recorder, 10)),
+            @r###"
+        [38;5;1mfoo bar[39m
+        [38;5;6mbaz[39m
+        "###
+        );
+
+        // Do not split at label boundary "ba|z" (since it's a single word)
+        let mut recorder = FormatRecorder::new();
+        recorder.push_label("red").unwrap();
+        recorder.write_str("foo bar ba").unwrap();
+        recorder.pop_label().unwrap();
+        recorder.push_label("cyan").unwrap();
+        recorder.write_str("z\n").unwrap();
+        recorder.pop_label().unwrap();
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_wrapped(formatter, &recorder, 10)),
+            @r###"
+        [38;5;1mfoo bar[39m
+        [38;5;1mba[39m[38;5;6mz[39m
+        "###
+        );
+    }
+
+    #[test]
+    fn test_write_wrapped_leading_labeled_whitespace() {
+        let mut recorder = FormatRecorder::new();
+        recorder.push_label("red").unwrap();
+        recorder.write_str(" ").unwrap();
+        recorder.pop_label().unwrap();
+        recorder.write_str("foo").unwrap();
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_wrapped(formatter, &recorder, 10)),
+            @"[38;5;1m [39mfoo"
+        );
+    }
+
+    #[test]
+    fn test_write_wrapped_trailing_labeled_whitespace() {
+        // data: "foo" " "
+        // line:  ---
+        let mut recorder = FormatRecorder::new();
+        recorder.write_str("foo").unwrap();
+        recorder.push_label("red").unwrap();
+        recorder.write_str(" ").unwrap();
+        recorder.pop_label().unwrap();
+        assert_eq!(
+            format_plain_text(|formatter| write_wrapped(formatter, &recorder, 10)),
+            "foo",
+        );
+
+        // data: "foo" "\n"
+        // line:  ---     -
+        let mut recorder = FormatRecorder::new();
+        recorder.write_str("foo").unwrap();
+        recorder.push_label("red").unwrap();
+        recorder.write_str("\n").unwrap();
+        recorder.pop_label().unwrap();
+        assert_eq!(
+            format_plain_text(|formatter| write_wrapped(formatter, &recorder, 10)),
+            "foo\n",
+        );
+
+        // data: "foo\n" " "
+        // line:  ---    -
+        let mut recorder = FormatRecorder::new();
+        recorder.write_str("foo\n").unwrap();
+        recorder.push_label("red").unwrap();
+        recorder.write_str(" ").unwrap();
+        recorder.pop_label().unwrap();
+        assert_eq!(
+            format_plain_text(|formatter| write_wrapped(formatter, &recorder, 10)),
+            "foo\n",
+        );
     }
 }
