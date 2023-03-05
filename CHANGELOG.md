@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `++` operator, `concat()`, or `separate()` function instead.
   Example: `description ++ "\n"`
 
+* `jj git push` will consider pushing the parent commit only when the
+  current commit has no content and no description, such as right after
+  a `jj squash`.
+
 ### New features
 
 * `jj git push --deleted` will remove all locally deleted branches from the remote.

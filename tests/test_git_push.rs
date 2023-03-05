@@ -120,6 +120,37 @@ fn test_git_push_parent_branch() {
 }
 
 #[test]
+fn test_git_no_push_parent_branch_non_empty_commit() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["edit", "branch1"]);
+    test_env.jj_cmd_success(
+        &workspace_root,
+        &["describe", "-m", "modified branch1 commit"],
+    );
+    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    std::fs::write(workspace_root.join("file"), "file").unwrap();
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--dry-run"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No current branch.
+    "###);
+}
+
+#[test]
+fn test_git_no_push_parent_branch_description() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["edit", "branch1"]);
+    test_env.jj_cmd_success(
+        &workspace_root,
+        &["describe", "-m", "modified branch1 commit"],
+    );
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "non-empty description"]);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--dry-run"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No current branch.
+    "###);
+}
+
+#[test]
 fn test_git_push_no_current_branch() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_success(&workspace_root, &["new"]);
