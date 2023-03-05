@@ -136,6 +136,15 @@ ui.diff.format = "git"
 ui.graph.style = "square"
 ```
 
+### Wrap log content
+
+If enabled, `log`/`obslog`/`op log` content will be wrapped based on 
+the terminal width.
+
+```toml
+ui.log-word-wrap = true
+```
+
 ### Display of commit and change ids
 
 Can be customized by the `format_short_id()` template alias.

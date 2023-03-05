@@ -989,3 +989,126 @@ fn test_graph_styles() {
     o
     "###);
 }
+
+#[test]
+fn test_log_word_wrap() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |args: &[&str], columns: u32, word_wrap: bool| {
+        let mut args = args.to_vec();
+        if word_wrap {
+            args.push("--config-toml=ui.log-word-wrap=true");
+        }
+        let assert = test_env
+            .jj_cmd(&repo_path, &args)
+            .env("COLUMNS", columns.to_string())
+            .assert()
+            .success()
+            .stderr("");
+        get_stdout_string(&assert)
+    };
+
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "main branch 1"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "main branch 2"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "side"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "merge", "@--", "@"]);
+
+    // ui.log-word-wrap option applies to both graph/no-graph outputs
+    insta::assert_snapshot!(render(&["log", "-r@"], 40, false), @r###"
+    @  mzvwutvlkqwt test.user@example.com 2001-02-03 04:05:11.000 +07:00 68518a7e6c9e
+    │  (empty) merge
+    ~
+    "###);
+    insta::assert_snapshot!(render(&["log", "-r@"], 40, true), @r###"
+    @  mzvwutvlkqwt test.user@example.com
+    │  2001-02-03 04:05:11.000 +07:00
+    ~  68518a7e6c9e
+       (empty) merge
+    "###);
+    insta::assert_snapshot!(render(&["log", "--no-graph", "-r@"], 40, false), @r###"
+    mzvwutvlkqwt test.user@example.com 2001-02-03 04:05:11.000 +07:00 68518a7e6c9e
+    (empty) merge
+    "###);
+    insta::assert_snapshot!(render(&["log", "--no-graph", "-r@"], 40, true), @r###"
+    mzvwutvlkqwt test.user@example.com
+    2001-02-03 04:05:11.000 +07:00
+    68518a7e6c9e
+    (empty) merge
+    "###);
+
+    // Color labels should be preserved
+    insta::assert_snapshot!(render(&["log", "-r@", "--color=always"], 40, true), @r###"
+    @  [1m[38;5;13mm[38;5;8mzvwutvlkqwt[39m [38;5;3mtest.user@example.com[39m[0m
+    │  [1m[38;5;14m2001-02-03 04:05:11.000 +07:00[39m[0m
+    ~  [1m[38;5;12m6[38;5;8m8518a7e6c9e[39m[0m
+       [1m[38;5;10m(empty)[39m merge[0m
+    "###);
+
+    // Graph width should be subtracted from the term width
+    let template = r#""0 1 2 3 4 5 6 7 8 9""#;
+    insta::assert_snapshot!(render(&["log", "-T", template], 10, true), @r###"
+    @    0 1 2
+    ├─╮  3 4 5
+    │ │  6 7 8
+    │ │  9
+    o │  0 1 2
+    │ │  3 4 5
+    │ │  6 7 8
+    │ │  9
+    o │  0 1 2
+    ├─╯  3 4 5
+    │    6 7 8
+    │    9
+    o  0 1 2 3
+    │  4 5 6 7
+    │  8 9
+    o  0 1 2 3
+       4 5 6 7
+       8 9
+    "###);
+    insta::assert_snapshot!(
+        render(&["log", "-T", template, "--config-toml=ui.graph.style='legacy'"], 9, true),
+        @r###"
+    @   0 1 2
+    |\  3 4 5
+    | | 6 7 8
+    | | 9
+    o | 0 1 2
+    | | 3 4 5
+    | | 6 7 8
+    | | 9
+    o | 0 1 2
+    |/  3 4 5
+    |   6 7 8
+    |   9
+    o 0 1 2 3
+    | 4 5 6 7
+    | 8 9
+    o 0 1 2 3
+      4 5 6 7
+      8 9
+    "###);
+
+    // Shouldn't panic with $COLUMNS < graph_width
+    insta::assert_snapshot!(render(&["log", "-r@"], 0, true), @r###"
+    @  mzvwutvlkqwt
+    │  test.user@example.com
+    ~  2001-02-03
+       04:05:11.000
+       +07:00
+       68518a7e6c9e
+       (empty)
+       merge
+    "###);
+    insta::assert_snapshot!(render(&["log", "-r@"], 1, true), @r###"
+    @  mzvwutvlkqwt
+    │  test.user@example.com
+    ~  2001-02-03
+       04:05:11.000
+       +07:00
+       68518a7e6c9e
+       (empty)
+       merge
+    "###);
+}

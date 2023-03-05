@@ -52,8 +52,8 @@ use crate::cli_util::{
     check_stale_working_copy, get_config_file_path, print_checkout_stats,
     resolve_multiple_nonempty_revsets, resolve_mutliple_nonempty_revsets_flag_guarded,
     run_ui_editor, serialize_config_value, short_commit_hash, user_error, user_error_with_hint,
-    write_config_value_to_file, Args, CommandError, CommandHelper, DescriptionArg, RevisionArg,
-    WorkspaceCommandHelper,
+    write_config_value_to_file, Args, CommandError, CommandHelper, DescriptionArg,
+    LogContentFormat, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::config::{AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -1475,6 +1475,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         None => command.settings().config().get_string("templates.log")?,
     };
     let template = workspace_command.parse_commit_template(&template_string)?;
+    let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     {
         ui.request_pager();
@@ -1516,7 +1517,11 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 let mut buffer = vec![];
                 let commit_id = index_entry.commit_id();
                 let commit = store.get_commit(&commit_id)?;
-                template.format(&commit, ui.new_formatter(&mut buffer).as_mut())?;
+                with_content_format.write_graph_text(
+                    ui.new_formatter(&mut buffer).as_mut(),
+                    |formatter| template.format(&commit, formatter),
+                    || graph.width(&index_entry.position(), &graphlog_edges),
+                )?;
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
                 }
@@ -1551,7 +1556,8 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             };
             for index_entry in iter {
                 let commit = store.get_commit(&index_entry.commit_id())?;
-                template.format(&commit, formatter)?;
+                with_content_format
+                    .write(formatter, |formatter| template.format(&commit, formatter))?;
                 if !diff_formats.is_empty() {
                     diff_util::show_patch(
                         formatter,
@@ -1604,6 +1610,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         None => command.settings().config().get_string("templates.log")?,
     };
     let template = workspace_command.parse_commit_template(&template_string)?;
+    let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
@@ -1623,10 +1630,11 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
                 edges.push(Edge::direct(predecessor.id().clone()));
             }
             let mut buffer = vec![];
-            {
-                let mut formatter = ui.new_formatter(&mut buffer);
-                template.format(&commit, formatter.as_mut())?;
-            }
+            with_content_format.write_graph_text(
+                ui.new_formatter(&mut buffer).as_mut(),
+                |formatter| template.format(&commit, formatter),
+                || graph.width(commit.id(), &edges),
+            )?;
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
@@ -1653,7 +1661,8 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         }
     } else {
         for commit in commits {
-            template.format(&commit, formatter)?;
+            with_content_format
+                .write(formatter, |formatter| template.format(&commit, formatter))?;
             if !diff_formats.is_empty() {
                 show_predecessor_patch(formatter, &workspace_command, &commit, &diff_formats)?;
             }
