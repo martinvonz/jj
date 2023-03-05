@@ -25,11 +25,11 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::templater::{
-    ConcatTemplate, ConditionalTemplate, FormattablePropertyListTemplate, IndentTemplate,
-    IntoTemplate, LabelTemplate, Literal, PlainTextFormattedProperty, SeparateTemplate, Template,
-    TemplateFunction, TemplateProperty, TimestampRange,
+    ConcatTemplate, ConditionalTemplate, FormattablePropertyListTemplate, IntoTemplate,
+    LabelTemplate, Literal, PlainTextFormattedProperty, ReformatTemplate, SeparateTemplate,
+    Template, TemplateFunction, TemplateProperty, TimestampRange,
 };
-use crate::time_util;
+use crate::{text_util, time_util};
 
 #[derive(Parser)]
 #[grammar = "template.pest"]
@@ -1075,7 +1075,18 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
             let [prefix_node, content_node] = expect_exact_arguments(function)?;
             let prefix = build_expression(language, prefix_node)?.into_template();
             let content = build_expression(language, content_node)?.into_template();
-            language.wrap_template(IndentTemplate::new(prefix, content))
+            let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
+                text_util::write_indented(formatter, recorded, |formatter| {
+                    // If Template::format() returned a custom error type, we would need to
+                    // handle template evaluation error out of this closure:
+                    //   prefix.format(context, &mut prefix_recorder)?;
+                    //   write_indented(formatter, recorded, |formatter| {
+                    //       prefix_recorder.replay(formatter)
+                    //   })
+                    prefix.format(context, formatter)
+                })
+            });
+            language.wrap_template(template)
         }
         "label" => {
             let [label_node, content_node] = expect_exact_arguments(function)?;

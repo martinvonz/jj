@@ -17,7 +17,7 @@ use std::io;
 use jujutsu_lib::backend::{Signature, Timestamp};
 
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
-use crate::{text_util, time_util};
+use crate::time_util;
 
 pub trait Template<C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
@@ -115,42 +115,6 @@ impl Template<()> for i64 {
     }
 }
 
-/// Indents each line by the given prefix.
-pub struct IndentTemplate<S, T> {
-    prefix: S,
-    content: T,
-}
-
-impl<S, T> IndentTemplate<S, T> {
-    pub fn new<C>(prefix: S, content: T) -> Self
-    where
-        S: Template<C>,
-        T: Template<C>,
-    {
-        IndentTemplate { prefix, content }
-    }
-}
-
-impl<C, S, T> Template<C> for IndentTemplate<S, T>
-where
-    S: Template<C>,
-    T: Template<C>,
-{
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let mut recorder = FormatRecorder::new();
-        self.content.format(context, &mut recorder)?;
-        text_util::write_indented(formatter, &recorder, |formatter| {
-            // If Template::format() returned a custom error type, we would need to
-            // handle template evaluation error out of this closure:
-            //   prefix.format(context, &mut prefix_recorder)?;
-            //   write_indented(formatter, recorded, |formatter| {
-            //       prefix_recorder.replay(formatter)
-            //   })
-            self.prefix.format(context, formatter)
-        })
-    }
-}
-
 pub struct LabelTemplate<T, L> {
     content: T,
     labels: L,
@@ -192,6 +156,34 @@ impl<C, T: Template<C>> Template<C> for ConcatTemplate<T> {
             template.format(context, formatter)?
         }
         Ok(())
+    }
+}
+
+/// Renders the content to buffer, and transforms it without losing labels.
+pub struct ReformatTemplate<T, F> {
+    content: T,
+    reformat: F,
+}
+
+impl<T, F> ReformatTemplate<T, F> {
+    pub fn new<C>(content: T, reformat: F) -> Self
+    where
+        T: Template<C>,
+        F: Fn(&C, &mut dyn Formatter, &FormatRecorder) -> io::Result<()>,
+    {
+        ReformatTemplate { content, reformat }
+    }
+}
+
+impl<C, T, F> Template<C> for ReformatTemplate<T, F>
+where
+    T: Template<C>,
+    F: Fn(&C, &mut dyn Formatter, &FormatRecorder) -> io::Result<()>,
+{
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        let mut recorder = FormatRecorder::new();
+        self.content.format(context, &mut recorder)?;
+        (self.reformat)(context, formatter, &recorder)
     }
 }
 
