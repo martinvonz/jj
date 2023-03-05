@@ -540,7 +540,7 @@ impl RevsetExpression {
         repo: &'index dyn Repo,
         workspace_ctx: Option<&RevsetWorkspaceContext>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        evaluate_expression(repo, self, workspace_ctx)
+        evaluate(repo, self, workspace_ctx)
     }
 }
 
@@ -1916,7 +1916,7 @@ pub struct RevsetWorkspaceContext<'a> {
     pub workspace_root: &'a Path,
 }
 
-pub fn evaluate_expression<'index>(
+fn evaluate<'index>(
     repo: &'index dyn Repo,
     expression: &RevsetExpression,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
@@ -1931,7 +1931,7 @@ pub fn evaluate_expression<'index>(
             // (and `remote_branches()`) specified in the revset expression. Alternatively,
             // some optimization rules could be removed, but that means `author(_) & x`
             // would have to test `:heads() & x`.
-            evaluate_expression(
+            evaluate(
                 repo,
                 &RevsetExpression::visible_heads().ancestors(),
                 workspace_ctx,
@@ -1940,12 +1940,12 @@ pub fn evaluate_expression<'index>(
         RevsetExpression::Commits(commit_ids) => Ok(revset_for_commit_ids(repo, commit_ids)),
         RevsetExpression::Symbol(symbol) => {
             let commit_ids = resolve_symbol(repo, symbol, workspace_ctx.map(|c| c.workspace_id))?;
-            evaluate_expression(repo, &RevsetExpression::Commits(commit_ids), workspace_ctx)
+            evaluate(repo, &RevsetExpression::Commits(commit_ids), workspace_ctx)
         }
         RevsetExpression::Children(roots) => {
-            let root_set = roots.evaluate(repo, workspace_ctx)?;
+            let root_set = evaluate(repo, roots, workspace_ctx)?;
             let candidates_expression = roots.descendants();
-            let candidate_set = candidates_expression.evaluate(repo, workspace_ctx)?;
+            let candidate_set = evaluate(repo, &candidates_expression, workspace_ctx)?;
             Ok(Box::new(ChildrenRevset {
                 root_set,
                 candidate_set,
@@ -1957,16 +1957,16 @@ pub fn evaluate_expression<'index>(
                 heads: heads.clone(),
                 generation: generation.clone(),
             };
-            range_expression.evaluate(repo, workspace_ctx)
+            evaluate(repo, &range_expression, workspace_ctx)
         }
         RevsetExpression::Range {
             roots,
             heads,
             generation,
         } => {
-            let root_set = roots.evaluate(repo, workspace_ctx)?;
+            let root_set = evaluate(repo, roots, workspace_ctx)?;
             let root_ids = root_set.iter().commit_ids().collect_vec();
-            let head_set = heads.evaluate(repo, workspace_ctx)?;
+            let head_set = evaluate(repo, heads, workspace_ctx)?;
             let head_ids = head_set.iter().commit_ids().collect_vec();
             let walk = repo.index().walk_revs(&head_ids, &root_ids);
             if generation == &GENERATION_RANGE_FULL {
@@ -1977,8 +1977,8 @@ pub fn evaluate_expression<'index>(
             }
         }
         RevsetExpression::DagRange { roots, heads } => {
-            let root_set = roots.evaluate(repo, workspace_ctx)?;
-            let candidate_set = heads.ancestors().evaluate(repo, workspace_ctx)?;
+            let root_set = evaluate(repo, roots, workspace_ctx)?;
+            let candidate_set = evaluate(repo, &heads.ancestors(), workspace_ctx)?;
             let mut reachable: HashSet<_> = root_set.iter().map(|entry| entry.position()).collect();
             let mut result = vec![];
             let candidates = candidate_set.iter().collect_vec();
@@ -2003,7 +2003,7 @@ pub fn evaluate_expression<'index>(
             &repo.view().heads().iter().cloned().collect_vec(),
         )),
         RevsetExpression::Heads(candidates) => {
-            let candidate_set = candidates.evaluate(repo, workspace_ctx)?;
+            let candidate_set = evaluate(repo, candidates, workspace_ctx)?;
             let candidate_ids = candidate_set.iter().commit_ids().collect_vec();
             Ok(revset_for_commit_ids(
                 repo,
@@ -2011,10 +2011,10 @@ pub fn evaluate_expression<'index>(
             ))
         }
         RevsetExpression::Roots(candidates) => {
-            let connected_set = candidates.connected().evaluate(repo, workspace_ctx)?;
+            let connected_set = evaluate(repo, &candidates.connected(), workspace_ctx)?;
             let filled: HashSet<_> = connected_set.iter().map(|entry| entry.position()).collect();
             let mut index_entries = vec![];
-            let candidate_set = candidates.evaluate(repo, workspace_ctx)?;
+            let candidate_set = evaluate(repo, candidates, workspace_ctx)?;
             for candidate in candidate_set.iter() {
                 if !candidate
                     .parent_positions()
@@ -2081,47 +2081,47 @@ pub fn evaluate_expression<'index>(
             Ok(revset_for_commit_ids(repo, &commit_ids))
         }
         RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
-            candidates: RevsetExpression::All.evaluate(repo, workspace_ctx)?,
+            candidates: evaluate(repo, &RevsetExpression::All, workspace_ctx)?,
             predicate: build_predicate_fn(repo, predicate),
         })),
-        RevsetExpression::AsFilter(candidates) => candidates.evaluate(repo, workspace_ctx),
-        RevsetExpression::Present(candidates) => match candidates.evaluate(repo, workspace_ctx) {
+        RevsetExpression::AsFilter(candidates) => evaluate(repo, candidates, workspace_ctx),
+        RevsetExpression::Present(candidates) => match evaluate(repo, candidates, workspace_ctx) {
             Ok(set) => Ok(set),
             Err(RevsetError::NoSuchRevision(_)) => Ok(Box::new(EagerRevset::empty())),
             r @ Err(RevsetError::AmbiguousIdPrefix(_) | RevsetError::StoreError(_)) => r,
         },
         RevsetExpression::NotIn(complement) => {
-            let set1 = RevsetExpression::All.evaluate(repo, workspace_ctx)?;
-            let set2 = complement.evaluate(repo, workspace_ctx)?;
+            let set1 = evaluate(repo, &RevsetExpression::All, workspace_ctx)?;
+            let set2 = evaluate(repo, complement, workspace_ctx)?;
             Ok(Box::new(DifferenceRevset { set1, set2 }))
         }
         RevsetExpression::Union(expression1, expression2) => {
-            let set1 = expression1.evaluate(repo, workspace_ctx)?;
-            let set2 = expression2.evaluate(repo, workspace_ctx)?;
+            let set1 = evaluate(repo, expression1, workspace_ctx)?;
+            let set2 = evaluate(repo, expression2, workspace_ctx)?;
             Ok(Box::new(UnionRevset { set1, set2 }))
         }
         RevsetExpression::Intersection(expression1, expression2) => {
             match expression2.as_ref() {
                 RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
-                    candidates: expression1.evaluate(repo, workspace_ctx)?,
+                    candidates: evaluate(repo, expression1, workspace_ctx)?,
                     predicate: build_predicate_fn(repo, predicate),
                 })),
                 RevsetExpression::AsFilter(expression2) => Ok(Box::new(FilterRevset {
-                    candidates: expression1.evaluate(repo, workspace_ctx)?,
-                    predicate: expression2.evaluate(repo, workspace_ctx)?,
+                    candidates: evaluate(repo, expression1, workspace_ctx)?,
+                    predicate: evaluate(repo, expression2, workspace_ctx)?,
                 })),
                 _ => {
                     // TODO: 'set2' can be turned into a predicate, and use FilterRevset
                     // if a predicate function can terminate the 'set1' iterator early.
-                    let set1 = expression1.evaluate(repo, workspace_ctx)?;
-                    let set2 = expression2.evaluate(repo, workspace_ctx)?;
+                    let set1 = evaluate(repo, expression1, workspace_ctx)?;
+                    let set2 = evaluate(repo, expression2, workspace_ctx)?;
                     Ok(Box::new(IntersectionRevset { set1, set2 }))
                 }
             }
         }
         RevsetExpression::Difference(expression1, expression2) => {
-            let set1 = expression1.evaluate(repo, workspace_ctx)?;
-            let set2 = expression2.evaluate(repo, workspace_ctx)?;
+            let set1 = evaluate(repo, expression1, workspace_ctx)?;
+            let set2 = evaluate(repo, expression2, workspace_ctx)?;
             Ok(Box::new(DifferenceRevset { set1, set2 }))
         }
     }
