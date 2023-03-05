@@ -17,7 +17,7 @@ use std::io;
 use jujutsu_lib::backend::{Signature, Timestamp};
 
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
-use crate::time_util;
+use crate::{text_util, time_util};
 
 pub trait Template<C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
@@ -139,18 +139,14 @@ where
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let mut recorder = FormatRecorder::new();
         self.content.format(context, &mut recorder)?;
-        let mut new_line = true;
-        recorder.replay_with(formatter, |formatter, data| {
-            for line in data.split_inclusive(|&c| c == b'\n') {
-                if new_line && line != b"\n" {
-                    // Prefix inherits the current labels. This is implementation detail
-                    // and may be fixed later.
-                    self.prefix.format(context, formatter)?;
-                }
-                formatter.write_all(line)?;
-                new_line = line.ends_with(b"\n");
-            }
-            Ok(())
+        text_util::write_indented(formatter, &recorder, |formatter| {
+            // If Template::format() returned a custom error type, we would need to
+            // handle template evaluation error out of this closure:
+            //   prefix.format(context, &mut prefix_recorder)?;
+            //   write_indented(formatter, recorded, |formatter| {
+            //       prefix_recorder.replay(formatter)
+            //   })
+            self.prefix.format(context, formatter)
         })
     }
 }
