@@ -540,7 +540,8 @@ impl RevsetExpression {
         repo: &'index dyn Repo,
         workspace_ctx: Option<&RevsetWorkspaceContext>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        evaluate(repo, self, workspace_ctx)
+        let revset = evaluate(repo, self, workspace_ctx)?;
+        Ok(Box::new(revset))
     }
 }
 
@@ -1620,6 +1621,28 @@ impl<'index> Iterator for ReverseRevsetIterator<'index> {
     }
 }
 
+struct RevsetImpl<'index> {
+    inner: Box<dyn Revset<'index> + 'index>,
+}
+
+impl<'index> RevsetImpl<'index> {
+    fn new(revset: Box<dyn Revset<'index> + 'index>) -> Self {
+        Self { inner: revset }
+    }
+}
+
+impl<'index> ToPredicateFn<'index> for RevsetImpl<'index> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
+        predicate_fn_from_iter(self.iter())
+    }
+}
+
+impl<'index> Revset<'index> for RevsetImpl<'index> {
+    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+        self.inner.iter()
+    }
+}
+
 struct EagerRevset<'index> {
     index_entries: Vec<IndexEntry<'index>>,
 }
@@ -1673,9 +1696,9 @@ where
 
 struct ChildrenRevset<'index> {
     // The revisions we want to find children for
-    root_set: Box<dyn Revset<'index> + 'index>,
+    root_set: RevsetImpl<'index>,
     // Consider only candidates from this set
-    candidate_set: Box<dyn Revset<'index> + 'index>,
+    candidate_set: RevsetImpl<'index>,
 }
 
 impl<'index> Revset<'index> for ChildrenRevset<'index> {
@@ -1703,7 +1726,7 @@ impl<'index> ToPredicateFn<'index> for ChildrenRevset<'index> {
 }
 
 struct FilterRevset<'index, P> {
-    candidates: Box<dyn Revset<'index> + 'index>,
+    candidates: RevsetImpl<'index>,
     predicate: P,
 }
 
@@ -1730,8 +1753,8 @@ where
 }
 
 struct UnionRevset<'index> {
-    set1: Box<dyn Revset<'index> + 'index>,
-    set2: Box<dyn Revset<'index> + 'index>,
+    set1: RevsetImpl<'index>,
+    set2: RevsetImpl<'index>,
 }
 
 impl<'index> Revset<'index> for UnionRevset<'index> {
@@ -1782,8 +1805,8 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
 }
 
 struct IntersectionRevset<'index> {
-    set1: Box<dyn Revset<'index> + 'index>,
-    set2: Box<dyn Revset<'index> + 'index>,
+    set1: RevsetImpl<'index>,
+    set2: RevsetImpl<'index>,
 }
 
 impl<'index> Revset<'index> for IntersectionRevset<'index> {
@@ -1845,9 +1868,9 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
 
 struct DifferenceRevset<'index> {
     // The minuend (what to subtract from)
-    set1: Box<dyn Revset<'index> + 'index>,
+    set1: RevsetImpl<'index>,
     // The subtrahend (what to subtract)
-    set2: Box<dyn Revset<'index> + 'index>,
+    set2: RevsetImpl<'index>,
 }
 
 impl<'index> Revset<'index> for DifferenceRevset<'index> {
@@ -1920,9 +1943,9 @@ fn evaluate<'index>(
     repo: &'index dyn Repo,
     expression: &RevsetExpression,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
-) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
+) -> Result<RevsetImpl<'index>, RevsetError> {
     match expression {
-        RevsetExpression::None => Ok(Box::new(EagerRevset::empty())),
+        RevsetExpression::None => Ok(RevsetImpl::new(Box::new(EagerRevset::empty()))),
         RevsetExpression::All => {
             // Since `all()` does not include hidden commits, some of the logical
             // transformation rules may subtly change the evaluated set. For example,
@@ -1946,10 +1969,10 @@ fn evaluate<'index>(
             let root_set = evaluate(repo, roots, workspace_ctx)?;
             let candidates_expression = roots.descendants();
             let candidate_set = evaluate(repo, &candidates_expression, workspace_ctx)?;
-            Ok(Box::new(ChildrenRevset {
+            Ok(RevsetImpl::new(Box::new(ChildrenRevset {
                 root_set,
                 candidate_set,
-            }))
+            })))
         }
         RevsetExpression::Ancestors { heads, generation } => {
             let range_expression = RevsetExpression::Range {
@@ -1970,10 +1993,10 @@ fn evaluate<'index>(
             let head_ids = head_set.iter().commit_ids().collect_vec();
             let walk = repo.index().walk_revs(&head_ids, &root_ids);
             if generation == &GENERATION_RANGE_FULL {
-                Ok(Box::new(RevWalkRevset { walk }))
+                Ok(RevsetImpl::new(Box::new(RevWalkRevset { walk })))
             } else {
                 let walk = walk.filter_by_generation(generation.clone());
-                Ok(Box::new(RevWalkRevset { walk }))
+                Ok(RevsetImpl::new(Box::new(RevWalkRevset { walk })))
             }
         }
         RevsetExpression::DagRange { roots, heads } => {
@@ -1994,9 +2017,9 @@ fn evaluate<'index>(
                 }
             }
             result.reverse();
-            Ok(Box::new(EagerRevset {
+            Ok(RevsetImpl::new(Box::new(EagerRevset {
                 index_entries: result,
-            }))
+            })))
         }
         RevsetExpression::VisibleHeads => Ok(revset_for_commit_ids(
             repo,
@@ -2024,7 +2047,7 @@ fn evaluate<'index>(
                     index_entries.push(candidate);
                 }
             }
-            Ok(Box::new(EagerRevset { index_entries }))
+            Ok(RevsetImpl::new(Box::new(EagerRevset { index_entries })))
         }
         RevsetExpression::PublicHeads => Ok(revset_for_commit_ids(
             repo,
@@ -2080,49 +2103,55 @@ fn evaluate<'index>(
             }
             Ok(revset_for_commit_ids(repo, &commit_ids))
         }
-        RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
+        RevsetExpression::Filter(predicate) => Ok(RevsetImpl::new(Box::new(FilterRevset {
             candidates: evaluate(repo, &RevsetExpression::All, workspace_ctx)?,
             predicate: build_predicate_fn(repo, predicate),
-        })),
+        }))),
         RevsetExpression::AsFilter(candidates) => evaluate(repo, candidates, workspace_ctx),
         RevsetExpression::Present(candidates) => match evaluate(repo, candidates, workspace_ctx) {
             Ok(set) => Ok(set),
-            Err(RevsetError::NoSuchRevision(_)) => Ok(Box::new(EagerRevset::empty())),
+            Err(RevsetError::NoSuchRevision(_)) => {
+                Ok(RevsetImpl::new(Box::new(EagerRevset::empty())))
+            }
             r @ Err(RevsetError::AmbiguousIdPrefix(_) | RevsetError::StoreError(_)) => r,
         },
         RevsetExpression::NotIn(complement) => {
             let set1 = evaluate(repo, &RevsetExpression::All, workspace_ctx)?;
             let set2 = evaluate(repo, complement, workspace_ctx)?;
-            Ok(Box::new(DifferenceRevset { set1, set2 }))
+            Ok(RevsetImpl::new(Box::new(DifferenceRevset { set1, set2 })))
         }
         RevsetExpression::Union(expression1, expression2) => {
             let set1 = evaluate(repo, expression1, workspace_ctx)?;
             let set2 = evaluate(repo, expression2, workspace_ctx)?;
-            Ok(Box::new(UnionRevset { set1, set2 }))
+            Ok(RevsetImpl::new(Box::new(UnionRevset { set1, set2 })))
         }
         RevsetExpression::Intersection(expression1, expression2) => {
             match expression2.as_ref() {
-                RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
-                    candidates: evaluate(repo, expression1, workspace_ctx)?,
-                    predicate: build_predicate_fn(repo, predicate),
-                })),
-                RevsetExpression::AsFilter(expression2) => Ok(Box::new(FilterRevset {
-                    candidates: evaluate(repo, expression1, workspace_ctx)?,
-                    predicate: evaluate(repo, expression2, workspace_ctx)?,
-                })),
+                RevsetExpression::Filter(predicate) => {
+                    Ok(RevsetImpl::new(Box::new(FilterRevset {
+                        candidates: evaluate(repo, expression1, workspace_ctx)?,
+                        predicate: build_predicate_fn(repo, predicate),
+                    })))
+                }
+                RevsetExpression::AsFilter(expression2) => {
+                    Ok(RevsetImpl::new(Box::new(FilterRevset {
+                        candidates: evaluate(repo, expression1, workspace_ctx)?,
+                        predicate: evaluate(repo, expression2, workspace_ctx)?,
+                    })))
+                }
                 _ => {
                     // TODO: 'set2' can be turned into a predicate, and use FilterRevset
                     // if a predicate function can terminate the 'set1' iterator early.
                     let set1 = evaluate(repo, expression1, workspace_ctx)?;
                     let set2 = evaluate(repo, expression2, workspace_ctx)?;
-                    Ok(Box::new(IntersectionRevset { set1, set2 }))
+                    Ok(RevsetImpl::new(Box::new(IntersectionRevset { set1, set2 })))
                 }
             }
         }
         RevsetExpression::Difference(expression1, expression2) => {
             let set1 = evaluate(repo, expression1, workspace_ctx)?;
             let set2 = evaluate(repo, expression2, workspace_ctx)?;
-            Ok(Box::new(DifferenceRevset { set1, set2 }))
+            Ok(RevsetImpl::new(Box::new(DifferenceRevset { set1, set2 })))
         }
     }
 }
@@ -2130,7 +2159,7 @@ fn evaluate<'index>(
 fn revset_for_commit_ids<'index>(
     repo: &'index dyn Repo,
     commit_ids: &[CommitId],
-) -> Box<dyn Revset<'index> + 'index> {
+) -> RevsetImpl<'index> {
     let index = repo.index();
     let mut index_entries = vec![];
     for id in commit_ids {
@@ -2138,7 +2167,7 @@ fn revset_for_commit_ids<'index>(
     }
     index_entries.sort_by_key(|b| Reverse(b.position()));
     index_entries.dedup();
-    Box::new(EagerRevset { index_entries })
+    RevsetImpl::new(Box::new(EagerRevset { index_entries }))
 }
 
 pub fn revset_for_commits<'index>(
@@ -3795,9 +3824,9 @@ mod tests {
 
         let get_entry = |id: &CommitId| index.entry_by_id(id).unwrap();
         let make_entries = |ids: &[&CommitId]| ids.iter().map(|id| get_entry(id)).collect_vec();
-        let make_set = |ids: &[&CommitId]| -> Box<dyn Revset<'_> + '_> {
+        let make_set = |ids: &[&CommitId]| -> RevsetImpl {
             let index_entries = make_entries(ids);
-            Box::new(EagerRevset { index_entries })
+            RevsetImpl::new(Box::new(EagerRevset { index_entries }))
         };
 
         let set = make_set(&[&id_4, &id_3, &id_2, &id_0]);
