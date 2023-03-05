@@ -743,11 +743,7 @@ impl MutableRepo {
                 .store()
                 .get_commit(&wc_commit_id)
                 .map_err(EditCommitError::WorkingCopyCommitNotFound)?;
-            if wc_commit.parent_ids().len() == 1
-                && wc_commit.parents()[0].tree_id() == wc_commit.tree_id()
-                && wc_commit.description().is_empty()
-                && self.view().heads().contains(wc_commit.id())
-            {
+            if wc_commit.is_discardable() && self.view().heads().contains(wc_commit.id()) {
                 // Abandon the working-copy commit we're leaving if it's empty and a head commit
                 self.record_abandoned_commit(wc_commit_id);
             }

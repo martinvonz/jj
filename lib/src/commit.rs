@@ -128,4 +128,15 @@ impl Commit {
     pub fn committer(&self) -> &Signature {
         &self.data.committer
     }
+
+    /// A commit is discardable if it has one parent, no change from its
+    /// parent, and an empty description.
+    pub fn is_discardable(&self) -> bool {
+        if self.description().is_empty() {
+            if let [parent_commit] = &*self.parents() {
+                return self.tree_id() == parent_commit.tree_id();
+            }
+        }
+        false
+    }
 }
