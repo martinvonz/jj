@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::cmp::{Ordering, Reverse};
 use std::collections::{HashMap, HashSet};
 use std::iter::Peekable;
@@ -550,6 +551,11 @@ impl RevsetExpression {
 struct RevsetWrapper<'index>(Rc<RevsetImpl<'index>>);
 
 impl<'index> Revset<'index> for RevsetWrapper<'index> {
+    fn as_any(&self) -> &dyn Any {
+        let static_self: &RevsetWrapper<'static> = unsafe { std::mem::transmute(self) };
+        static_self
+    }
+
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
         self.0.iter()
     }
@@ -564,6 +570,18 @@ impl<'index> Revset<'index> for RevsetWrapper<'index> {
 
     fn contains(&self, commit_id: &CommitId) -> bool {
         self.0.contains(commit_id)
+    }
+
+    fn intersect<'a>(&'a self, other: &'a dyn Revset<'index>) -> Box<dyn Revset<'index> + 'index> {
+        let x: &'a dyn Any = self.as_any();
+        let x2: Option<&RevsetWrapper> = x.downcast_ref();
+        let set1: &RevsetWrapper<'a> = x2.expect("revset implementation should be a RevsetWrapper");
+        let set2: &RevsetWrapper<'a> = other
+            .as_any()
+            .downcast_ref()
+            .expect("revset implementation should be a RevsetWrapper");
+        let revset = (&set1.0).intersect(&set2.0);
+        Box::new(RevsetWrapper(revset))
     }
 }
 
@@ -1544,6 +1562,8 @@ pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
 }
 
 pub trait Revset<'index> {
+    fn as_any(&self) -> &dyn Any;
+
     // All revsets currently iterate in order of descending index position
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
 
@@ -1552,6 +1572,8 @@ pub trait Revset<'index> {
     fn len(&self) -> usize;
 
     fn contains(&self, commit_id: &CommitId) -> bool;
+
+    fn intersect(&self, other: &dyn Revset<'index>) -> Box<dyn Revset<'index> + 'index>;
 }
 
 trait ToPredicateFn<'index> {
@@ -1756,6 +1778,16 @@ impl<'index> RevsetImpl<'index> {
 
     fn contains(&self, commit_id: &CommitId) -> bool {
         self.iter_state.lock().unwrap().contains(commit_id)
+    }
+
+    fn intersect(self: &Rc<Self>, other: &Rc<Self>) -> Rc<Self> {
+        RevsetImpl::new(
+            self.iter_state.lock().unwrap().index,
+            Box::new(IntersectionRevset {
+                set1: self.clone(),
+                set2: other.clone(),
+            }),
+        )
     }
 }
 
