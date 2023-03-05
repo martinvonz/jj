@@ -703,13 +703,15 @@ fn cmd_git_push(
                     &RefTarget::Normal(wc_commit.clone()),
                 );
                 if branches.is_empty() {
-                    // Try @- instead if it has exactly one parent, such as after `jj squash`
+                    // Try @- instead if @ is discardable
                     let commit = workspace_command.repo().store().get_commit(wc_commit)?;
-                    if let [parent] = commit.parent_ids() {
-                        branches = find_branches_targeting(
-                            workspace_command.repo().view(),
-                            &RefTarget::Normal(parent.clone()),
-                        );
+                    if commit.is_discardable() {
+                        if let [parent_commit_id] = commit.parent_ids() {
+                            branches = find_branches_targeting(
+                                workspace_command.repo().view(),
+                                &RefTarget::Normal(parent_commit_id.clone()),
+                            );
+                        }
                     }
                 }
                 if branches.is_empty() {
