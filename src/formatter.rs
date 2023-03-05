@@ -15,6 +15,7 @@
 use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::io::{Error, Write};
+use std::ops::Range;
 use std::sync::Arc;
 use std::{fmt, io, mem};
 
@@ -488,18 +489,20 @@ impl FormatRecorder {
     }
 
     pub fn replay(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
-        self.replay_with(formatter, |formatter, data| formatter.write_all(data))
+        self.replay_with(formatter, |formatter, range| {
+            formatter.write_all(&self.data[range])
+        })
     }
 
     pub fn replay_with(
         &self,
         formatter: &mut dyn Formatter,
-        mut write_data: impl FnMut(&mut dyn Formatter, &[u8]) -> io::Result<()>,
+        mut write_data: impl FnMut(&mut dyn Formatter, Range<usize>) -> io::Result<()>,
     ) -> io::Result<()> {
         let mut last_pos = 0;
         let mut flush_data = |formatter: &mut dyn Formatter, pos| -> io::Result<()> {
             if last_pos != pos {
-                write_data(formatter, &self.data[last_pos..pos])?;
+                write_data(formatter, last_pos..pos)?;
                 last_pos = pos;
             }
             Ok(())
@@ -953,7 +956,8 @@ mod tests {
         let mut output: Vec<u8> = vec![];
         let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         recorder
-            .replay_with(&mut formatter, |formatter, data| {
+            .replay_with(&mut formatter, |formatter, range| {
+                let data = &recorder.data()[range];
                 write!(formatter, "<<{}>>", str::from_utf8(data).unwrap())
             })
             .unwrap();
