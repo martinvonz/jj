@@ -2,7 +2,7 @@ use clap::Subcommand;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::operation::Operation;
 
-use crate::cli_util::{user_error, CommandError, CommandHelper};
+use crate::cli_util::{user_error, CommandError, CommandHelper, LogContentFormat};
 use crate::graphlog::{get_graphlog, Edge};
 use crate::operation_templater;
 use crate::templater::Template as _;
@@ -63,6 +63,7 @@ fn cmd_op_log(
         &template_string,
         workspace_command.template_aliases_map(),
     )?;
+    let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
@@ -79,8 +80,11 @@ fn cmd_op_log(
         }
         let is_head_op = op.id() == &head_op_id;
         let mut buffer = vec![];
-        ui.new_formatter(&mut buffer)
-            .with_label("op_log", |formatter| template.format(&op, formatter))?;
+        with_content_format.write_graph_text(
+            ui.new_formatter(&mut buffer).as_mut(),
+            |formatter| formatter.with_label("op_log", |formatter| template.format(&op, formatter)),
+            || graph.width(op.id(), &edges),
+        )?;
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
         }

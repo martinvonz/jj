@@ -7,3 +7,6 @@ fetch = "origin"
 
 [revset-aliases]
 # Placeholder: added by user
+
+[ui]
+log-word-wrap = false

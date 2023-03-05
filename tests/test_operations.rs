@@ -16,7 +16,7 @@ use std::path::Path;
 
 use regex::Regex;
 
-use crate::common::TestEnvironment;
+use crate::common::{get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -144,6 +144,46 @@ fn test_op_log_template() {
                                 time.start(), time.end(), time.duration()) ++ "\n""#), @r###"
     @  a99a3 true test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
     o  56b94 false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
+    "###);
+}
+
+#[test]
+fn test_op_log_word_wrap() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |args: &[&str], columns: u32, word_wrap: bool| {
+        let mut args = args.to_vec();
+        if word_wrap {
+            args.push("--config-toml=ui.log-word-wrap=true");
+        }
+        let assert = test_env
+            .jj_cmd(&repo_path, &args)
+            .env("COLUMNS", columns.to_string())
+            .assert()
+            .success()
+            .stderr("");
+        get_stdout_string(&assert)
+    };
+
+    // ui.log-word-wrap option works
+    insta::assert_snapshot!(render(&["op", "log"], 40, false), @r###"
+    @  a99a3fd5c51e test-username@host.example.com 22 years ago, lasted less than a microsecond
+    │  add workspace 'default'
+    o  56b94dfc38e7 test-username@host.example.com 22 years ago, lasted less than a microsecond
+       initialize repo
+    "###);
+    insta::assert_snapshot!(render(&["op", "log"], 40, true), @r###"
+    @  a99a3fd5c51e
+    │  test-username@host.example.com 22
+    │  years ago, lasted less than a
+    │  microsecond
+    │  add workspace 'default'
+    o  56b94dfc38e7
+       test-username@host.example.com 22
+       years ago, lasted less than a
+       microsecond
+       initialize repo
     "###);
 }
 

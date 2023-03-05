@@ -11,7 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use common::TestEnvironment;
+
+use common::{get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -116,6 +117,62 @@ fn test_obslog_with_or_without_diff() {
     +foo
     rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
     (empty) my description
+    "###);
+}
+
+#[test]
+fn test_obslog_word_wrap() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |args: &[&str], columns: u32, word_wrap: bool| {
+        let mut args = args.to_vec();
+        if word_wrap {
+            args.push("--config-toml=ui.log-word-wrap=true");
+        }
+        let assert = test_env
+            .jj_cmd(&repo_path, &args)
+            .env("COLUMNS", columns.to_string())
+            .assert()
+            .success()
+            .stderr("");
+        get_stdout_string(&assert)
+    };
+
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
+
+    // ui.log-word-wrap option applies to both graph/no-graph outputs
+    insta::assert_snapshot!(render(&["obslog"], 40, false), @r###"
+    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
+    │  (empty) first
+    o  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+       (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(render(&["obslog"], 40, true), @r###"
+    @  qpvuntsmwlqt test.user@example.com
+    │  2001-02-03 04:05:08.000 +07:00
+    │  69542c1984c1
+    │  (empty) first
+    o  qpvuntsmwlqt test.user@example.com
+       2001-02-03 04:05:07.000 +07:00
+       230dd059e1b0
+       (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, false), @r###"
+    qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
+    (empty) first
+    qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, true), @r###"
+    qpvuntsmwlqt test.user@example.com
+    2001-02-03 04:05:08.000 +07:00
+    69542c1984c1
+    (empty) first
+    qpvuntsmwlqt test.user@example.com
+    2001-02-03 04:05:07.000 +07:00
+    230dd059e1b0
+    (empty) (no description set)
     "###);
 }
 

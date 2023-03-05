@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj config set` command allows simple config edits like
   `jj config set --repo user.email "somebody@example.com"`
 
+* Added `ui.log-word-wrap` option to wrap `jj log`/`obslog`/`op log` content
+  based on terminal width. [#1043](https://github.com/martinvonz/jj/issues/1043)
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines

@@ -62,7 +62,7 @@ use tracing_subscriber::prelude::*;
 use crate::config::{
     config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
 };
-use crate::formatter::{Formatter, PlainTextFormatter};
+use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::template_parser::{TemplateAliasesMap, TemplateParseError};
 use crate::templater::Template;
@@ -1615,6 +1615,53 @@ fn parse_commit_summary_template<'a>(
         &template_text,
         aliases_map,
     )?)
+}
+
+/// Helper to reformat content of log-like commands.
+#[derive(Clone, Debug)]
+pub enum LogContentFormat {
+    NoWrap,
+    Wrap { term_width: usize },
+}
+
+impl LogContentFormat {
+    pub fn new(ui: &Ui, settings: &UserSettings) -> Result<Self, config::ConfigError> {
+        if settings.config().get_bool("ui.log-word-wrap")? {
+            let term_width = usize::from(ui.term_width().unwrap_or(80));
+            Ok(LogContentFormat::Wrap { term_width })
+        } else {
+            Ok(LogContentFormat::NoWrap)
+        }
+    }
+
+    pub fn write(
+        &self,
+        formatter: &mut dyn Formatter,
+        content_fn: impl FnOnce(&mut dyn Formatter) -> std::io::Result<()>,
+    ) -> std::io::Result<()> {
+        self.write_graph_text(formatter, content_fn, || 0)
+    }
+
+    pub fn write_graph_text(
+        &self,
+        formatter: &mut dyn Formatter,
+        content_fn: impl FnOnce(&mut dyn Formatter) -> std::io::Result<()>,
+        graph_width_fn: impl FnOnce() -> usize,
+    ) -> std::io::Result<()> {
+        match self {
+            LogContentFormat::NoWrap => content_fn(formatter),
+            LogContentFormat::Wrap { term_width } => {
+                let mut recorder = FormatRecorder::new();
+                content_fn(&mut recorder)?;
+                text_util::write_wrapped(
+                    formatter,
+                    &recorder,
+                    term_width.saturating_sub(graph_width_fn()),
+                )?;
+                Ok(())
+            }
+        }
+    }
 }
 
 // TODO: Use a proper TOML library to serialize instead.
