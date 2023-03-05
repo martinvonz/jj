@@ -30,9 +30,10 @@ pub fn write_indented(
     recorded_content: &FormatRecorder,
     mut write_prefix: impl FnMut(&mut dyn Formatter) -> io::Result<()>,
 ) -> io::Result<()> {
+    let data = recorded_content.data();
     let mut new_line = true;
-    recorded_content.replay_with(formatter, |formatter, data| {
-        for line in data.split_inclusive(|&c| c == b'\n') {
+    recorded_content.replay_with(formatter, |formatter, range| {
+        for line in data[range].split_inclusive(|&c| c == b'\n') {
             if new_line && line != b"\n" {
                 // Prefix inherits the current labels. This is implementation detail
                 // and may be fixed later.
