@@ -55,6 +55,12 @@ impl Template<()> for String {
     }
 }
 
+impl Template<()> for &str {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        formatter.write_str(self)
+    }
+}
+
 impl Template<()> for Timestamp {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(&time_util::format_absolute_timestamp(self))
