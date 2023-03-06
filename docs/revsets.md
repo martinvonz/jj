@@ -118,6 +118,7 @@ revsets (expressions) as arguments.
 * `empty()`: Commits modifying no files. This also includes `merges()` without
   user modifications and `root`.
 * `file(pattern..)`: Commits modifying the paths specified by the `pattern..`.
+  Paths are relative to the directory `jj` was invoked from.
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown branch name.)
 
