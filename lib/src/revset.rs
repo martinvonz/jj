@@ -541,7 +541,29 @@ impl RevsetExpression {
         workspace_ctx: Option<&RevsetWorkspaceContext>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
         let revset = evaluate(repo, self, workspace_ctx)?;
-        Ok(Box::new(revset))
+        Ok(Box::new(RevsetWrapper(revset)))
+    }
+}
+
+/// Wraps the internal `RevsetImpl` type and implements the `Revset` trait while
+/// hiding the `Rc`-wrapping
+struct RevsetWrapper<'index>(Rc<RevsetImpl<'index>>);
+
+impl<'index> Revset<'index> for RevsetWrapper<'index> {
+    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+        self.0.iter()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn contains(&self, commit_id: &CommitId) -> bool {
+        self.0.contains(commit_id)
     }
 }
 
@@ -1548,6 +1570,15 @@ where
     }
 }
 
+impl<'index, T> ToPredicateFn<'index> for Rc<T>
+where
+    T: ToPredicateFn<'index> + ?Sized,
+{
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
+        <T as ToPredicateFn<'index>>::to_predicate_fn(self)
+    }
+}
+
 trait InternalRevset<'index>: ToPredicateFn<'index> {
     // All revsets currently iterate in order of descending index position
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
@@ -1697,23 +1728,15 @@ struct RevsetImpl<'index> {
 }
 
 impl<'index> RevsetImpl<'index> {
-    fn new(index: &'index dyn Index, revset: Box<dyn InternalRevset<'index> + 'index>) -> Self {
+    fn new(index: &'index dyn Index, revset: Box<dyn InternalRevset<'index> + 'index>) -> Rc<Self> {
         let revset = Box::into_pin(revset);
         let iter = unsafe { std::mem::transmute(revset.iter()) };
-        Self {
+        Rc::new(Self {
             iter_state: Mutex::new(RevsetIteratorState::new(index, iter)),
             inner: revset,
-        }
+        })
     }
-}
 
-impl<'index> ToPredicateFn<'index> for RevsetImpl<'index> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
-        self.inner.to_predicate_fn()
-    }
-}
-
-impl<'index> Revset<'index> for RevsetImpl<'index> {
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
         Box::new(RevsetImplIterator {
             state: &self.iter_state,
@@ -1733,6 +1756,12 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
 
     fn contains(&self, commit_id: &CommitId) -> bool {
         self.iter_state.lock().unwrap().contains(commit_id)
+    }
+}
+
+impl<'index> ToPredicateFn<'index> for RevsetImpl<'index> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
+        self.inner.to_predicate_fn()
     }
 }
 
@@ -1805,9 +1834,9 @@ where
 
 struct ChildrenRevset<'index> {
     // The revisions we want to find children for
-    root_set: RevsetImpl<'index>,
+    root_set: Rc<RevsetImpl<'index>>,
     // Consider only candidates from this set
-    candidate_set: RevsetImpl<'index>,
+    candidate_set: Rc<RevsetImpl<'index>>,
 }
 
 impl<'index> InternalRevset<'index> for ChildrenRevset<'index> {
@@ -1835,7 +1864,7 @@ impl<'index> ToPredicateFn<'index> for ChildrenRevset<'index> {
 }
 
 struct FilterRevset<'index, P> {
-    candidates: RevsetImpl<'index>,
+    candidates: Rc<RevsetImpl<'index>>,
     predicate: P,
 }
 
@@ -1862,8 +1891,8 @@ where
 }
 
 struct UnionRevset<'index> {
-    set1: RevsetImpl<'index>,
-    set2: RevsetImpl<'index>,
+    set1: Rc<RevsetImpl<'index>>,
+    set2: Rc<RevsetImpl<'index>>,
 }
 
 impl<'index> InternalRevset<'index> for UnionRevset<'index> {
@@ -1914,8 +1943,8 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
 }
 
 struct IntersectionRevset<'index> {
-    set1: RevsetImpl<'index>,
-    set2: RevsetImpl<'index>,
+    set1: Rc<RevsetImpl<'index>>,
+    set2: Rc<RevsetImpl<'index>>,
 }
 
 impl<'index> InternalRevset<'index> for IntersectionRevset<'index> {
@@ -1977,9 +2006,9 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
 
 struct DifferenceRevset<'index> {
     // The minuend (what to subtract from)
-    set1: RevsetImpl<'index>,
+    set1: Rc<RevsetImpl<'index>>,
     // The subtrahend (what to subtract)
-    set2: RevsetImpl<'index>,
+    set2: Rc<RevsetImpl<'index>>,
 }
 
 impl<'index> InternalRevset<'index> for DifferenceRevset<'index> {
@@ -2052,7 +2081,7 @@ fn evaluate<'index>(
     repo: &'index dyn Repo,
     expression: &RevsetExpression,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
-) -> Result<RevsetImpl<'index>, RevsetError> {
+) -> Result<Rc<RevsetImpl<'index>>, RevsetError> {
     match expression {
         RevsetExpression::None => Ok(RevsetImpl::new(
             repo.index(),
@@ -2304,7 +2333,7 @@ fn evaluate<'index>(
 fn revset_for_commit_ids<'index>(
     repo: &'index dyn Repo,
     commit_ids: &[CommitId],
-) -> RevsetImpl<'index> {
+) -> Rc<RevsetImpl<'index>> {
     let index = repo.index();
     let mut index_entries = vec![];
     for id in commit_ids {
@@ -2325,10 +2354,10 @@ pub fn revset_for_commits<'index>(
         .map(|commit| index.entry_by_id(commit.id()).unwrap())
         .collect_vec();
     index_entries.sort_by_key(|b| Reverse(b.position()));
-    Box::new(RevsetImpl::new(
+    Box::new(RevsetWrapper(RevsetImpl::new(
         index,
         Box::new(EagerRevset { index_entries }),
-    ))
+    )))
 }
 
 type PurePredicateFn<'index> = Box<dyn Fn(&IndexEntry<'index>) -> bool + 'index>;
@@ -3971,7 +4000,7 @@ mod tests {
 
         let get_entry = |id: &CommitId| index.entry_by_id(id).unwrap();
         let make_entries = |ids: &[&CommitId]| ids.iter().map(|id| get_entry(id)).collect_vec();
-        let make_set = |ids: &[&CommitId]| -> RevsetImpl {
+        let make_set = |ids: &[&CommitId]| -> Rc<RevsetImpl> {
             let index_entries = make_entries(ids);
             RevsetImpl::new(&index, Box::new(EagerRevset { index_entries }))
         };
