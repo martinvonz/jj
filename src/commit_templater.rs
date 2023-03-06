@@ -30,7 +30,7 @@ use crate::template_parser::{
     TemplateLanguage, TemplateParseError, TemplateParseResult,
 };
 use crate::templater::{
-    IntoTemplate, PlainTextFormattedProperty, Template, TemplateProperty, TemplatePropertyFn,
+    self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateProperty, TemplatePropertyFn,
 };
 
 struct CommitTemplateLanguage<'repo, 'b> {
@@ -60,6 +60,9 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
             CommitTemplatePropertyKind::CommitOrChangeId(property) => {
                 build_commit_or_change_id_method(self, property, function)
             }
+            CommitTemplatePropertyKind::CommitOrChangeIdList(property) => {
+                template_parser::build_list_method(self, property, function)
+            }
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
                 build_shortest_id_prefix_method(self, property, function)
             }
@@ -77,6 +80,13 @@ impl<'repo> CommitTemplateLanguage<'repo, '_> {
         CommitTemplatePropertyKind::CommitOrChangeId(property)
     }
 
+    fn wrap_commit_or_change_id_list(
+        &self,
+        property: Box<dyn TemplateProperty<Commit, Output = Vec<CommitOrChangeId<'repo>>> + 'repo>,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::CommitOrChangeIdList(property)
+    }
+
     fn wrap_shortest_id_prefix(
         &self,
         property: Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>,
@@ -88,6 +98,9 @@ impl<'repo> CommitTemplateLanguage<'repo, '_> {
 enum CommitTemplatePropertyKind<'repo> {
     Core(CoreTemplatePropertyKind<'repo, Commit>),
     CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo>),
+    CommitOrChangeIdList(
+        Box<dyn TemplateProperty<Commit, Output = Vec<CommitOrChangeId<'repo>>> + 'repo>,
+    ),
     ShortestIdPrefix(Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>),
 }
 
@@ -95,6 +108,7 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Commit, Output = bool> + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_boolean(),
+            // TODO: should we allow implicit cast of List type?
             _ => None,
         }
     }
@@ -119,6 +133,7 @@ impl<'repo> IntoTemplate<'repo, Commit> for CommitTemplatePropertyKind<'repo> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.into_template(),
             CommitTemplatePropertyKind::CommitOrChangeId(property) => property.into_template(),
+            CommitTemplatePropertyKind::CommitOrChangeIdList(property) => property.into_template(),
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => property.into_template(),
         }
     }
@@ -152,6 +167,13 @@ fn build_commit_keyword<'repo>(
         "commit_id" => language.wrap_commit_or_change_id(wrap_fn(move |commit| {
             CommitOrChangeId::new(repo, IdKind::Commit(commit.id().to_owned()))
         })),
+        "parent_commit_ids" => language.wrap_commit_or_change_id_list(wrap_fn(move |commit| {
+            commit
+                .parent_ids()
+                .iter()
+                .map(|id| CommitOrChangeId::new(repo, IdKind::Commit(id.to_owned())))
+                .collect()
+        })),
         "author" => language.wrap_signature(wrap_fn(|commit| commit.author().clone())),
         "committer" => language.wrap_signature(wrap_fn(|commit| commit.committer().clone())),
         "working_copies" => language.wrap_string(wrap_repo_fn(repo, extract_working_copies)),
@@ -179,6 +201,7 @@ fn build_commit_keyword<'repo>(
     Ok(property)
 }
 
+// TODO: return Vec<String>
 fn extract_working_copies(repo: &dyn Repo, commit: &Commit) -> String {
     let wc_commit_ids = repo.view().wc_commit_ids();
     if wc_commit_ids.len() <= 1 {
@@ -193,6 +216,7 @@ fn extract_working_copies(repo: &dyn Repo, commit: &Commit) -> String {
     names.join(" ")
 }
 
+// TODO: return Vec<Branch>?
 fn extract_branches(repo: &dyn Repo, commit: &Commit) -> String {
     let mut names = vec![];
     for (branch_name, branch_target) in repo.view().branches() {
@@ -225,6 +249,7 @@ fn extract_branches(repo: &dyn Repo, commit: &Commit) -> String {
     names.join(" ")
 }
 
+// TODO: return Vec<NameRef>?
 fn extract_tags(repo: &dyn Repo, commit: &Commit) -> String {
     let mut names = vec![];
     for (tag_name, target) in repo.view().tags() {
@@ -239,6 +264,7 @@ fn extract_tags(repo: &dyn Repo, commit: &Commit) -> String {
     names.join(" ")
 }
 
+// TODO: return Vec<NameRef>?
 fn extract_git_refs(repo: &dyn Repo, commit: &Commit) -> String {
     // TODO: We should keep a map from commit to ref names so we don't have to walk
     // all refs here.
@@ -255,6 +281,7 @@ fn extract_git_refs(repo: &dyn Repo, commit: &Commit) -> String {
     names.join(" ")
 }
 
+// TODO: return NameRef?
 fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> String {
     match repo.view().git_head() {
         Some(ref_target) if ref_target.has_add(commit.id()) => {
@@ -319,6 +346,12 @@ impl<'repo> CommitOrChangeId<'repo> {
 impl Template<()> for CommitOrChangeId<'_> {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(&self.hex())
+    }
+}
+
+impl Template<()> for Vec<CommitOrChangeId<'_>> {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        templater::format_joined(&(), formatter, self, " ")
     }
 }
 

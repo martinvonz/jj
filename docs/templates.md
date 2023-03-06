@@ -18,6 +18,7 @@ The following keywords can be used in `jj log`/`jj obslog` templates.
 * `description: String`
 * `change_id: ChangeId`
 * `commit_id: CommitId`
+* `parent_commit_ids: List<CommitId>`
 * `author: Signature`
 * `committer: Signature`
 * `working_copies: String`: For multi-workspace repository, indicate
@@ -80,6 +81,10 @@ The following methods are defined.
 * `.shortest([min_len: Integer]) -> ShortestIdPrefix`: Shortest unique prefix.
 
 ### Integer type
+
+No methods are defined.
+
+### List type
 
 No methods are defined.
 

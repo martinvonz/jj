@@ -1040,6 +1040,15 @@ fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
     Ok(property)
 }
 
+pub fn build_list_method<'a, L: TemplateLanguage<'a>, P>(
+    _language: &L,
+    _self_property: impl TemplateProperty<L::Context, Output = Vec<P>> + 'a,
+    function: &FunctionCallNode,
+) -> TemplateParseResult<L::Property> {
+    // TODO: .join(separator), .map(), ...
+    Err(TemplateParseError::no_such_method("List", function))
+}
+
 fn build_global_function<'a, L: TemplateLanguage<'a>>(
     language: &L,
     function: &FunctionCallNode,
