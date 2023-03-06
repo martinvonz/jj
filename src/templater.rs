@@ -27,6 +27,12 @@ pub trait IntoTemplate<'a, C> {
     fn into_template(self) -> Box<dyn Template<C> + 'a>;
 }
 
+impl<C, T: Template<C> + ?Sized> Template<C> for &T {
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        <T as Template<C>>::format(self, context, formatter)
+    }
+}
+
 impl<C, T: Template<C> + ?Sized> Template<C> for Box<T> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         <T as Template<C>>::format(self, context, formatter)
@@ -424,4 +430,26 @@ where
     fn extract(&self, context: &C) -> Self::Output {
         (self.function)(self.property.extract(context))
     }
+}
+
+pub fn format_joined<C, I, S>(
+    context: &C,
+    formatter: &mut dyn Formatter,
+    contents: I,
+    separator: S,
+) -> io::Result<()>
+where
+    I: IntoIterator,
+    I::Item: Template<C>,
+    S: Template<C>,
+{
+    let mut contents_iter = contents.into_iter().fuse();
+    if let Some(content) = contents_iter.next() {
+        content.format(context, formatter)?;
+    }
+    for content in contents_iter {
+        separator.format(context, formatter)?;
+        content.format(context, formatter)?;
+    }
+    Ok(())
 }
