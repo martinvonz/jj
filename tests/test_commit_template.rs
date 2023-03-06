@@ -18,6 +18,30 @@ use regex::Regex;
 pub mod common;
 
 #[test]
+fn test_log_parent_commit_ids() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "@-"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "@", "@-"]);
+
+    let template = r#"commit_id ++ "\nP: " ++ parent_commit_ids ++ "\n""#;
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @    c067170d4ca1bc6162b64f7550617ec809647f84
+    ├─╮  P: 4db490c88528133d579540b6900b8098f0c17701 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    o │  4db490c88528133d579540b6900b8098f0c17701
+    ├─╯  P: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    o  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  P: 0000000000000000000000000000000000000000
+    o  0000000000000000000000000000000000000000
+       P:
+    "###);
+}
+
+#[test]
 fn test_log_author_timestamp() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
