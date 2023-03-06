@@ -378,6 +378,44 @@ impl<C, T: Template<C>> TemplateProperty<C> for PlainTextFormattedProperty<T> {
     }
 }
 
+/// Renders a list of template properties with the given separator.
+///
+/// Each template property can be extracted as a context-less value, but
+/// the separator takes a context of type `C`.
+pub struct FormattablePropertyListTemplate<P, S> {
+    property: P,
+    separator: S,
+}
+
+impl<P, S> FormattablePropertyListTemplate<P, S> {
+    pub fn new<C>(property: P, separator: S) -> Self
+    where
+        P: TemplateProperty<C>,
+        P::Output: IntoIterator,
+        <P::Output as IntoIterator>::Item: Template<()>,
+        S: Template<C>,
+    {
+        FormattablePropertyListTemplate {
+            property,
+            separator,
+        }
+    }
+}
+
+impl<C, P, S> Template<C> for FormattablePropertyListTemplate<P, S>
+where
+    P: TemplateProperty<C>,
+    P::Output: IntoIterator,
+    <P::Output as IntoIterator>::Item: Template<()>,
+    S: Template<C>,
+{
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        let contents = self.property.extract(context);
+        let contents_iter = contents.into_iter().map(Literal); // as Template<C>
+        format_joined(context, formatter, contents_iter, &self.separator)
+    }
+}
+
 pub struct ConditionalTemplate<P, T, U> {
     pub condition: P,
     pub true_template: T,

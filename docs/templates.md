@@ -86,7 +86,10 @@ No methods are defined.
 
 ### List type
 
-No methods are defined.
+The following methods are defined.
+
+* `.join(separator: Template) -> Template`: Concatenate elements with
+  the given `separator`.
 
 ### OperationId type
 

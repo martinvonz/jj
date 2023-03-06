@@ -25,9 +25,9 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::templater::{
-    ConcatTemplate, ConditionalTemplate, IndentTemplate, IntoTemplate, LabelTemplate, Literal,
-    PlainTextFormattedProperty, SeparateTemplate, Template, TemplateFunction, TemplateProperty,
-    TimestampRange,
+    ConcatTemplate, ConditionalTemplate, FormattablePropertyListTemplate, IndentTemplate,
+    IntoTemplate, LabelTemplate, Literal, PlainTextFormattedProperty, SeparateTemplate, Template,
+    TemplateFunction, TemplateProperty, TimestampRange,
 };
 use crate::time_util;
 
@@ -1048,13 +1048,22 @@ fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
     Ok(property)
 }
 
-pub fn build_list_method<'a, L: TemplateLanguage<'a>, P>(
-    _language: &L,
-    _self_property: impl TemplateProperty<L::Context, Output = Vec<P>> + 'a,
+pub fn build_list_method<'a, L: TemplateLanguage<'a>, P: Template<()> + 'a>(
+    language: &L,
+    self_property: impl TemplateProperty<L::Context, Output = Vec<P>> + 'a,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<L::Property> {
-    // TODO: .join(separator), .map(), ...
-    Err(TemplateParseError::no_such_method("List", function))
+    let property = match function.name {
+        "join" => {
+            let [separator_node] = expect_exact_arguments(function)?;
+            let separator = build_expression(language, separator_node)?.into_template();
+            let template = FormattablePropertyListTemplate::new(self_property, separator);
+            language.wrap_template(template)
+        }
+        // TODO: .map()
+        _ => return Err(TemplateParseError::no_such_method("List", function)),
+    };
+    Ok(property)
 }
 
 fn build_global_function<'a, L: TemplateLanguage<'a>>(
