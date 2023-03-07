@@ -119,6 +119,7 @@ defined.
 
 * `.contains(needle: Template) -> Boolean`
 * `.first_line() -> String`
+* `.lines() -> List<String>`: Split into lines excluding newline characters.
 * `.upper() -> String`
 * `.lower() -> String`
 
