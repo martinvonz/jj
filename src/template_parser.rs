@@ -616,6 +616,7 @@ pub trait TemplateLanguage<'a> {
         &self,
         property: impl TemplateProperty<Self::Context, Output = TimestampRange> + 'a,
     ) -> Self::Property;
+    fn wrap_template(&self, template: impl Template<Self::Context> + 'a) -> Self::Property;
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property>;
     fn build_method(
@@ -644,6 +645,13 @@ macro_rules! impl_core_wrap_property_fns {
                 wrap_timestamp_range($crate::templater::TimestampRange) => TimestampRange,
             }
         );
+        fn wrap_template(
+            &self,
+            template: impl $crate::templater::Template<Self::Context> + $a,
+        ) -> Self::Property {
+            use $crate::template_parser::CoreTemplatePropertyKind as Kind;
+            $outer(Kind::Template(Box::new(template)))
+        }
     };
 }
 
@@ -679,6 +687,11 @@ pub enum CoreTemplatePropertyKind<'a, I> {
     Signature(Box<dyn TemplateProperty<I, Output = Signature> + 'a>),
     Timestamp(Box<dyn TemplateProperty<I, Output = Timestamp> + 'a>),
     TimestampRange(Box<dyn TemplateProperty<I, Output = TimestampRange> + 'a>),
+
+    // Similar to `TemplateProperty<I, Output = Box<dyn Template<()> + 'a>`, but doesn't
+    // capture `I` to produce `Template<()>`. The context `I` would have to be cloned
+    // to convert `Template<I>` to `Template<()>`.
+    Template(Box<dyn Template<I> + 'a>),
 }
 
 impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> {
@@ -716,60 +729,61 @@ impl<'a, I: 'a> IntoTemplate<'a, I> for CoreTemplatePropertyKind<'a, I> {
             CoreTemplatePropertyKind::Signature(property) => property.into_template(),
             CoreTemplatePropertyKind::Timestamp(property) => property.into_template(),
             CoreTemplatePropertyKind::TimestampRange(property) => property.into_template(),
+            CoreTemplatePropertyKind::Template(template) => template,
         }
     }
 }
 
-pub enum Expression<'a, C, P> {
-    Property(P, Vec<String>),
-    Template(Box<dyn Template<C> + 'a>),
+/// Opaque struct that represents a template value.
+pub struct Expression<P> {
+    property: P,
+    labels: Vec<String>,
 }
 
-impl<'a, C: 'a, P> Expression<'a, C, P> {
+impl<P> Expression<P> {
     fn unlabeled(property: P) -> Self {
-        Expression::Property(property, vec![])
+        let labels = vec![];
+        Expression { property, labels }
     }
 
     fn with_label(property: P, label: impl Into<String>) -> Self {
-        Expression::Property(property, vec![label.into()])
+        let labels = vec![label.into()];
+        Expression { property, labels }
+    }
+
+    pub fn try_into_boolean<'a, C: 'a>(
+        self,
+    ) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>>
+    where
+        P: IntoTemplateProperty<'a, C>,
+    {
+        self.property.try_into_boolean()
+    }
+
+    pub fn try_into_integer<'a, C: 'a>(
+        self,
+    ) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>>
+    where
+        P: IntoTemplateProperty<'a, C>,
+    {
+        self.property.try_into_integer()
+    }
+
+    pub fn into_plain_text<'a, C: 'a>(self) -> Box<dyn TemplateProperty<C, Output = String> + 'a>
+    where
+        P: IntoTemplateProperty<'a, C>,
+    {
+        self.property.into_plain_text()
     }
 }
 
-impl<'a, C: 'a, P: IntoTemplateProperty<'a, C>> Expression<'a, C, P> {
-    pub fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>> {
-        match self {
-            Expression::Property(property, _) => property.try_into_boolean(),
-            Expression::Template(_) => None,
-        }
-    }
-
-    pub fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>> {
-        match self {
-            Expression::Property(property, _) => property.try_into_integer(),
-            Expression::Template(_) => None,
-        }
-    }
-
-    pub fn into_plain_text(self) -> Box<dyn TemplateProperty<C, Output = String> + 'a> {
-        match self {
-            Expression::Property(property, _) => property.into_plain_text(),
-            Expression::Template(template) => Box::new(PlainTextFormattedProperty::new(template)),
-        }
-    }
-}
-
-impl<'a, C: 'a, P: IntoTemplate<'a, C>> IntoTemplate<'a, C> for Expression<'a, C, P> {
+impl<'a, C: 'a, P: IntoTemplate<'a, C>> IntoTemplate<'a, C> for Expression<P> {
     fn into_template(self) -> Box<dyn Template<C> + 'a> {
-        match self {
-            Expression::Property(property, labels) => {
-                let template = property.into_template();
-                if labels.is_empty() {
-                    template
-                } else {
-                    Box::new(LabelTemplate::new(template, Literal(labels)))
-                }
-            }
-            Expression::Template(template) => template,
+        let template = self.property.into_template();
+        if self.labels.is_empty() {
+            template
+        } else {
+            Box::new(LabelTemplate::new(template, Literal(self.labels)))
         }
     }
 }
@@ -843,18 +857,11 @@ fn split_email(email: &str) -> (&str, Option<&str>) {
 fn build_method_call<'a, L: TemplateLanguage<'a>>(
     language: &L,
     method: &MethodCallNode,
-) -> TemplateParseResult<Expression<'a, L::Context, L::Property>> {
-    match build_expression(language, &method.object)? {
-        Expression::Property(property, mut labels) => {
-            let property = language.build_method(property, &method.function)?;
-            labels.push(method.function.name.to_owned());
-            Ok(Expression::Property(property, labels))
-        }
-        Expression::Template(_) => Err(TemplateParseError::no_such_method(
-            "Template",
-            &method.function,
-        )),
-    }
+) -> TemplateParseResult<Expression<L::Property>> {
+    let mut expression = build_expression(language, &method.object)?;
+    expression.property = language.build_method(expression.property, &method.function)?;
+    expression.labels.push(method.function.name.to_owned());
+    Ok(expression)
 }
 
 pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
@@ -880,6 +887,9 @@ pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
         }
         CoreTemplatePropertyKind::TimestampRange(property) => {
             build_timestamp_range_method(language, property, function)
+        }
+        CoreTemplatePropertyKind::Template(_) => {
+            Err(TemplateParseError::no_such_method("Template", function))
         }
     }
 }
@@ -1033,14 +1043,13 @@ pub fn build_list_method<'a, L: TemplateLanguage<'a>, P>(
 fn build_global_function<'a, L: TemplateLanguage<'a>>(
     language: &L,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Expression<'a, L::Context, L::Property>> {
-    let expression = match function.name {
+) -> TemplateParseResult<Expression<L::Property>> {
+    let property = match function.name {
         "indent" => {
             let [prefix_node, content_node] = expect_exact_arguments(function)?;
             let prefix = build_expression(language, prefix_node)?.into_template();
             let content = build_expression(language, content_node)?.into_template();
-            let template = Box::new(IndentTemplate::new(prefix, content));
-            Expression::Template(template)
+            language.wrap_template(IndentTemplate::new(prefix, content))
         }
         "label" => {
             let [label_node, content_node] = expect_exact_arguments(function)?;
@@ -1049,8 +1058,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
             let labels = TemplateFunction::new(label_property, |s| {
                 s.split_whitespace().map(ToString::to_string).collect()
             });
-            let template = Box::new(LabelTemplate::new(content, labels));
-            Expression::Template(template)
+            language.wrap_template(LabelTemplate::new(content, labels))
         }
         "if" => {
             let ([condition_node, true_node], [false_node]) = expect_arguments(function)?;
@@ -1060,12 +1068,8 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
                 .map(|node| build_expression(language, node))
                 .transpose()?
                 .map(|x| x.into_template());
-            let template = Box::new(ConditionalTemplate::new(
-                condition,
-                true_template,
-                false_template,
-            ));
-            Expression::Template(template)
+            let template = ConditionalTemplate::new(condition, true_template, false_template);
+            language.wrap_template(template)
         }
         "concat" => {
             let contents = function
@@ -1073,8 +1077,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
                 .iter()
                 .map(|node| build_expression(language, node).map(|x| x.into_template()))
                 .try_collect()?;
-            let template = Box::new(ListTemplate(contents));
-            Expression::Template(template)
+            language.wrap_template(ListTemplate(contents))
         }
         "separate" => {
             let ([separator_node], content_nodes) = expect_some_arguments(function)?;
@@ -1083,19 +1086,18 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
                 .iter()
                 .map(|node| build_expression(language, node).map(|x| x.into_template()))
                 .try_collect()?;
-            let template = Box::new(SeparateTemplate::new(separator, contents));
-            Expression::Template(template)
+            language.wrap_template(SeparateTemplate::new(separator, contents))
         }
         _ => return Err(TemplateParseError::no_such_function(function)),
     };
-    Ok(expression)
+    Ok(Expression::unlabeled(property))
 }
 
 /// Builds template evaluation tree from AST nodes.
 pub fn build_expression<'a, L: TemplateLanguage<'a>>(
     language: &L,
     node: &ExpressionNode,
-) -> TemplateParseResult<Expression<'a, L::Context, L::Property>> {
+) -> TemplateParseResult<Expression<L::Property>> {
     match &node.kind {
         ExpressionKind::Identifier(name) => {
             let property = language.build_keyword(name, node.span)?;
@@ -1114,7 +1116,8 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
                 .iter()
                 .map(|node| build_expression(language, node).map(|x| x.into_template()))
                 .try_collect()?;
-            Ok(Expression::Template(Box::new(ListTemplate(templates))))
+            let property = language.wrap_template(ListTemplate(templates));
+            Ok(Expression::unlabeled(property))
         }
         ExpressionKind::FunctionCall(function) => build_global_function(language, function),
         ExpressionKind::MethodCall(method) => build_method_call(language, method),
