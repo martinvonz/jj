@@ -64,34 +64,29 @@ use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
 enum Commands {
-    Version(VersionArgs),
-    Init(InitArgs),
+    Abandon(AbandonArgs),
+    Backout(BackoutArgs),
     #[command(subcommand)]
-    Config(ConfigSubcommand),
-    Checkout(CheckoutArgs),
-    Untrack(UntrackArgs),
-    Files(FilesArgs),
+    Branch(branch::BranchSubcommand),
     #[command(alias = "print")]
     Cat(CatArgs),
-    Diff(DiffArgs),
-    Show(ShowArgs),
-    Status(StatusArgs),
-    Log(LogArgs),
-    Obslog(ObslogArgs),
-    Interdiff(InterdiffArgs),
-    Describe(DescribeArgs),
+    Checkout(CheckoutArgs),
     Commit(CommitArgs),
-    Duplicate(DuplicateArgs),
-    Abandon(AbandonArgs),
-    Edit(EditArgs),
-    New(NewArgs),
-    Move(MoveArgs),
-    Squash(SquashArgs),
-    Unsquash(UnsquashArgs),
-    Restore(RestoreArgs),
+    #[command(subcommand)]
+    Config(ConfigSubcommand),
+    #[command(subcommand)]
+    Debug(DebugCommands),
+    Describe(DescribeArgs),
+    Diff(DiffArgs),
     Diffedit(DiffeditArgs),
-    Resolve(ResolveArgs),
-    Split(SplitArgs),
+    Duplicate(DuplicateArgs),
+    Edit(EditArgs),
+    Files(FilesArgs),
+    #[command(subcommand)]
+    Git(git::GitCommands),
+    Init(InitArgs),
+    Interdiff(InterdiffArgs),
+    Log(LogArgs),
     /// Merge work from multiple branches
     ///
     /// Unlike most other VCSs, `jj merge` does not implicitly include the
@@ -102,22 +97,27 @@ enum Commands {
     /// This is the same as `jj new`, except that it requires at least two
     /// arguments.
     Merge(NewArgs),
-    Rebase(RebaseArgs),
-    Backout(BackoutArgs),
-    #[command(subcommand)]
-    Branch(branch::BranchSubcommand),
-    /// Undo an operation (shortcut for `jj op undo`)
-    Undo(operation::OperationUndoArgs),
+    Move(MoveArgs),
+    New(NewArgs),
+    Obslog(ObslogArgs),
     #[command(subcommand)]
     #[command(visible_alias = "op")]
     Operation(operation::OperationCommands),
+    Rebase(RebaseArgs),
+    Resolve(ResolveArgs),
+    Restore(RestoreArgs),
+    Show(ShowArgs),
+    Sparse(SparseArgs),
+    Split(SplitArgs),
+    Squash(SquashArgs),
+    Status(StatusArgs),
+    /// Undo an operation (shortcut for `jj op undo`)
+    Undo(operation::OperationUndoArgs),
+    Unsquash(UnsquashArgs),
+    Untrack(UntrackArgs),
+    Version(VersionArgs),
     #[command(subcommand)]
     Workspace(WorkspaceCommands),
-    Sparse(SparseArgs),
-    #[command(subcommand)]
-    Git(git::GitCommands),
-    #[command(subcommand)]
-    Debug(DebugCommands),
 }
 
 /// Display version information
