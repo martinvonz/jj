@@ -56,12 +56,14 @@
             makeWrapper
             pkg-config
           ];
-          buildInputs = with pkgs; [ openssl dbus sqlite ]
+          buildInputs = with pkgs; [ openssl dbus sqlite zstd libgit2 libssh2 ]
             ++ lib.optionals stdenv.isDarwin [
             darwin.apple_sdk.frameworks.Security
             darwin.apple_sdk.frameworks.SystemConfiguration
             libiconv
-          ];
+            ];
+          ZSTD_SYS_USE_PKG_CONFIG = "1";
+          LIBSSH2_SYS_USE_PKG_CONFIG = "1";
           postInstall = ''
             $out/bin/jj util mangen > ./jj.1
             installManPage ./jj.1
