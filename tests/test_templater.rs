@@ -251,11 +251,86 @@ fn test_templater_list_method() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
+    let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
+
+    test_env.add_config(
+        r###"
+    [template-aliases]
+    'identity' = '|x| x'
+    'too_many_params' = '|x, y| x'
+    "###,
+    );
 
     insta::assert_snapshot!(render(r#""".lines().join("|")"#), @"");
     insta::assert_snapshot!(render(r#""a\nb\nc".lines().join("|")"#), @"a|b|c");
     // Keyword as separator
     insta::assert_snapshot!(render(r#""a\nb\nc".lines().join(commit_id.short(2))"#), @"a00b00c");
+
+    insta::assert_snapshot!(render(r#""a\nb\nc".lines().map(|s| s ++ s)"#), @"aa bb cc");
+    // Global keyword in item template
+    insta::assert_snapshot!(
+        render(r#""a\nb\nc".lines().map(|s| s ++ empty)"#), @"atrue btrue ctrue");
+    // Override global keyword 'empty'
+    insta::assert_snapshot!(
+        render(r#""a\nb\nc".lines().map(|empty| empty)"#), @"a b c");
+    // Nested map operations
+    insta::assert_snapshot!(
+        render(r#""a\nb\nc".lines().map(|s| "x\ny".lines().map(|t| s ++ t))"#),
+        @"ax ay bx by cx cy");
+
+    // Lambda expression in alias
+    insta::assert_snapshot!(render(r#""a\nb\nc".lines().map(identity)"#), @"a b c");
+
+    // Not a lambda expression
+    insta::assert_snapshot!(render_err(r#""a".lines().map(empty)"#), @r###"
+    Error: Failed to parse template:  --> 1:17
+      |
+    1 | "a".lines().map(empty)
+      |                 ^---^
+      |
+      = Expected lambda expression
+    "###);
+    // Bad lambda parameter count
+    insta::assert_snapshot!(render_err(r#""a".lines().map(|| "")"#), @r###"
+    Error: Failed to parse template:  --> 1:18
+      |
+    1 | "a".lines().map(|| "")
+      |                  ^
+      |
+      = Expected 1 lambda parameters
+    "###);
+    insta::assert_snapshot!(render_err(r#""a".lines().map(|a, b| "")"#), @r###"
+    Error: Failed to parse template:  --> 1:18
+      |
+    1 | "a".lines().map(|a, b| "")
+      |                  ^--^
+      |
+      = Expected 1 lambda parameters
+    "###);
+    // Error in lambda expression
+    insta::assert_snapshot!(render_err(r#""a".lines().map(|s| s.unknown())"#), @r###"
+    Error: Failed to parse template:  --> 1:23
+      |
+    1 | "a".lines().map(|s| s.unknown())
+      |                       ^-----^
+      |
+      = Method "unknown" doesn't exist for type "String"
+    "###);
+    // Error in lambda alias
+    insta::assert_snapshot!(render_err(r#""a".lines().map(too_many_params)"#), @r###"
+    Error: Failed to parse template:  --> 1:17
+      |
+    1 | "a".lines().map(too_many_params)
+      |                 ^-------------^
+      |
+      = Alias "too_many_params" cannot be expanded
+     --> 1:2
+      |
+    1 | |x, y| x
+      |  ^--^
+      |
+      = Expected 1 lambda parameters
+    "###);
 }
 
 #[test]

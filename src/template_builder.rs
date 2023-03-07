@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+
 use itertools::Itertools as _;
 use jujutsu_lib::backend::{Signature, Timestamp};
 
@@ -21,8 +23,8 @@ use crate::template_parser::{
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
-    Literal, PlainTextFormattedProperty, ReformatTemplate, SeparateTemplate, Template,
-    TemplateFunction, TemplateProperty, TimestampRange,
+    Literal, PlainTextFormattedProperty, PropertyPlaceholder, ReformatTemplate, SeparateTemplate,
+    Template, TemplateFunction, TemplateProperty, TimestampRange,
 };
 use crate::{text_util, time_util};
 
@@ -237,7 +239,8 @@ impl<'a, C: 'a, P: IntoTemplate<'a, C>> IntoTemplate<'a, C> for Expression<P> {
 }
 
 pub struct BuildContext<'i, P> {
-    _phantom: std::marker::PhantomData<&'i P>, // TODO
+    /// Map of functions to create `L::Property`.
+    local_variables: HashMap<&'i str, &'i (dyn Fn() -> P)>,
 }
 
 fn build_method_call<'a, L: TemplateLanguage<'a>>(
@@ -263,7 +266,9 @@ pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
             build_string_method(language, build_ctx, property, function)
         }
         CoreTemplatePropertyKind::StringList(property) => {
-            build_list_method(language, build_ctx, property, function)
+            build_list_method(language, build_ctx, property, function, |item| {
+                language.wrap_string(item)
+            })
         }
         CoreTemplatePropertyKind::Boolean(property) => {
             build_boolean_method(language, build_ctx, property, function)
@@ -450,12 +455,20 @@ fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
     Ok(property)
 }
 
-pub fn build_list_method<'a, L: TemplateLanguage<'a>, P: Template<()> + 'a>(
+/// Builds method call expression for printable list property.
+pub fn build_list_method<'a, L, O>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
-    self_property: impl TemplateProperty<L::Context, Output = Vec<P>> + 'a,
+    self_property: impl TemplateProperty<L::Context, Output = Vec<O>> + 'a,
     function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
+    // TODO: Generic L: WrapProperty<L::Context, O> trait might be needed to support more
+    // list operations such as first()/slice(). For .map(), a simple callback works.
+    wrap_item: impl Fn(PropertyPlaceholder<O>) -> L::Property,
+) -> TemplateParseResult<L::Property>
+where
+    L: TemplateLanguage<'a>,
+    O: Template<()> + Clone + 'a,
+{
     let property = match function.name {
         "join" => {
             let [separator_node] = template_parser::expect_exact_arguments(function)?;
@@ -466,10 +479,59 @@ pub fn build_list_method<'a, L: TemplateLanguage<'a>, P: Template<()> + 'a>(
                 });
             language.wrap_template(template)
         }
-        // TODO: .map()
+        "map" => build_map_operation(language, build_ctx, self_property, function, wrap_item)?,
         _ => return Err(TemplateParseError::no_such_method("List", function)),
     };
     Ok(property)
+}
+
+/// Builds expression that extracts iterable property and applies template to
+/// each item.
+///
+/// `wrap_item()` is the function to wrap a list item of type `O` as a property.
+fn build_map_operation<'a, L, O, P>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    self_property: P,
+    function: &FunctionCallNode,
+    wrap_item: impl Fn(PropertyPlaceholder<O>) -> L::Property,
+) -> TemplateParseResult<L::Property>
+where
+    L: TemplateLanguage<'a>,
+    P: TemplateProperty<L::Context> + 'a,
+    P::Output: IntoIterator<Item = O>,
+    O: Clone + 'a,
+{
+    // Build an item template with placeholder property, then evaluate it
+    // for each item.
+    //
+    // It would be nice if we could build a template of (L::Context, O)
+    // input, but doing that for a generic item type wouldn't be easy. It's
+    // also invalid to convert &C to &(C, _).
+    let [lambda_node] = template_parser::expect_exact_arguments(function)?;
+    let item_placeholder = PropertyPlaceholder::new();
+    let item_template = template_parser::expect_lambda_with(lambda_node, |lambda, _span| {
+        let item_fn = || wrap_item(item_placeholder.clone());
+        let mut local_variables = build_ctx.local_variables.clone();
+        if let [name] = lambda.params.as_slice() {
+            local_variables.insert(name, &item_fn);
+        } else {
+            return Err(TemplateParseError::unexpected_expression(
+                "Expected 1 lambda parameters",
+                lambda.params_span,
+            ));
+        }
+        let build_ctx = BuildContext { local_variables };
+        Ok(build_expression(language, &build_ctx, &lambda.body)?.into_template())
+    })?;
+    let list_template = ListPropertyTemplate::new(
+        self_property,
+        Literal(" "), // separator
+        move |context, formatter, item| {
+            item_placeholder.with_value(item, || item_template.format(context, formatter))
+        },
+    );
+    Ok(language.wrap_template(list_template))
 }
 
 fn build_global_function<'a, L: TemplateLanguage<'a>>(
@@ -558,8 +620,13 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
 ) -> TemplateParseResult<Expression<L::Property>> {
     match &node.kind {
         ExpressionKind::Identifier(name) => {
-            let property = language.build_keyword(name, node.span)?;
-            Ok(Expression::with_label(property, *name))
+            if let Some(make) = build_ctx.local_variables.get(name) {
+                // Don't label a local variable with its name
+                Ok(Expression::unlabeled(make()))
+            } else {
+                let property = language.build_keyword(name, node.span)?;
+                Ok(Expression::with_label(property, *name))
+            }
         }
         ExpressionKind::Integer(value) => {
             let property = language.wrap_integer(Literal(*value));
@@ -596,7 +663,7 @@ pub fn build<'a, L: TemplateLanguage<'a>>(
     node: &ExpressionNode,
 ) -> TemplateParseResult<Box<dyn Template<L::Context> + 'a>> {
     let build_ctx = BuildContext {
-        _phantom: std::marker::PhantomData,
+        local_variables: HashMap::new(),
     };
     let expression = build_expression(language, &build_ctx, node)?;
     Ok(expression.into_template())

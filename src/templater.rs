@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cell::RefCell;
 use std::io;
+use std::rc::Rc;
 
 use jujutsu_lib::backend::{Signature, Timestamp};
 
@@ -474,6 +476,53 @@ where
 
     fn extract(&self, context: &C) -> Self::Output {
         (self.function)(self.property.extract(context))
+    }
+}
+
+/// Property which will be compiled into template once, and substituted later.
+#[derive(Clone, Debug)]
+pub struct PropertyPlaceholder<O> {
+    value: Rc<RefCell<Option<O>>>,
+}
+
+impl<O> PropertyPlaceholder<O> {
+    pub fn new() -> Self {
+        PropertyPlaceholder {
+            value: Rc::new(RefCell::new(None)),
+        }
+    }
+
+    pub fn set(&self, value: O) {
+        *self.value.borrow_mut() = Some(value);
+    }
+
+    pub fn take(&self) -> Option<O> {
+        self.value.borrow_mut().take()
+    }
+
+    pub fn with_value<R>(&self, value: O, f: impl FnOnce() -> R) -> R {
+        self.set(value);
+        let result = f();
+        self.take();
+        result
+    }
+}
+
+impl<O> Default for PropertyPlaceholder<O> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<C, O: Clone> TemplateProperty<C> for PropertyPlaceholder<O> {
+    type Output = O;
+
+    fn extract(&self, _: &C) -> Self::Output {
+        self.value
+            .borrow()
+            .as_ref()
+            .expect("placeholder value must be set before evaluating template")
+            .clone()
     }
 }
 
