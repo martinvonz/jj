@@ -234,6 +234,15 @@ fn test_templater_parse_error() {
       |
       = Expected expression of type "Boolean"
     "###);
+
+    insta::assert_snapshot!(render_err(r#"|x| description"#), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | |x| description
+      | ^-------------^
+      |
+      = Lambda cannot be defined here
+    "###);
 }
 
 #[test]

@@ -14,8 +14,8 @@
 
 // Example:
 // "commit: " ++ short(commit_id) ++ "\n"
-// predecessors % ("predecessor: " ++ commit_id)
-// parents % (commit_id ++ " is a parent of " ++ super.commit_id)
+// predecessors.map(|p| "predecessor: " ++ p.commit_id)
+// parents.map(|p| p.commit_id ++ " is a parent of " ++ commit_id)
 
 whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
@@ -36,6 +36,10 @@ function_arguments = {
   template ~ (whitespace* ~ "," ~ whitespace* ~ template)* ~ (whitespace* ~ ",")?
   | ""
 }
+lambda = {
+  "|" ~ whitespace* ~ formal_parameters ~ whitespace* ~ "|"
+  ~ whitespace* ~ template
+}
 formal_parameters = {
   identifier ~ (whitespace* ~ "," ~ whitespace* ~ identifier)* ~ (whitespace* ~ ",")?
   | ""
@@ -44,6 +48,7 @@ formal_parameters = {
 primary = _{
   ("(" ~ whitespace* ~ template ~ whitespace* ~ ")")
   | function
+  | lambda
   | identifier
   | literal
   | integer_literal

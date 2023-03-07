@@ -557,6 +557,10 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
         }
         ExpressionKind::FunctionCall(function) => build_global_function(language, function),
         ExpressionKind::MethodCall(method) => build_method_call(language, method),
+        ExpressionKind::Lambda(_) => Err(TemplateParseError::unexpected_expression(
+            "Lambda cannot be defined here",
+            node.span,
+        )),
         ExpressionKind::AliasExpanded(id, subst) => {
             build_expression(language, subst).map_err(|e| e.within_alias_expansion(*id, node.span))
         }
