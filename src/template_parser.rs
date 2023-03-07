@@ -689,6 +689,28 @@ pub fn expect_string_literal_with<'a, 'i, T>(
     }
 }
 
+/// Applies the given function if the `node` is a lambda.
+pub fn expect_lambda_with<'a, 'i, T>(
+    node: &'a ExpressionNode<'i>,
+    f: impl FnOnce(&'a LambdaNode<'i>, pest::Span<'i>) -> TemplateParseResult<T>,
+) -> TemplateParseResult<T> {
+    match &node.kind {
+        ExpressionKind::Lambda(lambda) => f(lambda, node.span),
+        ExpressionKind::String(_)
+        | ExpressionKind::Identifier(_)
+        | ExpressionKind::Integer(_)
+        | ExpressionKind::Concat(_)
+        | ExpressionKind::FunctionCall(_)
+        | ExpressionKind::MethodCall(_) => Err(TemplateParseError::unexpected_expression(
+            "Expected lambda expression",
+            node.span,
+        )),
+        ExpressionKind::AliasExpanded(id, subst) => {
+            expect_lambda_with(subst, f).map_err(|e| e.within_alias_expansion(*id, node.span))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use assert_matches::assert_matches;

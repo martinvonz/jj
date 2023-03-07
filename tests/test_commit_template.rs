@@ -39,6 +39,17 @@ fn test_log_parent_commit_ids() {
     ●  0000000000000000000000000000000000000000
        P:
     "###);
+
+    let template = r#"parent_commit_ids.map(|id| id.shortest(4))"#;
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", template, "-r@", "--color=always"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  [1m4[0m[38;5;8mdb4[39m [1m2[0m[38;5;8m30d[39m
+    │
+    ~
+    "###);
 }
 
 #[test]
