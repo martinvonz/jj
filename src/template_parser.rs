@@ -725,6 +725,16 @@ pub enum Expression<'a, C, P> {
     Template(Box<dyn Template<C> + 'a>),
 }
 
+impl<'a, C: 'a, P> Expression<'a, C, P> {
+    fn unlabeled(property: P) -> Self {
+        Expression::Property(property, vec![])
+    }
+
+    fn with_label(property: P, label: impl Into<String>) -> Self {
+        Expression::Property(property, vec![label.into()])
+    }
+}
+
 impl<'a, C: 'a, P: IntoTemplateProperty<'a, C>> Expression<'a, C, P> {
     pub fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>> {
         match self {
@@ -1089,16 +1099,15 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
     match &node.kind {
         ExpressionKind::Identifier(name) => {
             let property = language.build_keyword(name, node.span)?;
-            let labels = vec![(*name).to_owned()];
-            Ok(Expression::Property(property, labels))
+            Ok(Expression::with_label(property, *name))
         }
         ExpressionKind::Integer(value) => {
             let property = language.wrap_integer(Literal(*value));
-            Ok(Expression::Property(property, vec![]))
+            Ok(Expression::unlabeled(property))
         }
         ExpressionKind::String(value) => {
             let property = language.wrap_string(Literal(value.clone()));
-            Ok(Expression::Property(property, vec![]))
+            Ok(Expression::unlabeled(property))
         }
         ExpressionKind::List(nodes) => {
             let templates = nodes
