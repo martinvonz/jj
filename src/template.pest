@@ -53,11 +53,11 @@ term = {
   primary ~ ("." ~ function)*
 }
 
-list = _{
+concat = _{
   term ~ (whitespace* ~ "++" ~ whitespace* ~ term)+
 }
 
-template = { list | term }
+template = { concat | term }
 
 program = _{ SOI ~ whitespace* ~ template? ~ whitespace* ~ EOI }
 

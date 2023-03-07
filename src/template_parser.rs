@@ -25,7 +25,7 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::templater::{
-    ConditionalTemplate, IndentTemplate, IntoTemplate, LabelTemplate, ListTemplate, Literal,
+    ConcatTemplate, ConditionalTemplate, IndentTemplate, IntoTemplate, LabelTemplate, Literal,
     PlainTextFormattedProperty, SeparateTemplate, Template, TemplateFunction, TemplateProperty,
     TimestampRange,
 };
@@ -226,7 +226,7 @@ enum ExpressionKind<'i> {
     Identifier(&'i str),
     Integer(i64),
     String(String),
-    List(Vec<ExpressionNode<'i>>),
+    Concat(Vec<ExpressionNode<'i>>),
     FunctionCall(FunctionCallNode<'i>),
     MethodCall(MethodCallNode<'i>),
     /// Identity node to preserve the span in the source template text.
@@ -335,7 +335,7 @@ fn parse_template_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> 
     if nodes.len() == 1 {
         Ok(nodes.pop().unwrap())
     } else {
-        Ok(ExpressionNode::new(ExpressionKind::List(nodes), span))
+        Ok(ExpressionNode::new(ExpressionKind::Concat(nodes), span))
     }
 }
 
@@ -345,7 +345,7 @@ pub fn parse_template(template_text: &str) -> TemplateParseResult<ExpressionNode
     let first_pair = pairs.next().unwrap();
     if first_pair.as_rule() == Rule::EOI {
         let span = first_pair.as_span();
-        Ok(ExpressionNode::new(ExpressionKind::List(Vec::new()), span))
+        Ok(ExpressionNode::new(ExpressionKind::Concat(vec![]), span))
     } else {
         parse_template_node(first_pair)
     }
@@ -540,8 +540,8 @@ pub fn expand_aliases<'i>(
             }
             ExpressionKind::Integer(_) => Ok(node),
             ExpressionKind::String(_) => Ok(node),
-            ExpressionKind::List(nodes) => {
-                node.kind = ExpressionKind::List(expand_list(nodes, state)?);
+            ExpressionKind::Concat(nodes) => {
+                node.kind = ExpressionKind::Concat(expand_list(nodes, state)?);
                 Ok(node)
             }
             ExpressionKind::FunctionCall(function) => {
@@ -1077,7 +1077,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
                 .iter()
                 .map(|node| build_expression(language, node).map(|x| x.into_template()))
                 .try_collect()?;
-            language.wrap_template(ListTemplate(contents))
+            language.wrap_template(ConcatTemplate(contents))
         }
         "separate" => {
             let ([separator_node], content_nodes) = expect_some_arguments(function)?;
@@ -1111,12 +1111,12 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
             let property = language.wrap_string(Literal(value.clone()));
             Ok(Expression::unlabeled(property))
         }
-        ExpressionKind::List(nodes) => {
+        ExpressionKind::Concat(nodes) => {
             let templates = nodes
                 .iter()
                 .map(|node| build_expression(language, node).map(|x| x.into_template()))
                 .try_collect()?;
-            let property = language.wrap_template(ListTemplate(templates));
+            let property = language.wrap_template(ConcatTemplate(templates));
             Ok(Expression::unlabeled(property))
         }
         ExpressionKind::FunctionCall(function) => build_global_function(language, function),
@@ -1211,7 +1211,7 @@ mod tests {
             ExpressionKind::Identifier(_)
             | ExpressionKind::Integer(_)
             | ExpressionKind::String(_) => node.kind,
-            ExpressionKind::List(nodes) => ExpressionKind::List(normalize_list(nodes)),
+            ExpressionKind::Concat(nodes) => ExpressionKind::Concat(normalize_list(nodes)),
             ExpressionKind::FunctionCall(function) => {
                 ExpressionKind::FunctionCall(normalize_function_call(function))
             }

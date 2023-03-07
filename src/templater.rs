@@ -182,9 +182,9 @@ where
     }
 }
 
-pub struct ListTemplate<T>(pub Vec<T>);
+pub struct ConcatTemplate<T>(pub Vec<T>);
 
-impl<C, T: Template<C>> Template<C> for ListTemplate<T> {
+impl<C, T: Template<C>> Template<C> for ConcatTemplate<T> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         for template in &self.0 {
             template.format(context, formatter)?
@@ -193,7 +193,7 @@ impl<C, T: Template<C>> Template<C> for ListTemplate<T> {
     }
 }
 
-/// Like `ListTemplate`, but inserts a separator between non-empty templates.
+/// Like `ConcatTemplate`, but inserts a separator between non-empty templates.
 pub struct SeparateTemplate<S, T> {
     separator: S,
     contents: Vec<T>,
