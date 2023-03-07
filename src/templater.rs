@@ -97,6 +97,12 @@ impl Template<()> for TimestampRange {
     }
 }
 
+impl Template<()> for Vec<String> {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        format_joined(&(), formatter, self, " ")
+    }
+}
+
 impl Template<()> for bool {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(if *self { "true" } else { "false" })

@@ -596,6 +596,10 @@ pub trait TemplateLanguage<'a> {
         &self,
         property: impl TemplateProperty<Self::Context, Output = String> + 'a,
     ) -> Self::Property;
+    fn wrap_string_list(
+        &self,
+        property: impl TemplateProperty<Self::Context, Output = Vec<String>> + 'a,
+    ) -> Self::Property;
     fn wrap_boolean(
         &self,
         property: impl TemplateProperty<Self::Context, Output = bool> + 'a,
@@ -638,6 +642,7 @@ macro_rules! impl_core_wrap_property_fns {
         $crate::template_parser::impl_wrap_property_fns!(
             $a, $crate::template_parser::CoreTemplatePropertyKind, $outer, {
                 wrap_string(String) => String,
+                wrap_string_list(Vec<String>) => StringList,
                 wrap_boolean(bool) => Boolean,
                 wrap_integer(i64) => Integer,
                 wrap_signature(jujutsu_lib::backend::Signature) => Signature,
@@ -682,6 +687,7 @@ pub trait IntoTemplateProperty<'a, C>: IntoTemplate<'a, C> {
 
 pub enum CoreTemplatePropertyKind<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
+    StringList(Box<dyn TemplateProperty<I, Output = Vec<String>> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
     Integer(Box<dyn TemplateProperty<I, Output = i64> + 'a>),
     Signature(Box<dyn TemplateProperty<I, Output = Signature> + 'a>),
@@ -700,6 +706,7 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
             CoreTemplatePropertyKind::String(property) => {
                 Some(Box::new(TemplateFunction::new(property, |s| !s.is_empty())))
             }
+            // TODO: should we allow implicit cast of List type?
             CoreTemplatePropertyKind::Boolean(property) => Some(property),
             _ => None,
         }
@@ -724,6 +731,7 @@ impl<'a, I: 'a> IntoTemplate<'a, I> for CoreTemplatePropertyKind<'a, I> {
     fn into_template(self) -> Box<dyn Template<I> + 'a> {
         match self {
             CoreTemplatePropertyKind::String(property) => property.into_template(),
+            CoreTemplatePropertyKind::StringList(property) => property.into_template(),
             CoreTemplatePropertyKind::Boolean(property) => property.into_template(),
             CoreTemplatePropertyKind::Integer(property) => property.into_template(),
             CoreTemplatePropertyKind::Signature(property) => property.into_template(),
@@ -873,6 +881,9 @@ pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
         CoreTemplatePropertyKind::String(property) => {
             build_string_method(language, property, function)
         }
+        CoreTemplatePropertyKind::StringList(property) => {
+            build_list_method(language, property, function)
+        }
         CoreTemplatePropertyKind::Boolean(property) => {
             build_boolean_method(language, property, function)
         }
@@ -913,6 +924,12 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
             expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |s| {
                 s.lines().next().unwrap_or_default().to_string()
+            }))
+        }
+        "lines" => {
+            expect_no_arguments(function)?;
+            language.wrap_string_list(TemplateFunction::new(self_property, |s| {
+                s.lines().map(|l| l.to_owned()).collect()
             }))
         }
         "upper" => {

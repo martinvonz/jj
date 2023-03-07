@@ -252,6 +252,9 @@ fn test_templater_string_method() {
 
     insta::assert_snapshot!(render(r#""".first_line()"#), @"");
     insta::assert_snapshot!(render(r#""foo\nbar".first_line()"#), @"foo");
+
+    insta::assert_snapshot!(render(r#""".lines()"#), @"");
+    insta::assert_snapshot!(render(r#""a\nb\nc\n".lines()"#), @"a b c");
 }
 
 #[test]
