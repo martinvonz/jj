@@ -200,6 +200,7 @@ pub enum ExpressionKind<'i> {
     Concat(Vec<ExpressionNode<'i>>),
     FunctionCall(FunctionCallNode<'i>),
     MethodCall(MethodCallNode<'i>),
+    Lambda(LambdaNode<'i>),
     /// Identity node to preserve the span in the source template text.
     AliasExpanded(TemplateAliasId<'i>, Box<ExpressionNode<'i>>),
 }
@@ -216,6 +217,13 @@ pub struct FunctionCallNode<'i> {
 pub struct MethodCallNode<'i> {
     pub object: Box<ExpressionNode<'i>>,
     pub function: FunctionCallNode<'i>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LambdaNode<'i> {
+    pub params: Vec<&'i str>,
+    pub params_span: pest::Span<'i>,
+    pub body: Box<ExpressionNode<'i>>,
 }
 
 fn parse_string_literal(pair: Pair<Rule>) -> String {
@@ -240,6 +248,26 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
     result
 }
 
+fn parse_formal_parameters(params_pair: Pair<Rule>) -> TemplateParseResult<Vec<&str>> {
+    assert_eq!(params_pair.as_rule(), Rule::formal_parameters);
+    let params_span = params_pair.as_span();
+    let params = params_pair
+        .into_inner()
+        .map(|pair| match pair.as_rule() {
+            Rule::identifier => pair.as_str(),
+            r => panic!("unexpected formal parameter rule {r:?}"),
+        })
+        .collect_vec();
+    if params.iter().all_unique() {
+        Ok(params)
+    } else {
+        Err(TemplateParseError::with_span(
+            TemplateParseErrorKind::RedefinedFunctionParameter,
+            params_span,
+        ))
+    }
+}
+
 fn parse_function_call_node(pair: Pair<Rule>) -> TemplateParseResult<FunctionCallNode> {
     assert_eq!(pair.as_rule(), Rule::function);
     let mut inner = pair.into_inner();
@@ -257,6 +285,21 @@ fn parse_function_call_node(pair: Pair<Rule>) -> TemplateParseResult<FunctionCal
         name_span: name.as_span(),
         args,
         args_span,
+    })
+}
+
+fn parse_lambda_node(pair: Pair<Rule>) -> TemplateParseResult<LambdaNode> {
+    assert_eq!(pair.as_rule(), Rule::lambda);
+    let mut inner = pair.into_inner();
+    let params_pair = inner.next().unwrap();
+    let params_span = params_pair.as_span();
+    let body_pair = inner.next().unwrap();
+    let params = parse_formal_parameters(params_pair)?;
+    let body = parse_template_node(body_pair)?;
+    Ok(LambdaNode {
+        params,
+        params_span,
+        body: Box::new(body),
     })
 }
 
@@ -280,6 +323,10 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
         Rule::function => {
             let function = parse_function_call_node(expr)?;
             ExpressionNode::new(ExpressionKind::FunctionCall(function), span)
+        }
+        Rule::lambda => {
+            let lambda = parse_lambda_node(expr)?;
+            ExpressionNode::new(ExpressionKind::Lambda(lambda), span)
         }
         Rule::template => parse_template_node(expr)?,
         other => panic!("unexpected term: {other:?}"),
@@ -389,25 +436,13 @@ impl TemplateAliasDeclaration {
                 let mut inner = first.into_inner();
                 let name_pair = inner.next().unwrap();
                 let params_pair = inner.next().unwrap();
-                let params_span = params_pair.as_span();
                 assert_eq!(name_pair.as_rule(), Rule::identifier);
-                assert_eq!(params_pair.as_rule(), Rule::formal_parameters);
                 let name = name_pair.as_str().to_owned();
-                let params = params_pair
-                    .into_inner()
-                    .map(|pair| match pair.as_rule() {
-                        Rule::identifier => pair.as_str().to_owned(),
-                        r => panic!("unexpected formal parameter rule {r:?}"),
-                    })
-                    .collect_vec();
-                if params.iter().all_unique() {
-                    Ok(TemplateAliasDeclaration::Function(name, params))
-                } else {
-                    Err(TemplateParseError::with_span(
-                        TemplateParseErrorKind::RedefinedFunctionParameter,
-                        params_span,
-                    ))
-                }
+                let params = parse_formal_parameters(params_pair)?
+                    .into_iter()
+                    .map(|s| s.to_owned())
+                    .collect();
+                Ok(TemplateAliasDeclaration::Function(name, params))
             }
             r => panic!("unexpected alias declaration rule {r:?}"),
         }
@@ -541,6 +576,14 @@ pub fn expand_aliases<'i>(
                 });
                 Ok(node)
             }
+            ExpressionKind::Lambda(lambda) => {
+                node.kind = ExpressionKind::Lambda(LambdaNode {
+                    params: lambda.params,
+                    params_span: lambda.params_span,
+                    body: Box::new(expand_node(*lambda.body, state)?),
+                });
+                Ok(node)
+            }
             ExpressionKind::AliasExpanded(id, subst) => {
                 // Just in case the original tree contained AliasExpanded node.
                 let subst = Box::new(expand_node(*subst, state)?);
@@ -636,7 +679,8 @@ pub fn expect_string_literal_with<'a, 'i, T>(
         | ExpressionKind::Integer(_)
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
-        | ExpressionKind::MethodCall(_) => Err(TemplateParseError::unexpected_expression(
+        | ExpressionKind::MethodCall(_)
+        | ExpressionKind::Lambda(_) => Err(TemplateParseError::unexpected_expression(
             "Expected string literal",
             node.span,
         )),
@@ -719,6 +763,14 @@ mod tests {
                 let function = normalize_function_call(method.function);
                 ExpressionKind::MethodCall(MethodCallNode { object, function })
             }
+            ExpressionKind::Lambda(lambda) => {
+                let body = Box::new(normalize_tree(*lambda.body));
+                ExpressionKind::Lambda(LambdaNode {
+                    params: lambda.params,
+                    params_span: empty_span(),
+                    body,
+                })
+            }
             ExpressionKind::AliasExpanded(_, subst) => normalize_tree(*subst).kind,
         };
         ExpressionNode {
@@ -770,6 +822,55 @@ mod tests {
         assert!(parse_template(r#" label("","") "#).is_ok());
         assert!(parse_template(r#" label("","",) "#).is_ok());
         assert!(parse_template(r#" label("",,"") "#).is_err());
+    }
+
+    #[test]
+    fn test_lambda_syntax() {
+        fn unwrap_lambda(node: ExpressionNode<'_>) -> LambdaNode<'_> {
+            match node.kind {
+                ExpressionKind::Lambda(lambda) => lambda,
+                _ => panic!("unexpected expression: {node:?}"),
+            }
+        }
+
+        let lambda = unwrap_lambda(parse_template("|| a").unwrap());
+        assert_eq!(lambda.params.len(), 0);
+        assert_eq!(lambda.body.kind, ExpressionKind::Identifier("a"));
+        let lambda = unwrap_lambda(parse_template("|foo| a").unwrap());
+        assert_eq!(lambda.params.len(), 1);
+        let lambda = unwrap_lambda(parse_template("|foo, b| a").unwrap());
+        assert_eq!(lambda.params.len(), 2);
+
+        // No body
+        assert!(parse_template("||").is_err());
+
+        // Binding
+        assert_eq!(
+            parse_normalized("||  x ++ y").unwrap(),
+            parse_normalized("|| (x ++ y)").unwrap(),
+        );
+        assert_eq!(
+            parse_normalized("f( || x,   || y)").unwrap(),
+            parse_normalized("f((|| x), (|| y))").unwrap(),
+        );
+        assert_eq!(
+            parse_normalized("||  x ++  || y").unwrap(),
+            parse_normalized("|| (x ++ (|| y))").unwrap(),
+        );
+
+        // Trailing comma
+        assert!(parse_template("|,| a").is_err());
+        assert!(parse_template("|x,| a").is_ok());
+        assert!(parse_template("|x , | a").is_ok());
+        assert!(parse_template("|,x| a").is_err());
+        assert!(parse_template("| x,y,| a").is_ok());
+        assert!(parse_template("|x,,y| a").is_err());
+
+        // Formal parameter can't be redefined
+        assert_eq!(
+            parse_template("|x, x| a").unwrap_err().kind,
+            TemplateParseErrorKind::RedefinedFunctionParameter
+        );
     }
 
     #[test]
@@ -876,6 +977,21 @@ mod tests {
             parse_normalized("x.f(a, b)").unwrap(),
         );
 
+        // Lambda expression body should be expanded.
+        assert_eq!(
+            with_aliases([("A", "a")]).parse_normalized("|| A").unwrap(),
+            parse_normalized("|| a").unwrap(),
+        );
+        // No matter if 'A' is a formal parameter. Alias substitution isn't scoped.
+        // If we don't like this behavior, maybe we can turn off alias substitution
+        // for lambda parameters.
+        assert_eq!(
+            with_aliases([("A", "a ++ b")])
+                .parse_normalized("|A| A")
+                .unwrap(),
+            parse_normalized("|A| (a ++ b)").unwrap(),
+        );
+
         // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
         assert_eq!(
             with_aliases([("A", "A")]).parse("A").unwrap_err().kind,
@@ -969,6 +1085,15 @@ mod tests {
                 .parse_normalized("x.F()")
                 .unwrap(),
             parse_normalized("x.F()").unwrap(),
+        );
+
+        // Formal parameter shouldn't be substituted by alias parameter, but
+        // the expression should be substituted.
+        assert_eq!(
+            with_aliases([("F(x)", "|x| x")])
+                .parse_normalized("F(a ++ b)")
+                .unwrap(),
+            parse_normalized("|x| (a ++ b)").unwrap(),
         );
 
         // Invalid number of arguments.
