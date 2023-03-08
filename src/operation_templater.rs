@@ -62,9 +62,9 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
 impl OperationTemplateLanguage<'_> {
     fn wrap_operation_id(
         &self,
-        property: Box<dyn TemplateProperty<Operation, Output = OperationId>>,
+        property: impl TemplateProperty<Operation, Output = OperationId> + 'static,
     ) -> OperationTemplatePropertyKind {
-        OperationTemplatePropertyKind::OperationId(property)
+        OperationTemplatePropertyKind::OperationId(Box::new(property))
     }
 }
 
@@ -110,14 +110,12 @@ fn build_operation_keyword(
     name: &str,
     span: pest::Span,
 ) -> TemplateParseResult<OperationTemplatePropertyKind> {
-    fn wrap_fn<O>(
-        f: impl Fn(&Operation) -> O + 'static,
-    ) -> Box<dyn TemplateProperty<Operation, Output = O>> {
-        Box::new(TemplatePropertyFn(f))
+    fn wrap_fn<O, F: Fn(&Operation) -> O>(f: F) -> TemplatePropertyFn<F> {
+        TemplatePropertyFn(f)
     }
     fn wrap_metadata_fn<O>(
         f: impl Fn(&OperationMetadata) -> O + 'static,
-    ) -> Box<dyn TemplateProperty<Operation, Output = O>> {
+    ) -> impl TemplateProperty<Operation, Output = O> {
         wrap_fn(move |op| f(&op.store_operation().metadata))
     }
 
@@ -168,14 +166,14 @@ fn build_operation_id_method(
             let len_property = len_node
                 .map(|node| template_parser::expect_integer_expression(language, node))
                 .transpose()?;
-            language.wrap_string(Box::new(TemplateFunction::new(
+            language.wrap_string(TemplateFunction::new(
                 (self_property, len_property),
                 |(id, len)| {
                     let mut hex = id.hex();
                     hex.truncate(len.and_then(|l| l.try_into().ok()).unwrap_or(12));
                     hex
                 },
-            )))
+            ))
         }
         _ => return Err(TemplateParseError::no_such_method("OperationId", function)),
     };

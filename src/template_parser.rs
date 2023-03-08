@@ -594,27 +594,27 @@ pub trait TemplateLanguage<'a> {
 
     fn wrap_string(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = String> + 'a>,
+        property: impl TemplateProperty<Self::Context, Output = String> + 'a,
     ) -> Self::Property;
     fn wrap_boolean(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = bool> + 'a>,
+        property: impl TemplateProperty<Self::Context, Output = bool> + 'a,
     ) -> Self::Property;
     fn wrap_integer(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = i64> + 'a>,
+        property: impl TemplateProperty<Self::Context, Output = i64> + 'a,
     ) -> Self::Property;
     fn wrap_signature(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = Signature> + 'a>,
+        property: impl TemplateProperty<Self::Context, Output = Signature> + 'a,
     ) -> Self::Property;
     fn wrap_timestamp(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = Timestamp> + 'a>,
+        property: impl TemplateProperty<Self::Context, Output = Timestamp> + 'a,
     ) -> Self::Property;
     fn wrap_timestamp_range(
         &self,
-        property: Box<dyn TemplateProperty<Self::Context, Output = TimestampRange> + 'a>,
+        property: impl TemplateProperty<Self::Context, Output = TimestampRange> + 'a,
     ) -> Self::Property;
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property>;
@@ -652,12 +652,11 @@ macro_rules! impl_wrap_property_fns {
         $(
             fn $func(
                 &self,
-                property: Box<
-                    dyn $crate::templater::TemplateProperty<Self::Context, Output = $ty> + $a
-                >,
+                property: impl $crate::templater::TemplateProperty<
+                    Self::Context, Output = $ty> + $a,
             ) -> Self::Property {
                 use $kind as Kind; // https://github.com/rust-lang/rust/issues/48067
-                $outer(Kind::$var(property))
+                $outer(Kind::$var(Box::new(property)))
             }
         )+
     };
@@ -885,28 +884,24 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
             let [needle_node] = expect_exact_arguments(function)?;
             // TODO: or .try_into_string() to disable implicit type cast?
             let needle_property = build_expression(language, needle_node)?.into_plain_text();
-            language.wrap_boolean(Box::new(TemplateFunction::new(
+            language.wrap_boolean(TemplateFunction::new(
                 (self_property, needle_property),
                 |(haystack, needle)| haystack.contains(&needle),
-            )))
+            ))
         }
         "first_line" => {
             expect_no_arguments(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(self_property, |s| {
+            language.wrap_string(TemplateFunction::new(self_property, |s| {
                 s.lines().next().unwrap_or_default().to_string()
-            })))
+            }))
         }
         "upper" => {
             expect_no_arguments(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(self_property, |s| {
-                s.to_uppercase()
-            })))
+            language.wrap_string(TemplateFunction::new(self_property, |s| s.to_uppercase()))
         }
         "lower" => {
             expect_no_arguments(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(self_property, |s| {
-                s.to_lowercase()
-            })))
+            language.wrap_string(TemplateFunction::new(self_property, |s| s.to_lowercase()))
         }
         _ => return Err(TemplateParseError::no_such_method("String", function)),
     };
@@ -937,34 +932,28 @@ fn build_signature_method<'a, L: TemplateLanguage<'a>>(
     let property = match function.name {
         "name" => {
             expect_no_arguments(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(
-                self_property,
-                |signature| signature.name,
-            )))
+            language.wrap_string(TemplateFunction::new(self_property, |signature| {
+                signature.name
+            }))
         }
         "email" => {
             expect_no_arguments(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(
-                self_property,
-                |signature| signature.email,
-            )))
+            language.wrap_string(TemplateFunction::new(self_property, |signature| {
+                signature.email
+            }))
         }
         "username" => {
             expect_no_arguments(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(
-                self_property,
-                |signature| {
-                    let (username, _) = split_email(&signature.email);
-                    username.to_owned()
-                },
-            )))
+            language.wrap_string(TemplateFunction::new(self_property, |signature| {
+                let (username, _) = split_email(&signature.email);
+                username.to_owned()
+            }))
         }
         "timestamp" => {
             expect_no_arguments(function)?;
-            language.wrap_timestamp(Box::new(TemplateFunction::new(
-                self_property,
-                |signature| signature.timestamp,
-            )))
+            language.wrap_timestamp(TemplateFunction::new(self_property, |signature| {
+                signature.timestamp
+            }))
         }
         _ => return Err(TemplateParseError::no_such_method("Signature", function)),
     };
@@ -979,10 +968,9 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
     let property = match function.name {
         "ago" => {
             expect_no_arguments(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(
-                self_property,
-                |timestamp| time_util::format_timestamp_relative_to_now(&timestamp),
-            )))
+            language.wrap_string(TemplateFunction::new(self_property, |timestamp| {
+                time_util::format_timestamp_relative_to_now(&timestamp)
+            }))
         }
         _ => return Err(TemplateParseError::no_such_method("Timestamp", function)),
     };
@@ -997,24 +985,21 @@ fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
     let property = match function.name {
         "start" => {
             expect_no_arguments(function)?;
-            language.wrap_timestamp(Box::new(TemplateFunction::new(
-                self_property,
-                |time_range| time_range.start,
-            )))
+            language.wrap_timestamp(TemplateFunction::new(self_property, |time_range| {
+                time_range.start
+            }))
         }
         "end" => {
             expect_no_arguments(function)?;
-            language.wrap_timestamp(Box::new(TemplateFunction::new(
-                self_property,
-                |time_range| time_range.end,
-            )))
+            language.wrap_timestamp(TemplateFunction::new(self_property, |time_range| {
+                time_range.end
+            }))
         }
         "duration" => {
             expect_no_arguments(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(
-                self_property,
-                |time_range| time_range.duration(),
-            )))
+            language.wrap_string(TemplateFunction::new(self_property, |time_range| {
+                time_range.duration()
+            }))
         }
         _ => {
             return Err(TemplateParseError::no_such_method(
@@ -1108,11 +1093,11 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
             Ok(Expression::Property(property, labels))
         }
         ExpressionKind::Integer(value) => {
-            let property = language.wrap_integer(Box::new(Literal(*value)));
+            let property = language.wrap_integer(Literal(*value));
             Ok(Expression::Property(property, vec![]))
         }
         ExpressionKind::String(value) => {
-            let property = language.wrap_string(Box::new(Literal(value.clone())));
+            let property = language.wrap_string(Literal(value.clone()));
             Ok(Expression::Property(property, vec![]))
         }
         ExpressionKind::List(nodes) => {

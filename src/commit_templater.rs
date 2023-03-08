@@ -76,23 +76,23 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
 impl<'repo> CommitTemplateLanguage<'repo, '_> {
     fn wrap_commit_or_change_id(
         &self,
-        property: Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo>,
+        property: impl TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
-        CommitTemplatePropertyKind::CommitOrChangeId(property)
+        CommitTemplatePropertyKind::CommitOrChangeId(Box::new(property))
     }
 
     fn wrap_commit_or_change_id_list(
         &self,
-        property: Box<dyn TemplateProperty<Commit, Output = Vec<CommitOrChangeId<'repo>>> + 'repo>,
+        property: impl TemplateProperty<Commit, Output = Vec<CommitOrChangeId<'repo>>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
-        CommitTemplatePropertyKind::CommitOrChangeIdList(property)
+        CommitTemplatePropertyKind::CommitOrChangeIdList(Box::new(property))
     }
 
     fn wrap_shortest_id_prefix(
         &self,
-        property: Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>,
+        property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
-        CommitTemplatePropertyKind::ShortestIdPrefix(property)
+        CommitTemplatePropertyKind::ShortestIdPrefix(Box::new(property))
     }
 }
 
@@ -145,15 +145,13 @@ fn build_commit_keyword<'repo>(
     name: &str,
     span: pest::Span,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    fn wrap_fn<'repo, O>(
-        f: impl Fn(&Commit) -> O + 'repo,
-    ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'repo> {
-        Box::new(TemplatePropertyFn(f))
+    fn wrap_fn<O, F: Fn(&Commit) -> O>(f: F) -> TemplatePropertyFn<F> {
+        TemplatePropertyFn(f)
     }
     fn wrap_repo_fn<'repo, O>(
         repo: &'repo dyn Repo,
         f: impl Fn(&dyn Repo, &Commit) -> O + 'repo,
-    ) -> Box<dyn TemplateProperty<Commit, Output = O> + 'repo> {
+    ) -> impl TemplateProperty<Commit, Output = O> + 'repo {
         wrap_fn(move |commit| f(repo, commit))
     }
 
@@ -370,17 +368,17 @@ fn build_commit_or_change_id_method<'repo>(
     let property = match function.name {
         "short" => {
             let len_property = parse_optional_integer(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(
+            language.wrap_string(TemplateFunction::new(
                 (self_property, len_property),
                 |(id, len)| id.short(len.and_then(|l| l.try_into().ok()).unwrap_or(12)),
-            )))
+            ))
         }
         "shortest" => {
             let len_property = parse_optional_integer(function)?;
-            language.wrap_shortest_id_prefix(Box::new(TemplateFunction::new(
+            language.wrap_shortest_id_prefix(TemplateFunction::new(
                 (self_property, len_property),
                 |(id, len)| id.shortest(len.and_then(|l| l.try_into().ok()).unwrap_or(0)),
-            )))
+            ))
         }
         _ => {
             return Err(TemplateParseError::no_such_method(
@@ -427,25 +425,21 @@ fn build_shortest_id_prefix_method<'repo>(
     let property = match function.name {
         "prefix" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(self_property, |id| {
-                id.prefix
-            })))
+            language.wrap_string(TemplateFunction::new(self_property, |id| id.prefix))
         }
         "rest" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(Box::new(TemplateFunction::new(self_property, |id| id.rest)))
+            language.wrap_string(TemplateFunction::new(self_property, |id| id.rest))
         }
         "upper" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_shortest_id_prefix(Box::new(TemplateFunction::new(self_property, |id| {
-                id.to_upper()
-            })))
+            language
+                .wrap_shortest_id_prefix(TemplateFunction::new(self_property, |id| id.to_upper()))
         }
         "lower" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_shortest_id_prefix(Box::new(TemplateFunction::new(self_property, |id| {
-                id.to_lower()
-            })))
+            language
+                .wrap_shortest_id_prefix(TemplateFunction::new(self_property, |id| id.to_lower()))
         }
         _ => {
             return Err(TemplateParseError::no_such_method(
