@@ -16,13 +16,14 @@ use std::path::Path;
 
 use assert_matches::assert_matches;
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
+use jujutsu_lib::default_revset_engine::resolve_symbol;
 use jujutsu_lib::git;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,
-    RevsetFilterPredicate, RevsetIteratorExt, RevsetWorkspaceContext,
+    optimize, parse, RevsetAliasesMap, RevsetError, RevsetExpression, RevsetFilterPredicate,
+    RevsetIteratorExt, RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::workspace::Workspace;

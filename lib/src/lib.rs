@@ -23,6 +23,7 @@ pub mod commit_builder;
 pub mod conflicts;
 pub mod dag_walk;
 pub mod default_index_store;
+pub mod default_revset_engine;
 pub mod diff;
 pub mod file_util;
 pub mod files;
