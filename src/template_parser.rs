@@ -27,7 +27,7 @@ use thiserror::Error;
 use crate::templater::{
     ConditionalTemplate, IndentTemplate, IntoTemplate, LabelTemplate, ListTemplate, Literal,
     PlainTextFormattedProperty, SeparateTemplate, Template, TemplateFunction, TemplateProperty,
-    TemplatePropertyFn, TimestampRange,
+    TimestampRange,
 };
 use crate::time_util;
 
@@ -848,15 +848,6 @@ fn build_method_call<'a, L: TemplateLanguage<'a>>(
     }
 }
 
-pub fn chain_properties<'a, I: 'a, J: 'a, O: 'a>(
-    first: impl TemplateProperty<I, Output = J> + 'a,
-    second: impl TemplateProperty<J, Output = O> + 'a,
-) -> Box<dyn TemplateProperty<I, Output = O> + 'a> {
-    Box::new(TemplateFunction::new(first, move |value| {
-        second.extract(&value)
-    }))
-}
-
 pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
     property: CoreTemplatePropertyKind<'a, L::Context>,
@@ -894,33 +885,28 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
             let [needle_node] = expect_exact_arguments(function)?;
             // TODO: or .try_into_string() to disable implicit type cast?
             let needle_property = build_expression(language, needle_node)?.into_plain_text();
-            language.wrap_boolean(chain_properties(
+            language.wrap_boolean(Box::new(TemplateFunction::new(
                 (self_property, needle_property),
-                TemplatePropertyFn(|(haystack, needle): &(String, String)| {
-                    haystack.contains(needle)
-                }),
-            ))
+                |(haystack, needle)| haystack.contains(&needle),
+            )))
         }
         "first_line" => {
             expect_no_arguments(function)?;
-            language.wrap_string(chain_properties(
-                self_property,
-                TemplatePropertyFn(|s: &String| s.lines().next().unwrap_or_default().to_string()),
-            ))
+            language.wrap_string(Box::new(TemplateFunction::new(self_property, |s| {
+                s.lines().next().unwrap_or_default().to_string()
+            })))
         }
         "upper" => {
             expect_no_arguments(function)?;
-            language.wrap_string(chain_properties(
-                self_property,
-                TemplatePropertyFn(|s: &String| s.to_uppercase()),
-            ))
+            language.wrap_string(Box::new(TemplateFunction::new(self_property, |s| {
+                s.to_uppercase()
+            })))
         }
         "lower" => {
             expect_no_arguments(function)?;
-            language.wrap_string(chain_properties(
-                self_property,
-                TemplatePropertyFn(|s: &String| s.to_lowercase()),
-            ))
+            language.wrap_string(Box::new(TemplateFunction::new(self_property, |s| {
+                s.to_lowercase()
+            })))
         }
         _ => return Err(TemplateParseError::no_such_method("String", function)),
     };
@@ -951,34 +937,34 @@ fn build_signature_method<'a, L: TemplateLanguage<'a>>(
     let property = match function.name {
         "name" => {
             expect_no_arguments(function)?;
-            language.wrap_string(chain_properties(
+            language.wrap_string(Box::new(TemplateFunction::new(
                 self_property,
-                TemplatePropertyFn(|signature: &Signature| signature.name.clone()),
-            ))
+                |signature| signature.name,
+            )))
         }
         "email" => {
             expect_no_arguments(function)?;
-            language.wrap_string(chain_properties(
+            language.wrap_string(Box::new(TemplateFunction::new(
                 self_property,
-                TemplatePropertyFn(|signature: &Signature| signature.email.clone()),
-            ))
+                |signature| signature.email,
+            )))
         }
         "username" => {
             expect_no_arguments(function)?;
-            language.wrap_string(chain_properties(
+            language.wrap_string(Box::new(TemplateFunction::new(
                 self_property,
-                TemplatePropertyFn(|signature: &Signature| {
+                |signature| {
                     let (username, _) = split_email(&signature.email);
                     username.to_owned()
-                }),
-            ))
+                },
+            )))
         }
         "timestamp" => {
             expect_no_arguments(function)?;
-            language.wrap_timestamp(chain_properties(
+            language.wrap_timestamp(Box::new(TemplateFunction::new(
                 self_property,
-                TemplatePropertyFn(|signature: &Signature| signature.timestamp.clone()),
-            ))
+                |signature| signature.timestamp,
+            )))
         }
         _ => return Err(TemplateParseError::no_such_method("Signature", function)),
     };
@@ -993,10 +979,10 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
     let property = match function.name {
         "ago" => {
             expect_no_arguments(function)?;
-            language.wrap_string(chain_properties(
+            language.wrap_string(Box::new(TemplateFunction::new(
                 self_property,
-                TemplatePropertyFn(time_util::format_timestamp_relative_to_now),
-            ))
+                |timestamp| time_util::format_timestamp_relative_to_now(&timestamp),
+            )))
         }
         _ => return Err(TemplateParseError::no_such_method("Timestamp", function)),
     };
@@ -1011,24 +997,24 @@ fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
     let property = match function.name {
         "start" => {
             expect_no_arguments(function)?;
-            language.wrap_timestamp(chain_properties(
+            language.wrap_timestamp(Box::new(TemplateFunction::new(
                 self_property,
-                TemplatePropertyFn(|time_range: &TimestampRange| time_range.start.clone()),
-            ))
+                |time_range| time_range.start,
+            )))
         }
         "end" => {
             expect_no_arguments(function)?;
-            language.wrap_timestamp(chain_properties(
+            language.wrap_timestamp(Box::new(TemplateFunction::new(
                 self_property,
-                TemplatePropertyFn(|time_range: &TimestampRange| time_range.end.clone()),
-            ))
+                |time_range| time_range.end,
+            )))
         }
         "duration" => {
             expect_no_arguments(function)?;
-            language.wrap_string(chain_properties(
+            language.wrap_string(Box::new(TemplateFunction::new(
                 self_property,
-                TemplatePropertyFn(TimestampRange::duration),
-            ))
+                |time_range| time_range.duration(),
+            )))
         }
         _ => {
             return Err(TemplateParseError::no_such_method(

@@ -30,7 +30,8 @@ use crate::template_parser::{
     TemplateLanguage, TemplateParseError, TemplateParseResult,
 };
 use crate::templater::{
-    self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateProperty, TemplatePropertyFn,
+    self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
+    TemplatePropertyFn,
 };
 
 struct CommitTemplateLanguage<'repo, 'b> {
@@ -369,21 +370,17 @@ fn build_commit_or_change_id_method<'repo>(
     let property = match function.name {
         "short" => {
             let len_property = parse_optional_integer(function)?;
-            language.wrap_string(template_parser::chain_properties(
+            language.wrap_string(Box::new(TemplateFunction::new(
                 (self_property, len_property),
-                TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
-                    id.short(len.and_then(|l| l.try_into().ok()).unwrap_or(12))
-                }),
-            ))
+                |(id, len)| id.short(len.and_then(|l| l.try_into().ok()).unwrap_or(12)),
+            )))
         }
         "shortest" => {
             let len_property = parse_optional_integer(function)?;
-            language.wrap_shortest_id_prefix(template_parser::chain_properties(
+            language.wrap_shortest_id_prefix(Box::new(TemplateFunction::new(
                 (self_property, len_property),
-                TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
-                    id.shortest(len.and_then(|l| l.try_into().ok()).unwrap_or(0))
-                }),
-            ))
+                |(id, len)| id.shortest(len.and_then(|l| l.try_into().ok()).unwrap_or(0)),
+            )))
         }
         _ => {
             return Err(TemplateParseError::no_such_method(
@@ -430,31 +427,25 @@ fn build_shortest_id_prefix_method<'repo>(
     let property = match function.name {
         "prefix" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(template_parser::chain_properties(
-                self_property,
-                TemplatePropertyFn(|id: &ShortestIdPrefix| id.prefix.clone()),
-            ))
+            language.wrap_string(Box::new(TemplateFunction::new(self_property, |id| {
+                id.prefix
+            })))
         }
         "rest" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(template_parser::chain_properties(
-                self_property,
-                TemplatePropertyFn(|id: &ShortestIdPrefix| id.rest.clone()),
-            ))
+            language.wrap_string(Box::new(TemplateFunction::new(self_property, |id| id.rest)))
         }
         "upper" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_shortest_id_prefix(template_parser::chain_properties(
-                self_property,
-                TemplatePropertyFn(|id: &ShortestIdPrefix| id.to_upper()),
-            ))
+            language.wrap_shortest_id_prefix(Box::new(TemplateFunction::new(self_property, |id| {
+                id.to_upper()
+            })))
         }
         "lower" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_shortest_id_prefix(template_parser::chain_properties(
-                self_property,
-                TemplatePropertyFn(|id: &ShortestIdPrefix| id.to_lower()),
-            ))
+            language.wrap_shortest_id_prefix(Box::new(TemplateFunction::new(self_property, |id| {
+                id.to_lower()
+            })))
         }
         _ => {
             return Err(TemplateParseError::no_such_method(

@@ -25,8 +25,8 @@ use crate::template_parser::{
     TemplateLanguage, TemplateParseError, TemplateParseResult,
 };
 use crate::templater::{
-    IntoTemplate, PlainTextFormattedProperty, Template, TemplateProperty, TemplatePropertyFn,
-    TimestampRange,
+    IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
+    TemplatePropertyFn, TimestampRange,
 };
 
 struct OperationTemplateLanguage<'b> {
@@ -168,14 +168,14 @@ fn build_operation_id_method(
             let len_property = len_node
                 .map(|node| template_parser::expect_integer_expression(language, node))
                 .transpose()?;
-            language.wrap_string(template_parser::chain_properties(
+            language.wrap_string(Box::new(TemplateFunction::new(
                 (self_property, len_property),
-                TemplatePropertyFn(|(id, len): &(OperationId, Option<i64>)| {
+                |(id, len)| {
                     let mut hex = id.hex();
                     hex.truncate(len.and_then(|l| l.try_into().ok()).unwrap_or(12));
                     hex
-                }),
-            ))
+                },
+            )))
         }
         _ => return Err(TemplateParseError::no_such_method("OperationId", function)),
     };
