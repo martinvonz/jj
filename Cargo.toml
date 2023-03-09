@@ -65,7 +65,7 @@ indexmap = "1.9.2"
 toml_edit = { version = "0.19.4", features = ["serde"] }
 
 [target.'cfg(unix)'.dependencies]
-libc = { version = "0.2.139" }
+libc = { version = "0.2.140" }
 
 [dev-dependencies]
 assert_cmd = "2.0.8"
