@@ -34,13 +34,13 @@ pub enum IndexWriteError {
 pub trait IndexStore: Send + Sync + Debug {
     fn name(&self) -> &str;
 
-    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex>;
+    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> ReadonlyIndex;
 
     fn write_index(
         &self,
         index: MutableIndex,
         op_id: &OperationId,
-    ) -> Result<Arc<ReadonlyIndex>, IndexWriteError>;
+    ) -> Result<ReadonlyIndex, IndexWriteError>;
 }
 
 pub trait Index {

@@ -140,7 +140,7 @@ pub fn create_op_metadata(user_settings: &UserSettings, description: String) -> 
 struct NewRepoData {
     operation: Operation,
     view: View,
-    index: Arc<ReadonlyIndex>,
+    index: ReadonlyIndex,
 }
 
 pub struct UnpublishedOperation {
@@ -154,7 +154,7 @@ impl UnpublishedOperation {
         repo_loader: RepoLoader,
         operation: Operation,
         view: View,
-        index: Arc<ReadonlyIndex>,
+        index: ReadonlyIndex,
     ) -> Self {
         let data = Some(NewRepoData {
             operation,

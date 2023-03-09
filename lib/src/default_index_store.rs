@@ -68,7 +68,7 @@ impl DefaultIndexStore {
         commit_id_length: usize,
         change_id_length: usize,
         op_id: &OperationId,
-    ) -> Result<Arc<ReadonlyIndex>, IndexLoadError> {
+    ) -> Result<Arc<ReadonlyIndexImpl>, IndexLoadError> {
         let op_id_file = self.dir.join("operations").join(op_id.hex());
         let mut buf = vec![];
         File::open(op_id_file)
@@ -78,7 +78,7 @@ impl DefaultIndexStore {
         let index_file_id_hex = String::from_utf8(buf).unwrap();
         let index_file_path = self.dir.join(&index_file_id_hex);
         let mut index_file = File::open(index_file_path).unwrap();
-        ReadonlyIndex::load_from(
+        ReadonlyIndexImpl::load_from(
             &mut index_file,
             self.dir.to_owned(),
             index_file_id_hex,
@@ -91,7 +91,7 @@ impl DefaultIndexStore {
         &self,
         store: &Arc<Store>,
         operation: &Operation,
-    ) -> io::Result<Arc<ReadonlyIndex>> {
+    ) -> io::Result<Arc<ReadonlyIndexImpl>> {
         let view = operation.view();
         let operations_dir = self.dir.join("operations");
         let commit_id_length = store.commit_id_length();
@@ -147,7 +147,7 @@ impl DefaultIndexStore {
     /// Records a link from the given operation to the this index version.
     fn associate_file_with_operation(
         &self,
-        index: &ReadonlyIndex,
+        index: &ReadonlyIndexImpl,
         op_id: &OperationId,
     ) -> io::Result<()> {
         let mut temp_file = NamedTempFile::new_in(&self.dir)?;
@@ -166,10 +166,10 @@ impl IndexStore for DefaultIndexStore {
         "default"
     }
 
-    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex> {
+    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> ReadonlyIndex {
         let op_id_hex = op.id().hex();
         let op_id_file = self.dir.join("operations").join(op_id_hex);
-        if op_id_file.exists() {
+        let index_impl = if op_id_file.exists() {
             match self.load_index_at_operation(
                 store.commit_id_length(),
                 store.change_id_length(),
@@ -188,14 +188,15 @@ impl IndexStore for DefaultIndexStore {
             }
         } else {
             self.index_at_operation(store, op).unwrap()
-        }
+        };
+        ReadonlyIndex(index_impl)
     }
 
     fn write_index(
         &self,
         index: MutableIndex,
         op_id: &OperationId,
-    ) -> Result<Arc<ReadonlyIndex>, IndexWriteError> {
+    ) -> Result<ReadonlyIndex, IndexWriteError> {
         let index = index.save_in(self.dir.clone()).map_err(|err| {
             IndexWriteError::Other(format!("Failed to write commit index file: {err:?}"))
         })?;
@@ -205,7 +206,7 @@ impl IndexStore for DefaultIndexStore {
                     "Failed to associate commit index file with a operation {op_id:?}: {err:?}"
                 ))
             })?;
-        Ok(index)
+        Ok(ReadonlyIndex(index))
     }
 }
 
@@ -214,7 +215,7 @@ impl IndexStore for DefaultIndexStore {
 fn topo_order_earlier_first(
     store: &Arc<Store>,
     heads: Vec<CommitId>,
-    parent_file: Option<Arc<ReadonlyIndex>>,
+    parent_file: Option<Arc<ReadonlyIndexImpl>>,
 ) -> Vec<Commit> {
     // First create a list of all commits in topological order with
     // children/successors first (reverse of what we want)
@@ -385,8 +386,8 @@ pub enum IndexLoadError {
 // TODO: replace the table by a trie so we don't have to repeat the full commit
 //       ids
 // TODO: add a fanout table like git's commit graph has?
-pub struct ReadonlyIndex {
-    parent_file: Option<Arc<ReadonlyIndex>>,
+pub struct ReadonlyIndexImpl {
+    parent_file: Option<Arc<ReadonlyIndexImpl>>,
     num_parent_commits: u32,
     name: String,
     commit_id_length: usize,
@@ -400,7 +401,19 @@ pub struct ReadonlyIndex {
     overflow_parent: Vec<u8>,
 }
 
-impl Debug for ReadonlyIndex {
+pub struct ReadonlyIndex(Arc<ReadonlyIndexImpl>);
+
+impl ReadonlyIndex {
+    pub fn as_index(&self) -> &dyn Index {
+        self.0.as_ref()
+    }
+
+    pub fn start_modification(&self) -> MutableIndex {
+        MutableIndex::incremental(self.0.clone())
+    }
+}
+
+impl Debug for ReadonlyIndexImpl {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("ReadonlyIndex")
             .field("name", &self.name)
@@ -418,7 +431,7 @@ struct MutableGraphEntry {
 }
 
 pub struct MutableIndex {
-    parent_file: Option<Arc<ReadonlyIndex>>,
+    parent_file: Option<Arc<ReadonlyIndexImpl>>,
     num_parent_commits: u32,
     commit_id_length: usize,
     change_id_length: usize,
@@ -438,7 +451,7 @@ impl MutableIndex {
         }
     }
 
-    pub fn incremental(parent_file: Arc<ReadonlyIndex>) -> Self {
+    pub fn incremental(parent_file: Arc<ReadonlyIndexImpl>) -> Self {
         let num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
         let commit_id_length = parent_file.commit_id_length;
         let change_id_length = parent_file.change_id_length;
@@ -505,9 +518,9 @@ impl MutableIndex {
         }
     }
 
-    pub fn merge_in(&mut self, other: &Arc<ReadonlyIndex>) {
+    pub fn merge_in(&mut self, other: &ReadonlyIndex) {
         let mut maybe_own_ancestor = self.parent_file.clone();
-        let mut maybe_other_ancestor = Some(other.clone());
+        let mut maybe_other_ancestor = Some(other.0.clone());
         let mut files_to_add = vec![];
         loop {
             if maybe_other_ancestor.is_none() {
@@ -640,7 +653,7 @@ impl MutableIndex {
         squashed
     }
 
-    fn save_in(self, dir: PathBuf) -> io::Result<Arc<ReadonlyIndex>> {
+    fn save_in(self, dir: PathBuf) -> io::Result<Arc<ReadonlyIndexImpl>> {
         if self.segment_num_commits() == 0 && self.parent_file.is_some() {
             return Ok(self.parent_file.unwrap());
         }
@@ -660,7 +673,7 @@ impl MutableIndex {
         persist_content_addressed_temp_file(temp_file, index_file_path)?;
 
         let mut cursor = Cursor::new(&buf);
-        ReadonlyIndex::load_from(
+        ReadonlyIndexImpl::load_from(
             &mut cursor,
             dir,
             index_file_id_hex,
@@ -735,7 +748,7 @@ trait IndexSegment {
 
     fn segment_num_commits(&self) -> u32;
 
-    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndex>>;
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndexImpl>>;
 
     fn segment_name(&self) -> Option<String>;
 
@@ -767,7 +780,7 @@ trait IndexSegment {
 struct CompositeIndex<'a>(&'a dyn IndexSegment);
 
 impl<'a> CompositeIndex<'a> {
-    fn ancestor_files_without_local(&self) -> impl Iterator<Item = &Arc<ReadonlyIndex>> {
+    fn ancestor_files_without_local(&self) -> impl Iterator<Item = &Arc<ReadonlyIndexImpl>> {
         let parent_file = self.0.segment_parent_file();
         iter::successors(parent_file, |file| file.segment_parent_file())
     }
@@ -826,9 +839,9 @@ impl<'a> CompositeIndex<'a> {
         if pos.0 >= num_parent_commits {
             self.0.segment_entry_by_pos(pos, pos.0 - num_parent_commits)
         } else {
-            let parent_file: &ReadonlyIndex = self.0.segment_parent_file().unwrap().as_ref();
+            let parent_file: &ReadonlyIndexImpl = self.0.segment_parent_file().unwrap().as_ref();
             // The parent ReadonlyIndex outlives the child
-            let parent_file: &'a ReadonlyIndex = unsafe { std::mem::transmute(parent_file) };
+            let parent_file: &'a ReadonlyIndexImpl = unsafe { std::mem::transmute(parent_file) };
 
             CompositeIndex(parent_file).entry_by_pos(pos)
         }
@@ -1323,7 +1336,7 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
     }
 }
 
-impl IndexSegment for ReadonlyIndex {
+impl IndexSegment for ReadonlyIndexImpl {
     fn segment_num_parent_commits(&self) -> u32 {
         self.num_parent_commits
     }
@@ -1332,7 +1345,7 @@ impl IndexSegment for ReadonlyIndex {
         self.num_local_commits
     }
 
-    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndex>> {
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndexImpl>> {
         self.parent_file.as_ref()
     }
 
@@ -1437,7 +1450,7 @@ impl IndexSegment for MutableIndex {
         self.graph.len() as u32
     }
 
-    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndex>> {
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndexImpl>> {
         self.parent_file.as_ref()
     }
 
@@ -1576,14 +1589,14 @@ impl<'a> IndexEntry<'a> {
     }
 }
 
-impl ReadonlyIndex {
+impl ReadonlyIndexImpl {
     fn load_from(
         file: &mut dyn Read,
         dir: PathBuf,
         name: String,
         commit_id_length: usize,
         change_id_length: usize,
-    ) -> Result<Arc<ReadonlyIndex>, IndexLoadError> {
+    ) -> Result<Arc<ReadonlyIndexImpl>, IndexLoadError> {
         let parent_filename_len = file.read_u32::<LittleEndian>()?;
         let num_parent_commits;
         let maybe_parent_file;
@@ -1593,7 +1606,7 @@ impl ReadonlyIndex {
             let parent_filename = String::from_utf8(parent_filename_bytes).unwrap();
             let parent_file_path = dir.join(&parent_filename);
             let mut index_file = File::open(parent_file_path).unwrap();
-            let parent_file = ReadonlyIndex::load_from(
+            let parent_file = ReadonlyIndexImpl::load_from(
                 &mut index_file,
                 dir,
                 parent_filename,
@@ -1622,7 +1635,7 @@ impl ReadonlyIndex {
         let overflow_parent = data.split_off(graph_size + lookup_size);
         let lookup = data.split_off(graph_size);
         let graph = data;
-        Ok(Arc::new(ReadonlyIndex {
+        Ok(Arc::new(ReadonlyIndexImpl {
             parent_file: maybe_parent_file,
             num_parent_commits,
             name,
@@ -1691,7 +1704,7 @@ impl ReadonlyIndex {
     }
 }
 
-impl Index for ReadonlyIndex {
+impl Index for ReadonlyIndexImpl {
     fn num_commits(&self) -> u32 {
         CompositeIndex(self).num_commits()
     }
@@ -1742,6 +1755,60 @@ impl Index for ReadonlyIndex {
 
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
         CompositeIndex(self).topo_order(input)
+    }
+}
+
+impl Index for ReadonlyIndex {
+    fn num_commits(&self) -> u32 {
+        self.0.num_commits()
+    }
+
+    fn stats(&self) -> IndexStats {
+        self.0.stats()
+    }
+
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
+        self.0.commit_id_to_pos(commit_id)
+    }
+
+    fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
+        self.0.shortest_unique_commit_id_prefix_len(commit_id)
+    }
+
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+        self.0.resolve_prefix(prefix)
+    }
+
+    fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
+        self.0.entry_by_id(commit_id)
+    }
+
+    fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry {
+        self.0.entry_by_pos(pos)
+    }
+
+    fn has_id(&self, commit_id: &CommitId) -> bool {
+        self.0.has_id(commit_id)
+    }
+
+    fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
+        self.0.is_ancestor(ancestor_id, descendant_id)
+    }
+
+    fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
+        self.0.common_ancestors(set1, set2)
+    }
+
+    fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
+        self.0.walk_revs(wanted, unwanted)
+    }
+
+    fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
+        self.0.heads(candidates)
+    }
+
+    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
+        self.0.topo_order(input)
     }
 }
 
