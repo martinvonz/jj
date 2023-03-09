@@ -31,7 +31,6 @@ use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::default_index_store::IndexEntry;
-use jujutsu_lib::index::Index;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::{ReadonlyRepo, Repo};
@@ -1872,11 +1871,12 @@ fn cmd_duplicate(
 
     let mut tx = workspace_command
         .start_transaction(&format!("duplicating {} commit(s)", to_duplicate.len()));
-    let index = tx.base_repo().readonly_index().clone();
-    let store = tx.base_repo().store().clone();
+    let base_repo = tx.base_repo().clone();
+    let store = base_repo.store();
     let mut_repo = tx.mut_repo();
 
-    for original_commit_id in index
+    for original_commit_id in base_repo
+        .index()
         .topo_order(&mut to_duplicate.iter().map(|c| c.id()))
         .into_iter()
         .map(|index_entry| index_entry.commit_id())

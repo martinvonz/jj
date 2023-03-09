@@ -81,7 +81,7 @@ pub struct ReadonlyRepo {
     operation: Operation,
     settings: RepoSettings,
     index_store: Arc<dyn IndexStore>,
-    index: OnceCell<Arc<ReadonlyIndex>>,
+    index: OnceCell<ReadonlyIndex>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
     change_id_index: OnceCell<ChangeIdIndex>,
     view: View,
@@ -210,7 +210,7 @@ impl ReadonlyRepo {
         &self.view
     }
 
-    pub fn readonly_index(&self) -> &Arc<ReadonlyIndex> {
+    pub fn readonly_index(&self) -> &ReadonlyIndex {
         self.index.get_or_init(|| {
             self.index_store
                 .get_index_at_op(&self.operation, &self.store)
@@ -245,7 +245,7 @@ impl ReadonlyRepo {
         user_settings: &UserSettings,
         description: &str,
     ) -> Transaction {
-        let mut_repo = MutableRepo::new(self.clone(), self.readonly_index().clone(), &self.view);
+        let mut_repo = MutableRepo::new(self.clone(), self.readonly_index(), &self.view);
         Transaction::new(mut_repo, user_settings, description)
     }
 
@@ -275,7 +275,7 @@ impl Repo for Arc<ReadonlyRepo> {
     }
 
     fn index(&self) -> &dyn Index {
-        self.readonly_index().as_ref()
+        self.readonly_index().as_index()
     }
 
     fn view(&self) -> &View {
@@ -574,7 +574,7 @@ impl RepoLoader {
         &self,
         operation: Operation,
         view: View,
-        index: Arc<ReadonlyIndex>,
+        index: ReadonlyIndex,
     ) -> Arc<ReadonlyRepo> {
         let repo = ReadonlyRepo {
             repo_path: self.repo_path.clone(),
@@ -632,13 +632,9 @@ pub struct MutableRepo {
 }
 
 impl MutableRepo {
-    pub fn new(
-        base_repo: Arc<ReadonlyRepo>,
-        index: Arc<ReadonlyIndex>,
-        view: &View,
-    ) -> MutableRepo {
+    pub fn new(base_repo: Arc<ReadonlyRepo>, index: &ReadonlyIndex, view: &View) -> MutableRepo {
         let mut_view = view.clone();
-        let mut_index = MutableIndex::incremental(index);
+        let mut_index = index.start_modification();
         MutableRepo {
             base_repo,
             index: mut_index,
