@@ -63,8 +63,8 @@ impl Progress {
         }
 
         let bar_width = ui
-            .size()
-            .map(|(cols, _rows)| usize::from(cols))
+            .term_width()
+            .map(usize::from)
             .unwrap_or(0)
             .saturating_sub(self.buffer.len() - control_chars + 2);
         self.buffer.push('[');

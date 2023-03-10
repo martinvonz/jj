@@ -288,8 +288,8 @@ impl Ui {
         rpassword::prompt_password(format!("{prompt}: "))
     }
 
-    pub fn size(&self) -> Option<(u16, u16)> {
-        crossterm::terminal::size().ok()
+    pub fn term_width(&self) -> Option<u16> {
+        crossterm::terminal::size().ok().map(|(cols, _)| cols)
     }
 
     /// Construct a guard object which writes `data` when dropped. Useful for
