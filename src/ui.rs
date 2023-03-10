@@ -15,7 +15,7 @@
 use std::io::{Stderr, Stdout, Write};
 use std::process::{Child, ChildStdin, Stdio};
 use std::str::FromStr;
-use std::{fmt, io, mem};
+use std::{env, fmt, io, mem};
 
 use crossterm::tty::IsTty;
 use maplit::hashmap;
@@ -289,7 +289,11 @@ impl Ui {
     }
 
     pub fn term_width(&self) -> Option<u16> {
-        crossterm::terminal::size().ok().map(|(cols, _)| cols)
+        if let Some(cols) = env::var("COLUMNS").ok().and_then(|s| s.parse().ok()) {
+            Some(cols)
+        } else {
+            crossterm::terminal::size().ok().map(|(cols, _)| cols)
+        }
     }
 
     /// Construct a guard object which writes `data` when dropped. Useful for
