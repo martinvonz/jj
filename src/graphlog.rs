@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use std::hash::Hash;
-use std::io;
 use std::io::Write;
+use std::{cmp, io};
 
 use itertools::Itertools;
 use jujutsu_lib::settings::UserSettings;
@@ -55,6 +55,8 @@ pub trait GraphLog<K: Clone + Eq + Hash> {
         node_symbol: &str,
         text: &str,
     ) -> io::Result<()>;
+
+    fn width(&self, id: &K, edges: &[Edge<K>]) -> usize;
 }
 
 pub struct SaplingGraphLog<'writer, R> {
@@ -95,6 +97,12 @@ where
         );
 
         write!(self.writer, "{row}")
+    }
+
+    fn width(&self, id: &K, edges: &[Edge<K>]) -> usize {
+        let parents = edges.iter().map_into().collect();
+        let w: u64 = self.renderer.width(Some(id), Some(&parents));
+        w.try_into().unwrap()
     }
 }
 
@@ -281,6 +289,12 @@ impl<'writer, K: Clone + Eq + Hash> GraphLog<K> for AsciiGraphDrawer<'writer, K>
 
         Ok(())
     }
+
+    fn width(&self, id: &K, edges: &[Edge<K>]) -> usize {
+        let orig = self.edges.len() - usize::from(self.index_by_target(id).is_some());
+        let added = cmp::max(edges.len(), 1);
+        2 * (orig + added)
+    }
 }
 
 impl<'writer, K: Clone + Eq + Hash> AsciiGraphDrawer<'writer, K> {
@@ -413,14 +427,39 @@ impl<'writer, K: Clone + Eq + Hash> AsciiGraphDrawer<'writer, K> {
 mod tests {
     use super::*;
 
+    /// Adapter to insert width calculation for each `.add_node()`
+    struct AsciiGraphDrawerWithWidths<'writer, K> {
+        inner: AsciiGraphDrawer<'writer, K>,
+    }
+
+    impl<'writer, K: Clone + Eq + Hash> AsciiGraphDrawerWithWidths<'writer, K> {
+        fn new(writer: &'writer mut dyn Write) -> Self {
+            AsciiGraphDrawerWithWidths {
+                inner: AsciiGraphDrawer::new(writer),
+            }
+        }
+
+        fn add_node(
+            &mut self,
+            id: &K,
+            edges: &[Edge<K>],
+            node_symbol: &str,
+            text: &str,
+        ) -> io::Result<()> {
+            let width = self.inner.width(id, edges);
+            let text = format!("{text} [width={width}]");
+            self.inner.add_node(id, edges, node_symbol, &text)
+        }
+    }
+
     #[test]
     fn single_node() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&1, &[], "@", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        @ node 1
+        @ node 1 [width=2]
         "###);
 
         Ok(())
@@ -478,15 +517,15 @@ mod tests {
     #[test]
     fn chain() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&3, &[Edge::direct(2)], "@", "node 3")?;
         graph.add_node(&2, &[Edge::direct(1)], "o", "node 2")?;
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        @ node 3
-        o node 2
-        o node 1
+        @ node 3 [width=2]
+        o node 2 [width=2]
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -495,7 +534,7 @@ mod tests {
     #[test]
     fn interleaved_chains() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&7, &[Edge::direct(5)], "o", "node 7")?;
         graph.add_node(&6, &[Edge::direct(4)], "o", "node 6")?;
         graph.add_node(&5, &[Edge::direct(3)], "o", "node 5")?;
@@ -505,13 +544,13 @@ mod tests {
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 7
-        | o node 6
-        o | node 5
-        | o node 4
-        @ | node 3
-        | o node 2
-        o node 1
+        o node 7 [width=2]
+        | o node 6 [width=4]
+        o | node 5 [width=4]
+        | o node 4 [width=4]
+        @ | node 3 [width=4]
+        | o node 2 [width=4]
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -520,17 +559,17 @@ mod tests {
     #[test]
     fn independent_nodes() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&3, &[Edge::missing()], "o", "node 3")?;
         graph.add_node(&2, &[Edge::missing()], "o", "node 2")?;
         graph.add_node(&1, &[Edge::missing()], "@", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 3
+        o node 3 [width=2]
         ~ 
-        o node 2
+        o node 2 [width=2]
         ~ 
-        @ node 1
+        @ node 1 [width=2]
         ~ 
         "###);
 
@@ -540,18 +579,18 @@ mod tests {
     #[test]
     fn left_chain_ends() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&4, &[Edge::direct(2)], "o", "node 4")?;
         graph.add_node(&3, &[Edge::direct(1)], "o", "node 3")?;
         graph.add_node(&2, &[Edge::missing()], "o", "node 2")?;
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 4
-        | o node 3
-        o | node 2
+        o node 4 [width=2]
+        | o node 3 [width=4]
+        o | node 2 [width=4]
         ~/  
-        o node 1
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -560,19 +599,19 @@ mod tests {
     #[test]
     fn left_chain_ends_with_no_missing_edge() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&4, &[Edge::direct(2)], "o", "node 4")?;
         graph.add_node(&3, &[Edge::direct(1)], "o", "node 3")?;
         graph.add_node(&2, &[], "o", "node 2\nmore\ntext")?;
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 4
-        | o node 3
+        o node 4 [width=2]
+        | o node 3 [width=4]
         o | node 2
          /  more
-        |   text
-        o node 1
+        |   text [width=4]
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -581,20 +620,20 @@ mod tests {
     #[test]
     fn right_chain_ends() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&4, &[Edge::direct(1)], "o", "node 4")?;
         graph.add_node(&3, &[Edge::direct(2)], "o", "node 3")?;
         graph.add_node(&2, &[Edge::missing()], "o", "node 2")?;
         graph.add_node(&1, &[], "o", "node 1\nmore\ntext")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 4
-        | o node 3
-        | o node 2
+        o node 4 [width=2]
+        | o node 3 [width=4]
+        | o node 2 [width=4]
         | ~ 
         o node 1
           more
-          text
+          text [width=2]
         "###);
 
         Ok(())
@@ -628,19 +667,19 @@ mod tests {
     #[test]
     fn fork_multiple() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&4, &[Edge::direct(1)], "@", "node 4")?;
         graph.add_node(&3, &[Edge::direct(1)], "o", "node 3")?;
         graph.add_node(&2, &[Edge::direct(1)], "o", "node 2")?;
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        @ node 4
-        | o node 3
+        @ node 4 [width=2]
+        | o node 3 [width=4]
         |/  
-        | o node 2
+        | o node 2 [width=4]
         |/  
-        o node 1
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -649,7 +688,7 @@ mod tests {
     #[test]
     fn fork_multiple_chains() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&10, &[Edge::direct(7)], "o", "node 10")?;
         graph.add_node(&9, &[Edge::direct(6)], "o", "node 9")?;
         graph.add_node(&8, &[Edge::direct(5)], "o", "node 8")?;
@@ -662,18 +701,18 @@ mod tests {
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 10
-        | o node 9
-        | | o node 8
-        o | | node 7
-        | o | node 6
-        | | o node 5
-        o | | node 4
-        | o | node 3
+        o node 10 [width=2]
+        | o node 9 [width=4]
+        | | o node 8 [width=6]
+        o | | node 7 [width=6]
+        | o | node 6 [width=6]
+        | | o node 5 [width=6]
+        o | | node 4 [width=6]
+        | o | node 3 [width=6]
         |/ /  
-        | o node 2
+        | o node 2 [width=4]
         |/  
-        o node 1
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -682,7 +721,7 @@ mod tests {
     #[test]
     fn cross_over() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&5, &[Edge::direct(1)], "o", "node 5")?;
         graph.add_node(&4, &[Edge::direct(2)], "o", "node 4")?;
         graph.add_node(&3, &[Edge::direct(1)], "o", "node 3")?;
@@ -690,14 +729,14 @@ mod tests {
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 5
-        | o node 4
-        | | o node 3
+        o node 5 [width=2]
+        | o node 4 [width=4]
+        | | o node 3 [width=6]
         | |/  
         |/|   
-        | o node 2
+        | o node 2 [width=4]
         |/  
-        o node 1
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -706,7 +745,7 @@ mod tests {
     #[test]
     fn cross_over_multiple() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&7, &[Edge::direct(1)], "o", "node 7")?;
         graph.add_node(&6, &[Edge::direct(3)], "o", "node 6")?;
         graph.add_node(&5, &[Edge::direct(2)], "o", "node 5")?;
@@ -716,17 +755,17 @@ mod tests {
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 7
-        | o node 6
-        | | o node 5
-        | | | o node 4
+        o node 7 [width=2]
+        | o node 6 [width=4]
+        | | o node 5 [width=6]
+        | | | o node 4 [width=8]
         | |_|/  
         |/| |   
-        | o | node 3
+        | o | node 3 [width=6]
         |/ /  
-        | o node 2
+        | o node 2 [width=4]
         |/  
-        o node 1
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -735,7 +774,7 @@ mod tests {
     #[test]
     fn cross_over_new_on_left() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&6, &[Edge::direct(3)], "o", "node 6")?;
         graph.add_node(&5, &[Edge::direct(2)], "o", "node 5")?;
         graph.add_node(&4, &[Edge::direct(1)], "o", "node 4")?;
@@ -744,15 +783,15 @@ mod tests {
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 6
-        | o node 5
-        | | o node 4
-        o | | node 3
+        o node 6 [width=2]
+        | o node 5 [width=4]
+        | | o node 4 [width=6]
+        o | | node 3 [width=6]
         | |/  
         |/|   
-        | o node 2
+        | o node 2 [width=4]
         |/  
-        o node 1
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -761,7 +800,7 @@ mod tests {
     #[test]
     fn merge_multiple() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(
             &5,
             &[
@@ -781,14 +820,14 @@ mod tests {
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
         @---.   node 5
         |\ \ \  more
-        | | | | text
-        | | | o node 4
+        | | | | text [width=8]
+        | | | o node 4 [width=8]
         | | | ~ 
-        | | o node 3
+        | | o node 3 [width=6]
         | | ~ 
-        | o node 2
+        | o node 2 [width=4]
         | ~ 
-        o node 1
+        o node 1 [width=2]
         ~ 
         "###);
 
@@ -798,7 +837,7 @@ mod tests {
     #[test]
     fn fork_merge_in_central_edge() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&8, &[Edge::direct(1)], "o", "node 8")?;
         graph.add_node(&7, &[Edge::direct(5)], "o", "node 7")?;
         graph.add_node(
@@ -814,22 +853,22 @@ mod tests {
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 8
-        | o node 7
+        o node 8 [width=2]
+        | o node 7 [width=4]
         | | o node 6
         | | | with
         | | | some
         | | | more
-        | | | lines
-        | o |   node 5
+        | | | lines [width=6]
+        | o |   node 5 [width=8]
         | |\ \  
-        | o | | node 4
+        | o | | node 4 [width=8]
         |/ / /  
-        | o | node 3
+        | o | node 3 [width=6]
         |/ /  
-        | o node 2
+        | o node 2 [width=4]
         |/  
-        o node 1
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -838,7 +877,7 @@ mod tests {
     #[test]
     fn fork_merge_multiple() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&6, &[Edge::direct(5)], "o", "node 6")?;
         graph.add_node(
             &5,
@@ -852,15 +891,15 @@ mod tests {
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 6
-        o-.   node 5
+        o node 6 [width=2]
+        o-.   node 5 [width=6]
         |\ \  
-        | | o node 4
-        | o | node 3
+        | | o node 4 [width=6]
+        | o | node 3 [width=6]
         | |/  
-        o | node 2
+        o | node 2 [width=4]
         |/  
-        o node 1
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -869,7 +908,7 @@ mod tests {
     #[test]
     fn fork_merge_multiple_in_central_edge() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&10, &[Edge::direct(1)], "o", "node 10")?;
         graph.add_node(&9, &[Edge::direct(7)], "o", "node 9")?;
         graph.add_node(&8, &[Edge::direct(2)], "o", "node 8")?;
@@ -892,24 +931,24 @@ mod tests {
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 10
-        | o node 9
-        | | o node 8
+        o node 10 [width=2]
+        | o node 9 [width=4]
+        | | o node 8 [width=6]
         | |  \
         | |    \
-        | o---. |   node 7
+        | o---. |   node 7 [width=12]
         | |\ \ \ \  
-        | o | | | | node 6
+        | o | | | | node 6 [width=12]
         |/ / / / /  
-        | o | | | node 5
+        | o | | | node 5 [width=10]
         |/ / / /  
-        | o | | node 4
+        | o | | node 4 [width=8]
         |/ / /  
-        | o | node 3
+        | o | node 3 [width=6]
         |/ /  
-        | o node 2
+        | o node 2 [width=4]
         |/  
-        o node 1
+        o node 1 [width=2]
         "###);
 
         Ok(())
@@ -918,7 +957,7 @@ mod tests {
     #[test]
     fn merge_multiple_missing_edges() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(
             &1,
             &[
@@ -937,7 +976,7 @@ mod tests {
         | | | ~ many
         | | ~   lines
         | ~     of
-        ~       text
+        ~       text [width=8]
         "###);
 
         Ok(())
@@ -946,7 +985,7 @@ mod tests {
     #[test]
     fn merge_missing_edges_and_fork() -> io::Result<()> {
         let mut buffer = vec![];
-        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        let mut graph = AsciiGraphDrawerWithWidths::new(&mut buffer);
         graph.add_node(&3, &[Edge::direct(1)], "o", "node 3")?;
         graph.add_node(
             &2,
@@ -962,14 +1001,14 @@ mod tests {
         graph.add_node(&1, &[], "o", "node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
-        o node 3
+        o node 3 [width=2]
         | o---.   node 2
         | |\ \ \  with
         | | : ~/  many
         | ~/ /    lines
         |/ /      of
-        |/        text
-        o node 1
+        |/        text [width=10]
+        o node 1 [width=2]
         "###);
 
         Ok(())
