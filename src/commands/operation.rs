@@ -69,6 +69,7 @@ fn cmd_op_log(
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     let mut graph = get_graphlog(command.settings(), formatter.raw());
+    let default_node_symbol = graph.default_node_symbol().to_owned();
     for op in topo_order_reverse(
         vec![head_op],
         Box::new(|op: &Operation| op.id().clone()),
@@ -88,7 +89,11 @@ fn cmd_op_log(
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
         }
-        let node_symbol = if is_head_op { "@" } else { "o" };
+        let node_symbol = if is_head_op {
+            "@"
+        } else {
+            &default_node_symbol
+        };
         graph.add_node(
             op.id(),
             &edges,
