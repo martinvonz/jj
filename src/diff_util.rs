@@ -33,6 +33,7 @@ use crate::cli_util::{CommandError, WorkspaceCommandHelper};
 use crate::formatter::Formatter;
 
 #[derive(clap::Args, Clone, Debug)]
+#[command(group(clap::ArgGroup::new("diff-format").args(&["git", "color_words"])))]
 pub struct DiffFormatArgs {
     /// For each path, show only whether it was modified, added, or removed
     #[arg(long, short)]
