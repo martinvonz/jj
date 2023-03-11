@@ -1541,27 +1541,48 @@ impl ReadonlyIndex {
         )
     }
 
+    /// Find the commit with the largest ID less than `prefix`
     fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &CommitId) -> Option<u32> {
-        if self.num_local_commits == 0 {
-            // Avoid overflow when subtracting 1 below
-            return None;
+        /// Interpret the first 4 bytes as a big-endian u32, right-padding with zeroes
+        fn id_to_u32(id: &[u8]) -> u32 {
+            let mut padded = [0; 4];
+            let len = id.len().min(4);
+            padded[0..len].copy_from_slice(&id[0..len]);
+            u32::from_be_bytes(padded)
         }
-        let mut low = 0;
-        let mut high = self.num_local_commits - 1;
 
-        // binary search for the commit id
-        loop {
-            let mid = (low + high) / 2;
-            if high == low {
-                return Some(mid);
+        let mut high = self.num_local_commits.checked_sub(1)?;
+        let mut low = 0;
+        let approx_id = id_to_u32(prefix.as_bytes());
+
+        while high != low {
+            let approx_low = id_to_u32(self.lookup_entry(low).commit_id_bytes());
+            let approx_high = id_to_u32(self.lookup_entry(high).commit_id_bytes());
+            if approx_id < approx_low || approx_id > approx_high {
+                return Some(low);
             }
-            let entry = self.lookup_entry(mid);
-            if entry.commit_id_bytes() < prefix.as_bytes() {
-                low = mid + 1;
-            } else {
-                high = mid;
+            // Interpolation search: If entries are roughly uniformly distributed between `high` and
+            // `low`, the distances between `low`, `high`, and the true position of `prefix`
+            // directly correspond to the differences between the commit IDs of `low`, `high`, and
+            // the value of `prefix`.
+            let mid = low + (approx_id - approx_low) / ((approx_high - approx_low) / (high - low));
+            match self
+                .lookup_entry(mid)
+                .commit_id_bytes()
+                .cmp(prefix.as_bytes())
+            {
+                Ordering::Less => {
+                    low = mid.saturating_add(1);
+                }
+                Ordering::Greater => {
+                    high = mid.saturating_sub(1);
+                }
+                Ordering::Equal => {
+                    return Some(mid);
+                }
             }
         }
+        Some(low)
     }
 }
 
