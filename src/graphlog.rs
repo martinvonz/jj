@@ -56,12 +56,15 @@ pub trait GraphLog<K: Clone + Eq + Hash> {
         text: &str,
     ) -> io::Result<()>;
 
+    fn default_node_symbol(&self) -> &str;
+
     fn width(&self, id: &K, edges: &[Edge<K>]) -> usize;
 }
 
 pub struct SaplingGraphLog<'writer, R> {
     renderer: R,
     writer: &'writer mut dyn Write,
+    default_node_symbol: String,
 }
 
 impl<K: Clone> From<&Edge<K>> for Ancestor<K> {
@@ -99,6 +102,10 @@ where
         write!(self.writer, "{row}")
     }
 
+    fn default_node_symbol(&self) -> &str {
+        &self.default_node_symbol
+    }
+
     fn width(&self, id: &K, edges: &[Edge<K>]) -> usize {
         let parents = edges.iter().map_into().collect();
         let w: u64 = self.renderer.width(Some(id), Some(&parents));
@@ -110,6 +117,7 @@ impl<'writer, R> SaplingGraphLog<'writer, R> {
     pub fn create<K>(
         renderer: R,
         formatter: &'writer mut dyn Write,
+        default_node_symbol: &str,
     ) -> Box<dyn GraphLog<K> + 'writer>
     where
         K: Clone + Eq + Hash + 'writer,
@@ -118,6 +126,7 @@ impl<'writer, R> SaplingGraphLog<'writer, R> {
         Box::new(SaplingGraphLog {
             renderer,
             writer: formatter,
+            default_node_symbol: default_node_symbol.to_owned(),
         })
     }
 }
@@ -129,12 +138,14 @@ pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
     let builder = GraphRowRenderer::new().output().with_min_row_height(0);
 
     match settings.graph_style().as_str() {
-        "curved" => SaplingGraphLog::create(builder.build_box_drawing(), formatter),
-        "square" => {
-            SaplingGraphLog::create(builder.build_box_drawing().with_square_glyphs(), formatter)
-        }
-        "ascii" => SaplingGraphLog::create(builder.build_ascii(), formatter),
-        "ascii-large" => SaplingGraphLog::create(builder.build_ascii_large(), formatter),
+        "curved" => SaplingGraphLog::create(builder.build_box_drawing(), formatter, "o"),
+        "square" => SaplingGraphLog::create(
+            builder.build_box_drawing().with_square_glyphs(),
+            formatter,
+            "o",
+        ),
+        "ascii" => SaplingGraphLog::create(builder.build_ascii(), formatter, "o"),
+        "ascii-large" => SaplingGraphLog::create(builder.build_ascii_large(), formatter, "o"),
         _ => Box::new(AsciiGraphDrawer::new(formatter)),
     }
 }
@@ -288,6 +299,10 @@ impl<'writer, K: Clone + Eq + Hash> GraphLog<K> for AsciiGraphDrawer<'writer, K>
         }
 
         Ok(())
+    }
+
+    fn default_node_symbol(&self) -> &str {
+        "o"
     }
 
     fn width(&self, id: &K, edges: &[Edge<K>]) -> usize {

@@ -1484,6 +1484,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
         if !args.no_graph {
             let mut graph = get_graphlog(command.settings(), formatter.raw());
+            let default_node_symbol = graph.default_node_symbol().to_owned();
             let iter: Box<dyn Iterator<Item = (IndexEntry, Vec<RevsetGraphEdge>)>> =
                 if args.reversed {
                     Box::new(RevsetGraphIterator::new(revset.as_ref()).reversed())
@@ -1538,7 +1539,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 let node_symbol = if Some(&commit_id) == wc_commit_id {
                     "@"
                 } else {
-                    "o"
+                    &default_node_symbol
                 };
 
                 graph.add_node(
@@ -1624,6 +1625,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     );
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
+        let default_node_symbol = graph.default_node_symbol().to_owned();
         for commit in commits {
             let mut edges = vec![];
             for predecessor in &commit.predecessors() {
@@ -1650,7 +1652,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
             let node_symbol = if Some(commit.id()) == wc_commit_id {
                 "@"
             } else {
-                "o"
+                &default_node_symbol
             };
             graph.add_node(
                 commit.id(),
