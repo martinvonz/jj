@@ -28,11 +28,9 @@ use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, O
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
-use crate::default_index_store::{
-    DefaultIndexStore, IndexEntry, IndexPosition, MutableIndex, ReadonlyIndex,
-};
+use crate::default_index_store::{DefaultIndexStore, IndexEntry, IndexPosition, MutableIndex};
 use crate::git_backend::GitBackend;
-use crate::index::{HexPrefix, Index, IndexStore, PrefixResolution};
+use crate::index::{HexPrefix, Index, IndexStore, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
@@ -81,7 +79,7 @@ pub struct ReadonlyRepo {
     operation: Operation,
     settings: RepoSettings,
     index_store: Arc<dyn IndexStore>,
-    index: OnceCell<ReadonlyIndex>,
+    index: OnceCell<Box<dyn ReadonlyIndex>>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
     change_id_index: OnceCell<ChangeIdIndex>,
     view: View,
@@ -210,17 +208,19 @@ impl ReadonlyRepo {
         &self.view
     }
 
-    pub fn readonly_index(&self) -> &ReadonlyIndex {
-        self.index.get_or_init(|| {
-            self.index_store
-                .get_index_at_op(&self.operation, &self.store)
-        })
+    pub fn readonly_index(&self) -> &dyn ReadonlyIndex {
+        self.index
+            .get_or_init(|| {
+                self.index_store
+                    .get_index_at_op(&self.operation, &self.store)
+            })
+            .as_ref()
     }
 
     fn change_id_index(&self) -> &ChangeIdIndex {
         self.change_id_index.get_or_init(|| {
             let heads = self.view().heads().iter().cloned().collect_vec();
-            let walk = self.readonly_index().walk_revs(&heads, &[]);
+            let walk = self.readonly_index().as_index().walk_revs(&heads, &[]);
             IdIndex::from_vec(
                 walk.map(|entry| (entry.change_id(), entry.position()))
                     .collect(),
@@ -574,7 +574,7 @@ impl RepoLoader {
         &self,
         operation: Operation,
         view: View,
-        index: ReadonlyIndex,
+        index: Box<dyn ReadonlyIndex>,
     ) -> Arc<ReadonlyRepo> {
         let repo = ReadonlyRepo {
             repo_path: self.repo_path.clone(),
@@ -632,7 +632,11 @@ pub struct MutableRepo {
 }
 
 impl MutableRepo {
-    pub fn new(base_repo: Arc<ReadonlyRepo>, index: &ReadonlyIndex, view: &View) -> MutableRepo {
+    pub fn new(
+        base_repo: Arc<ReadonlyRepo>,
+        index: &dyn ReadonlyIndex,
+        view: &View,
+    ) -> MutableRepo {
         let mut_view = view.clone();
         let mut_index = index.start_modification();
         MutableRepo {
