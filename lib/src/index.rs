@@ -19,7 +19,8 @@ use std::sync::Arc;
 use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
-use crate::default_index_store::{IndexEntry, IndexPosition, IndexStats, MutableIndex, RevWalk};
+use crate::commit::Commit;
+use crate::default_index_store::{IndexEntry, IndexPosition, IndexStats, RevWalk};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::store::Store;
@@ -37,7 +38,7 @@ pub trait IndexStore: Send + Sync + Debug {
 
     fn write_index(
         &self,
-        index: MutableIndex,
+        index: Box<dyn MutableIndex>,
         op_id: &OperationId,
     ) -> Result<Box<dyn ReadonlyIndex>, IndexWriteError>;
 }
@@ -76,7 +77,17 @@ pub trait ReadonlyIndex: Send + Sync {
 
     fn as_index(&self) -> &dyn Index;
 
-    fn start_modification(&self) -> MutableIndex;
+    fn start_modification(&self) -> Box<dyn MutableIndex>;
+}
+
+pub trait MutableIndex: Any {
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+
+    fn as_index(&self) -> &dyn Index;
+
+    fn add_commit(&mut self, commit: &Commit);
+
+    fn merge_in(&mut self, other: &dyn ReadonlyIndex);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -2224,7 +2224,7 @@ fn has_diff_from_parent(repo: &dyn Repo, entry: &IndexEntry<'_>, matcher: &dyn M
 mod tests {
     use super::*;
     use crate::backend::ChangeId;
-    use crate::default_index_store::MutableIndex;
+    use crate::default_index_store::MutableIndexImpl;
     use crate::index::Index;
 
     /// Generator of unique 16-byte ChangeId excluding root id
@@ -3781,7 +3781,7 @@ mod tests {
     #[test]
     fn test_revset_combinator() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndex::full(3, 16);
+        let mut index = MutableIndexImpl::full(3, 16);
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("111111");
         let id_2 = CommitId::from_hex("222222");
