@@ -33,11 +33,11 @@ fn test_obslog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     @  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad36073
     │  my description
-    o  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
+    ●  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
     │  my description
-    o  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
+    ●  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
     │  my description
-    o  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
+    ●  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
        (empty) my description
     "###);
 
@@ -54,16 +54,16 @@ fn test_obslog_with_or_without_diff() {
     │     4     : +bar
     │     5     : +++++++
     │     6     : >>>>>>>
-    o  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
+    ●  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
     │  my description
-    o  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
+    ●  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
     │  my description
     │  Modified regular file file1:
     │     1    1: foo
     │          2: bar
     │  Added regular file file2:
     │          1: foo
-    o  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
+    ●  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
        (empty) my description
     "###);
 
@@ -145,7 +145,7 @@ fn test_obslog_word_wrap() {
     insta::assert_snapshot!(render(&["obslog"], 40, false), @r###"
     @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
     │  (empty) first
-    o  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    ●  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
        (empty) (no description set)
     "###);
     insta::assert_snapshot!(render(&["obslog"], 40, true), @r###"
@@ -153,7 +153,7 @@ fn test_obslog_word_wrap() {
     │  2001-02-03 04:05:08.000 +07:00
     │  69542c1984c1
     │  (empty) first
-    o  qpvuntsmwlqt test.user@example.com
+    ●  qpvuntsmwlqt test.user@example.com
        2001-02-03 04:05:07.000 +07:00
        230dd059e1b0
        (empty) (no description set)
@@ -193,25 +193,25 @@ fn test_obslog_squash() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    o    qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:10.000 +07:00 27e721a5ba72
+    ●    qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:10.000 +07:00 27e721a5ba72
     ├─╮  squashed
     │ │  Modified regular file file1:
     │ │     1    1: foo
     │ │          2: bar
-    o │  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:09.000 +07:00 9764e503e1a9
+    ● │  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:09.000 +07:00 9764e503e1a9
     │ │  first
     │ │  Added regular file file1:
     │ │          1: foo
-    o │  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
+    ● │  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
     │ │  (empty) first
-    o │  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    ● │  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
       │  (empty) (no description set)
-      o  kkmpptxzrspx test.user@example.com 2001-02-03 04:05:10.000 +07:00 f09a38899f2b
+      ●  kkmpptxzrspx test.user@example.com 2001-02-03 04:05:10.000 +07:00 f09a38899f2b
       │  second
       │  Modified regular file file1:
       │     1    1: foo
       │          2: bar
-      o  kkmpptxzrspx test.user@example.com 2001-02-03 04:05:09.000 +07:00 579965369703
+      ●  kkmpptxzrspx test.user@example.com 2001-02-03 04:05:09.000 +07:00 579965369703
          (empty) second
     "###);
 }

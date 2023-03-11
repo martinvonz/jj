@@ -46,9 +46,9 @@ fn test_edit() {
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o  b2f7e9c549aa second
+    ●  b2f7e9c549aa second
     @  f41390a5efbf first
-    o  000000000000
+    ●  000000000000
     "###);
     insta::assert_snapshot!(read_file(&repo_path.join("file1")), @"0");
 
@@ -56,9 +56,9 @@ fn test_edit() {
     std::fs::write(repo_path.join("file2"), "0").unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     Rebased 1 descendant commits onto updated working copy
-    o  51d937a3eeb4 second
+    ●  51d937a3eeb4 second
     @  409306de8f44 first
-    o  000000000000
+    ●  000000000000
     "###);
 }
 
@@ -75,9 +75,9 @@ fn test_edit_current_wc_commit_missing() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "second"]);
     test_env.jj_cmd_success(&repo_path, &["edit", "@-"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o  5c52832c3483 second
+    ●  5c52832c3483 second
     @  69542c1984c1 first
-    o  000000000000
+    ●  000000000000
     "###);
 
     // Make the Git backend fail to read the current working copy commit

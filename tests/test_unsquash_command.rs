@@ -35,9 +35,9 @@ fn test_unsquash() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  90fe0a96fc90 c
-    o  fa5efbdf533c b
-    o  90aeefd03044 a
-    o  000000000000
+    ●  fa5efbdf533c b
+    ●  90aeefd03044 a
+    ●  000000000000
     "###);
 
     // Unsquashes into the working copy from its parent by default
@@ -47,8 +47,8 @@ fn test_unsquash() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  1b10d78f6136 c
-    o  90aeefd03044 a b
-    o  000000000000
+    ●  90aeefd03044 a b
+    ●  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -64,8 +64,8 @@ fn test_unsquash() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  45b8b3ddc25a c
-    o  9146bcc8d996 b
-    o  000000000000 a
+    ●  9146bcc8d996 b
+    ●  000000000000 a
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -88,12 +88,12 @@ fn test_unsquash() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    1f8f152ff48e e
     ├─╮
-    o │  5658521e0f8b d
-    │ o  90fe0a96fc90 c
+    ● │  5658521e0f8b d
+    │ ●  90fe0a96fc90 c
     ├─╯
-    o  fa5efbdf533c b
-    o  90aeefd03044 a
-    o  000000000000
+    ●  fa5efbdf533c b
+    ●  90aeefd03044 a
+    ●  000000000000
     "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -110,12 +110,12 @@ fn test_unsquash() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    3217340cb761
     ├─╮
-    o │  5658521e0f8b d e??
-    │ o  90fe0a96fc90 c e??
+    ● │  5658521e0f8b d e??
+    │ ●  90fe0a96fc90 c e??
     ├─╯
-    o  fa5efbdf533c b
-    o  90aeefd03044 a
-    o  000000000000
+    ●  fa5efbdf533c b
+    ●  90aeefd03044 a
+    ●  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -143,9 +143,9 @@ fn test_unsquash_partial() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d989314f3df0 c
-    o  2a2d19a3283f b
-    o  47a1e795d146 a
-    o  000000000000
+    ●  2a2d19a3283f b
+    ●  47a1e795d146 a
+    ●  000000000000
     "###);
 
     // If we don't make any changes in the diff-editor, the whole change is moved
@@ -158,9 +158,9 @@ fn test_unsquash_partial() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  37c961d0d1e2 c
-    o  000af22057b9 b
-    o  ee67504598b6 a
-    o  000000000000
+    ●  000af22057b9 b
+    ●  ee67504598b6 a
+    ●  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "a"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -176,9 +176,9 @@ fn test_unsquash_partial() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  a8e8fded1021 c
-    o  46cc06672a99 b
-    o  47a1e795d146 a
-    o  000000000000
+    ●  46cc06672a99 b
+    ●  47a1e795d146 a
+    ●  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"

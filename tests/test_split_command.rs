@@ -30,7 +30,7 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  qpvuntsmwlqt false
-    o  zzzzzzzzzzzz true
+    ●  zzzzzzzzzzzz true
     "###);
 
     let edit_script = test_env.set_up_fake_editor();
@@ -67,8 +67,8 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  kkmpptxzrspx false
-    o  qpvuntsmwlqt false
-    o  zzzzzzzzzzzz true
+    ●  qpvuntsmwlqt false
+    ●  zzzzzzzzzzzz true
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -93,9 +93,9 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  kkmpptxzrspx false
-    o  yqosqzytrlsw true
-    o  qpvuntsmwlqt false
-    o  zzzzzzzzzzzz true
+    ●  yqosqzytrlsw true
+    ●  qpvuntsmwlqt false
+    ●  zzzzzzzzzzzz true
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@--"]);
@@ -124,9 +124,9 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  kkmpptxzrspx false
-    o  kpqxywonksrl false
-    o  qpvuntsmwlqt true
-    o  zzzzzzzzzzzz true
+    ●  kpqxywonksrl false
+    ●  qpvuntsmwlqt true
+    ●  zzzzzzzzzzzz true
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);

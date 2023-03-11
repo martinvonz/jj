@@ -28,8 +28,8 @@ fn test_commit_with_description_from_cli() {
     test_env.jj_cmd_success(&workspace_path, &["commit", "-m=first"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  b88fb4e51bdd
-    o  69542c1984c1 first
-    o  000000000000
+    ●  69542c1984c1 first
+    ●  000000000000
     "###);
 }
 
@@ -47,8 +47,8 @@ fn test_commit_with_editor() {
     test_env.jj_cmd_success(&workspace_path, &["commit"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  3df78bc2b9b5
-    o  30a8c2b3d6eb modified
-    o  000000000000
+    ●  30a8c2b3d6eb modified
+    ●  000000000000
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"

@@ -118,11 +118,11 @@ fn test_restore_conflicted_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    o │  b
-    │ o  a
+    ● │  b
+    │ ●  a
     ├─╯
-    o  base
-    o
+    ●  base
+    ●
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
