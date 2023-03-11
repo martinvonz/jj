@@ -804,11 +804,11 @@ impl<'a> CompositeIndex<'a> {
         )
     }
 
-    pub fn num_commits(&self) -> u32 {
+    fn num_commits(&self) -> u32 {
         self.0.segment_num_parent_commits() + self.0.segment_num_commits()
     }
 
-    pub fn stats(&self) -> IndexStats {
+    fn stats(&self) -> IndexStats {
         let num_commits = self.num_commits();
         let mut num_merges = 0;
         let mut max_generation_number = 0;
@@ -859,7 +859,7 @@ impl<'a> CompositeIndex<'a> {
         }
     }
 
-    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         self.ancestor_index_segments()
             .find_map(|segment| segment.segment_commit_id_to_pos(commit_id))
     }
@@ -870,7 +870,7 @@ impl<'a> CompositeIndex<'a> {
     ///
     /// If the given `commit_id` doesn't exist, this will return the prefix
     /// length that never matches with any commit ids.
-    pub fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
+    fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
         let (prev_id, next_id) = self.resolve_neighbor_commit_ids(commit_id);
         itertools::chain(prev_id, next_id)
             .map(|id| backend::common_hex_len(commit_id.as_bytes(), id.as_bytes()) + 1)
@@ -904,7 +904,7 @@ impl<'a> CompositeIndex<'a> {
             .unwrap()
     }
 
-    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         self.ancestor_index_segments()
             .fold(PrefixResolution::NoMatch, |acc_match, segment| {
                 if acc_match == PrefixResolution::AmbiguousMatch {
@@ -916,16 +916,16 @@ impl<'a> CompositeIndex<'a> {
             })
     }
 
-    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
+    fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
         self.commit_id_to_pos(commit_id)
             .map(|pos| self.entry_by_pos(pos))
     }
 
-    pub fn has_id(&self, commit_id: &CommitId) -> bool {
+    fn has_id(&self, commit_id: &CommitId) -> bool {
         self.commit_id_to_pos(commit_id).is_some()
     }
 
-    pub fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
+    fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
         let ancestor_pos = self.commit_id_to_pos(ancestor_id).unwrap();
         let descendant_pos = self.commit_id_to_pos(descendant_id).unwrap();
         self.is_ancestor_pos(ancestor_pos, descendant_pos)
@@ -951,7 +951,7 @@ impl<'a> CompositeIndex<'a> {
         false
     }
 
-    pub fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
+    fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
         let pos1 = set1
             .iter()
             .map(|id| self.commit_id_to_pos(id).unwrap())
@@ -1013,7 +1013,7 @@ impl<'a> CompositeIndex<'a> {
         self.heads_pos(result)
     }
 
-    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
+    fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
         let mut rev_walk = RevWalk::new(self.clone());
         for pos in wanted.iter().map(|id| self.commit_id_to_pos(id).unwrap()) {
             rev_walk.add_wanted(pos);
@@ -1024,7 +1024,7 @@ impl<'a> CompositeIndex<'a> {
         rev_walk
     }
 
-    pub fn heads(&self, candidate_ids: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
+    fn heads(&self, candidate_ids: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         let candidate_positions: BTreeSet<_> = candidate_ids
             .map(|id| self.commit_id_to_pos(id).unwrap())
             .collect();
@@ -1072,7 +1072,7 @@ impl<'a> CompositeIndex<'a> {
     }
 
     /// Parents before children
-    pub fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry<'a>> {
+    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry<'a>> {
         let mut entries_by_generation = input.map(|id| self.entry_by_id(id).unwrap()).collect_vec();
         entries_by_generation.sort_unstable_by_key(|e| e.pos);
         entries_by_generation
