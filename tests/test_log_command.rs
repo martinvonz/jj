@@ -165,8 +165,8 @@ fn test_log_with_or_without_diff() {
     +foo
     "###);
 
-    // Both formats enabled if `--git` and `--color-words` are explicitly specified
-    let stdout = test_env.jj_cmd_success(
+    // Cannot use both `--git` and `--color-words`
+    let stderr = test_env.jj_cmd_cli_error(
         &repo_path,
         &[
             "log",
@@ -178,28 +178,12 @@ fn test_log_with_or_without_diff() {
             "--color-words",
         ],
     );
-    insta::assert_snapshot!(stdout, @r###"
-    a new commit
-    diff --git a/file1 b/file1
-    index 257cc5642c...3bd1f0e297 100644
-    --- a/file1
-    +++ b/file1
-    @@ -1,1 +1,2 @@
-     foo
-    +bar
-    Modified regular file file1:
-       1    1: foo
-            2: bar
-    add a file
-    diff --git a/file1 b/file1
-    new file mode 100644
-    index 0000000000..257cc5642c
-    --- /dev/null
-    +++ b/file1
-    @@ -1,0 +1,1 @@
-    +foo
-    Added regular file file1:
-            1: foo
+    insta::assert_snapshot!(stderr, @r###"
+    error: The argument '--git' cannot be used with '--color-words'
+
+    Usage: jj log --template <TEMPLATE> --no-graph --patch --git [PATHS]...
+
+    For more information try '--help'
     "###);
 
     // `-s` with or without graph

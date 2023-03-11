@@ -102,6 +102,22 @@ fn test_diff_basic() {
 }
 
 #[test]
+fn test_diff_bad_args() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["diff", "--color-words", "--git"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The argument '--color-words' cannot be used with '--git'
+
+    Usage: jj diff --color-words [PATHS]...
+
+    For more information try '--help'
+    "###);
+}
+
+#[test]
 fn test_diff_relative_paths() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
