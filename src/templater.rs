@@ -25,6 +25,20 @@ pub trait Template<C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
 }
 
+/// Template that supports list-like behavior.
+pub trait ListTemplate<C>: Template<C> {
+    /// Concatenates items with the given separator.
+    fn join<'a>(self: Box<Self>, separator: Box<dyn Template<C> + 'a>) -> Box<dyn Template<C> + 'a>
+    where
+        Self: 'a,
+        C: 'a;
+
+    /// Upcasts to the template type.
+    fn into_template<'a>(self: Box<Self>) -> Box<dyn Template<C> + 'a>
+    where
+        Self: 'a;
+}
+
 pub trait IntoTemplate<'a, C> {
     fn into_template(self) -> Box<dyn Template<C> + 'a>;
 }
@@ -410,6 +424,35 @@ where
             &self.separator,
             &self.format_item,
         )
+    }
+}
+
+impl<C, O, P, S, F> ListTemplate<C> for ListPropertyTemplate<P, S, F>
+where
+    P: TemplateProperty<C>,
+    P::Output: IntoIterator<Item = O>,
+    S: Template<C>,
+    F: Fn(&C, &mut dyn Formatter, O) -> io::Result<()>,
+{
+    fn join<'a>(self: Box<Self>, separator: Box<dyn Template<C> + 'a>) -> Box<dyn Template<C> + 'a>
+    where
+        Self: 'a,
+        C: 'a,
+    {
+        // Once join()-ed, list-like API should be dropped. This is guaranteed by
+        // the return type.
+        Box::new(ListPropertyTemplate::new(
+            self.property,
+            separator,
+            self.format_item,
+        ))
+    }
+
+    fn into_template<'a>(self: Box<Self>) -> Box<dyn Template<C> + 'a>
+    where
+        Self: 'a,
+    {
+        self
     }
 }
 
