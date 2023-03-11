@@ -138,11 +138,11 @@ pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
     let builder = GraphRowRenderer::new().output().with_min_row_height(0);
 
     match settings.graph_style().as_str() {
-        "curved" => SaplingGraphLog::create(builder.build_box_drawing(), formatter, "o"),
+        "curved" => SaplingGraphLog::create(builder.build_box_drawing(), formatter, "●"),
         "square" => SaplingGraphLog::create(
             builder.build_box_drawing().with_square_glyphs(),
             formatter,
-            "o",
+            "●",
         ),
         "ascii" => SaplingGraphLog::create(builder.build_ascii(), formatter, "o"),
         "ascii-large" => SaplingGraphLog::create(builder.build_ascii_large(), formatter, "o"),

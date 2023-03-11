@@ -32,11 +32,11 @@ fn test_log_parent_commit_ids() {
     insta::assert_snapshot!(stdout, @r###"
     @    c067170d4ca1bc6162b64f7550617ec809647f84
     ├─╮  P: 4db490c88528133d579540b6900b8098f0c17701 230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    o │  4db490c88528133d579540b6900b8098f0c17701
+    ● │  4db490c88528133d579540b6900b8098f0c17701
     ├─╯  P: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    o  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ●  230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  P: 0000000000000000000000000000000000000000
-    o  0000000000000000000000000000000000000000
+    ●  0000000000000000000000000000000000000000
        P:
     "###);
 }
@@ -53,8 +53,8 @@ fn test_log_author_timestamp() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp()"]);
     insta::assert_snapshot!(stdout, @r###"
     @  2001-02-03 04:05:09.000 +07:00
-    o  2001-02-03 04:05:07.000 +07:00
-    o  1970-01-01 00:00:00.000 +00:00
+    ●  2001-02-03 04:05:07.000 +07:00
+    ●  1970-01-01 00:00:00.000 +00:00
     "###);
 }
 
@@ -92,9 +92,9 @@ fn test_log_default() {
     insta::assert_snapshot!(stdout, @r###"
     @  kkmpptxzrspx test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9de54178d59d
     │  (empty) description 1
-    o  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 4291e264ae97
+    ●  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 4291e264ae97
     │  add a file
-    o  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+    ●  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
        (empty) (no description set)
     "###);
 
@@ -103,9 +103,9 @@ fn test_log_default() {
     insta::assert_snapshot!(stdout, @r###"
     @  [1m[38;5;13mk[38;5;8mkmpptxzrspx[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9[38;5;8mde54178d59d[39m[0m
     │  [1m[38;5;10m(empty)[39m description 1[0m
-    o  [1m[38;5;5mq[0m[38;5;8mpvuntsmwlqt[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m4[0m[38;5;8m291e264ae97[39m
+    ●  [1m[38;5;5mq[0m[38;5;8mpvuntsmwlqt[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m4[0m[38;5;8m291e264ae97[39m
     │  add a file
-    o  [1m[38;5;5mz[0m[38;5;8mzzzzzzzzzzz[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
+    ●  [1m[38;5;5mz[0m[38;5;8mzzzzzzzzzzz[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
        [38;5;2m(empty)[39m (no description set)
     "###);
 
@@ -134,7 +134,7 @@ fn test_log_default_divergence() {
     insta::assert_snapshot!(stdout, @r###"
     @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e633c
     │  description 1
-    o  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+    ●  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
        (empty) (no description set)
     "###);
 
@@ -146,22 +146,22 @@ fn test_log_default_divergence() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
-    o  qpvuntsmwlqt?? test.user@example.com 2001-02-03 04:05:10.000 +07:00 8979953d4c67
+    ●  qpvuntsmwlqt?? test.user@example.com 2001-02-03 04:05:10.000 +07:00 8979953d4c67
     │  description 2
     │ @  qpvuntsmwlqt?? test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e633c
     ├─╯  description 1
-    o  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+    ●  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
        (empty) (no description set)
     "###);
 
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    o  [1m[4m[38;5;1mq[0m[38;5;1mpvuntsmwlqt??[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:10.000 +07:00[39m [1m[38;5;4m8[0m[38;5;8m979953d4c67[39m
+    ●  [1m[4m[38;5;1mq[0m[38;5;1mpvuntsmwlqt??[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:10.000 +07:00[39m [1m[38;5;4m8[0m[38;5;8m979953d4c67[39m
     │  description 2
     │ @  [1m[4m[38;5;1mq[24mpvuntsmwlqt[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12m7[38;5;8ma17d52e633c[39m[0m
     ├─╯  [1mdescription 1[0m
-    o  [1m[38;5;5mz[0m[38;5;8mzzzzzzzzzzz[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
+    ●  [1m[38;5;5mz[0m[38;5;8mzzzzzzzzzzz[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
        [38;5;2m(empty)[39m (no description set)
     "###);
 }
@@ -179,9 +179,9 @@ fn test_log_git_head() {
     insta::assert_snapshot!(stdout, @r###"
     @  [1m[38;5;13mr[38;5;8mlvkpnrzqnoo[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;12m5[38;5;8m0aaf4754c1e[39m[0m
     │  [1minitial[0m
-    o  [1m[38;5;5mq[0m[38;5;8mpvuntsmwlqt[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [38;5;5mmaster[39m [38;5;5mHEAD@git[39m [1m[38;5;4m23[0m[38;5;8m0dd059e1b0[39m
+    ●  [1m[38;5;5mq[0m[38;5;8mpvuntsmwlqt[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [38;5;5mmaster[39m [38;5;5mHEAD@git[39m [1m[38;5;4m23[0m[38;5;8m0dd059e1b0[39m
     │  [38;5;2m(empty)[39m (no description set)
-    o  [1m[38;5;5mz[0m[38;5;8mzzzzzzzzzzz[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
+    ●  [1m[38;5;5mz[0m[38;5;8mzzzzzzzzzzz[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
        [38;5;2m(empty)[39m (no description set)
     "###);
 }
@@ -207,7 +207,7 @@ fn test_log_customize_short_id() {
     insta::assert_snapshot!(stdout, @r###"
     @  Q_pvun test.user@example.com 2001-02-03 04:05:08.000 +07:00 6_9542
     │  (empty) first
-    o  Z_zzzz 1970-01-01 00:00:00.000 +00:00 0_0000
+    ●  Z_zzzz 1970-01-01 00:00:00.000 +00:00 0_0000
        (empty) (no description set)
     "###);
 
@@ -226,7 +226,7 @@ fn test_log_customize_short_id() {
     insta::assert_snapshot!(stdout, @r###"
     @  QPVUNTSMWLQT test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
     │  (empty) first
-    o  ZZZZZZZZZZZZ 1970-01-01 00:00:00.000 +00:00 000000000000
+    ●  ZZZZZZZZZZZZ 1970-01-01 00:00:00.000 +00:00 000000000000
        (empty) (no description set)
     "###);
 }

@@ -34,14 +34,14 @@ fn test_branch_multiple_names() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar foo 230dd059e1b0
-    o   000000000000
+    ●   000000000000
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "delete", "foo", "bar"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @   230dd059e1b0
-    o   000000000000
+    ●   000000000000
     "###);
 }
 
@@ -71,13 +71,13 @@ fn test_branch_forget_glob() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1 foo-3 foo-4 230dd059e1b0
-    o   000000000000
+    ●   000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "--glob", "foo-[1-3]"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-4 230dd059e1b0
-    o   000000000000
+    ●   000000000000
     "###);
 
     // Forgetting a branch via both explicit name and glob pattern, or with
@@ -91,7 +91,7 @@ fn test_branch_forget_glob() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 230dd059e1b0
-    o   000000000000
+    ●   000000000000
     "###);
 
     // Malformed glob

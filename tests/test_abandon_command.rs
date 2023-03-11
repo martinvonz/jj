@@ -45,13 +45,13 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
-    o │  d
-    o │  c
-    │ │ o  b
+    ● │  d
+    ● │  c
+    │ │ ●  b
     │ ├─╯
-    │ o  a
+    │ ●  a
     ├─╯
-    o
+    ●
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d"]);
@@ -64,12 +64,12 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
-    o │  c d
-    │ │ o  b
+    ● │  c d
+    │ │ ●  b
     │ ├─╯
-    │ o  a
+    │ ●  a
     ├─╯
-    o
+    ●
     "###);
 
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -81,13 +81,13 @@ fn test_rebase_branch_with_merge() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @
-    │ o  d e??
-    │ o  c
-    │ │ o  b
+    │ ●  d e??
+    │ ●  c
+    │ │ ●  b
     ├───╯
-    o │  a e??
+    ● │  a e??
     ├─╯
-    o
+    ●
     "###);
 
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -102,10 +102,10 @@ fn test_rebase_branch_with_merge() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @
-    │ o  b
+    │ ●  b
     ├─╯
-    o  a e??
-    o  c d e??
+    ●  a e??
+    ●  c d e??
     "###);
 
     // Test abandoning the same commit twice directly
@@ -117,11 +117,11 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
-    o │  d
-    o │  c
-    │ o  a b
+    ● │  d
+    ● │  c
+    │ ●  a b
     ├─╯
-    o
+    ●
     "###);
 
     // Test abandoning the same commit twice indirectly
@@ -138,9 +138,9 @@ fn test_rebase_branch_with_merge() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @
-    │ o  c d e??
+    │ ●  c d e??
     ├─╯
-    o  a b e??
+    ●  a b e??
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["abandon", "root"]);
