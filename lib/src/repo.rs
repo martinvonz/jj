@@ -28,9 +28,9 @@ use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, O
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
-use crate::default_index_store::{DefaultIndexStore, IndexEntry, IndexPosition, MutableIndex};
+use crate::default_index_store::{DefaultIndexStore, IndexEntry, IndexPosition};
 use crate::git_backend::GitBackend;
-use crate::index::{HexPrefix, Index, IndexStore, PrefixResolution, ReadonlyIndex};
+use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
@@ -625,7 +625,7 @@ impl RepoLoader {
 
 pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
-    index: MutableIndex,
+    index: Box<dyn MutableIndex>,
     view: DirtyCell<View>,
     rewritten_commits: HashMap<CommitId, HashSet<CommitId>>,
     abandoned_commits: HashSet<CommitId>,
@@ -658,7 +658,7 @@ impl MutableRepo {
             && self.view() == &self.base_repo.view)
     }
 
-    pub fn consume(self) -> (MutableIndex, View) {
+    pub fn consume(self) -> (Box<dyn MutableIndex>, View) {
         self.view.ensure_clean(|v| self.enforce_view_invariants(v));
         (self.index, self.view.into_inner())
     }
@@ -805,14 +805,14 @@ impl MutableRepo {
     fn enforce_view_invariants(&self, view: &mut View) {
         let view = view.store_view_mut();
         view.public_head_ids = self
-            .index
+            .index()
             .heads(&mut view.public_head_ids.iter())
             .iter()
             .cloned()
             .collect();
         view.head_ids.extend(view.public_head_ids.iter().cloned());
         view.head_ids = self
-            .index
+            .index()
             .heads(&mut view.head_ids.iter())
             .iter()
             .cloned()
@@ -842,7 +842,7 @@ impl MutableRepo {
                     commit
                         .parents()
                         .into_iter()
-                        .filter(|parent| !self.index.has_id(parent.id()))
+                        .filter(|parent| !self.index().has_id(parent.id()))
                         .collect()
                 }),
             );
@@ -1056,7 +1056,7 @@ impl MutableRepo {
             let base_target = base.get_ref(&ref_name);
             let other_target = other.get_ref(&ref_name);
             self.view.get_mut().merge_single_ref(
-                &self.index,
+                self.index.as_index(),
                 &ref_name,
                 base_target.as_ref(),
                 other_target.as_ref(),
@@ -1064,7 +1064,7 @@ impl MutableRepo {
         }
 
         if let Some(new_git_head) = merge_ref_targets(
-            &self.index,
+            self.index(),
             self.view().git_head(),
             base.git_head(),
             other.git_head(),
@@ -1079,7 +1079,7 @@ impl MutableRepo {
     /// `old_heads` and `new_heads`.
     fn record_rewrites(&mut self, old_heads: &[CommitId], new_heads: &[CommitId]) {
         let mut removed_changes: HashMap<ChangeId, Vec<CommitId>> = HashMap::new();
-        for removed in self.index.walk_revs(old_heads, new_heads) {
+        for removed in self.index().walk_revs(old_heads, new_heads) {
             removed_changes
                 .entry(removed.change_id())
                 .or_default()
@@ -1091,7 +1091,7 @@ impl MutableRepo {
 
         let mut rewritten_changes = HashSet::new();
         let mut rewritten_commits: HashMap<CommitId, Vec<CommitId>> = HashMap::new();
-        for added in self.index.walk_revs(new_heads, old_heads) {
+        for added in self.index().walk_revs(new_heads, old_heads) {
             let change_id = added.change_id();
             if let Some(old_commits) = removed_changes.get(&change_id) {
                 for old_commit in old_commits {
@@ -1124,9 +1124,12 @@ impl MutableRepo {
         base_target: Option<&RefTarget>,
         other_target: Option<&RefTarget>,
     ) {
-        self.view
-            .get_mut()
-            .merge_single_ref(&self.index, ref_name, base_target, other_target);
+        self.view.get_mut().merge_single_ref(
+            self.index.as_index(),
+            ref_name,
+            base_target,
+            other_target,
+        );
     }
 }
 
@@ -1144,7 +1147,7 @@ impl Repo for MutableRepo {
     }
 
     fn index(&self) -> &dyn Index {
-        &self.index
+        self.index.as_index()
     }
 
     fn view(&self) -> &View {
