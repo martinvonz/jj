@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Arc;
 
 use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
-use crate::default_index_store::{
-    IndexEntry, IndexPosition, IndexStats, MutableIndex, ReadonlyIndex, RevWalk,
-};
+use crate::default_index_store::{IndexEntry, IndexPosition, IndexStats, MutableIndex, RevWalk};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::store::Store;
@@ -34,13 +33,13 @@ pub enum IndexWriteError {
 pub trait IndexStore: Send + Sync + Debug {
     fn name(&self) -> &str;
 
-    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> ReadonlyIndex;
+    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Box<dyn ReadonlyIndex>;
 
     fn write_index(
         &self,
         index: MutableIndex,
         op_id: &OperationId,
-    ) -> Result<ReadonlyIndex, IndexWriteError>;
+    ) -> Result<Box<dyn ReadonlyIndex>, IndexWriteError>;
 }
 
 pub trait Index {
@@ -70,6 +69,14 @@ pub trait Index {
 
     /// Parents before children
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry>;
+}
+
+pub trait ReadonlyIndex: Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+
+    fn as_index(&self) -> &dyn Index;
+
+    fn start_modification(&self) -> MutableIndex;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

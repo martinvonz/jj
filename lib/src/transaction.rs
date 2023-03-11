@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use crate::backend::Timestamp;
 use crate::dag_walk::closest_common_node;
-use crate::default_index_store::ReadonlyIndex;
+use crate::index::ReadonlyIndex;
 use crate::op_store;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
@@ -140,7 +140,7 @@ pub fn create_op_metadata(user_settings: &UserSettings, description: String) -> 
 struct NewRepoData {
     operation: Operation,
     view: View,
-    index: ReadonlyIndex,
+    index: Box<dyn ReadonlyIndex>,
 }
 
 pub struct UnpublishedOperation {
@@ -154,7 +154,7 @@ impl UnpublishedOperation {
         repo_loader: RepoLoader,
         operation: Operation,
         view: View,
-        index: ReadonlyIndex,
+        index: Box<dyn ReadonlyIndex>,
     ) -> Self {
         let data = Some(NewRepoData {
             operation,

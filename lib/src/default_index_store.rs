@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::cmp::{max, min, Ordering};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, Bound, HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
@@ -33,7 +34,9 @@ use thiserror::Error;
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::index::{HexPrefix, Index, IndexStore, IndexWriteError, PrefixResolution};
+use crate::index::{
+    HexPrefix, Index, IndexStore, IndexWriteError, PrefixResolution, ReadonlyIndex,
+};
 #[cfg(not(feature = "map_first_last"))]
 // This import is used on Rust 1.61, but not on recent version.
 // TODO: Remove it when our MSRV becomes recent enough.
@@ -166,7 +169,7 @@ impl IndexStore for DefaultIndexStore {
         "default"
     }
 
-    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> ReadonlyIndex {
+    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Box<dyn ReadonlyIndex> {
         let op_id_hex = op.id().hex();
         let op_id_file = self.dir.join("operations").join(op_id_hex);
         let index_impl = if op_id_file.exists() {
@@ -189,14 +192,14 @@ impl IndexStore for DefaultIndexStore {
         } else {
             self.index_at_operation(store, op).unwrap()
         };
-        ReadonlyIndex(index_impl)
+        Box::new(ReadonlyIndexWrapper(index_impl))
     }
 
     fn write_index(
         &self,
         index: MutableIndex,
         op_id: &OperationId,
-    ) -> Result<ReadonlyIndex, IndexWriteError> {
+    ) -> Result<Box<dyn ReadonlyIndex>, IndexWriteError> {
         let index = index.save_in(self.dir.clone()).map_err(|err| {
             IndexWriteError::Other(format!("Failed to write commit index file: {err:?}"))
         })?;
@@ -206,7 +209,7 @@ impl IndexStore for DefaultIndexStore {
                     "Failed to associate commit index file with a operation {op_id:?}: {err:?}"
                 ))
             })?;
-        Ok(ReadonlyIndex(index))
+        Ok(Box::new(ReadonlyIndexWrapper(index)))
     }
 }
 
@@ -401,14 +404,18 @@ pub struct ReadonlyIndexImpl {
     overflow_parent: Vec<u8>,
 }
 
-pub struct ReadonlyIndex(Arc<ReadonlyIndexImpl>);
+pub struct ReadonlyIndexWrapper(Arc<ReadonlyIndexImpl>);
 
-impl ReadonlyIndex {
-    pub fn as_index(&self) -> &dyn Index {
+impl ReadonlyIndex for ReadonlyIndexWrapper {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_index(&self) -> &dyn Index {
         self.0.as_ref()
     }
 
-    pub fn start_modification(&self) -> MutableIndex {
+    fn start_modification(&self) -> MutableIndex {
         MutableIndex::incremental(self.0.clone())
     }
 }
@@ -518,7 +525,12 @@ impl MutableIndex {
         }
     }
 
-    pub fn merge_in(&mut self, other: &ReadonlyIndex) {
+    pub fn merge_in(&mut self, other: &dyn ReadonlyIndex) {
+        let other = other
+            .as_any()
+            .downcast_ref::<ReadonlyIndexWrapper>()
+            .expect("index to merge in must be a ReadonlyIndexWrapper");
+
         let mut maybe_own_ancestor = self.parent_file.clone();
         let mut maybe_other_ancestor = Some(other.0.clone());
         let mut files_to_add = vec![];
@@ -1758,7 +1770,7 @@ impl Index for ReadonlyIndexImpl {
     }
 }
 
-impl Index for ReadonlyIndex {
+impl Index for ReadonlyIndexWrapper {
     fn num_commits(&self) -> u32 {
         self.0.num_commits()
     }
