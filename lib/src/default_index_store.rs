@@ -1770,60 +1770,6 @@ impl Index for ReadonlyIndexImpl {
     }
 }
 
-impl Index for ReadonlyIndexWrapper {
-    fn num_commits(&self) -> u32 {
-        self.0.num_commits()
-    }
-
-    fn stats(&self) -> IndexStats {
-        self.0.stats()
-    }
-
-    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        self.0.commit_id_to_pos(commit_id)
-    }
-
-    fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
-        self.0.shortest_unique_commit_id_prefix_len(commit_id)
-    }
-
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        self.0.resolve_prefix(prefix)
-    }
-
-    fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
-        self.0.entry_by_id(commit_id)
-    }
-
-    fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry {
-        self.0.entry_by_pos(pos)
-    }
-
-    fn has_id(&self, commit_id: &CommitId) -> bool {
-        self.0.has_id(commit_id)
-    }
-
-    fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
-        self.0.is_ancestor(ancestor_id, descendant_id)
-    }
-
-    fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
-        self.0.common_ancestors(set1, set2)
-    }
-
-    fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
-        self.0.walk_revs(wanted, unwanted)
-    }
-
-    fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        self.0.heads(candidates)
-    }
-
-    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
-        self.0.topo_order(input)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use test_case::test_case;
