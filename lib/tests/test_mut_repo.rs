@@ -233,10 +233,6 @@ fn test_add_head_success(use_git: bool) {
     let new_commit = write_random_commit(tx.mut_repo(), &settings);
     drop(tx);
 
-    let index_stats = repo.index().stats();
-    assert_eq!(index_stats.num_heads, 1);
-    assert_eq!(index_stats.num_commits, 1);
-    assert_eq!(index_stats.max_generation_number, 0);
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
     assert!(!mut_repo.view().heads().contains(new_commit.id()));
@@ -247,10 +243,6 @@ fn test_add_head_success(use_git: bool) {
     let repo = tx.commit();
     assert!(repo.view().heads().contains(new_commit.id()));
     assert!(repo.index().has_id(new_commit.id()));
-    let index_stats = repo.index().stats();
-    assert_eq!(index_stats.num_heads, 1);
-    assert_eq!(index_stats.num_commits, 2);
-    assert_eq!(index_stats.max_generation_number, 1);
 }
 
 #[test_case(false ; "local backend")]
@@ -266,21 +258,14 @@ fn test_add_head_ancestor(use_git: bool) {
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
-    let _commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
     let repo = tx.commit();
 
-    let index_stats = repo.index().stats();
-    assert_eq!(index_stats.num_heads, 1);
-    assert_eq!(index_stats.num_commits, 4);
-    assert_eq!(index_stats.max_generation_number, 3);
+    assert_eq!(repo.view().heads(), &hashset! {commit3.id().clone()});
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
     mut_repo.add_head(&commit1);
-    assert!(!mut_repo.view().heads().contains(commit1.id()));
-    let index_stats = mut_repo.index().stats();
-    assert_eq!(index_stats.num_heads, 1);
-    assert_eq!(index_stats.num_commits, 4);
-    assert_eq!(index_stats.max_generation_number, 3);
+    assert_eq!(repo.view().heads(), &hashset! {commit3.id().clone()});
 }
 
 #[test_case(false ; "local backend")]
@@ -296,8 +281,8 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     let initial = write_random_commit(tx.mut_repo(), &settings);
     let repo = tx.commit();
 
-    // Create some commit outside of the repo by using a temporary transaction. Then
-    // add one of them as a head.
+    // Create some commits outside of the repo by using a temporary transaction.
+    // Then add one of them as a head.
     let mut tx = repo.start_transaction(&settings, "test");
     let rewritten = create_random_commit(tx.mut_repo(), &settings)
         .set_change_id(initial.change_id().clone())
@@ -310,23 +295,17 @@ fn test_add_head_not_immediate_child(use_git: bool) {
         .unwrap();
     drop(tx);
 
-    let index_stats = repo.index().stats();
-    assert_eq!(index_stats.num_heads, 1);
-    assert_eq!(index_stats.num_commits, 2);
-    assert_eq!(index_stats.max_generation_number, 1);
+    assert_eq!(repo.view().heads(), &hashset! {initial.id().clone()});
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
     mut_repo.add_head(&child);
-    assert!(mut_repo.view().heads().contains(initial.id()));
-    assert!(!mut_repo.view().heads().contains(rewritten.id()));
-    assert!(mut_repo.view().heads().contains(child.id()));
+    assert_eq!(
+        mut_repo.view().heads(),
+        &hashset! {initial.id().clone(), child.id().clone()}
+    );
     assert!(mut_repo.index().has_id(initial.id()));
     assert!(mut_repo.index().has_id(rewritten.id()));
     assert!(mut_repo.index().has_id(child.id()));
-    let index_stats = mut_repo.index().stats();
-    assert_eq!(index_stats.num_heads, 2);
-    assert_eq!(index_stats.num_commits, 4);
-    assert_eq!(index_stats.max_generation_number, 2);
 }
 
 #[test_case(false ; "local backend")]
