@@ -48,8 +48,6 @@ pub trait IndexStore: Send + Sync + Debug {
 pub trait Index {
     fn as_any(&self) -> &dyn Any;
 
-    fn num_commits(&self) -> u32;
-
     fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
 
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize;
