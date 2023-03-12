@@ -32,6 +32,8 @@ pub enum IndexWriteError {
 }
 
 pub trait IndexStore: Send + Sync + Debug {
+    fn as_any(&self) -> &dyn Any;
+
     fn name(&self) -> &str;
 
     fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Box<dyn ReadonlyIndex>;

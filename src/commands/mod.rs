@@ -30,7 +30,7 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
-use jujutsu_lib::default_index_store::IndexEntry;
+use jujutsu_lib::default_index_store::{DefaultIndexStore, IndexEntry};
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::{ReadonlyRepo, Repo};
@@ -3107,12 +3107,23 @@ fn cmd_debug(
         DebugCommands::ReIndex(_reindex_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
             let repo = workspace_command.repo();
-            let repo = repo.reload_at(repo.operation());
-            writeln!(
-                ui,
-                "Finished indexing {:?} commits.",
-                repo.index().num_commits()
-            )?;
+            let default_index_store: Option<&DefaultIndexStore> =
+                repo.index_store().as_any().downcast_ref();
+            if let Some(default_index_store) = default_index_store {
+                let op = repo.operation();
+                default_index_store.reinit(op.id());
+                let repo = repo.reload_at(op);
+                writeln!(
+                    ui,
+                    "Finished indexing {:?} commits.",
+                    repo.index().num_commits()
+                )?;
+            } else {
+                return Err(user_error(format!(
+                    "Cannot reindex indexes of type '{}'",
+                    repo.index_store().name()
+                )));
+            }
         }
         DebugCommands::Operation(operation_args) => {
             let workspace_command = command.workspace_helper(ui)?;
