@@ -20,7 +20,7 @@ use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
 use crate::commit::Commit;
-use crate::default_index_store::{IndexEntry, IndexPosition, IndexStats, RevWalk};
+use crate::default_index_store::{IndexEntry, IndexPosition, RevWalk};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::store::Store;
@@ -49,8 +49,6 @@ pub trait Index {
     fn as_any(&self) -> &dyn Any;
 
     fn num_commits(&self) -> u32;
-
-    fn stats(&self) -> IndexStats;
 
     fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
 

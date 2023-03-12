@@ -675,6 +675,10 @@ impl MutableIndexImpl {
             IndexLoadError::IoError(err) => err,
         })
     }
+
+    pub fn stats(&self) -> IndexStats {
+        CompositeIndex(self).stats()
+    }
 }
 
 impl Index for MutableIndexImpl {
@@ -684,10 +688,6 @@ impl Index for MutableIndexImpl {
 
     fn num_commits(&self) -> u32 {
         CompositeIndex(self).num_commits()
-    }
-
-    fn stats(&self) -> IndexStats {
-        CompositeIndex(self).stats()
     }
 
     fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
@@ -1748,6 +1748,10 @@ impl ReadonlyIndexImpl {
             }
         }
     }
+
+    pub fn stats(&self) -> IndexStats {
+        CompositeIndex(self).stats()
+    }
 }
 
 impl Index for ReadonlyIndexImpl {
@@ -1757,10 +1761,6 @@ impl Index for ReadonlyIndexImpl {
 
     fn num_commits(&self) -> u32 {
         CompositeIndex(self).num_commits()
-    }
-
-    fn stats(&self) -> IndexStats {
-        CompositeIndex(self).stats()
     }
 
     fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
