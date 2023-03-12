@@ -66,6 +66,11 @@ impl DefaultIndexStore {
         }
     }
 
+    pub fn reinit(&self, op_id: &OperationId) {
+        let op_id_file = self.dir.join("operations").join(op_id.hex());
+        std::fs::remove_file(op_id_file).unwrap();
+    }
+
     fn load_index_at_operation(
         &self,
         commit_id_length: usize,
@@ -165,6 +170,10 @@ impl DefaultIndexStore {
 }
 
 impl IndexStore for DefaultIndexStore {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn name(&self) -> &str {
         "default"
     }
