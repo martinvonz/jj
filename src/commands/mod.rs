@@ -30,7 +30,7 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
-use jujutsu_lib::default_index_store::{DefaultIndexStore, IndexEntry};
+use jujutsu_lib::default_index_store::{DefaultIndexStore, IndexEntry, ReadonlyIndexWrapper};
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::{ReadonlyRepo, Repo};
@@ -3091,17 +3091,27 @@ fn cmd_debug(
         }
         DebugCommands::Index(_index_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let stats = workspace_command.repo().index().stats();
-            writeln!(ui, "Number of commits: {}", stats.num_commits)?;
-            writeln!(ui, "Number of merges: {}", stats.num_merges)?;
-            writeln!(ui, "Max generation number: {}", stats.max_generation_number)?;
-            writeln!(ui, "Number of heads: {}", stats.num_heads)?;
-            writeln!(ui, "Number of changes: {}", stats.num_changes)?;
-            writeln!(ui, "Stats per level:")?;
-            for (i, level) in stats.levels.iter().enumerate() {
-                writeln!(ui, "  Level {i}:")?;
-                writeln!(ui, "    Number of commits: {}", level.num_commits)?;
-                writeln!(ui, "    Name: {}", level.name.as_ref().unwrap())?;
+            let repo = workspace_command.repo();
+            let index_impl: Option<&ReadonlyIndexWrapper> =
+                repo.readonly_index().as_any().downcast_ref();
+            if let Some(index_impl) = index_impl {
+                let stats = index_impl.stats();
+                writeln!(ui, "Number of commits: {}", stats.num_commits)?;
+                writeln!(ui, "Number of merges: {}", stats.num_merges)?;
+                writeln!(ui, "Max generation number: {}", stats.max_generation_number)?;
+                writeln!(ui, "Number of heads: {}", stats.num_heads)?;
+                writeln!(ui, "Number of changes: {}", stats.num_changes)?;
+                writeln!(ui, "Stats per level:")?;
+                for (i, level) in stats.levels.iter().enumerate() {
+                    writeln!(ui, "  Level {i}:")?;
+                    writeln!(ui, "    Number of commits: {}", level.num_commits)?;
+                    writeln!(ui, "    Name: {}", level.name.as_ref().unwrap())?;
+                }
+            } else {
+                return Err(user_error(format!(
+                    "Cannot get stats for indexes of type '{}'",
+                    repo.index_store().name()
+                )));
             }
         }
         DebugCommands::ReIndex(_reindex_matches) => {
