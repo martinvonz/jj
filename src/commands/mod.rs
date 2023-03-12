@@ -3110,9 +3110,8 @@ fn cmd_debug(
             let default_index_store: Option<&DefaultIndexStore> =
                 repo.index_store().as_any().downcast_ref();
             if let Some(default_index_store) = default_index_store {
-                let op = repo.operation();
-                default_index_store.reinit(op.id());
-                let repo = repo.reload_at(op);
+                default_index_store.reinit();
+                let repo = repo.reload_at(repo.operation());
                 writeln!(
                     ui,
                     "Finished indexing {:?} commits.",
