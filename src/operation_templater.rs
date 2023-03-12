@@ -20,9 +20,11 @@ use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::ReadonlyRepo;
 
 use crate::formatter::Formatter;
+use crate::template_builder::{
+    self, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateLanguage,
+};
 use crate::template_parser::{
-    self, CoreTemplatePropertyKind, FunctionCallNode, IntoTemplateProperty, TemplateAliasesMap,
-    TemplateLanguage, TemplateParseError, TemplateParseResult,
+    self, FunctionCallNode, TemplateAliasesMap, TemplateParseError, TemplateParseResult,
 };
 use crate::templater::{
     IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
@@ -37,7 +39,7 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
     type Context = Operation;
     type Property = OperationTemplatePropertyKind;
 
-    template_parser::impl_core_wrap_property_fns!('static, OperationTemplatePropertyKind::Core);
+    template_builder::impl_core_wrap_property_fns!('static, OperationTemplatePropertyKind::Core);
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property> {
         build_operation_keyword(self, name, span)
@@ -50,7 +52,7 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
     ) -> TemplateParseResult<Self::Property> {
         match property {
             OperationTemplatePropertyKind::Core(property) => {
-                template_parser::build_core_method(self, property, function)
+                template_builder::build_core_method(self, property, function)
             }
             OperationTemplatePropertyKind::OperationId(property) => {
                 build_operation_id_method(self, property, function)
@@ -164,7 +166,7 @@ fn build_operation_id_method(
         "short" => {
             let ([], [len_node]) = template_parser::expect_arguments(function)?;
             let len_property = len_node
-                .map(|node| template_parser::expect_integer_expression(language, node))
+                .map(|node| template_builder::expect_integer_expression(language, node))
                 .transpose()?;
             language.wrap_string(TemplateFunction::new(
                 (self_property, len_property),
@@ -188,6 +190,6 @@ pub fn parse(
     let head_op_id = repo.op_id();
     let language = OperationTemplateLanguage { head_op_id };
     let node = template_parser::parse(template_text, aliases_map)?;
-    let expression = template_parser::build_expression(&language, &node)?;
+    let expression = template_builder::build_expression(&language, &node)?;
     Ok(expression.into_template())
 }
