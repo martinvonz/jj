@@ -854,14 +854,6 @@ pub fn expect_arguments<'a, 'i, const N: usize, const M: usize>(
     }
 }
 
-fn split_email(email: &str) -> (&str, Option<&str>) {
-    if let Some((username, rest)) = email.split_once('@') {
-        (username, Some(rest))
-    } else {
-        (email, None)
-    }
-}
-
 fn build_method_call<'a, L: TemplateLanguage<'a>>(
     language: &L,
     method: &MethodCallNode,
@@ -982,7 +974,7 @@ fn build_signature_method<'a, L: TemplateLanguage<'a>>(
         "username" => {
             expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                let (username, _) = split_email(&signature.email);
+                let (username, _) = text_util::split_email(&signature.email);
                 username.to_owned()
             }))
         }
