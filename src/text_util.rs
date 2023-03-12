@@ -24,6 +24,14 @@ pub fn complete_newline(s: impl Into<String>) -> String {
     s
 }
 
+pub fn split_email(email: &str) -> (&str, Option<&str>) {
+    if let Some((username, rest)) = email.split_once('@') {
+        (username, Some(rest))
+    } else {
+        (email, None)
+    }
+}
+
 /// Indents each line by the given prefix preserving labels.
 pub fn write_indented(
     formatter: &mut dyn Formatter,
