@@ -443,6 +443,12 @@ impl Debug for ReadonlyIndexImpl {
     }
 }
 
+impl ReadonlyIndexWrapper {
+    pub fn stats(&self) -> IndexStats {
+        self.0.stats()
+    }
+}
+
 #[derive(Debug)]
 struct MutableGraphEntry {
     commit_id: CommitId,
