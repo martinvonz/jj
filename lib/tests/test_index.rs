@@ -17,6 +17,7 @@ use std::sync::Arc;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::default_index_store::ReadonlyIndexImpl;
 use jujutsu_lib::index::Index;
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jujutsu_lib::settings::UserSettings;
@@ -86,7 +87,7 @@ fn test_index_commits_standard_cases(use_git: bool) {
     let commit_h = graph_builder.commit_with_parents(&[&commit_e]);
     let repo = tx.commit();
 
-    let index = repo.index();
+    let index = as_index_impl(&repo);
     // There should be the root commit, plus 8 more
     assert_eq!(index.num_commits(), 1 + 8);
 
@@ -146,7 +147,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
     }
     let repo = tx.commit();
 
-    let index = repo.index();
+    let index = as_index_impl(&repo);
     // There should the root commit, plus 2 for each generation
     assert_eq!(index.num_commits(), 1 + 2 * (num_generations as u32));
 
@@ -292,7 +293,7 @@ fn test_index_commits_previous_operations(use_git: bool) {
     std::fs::create_dir(&index_operations_dir).unwrap();
 
     let repo = load_repo_at_head(&settings, repo.repo_path());
-    let index = repo.index();
+    let index = as_index_impl(&repo);
     // There should be the root commit, plus 3 more
     assert_eq!(index.num_commits(), 1 + 3);
 
@@ -343,7 +344,7 @@ fn test_index_commits_incremental(use_git: bool) {
     tx.commit();
 
     let repo = load_repo_at_head(&settings, repo.repo_path());
-    let index = repo.index();
+    let index = as_index_impl(&repo);
     // There should be the root commit, plus 3 more
     assert_eq!(index.num_commits(), 1 + 3);
 
@@ -388,7 +389,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     repo.start_transaction(&settings, "test").commit();
 
     let repo = load_repo_at_head(&settings, repo.repo_path());
-    let index = repo.index();
+    let index = as_index_impl(&repo);
     // There should be the root commit, plus 1 more
     assert_eq!(index.num_commits(), 1 + 1);
 
@@ -445,8 +446,16 @@ fn create_n_commits(
     tx.commit()
 }
 
+fn as_index_impl(repo: &Arc<ReadonlyRepo>) -> &ReadonlyIndexImpl {
+    repo.readonly_index()
+        .as_index()
+        .as_any()
+        .downcast_ref::<ReadonlyIndexImpl>()
+        .unwrap()
+}
+
 fn commits_by_level(repo: &Arc<ReadonlyRepo>) -> Vec<u32> {
-    repo.index()
+    as_index_impl(repo)
         .stats()
         .levels
         .iter()

@@ -678,6 +678,10 @@ impl MutableIndexImpl {
 }
 
 impl Index for MutableIndexImpl {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn num_commits(&self) -> u32 {
         CompositeIndex(self).num_commits()
     }
@@ -1747,6 +1751,10 @@ impl ReadonlyIndexImpl {
 }
 
 impl Index for ReadonlyIndexImpl {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn num_commits(&self) -> u32 {
         CompositeIndex(self).num_commits()
     }
@@ -1819,12 +1827,13 @@ mod tests {
     fn index_empty(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
         let index = MutableIndexImpl::full(3, 16);
-        let index: Box<dyn Index> = if on_disk {
+        let index_segment: Box<dyn IndexSegment> = if on_disk {
             let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
             Box::new(index)
         };
+        let index = CompositeIndex(index_segment.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
@@ -1849,12 +1858,13 @@ mod tests {
         let id_0 = CommitId::from_hex("000000");
         let change_id0 = new_change_id();
         index.add_commit_data(id_0.clone(), change_id0.clone(), &[]);
-        let index: Box<dyn Index> = if on_disk {
+        let index_segment: Box<dyn IndexSegment> = if on_disk {
             let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
             Box::new(index)
         };
+        let index = CompositeIndex(index_segment.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
@@ -1930,12 +1940,13 @@ mod tests {
         index.add_commit_data(id_3.clone(), change_id3.clone(), &[id_2.clone()]);
         index.add_commit_data(id_4.clone(), change_id4, &[id_1.clone()]);
         index.add_commit_data(id_5.clone(), change_id5, &[id_4.clone(), id_2.clone()]);
-        let index: Box<dyn Index> = if on_disk {
+        let index_segment: Box<dyn IndexSegment> = if on_disk {
             let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
             Box::new(index)
         };
+        let index = CompositeIndex(index_segment.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
@@ -2020,12 +2031,13 @@ mod tests {
             new_change_id(),
             &[id_1, id_2, id_3, id_4, id_5],
         );
-        let index: Box<dyn Index> = if on_disk {
+        let index_segment: Box<dyn IndexSegment> = if on_disk {
             let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
             Box::new(index)
         };
+        let index = CompositeIndex(index_segment.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
