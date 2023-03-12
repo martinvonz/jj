@@ -335,10 +335,6 @@ fn test_remove_head(use_git: bool) {
     // Test that MutableRepo::remove_head() removes the head, and that it's still
     // removed after commit. It should remain in the index, since we otherwise would
     // have to reindex everything.
-    // TODO: Consider if it's better to have the index be exactly the commits
-    // reachable from the view's heads. We would probably want to add tombstones
-    // for commits no longer visible in that case so we don't have to reindex e.g.
-    // when the user does `jj op undo`.
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
