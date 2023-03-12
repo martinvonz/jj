@@ -587,6 +587,17 @@ pub fn expand_aliases<'i>(
     expand_node(node, state)
 }
 
+/// Parses text into AST nodes, and expands aliases.
+///
+/// No type/name checking is made at this stage.
+pub fn parse<'i>(
+    template_text: &'i str,
+    aliases_map: &'i TemplateAliasesMap,
+) -> TemplateParseResult<ExpressionNode<'i>> {
+    let node = parse_template(template_text)?;
+    expand_aliases(node, aliases_map)
+}
+
 /// Callbacks to build language-specific evaluation objects from AST nodes.
 pub trait TemplateLanguage<'a> {
     type Context: 'a;
@@ -1195,8 +1206,7 @@ mod tests {
 
     impl WithTemplateAliasesMap {
         fn parse<'i>(&'i self, template_text: &'i str) -> TemplateParseResult<ExpressionNode<'i>> {
-            let node = parse_template(template_text)?;
-            expand_aliases(node, &self.0)
+            parse(template_text, &self.0)
         }
 
         fn parse_normalized<'i>(

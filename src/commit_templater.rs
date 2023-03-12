@@ -458,8 +458,7 @@ pub fn parse<'repo>(
     aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'repo>> {
     let language = CommitTemplateLanguage { repo, workspace_id };
-    let node = template_parser::parse_template(template_text)?;
-    let node = template_parser::expand_aliases(node, aliases_map)?;
+    let node = template_parser::parse(template_text, aliases_map)?;
     let expression = template_parser::build_expression(&language, &node)?;
     Ok(expression.into_template())
 }
