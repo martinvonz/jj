@@ -187,8 +187,7 @@ pub fn parse(
 ) -> TemplateParseResult<Box<dyn Template<Operation>>> {
     let head_op_id = repo.op_id();
     let language = OperationTemplateLanguage { head_op_id };
-    let node = template_parser::parse_template(template_text)?;
-    let node = template_parser::expand_aliases(node, aliases_map)?;
+    let node = template_parser::parse(template_text, aliases_map)?;
     let expression = template_parser::build_expression(&language, &node)?;
     Ok(expression.into_template())
 }
