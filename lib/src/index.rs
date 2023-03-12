@@ -46,6 +46,8 @@ pub trait IndexStore: Send + Sync + Debug {
 }
 
 pub trait Index {
+    fn as_any(&self) -> &dyn Any;
+
     fn num_commits(&self) -> u32;
 
     fn stats(&self) -> IndexStats;
