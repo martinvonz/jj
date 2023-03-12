@@ -3122,10 +3122,15 @@ fn cmd_debug(
             if let Some(default_index_store) = default_index_store {
                 default_index_store.reinit();
                 let repo = repo.reload_at(repo.operation());
+                let index_impl: &ReadonlyIndexWrapper = repo
+                    .readonly_index()
+                    .as_any()
+                    .downcast_ref()
+                    .expect("Default index should be a ReadonlyIndexWrapper");
                 writeln!(
                     ui,
                     "Finished indexing {:?} commits.",
-                    repo.index().num_commits()
+                    index_impl.stats().num_commits
                 )?;
             } else {
                 return Err(user_error(format!(
