@@ -66,9 +66,10 @@ impl DefaultIndexStore {
         }
     }
 
-    pub fn reinit(&self, op_id: &OperationId) {
-        let op_id_file = self.dir.join("operations").join(op_id.hex());
-        std::fs::remove_file(op_id_file).unwrap();
+    pub fn reinit(&self) {
+        let op_dir = self.dir.join("operations");
+        std::fs::remove_dir_all(&op_dir).unwrap();
+        std::fs::create_dir(op_dir).unwrap();
     }
 
     fn load_index_at_operation(

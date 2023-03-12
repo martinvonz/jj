@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use insta::assert_snapshot;
+use regex::Regex;
 
 use crate::common::TestEnvironment;
 
@@ -44,21 +45,63 @@ fn test_debug_index() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
     let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "index"]);
-    insta::with_settings!(
-    {filters => vec![
-        (r"    Name: [0-9a-z]+", "    Name: [hash]"),
-    ]},
-    {
-        assert_snapshot!(stdout, @r###"
+    assert_snapshot!(filter_index_stats(&stdout), @r###"
+    Number of commits: 2
+    Number of merges: 0
+    Max generation number: 1
+    Number of heads: 1
+    Number of changes: 2
+    Stats per level:
+      Level 0:
         Number of commits: 2
-        Number of merges: 0
-        Max generation number: 1
-        Number of heads: 1
-        Number of changes: 2
-        Stats per level:
-          Level 0:
-            Number of commits: 2
-            Name: [hash]
-        "###)
-    });
+        Name: [hash]
+    "###
+    );
+}
+
+#[test]
+fn test_debug_reindex() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let workspace_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_success(&workspace_path, &["new"]);
+    test_env.jj_cmd_success(&workspace_path, &["new"]);
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "index"]);
+    assert_snapshot!(filter_index_stats(&stdout), @r###"
+    Number of commits: 4
+    Number of merges: 0
+    Max generation number: 3
+    Number of heads: 1
+    Number of changes: 4
+    Stats per level:
+      Level 0:
+        Number of commits: 3
+        Name: [hash]
+      Level 1:
+        Number of commits: 1
+        Name: [hash]
+    "###
+    );
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "reindex"]);
+    assert_snapshot!(stdout, @r###"
+    Finished indexing 4 commits.
+    "###);
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "index"]);
+    assert_snapshot!(filter_index_stats(&stdout), @r###"
+    Number of commits: 4
+    Number of merges: 0
+    Max generation number: 3
+    Number of heads: 1
+    Number of changes: 4
+    Stats per level:
+      Level 0:
+        Number of commits: 4
+        Name: [hash]
+    "###
+    );
+}
+
+fn filter_index_stats(text: &str) -> String {
+    let regex = Regex::new(r"    Name: [0-9a-z]+").unwrap();
+    regex.replace_all(text, "    Name: [hash]").to_string()
 }
