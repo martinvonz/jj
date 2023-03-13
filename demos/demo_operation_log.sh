@@ -30,7 +30,7 @@ is:"
 run_command "jj op log --color=always | head"
 
 comment "Let's undo that rebase operation:"
-rebase_op=$(jj --color=never op log | grep 'o ' | sed '3q;d' | cut -b4-15)
+rebase_op=$(jj --color=never op log | grep '^o  ' | sed '2q;d' | cut -b4-15)
 run_command "jj undo $rebase_op"
 
 comment "Note that only the rebase was undone, and the
