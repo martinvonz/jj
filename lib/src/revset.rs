@@ -30,7 +30,6 @@ use thiserror::Error;
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
 use crate::default_index_store::IndexEntry;
-use crate::default_revset_engine;
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPath};
@@ -394,7 +393,7 @@ impl RevsetExpression {
         repo: &'index dyn Repo,
         workspace_ctx: Option<&RevsetWorkspaceContext>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        default_revset_engine::evaluate(repo, self, workspace_ctx)
+        repo.index().evaluate_revset(repo, self, workspace_ctx)
     }
 }
 

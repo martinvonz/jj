@@ -44,8 +44,10 @@ use crate::index::{
 use crate::nightly_shims::BTreeSetExt;
 use crate::op_store::OperationId;
 use crate::operation::Operation;
+use crate::repo::Repo;
+use crate::revset::{Revset, RevsetError, RevsetExpression, RevsetWorkspaceContext};
 use crate::store::Store;
-use crate::{backend, dag_walk};
+use crate::{backend, dag_walk, default_revset_engine};
 
 #[derive(Debug)]
 pub struct DefaultIndexStore {
@@ -732,6 +734,15 @@ impl Index for MutableIndexImpl {
 
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
         CompositeIndex(self).topo_order(input)
+    }
+
+    fn evaluate_revset<'index>(
+        &'index self,
+        repo: &'index dyn Repo,
+        expression: &RevsetExpression,
+        workspace_ctx: Option<&RevsetWorkspaceContext>,
+    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
+        default_revset_engine::evaluate(repo, expression, workspace_ctx)
     }
 }
 
@@ -1805,6 +1816,15 @@ impl Index for ReadonlyIndexImpl {
 
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
         CompositeIndex(self).topo_order(input)
+    }
+
+    fn evaluate_revset<'index>(
+        &'index self,
+        repo: &'index dyn Repo,
+        expression: &RevsetExpression,
+        workspace_ctx: Option<&RevsetWorkspaceContext>,
+    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
+        default_revset_engine::evaluate(repo, expression, workspace_ctx)
     }
 }
 

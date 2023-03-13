@@ -23,6 +23,8 @@ use crate::commit::Commit;
 use crate::default_index_store::{IndexEntry, IndexPosition, RevWalk};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
+use crate::repo::Repo;
+use crate::revset::{Revset, RevsetError, RevsetExpression, RevsetWorkspaceContext};
 use crate::store::Store;
 
 #[derive(Debug, Error)]
@@ -70,6 +72,17 @@ pub trait Index {
 
     /// Parents before children
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry>;
+
+    // TODO: It's weird that we pass in the repo here since the repo is a
+    // higher-level concept. We should probably pass in the view and store
+    // instead, or maybe we should resolve symbols in the expression before we
+    // get here.
+    fn evaluate_revset<'index>(
+        &'index self,
+        repo: &'index dyn Repo,
+        expression: &RevsetExpression,
+        workspace_ctx: Option<&RevsetWorkspaceContext>,
+    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError>;
 }
 
 pub trait ReadonlyIndex: Send + Sync {
