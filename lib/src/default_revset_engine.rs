@@ -27,9 +27,10 @@ use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::revset::{
-    Revset, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt,
-    RevsetWorkspaceContext, GENERATION_RANGE_FULL,
+    Revset, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
+    RevsetIteratorExt, RevsetWorkspaceContext, GENERATION_RANGE_FULL,
 };
+use crate::revset_graph_iterator::RevsetGraphIterator;
 use crate::rewrite;
 
 fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
@@ -213,6 +214,12 @@ impl<'index> ToPredicateFn<'index> for RevsetImpl<'index> {
 impl<'index> Revset<'index> for RevsetImpl<'index> {
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
         self.inner.iter()
+    }
+
+    fn iter_graph(
+        &self,
+    ) -> Box<dyn Iterator<Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>)> + '_> {
+        Box::new(RevsetGraphIterator::new(self))
     }
 
     fn is_empty(&self) -> bool {

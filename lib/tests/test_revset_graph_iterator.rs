@@ -15,7 +15,8 @@
 use itertools::Itertools;
 use jujutsu_lib::default_revset_engine::revset_for_commits;
 use jujutsu_lib::repo::Repo;
-use jujutsu_lib::revset_graph_iterator::{RevsetGraphEdge, RevsetGraphIterator};
+use jujutsu_lib::revset::RevsetGraphEdge;
+use jujutsu_lib::revset_graph_iterator::{ReverseRevsetGraphIterator, RevsetGraphIterator};
 use test_case::test_case;
 use testutils::{CommitGraphBuilder, TestRepo};
 
@@ -408,9 +409,7 @@ fn test_reverse_graph_iterator() {
         &repo,
         &[&commit_a, &commit_c, &commit_d, &commit_e, &commit_f],
     );
-    let commits = RevsetGraphIterator::new(revset.as_ref())
-        .reversed()
-        .collect_vec();
+    let commits = ReverseRevsetGraphIterator::new(revset.iter_graph()).collect_vec();
     assert_eq!(commits.len(), 5);
     assert_eq!(commits[0].0.commit_id(), *commit_a.id());
     assert_eq!(commits[1].0.commit_id(), *commit_c.id());
