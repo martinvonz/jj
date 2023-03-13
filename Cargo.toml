@@ -34,7 +34,7 @@ harness = false
 members = ["lib", "lib/testutils", "lib/gen-protos"]
 
 [dependencies]
-chrono = { version = "0.4.23", default-features = false, features = ["std", "clock"] }
+chrono = { version = "0.4.24", default-features = false, features = ["std", "clock"] }
 clap = { version = "4.0.32", features = ["derive", "deprecated"] }
 clap_complete = "4.0.7"
 clap_mangen = "0.2.6"
