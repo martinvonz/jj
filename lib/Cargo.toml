@@ -21,7 +21,7 @@ backoff = "0.4.0"
 blake2 = "0.10.6"
 bytes = "1.4.0"
 byteorder = "1.4.3"
-chrono = { version = "0.4.23", default-features = false, features = ["std", "clock"] }
+chrono = { version = "0.4.24", default-features = false, features = ["std", "clock"] }
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
 digest = "0.10.6"
 git2 = "0.16.1"
