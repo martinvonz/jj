@@ -17,41 +17,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::default_index_store::{IndexEntry, IndexPosition};
 use crate::nightly_shims::BTreeMapExt;
-use crate::revset::Revset;
-
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct RevsetGraphEdge {
-    pub target: IndexPosition,
-    pub edge_type: RevsetGraphEdgeType,
-}
-
-impl RevsetGraphEdge {
-    pub fn missing(target: IndexPosition) -> Self {
-        Self {
-            target,
-            edge_type: RevsetGraphEdgeType::Missing,
-        }
-    }
-    pub fn direct(target: IndexPosition) -> Self {
-        Self {
-            target,
-            edge_type: RevsetGraphEdgeType::Direct,
-        }
-    }
-    pub fn indirect(target: IndexPosition) -> Self {
-        Self {
-            target,
-            edge_type: RevsetGraphEdgeType::Indirect,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub enum RevsetGraphEdgeType {
-    Missing,
-    Direct,
-    Indirect,
-}
+use crate::revset::{Revset, RevsetGraphEdge, RevsetGraphEdgeType};
 
 // Given an iterator over some set of revisions, yields the same revisions with
 // associated edge types.
@@ -147,10 +113,6 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
     pub fn set_skip_transitive_edges(mut self, skip_transitive_edges: bool) -> Self {
         self.skip_transitive_edges = skip_transitive_edges;
         self
-    }
-
-    pub fn reversed(self) -> ReverseRevsetGraphIterator<'index> {
-        ReverseRevsetGraphIterator::new(self)
     }
 
     fn next_index_entry(&mut self) -> Option<IndexEntry<'index>> {
@@ -314,7 +276,9 @@ pub struct ReverseRevsetGraphIterator<'index> {
 }
 
 impl<'index> ReverseRevsetGraphIterator<'index> {
-    fn new<'revset>(input: RevsetGraphIterator<'revset, 'index>) -> Self {
+    pub fn new<'revset>(
+        input: Box<dyn Iterator<Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>)> + 'revset>,
+    ) -> Self {
         let mut entries = vec![];
         let mut reverse_edges: HashMap<IndexPosition, Vec<RevsetGraphEdge>> = HashMap::new();
         for (entry, edges) in input {

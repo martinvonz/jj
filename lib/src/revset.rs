@@ -29,7 +29,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
-use crate::default_index_store::IndexEntry;
+use crate::default_index_store::{IndexEntry, IndexPosition};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPath};
@@ -1377,7 +1377,45 @@ pub trait Revset<'index> {
     // All revsets currently iterate in order of descending index position
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
 
+    fn iter_graph(
+        &self,
+    ) -> Box<dyn Iterator<Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>)> + '_>;
+
     fn is_empty(&self) -> bool;
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct RevsetGraphEdge {
+    pub target: IndexPosition,
+    pub edge_type: RevsetGraphEdgeType,
+}
+
+impl RevsetGraphEdge {
+    pub fn missing(target: IndexPosition) -> Self {
+        Self {
+            target,
+            edge_type: RevsetGraphEdgeType::Missing,
+        }
+    }
+    pub fn direct(target: IndexPosition) -> Self {
+        Self {
+            target,
+            edge_type: RevsetGraphEdgeType::Direct,
+        }
+    }
+    pub fn indirect(target: IndexPosition) -> Self {
+        Self {
+            target,
+            edge_type: RevsetGraphEdgeType::Indirect,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum RevsetGraphEdgeType {
+    Missing,
+    Direct,
+    Indirect,
 }
 
 pub trait RevsetIteratorExt<'index, I> {

@@ -36,11 +36,10 @@ use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt,
+    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
+    RevsetGraphEdgeType, RevsetIteratorExt,
 };
-use jujutsu_lib::revset_graph_iterator::{
-    RevsetGraphEdge, RevsetGraphEdgeType, RevsetGraphIterator,
-};
+use jujutsu_lib::revset_graph_iterator::ReverseRevsetGraphIterator;
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree::{merge_trees, Tree};
@@ -1487,9 +1486,9 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             let default_node_symbol = graph.default_node_symbol().to_owned();
             let iter: Box<dyn Iterator<Item = (IndexEntry, Vec<RevsetGraphEdge>)>> =
                 if args.reversed {
-                    Box::new(RevsetGraphIterator::new(revset.as_ref()).reversed())
+                    Box::new(ReverseRevsetGraphIterator::new(revset.iter_graph()))
                 } else {
-                    Box::new(RevsetGraphIterator::new(revset.as_ref()))
+                    revset.iter_graph()
                 };
             for (index_entry, edges) in iter {
                 let mut graphlog_edges = vec![];
