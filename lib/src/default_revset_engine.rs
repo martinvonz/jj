@@ -21,6 +21,7 @@ use itertools::Itertools;
 use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::default_index_store::IndexEntry;
+use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
@@ -30,7 +31,6 @@ use crate::revset::{
     Revset, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
     RevsetIteratorExt, RevsetWorkspaceContext, GENERATION_RANGE_FULL,
 };
-use crate::revset_graph_iterator::RevsetGraphIterator;
 use crate::rewrite;
 
 fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
