@@ -14,9 +14,9 @@
 
 use itertools::Itertools;
 use jujutsu_lib::default_revset_engine::revset_for_commits;
+use jujutsu_lib::default_revset_graph_iterator::RevsetGraphIterator;
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::revset::RevsetGraphEdge;
-use jujutsu_lib::revset_graph_iterator::RevsetGraphIterator;
 use test_case::test_case;
 use testutils::{CommitGraphBuilder, TestRepo};
 
