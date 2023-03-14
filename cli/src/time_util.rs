@@ -81,7 +81,3 @@ pub fn format_duration(from: &Timestamp, to: &Timestamp, format: &timeago::Forma
         .map(|duration| format.convert(duration))
         .unwrap_or_else(|| "<out-of-range date>".to_string())
 }
-
-pub fn format_timestamp_relative_to_now(timestamp: &Timestamp) -> String {
-    format_duration(timestamp, &Timestamp::now(), &timeago::Formatter::new())
-}
