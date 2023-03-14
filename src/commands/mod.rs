@@ -36,10 +36,9 @@ use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
-    RevsetGraphEdgeType, RevsetIteratorExt,
+    ReverseRevsetGraphIterator, RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate,
+    RevsetGraphEdge, RevsetGraphEdgeType, RevsetIteratorExt,
 };
-use jujutsu_lib::revset_graph_iterator::ReverseRevsetGraphIterator;
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree::{merge_trees, Tree};

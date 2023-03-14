@@ -16,7 +16,7 @@ use itertools::Itertools;
 use jujutsu_lib::default_revset_engine::revset_for_commits;
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::revset::RevsetGraphEdge;
-use jujutsu_lib::revset_graph_iterator::{ReverseRevsetGraphIterator, RevsetGraphIterator};
+use jujutsu_lib::revset_graph_iterator::RevsetGraphIterator;
 use test_case::test_case;
 use testutils::{CommitGraphBuilder, TestRepo};
 
@@ -366,65 +366,4 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     assert_eq!(commits[2].1, vec![RevsetGraphEdge::indirect(pos_a)]);
     assert_eq!(commits[3].1, vec![RevsetGraphEdge::indirect(pos_a)]);
     assert_eq!(commits[4].1, vec![RevsetGraphEdge::missing(pos_root)]);
-}
-
-#[test]
-fn test_reverse_graph_iterator() {
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(true);
-    let repo = &test_repo.repo;
-
-    // Tests that merges, forks, direct edges, indirect edges, and "missing" edges
-    // are correct in reversed graph. "Missing" edges (i.e. edges to commits not
-    // in the input set) won't be part of the reversed graph. Conversely, there
-    // won't be missing edges to children not in the input.
-    //
-    //  F
-    //  |\
-    //  D E
-    //  |/
-    //  C
-    //  |
-    //  b
-    //  |
-    //  A
-    //  |
-    // root
-    let mut tx = repo.start_transaction(&settings, "test");
-    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
-    let commit_a = graph_builder.initial_commit();
-    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
-    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
-    let commit_d = graph_builder.commit_with_parents(&[&commit_c]);
-    let commit_e = graph_builder.commit_with_parents(&[&commit_c]);
-    let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
-    let repo = tx.commit();
-
-    let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
-    let pos_d = repo.index().commit_id_to_pos(commit_d.id()).unwrap();
-    let pos_e = repo.index().commit_id_to_pos(commit_e.id()).unwrap();
-    let pos_f = repo.index().commit_id_to_pos(commit_f.id()).unwrap();
-
-    let revset = revset_for_commits(
-        &repo,
-        &[&commit_a, &commit_c, &commit_d, &commit_e, &commit_f],
-    );
-    let commits = ReverseRevsetGraphIterator::new(revset.iter_graph()).collect_vec();
-    assert_eq!(commits.len(), 5);
-    assert_eq!(commits[0].0.commit_id(), *commit_a.id());
-    assert_eq!(commits[1].0.commit_id(), *commit_c.id());
-    assert_eq!(commits[2].0.commit_id(), *commit_d.id());
-    assert_eq!(commits[3].0.commit_id(), *commit_e.id());
-    assert_eq!(commits[4].0.commit_id(), *commit_f.id());
-    assert_eq!(commits[0].1, vec![RevsetGraphEdge::indirect(pos_c)]);
-    assert_eq!(
-        commits[1].1,
-        vec![
-            RevsetGraphEdge::direct(pos_e),
-            RevsetGraphEdge::direct(pos_d),
-        ]
-    );
-    assert_eq!(commits[2].1, vec![RevsetGraphEdge::direct(pos_f)]);
-    assert_eq!(commits[3].1, vec![RevsetGraphEdge::direct(pos_f)]);
-    assert_eq!(commits[4].1, vec![]);
 }
