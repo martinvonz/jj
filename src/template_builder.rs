@@ -20,9 +20,9 @@ use crate::template_parser::{
     TemplateParseResult,
 };
 use crate::templater::{
-    ConcatTemplate, ConditionalTemplate, FormattablePropertyListTemplate, IntoTemplate,
-    LabelTemplate, Literal, PlainTextFormattedProperty, ReformatTemplate, SeparateTemplate,
-    Template, TemplateFunction, TemplateProperty, TimestampRange,
+    ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
+    Literal, PlainTextFormattedProperty, ReformatTemplate, SeparateTemplate, Template,
+    TemplateFunction, TemplateProperty, TimestampRange,
 };
 use crate::{text_util, time_util};
 
@@ -444,7 +444,10 @@ pub fn build_list_method<'a, L: TemplateLanguage<'a>, P: Template<()> + 'a>(
         "join" => {
             let [separator_node] = template_parser::expect_exact_arguments(function)?;
             let separator = build_expression(language, separator_node)?.into_template();
-            let template = FormattablePropertyListTemplate::new(self_property, separator);
+            let template =
+                ListPropertyTemplate::new(self_property, separator, |_, formatter, item| {
+                    item.format(&(), formatter)
+                });
             language.wrap_template(template)
         }
         // TODO: .map()

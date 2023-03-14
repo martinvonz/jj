@@ -366,36 +366,38 @@ impl<C, T: Template<C>> TemplateProperty<C> for PlainTextFormattedProperty<T> {
     }
 }
 
-/// Renders a list of template properties with the given separator.
+/// Renders template property of list type with the given separator.
 ///
-/// Each template property can be extracted as a context-less value, but
-/// the separator takes a context of type `C`.
-pub struct FormattablePropertyListTemplate<P, S> {
+/// Each list item will be formatted by the given `format_item()` function.
+/// The separator takes a context of type `C`.
+pub struct ListPropertyTemplate<P, S, F> {
     property: P,
     separator: S,
+    format_item: F,
 }
 
-impl<P, S> FormattablePropertyListTemplate<P, S> {
-    pub fn new<C>(property: P, separator: S) -> Self
+impl<P, S, F> ListPropertyTemplate<P, S, F> {
+    pub fn new<C, O>(property: P, separator: S, format_item: F) -> Self
     where
         P: TemplateProperty<C>,
-        P::Output: IntoIterator,
-        <P::Output as IntoIterator>::Item: Template<()>,
+        P::Output: IntoIterator<Item = O>,
         S: Template<C>,
+        F: Fn(&C, &mut dyn Formatter, O) -> io::Result<()>,
     {
-        FormattablePropertyListTemplate {
+        ListPropertyTemplate {
             property,
             separator,
+            format_item,
         }
     }
 }
 
-impl<C, P, S> Template<C> for FormattablePropertyListTemplate<P, S>
+impl<C, O, P, S, F> Template<C> for ListPropertyTemplate<P, S, F>
 where
     P: TemplateProperty<C>,
-    P::Output: IntoIterator,
-    <P::Output as IntoIterator>::Item: Template<()>,
+    P::Output: IntoIterator<Item = O>,
     S: Template<C>,
+    F: Fn(&C, &mut dyn Formatter, O) -> io::Result<()>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let contents = self.property.extract(context);
@@ -404,7 +406,7 @@ where
             formatter,
             contents,
             &self.separator,
-            |_, formatter, item| item.format(&(), formatter),
+            &self.format_item,
         )
     }
 }
