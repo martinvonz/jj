@@ -399,8 +399,13 @@ where
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let contents = self.property.extract(context);
-        let contents_iter = contents.into_iter().map(Literal); // as Template<C>
-        format_joined(context, formatter, contents_iter, &self.separator)
+        format_joined_with(
+            context,
+            formatter,
+            contents,
+            &self.separator,
+            |_, formatter, item| item.format(&(), formatter),
+        )
     }
 }
 
@@ -481,13 +486,34 @@ where
     I::Item: Template<C>,
     S: Template<C>,
 {
+    format_joined_with(
+        context,
+        formatter,
+        contents,
+        separator,
+        |context, formatter, item| item.format(context, formatter),
+    )
+}
+
+fn format_joined_with<C, I, S, F>(
+    context: &C,
+    formatter: &mut dyn Formatter,
+    contents: I,
+    separator: S,
+    mut format_item: F,
+) -> io::Result<()>
+where
+    I: IntoIterator,
+    S: Template<C>,
+    F: FnMut(&C, &mut dyn Formatter, I::Item) -> io::Result<()>,
+{
     let mut contents_iter = contents.into_iter().fuse();
-    if let Some(content) = contents_iter.next() {
-        content.format(context, formatter)?;
+    if let Some(item) = contents_iter.next() {
+        format_item(context, formatter, item)?;
     }
-    for content in contents_iter {
+    for item in contents_iter {
         separator.format(context, formatter)?;
-        content.format(context, formatter)?;
+        format_item(context, formatter, item)?;
     }
     Ok(())
 }
