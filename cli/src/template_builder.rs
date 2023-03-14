@@ -665,8 +665,10 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a>>(
     let mut map = TemplateBuildMethodFnMap::<L, Timestamp>::new();
     map.insert("ago", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |timestamp| {
-            Ok(time_util::format_timestamp_relative_to_now(&timestamp))
+        let now = Timestamp::now();
+        let format = timeago::Formatter::new();
+        let out_property = TemplateFunction::new(self_property, move |timestamp| {
+            Ok(time_util::format_duration(&timestamp, &now, &format))
         });
         Ok(language.wrap_string(out_property))
     });
