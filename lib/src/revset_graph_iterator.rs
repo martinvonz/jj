@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::cmp::min;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
 use crate::default_index_store::{IndexEntry, IndexPosition};
 use crate::nightly_shims::BTreeMapExt;
@@ -268,48 +268,5 @@ impl<'revset, 'index> Iterator for RevsetGraphIterator<'revset, 'index> {
         let mut edges: Vec<_> = edges.into_iter().collect();
         edges.sort_by(|edge1, edge2| edge2.target.cmp(&edge1.target));
         Some((index_entry, edges))
-    }
-}
-
-pub struct ReverseRevsetGraphIterator<'index> {
-    items: Vec<(IndexEntry<'index>, Vec<RevsetGraphEdge>)>,
-}
-
-impl<'index> ReverseRevsetGraphIterator<'index> {
-    pub fn new<'revset>(
-        input: Box<dyn Iterator<Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>)> + 'revset>,
-    ) -> Self {
-        let mut entries = vec![];
-        let mut reverse_edges: HashMap<IndexPosition, Vec<RevsetGraphEdge>> = HashMap::new();
-        for (entry, edges) in input {
-            for RevsetGraphEdge { target, edge_type } in edges {
-                reverse_edges
-                    .entry(target)
-                    .or_default()
-                    .push(RevsetGraphEdge {
-                        target: entry.position(),
-                        edge_type,
-                    })
-            }
-            entries.push(entry);
-        }
-
-        let mut items = vec![];
-        for entry in entries.into_iter() {
-            let edges = reverse_edges
-                .get(&entry.position())
-                .cloned()
-                .unwrap_or_default();
-            items.push((entry, edges));
-        }
-        Self { items }
-    }
-}
-
-impl<'index> Iterator for ReverseRevsetGraphIterator<'index> {
-    type Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.items.pop()
     }
 }
