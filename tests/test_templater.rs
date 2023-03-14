@@ -333,6 +333,73 @@ fn test_templater_signature() {
 }
 
 #[test]
+fn test_templater_timestamp_method() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
+    let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
+
+    test_env.add_config(
+        r###"
+    [template-aliases]
+    'time_format' = '"%Y-%m-%d"'
+    'bad_time_format' = '"%_"'
+    "###,
+    );
+
+    insta::assert_snapshot!(
+        render(r#"author.timestamp().format("%Y%m%d %H:%M:%S")"#), @"19700101 00:00:00");
+
+    // Invalid format string
+    insta::assert_snapshot!(render_err(r#"author.timestamp().format("%_")"#), @r###"
+    Error: Failed to parse template:  --> 1:27
+      |
+    1 | author.timestamp().format("%_")
+      |                           ^--^
+      |
+      = Invalid time format
+    "###);
+
+    // Invalid type
+    insta::assert_snapshot!(render_err(r#"author.timestamp().format(0)"#), @r###"
+    Error: Failed to parse template:  --> 1:27
+      |
+    1 | author.timestamp().format(0)
+      |                           ^
+      |
+      = Expected argument of type "String literal"
+    "###);
+
+    // Dynamic string isn't supported yet
+    insta::assert_snapshot!(render_err(r#"author.timestamp().format("%Y" ++ "%m")"#), @r###"
+    Error: Failed to parse template:  --> 1:27
+      |
+    1 | author.timestamp().format("%Y" ++ "%m")
+      |                           ^----------^
+      |
+      = Expected argument of type "String literal"
+    "###);
+
+    // Literal alias expansion
+    insta::assert_snapshot!(render(r#"author.timestamp().format(time_format)"#), @"1970-01-01");
+    insta::assert_snapshot!(render_err(r#"author.timestamp().format(bad_time_format)"#), @r###"
+    Error: Failed to parse template:  --> 1:27
+      |
+    1 | author.timestamp().format(bad_time_format)
+      |                           ^-------------^
+      |
+      = Alias "bad_time_format" cannot be expanded
+     --> 1:1
+      |
+    1 | "%_"
+      | ^--^
+      |
+      = Invalid time format
+    "###);
+}
+
+#[test]
 fn test_templater_fill_function() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

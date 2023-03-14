@@ -137,6 +137,8 @@ Any types can be implicitly converted to `Template`. No methods are defined.
 The following methods are defined.
 
 * `.ago() -> String`: Format as relative timestamp.
+* `.format(format: String) -> String`: Format with [the specified strftime-like
+  format string](https://docs.rs/chrono/latest/chrono/format/strftime/).
 
 ### TimestampRange type
 
