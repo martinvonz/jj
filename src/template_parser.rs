@@ -57,6 +57,8 @@ pub enum TemplateParseErrorKind {
     InvalidArgumentCountRangeFrom(RangeFrom<usize>),
     #[error(r#"Expected argument of type "{0}""#)]
     InvalidArgumentType(String),
+    #[error("Invalid time format")]
+    InvalidTimeFormat,
     #[error("Redefinition of function parameter")]
     RedefinedFunctionParameter,
     #[error(r#"Alias "{0}" cannot be expanded"#)]
@@ -645,6 +647,26 @@ pub fn expect_arguments<'a, 'i, const N: usize, const M: usize>(
             count_range,
             function.args_span,
         ))
+    }
+}
+
+/// Applies the given function if the `node` is a string literal.
+pub fn expect_string_literal_with<'a, 'i, T>(
+    node: &'a ExpressionNode<'i>,
+    f: impl FnOnce(&'a str, pest::Span<'i>) -> TemplateParseResult<T>,
+) -> TemplateParseResult<T> {
+    match &node.kind {
+        ExpressionKind::String(s) => f(s, node.span),
+        ExpressionKind::Identifier(_)
+        | ExpressionKind::Integer(_)
+        | ExpressionKind::Concat(_)
+        | ExpressionKind::FunctionCall(_)
+        | ExpressionKind::MethodCall(_) => Err(TemplateParseError::invalid_argument_type(
+            "String literal",
+            node.span,
+        )),
+        ExpressionKind::AliasExpanded(id, subst) => expect_string_literal_with(subst, f)
+            .map_err(|e| e.within_alias_expansion(*id, node.span)),
     }
 }
 

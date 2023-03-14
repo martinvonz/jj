@@ -17,7 +17,7 @@ use jujutsu_lib::backend::{Signature, Timestamp};
 
 use crate::template_parser::{
     self, ExpressionKind, ExpressionNode, FunctionCallNode, MethodCallNode, TemplateParseError,
-    TemplateParseResult,
+    TemplateParseErrorKind, TemplateParseResult,
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, FormattablePropertyListTemplate, IntoTemplate,
@@ -380,6 +380,21 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
             template_parser::expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |timestamp| {
                 time_util::format_timestamp_relative_to_now(&timestamp)
+            }))
+        }
+        "format" => {
+            // No dynamic string is allowed as the templater has no runtime error type.
+            let [format_node] = template_parser::expect_exact_arguments(function)?;
+            let format =
+                template_parser::expect_string_literal_with(format_node, |format, span| {
+                    time_util::FormattingItems::parse(format).ok_or_else(|| {
+                        let kind = TemplateParseErrorKind::InvalidTimeFormat;
+                        TemplateParseError::with_span(kind, span)
+                    })
+                })?
+                .into_owned();
+            language.wrap_string(TemplateFunction::new(self_property, move |timestamp| {
+                time_util::format_absolute_timestamp_with(&timestamp, &format)
             }))
         }
         _ => return Err(TemplateParseError::no_such_method("Timestamp", function)),
