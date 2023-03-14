@@ -92,8 +92,14 @@ The following methods are defined.
 
 * `.join(separator: Template) -> Template`: Concatenate elements with
   the given `separator`.
-* `.map(|item| expression) -> Template`: Apply template `expression`
+* `.map(|item| expression) -> ListTemplate`: Apply template `expression`
   to each element. Example: `parent_commit_ids.map(|id| id.short())`
+
+### ListTemplate type
+
+The following methods are defined. See also the `List` type.
+
+* `.join(separator: Template) -> Template`
 
 ### OperationId type
 
