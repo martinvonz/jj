@@ -1,5 +1,7 @@
+use chrono::format::StrftimeItems;
 use chrono::{DateTime, FixedOffset, LocalResult, TimeZone, Utc};
 use jujutsu_lib::backend::Timestamp;
+use once_cell::sync::Lazy;
 
 fn datetime_from_timestamp(context: &Timestamp) -> Option<DateTime<FixedOffset>> {
     let utc = match Utc.timestamp_opt(
@@ -22,8 +24,10 @@ fn datetime_from_timestamp(context: &Timestamp) -> Option<DateTime<FixedOffset>>
 }
 
 pub fn format_absolute_timestamp(timestamp: &Timestamp) -> String {
+    static FORMAT_ITEMS: Lazy<Vec<chrono::format::Item>> =
+        Lazy::new(|| StrftimeItems::new("%Y-%m-%d %H:%M:%S.%3f %:z").collect());
     match datetime_from_timestamp(timestamp) {
-        Some(datetime) => datetime.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string(),
+        Some(datetime) => datetime.format_with_items(FORMAT_ITEMS.iter()).to_string(),
         None => "<out-of-range date>".to_string(),
     }
 }
