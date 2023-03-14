@@ -23,8 +23,8 @@ use crate::template_parser::{
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
-    Literal, PlainTextFormattedProperty, PropertyPlaceholder, ReformatTemplate, SeparateTemplate,
-    Template, TemplateFunction, TemplateProperty, TimestampRange,
+    ListTemplate, Literal, PlainTextFormattedProperty, PropertyPlaceholder, ReformatTemplate,
+    SeparateTemplate, Template, TemplateFunction, TemplateProperty, TimestampRange,
 };
 use crate::{text_util, time_util};
 
@@ -61,7 +61,12 @@ pub trait TemplateLanguage<'a> {
         &self,
         property: impl TemplateProperty<Self::Context, Output = TimestampRange> + 'a,
     ) -> Self::Property;
+
     fn wrap_template(&self, template: Box<dyn Template<Self::Context> + 'a>) -> Self::Property;
+    fn wrap_list_template(
+        &self,
+        template: Box<dyn ListTemplate<Self::Context> + 'a>,
+    ) -> Self::Property;
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property>;
     fn build_method(
@@ -98,6 +103,13 @@ macro_rules! impl_core_wrap_property_fns {
         ) -> Self::Property {
             use $crate::template_builder::CoreTemplatePropertyKind as Kind;
             $outer(Kind::Template(template))
+        }
+        fn wrap_list_template(
+            &self,
+            template: Box<dyn $crate::templater::ListTemplate<Self::Context> + $a>,
+        ) -> Self::Property {
+            use $crate::template_builder::CoreTemplatePropertyKind as Kind;
+            $outer(Kind::ListTemplate(template))
         }
     };
 }
@@ -140,6 +152,7 @@ pub enum CoreTemplatePropertyKind<'a, I> {
     // capture `I` to produce `Template<()>`. The context `I` would have to be cloned
     // to convert `Template<I>` to `Template<()>`.
     Template(Box<dyn Template<I> + 'a>),
+    ListTemplate(Box<dyn ListTemplate<I> + 'a>),
 }
 
 impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> {
@@ -180,6 +193,7 @@ impl<'a, I: 'a> IntoTemplate<'a, I> for CoreTemplatePropertyKind<'a, I> {
             CoreTemplatePropertyKind::Timestamp(property) => property.into_template(),
             CoreTemplatePropertyKind::TimestampRange(property) => property.into_template(),
             CoreTemplatePropertyKind::Template(template) => template,
+            CoreTemplatePropertyKind::ListTemplate(template) => template.into_template(),
         }
     }
 }
@@ -287,6 +301,9 @@ pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
         }
         CoreTemplatePropertyKind::Template(_) => {
             Err(TemplateParseError::no_such_method("Template", function))
+        }
+        CoreTemplatePropertyKind::ListTemplate(template) => {
+            build_list_template_method(language, build_ctx, template, function)
         }
     }
 }
@@ -455,6 +472,23 @@ fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
     Ok(property)
 }
 
+fn build_list_template_method<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    self_template: Box<dyn ListTemplate<L::Context> + 'a>,
+    function: &FunctionCallNode,
+) -> TemplateParseResult<L::Property> {
+    let property = match function.name {
+        "join" => {
+            let [separator_node] = template_parser::expect_exact_arguments(function)?;
+            let separator = build_expression(language, build_ctx, separator_node)?.into_template();
+            language.wrap_template(self_template.join(separator))
+        }
+        _ => return Err(TemplateParseError::no_such_method("ListTemplate", function)),
+    };
+    Ok(property)
+}
+
 /// Builds method call expression for printable list property.
 pub fn build_list_method<'a, L, O>(
     language: &L,
@@ -531,7 +565,7 @@ where
             item_placeholder.with_value(item, || item_template.format(context, formatter))
         },
     );
-    Ok(language.wrap_template(Box::new(list_template)))
+    Ok(language.wrap_list_template(Box::new(list_template)))
 }
 
 fn build_global_function<'a, L: TemplateLanguage<'a>>(

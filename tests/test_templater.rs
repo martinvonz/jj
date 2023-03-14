@@ -277,6 +277,10 @@ fn test_templater_list_method() {
     insta::assert_snapshot!(
         render(r#""a\nb\nc".lines().map(|s| "x\ny".lines().map(|t| s ++ t))"#),
         @"ax ay bx by cx cy");
+    // Nested map/join operations
+    insta::assert_snapshot!(
+        render(r#""a\nb\nc".lines().map(|s| "x\ny".lines().map(|t| s ++ t).join(",")).join(";")"#),
+        @"ax,ay;bx,by;cx,cy");
 
     // Lambda expression in alias
     insta::assert_snapshot!(render(r#""a\nb\nc".lines().map(identity)"#), @"a b c");
