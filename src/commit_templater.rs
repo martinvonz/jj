@@ -25,7 +25,7 @@ use jujutsu_lib::rewrite;
 
 use crate::formatter::Formatter;
 use crate::template_builder::{
-    self, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateLanguage,
+    self, BuildContext, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateLanguage,
 };
 use crate::template_parser::{
     self, FunctionCallNode, TemplateAliasesMap, TemplateParseError, TemplateParseResult,
@@ -53,21 +53,22 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
 
     fn build_method(
         &self,
+        build_ctx: &BuildContext<Self::Property>,
         property: Self::Property,
         function: &FunctionCallNode,
     ) -> TemplateParseResult<Self::Property> {
         match property {
             CommitTemplatePropertyKind::Core(property) => {
-                template_builder::build_core_method(self, property, function)
+                template_builder::build_core_method(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::CommitOrChangeId(property) => {
-                build_commit_or_change_id_method(self, property, function)
+                build_commit_or_change_id_method(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::CommitOrChangeIdList(property) => {
-                template_builder::build_list_method(self, property, function)
+                template_builder::build_list_method(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
-                build_shortest_id_prefix_method(self, property, function)
+                build_shortest_id_prefix_method(self, build_ctx, property, function)
             }
         }
     }
@@ -358,13 +359,14 @@ impl Template<()> for Vec<CommitOrChangeId<'_>> {
 
 fn build_commit_or_change_id_method<'repo>(
     language: &CommitTemplateLanguage<'repo, '_>,
+    build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
     self_property: impl TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
     let parse_optional_integer = |function| -> Result<Option<_>, TemplateParseError> {
         let ([], [len_node]) = template_parser::expect_arguments(function)?;
         len_node
-            .map(|node| template_builder::expect_integer_expression(language, node))
+            .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
             .transpose()
     };
     let property = match function.name {
@@ -421,6 +423,7 @@ impl ShortestIdPrefix {
 
 fn build_shortest_id_prefix_method<'repo>(
     language: &CommitTemplateLanguage<'repo, '_>,
+    _build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
     self_property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
@@ -461,6 +464,5 @@ pub fn parse<'repo>(
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'repo>> {
     let language = CommitTemplateLanguage { repo, workspace_id };
     let node = template_parser::parse(template_text, aliases_map)?;
-    let expression = template_builder::build_expression(&language, &node)?;
-    Ok(expression.into_template())
+    template_builder::build(&language, &node)
 }
