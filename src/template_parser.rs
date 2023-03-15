@@ -14,7 +14,6 @@
 
 use std::collections::HashMap;
 use std::num::ParseIntError;
-use std::ops::{RangeFrom, RangeInclusive};
 use std::{error, fmt};
 
 use itertools::Itertools as _;
@@ -48,13 +47,8 @@ pub enum TemplateParseErrorKind {
     NoSuchFunction(String),
     #[error(r#"Method "{name}" doesn't exist for type "{type_name}""#)]
     NoSuchMethod { type_name: String, name: String },
-    // TODO: clean up argument error variants
-    #[error("Expected {0} arguments")]
-    InvalidArgumentCountExact(usize),
-    #[error("Expected {} to {} arguments", .0.start(), .0.end())]
-    InvalidArgumentCountRange(RangeInclusive<usize>),
-    #[error("Expected at least {} arguments", .0.start)]
-    InvalidArgumentCountRangeFrom(RangeFrom<usize>),
+    #[error(r#"Function "{name}": {message}"#)]
+    InvalidArguments { name: String, message: String },
     #[error(r#"Expected argument of type "{0}""#)]
     InvalidArgumentType(String),
     #[error("Invalid time format")]
@@ -121,30 +115,13 @@ impl TemplateParseError {
         )
     }
 
-    pub fn invalid_argument_count_exact(count: usize, span: pest::Span<'_>) -> Self {
+    pub fn invalid_arguments(function: &FunctionCallNode, message: impl Into<String>) -> Self {
         TemplateParseError::with_span(
-            TemplateParseErrorKind::InvalidArgumentCountExact(count),
-            span,
-        )
-    }
-
-    pub fn invalid_argument_count_range(
-        count: RangeInclusive<usize>,
-        span: pest::Span<'_>,
-    ) -> Self {
-        TemplateParseError::with_span(
-            TemplateParseErrorKind::InvalidArgumentCountRange(count),
-            span,
-        )
-    }
-
-    pub fn invalid_argument_count_range_from(
-        count: RangeFrom<usize>,
-        span: pest::Span<'_>,
-    ) -> Self {
-        TemplateParseError::with_span(
-            TemplateParseErrorKind::InvalidArgumentCountRangeFrom(count),
-            span,
+            TemplateParseErrorKind::InvalidArguments {
+                name: function.name.to_owned(),
+                message: message.into(),
+            },
+            function.args_span,
         )
     }
 
@@ -541,9 +518,9 @@ pub fn expand_aliases<'i>(
             ExpressionKind::FunctionCall(function) => {
                 if let Some((id, params, defn)) = state.aliases_map.get_function(function.name) {
                     if function.args.len() != params.len() {
-                        return Err(TemplateParseError::invalid_argument_count_exact(
-                            params.len(),
-                            function.args_span,
+                        return Err(TemplateParseError::invalid_arguments(
+                            &function,
+                            format!("Expected {} arguments", params.len()),
                         ));
                     }
                     // Resolve arguments in the current scope, and pass them in to the alias
@@ -596,9 +573,9 @@ pub fn expect_no_arguments(function: &FunctionCallNode) -> TemplateParseResult<(
     if function.args.is_empty() {
         Ok(())
     } else {
-        Err(TemplateParseError::invalid_argument_count_exact(
-            0,
-            function.args_span,
+        Err(TemplateParseError::invalid_arguments(
+            function,
+            "Expected 0 arguments",
         ))
     }
 }
@@ -607,11 +584,9 @@ pub fn expect_no_arguments(function: &FunctionCallNode) -> TemplateParseResult<(
 pub fn expect_exact_arguments<'a, 'i, const N: usize>(
     function: &'a FunctionCallNode<'i>,
 ) -> TemplateParseResult<&'a [ExpressionNode<'i>; N]> {
-    function
-        .args
-        .as_slice()
-        .try_into()
-        .map_err(|_| TemplateParseError::invalid_argument_count_exact(N, function.args_span))
+    function.args.as_slice().try_into().map_err(|_| {
+        TemplateParseError::invalid_arguments(function, format!("Expected {N} arguments"))
+    })
 }
 
 /// Extracts N required arguments and remainders.
@@ -622,9 +597,9 @@ pub fn expect_some_arguments<'a, 'i, const N: usize>(
         let (required, rest) = function.args.split_at(N);
         Ok((required.try_into().unwrap(), rest))
     } else {
-        Err(TemplateParseError::invalid_argument_count_range_from(
-            N..,
-            function.args_span,
+        Err(TemplateParseError::invalid_arguments(
+            function,
+            format!("Expected at least {N} arguments"),
         ))
     }
 }
@@ -643,9 +618,9 @@ pub fn expect_arguments<'a, 'i, const N: usize, const M: usize>(
         optional.resize(M, None);
         Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
     } else {
-        Err(TemplateParseError::invalid_argument_count_range(
-            count_range,
-            function.args_span,
+        Err(TemplateParseError::invalid_arguments(
+            function,
+            format!("Expected {min} to {max} arguments", min = N, max = N + M),
         ))
     }
 }
@@ -997,20 +972,20 @@ mod tests {
         );
 
         // Invalid number of arguments.
-        assert_eq!(
+        assert_matches!(
             with_aliases([("F()", "x")]).parse("F(a)").unwrap_err().kind,
-            TemplateParseErrorKind::InvalidArgumentCountExact(0),
+            TemplateParseErrorKind::InvalidArguments { .. }
         );
-        assert_eq!(
+        assert_matches!(
             with_aliases([("F(x)", "x")]).parse("F()").unwrap_err().kind,
-            TemplateParseErrorKind::InvalidArgumentCountExact(1),
+            TemplateParseErrorKind::InvalidArguments { .. }
         );
-        assert_eq!(
+        assert_matches!(
             with_aliases([("F(x,y)", "x ++ y")])
                 .parse("F(a,b,c)")
                 .unwrap_err()
                 .kind,
-            TemplateParseErrorKind::InvalidArgumentCountExact(2),
+            TemplateParseErrorKind::InvalidArguments { .. }
         );
 
         // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.

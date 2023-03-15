@@ -180,7 +180,7 @@ fn test_templater_parse_error() {
     1 | description.contains()
       |                      ^
       |
-      = Expected 1 arguments
+      = Function "contains": Expected 1 arguments
     "###);
 
     insta::assert_snapshot!(render_err(r#"description.first_line("foo")"#), @r###"
@@ -189,7 +189,7 @@ fn test_templater_parse_error() {
     1 | description.first_line("foo")
       |                        ^---^
       |
-      = Expected 0 arguments
+      = Function "first_line": Expected 0 arguments
     "###);
 
     insta::assert_snapshot!(render_err(r#"label()"#), @r###"
@@ -198,7 +198,7 @@ fn test_templater_parse_error() {
     1 | label()
       |       ^
       |
-      = Expected 2 arguments
+      = Function "label": Expected 2 arguments
     "###);
     insta::assert_snapshot!(render_err(r#"label("foo", "bar", "baz")"#), @r###"
     Error: Failed to parse template:  --> 1:7
@@ -206,7 +206,7 @@ fn test_templater_parse_error() {
     1 | label("foo", "bar", "baz")
       |       ^-----------------^
       |
-      = Expected 2 arguments
+      = Function "label": Expected 2 arguments
     "###);
 
     insta::assert_snapshot!(render_err(r#"if()"#), @r###"
@@ -215,7 +215,7 @@ fn test_templater_parse_error() {
     1 | if()
       |    ^
       |
-      = Expected 2 to 3 arguments
+      = Function "if": Expected 2 to 3 arguments
     "###);
     insta::assert_snapshot!(render_err(r#"if("foo", "bar", "baz", "quux")"#), @r###"
     Error: Failed to parse template:  --> 1:4
@@ -223,7 +223,7 @@ fn test_templater_parse_error() {
     1 | if("foo", "bar", "baz", "quux")
       |    ^-------------------------^
       |
-      = Expected 2 to 3 arguments
+      = Function "if": Expected 2 to 3 arguments
     "###);
 
     insta::assert_snapshot!(render_err(r#"if(label("foo", "bar"), "baz")"#), @r###"
@@ -693,7 +693,7 @@ fn test_templater_alias() {
     1 | identity()
       |          ^
       |
-      = Expected 1 arguments
+      = Function "identity": Expected 1 arguments
     "###);
     insta::assert_snapshot!(render_err("identity(commit_id, commit_id)"), @r###"
     Error: Failed to parse template:  --> 1:10
@@ -701,7 +701,7 @@ fn test_templater_alias() {
     1 | identity(commit_id, commit_id)
       |          ^------------------^
       |
-      = Expected 1 arguments
+      = Function "identity": Expected 1 arguments
     "###);
 
     insta::assert_snapshot!(render_err(r#"coalesce(label("x", "not boolean"), "")"#), @r###"
