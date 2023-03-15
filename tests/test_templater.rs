@@ -232,7 +232,7 @@ fn test_templater_parse_error() {
     1 | if(label("foo", "bar"), "baz")
       |    ^-----------------^
       |
-      = Expected argument of type "Boolean"
+      = Expected expression of type "Boolean"
     "###);
 }
 
@@ -368,7 +368,7 @@ fn test_templater_timestamp_method() {
     1 | author.timestamp().format(0)
       |                           ^
       |
-      = Expected argument of type "String literal"
+      = Expected string literal
     "###);
 
     // Dynamic string isn't supported yet
@@ -378,7 +378,7 @@ fn test_templater_timestamp_method() {
     1 | author.timestamp().format("%Y" ++ "%m")
       |                           ^----------^
       |
-      = Expected argument of type "String literal"
+      = Expected string literal
     "###);
 
     // Literal alias expansion
@@ -657,7 +657,7 @@ fn test_templater_alias() {
     1 | identity(identity(commit_id.short("")))
       |                                   ^^
       |
-      = Expected argument of type "Integer"
+      = Expected expression of type "Integer"
     "###);
 
     insta::assert_snapshot!(render_err("commit_id ++ recurse"), @r###"
@@ -716,7 +716,7 @@ fn test_templater_alias() {
     1 | coalesce(label("x", "not boolean"), "")
       |          ^-----------------------^
       |
-      = Expected argument of type "Boolean"
+      = Expected expression of type "Boolean"
     "###);
 }
 
