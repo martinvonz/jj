@@ -49,12 +49,10 @@ pub enum TemplateParseErrorKind {
     NoSuchMethod { type_name: String, name: String },
     #[error(r#"Function "{name}": {message}"#)]
     InvalidArguments { name: String, message: String },
-    #[error(r#"Expected argument of type "{0}""#)]
-    InvalidArgumentType(String),
-    #[error("Invalid time format")]
-    InvalidTimeFormat,
     #[error("Redefinition of function parameter")]
     RedefinedFunctionParameter,
+    #[error("{0}")]
+    UnexpectedExpression(String),
     #[error(r#"Alias "{0}" cannot be expanded"#)]
     BadAliasExpansion(String),
     #[error(r#"Alias "{0}" expanded recursively"#)]
@@ -125,12 +123,14 @@ impl TemplateParseError {
         )
     }
 
-    pub fn invalid_argument_type(
-        expected_type_name: impl Into<String>,
-        span: pest::Span<'_>,
-    ) -> Self {
+    pub fn expected_type(type_name: &str, span: pest::Span<'_>) -> Self {
+        let message = format!(r#"Expected expression of type "{type_name}""#);
+        TemplateParseError::unexpected_expression(message, span)
+    }
+
+    pub fn unexpected_expression(message: impl Into<String>, span: pest::Span<'_>) -> Self {
         TemplateParseError::with_span(
-            TemplateParseErrorKind::InvalidArgumentType(expected_type_name.into()),
+            TemplateParseErrorKind::UnexpectedExpression(message.into()),
             span,
         )
     }
@@ -636,8 +636,8 @@ pub fn expect_string_literal_with<'a, 'i, T>(
         | ExpressionKind::Integer(_)
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
-        | ExpressionKind::MethodCall(_) => Err(TemplateParseError::invalid_argument_type(
-            "String literal",
+        | ExpressionKind::MethodCall(_) => Err(TemplateParseError::unexpected_expression(
+            "Expected string literal",
             node.span,
         )),
         ExpressionKind::AliasExpanded(id, subst) => expect_string_literal_with(subst, f)

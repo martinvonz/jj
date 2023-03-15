@@ -17,7 +17,7 @@ use jujutsu_lib::backend::{Signature, Timestamp};
 
 use crate::template_parser::{
     self, ExpressionKind, ExpressionNode, FunctionCallNode, MethodCallNode, TemplateParseError,
-    TemplateParseErrorKind, TemplateParseResult,
+    TemplateParseResult,
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, FormattablePropertyListTemplate, IntoTemplate,
@@ -388,8 +388,7 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
             let format =
                 template_parser::expect_string_literal_with(format_node, |format, span| {
                     time_util::FormattingItems::parse(format).ok_or_else(|| {
-                        let kind = TemplateParseErrorKind::InvalidTimeFormat;
-                        TemplateParseError::with_span(kind, span)
+                        TemplateParseError::unexpected_expression("Invalid time format", span)
                     })
                 })?
                 .into_owned();
@@ -570,7 +569,7 @@ pub fn expect_boolean_expression<'a, L: TemplateLanguage<'a>>(
 ) -> TemplateParseResult<Box<dyn TemplateProperty<L::Context, Output = bool> + 'a>> {
     build_expression(language, node)?
         .try_into_boolean()
-        .ok_or_else(|| TemplateParseError::invalid_argument_type("Boolean", node.span))
+        .ok_or_else(|| TemplateParseError::expected_type("Boolean", node.span))
 }
 
 pub fn expect_integer_expression<'a, L: TemplateLanguage<'a>>(
@@ -579,5 +578,5 @@ pub fn expect_integer_expression<'a, L: TemplateLanguage<'a>>(
 ) -> TemplateParseResult<Box<dyn TemplateProperty<L::Context, Output = i64> + 'a>> {
     build_expression(language, node)?
         .try_into_integer()
-        .ok_or_else(|| TemplateParseError::invalid_argument_type("Integer", node.span))
+        .ok_or_else(|| TemplateParseError::expected_type("Integer", node.span))
 }
