@@ -56,11 +56,11 @@ fn test_resolution() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    ● │  b
-    │ ●  a
+    ◉ │  b
+    │ ◉  a
     ├─╯
-    ●  base
-    ●
+    ◉  base
+    ◉
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -301,11 +301,11 @@ fn test_normal_conflict_input_files() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    ● │  b
-    │ ●  a
+    ◉ │  b
+    │ ◉  a
     ├─╯
-    ●  base
-    ●
+    ◉  base
+    ◉
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -342,11 +342,11 @@ fn test_baseless_conflict_input_files() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    ● │  b
-    │ ●  a
+    ◉ │  b
+    │ ◉  a
     ├─╯
-    ●  base
-    ●
+    ◉  base
+    ◉
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -411,11 +411,11 @@ fn test_edit_delete_conflict_input_files() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    ● │  b
-    │ ●  a
+    ◉ │  b
+    │ ◉  a
     ├─╯
-    ●  base
-    ●
+    ◉  base
+    ◉
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -454,11 +454,11 @@ fn test_file_vs_dir() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    ● │  b
-    │ ●  a
+    ◉ │  b
+    │ ◉  a
     ├─╯
-    ●  base
-    ●
+    ◉  base
+    ◉
     "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
@@ -501,13 +501,13 @@ fn test_description_with_dir_and_deletion() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @      conflict
     ├─┬─╮
-    ● │ │  del
-    │ ● │  dir
+    ◉ │ │  del
+    │ ◉ │  dir
     ├─╯ │
-    │   ●  edit
+    │   ◉  edit
     ├───╯
-    ●  base
-    ●
+    ◉  base
+    ◉
     "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
@@ -581,11 +581,11 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    ● │  b
-    │ ●  a
+    ◉ │  b
+    │ ◉  a
     ├─╯
-    ●  base
-    ●
+    ◉  base
+    ◉
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("this_file_has_a_very_long_name_to_test_padding")).unwrap()
