@@ -74,7 +74,7 @@ fn test_ignore_working_copy() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @  438471f3fbf1004298d8fb01eeb13663a051a643
-    ●  0000000000000000000000000000000000000000
+    ◉  0000000000000000000000000000000000000000
     "###);
 
     // Modify the file. With --ignore-working-copy, we still get the same commit
@@ -90,7 +90,7 @@ fn test_ignore_working_copy() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @  fab22d1acf5bb9c5aa48cb2c3dd2132072a359ca
-    ●  0000000000000000000000000000000000000000
+    ◉  0000000000000000000000000000000000000000
     "###);
 }
 
@@ -214,7 +214,7 @@ fn test_color_config() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @  [38;5;4m230dd059e1b059aefc0da06a2e5a7dbf22362f22[39m
-    ●  [38;5;4m0000000000000000000000000000000000000000[39m
+    ◉  [38;5;4m0000000000000000000000000000000000000000[39m
     "###);
 
     // Test that color is used if it's requested in the config file
@@ -222,21 +222,21 @@ fn test_color_config() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @  [38;5;4m230dd059e1b059aefc0da06a2e5a7dbf22362f22[39m
-    ●  [38;5;4m0000000000000000000000000000000000000000[39m
+    ◉  [38;5;4m0000000000000000000000000000000000000000[39m
     "###);
 
     // Test that --color=never overrides the config.
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=never", "log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    ●  0000000000000000000000000000000000000000
+    ◉  0000000000000000000000000000000000000000
     "###);
 
     // Test that --color=auto overrides the config.
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=auto", "log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    ●  0000000000000000000000000000000000000000
+    ◉  0000000000000000000000000000000000000000
     "###);
 
     // Test that --config-toml 'ui.color="never"' overrides the config.
@@ -252,7 +252,7 @@ fn test_color_config() {
     );
     insta::assert_snapshot!(stdout, @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    ●  0000000000000000000000000000000000000000
+    ◉  0000000000000000000000000000000000000000
     "###);
 
     // --color overrides --config-toml 'ui.color=...'.
@@ -270,7 +270,7 @@ fn test_color_config() {
     );
     insta::assert_snapshot!(stdout, @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    ●  0000000000000000000000000000000000000000
+    ◉  0000000000000000000000000000000000000000
     "###);
 
     // Test that NO_COLOR does NOT override the request for color in the config file
@@ -278,7 +278,7 @@ fn test_color_config() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @  [38;5;4m230dd059e1b059aefc0da06a2e5a7dbf22362f22[39m
-    ●  [38;5;4m0000000000000000000000000000000000000000[39m
+    ◉  [38;5;4m0000000000000000000000000000000000000000[39m
     "###);
 
     // Test that per-repo config overrides the user config.
@@ -290,7 +290,7 @@ fn test_color_config() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    ●  0000000000000000000000000000000000000000
+    ◉  0000000000000000000000000000000000000000
     "###);
 }
 

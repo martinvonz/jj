@@ -34,19 +34,19 @@ fn test_checkout() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  05ce7118568d3007efc9163b055f9cb4a6becfde
-    ●  5c52832c3483e0ace06d047a806024984f28f1d7 second
-    ●  69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
-    ●  0000000000000000000000000000000000000000
+    ◉  5c52832c3483e0ace06d047a806024984f28f1d7 second
+    ◉  69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
+    ◉  0000000000000000000000000000000000000000
     "###);
 
     // Can provide a description
     test_env.jj_cmd_success(&repo_path, &["checkout", "@--", "-m", "my message"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  1191baaf276e3d0b96b1747e885b3a517be80d6f my message
-    │ ●  5c52832c3483e0ace06d047a806024984f28f1d7 second
+    │ ◉  5c52832c3483e0ace06d047a806024984f28f1d7 second
     ├─╯
-    ●  69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
-    ●  0000000000000000000000000000000000000000
+    ◉  69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
+    ◉  0000000000000000000000000000000000000000
     "###);
 }
 

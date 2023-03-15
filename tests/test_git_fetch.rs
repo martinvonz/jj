@@ -308,18 +308,18 @@ fn test_git_fetch_all() {
     insta::assert_snapshot!(source_log, @r###"
        ===== Source git repo contents =====
     @  c7d4bdcbc215 descr_for_b b
-    │ ●  decaa3966c83 descr_for_a2 a2
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
-    ●  000000000000
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  000000000000
     "###);
 
     // Nothing in our repo before the fetch
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     @  230dd059e1b0
-    ●  000000000000
+    ◉  000000000000
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @"");
     insta::assert_snapshot!(test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]), @"");
@@ -331,15 +331,15 @@ fn test_git_fetch_all() {
     trunk1: ff36dc55760e descr_for_trunk1
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  c7d4bdcbc215 descr_for_b b
-    │ ●  decaa3966c83 descr_for_a2 a2
+    ◉  c7d4bdcbc215 descr_for_b b
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
 
     // ==== Change both repos ====
@@ -347,14 +347,14 @@ fn test_git_fetch_all() {
     let source_log = create_trunk2_and_rebase_branches(&test_env, &source_git_repo_path);
     insta::assert_snapshot!(source_log, @r###"
        ===== Source git repo contents =====
-    ●  babc49226c14 descr_for_b b
-    │ ●  91e46b4b2653 descr_for_a2 a2
+    ◉  babc49226c14 descr_for_b b
+    │ ◉  91e46b4b2653 descr_for_a2 a2
     ├─╯
-    │ ●  0424f6dfc1ff descr_for_a1 a1
+    │ ◉  0424f6dfc1ff descr_for_a1 a1
     ├─╯
     @  8f1f14fbbf42 descr_for_trunk2 trunk2
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
-    ●  000000000000
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  000000000000
     "###);
     // Change a branch in the source repo as well, so that it becomes conflicted.
     test_env.jj_cmd_success(
@@ -364,15 +364,15 @@ fn test_git_fetch_all() {
 
     // Our repo before and after fetch
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  061eddbb43ab new_descr_for_b_to_create_conflict b*
-    │ ●  decaa3966c83 descr_for_a2 a2
+    ◉  061eddbb43ab new_descr_for_b_to_create_conflict b*
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
     a1: 359a9a02457d descr_for_a1
@@ -396,18 +396,18 @@ fn test_git_fetch_all() {
     trunk2: 8f1f14fbbf42 descr_for_trunk2
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  babc49226c14 descr_for_b b?? b@origin
-    │ ●  91e46b4b2653 descr_for_a2 a2
+    ◉  babc49226c14 descr_for_b b?? b@origin
+    │ ◉  91e46b4b2653 descr_for_a2 a2
     ├─╯
-    │ ●  0424f6dfc1ff descr_for_a1 a1
+    │ ◉  0424f6dfc1ff descr_for_a1 a1
     ├─╯
-    ●  8f1f14fbbf42 descr_for_trunk2 trunk2
-    │ ●  061eddbb43ab new_descr_for_b_to_create_conflict b??
+    ◉  8f1f14fbbf42 descr_for_trunk2 trunk2
+    │ ◉  061eddbb43ab new_descr_for_b_to_create_conflict b??
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
 }
 
@@ -431,12 +431,12 @@ fn test_git_fetch_some_of_many_branches() {
     insta::assert_snapshot!(source_log, @r###"
        ===== Source git repo contents =====
     @  c7d4bdcbc215 descr_for_b b
-    │ ●  decaa3966c83 descr_for_a2 a2
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
-    ●  000000000000
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  000000000000
     "###);
 
     // Test an error message
@@ -449,17 +449,17 @@ fn test_git_fetch_some_of_many_branches() {
     // Nothing in our repo before the fetch
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     @  230dd059e1b0
-    ●  000000000000
+    ◉  000000000000
     "###);
     // Fetch one branch...
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  c7d4bdcbc215 descr_for_b b
-    ●  ff36dc55760e descr_for_trunk1
+    ◉  c7d4bdcbc215 descr_for_b b
+    ◉  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
     // ...check what the intermediate state looks like...
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
@@ -469,15 +469,15 @@ fn test_git_fetch_some_of_many_branches() {
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "a*"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  decaa3966c83 descr_for_a2 a2
-    │ ●  359a9a02457d descr_for_a1 a1
+    ◉  decaa3966c83 descr_for_a2 a2
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    │ ●  c7d4bdcbc215 descr_for_b b
+    │ ◉  c7d4bdcbc215 descr_for_b b
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1
+    ◉  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
     // Fetching the same branch again
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "a1"]);
@@ -485,15 +485,15 @@ fn test_git_fetch_some_of_many_branches() {
     Nothing changed.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  decaa3966c83 descr_for_a2 a2
-    │ ●  359a9a02457d descr_for_a1 a1
+    ◉  decaa3966c83 descr_for_a2 a2
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    │ ●  c7d4bdcbc215 descr_for_b b
+    │ ◉  c7d4bdcbc215 descr_for_b b
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1
+    ◉  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
 
     // ==== Change both repos ====
@@ -501,14 +501,14 @@ fn test_git_fetch_some_of_many_branches() {
     let source_log = create_trunk2_and_rebase_branches(&test_env, &source_git_repo_path);
     insta::assert_snapshot!(source_log, @r###"
        ===== Source git repo contents =====
-    ●  13ac032802f1 descr_for_b b
-    │ ●  010977d69c5b descr_for_a2 a2
+    ◉  13ac032802f1 descr_for_b b
+    │ ◉  010977d69c5b descr_for_a2 a2
     ├─╯
-    │ ●  6f4e1c4dfe29 descr_for_a1 a1
+    │ ◉  6f4e1c4dfe29 descr_for_a1 a1
     ├─╯
     @  09430ba04a82 descr_for_trunk2 trunk2
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
-    ●  000000000000
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  000000000000
     "###);
     // Change a branch in the source repo as well, so that it becomes conflicted.
     test_env.jj_cmd_success(
@@ -518,15 +518,15 @@ fn test_git_fetch_some_of_many_branches() {
 
     // Our repo before and after fetch of two branches
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  2be688d8c664 new_descr_for_b_to_create_conflict b*
-    │ ●  decaa3966c83 descr_for_a2 a2
+    ◉  2be688d8c664 new_descr_for_b_to_create_conflict b*
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1
+    ◉  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(
         &target_jj_repo_path,
@@ -534,18 +534,18 @@ fn test_git_fetch_some_of_many_branches() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  13ac032802f1 descr_for_b b?? b@origin
-    │ ●  6f4e1c4dfe29 descr_for_a1 a1
+    ◉  13ac032802f1 descr_for_b b?? b@origin
+    │ ◉  6f4e1c4dfe29 descr_for_a1 a1
     ├─╯
-    ●  09430ba04a82 descr_for_trunk2
-    │ ●  2be688d8c664 new_descr_for_b_to_create_conflict b??
+    ◉  09430ba04a82 descr_for_trunk2
+    │ ◉  2be688d8c664 new_descr_for_b_to_create_conflict b??
     ├─╯
-    │ ●  decaa3966c83 descr_for_a2 a2
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1
+    ◉  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
 
     // We left a2 where it was before, let's see how `jj branch list` sees this.
@@ -566,18 +566,18 @@ fn test_git_fetch_some_of_many_branches() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  010977d69c5b descr_for_a2 a2
-    │ ●  13ac032802f1 descr_for_b b?? b@origin
+    ◉  010977d69c5b descr_for_a2 a2
+    │ ◉  13ac032802f1 descr_for_b b?? b@origin
     ├─╯
-    │ ●  6f4e1c4dfe29 descr_for_a1 a1
+    │ ◉  6f4e1c4dfe29 descr_for_a1 a1
     ├─╯
-    ●  09430ba04a82 descr_for_trunk2
-    │ ●  2be688d8c664 new_descr_for_b_to_create_conflict b??
+    ◉  09430ba04a82 descr_for_trunk2
+    │ ◉  2be688d8c664 new_descr_for_b_to_create_conflict b??
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1
+    ◉  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
     a1: 6f4e1c4dfe29 descr_for_a1
@@ -610,12 +610,12 @@ fn test_git_fetch_undo() {
     insta::assert_snapshot!(source_log, @r###"
        ===== Source git repo contents =====
     @  c7d4bdcbc215 descr_for_b b
-    │ ●  decaa3966c83 descr_for_a2 a2
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
-    ●  000000000000
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  000000000000
     "###);
 
     // Fetch 2 branches
@@ -625,29 +625,29 @@ fn test_git_fetch_undo() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  c7d4bdcbc215 descr_for_b b
-    │ ●  359a9a02457d descr_for_a1 a1
+    ◉  c7d4bdcbc215 descr_for_b b
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1
+    ◉  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&target_jj_repo_path, &["undo"]), @"");
     // The undo works as expected
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     @  230dd059e1b0
-    ●  000000000000
+    ◉  000000000000
     "###);
     // Now try to fetch just one branch
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  c7d4bdcbc215 descr_for_b b
-    ●  ff36dc55760e descr_for_trunk1
+    ◉  c7d4bdcbc215 descr_for_b b
+    ◉  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
 }
 
@@ -749,27 +749,27 @@ fn test_git_fetch_removed_branch() {
     insta::assert_snapshot!(source_log, @r###"
        ===== Source git repo contents =====
     @  c7d4bdcbc215 descr_for_b b
-    │ ●  decaa3966c83 descr_for_a2 a2
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
-    ●  000000000000
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  000000000000
     "###);
 
     // Fetch all branches
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  c7d4bdcbc215 descr_for_b b
-    │ ●  decaa3966c83 descr_for_a2 a2
+    ◉  c7d4bdcbc215 descr_for_b b
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
 
     // Remove a2 branch in origin
@@ -781,28 +781,28 @@ fn test_git_fetch_removed_branch() {
     Nothing changed.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  c7d4bdcbc215 descr_for_b b
-    │ ●  decaa3966c83 descr_for_a2 a2
+    ◉  c7d4bdcbc215 descr_for_b b
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
 
     // Fetch branches a2 from origin, and check that it has been removed locally
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "a2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  c7d4bdcbc215 descr_for_b b
-    │ ●  359a9a02457d descr_for_a1 a1
+    ◉  c7d4bdcbc215 descr_for_b b
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
 }
 
@@ -826,27 +826,27 @@ fn test_git_fetch_removed_parent_branch() {
     insta::assert_snapshot!(source_log, @r###"
        ===== Source git repo contents =====
     @  c7d4bdcbc215 descr_for_b b
-    │ ●  decaa3966c83 descr_for_a2 a2
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
-    ●  000000000000
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  000000000000
     "###);
 
     // Fetch all branches
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  c7d4bdcbc215 descr_for_b b
-    │ ●  decaa3966c83 descr_for_a2 a2
+    ◉  c7d4bdcbc215 descr_for_b b
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    │ ●  359a9a02457d descr_for_a1 a1
+    │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
 
     // Remove all branches in origin.
@@ -863,12 +863,12 @@ fn test_git_fetch_removed_parent_branch() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ●  c7d4bdcbc215 descr_for_b b
-    │ ●  decaa3966c83 descr_for_a2 a2
+    ◉  c7d4bdcbc215 descr_for_b b
+    │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
-    ●  ff36dc55760e descr_for_trunk1
+    ◉  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
     ├─╯
-    ●  000000000000
+    ◉  000000000000
     "###);
 }

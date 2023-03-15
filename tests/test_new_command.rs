@@ -29,18 +29,18 @@ fn test_new() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
-    ●  5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
-    ●  0000000000000000000000000000000000000000
+    ◉  5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
+    ◉  0000000000000000000000000000000000000000
     "###);
 
     // Start a new change off of a specific commit (the root commit in this case).
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "off of root", "root"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  026537ddb96b801b9cb909985d5443aab44616c1 off of root
-    │ ●  4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
-    │ ●  5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
+    │ ◉  4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
+    │ ◉  5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
     ├─╯
-    ●  0000000000000000000000000000000000000000
+    ◉  0000000000000000000000000000000000000000
     "###);
 }
 
@@ -61,10 +61,10 @@ fn test_new_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    0c4e5b9b68ae0cbe7ce3c61042619513d09005bf
     ├─╮
-    ● │  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
-    │ ●  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
+    ◉ │  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
+    │ ◉  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
     ├─╯
-    ●  0000000000000000000000000000000000000000
+    ◉  0000000000000000000000000000000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
     insta::assert_snapshot!(stdout, @"a");
@@ -77,10 +77,10 @@ fn test_new_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    200ed1a14c8acf09783dafefe5bebf2ff58f12fd
     ├─╮
-    ● │  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
-    │ ●  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
+    ◉ │  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
+    │ ◉  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
     ├─╯
-    ●  0000000000000000000000000000000000000000
+    ◉  0000000000000000000000000000000000000000
     "###);
 
     // `jj merge` with less than two arguments is an error
@@ -115,14 +115,14 @@ fn test_new_insert_after() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ● │  E
-    │ ●  D
+    ◉ │  E
+    │ ◉  D
     ├─╯
-    │ ●  C
-    │ ●  B
-    │ ●  A
+    │ ◉  C
+    │ ◉  B
+    │ ◉  A
     ├─╯
-    ●  root
+    ◉  root
     "###);
 
     let stdout =
@@ -132,18 +132,18 @@ fn test_new_insert_after() {
     Working copy now at: ca7c6481a8dd G
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ●  C
-    │ ●  F
+    ◉  C
+    │ ◉  F
     ╭─┤
     @ │    G
     ├───╮
-    │ ● │  E
-    ● │ │  D
+    │ ◉ │  E
+    ◉ │ │  D
     ├─╯ │
-    │   ●  B
-    │   ●  A
+    │   ◉  B
+    │   ◉  A
     ├───╯
-    ●  root
+    ◉  root
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["new", "--insert-after", "-m", "H", "D"]);
@@ -152,19 +152,19 @@ fn test_new_insert_after() {
     Working copy now at: fcf8281b4135 H
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ●  C
-    │ ●  F
+    ◉  C
+    │ ◉  F
     ╭─┤
-    ● │    G
+    ◉ │    G
     ├───╮
     @ │ │  H
-    │ ● │  E
-    ● │ │  D
+    │ ◉ │  E
+    ◉ │ │  D
     ├─╯ │
-    │   ●  B
-    │   ●  A
+    │   ◉  B
+    │   ◉  A
     ├───╯
-    ●  root
+    ◉  root
     "###);
 }
 
@@ -177,14 +177,14 @@ fn test_new_insert_after_children() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ● │  E
-    │ ●  D
+    ◉ │  E
+    │ ◉  D
     ├─╯
-    │ ●  C
-    │ ●  B
-    │ ●  A
+    │ ◉  C
+    │ ◉  B
+    │ ◉  A
     ├─╯
-    ●  root
+    ◉  root
     "###);
 
     // Check that inserting G after A and C doesn't try to rebase B (which is
@@ -198,17 +198,17 @@ fn test_new_insert_after_children() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    G
     ├─╮
-    │ │ ●    F
+    │ │ ◉    F
     │ │ ├─╮
-    │ │ ● │  E
-    │ │ │ ●  D
+    │ │ ◉ │  E
+    │ │ │ ◉  D
     │ │ ├─╯
-    ● │ │  C
-    ● │ │  B
+    ◉ │ │  C
+    ◉ │ │  B
     ├─╯ │
-    ●   │  A
+    ◉   │  A
     ├───╯
-    ●  root
+    ◉  root
     "###);
 }
 
@@ -221,14 +221,14 @@ fn test_new_insert_before() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ● │  E
-    │ ●  D
+    ◉ │  E
+    │ ◉  D
     ├─╯
-    │ ●  C
-    │ ●  B
-    │ ●  A
+    │ ◉  C
+    │ ◉  B
+    │ ◉  A
     ├─╯
-    ●  root
+    ◉  root
     "###);
 
     let stdout =
@@ -238,18 +238,18 @@ fn test_new_insert_before() {
     Working copy now at: ff6bbbc7b8df G
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ●  F
-    │ ●  C
+    ◉  F
+    │ ◉  C
     ├─╯
     @      G
     ├─┬─╮
-    ● │ │  E
-    │ ● │  D
+    ◉ │ │  E
+    │ ◉ │  D
     ├─╯ │
-    │   ●  B
-    │   ●  A
+    │   ◉  B
+    │   ◉  A
     ├───╯
-    ●  root
+    ◉  root
     "###);
 }
 
@@ -262,14 +262,14 @@ fn test_new_insert_before_root_successors() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ● │  E
-    │ ●  D
+    ◉ │  E
+    │ ◉  D
     ├─╯
-    │ ●  C
-    │ ●  B
-    │ ●  A
+    │ ◉  C
+    │ ◉  B
+    │ ◉  A
     ├─╯
-    ●  root
+    ◉  root
     "###);
 
     let stdout =
@@ -279,17 +279,17 @@ fn test_new_insert_before_root_successors() {
     Working copy now at: 3654197754f8 G
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ●    F
+    ◉    F
     ├─╮
-    │ │ ●  C
-    │ │ ●  B
-    ● │ │  D
-    │ │ ●  A
+    │ │ ◉  C
+    │ │ ◉  B
+    ◉ │ │  D
+    │ │ ◉  A
     ├───╯
     @ │  G
-    │ ●  E
+    │ ◉  E
     ├─╯
-    ●  root
+    ◉  root
     "###);
 }
 
@@ -304,14 +304,14 @@ fn test_new_insert_before_no_loop() {
     insta::assert_snapshot!(stdout, @r###"
     @    7705d353bf5d F
     ├─╮
-    ● │  41a89ffcbba2 E
-    │ ●  c9257eff5bf9 D
+    ◉ │  41a89ffcbba2 E
+    │ ◉  c9257eff5bf9 D
     ├─╯
-    │ ●  ec18c57d72d8 C
-    │ ●  6041917ceeb5 B
-    │ ●  65b1ef43c737 A
+    │ ◉  ec18c57d72d8 C
+    │ ◉  6041917ceeb5 B
+    │ ◉  65b1ef43c737 A
     ├─╯
-    ●  000000000000 root
+    ◉  000000000000 root
     "###);
 
     let stderr =
@@ -330,14 +330,14 @@ fn test_new_insert_before_no_root_merge() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ● │  E
-    │ ●  D
+    ◉ │  E
+    │ ◉  D
     ├─╯
-    │ ●  C
-    │ ●  B
-    │ ●  A
+    │ ◉  C
+    │ ◉  B
+    │ ◉  A
     ├─╯
-    ●  root
+    ◉  root
     "###);
 
     let stdout =
@@ -347,17 +347,17 @@ fn test_new_insert_before_no_root_merge() {
     Working copy now at: bf9fc49331de G
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ●    F
+    ◉    F
     ├─╮
-    │ │ ●  C
-    ● │ │  D
-    │ │ ●  B
+    │ │ ◉  C
+    ◉ │ │  D
+    │ │ ◉  B
     ├───╯
     @ │  G
-    │ ●  E
-    ● │  A
+    │ ◉  E
+    ◉ │  A
     ├─╯
-    ●  root
+    ◉  root
     "###);
 }
 
@@ -370,14 +370,14 @@ fn test_new_insert_before_root() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ● │  E
-    │ ●  D
+    ◉ │  E
+    │ ◉  D
     ├─╯
-    │ ●  C
-    │ ●  B
-    │ ●  A
+    │ ◉  C
+    │ ◉  B
+    │ ◉  A
     ├─╯
-    ●  root
+    ◉  root
     "###);
 
     let stderr =

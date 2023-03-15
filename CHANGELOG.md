@@ -42,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added `ui.log-word-wrap` option to wrap `jj log`/`obslog`/`op log` content
   based on terminal width. [#1043](https://github.com/martinvonz/jj/issues/1043)
 
-* Nodes in the (text-based) graphical log output now use a `●` symbol instead
+* Nodes in the (text-based) graphical log output now use a `◉` symbol instead
   of the letter `o`. The ASCII-based graph styles still use `o`.  
 
 * Commands that accept a diff format (`jj diff`, `jj interdiff`, `jj show`,

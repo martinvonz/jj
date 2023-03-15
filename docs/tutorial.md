@@ -117,9 +117,9 @@ in its `jj log` command:
 $ jj log
 @  mpqrykypylvy martinvonz@google.com 2023-02-12 15:00:22.000 -08:00 aef4df99ea11
 │  (empty) (no description set)
-●  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
+◉  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
 │  Say goodbye
-●  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+◉  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
@@ -144,13 +144,13 @@ example:
 $ jj log -r '@ | root | branches()'
 @  mpqrykypylvy martinvonz@google.com 2023-02-12 15:00:22.000 -08:00 aef4df99ea11
 ╷  (empty) (no description set)
-╷ ●  kowxouwzwxmv octocat@nowhere.com 2014-06-10 15:22:26.000 -07:00 test b3cbd5bbd7e8
+╷ ◉  kowxouwzwxmv octocat@nowhere.com 2014-06-10 15:22:26.000 -07:00 test b3cbd5bbd7e8
 ╭─╯  Create CONTRIBUTING.md
-│ ●  tpstlustrvsn support+octocat@github.com 2018-05-10 12:55:19.000 -05:00 octocat-patch-1 b1b3f9723831
+│ ◉  tpstlustrvsn support+octocat@github.com 2018-05-10 12:55:19.000 -05:00 octocat-patch-1 b1b3f9723831
 ├─╯  sentence case
-●  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+◉  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
 ╷  (empty) Merge pull request #6 from Spaceghost/patch-1
-●  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
    (empty) (no description set)
 ```
 
@@ -182,15 +182,15 @@ Working copy now at: 62a3c6d315cd C
 $ jj log
 @  qzvqqupxlkot martinvonz@google.com 2023-02-12 15:07:41.946 -08:00 2370ddf3fa39
 │  C
-●  puqltuttrvzp martinvonz@google.com 2023-02-12 15:07:33.000 -08:00 daa6ffd5a09a
+◉  puqltuttrvzp martinvonz@google.com 2023-02-12 15:07:33.000 -08:00 daa6ffd5a09a
 │  B2
-●  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
+◉  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
 │  B1
-●  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
+◉  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
 │  A
-│ ●  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
+│ ◉  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
 ├─╯  Say goodbye
-●  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+◉  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
@@ -205,15 +205,15 @@ Added 0 files, modified 1 files, removed 0 files
 $ jj log
 @  qzvqqupxlkot martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 1978b53430cd conflict
 │  C
-●  puqltuttrvzp martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 f7fb5943ee41 conflict
+◉  puqltuttrvzp martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 f7fb5943ee41 conflict
 │  B2
-│ ●  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
+│ ◉  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
 ├─╯  B1
-●  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
+◉  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
 │  A
-│ ●  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
+│ ◉  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
 ├─╯  Say goodbye
-●  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+◉  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
@@ -254,17 +254,17 @@ Working copy now at: e3c279cc2043 (no description set)
 $ jj log
 @  ntxxqymrlvxu martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 e3c279cc2043
 │  (empty) (no description set)
-│ ●  qzvqqupxlkot martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 b9da9d28b26b
+│ ◉  qzvqqupxlkot martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 b9da9d28b26b
 ├─╯  C
-●  puqltuttrvzp martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 2c7a658e2586
+◉  puqltuttrvzp martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 2c7a658e2586
 │  B2
-│ ●  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
+│ ◉  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
 ├─╯  B1
-●  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
+◉  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
 │  A
-│ ●  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
+│ ◉  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
 ├─╯  Say goodbye
-●  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+◉  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
@@ -286,12 +286,12 @@ $ jj op log
 @  d3b77addea49 martinvonz@vonz.svl.corp.google.com 2023-02-12 19:34:09.549 -08:00 - 2023-02-12 19:34:09.552 -08:00
 │  squash commit 63874fe6c4fba405ffc38b0dd926f03b715cf7ef
 │  args: jj squash
-●  6fc1873c1180 martinvonz@vonz.svl.corp.google.com 2023-02-12 19:34:09.548 -08:00 - 2023-02-12 19:34:09.549 -08:00
+◉  6fc1873c1180 martinvonz@vonz.svl.corp.google.com 2023-02-12 19:34:09.548 -08:00 - 2023-02-12 19:34:09.549 -08:00
 │  snapshot working copy
-●  ed91f7bcc1fb martinvonz@vonz.svl.corp.google.com 2023-02-12 19:32:46.007 -08:00 - 2023-02-12 19:32:46.008 -08:00
+◉  ed91f7bcc1fb martinvonz@vonz.svl.corp.google.com 2023-02-12 19:32:46.007 -08:00 - 2023-02-12 19:32:46.008 -08:00
 │  new empty commit
 │  args: jj new puqltuttrvzp
-●  367400773f87 martinvonz@vonz.svl.corp.google.com 2023-02-12 15:08:33.917 -08:00 - 2023-02-12 15:08:33.920 -08:00
+◉  367400773f87 martinvonz@vonz.svl.corp.google.com 2023-02-12 15:08:33.917 -08:00 - 2023-02-12 15:08:33.920 -08:00
 │  rebase commit daa6ffd5a09a8a7d09a65796194e69b7ed0a566d and descendants
 │  args: jj rebase -s puqltuttrvzp -d nuvyytnqlquo
 [many more lines]
@@ -305,17 +305,17 @@ Working copy now at: 63874fe6c4fb (no description set)
 $ jj log
 @  zxoosnnpvvpn martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 63874fe6c4fb
 │  (no description set)
-│ ●  qzvqqupxlkot martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 1978b53430cd conflict
+│ ◉  qzvqqupxlkot martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 1978b53430cd conflict
 ├─╯  C
-●  puqltuttrvzp martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 f7fb5943ee41 conflict
+◉  puqltuttrvzp martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 f7fb5943ee41 conflict
 │  B2
-│ ●  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
+│ ◉  ovknlmrokpkl martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6bd0b4
 ├─╯  B1
-●  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
+◉  nuvyytnqlquo martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f097aa9
 │  A
-│ ●  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
+│ ◉  kntqzsqtnspv martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19dac36
 ├─╯  Say goodbye
-●  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+◉  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
@@ -351,11 +351,11 @@ Working copy now at: a67491542e10 ABCD
 $ jj log -r master:@
 @  mrxqplykzpkw martinvonz@google.com 2023-02-12 19:38:21.000 -08:00 b98c607bf87f
 │  ABCD
-●  kwtuwqnmqyqp martinvonz@google.com 2023-02-12 19:38:12.000 -08:00 30aecc0871ea
+◉  kwtuwqnmqyqp martinvonz@google.com 2023-02-12 19:38:12.000 -08:00 30aecc0871ea
 │  ABC
-●  ztqrpvnwqqnq martinvonz@google.com 2023-02-12 19:38:03.000 -08:00 510022615871
+◉  ztqrpvnwqqnq martinvonz@google.com 2023-02-12 19:38:03.000 -08:00 510022615871
 │  abc
-●  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
+◉  orrkosyozysx octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b01f9
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
