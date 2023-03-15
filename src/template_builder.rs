@@ -61,7 +61,7 @@ pub trait TemplateLanguage<'a> {
         &self,
         property: impl TemplateProperty<Self::Context, Output = TimestampRange> + 'a,
     ) -> Self::Property;
-    fn wrap_template(&self, template: impl Template<Self::Context> + 'a) -> Self::Property;
+    fn wrap_template(&self, template: Box<dyn Template<Self::Context> + 'a>) -> Self::Property;
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property>;
     fn build_method(
@@ -94,10 +94,10 @@ macro_rules! impl_core_wrap_property_fns {
         );
         fn wrap_template(
             &self,
-            template: impl $crate::templater::Template<Self::Context> + $a,
+            template: Box<dyn $crate::templater::Template<Self::Context> + $a>,
         ) -> Self::Property {
             use $crate::template_builder::CoreTemplatePropertyKind as Kind;
-            $outer(Kind::Template(Box::new(template)))
+            $outer(Kind::Template(template))
         }
     };
 }
@@ -477,7 +477,7 @@ where
                 ListPropertyTemplate::new(self_property, separator, |_, formatter, item| {
                     item.format(&(), formatter)
                 });
-            language.wrap_template(template)
+            language.wrap_template(Box::new(template))
         }
         "map" => build_map_operation(language, build_ctx, self_property, function, wrap_item)?,
         _ => return Err(TemplateParseError::no_such_method("List", function)),
@@ -531,7 +531,7 @@ where
             item_placeholder.with_value(item, || item_template.format(context, formatter))
         },
     );
-    Ok(language.wrap_template(list_template))
+    Ok(language.wrap_template(Box::new(list_template)))
 }
 
 fn build_global_function<'a, L: TemplateLanguage<'a>>(
@@ -548,7 +548,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
                 let width = width.extract(context).try_into().unwrap_or(0);
                 text_util::write_wrapped(formatter, recorded, width)
             });
-            language.wrap_template(template)
+            language.wrap_template(Box::new(template))
         }
         "indent" => {
             let [prefix_node, content_node] = template_parser::expect_exact_arguments(function)?;
@@ -565,7 +565,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
                     prefix.format(context, formatter)
                 })
             });
-            language.wrap_template(template)
+            language.wrap_template(Box::new(template))
         }
         "label" => {
             let [label_node, content_node] = template_parser::expect_exact_arguments(function)?;
@@ -575,7 +575,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
             let labels = TemplateFunction::new(label_property, |s| {
                 s.split_whitespace().map(ToString::to_string).collect()
             });
-            language.wrap_template(LabelTemplate::new(content, labels))
+            language.wrap_template(Box::new(LabelTemplate::new(content, labels)))
         }
         "if" => {
             let ([condition_node, true_node], [false_node]) =
@@ -587,7 +587,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
                 .transpose()?
                 .map(|x| x.into_template());
             let template = ConditionalTemplate::new(condition, true_template, false_template);
-            language.wrap_template(template)
+            language.wrap_template(Box::new(template))
         }
         "concat" => {
             let contents = function
@@ -595,7 +595,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
                 .iter()
                 .map(|node| build_expression(language, build_ctx, node).map(|x| x.into_template()))
                 .try_collect()?;
-            language.wrap_template(ConcatTemplate(contents))
+            language.wrap_template(Box::new(ConcatTemplate(contents)))
         }
         "separate" => {
             let ([separator_node], content_nodes) =
@@ -605,7 +605,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
                 .iter()
                 .map(|node| build_expression(language, build_ctx, node).map(|x| x.into_template()))
                 .try_collect()?;
-            language.wrap_template(SeparateTemplate::new(separator, contents))
+            language.wrap_template(Box::new(SeparateTemplate::new(separator, contents)))
         }
         _ => return Err(TemplateParseError::no_such_function(function)),
     };
@@ -641,7 +641,7 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
                 .iter()
                 .map(|node| build_expression(language, build_ctx, node).map(|x| x.into_template()))
                 .try_collect()?;
-            let property = language.wrap_template(ConcatTemplate(templates));
+            let property = language.wrap_template(Box::new(ConcatTemplate(templates)));
             Ok(Expression::unlabeled(property))
         }
         ExpressionKind::FunctionCall(function) => {
