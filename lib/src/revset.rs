@@ -1047,29 +1047,37 @@ pub fn parse(
     parse_program(revset_str, state)
 }
 
+fn transform_expression_bottom_up(
+    expression: &Rc<RevsetExpression>,
+    mut f: impl FnMut(&Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>>,
+) -> Option<Rc<RevsetExpression>> {
+    try_transform_expression_bottom_up(expression, |expression| Ok(f(expression))).unwrap()
+}
+
+type TransformResult = Result<Option<Rc<RevsetExpression>>, RevsetError>;
 /// Walks `expression` tree and applies `f` recursively from leaf nodes.
 ///
 /// If `f` returns `None`, the original expression node is reused. If no nodes
 /// rewritten, returns `None`. `std::iter::successors()` could be used if
 /// the transformation needs to be applied repeatedly until converged.
-fn transform_expression_bottom_up(
+fn try_transform_expression_bottom_up(
     expression: &Rc<RevsetExpression>,
-    mut f: impl FnMut(&Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>>,
-) -> Option<Rc<RevsetExpression>> {
+    mut f: impl FnMut(&Rc<RevsetExpression>) -> TransformResult,
+) -> TransformResult {
     fn transform_child_rec(
         expression: &Rc<RevsetExpression>,
-        f: &mut impl FnMut(&Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>>,
-    ) -> Option<Rc<RevsetExpression>> {
-        match expression.as_ref() {
+        f: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformResult,
+    ) -> TransformResult {
+        Ok(match expression.as_ref() {
             RevsetExpression::None => None,
             RevsetExpression::All => None,
             RevsetExpression::Commits(_) => None,
             RevsetExpression::Symbol(_) => None,
             RevsetExpression::Children(roots) => {
-                transform_rec(roots, f).map(RevsetExpression::Children)
+                transform_rec(roots, f)?.map(RevsetExpression::Children)
             }
             RevsetExpression::Ancestors { heads, generation } => {
-                transform_rec(heads, f).map(|heads| RevsetExpression::Ancestors {
+                transform_rec(heads, f)?.map(|heads| RevsetExpression::Ancestors {
                     heads,
                     generation: generation.clone(),
                 })
@@ -1078,21 +1086,21 @@ fn transform_expression_bottom_up(
                 roots,
                 heads,
                 generation,
-            } => transform_rec_pair((roots, heads), f).map(|(roots, heads)| {
+            } => transform_rec_pair((roots, heads), f)?.map(|(roots, heads)| {
                 RevsetExpression::Range {
                     roots,
                     heads,
                     generation: generation.clone(),
                 }
             }),
-            RevsetExpression::DagRange { roots, heads } => transform_rec_pair((roots, heads), f)
+            RevsetExpression::DagRange { roots, heads } => transform_rec_pair((roots, heads), f)?
                 .map(|(roots, heads)| RevsetExpression::DagRange { roots, heads }),
             RevsetExpression::VisibleHeads => None,
             RevsetExpression::Heads(candidates) => {
-                transform_rec(candidates, f).map(RevsetExpression::Heads)
+                transform_rec(candidates, f)?.map(RevsetExpression::Heads)
             }
             RevsetExpression::Roots(candidates) => {
-                transform_rec(candidates, f).map(RevsetExpression::Roots)
+                transform_rec(candidates, f)?.map(RevsetExpression::Roots)
             }
             RevsetExpression::PublicHeads => None,
             RevsetExpression::Branches(_) => None,
@@ -1102,58 +1110,62 @@ fn transform_expression_bottom_up(
             RevsetExpression::GitHead => None,
             RevsetExpression::Filter(_) => None,
             RevsetExpression::AsFilter(candidates) => {
-                transform_rec(candidates, f).map(RevsetExpression::AsFilter)
+                transform_rec(candidates, f)?.map(RevsetExpression::AsFilter)
             }
             RevsetExpression::Present(candidates) => {
-                transform_rec(candidates, f).map(RevsetExpression::Present)
+                transform_rec(candidates, f)?.map(RevsetExpression::Present)
             }
             RevsetExpression::NotIn(complement) => {
-                transform_rec(complement, f).map(RevsetExpression::NotIn)
+                transform_rec(complement, f)?.map(RevsetExpression::NotIn)
             }
             RevsetExpression::Union(expression1, expression2) => {
-                transform_rec_pair((expression1, expression2), f).map(
+                transform_rec_pair((expression1, expression2), f)?.map(
                     |(expression1, expression2)| RevsetExpression::Union(expression1, expression2),
                 )
             }
             RevsetExpression::Intersection(expression1, expression2) => {
-                transform_rec_pair((expression1, expression2), f).map(
+                transform_rec_pair((expression1, expression2), f)?.map(
                     |(expression1, expression2)| {
                         RevsetExpression::Intersection(expression1, expression2)
                     },
                 )
             }
             RevsetExpression::Difference(expression1, expression2) => {
-                transform_rec_pair((expression1, expression2), f).map(
+                transform_rec_pair((expression1, expression2), f)?.map(
                     |(expression1, expression2)| {
                         RevsetExpression::Difference(expression1, expression2)
                     },
                 )
             }
         }
-        .map(Rc::new)
+        .map(Rc::new))
     }
 
+    #[allow(clippy::type_complexity)]
     fn transform_rec_pair(
         (expression1, expression2): (&Rc<RevsetExpression>, &Rc<RevsetExpression>),
-        f: &mut impl FnMut(&Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>>,
-    ) -> Option<(Rc<RevsetExpression>, Rc<RevsetExpression>)> {
-        match (transform_rec(expression1, f), transform_rec(expression2, f)) {
+        f: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformResult,
+    ) -> Result<Option<(Rc<RevsetExpression>, Rc<RevsetExpression>)>, RevsetError> {
+        match (
+            transform_rec(expression1, f)?,
+            transform_rec(expression2, f)?,
+        ) {
             (Some(new_expression1), Some(new_expression2)) => {
-                Some((new_expression1, new_expression2))
+                Ok(Some((new_expression1, new_expression2)))
             }
-            (Some(new_expression1), None) => Some((new_expression1, expression2.clone())),
-            (None, Some(new_expression2)) => Some((expression1.clone(), new_expression2)),
-            (None, None) => None,
+            (Some(new_expression1), None) => Ok(Some((new_expression1, expression2.clone()))),
+            (None, Some(new_expression2)) => Ok(Some((expression1.clone(), new_expression2))),
+            (None, None) => Ok(None),
         }
     }
 
     fn transform_rec(
         expression: &Rc<RevsetExpression>,
-        f: &mut impl FnMut(&Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>>,
-    ) -> Option<Rc<RevsetExpression>> {
-        if let Some(new_expression) = transform_child_rec(expression, f) {
+        f: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformResult,
+    ) -> TransformResult {
+        if let Some(new_expression) = transform_child_rec(expression, f)? {
             // must propagate new expression tree
-            Some(f(&new_expression).unwrap_or(new_expression))
+            Ok(Some(f(&new_expression)?.unwrap_or(new_expression)))
         } else {
             f(expression)
         }
