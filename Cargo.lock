@@ -38,6 +38,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
+name = "anstyle"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "453bc2a7b261f8c4d1ce5b2c6c222d648d00988d30315e4911fbddc4ddf8983c"
+
+[[package]]
 name = "anyhow"
 version = "1.0.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -51,7 +57,7 @@ checksum = "9834fcc22e0874394a010230586367d4a3e9f11b560f469262678547e1d2575e"
 dependencies = [
  "bstr",
  "doc-comment",
- "predicates",
+ "predicates 2.1.5",
  "predicates-core",
  "predicates-tree",
  "wait-timeout",
@@ -820,7 +826,7 @@ dependencies = [
  "once_cell",
  "pest",
  "pest_derive",
- "predicates",
+ "predicates 3.0.1",
  "regex",
  "rpassword",
  "serde",
@@ -1273,6 +1279,18 @@ version = "2.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59230a63c37f3e18569bdb90e4a89cbf5bf8b06fea0b84e65ea10cc4df47addd"
 dependencies = [
+ "difflib",
+ "itertools",
+ "predicates-core",
+]
+
+[[package]]
+name = "predicates"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ba7d6ead3e3966038f68caa9fc1f860185d95a793180bbcfe0d0da47b3961ed"
+dependencies = [
+ "anstyle",
  "difflib",
  "float-cmp",
  "itertools",
