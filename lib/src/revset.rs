@@ -30,6 +30,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
 use crate::default_index_store::{IndexEntry, IndexPosition};
+use crate::default_revset_engine::resolve_symbol;
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPath};
@@ -1112,9 +1113,14 @@ fn try_transform_expression_bottom_up(
             RevsetExpression::AsFilter(candidates) => {
                 transform_rec(candidates, f)?.map(RevsetExpression::AsFilter)
             }
-            RevsetExpression::Present(candidates) => {
-                transform_rec(candidates, f)?.map(RevsetExpression::Present)
-            }
+            RevsetExpression::Present(candidates) => match transform_rec(candidates, f) {
+                Ok(None) => None,
+                Ok(Some(expression)) => Some(RevsetExpression::Present(expression)),
+                Err(RevsetError::NoSuchRevision(_)) => Some(RevsetExpression::None),
+                r @ Err(RevsetError::AmbiguousIdPrefix(_) | RevsetError::StoreError(_)) => {
+                    return r;
+                }
+            },
             RevsetExpression::NotIn(complement) => {
                 transform_rec(complement, f)?.map(RevsetExpression::NotIn)
             }
@@ -1383,6 +1389,29 @@ pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
     let expression = fold_ancestors(&expression).unwrap_or(expression);
     let expression = internalize_filter(&expression).unwrap_or(expression);
     fold_difference(&expression).unwrap_or(expression)
+}
+
+// TODO: Maybe return a new type (RevsetParameters?) instead of
+// RevsetExpression. Then pass that to evaluate(), so it's clear which variants
+// are allowed.
+pub fn resolve_symbols(
+    repo: &dyn Repo,
+    expression: Rc<RevsetExpression>,
+    workspace_ctx: Option<&RevsetWorkspaceContext>,
+) -> Result<Rc<RevsetExpression>, RevsetError> {
+    Ok(
+        try_transform_expression_bottom_up(&expression, |expression| {
+            Ok(match expression.as_ref() {
+                RevsetExpression::Symbol(symbol) => {
+                    let commit_ids =
+                        resolve_symbol(repo, symbol, workspace_ctx.map(|ctx| ctx.workspace_id))?;
+                    Some(RevsetExpression::commits(commit_ids))
+                }
+                _ => None,
+            })
+        })?
+        .unwrap_or(expression),
+    )
 }
 
 pub trait Revset<'index> {

@@ -536,6 +536,8 @@ pub fn evaluate<'index>(
     Ok(Box::new(revset_impl))
 }
 
+// TODO: delete unused workspace_ctx argument
+#[allow(clippy::only_used_in_recursion)]
 fn evaluate_impl<'index>(
     repo: &'index dyn Repo,
     expression: &RevsetExpression,
@@ -559,8 +561,7 @@ fn evaluate_impl<'index>(
         }
         RevsetExpression::Commits(commit_ids) => Ok(revset_for_commit_ids(repo, commit_ids)),
         RevsetExpression::Symbol(symbol) => {
-            let commit_ids = resolve_symbol(repo, symbol, workspace_ctx.map(|c| c.workspace_id))?;
-            evaluate_impl(repo, &RevsetExpression::Commits(commit_ids), workspace_ctx)
+            panic!("Symbol '{}' should have been resolved by caller", symbol);
         }
         RevsetExpression::Children(roots) => {
             let root_set = evaluate_impl(repo, roots, workspace_ctx)?;
