@@ -1468,7 +1468,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         revset_expression
     };
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let revset = workspace_command.evaluate_revset(&revset_expression)?;
+    let revset = workspace_command.evaluate_revset(revset_expression)?;
 
     let store = repo.store();
     let diff_formats =
@@ -2035,7 +2035,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         let new_parents = new_children.parents();
         if let Some(commit_id) = tx
             .base_workspace_helper()
-            .evaluate_revset(&new_children.dag_range_to(&new_parents))?
+            .evaluate_revset(new_children.dag_range_to(&new_parents))?
             .iter()
             .commit_ids()
             .next()
@@ -2048,7 +2048,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         }
         let mut new_parents_commits: Vec<Commit> = tx
             .base_workspace_helper()
-            .evaluate_revset(&new_parents)?
+            .evaluate_revset(new_parents)?
             .iter()
             .commits(tx.base_repo().store())
             .try_collect()?;
@@ -2096,7 +2096,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
             let to_rebase = old_parents.children().minus(&old_parents.ancestors());
             let commits_to_rebase: Vec<Commit> = tx
                 .base_workspace_helper()
-                .evaluate_revset(&to_rebase)?
+                .evaluate_revset(to_rebase)?
                 .iter()
                 .commits(tx.base_repo().store())
                 .try_collect()?;
@@ -2107,7 +2107,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
                 let new_parents = commit_parents.minus(&old_parents);
                 let mut new_parent_commits: Vec<Commit> = tx
                     .base_workspace_helper()
-                    .evaluate_revset(&new_parents)?
+                    .evaluate_revset(new_parents)?
                     .iter()
                     .commits(tx.base_repo().store())
                     .try_collect()?;
@@ -2870,7 +2870,7 @@ fn rebase_branch(
         .range(&RevsetExpression::commits(branch_commit_ids))
         .roots();
     let root_commits: IndexSet<_> = workspace_command
-        .evaluate_revset(&roots_expression)
+        .evaluate_revset(roots_expression)
         .unwrap()
         .iter()
         .commits(workspace_command.repo().store())
@@ -2921,7 +2921,7 @@ fn rebase_revision(
     check_rebase_destinations(workspace_command.repo(), new_parents, &old_commit)?;
     let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
     let child_commits: Vec<_> = workspace_command
-        .evaluate_revset(&children_expression)
+        .evaluate_revset(children_expression)
         .unwrap()
         .iter()
         .commits(workspace_command.repo().store())
@@ -2953,15 +2953,15 @@ fn rebase_revision(
 
         // Some of the new parents may be ancestors of others as in
         // `test_rebase_single_revision`.
-        let new_child_parents_expression = RevsetExpression::Difference(
-            RevsetExpression::commits(new_child_parent_ids.clone()),
-            RevsetExpression::commits(new_child_parent_ids.clone())
-                .parents()
-                .ancestors(),
-        );
+        let new_child_parents_expression = RevsetExpression::commits(new_child_parent_ids.clone())
+            .minus(
+                &RevsetExpression::commits(new_child_parent_ids.clone())
+                    .parents()
+                    .ancestors(),
+            );
         let new_child_parents: Vec<Commit> = tx
             .base_workspace_helper()
-            .evaluate_revset(&new_child_parents_expression)
+            .evaluate_revset(new_child_parents_expression)
             .unwrap()
             .iter()
             .commits(tx.base_repo().store())

@@ -777,7 +777,7 @@ impl WorkspaceCommandHelper {
 
     pub fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
         let revset_expression = self.parse_revset(revision_str)?;
-        let revset = self.evaluate_revset(&revset_expression)?;
+        let revset = self.evaluate_revset(revset_expression)?;
         let mut iter = revset.iter().commits(self.repo.store()).fuse();
         match (iter.next(), iter.next()) {
             (Some(commit), None) => Ok(commit?),
@@ -807,7 +807,7 @@ impl WorkspaceCommandHelper {
 
     pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
         let revset_expression = self.parse_revset(revision_str)?;
-        let revset = self.evaluate_revset(&revset_expression)?;
+        let revset = self.evaluate_revset(revset_expression)?;
         Ok(revset.iter().commits(self.repo.store()).try_collect()?)
     }
 
@@ -825,7 +825,7 @@ impl WorkspaceCommandHelper {
 
     pub fn evaluate_revset<'repo>(
         &'repo self,
-        revset_expression: &RevsetExpression,
+        revset_expression: Rc<RevsetExpression>,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
         revset_expression.evaluate(&self.repo, Some(&self.revset_context()))
     }
