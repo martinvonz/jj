@@ -23,8 +23,9 @@ use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    optimize, parse, ReverseRevsetGraphIterator, RevsetAliasesMap, RevsetError, RevsetExpression,
-    RevsetFilterPredicate, RevsetGraphEdge, RevsetIteratorExt, RevsetWorkspaceContext,
+    optimize, parse, resolve_symbols, ReverseRevsetGraphIterator, RevsetAliasesMap, RevsetError,
+    RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge, RevsetIteratorExt,
+    RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::workspace::Workspace;
@@ -146,9 +147,7 @@ fn test_resolve_symbol_commit_id() {
     // Test present() suppresses only NoSuchRevision error
     assert_eq!(resolve_commit_ids(&repo, "present(foo)"), []);
     assert_matches!(
-        optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap())
-            .evaluate(&repo, None)
-            .map(|_| ()),
+        resolve_symbols(&repo, optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap()), None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04"
     );
     assert_eq!(
@@ -478,6 +477,7 @@ fn test_resolve_symbol_git_refs() {
 
 fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let expression = optimize(parse(revset_str, &RevsetAliasesMap::new(), None).unwrap());
+    let expression = resolve_symbols(repo, expression, None).unwrap();
     expression
         .evaluate(repo, None)
         .unwrap()
@@ -499,6 +499,7 @@ fn resolve_commit_ids_in_workspace(
     };
     let expression =
         optimize(parse(revset_str, &RevsetAliasesMap::new(), Some(&workspace_ctx)).unwrap());
+    let expression = resolve_symbols(repo, expression, Some(&workspace_ctx)).unwrap();
     expression
         .evaluate(repo, Some(&workspace_ctx))
         .unwrap()
