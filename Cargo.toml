@@ -68,7 +68,7 @@ toml_edit = { version = "0.19.7", features = ["serde"] }
 libc = { version = "0.2.140" }
 
 [dev-dependencies]
-assert_cmd = "2.0.8"
+assert_cmd = "2.0.10"
 assert_matches = "1.5.0"
 criterion = "0.4.0"
 criterion_bencher_compat = "0.4.0"
