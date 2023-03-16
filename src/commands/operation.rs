@@ -10,8 +10,8 @@ use crate::ui::Ui;
 
 /// Commands for working with the operation log
 ///
-/// Commands for working with the operation log. For information about the
-/// operation log, see https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.
+/// For information about the operation log, see
+/// https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.
 #[derive(Subcommand, Clone, Debug)]
 pub enum OperationCommands {
     Log(OperationLogArgs),
@@ -29,17 +29,29 @@ pub struct OperationLogArgs {
     template: Option<String>,
 }
 
-/// Restore to the state at an operation
+/// Create a new operation that restores the repo to an earlier state
+///
+/// This restores the repo to the state at the specified operation, effectively
+/// undoing all later operations. It does so by creating a new operation.
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationRestoreArgs {
     /// The operation to restore to
+    ///
+    /// Use `jj op log` to find an operation to restore to. Use e.g. `jj
+    /// --at-op=<operation ID> log` before restoring to an operation to see the
+    /// state of the repo at that operation.
     operation: String,
 }
 
-/// Undo an operation
+/// Create a new operation that undoes an earlier operation
+///
+/// This undoes an individual operation by applying the inverse of the
+/// operation.
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationUndoArgs {
     /// The operation to undo
+    ///
+    /// Use `jj op log` to find an operation to undo.
     #[arg(default_value = "@")]
     operation: String,
 }
