@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
-      uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
+      uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f
     - name: Install packages (Ubuntu)
       if: matrix.os == 'ubuntu-20.04'
       run: |
