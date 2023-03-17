@@ -17,14 +17,14 @@ use std::path::Path;
 use assert_matches::assert_matches;
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
-use jujutsu_lib::default_revset_engine::{resolve_symbol, revset_for_commits};
+use jujutsu_lib::default_revset_engine::revset_for_commits;
 use jujutsu_lib::git;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    optimize, parse, resolve_symbols, ReverseRevsetGraphIterator, RevsetAliasesMap, RevsetError,
-    RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge, RevsetIteratorExt,
+    optimize, parse, resolve_symbol, resolve_symbols, ReverseRevsetGraphIterator, RevsetAliasesMap,
+    RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge, RevsetIteratorExt,
     RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;

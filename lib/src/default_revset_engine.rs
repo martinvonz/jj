@@ -18,161 +18,17 @@ use std::iter::Peekable;
 
 use itertools::Itertools;
 
-use crate::backend::{BackendError, CommitId, ObjectId};
+use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::default_index_store::IndexEntry;
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
-use crate::hex_util::to_forward_hex;
-use crate::index::{HexPrefix, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
-use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::revset::{
     Revset, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
     RevsetIteratorExt, RevsetWorkspaceContext, GENERATION_RANGE_FULL,
 };
 use crate::rewrite;
-
-fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
-    let view = repo.view();
-    for git_ref_prefix in &["", "refs/", "refs/heads/", "refs/tags/", "refs/remotes/"] {
-        if let Some(ref_target) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
-            return Some(ref_target.adds());
-        }
-    }
-    None
-}
-
-fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
-    if let Some(branch_target) = repo.view().branches().get(symbol) {
-        return Some(
-            branch_target
-                .local_target
-                .as_ref()
-                .map(|target| target.adds())
-                .unwrap_or_default(),
-        );
-    }
-    if let Some((name, remote_name)) = symbol.split_once('@') {
-        if let Some(branch_target) = repo.view().branches().get(name) {
-            if let Some(target) = branch_target.remote_targets.get(remote_name) {
-                return Some(target.adds());
-            }
-        }
-    }
-    None
-}
-
-fn resolve_full_commit_id(
-    repo: &dyn Repo,
-    symbol: &str,
-) -> Result<Option<Vec<CommitId>>, RevsetError> {
-    if let Ok(binary_commit_id) = hex::decode(symbol) {
-        if repo.store().commit_id_length() != binary_commit_id.len() {
-            return Ok(None);
-        }
-        let commit_id = CommitId::new(binary_commit_id);
-        match repo.store().get_commit(&commit_id) {
-            // Only recognize a commit if we have indexed it
-            Ok(_) if repo.index().entry_by_id(&commit_id).is_some() => Ok(Some(vec![commit_id])),
-            Ok(_) | Err(BackendError::ObjectNotFound { .. }) => Ok(None),
-            Err(err) => Err(RevsetError::StoreError(err)),
-        }
-    } else {
-        Ok(None)
-    }
-}
-
-fn resolve_short_commit_id(
-    repo: &dyn Repo,
-    symbol: &str,
-) -> Result<Option<Vec<CommitId>>, RevsetError> {
-    if let Some(prefix) = HexPrefix::new(symbol) {
-        match repo.index().resolve_prefix(&prefix) {
-            PrefixResolution::NoMatch => Ok(None),
-            PrefixResolution::AmbiguousMatch => {
-                Err(RevsetError::AmbiguousIdPrefix(symbol.to_owned()))
-            }
-            PrefixResolution::SingleMatch(commit_id) => Ok(Some(vec![commit_id])),
-        }
-    } else {
-        Ok(None)
-    }
-}
-
-fn resolve_change_id(repo: &dyn Repo, symbol: &str) -> Result<Option<Vec<CommitId>>, RevsetError> {
-    if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
-        match repo.resolve_change_id_prefix(&prefix) {
-            PrefixResolution::NoMatch => Ok(None),
-            PrefixResolution::AmbiguousMatch => {
-                Err(RevsetError::AmbiguousIdPrefix(symbol.to_owned()))
-            }
-            PrefixResolution::SingleMatch(entries) => {
-                Ok(Some(entries.iter().map(|e| e.commit_id()).collect()))
-            }
-        }
-    } else {
-        Ok(None)
-    }
-}
-
-pub fn resolve_symbol(
-    repo: &dyn Repo,
-    symbol: &str,
-    workspace_id: Option<&WorkspaceId>,
-) -> Result<Vec<CommitId>, RevsetError> {
-    if symbol.ends_with('@') {
-        let target_workspace = if symbol == "@" {
-            if let Some(workspace_id) = workspace_id {
-                workspace_id.clone()
-            } else {
-                return Err(RevsetError::NoSuchRevision(symbol.to_owned()));
-            }
-        } else {
-            WorkspaceId::new(symbol.strip_suffix('@').unwrap().to_string())
-        };
-        if let Some(commit_id) = repo.view().get_wc_commit_id(&target_workspace) {
-            Ok(vec![commit_id.clone()])
-        } else {
-            Err(RevsetError::NoSuchRevision(symbol.to_owned()))
-        }
-    } else if symbol == "root" {
-        Ok(vec![repo.store().root_commit_id().clone()])
-    } else {
-        // Try to resolve as a tag
-        if let Some(target) = repo.view().tags().get(symbol) {
-            return Ok(target.adds());
-        }
-
-        // Try to resolve as a branch
-        if let Some(ids) = resolve_branch(repo, symbol) {
-            return Ok(ids);
-        }
-
-        // Try to resolve as a git ref
-        if let Some(ids) = resolve_git_ref(repo, symbol) {
-            return Ok(ids);
-        }
-
-        // Try to resolve as a full commit id. We assume a full commit id is unambiguous
-        // even if it's shorter than change id.
-        if let Some(ids) = resolve_full_commit_id(repo, symbol)? {
-            return Ok(ids);
-        }
-
-        // Try to resolve as a commit id.
-        if let Some(ids) = resolve_short_commit_id(repo, symbol)? {
-            return Ok(ids);
-        }
-
-        // Try to resolve as a change id.
-        if let Some(ids) = resolve_change_id(repo, symbol)? {
-            return Ok(ids);
-        }
-
-        Err(RevsetError::NoSuchRevision(symbol.to_owned()))
-    }
-}
 
 trait ToPredicateFn<'index> {
     /// Creates function that tests if the given entry is included in the set.
@@ -852,7 +708,7 @@ fn has_diff_from_parent(repo: &dyn Repo, entry: &IndexEntry<'_>, matcher: &dyn M
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::{ChangeId, CommitId};
+    use crate::backend::{ChangeId, CommitId, ObjectId};
     use crate::default_index_store::MutableIndexImpl;
     use crate::index::Index;
 
