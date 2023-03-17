@@ -254,30 +254,30 @@ email = "martinvonz@google.com"
 ## Command-line completion
 
 To set up command-line completion, source the output of
-`jj debug completion --bash/--zsh/--fish`. Exactly how to source it depends on
+`jj support completion --bash/--zsh/--fish`. Exactly how to source it depends on
 your shell.
 
 ### Bash
 ```shell script
-source <(jj debug completion)  # --bash is the default
+source <(jj support completion)  # --bash is the default
 ```
 
 ### Zsh
 ```shell script
 autoload -U compinit
 compinit
-source <(jj debug completion --zsh | sed '$d')  # remove the last line
+source <(jj support completion --zsh | sed '$d')  # remove the last line
 compdef _jj jj
 ```
 
 ### Fish
 ```shell script
-jj debug completion --fish | source
+jj support completion --fish | source
 ```
 
 ### Xonsh
 ```shell script
-source-bash $(jj debug completion)
+source-bash $(jj support completion)
 ```
 
 

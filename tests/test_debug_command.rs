@@ -20,26 +20,6 @@ use crate::common::TestEnvironment;
 pub mod common;
 
 #[test]
-fn test_debug_config_schema() {
-    let test_env = TestEnvironment::default();
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["debug", "config-schema"]);
-    // Validate partial snapshot, redacting any lines nested 2+ indent levels.
-    insta::with_settings!({filters => vec![(r"(?m)(^        .*$\r?\n)+", "        [...]\n")]}, {
-        assert_snapshot!(stdout, @r###"
-        {
-            "$schema": "http://json-schema.org/draft-07/schema",
-            "title": "Jujutsu config",
-            "type": "object",
-            "description": "User configuration for Jujutsu VCS. See https://github.com/martinvonz/jj/blob/main/docs/config.md for details",
-            "properties": {
-                [...]
-            }
-        }
-        "###)
-    });
-}
-
-#[test]
 fn test_debug_index() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
