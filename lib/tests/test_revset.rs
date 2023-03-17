@@ -479,7 +479,7 @@ fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let expression = optimize(parse(revset_str, &RevsetAliasesMap::new(), None).unwrap());
     let expression = resolve_symbols(repo, expression, None).unwrap();
     expression
-        .evaluate(repo, None)
+        .evaluate(repo)
         .unwrap()
         .iter()
         .commit_ids()
@@ -501,7 +501,7 @@ fn resolve_commit_ids_in_workspace(
         optimize(parse(revset_str, &RevsetAliasesMap::new(), Some(&workspace_ctx)).unwrap());
     let expression = resolve_symbols(repo, expression, Some(&workspace_ctx)).unwrap();
     expression
-        .evaluate(repo, Some(&workspace_ctx))
+        .evaluate(repo)
         .unwrap()
         .iter()
         .commit_ids()
@@ -1968,7 +1968,7 @@ fn test_evaluate_expression_file(use_git: bool) {
         let mut_repo = &*mut_repo;
         let expression =
             RevsetExpression::filter(RevsetFilterPredicate::File(Some(vec![file_path.clone()])));
-        let revset = expression.evaluate(mut_repo, None).unwrap();
+        let revset = expression.evaluate(mut_repo).unwrap();
         let commit_ids = revset.iter().commit_ids().collect();
         commit_ids
     };

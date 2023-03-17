@@ -24,7 +24,7 @@ use crate::default_index_store::{IndexEntry, IndexPosition, RevWalk};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::repo::Repo;
-use crate::revset::{Revset, RevsetError, RevsetExpression, RevsetWorkspaceContext};
+use crate::revset::{Revset, RevsetError, RevsetExpression};
 use crate::store::Store;
 
 #[derive(Debug, Error)]
@@ -81,7 +81,6 @@ pub trait Index {
         &'index self,
         repo: &'index dyn Repo,
         expression: &RevsetExpression,
-        workspace_ctx: Option<&RevsetWorkspaceContext>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError>;
 }
 

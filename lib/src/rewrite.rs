@@ -157,14 +157,14 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .parents()
             .minus(&old_commits_expression);
         let heads_to_add = heads_to_add_expression
-            .evaluate(mut_repo, None)
+            .evaluate(mut_repo)
             .unwrap()
             .iter()
             .commit_ids()
             .collect();
 
         let to_visit_expression = old_commits_expression.descendants();
-        let to_visit_revset = to_visit_expression.evaluate(mut_repo, None).unwrap();
+        let to_visit_revset = to_visit_expression.evaluate(mut_repo).unwrap();
         let to_visit_entries = to_visit_revset.iter().collect_vec();
         drop(to_visit_revset);
         let index = mut_repo.index();
