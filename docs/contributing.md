@@ -117,7 +117,7 @@ These are listed roughly in order of decreasing importance.
 
 3. Your code will be rejected if it cannot be compiled with the minimal
    supported version of Rust. This version is listed as
-   `rust-version` in [`Cargo.toml`](../Cargo.toml); it is 1.61 as of this
+   `rust-version` in [`Cargo.toml`](../Cargo.toml); it is 1.64 as of this
    writing.
 
 4. Your code needs to pass `cargo clippy`. You can also

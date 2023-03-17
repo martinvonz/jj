@@ -36,17 +36,12 @@ fn progress_indicator_setting(config: &config::Config) -> bool {
     config.get_bool("ui.progress-indicator").unwrap_or(true)
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ColorChoice {
     Always,
     Never,
+    #[default]
     Auto,
-}
-
-impl Default for ColorChoice {
-    fn default() -> Self {
-        ColorChoice::Auto
-    }
 }
 
 impl FromStr for ColorChoice {
@@ -89,16 +84,11 @@ fn use_color(choice: ColorChoice) -> bool {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum PaginationChoice {
     No,
+    #[default]
     Auto,
-}
-
-impl Default for PaginationChoice {
-    fn default() -> Self {
-        PaginationChoice::Auto
-    }
 }
 
 fn pager_setting(config: &config::Config) -> CommandNameAndArgs {

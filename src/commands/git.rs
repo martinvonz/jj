@@ -302,7 +302,7 @@ fn cmd_git_fetch(
                 tx.mut_repo(),
                 &git_repo,
                 &remote,
-                (!branches.is_empty()).then(|| &*branches),
+                (!branches.is_empty()).then_some(&*branches),
                 cb,
                 &command.settings().git_settings(),
             )

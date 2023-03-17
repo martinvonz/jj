@@ -1187,7 +1187,7 @@ fn internalize_filter(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpr
         expression: &RevsetExpression,
     ) -> Option<(&Rc<RevsetExpression>, &Rc<RevsetExpression>)> {
         if let RevsetExpression::Intersection(expression1, expression2) = expression {
-            is_filter(expression2).then(|| (expression1, expression2))
+            is_filter(expression2).then_some((expression1, expression2))
         } else {
             None
         }
