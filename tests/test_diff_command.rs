@@ -186,20 +186,20 @@ fn test_diff_bad_args() {
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["diff", "-s", "--types"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: The argument '--summary' cannot be used with '--types'
+    error: the argument '--summary' cannot be used with '--types'
 
     Usage: jj diff --summary [PATHS]...
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["diff", "--color-words", "--git"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: The argument '--color-words' cannot be used with '--git'
+    error: the argument '--color-words' cannot be used with '--git'
 
     Usage: jj diff --color-words [PATHS]...
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 }
 

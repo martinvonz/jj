@@ -24,9 +24,9 @@ fn test_log_with_empty_revision() {
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["log", "-r="]);
     insta::assert_snapshot!(stderr, @r###"
-    error: The argument '--revisions <REVISIONS>' requires a value but none was supplied
+    error: a value is required for '--revisions <REVISIONS>' but none was supplied
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 }
 
@@ -179,11 +179,11 @@ fn test_log_with_or_without_diff() {
         ],
     );
     insta::assert_snapshot!(stderr, @r###"
-    error: The argument '--git' cannot be used with '--color-words'
+    error: the argument '--git' cannot be used with '--color-words'
 
     Usage: jj log --template <TEMPLATE> --no-graph --patch --git [PATHS]...
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 
     // `-s` with or without graph

@@ -35,9 +35,9 @@ members = ["lib", "lib/testutils", "lib/gen-protos"]
 
 [dependencies]
 chrono = { version = "0.4.24", default-features = false, features = ["std", "clock"] }
-clap = { version = "4.0.32", features = ["derive", "deprecated"] }
-clap_complete = "4.0.7"
-clap_mangen = "0.2.6"
+clap = { version = "4.1.9", features = ["derive", "deprecated"] }
+clap_complete = "4.1.5"
+clap_mangen = "0.2.10"
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
 crossterm = { version = "0.26", default-features = false }
 dirs = "4.0.0"

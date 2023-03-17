@@ -373,7 +373,7 @@ fn test_help() {
       -r, --revision <REVISION>  The revision to touch up. Defaults to @ if --to/--from are not specified
           --from <FROM>          Show changes from this revision. Defaults to @ if --to is specified
           --to <TO>              Edit changes in this revision. Defaults to @ if --from is specified
-      -h, --help                 Print help information (use `--help` for more detail)
+      -h, --help                 Print help (see more with '--help')
 
     Global Options:
       -R, --repository <REPOSITORY>      Path to repository to operate on

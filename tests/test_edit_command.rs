@@ -31,12 +31,12 @@ fn test_edit() {
     // Errors out without argument
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["edit"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: The following required arguments were not provided:
+    error: the following required arguments were not provided:
       <REVISION>
 
     Usage: jj edit <REVISION>
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 
     // Makes the specified commit the working-copy commit
