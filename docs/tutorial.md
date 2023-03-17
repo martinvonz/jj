@@ -40,7 +40,7 @@ instead of "Hello". Let's start by describing the change (adding a
 commit message) so we don't forget what we're working on:
 ```shell script
 # This will bring up $EDITOR (or `pico` by default). Enter something like
-# "Say goodbye" in the editor and then close it.
+# "Say goodbye" in the editor and then save the file and close the editor.
 $ jj describe
 Working copy now at: e427edcfd0ba Say goodbye
 ```
@@ -374,8 +374,8 @@ Working copy now at: 52a6c7fda1e3 ABCD
 ```
 That will bring up Meld with a diff of the changes in the "ABCD" commit. Modify
 the right side of the diff to have the desired end state in "ABC" by removing
-the "D" line. Then close Meld. If we look at the diff of the second commit, we
-now see that all three lines got capitalized:
+the "D" line. Then save the changes and close Meld. If we look at the diff of
+the second commit, we now see that all three lines got capitalized:
 ```shell script
 $ jj diff -r @-
 Modified regular file file:
@@ -401,11 +401,11 @@ Working copy now at: 1c72cd50525d ABCD
 Added 0 files, modified 1 files, removed 0 files
 ```
 When Meld starts, edit the right side by e.g. adding something to the first
-line. Then close Meld. You can now inspect the rewritten commit with
-`jj diff -r @-` again and you should see your addition to the first line.
-Unlike `jj squash -i`, which left the content state of the commit unchanged,
-`jj diffedit` (typically) results in a different state, which means that
-descendant commits may have conflicts.
+line. Then save the changes and close Meld. You can now inspect the rewritten
+commit with `jj diff -r @-` again and you should see your addition to the first
+line. Unlike `jj squash -i`, which left the content state of the commit
+unchanged, `jj diffedit` (typically) results in a different state, which means
+that descendant commits may have conflicts.
 
 Other commands for rewriting contents of existing commits are `jj split`, `jj
 unsquash -i` and `jj move -i`. Now that you've seen how `jj squash -i` and `jj
