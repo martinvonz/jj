@@ -439,7 +439,6 @@ struct DuplicateArgs {
 /// similar to `jj restore`; the difference is that `jj abandon` gives you a new
 /// change, while `jj restore` updates the existing change.
 #[derive(clap::Args, Clone, Debug)]
-#[command(visible_alias = "hide")]
 struct AbandonArgs {
     /// The revision(s) to abandon
     #[arg(default_value = "@")]
