@@ -67,11 +67,11 @@ fn test_alias_bad_name() {
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["foo."]);
     insta::assert_snapshot!(stderr, @r###"
-    error: The subcommand 'foo.' wasn't recognized
+    error: unrecognized subcommand 'foo.'
 
     Usage: jj [OPTIONS] <COMMAND>
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 }
 
@@ -84,11 +84,11 @@ fn test_alias_calls_unknown_command() {
     test_env.add_config(r#"aliases.foo = ["nonexistent"]"#);
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["foo"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: The subcommand 'nonexistent' wasn't recognized
+    error: unrecognized subcommand 'nonexistent'
 
     Usage: jj [OPTIONS] <COMMAND>
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 }
 
@@ -101,13 +101,13 @@ fn test_alias_calls_command_with_invalid_option() {
     test_env.add_config(r#"aliases.foo = ["log", "--nonexistent"]"#);
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["foo"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: Found argument '--nonexistent' which wasn't expected, or isn't valid in this context
+    error: unexpected argument '--nonexistent' found
 
-      If you tried to supply '--nonexistent' as a value rather than a flag, use '-- --nonexistent'
+      note: to pass '--nonexistent' as a value, use '-- --nonexistent'
 
     Usage: jj log [OPTIONS] [PATHS]...
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 }
 

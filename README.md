@@ -266,8 +266,7 @@ source <(jj support completion)  # --bash is the default
 ```shell script
 autoload -U compinit
 compinit
-source <(jj support completion --zsh | sed '$d')  # remove the last line
-compdef _jj jj
+source <(jj support completion --zsh)
 ```
 
 ### Fish

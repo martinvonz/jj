@@ -53,9 +53,9 @@ fn test_branch_empty_name() {
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "create", ""]);
     insta::assert_snapshot!(stderr, @r###"
-    error: The argument '<NAMES>...' requires a value but none was supplied
+    error: a value is required for '<NAMES>...' but none was supplied
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 }
 #[test]

@@ -270,14 +270,14 @@ fn test_config_set_missing_opts() {
     let test_env = TestEnvironment::default();
     let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "set"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: The following required arguments were not provided:
+    error: the following required arguments were not provided:
       <--user|--repo>
       <NAME>
       <VALUE>
 
     Usage: jj config set <--user|--repo> <NAME> <VALUE>
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 }
 
@@ -387,12 +387,12 @@ fn test_config_edit_missing_opt() {
     let test_env = TestEnvironment::default();
     let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "edit"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: The following required arguments were not provided:
+    error: the following required arguments were not provided:
       <--user|--repo>
 
     Usage: jj config edit <--user|--repo>
 
-    For more information try '--help'
+    For more information, try '--help'.
     "###);
 }
 
