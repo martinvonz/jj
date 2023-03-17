@@ -829,7 +829,7 @@ impl WorkspaceCommandHelper {
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
         let revset_expression =
             resolve_symbols(&self.repo, revset_expression, Some(&self.revset_context()))?;
-        revset_expression.evaluate(&self.repo, Some(&self.revset_context()))
+        revset_expression.evaluate(&self.repo)
     }
 
     fn revset_context(&self) -> RevsetWorkspaceContext {

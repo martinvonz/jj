@@ -393,9 +393,8 @@ impl RevsetExpression {
     pub fn evaluate<'index>(
         &self,
         repo: &'index dyn Repo,
-        workspace_ctx: Option<&RevsetWorkspaceContext>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        repo.index().evaluate_revset(repo, self, workspace_ctx)
+        repo.index().evaluate_revset(repo, self)
     }
 }
 
