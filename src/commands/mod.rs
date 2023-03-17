@@ -109,6 +109,8 @@ enum Commands {
     Split(SplitArgs),
     Squash(SquashArgs),
     Status(StatusArgs),
+    #[command(subcommand)]
+    Support(SupportCommands),
     /// Undo an operation (shortcut for `jj op undo`)
     Undo(operation::OperationUndoArgs),
     Unsquash(UnsquashArgs),
@@ -866,13 +868,55 @@ struct SparseArgs {
     list: bool,
 }
 
+/// Infrequently used commands such as for generating shell completions
+#[derive(Subcommand, Clone, Debug)]
+enum SupportCommands {
+    Completion(SupportCompletionArgs),
+    Mangen(SupportMangenArgs),
+    ConfigSchema(SupportConfigSchemaArgs),
+}
+
+/// Print a command-line-completion script
+#[derive(clap::Args, Clone, Debug)]
+struct SupportCompletionArgs {
+    /// Print a completion script for Bash
+    ///
+    /// Apply it by running this:
+    ///
+    /// source <(jj support completion)
+    #[arg(long, verbatim_doc_comment)]
+    bash: bool,
+    /// Print a completion script for Fish
+    ///
+    /// Apply it by running this:
+    ///
+    /// jj support completion --fish | source
+    #[arg(long, verbatim_doc_comment)]
+    fish: bool,
+    /// Print a completion script for Zsh
+    ///
+    /// Apply it by running this:
+    ///
+    /// autoload -U compinit
+    /// compinit
+    /// source <(jj support completion --zsh | sed '$d')  # remove the last line
+    /// compdef _jj jj
+    #[arg(long, verbatim_doc_comment)]
+    zsh: bool,
+}
+
+/// Print a ROFF (manpage)
+#[derive(clap::Args, Clone, Debug)]
+struct SupportMangenArgs {}
+
+/// Print the JSON schema for the jj TOML config format.
+#[derive(clap::Args, Clone, Debug)]
+struct SupportConfigSchemaArgs {}
+
 /// Low-level commands not intended for users
 #[derive(Subcommand, Clone, Debug)]
 #[command(hide = true)]
 enum DebugCommands {
-    Completion(DebugCompletionArgs),
-    Mangen(DebugMangenArgs),
-    ConfigSchema(DebugConfigSchemaArgs),
     #[command(name = "resolverev")]
     ResolveRev(DebugResolveRevArgs),
     #[command(name = "workingcopy")]
@@ -883,43 +927,6 @@ enum DebugCommands {
     ReIndex(DebugReIndexArgs),
     Operation(DebugOperationArgs),
 }
-
-/// Print a command-line-completion script
-#[derive(clap::Args, Clone, Debug)]
-struct DebugCompletionArgs {
-    /// Print a completion script for Bash
-    ///
-    /// Apply it by running this:
-    ///
-    /// source <(jj debug completion)
-    #[arg(long, verbatim_doc_comment)]
-    bash: bool,
-    /// Print a completion script for Fish
-    ///
-    /// Apply it by running this:
-    ///
-    /// jj debug completion --fish | source
-    #[arg(long, verbatim_doc_comment)]
-    fish: bool,
-    /// Print a completion script for Zsh
-    ///
-    /// Apply it by running this:
-    ///
-    /// autoload -U compinit
-    /// compinit
-    /// source <(jj debug completion --zsh | sed '$d')  # remove the last line
-    /// compdef _jj jj
-    #[arg(long, verbatim_doc_comment)]
-    zsh: bool,
-}
-
-/// Print a ROFF (manpage)
-#[derive(clap::Args, Clone, Debug)]
-struct DebugMangenArgs {}
-
-/// Print the JSON schema for the jj TOML config format.
-#[derive(clap::Args, Clone, Debug)]
-struct DebugConfigSchemaArgs {}
 
 /// Resolve a revision identifier to its full ID
 #[derive(clap::Args, Clone, Debug)]
@@ -3036,13 +3043,13 @@ fn make_branch_term(branch_names: &[impl AsRef<str>]) -> String {
     }
 }
 
-fn cmd_debug(
+fn cmd_support(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &DebugCommands,
+    subcommand: &SupportCommands,
 ) -> Result<(), CommandError> {
     match subcommand {
-        DebugCommands::Completion(completion_matches) => {
+        SupportCommands::Completion(completion_matches) => {
             let mut app = command.app().clone();
             let mut buf = vec![];
             let shell = if completion_matches.zsh {
@@ -3055,17 +3062,27 @@ fn cmd_debug(
             clap_complete::generate(shell, &mut app, "jj", &mut buf);
             ui.stdout_formatter().write_all(&buf)?;
         }
-        DebugCommands::Mangen(_mangen_matches) => {
+        SupportCommands::Mangen(_mangen_matches) => {
             let mut buf = vec![];
             let man = clap_mangen::Man::new(command.app().clone());
             man.render(&mut buf)?;
             ui.stdout_formatter().write_all(&buf)?;
         }
-        DebugCommands::ConfigSchema(_config_schema_matches) => {
+        SupportCommands::ConfigSchema(_config_schema_matches) => {
             // TODO(#879): Consider generating entire schema dynamically vs. static file.
             let buf = include_bytes!("../config-schema.json");
             ui.stdout_formatter().write_all(buf)?;
         }
+    }
+    Ok(())
+}
+
+fn cmd_debug(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    subcommand: &DebugCommands,
+) -> Result<(), CommandError> {
+    match subcommand {
         DebugCommands::ResolveRev(resolve_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
             let commit = workspace_command.resolve_single_rev(&resolve_matches.revision)?;
@@ -3446,6 +3463,7 @@ pub fn run_command(
         Commands::Workspace(sub_args) => cmd_workspace(ui, command_helper, sub_args),
         Commands::Sparse(sub_args) => cmd_sparse(ui, command_helper, sub_args),
         Commands::Git(sub_args) => git::cmd_git(ui, command_helper, sub_args),
+        Commands::Support(sub_args) => cmd_support(ui, command_helper, sub_args),
         Commands::Debug(sub_args) => cmd_debug(ui, command_helper, sub_args),
     }
 }

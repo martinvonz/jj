@@ -63,14 +63,14 @@
             libiconv
           ];
           postInstall = ''
-            $out/bin/jj debug mangen > ./jj.1
+            $out/bin/jj support mangen > ./jj.1
             installManPage ./jj.1
 
-            $out/bin/jj debug completion --bash > ./completions.bash
+            $out/bin/jj support completion --bash > ./completions.bash
             installShellCompletion --bash --name ${pname}.bash ./completions.bash
-            $out/bin/jj debug completion --fish > ./completions.fish
+            $out/bin/jj support completion --fish > ./completions.fish
             installShellCompletion --fish --name ${pname}.fish ./completions.fish
-            $out/bin/jj debug completion --zsh > ./completions.zsh
+            $out/bin/jj support completion --zsh > ./completions.zsh
             installShellCompletion --zsh --name _${pname} ./completions.zsh
           '';
         };
