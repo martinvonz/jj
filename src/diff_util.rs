@@ -98,7 +98,7 @@ fn diff_formats_from_args(args: &DiffFormatArgs) -> Vec<DiffFormat> {
         (args.color_words, DiffFormat::ColorWords),
     ]
     .into_iter()
-    .filter_map(|(arg, format)| arg.then(|| format))
+    .filter_map(|(arg, format)| arg.then_some(format))
     .collect()
 }
 

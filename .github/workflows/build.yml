@@ -20,7 +20,7 @@ jobs:
           rust_version: stable
         - build: linux-msrv
           os: ubuntu-latest
-          rust_version: "1.61"
+          rust_version: "1.64"
         - build: macos
           os: macos-latest
           rust_version: stable

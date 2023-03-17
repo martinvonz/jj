@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   current commit has no content and no description, such as right after
   a `jj squash`.
 
+* The minimum supported Rust version (MSRV) is now 1.64.0.
+
 ### New features
 
 * `jj git push --deleted` will remove all locally deleted branches from the remote.

@@ -795,7 +795,7 @@ impl WorkspaceCommandHelper {
                         .iter()
                         .map(|c| self.format_commit_summary(c))
                         .join("\n"),
-                    ellipsis = elided.then(|| "\n...").unwrap_or_default()
+                    ellipsis = elided.then_some("\n...").unwrap_or_default()
                 );
                 Err(user_error_with_hint(
                     format!(r#"Revset "{revision_str}" resolved to more than one revision"#),
