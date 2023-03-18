@@ -141,3 +141,49 @@ fn test_describe() {
         .failure();
     assert!(get_stderr_string(&assert).contains("bad-jj-editor-from-jj-editor-env"));
 }
+
+#[test]
+fn test_describe_author() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        r#"[template-aliases]
+'format_signature(signature)' = 'signature.name() ++ " " ++ signature.email() ++ " " ++ signature.timestamp()'"#,
+    );
+    let get_signatures = || {
+        test_env.jj_cmd_success(
+            &repo_path,
+            &[
+                "log",
+                "-r@",
+                "-T",
+                r#"format_signature(author) ++ "\n" ++ format_signature(committer)"#,
+            ],
+        )
+    };
+    insta::assert_snapshot!(get_signatures(), @r###"
+    @  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    ~
+    "###);
+
+    // Reset the author (the committer is always reset)
+    test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "describe",
+            "--config-toml",
+            r#"user.name = "Ove Ridder"
+            user.email = "ove.ridder@example.com""#,
+            "-m=description",
+            "--reset-author",
+        ],
+    );
+    insta::assert_snapshot!(get_signatures(), @r###"
+    @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:09.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:09.000 +07:00
+    ~
+    "###);
+}
