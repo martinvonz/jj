@@ -177,7 +177,7 @@ fn test_describe_author() {
             "--config-toml",
             r#"user.name = "Ove Ridder"
             user.email = "ove.ridder@example.com""#,
-            "-m=description",
+            "--no-edit",
             "--reset-author",
         ],
     );
