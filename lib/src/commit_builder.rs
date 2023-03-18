@@ -79,10 +79,18 @@ impl CommitBuilder<'_> {
         }
     }
 
+    pub fn parents(&self) -> &[CommitId] {
+        &self.commit.parents
+    }
+
     pub fn set_parents(mut self, parents: Vec<CommitId>) -> Self {
         assert!(!parents.is_empty());
         self.commit.parents = parents;
         self
+    }
+
+    pub fn predecessors(&self) -> &[CommitId] {
+        &self.commit.predecessors
     }
 
     pub fn set_predecessors(mut self, predecessors: Vec<CommitId>) -> Self {
@@ -90,9 +98,17 @@ impl CommitBuilder<'_> {
         self
     }
 
+    pub fn tree(&self) -> &TreeId {
+        &self.commit.root_tree
+    }
+
     pub fn set_tree(mut self, tree_id: TreeId) -> Self {
         self.commit.root_tree = tree_id;
         self
+    }
+
+    pub fn change_id(&self) -> &ChangeId {
+        &self.commit.change_id
     }
 
     pub fn set_change_id(mut self, change_id: ChangeId) -> Self {
@@ -107,14 +123,26 @@ impl CommitBuilder<'_> {
         self
     }
 
+    pub fn description(&self) -> &str {
+        &self.commit.description
+    }
+
     pub fn set_description(mut self, description: impl Into<String>) -> Self {
         self.commit.description = description.into();
         self
     }
 
+    pub fn author(&self) -> &Signature {
+        &self.commit.author
+    }
+
     pub fn set_author(mut self, author: Signature) -> Self {
         self.commit.author = author;
         self
+    }
+
+    pub fn committer(&self) -> &Signature {
+        &self.commit.committer
     }
 
     pub fn set_committer(mut self, committer: Signature) -> Self {
