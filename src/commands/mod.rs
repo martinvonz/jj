@@ -413,6 +413,11 @@ struct DescribeArgs {
     /// Read the change description from stdin
     #[arg(long)]
     stdin: bool,
+    /// Don't open an editor
+    ///
+    /// This is mainly useful in combination with e.g. `--reset-author`.
+    #[arg(long)]
+    no_edit: bool,
     /// Reset the author to the configured user
     ///
     /// This resets the author name, email, and timestamp.
@@ -1807,6 +1812,8 @@ fn cmd_describe(
         buffer
     } else if let Some(message) = &args.message {
         message.into()
+    } else if args.no_edit {
+        commit.description().to_owned()
     } else {
         let template = description_template_for_commit(&workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?

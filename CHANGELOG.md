@@ -56,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   been moved from `jj debug` to `jj support`.
 
 * `jj describe` now supports `--reset-author` for resetting a commit's author
-  to the configured user.
+  to the configured user. `jj describe` also gained a `--no-edit` option to
+  avoid opening the editor.
 
 ### Fixed bugs
 
