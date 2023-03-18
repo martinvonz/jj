@@ -55,6 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj debug completion`, `jj debug mangen` and `jj debug config-schema` have
   been moved from `jj debug` to `jj support`.
 
+* `jj describe` now supports `--reset-author` for resetting a commit's author
+  to the configured user.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines

@@ -395,7 +395,7 @@ struct InterdiffArgs {
     format: DiffFormatArgs,
 }
 
-/// Edit the change description
+/// Update the change description or other metadata
 ///
 /// Starts an editor to let you edit the description of a change. The editor
 /// will be $EDITOR, or `pico` if that's not defined.
@@ -413,6 +413,11 @@ struct DescribeArgs {
     /// Read the change description from stdin
     #[arg(long)]
     stdin: bool,
+    /// Reset the author to the configured user
+    ///
+    /// This resets the author name, email, and timestamp.
+    #[arg(long)]
+    reset_author: bool,
 }
 
 /// Update the description and create a new change on top.
@@ -1806,15 +1811,20 @@ fn cmd_describe(
         let template = description_template_for_commit(&workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
-    if description == *commit.description() {
+    if description == *commit.description() && !args.reset_author {
         ui.write("Nothing changed.\n")?;
     } else {
         let mut tx =
             workspace_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
-        tx.mut_repo()
+        let mut commit_builder = tx
+            .mut_repo()
             .rewrite_commit(command.settings(), &commit)
-            .set_description(description)
-            .write()?;
+            .set_description(description);
+        if args.reset_author {
+            let new_author = commit_builder.committer().clone();
+            commit_builder = commit_builder.set_author(new_author);
+        }
+        commit_builder.write()?;
         tx.finish(ui)?;
     }
     Ok(())
