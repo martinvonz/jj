@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jujutsu_lib::backend::{ChangeId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
@@ -39,24 +40,48 @@ fn test_initial(use_git: bool) {
     );
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit = tx
+    let author_signature = Signature {
+        name: "author name".to_string(),
+        email: "author email".to_string(),
+        timestamp: Timestamp {
+            timestamp: MillisSinceEpoch(100),
+            tz_offset: 60,
+        },
+    };
+    let committer_signature = Signature {
+        name: "committer name".to_string(),
+        email: "committer email".to_string(),
+        timestamp: Timestamp {
+            timestamp: MillisSinceEpoch(200),
+            tz_offset: -60,
+        },
+    };
+    let change_id = ChangeId::new(vec![100u8; 16]);
+    let builder = tx
         .mut_repo()
         .new_commit(
             &settings,
             vec![store.root_commit_id().clone()],
             tree.id().clone(),
         )
-        .write()
-        .unwrap();
+        .set_change_id(change_id.clone())
+        .set_description("description")
+        .set_author(author_signature.clone())
+        .set_committer(committer_signature.clone());
+    assert_eq!(builder.parents(), &[store.root_commit_id().clone()]);
+    assert_eq!(builder.predecessors(), &[]);
+    assert_eq!(builder.tree(), tree.id());
+    assert_eq!(builder.change_id(), &change_id);
+    assert_eq!(builder.author(), &author_signature);
+    assert_eq!(builder.committer(), &committer_signature);
+    let commit = builder.write().unwrap();
     tx.commit();
 
     assert_eq!(commit.parents(), vec![store.root_commit()]);
     assert_eq!(commit.predecessors(), vec![]);
-    assert_eq!(commit.description(), "");
-    assert_eq!(commit.author().name, settings.user_name());
-    assert_eq!(commit.author().email, settings.user_email());
-    assert_eq!(commit.committer().name, settings.user_name());
-    assert_eq!(commit.committer().email, settings.user_email());
+    assert_eq!(commit.description(), "description");
+    assert_eq!(commit.author(), &author_signature);
+    assert_eq!(commit.committer(), &committer_signature);
     assert_eq!(
         store
             .root_commit()
