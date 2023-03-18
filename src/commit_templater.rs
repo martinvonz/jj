@@ -28,7 +28,7 @@ use crate::template_builder::{
     self, BuildContext, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateLanguage,
 };
 use crate::template_parser::{
-    self, FunctionCallNode, TemplateAliasesMap, TemplateParseError, TemplateParseResult,
+    self, FieldNode, FunctionCallNode, TemplateAliasesMap, TemplateParseError, TemplateParseResult,
 };
 use crate::templater::{
     self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
@@ -49,6 +49,27 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property> {
         build_commit_keyword(self, name, span)
+    }
+
+    fn build_field(
+        &self,
+        property: Self::Property,
+        field: &FieldNode,
+    ) -> TemplateParseResult<Self::Property> {
+        match property {
+            CommitTemplatePropertyKind::Core(property) => {
+                template_builder::build_core_field(self, property, field)
+            }
+            CommitTemplatePropertyKind::CommitOrChangeId(property) => {
+                build_commit_or_change_id_field(self, property, field)
+            }
+            CommitTemplatePropertyKind::CommitOrChangeIdList(property) => {
+                template_builder::build_list_field(self, property, field)
+            }
+            CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
+                build_shortest_id_prefix_field(self, property, field)
+            }
+        }
     }
 
     fn build_method(
@@ -359,6 +380,14 @@ impl Template<()> for Vec<CommitOrChangeId<'_>> {
     }
 }
 
+fn build_commit_or_change_id_field<'repo>(
+    _language: &CommitTemplateLanguage<'repo, '_>,
+    _self_property: impl TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo,
+    field: &FieldNode,
+) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
+    Err(TemplateParseError::no_such_field("CommitOrChangeId", field))
+}
+
 fn build_commit_or_change_id_method<'repo>(
     language: &CommitTemplateLanguage<'repo, '_>,
     build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
@@ -421,6 +450,14 @@ impl ShortestIdPrefix {
             rest: self.rest.to_ascii_lowercase(),
         }
     }
+}
+
+fn build_shortest_id_prefix_field<'repo>(
+    _language: &CommitTemplateLanguage<'repo, '_>,
+    _self_property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
+    field: &FieldNode,
+) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
+    Err(TemplateParseError::no_such_field("ShortestIdPrefix", field))
 }
 
 fn build_shortest_id_prefix_method<'repo>(

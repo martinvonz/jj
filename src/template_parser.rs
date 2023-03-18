@@ -45,6 +45,8 @@ pub enum TemplateParseErrorKind {
     NoSuchKeyword(String),
     #[error(r#"Function "{0}" doesn't exist"#)]
     NoSuchFunction(String),
+    #[error(r#"Field "{name}" doesn't exist for type "{type_name}""#)]
+    NoSuchField { type_name: String, name: String },
     #[error(r#"Method "{name}" doesn't exist for type "{type_name}""#)]
     NoSuchMethod { type_name: String, name: String },
     #[error(r#"Function "{name}": {message}"#)]
@@ -100,6 +102,16 @@ impl TemplateParseError {
         TemplateParseError::with_span(
             TemplateParseErrorKind::NoSuchFunction(function.name.to_owned()),
             function.name_span,
+        )
+    }
+
+    pub fn no_such_field(type_name: impl Into<String>, field: &FieldNode) -> Self {
+        TemplateParseError::with_span(
+            TemplateParseErrorKind::NoSuchField {
+                type_name: type_name.into(),
+                name: field.name.to_owned(),
+            },
+            field.name_span,
         )
     }
 

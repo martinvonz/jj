@@ -1,8 +1,8 @@
 # Templates
 
 Jujutsu supports a functional language to customize output of commands.
-The language consists of literals, keywords, operators, functions, and
-methods.
+The language consists of literals, keywords, operators, functions, fields,
+and methods.
 
 A couple of `jj` commands accept a template via `-T`/`--template` option.
 
@@ -73,22 +73,22 @@ The following functions are defined.
 
 ### Boolean type
 
-No methods are defined.
+No fields/methods are defined.
 
 ### CommitId / ChangeId type
 
-The following methods are defined.
+The following fields/methods are defined.
 
 * `.short([len: Integer]) -> String`
 * `.shortest([min_len: Integer]) -> ShortestIdPrefix`: Shortest unique prefix.
 
 ### Integer type
 
-No methods are defined.
+No fields/methods are defined.
 
 ### List type
 
-The following methods are defined.
+The following fields/methods are defined.
 
 * `.join(separator: Template) -> Template`: Concatenate elements with
   the given `separator`.
@@ -97,19 +97,19 @@ The following methods are defined.
 
 ### ListTemplate type
 
-The following methods are defined. See also the `List` type.
+The following fields/methods are defined. See also the `List` type.
 
 * `.join(separator: Template) -> Template`
 
 ### OperationId type
 
-The following methods are defined.
+The following fields/methods are defined.
 
 * `.short([len: Integer]) -> String`
 
 ### ShortestIdPrefix type
 
-The following methods are defined.
+The following fields/methods are defined.
 
 * `.prefix() -> String`
 * `.rest() -> String`
@@ -118,7 +118,7 @@ The following methods are defined.
 
 ### Signature type
 
-The following methods are defined.
+The following fields/methods are defined.
 
 * `.name() -> String`
 * `.email() -> String`
@@ -127,8 +127,8 @@ The following methods are defined.
 
 ### String type
 
-A string can be implicitly converted to `Boolean`. The following methods are
-defined.
+A string can be implicitly converted to `Boolean`. The following fields/methods
+are defined.
 
 * `.contains(needle: Template) -> Boolean`
 * `.first_line() -> String`
@@ -138,11 +138,12 @@ defined.
 
 ### Template type
 
-Any types can be implicitly converted to `Template`. No methods are defined.
+Any types can be implicitly converted to `Template`. No fields/methods are
+defined.
 
 ### Timestamp type
 
-The following methods are defined.
+The following fields/methods are defined.
 
 * `.ago() -> String`: Format as relative timestamp.
 * `.format(format: String) -> String`: Format with [the specified strftime-like
@@ -150,7 +151,7 @@ The following methods are defined.
 
 ### TimestampRange type
 
-The following methods are defined.
+The following fields/methods are defined.
 
 * `.start() -> Timestamp`
 * `.end() -> Timestamp`

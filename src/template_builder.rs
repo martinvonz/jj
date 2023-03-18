@@ -18,8 +18,8 @@ use itertools::Itertools as _;
 use jujutsu_lib::backend::{Signature, Timestamp};
 
 use crate::template_parser::{
-    self, ExpressionKind, ExpressionNode, FunctionCallNode, MethodCallNode, TemplateParseError,
-    TemplateParseResult,
+    self, ExpressionKind, ExpressionNode, FieldAccessNode, FieldNode, FunctionCallNode,
+    MethodCallNode, TemplateParseError, TemplateParseResult,
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
@@ -69,6 +69,11 @@ pub trait TemplateLanguage<'a> {
     ) -> Self::Property;
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property>;
+    fn build_field(
+        &self,
+        property: Self::Property,
+        field: &FieldNode,
+    ) -> TemplateParseResult<Self::Property>;
     fn build_method(
         &self,
         build_ctx: &BuildContext<Self::Property>,
@@ -257,6 +262,17 @@ pub struct BuildContext<'i, P> {
     local_variables: HashMap<&'i str, &'i (dyn Fn() -> P)>,
 }
 
+fn build_field_access<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    access: &FieldAccessNode,
+) -> TemplateParseResult<Expression<L::Property>> {
+    let mut expression = build_expression(language, build_ctx, &access.object)?;
+    expression.property = language.build_field(expression.property, &access.field)?;
+    expression.labels.push(access.field.name.to_owned());
+    Ok(expression)
+}
+
 fn build_method_call<'a, L: TemplateLanguage<'a>>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
@@ -267,6 +283,40 @@ fn build_method_call<'a, L: TemplateLanguage<'a>>(
         language.build_method(build_ctx, expression.property, &method.function)?;
     expression.labels.push(method.function.name.to_owned());
     Ok(expression)
+}
+
+pub fn build_core_field<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    property: CoreTemplatePropertyKind<'a, L::Context>,
+    field: &FieldNode,
+) -> TemplateParseResult<L::Property> {
+    match property {
+        CoreTemplatePropertyKind::String(property) => build_string_field(language, property, field),
+        CoreTemplatePropertyKind::StringList(property) => {
+            build_list_field(language, property, field)
+        }
+        CoreTemplatePropertyKind::Boolean(property) => {
+            build_boolean_field(language, property, field)
+        }
+        CoreTemplatePropertyKind::Integer(property) => {
+            build_integer_field(language, property, field)
+        }
+        CoreTemplatePropertyKind::Signature(property) => {
+            build_signature_field(language, property, field)
+        }
+        CoreTemplatePropertyKind::Timestamp(property) => {
+            build_timestamp_field(language, property, field)
+        }
+        CoreTemplatePropertyKind::TimestampRange(property) => {
+            build_timestamp_range_field(language, property, field)
+        }
+        CoreTemplatePropertyKind::Template(_) => {
+            Err(TemplateParseError::no_such_field("Template", field))
+        }
+        CoreTemplatePropertyKind::ListTemplate(template) => {
+            build_list_template_field(language, template, field)
+        }
+    }
 }
 
 pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
@@ -306,6 +356,14 @@ pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
             build_list_template_method(language, build_ctx, template, function)
         }
     }
+}
+
+fn build_string_field<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    _self_property: impl TemplateProperty<L::Context, Output = String> + 'a,
+    field: &FieldNode,
+) -> TemplateParseResult<L::Property> {
+    Err(TemplateParseError::no_such_field("String", field))
 }
 
 fn build_string_method<'a, L: TemplateLanguage<'a>>(
@@ -350,6 +408,14 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
     Ok(property)
 }
 
+fn build_boolean_field<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    _self_property: impl TemplateProperty<L::Context, Output = bool> + 'a,
+    field: &FieldNode,
+) -> TemplateParseResult<L::Property> {
+    Err(TemplateParseError::no_such_field("Boolean", field))
+}
+
 fn build_boolean_method<'a, L: TemplateLanguage<'a>>(
     _language: &L,
     _build_ctx: &BuildContext<L::Property>,
@@ -359,6 +425,14 @@ fn build_boolean_method<'a, L: TemplateLanguage<'a>>(
     Err(TemplateParseError::no_such_method("Boolean", function))
 }
 
+fn build_integer_field<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    _self_property: impl TemplateProperty<L::Context, Output = i64> + 'a,
+    field: &FieldNode,
+) -> TemplateParseResult<L::Property> {
+    Err(TemplateParseError::no_such_field("Integer", field))
+}
+
 fn build_integer_method<'a, L: TemplateLanguage<'a>>(
     _language: &L,
     _build_ctx: &BuildContext<L::Property>,
@@ -366,6 +440,14 @@ fn build_integer_method<'a, L: TemplateLanguage<'a>>(
     function: &FunctionCallNode,
 ) -> TemplateParseResult<L::Property> {
     Err(TemplateParseError::no_such_method("Integer", function))
+}
+
+fn build_signature_field<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    _self_property: impl TemplateProperty<L::Context, Output = Signature> + 'a,
+    field: &FieldNode,
+) -> TemplateParseResult<L::Property> {
+    Err(TemplateParseError::no_such_field("Signature", field))
 }
 
 fn build_signature_method<'a, L: TemplateLanguage<'a>>(
@@ -405,6 +487,14 @@ fn build_signature_method<'a, L: TemplateLanguage<'a>>(
     Ok(property)
 }
 
+fn build_timestamp_field<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    _self_property: impl TemplateProperty<L::Context, Output = Timestamp> + 'a,
+    field: &FieldNode,
+) -> TemplateParseResult<L::Property> {
+    Err(TemplateParseError::no_such_field("Timestamp", field))
+}
+
 fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
     _build_ctx: &BuildContext<L::Property>,
@@ -435,6 +525,14 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
         _ => return Err(TemplateParseError::no_such_method("Timestamp", function)),
     };
     Ok(property)
+}
+
+fn build_timestamp_range_field<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    _self_property: impl TemplateProperty<L::Context, Output = TimestampRange> + 'a,
+    field: &FieldNode,
+) -> TemplateParseResult<L::Property> {
+    Err(TemplateParseError::no_such_field("TimestampRange", field))
 }
 
 fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
@@ -472,6 +570,14 @@ fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
     Ok(property)
 }
 
+fn build_list_template_field<'a, L: TemplateLanguage<'a>>(
+    _language: &L,
+    _self_template: Box<dyn ListTemplate<L::Context> + 'a>,
+    field: &FieldNode,
+) -> TemplateParseResult<L::Property> {
+    Err(TemplateParseError::no_such_field("ListTemplate", field))
+}
+
 fn build_list_template_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
@@ -487,6 +593,14 @@ fn build_list_template_method<'a, L: TemplateLanguage<'a>>(
         _ => return Err(TemplateParseError::no_such_method("ListTemplate", function)),
     };
     Ok(property)
+}
+
+pub fn build_list_field<'a, L: TemplateLanguage<'a>, O>(
+    _language: &L,
+    _self_property: impl TemplateProperty<L::Context, Output = Vec<O>> + 'a,
+    field: &FieldNode,
+) -> TemplateParseResult<L::Property> {
+    Err(TemplateParseError::no_such_field("List", field))
 }
 
 /// Builds method call expression for printable list property.
@@ -681,7 +795,7 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
         ExpressionKind::FunctionCall(function) => {
             build_global_function(language, build_ctx, function)
         }
-        ExpressionKind::FieldAccess(_) => todo!(),
+        ExpressionKind::FieldAccess(access) => build_field_access(language, build_ctx, access),
         ExpressionKind::MethodCall(method) => build_method_call(language, build_ctx, method),
         ExpressionKind::Lambda(_) => Err(TemplateParseError::unexpected_expression(
             "Lambda cannot be defined here",

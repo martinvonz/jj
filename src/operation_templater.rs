@@ -24,7 +24,7 @@ use crate::template_builder::{
     self, BuildContext, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateLanguage,
 };
 use crate::template_parser::{
-    self, FunctionCallNode, TemplateAliasesMap, TemplateParseError, TemplateParseResult,
+    self, FieldNode, FunctionCallNode, TemplateAliasesMap, TemplateParseError, TemplateParseResult,
 };
 use crate::templater::{
     IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
@@ -43,6 +43,21 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
 
     fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property> {
         build_operation_keyword(self, name, span)
+    }
+
+    fn build_field(
+        &self,
+        property: Self::Property,
+        field: &FieldNode,
+    ) -> TemplateParseResult<Self::Property> {
+        match property {
+            OperationTemplatePropertyKind::Core(property) => {
+                template_builder::build_core_field(self, property, field)
+            }
+            OperationTemplatePropertyKind::OperationId(property) => {
+                build_operation_id_field(self, property, field)
+            }
+        }
     }
 
     fn build_method(
@@ -156,6 +171,14 @@ impl Template<()> for OperationId {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(&self.hex())
     }
+}
+
+fn build_operation_id_field(
+    _language: &OperationTemplateLanguage,
+    _self_property: impl TemplateProperty<Operation, Output = OperationId> + 'static,
+    field: &FieldNode,
+) -> TemplateParseResult<OperationTemplatePropertyKind> {
+    Err(TemplateParseError::no_such_field("OperationId", field))
 }
 
 fn build_operation_id_method(
