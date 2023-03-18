@@ -681,6 +681,7 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
         ExpressionKind::FunctionCall(function) => {
             build_global_function(language, build_ctx, function)
         }
+        ExpressionKind::FieldAccess(_) => todo!(),
         ExpressionKind::MethodCall(method) => build_method_call(language, build_ctx, method),
         ExpressionKind::Lambda(_) => Err(TemplateParseError::unexpected_expression(
             "Lambda cannot be defined here",

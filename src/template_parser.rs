@@ -199,10 +199,23 @@ pub enum ExpressionKind<'i> {
     String(String),
     Concat(Vec<ExpressionNode<'i>>),
     FunctionCall(FunctionCallNode<'i>),
+    FieldAccess(FieldAccessNode<'i>),
     MethodCall(MethodCallNode<'i>),
     Lambda(LambdaNode<'i>),
     /// Identity node to preserve the span in the source template text.
     AliasExpanded(TemplateAliasId<'i>, Box<ExpressionNode<'i>>),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FieldNode<'i> {
+    pub name: &'i str,
+    pub name_span: pest::Span<'i>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FieldAccessNode<'i> {
+    pub object: Box<ExpressionNode<'i>>,
+    pub field: FieldNode<'i>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -332,16 +345,33 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
         other => panic!("unexpected term: {other:?}"),
     };
     inner.try_fold(primary, |object, chain| {
-        assert_eq!(chain.as_rule(), Rule::function);
         let span = object.span.start_pos().span(&chain.as_span().end_pos());
-        let method = MethodCallNode {
-            object: Box::new(object),
-            function: parse_function_call_node(chain)?,
-        };
-        Ok(ExpressionNode::new(
-            ExpressionKind::MethodCall(method),
-            span,
-        ))
+        match chain.as_rule() {
+            Rule::identifier => {
+                let access = FieldAccessNode {
+                    object: Box::new(object),
+                    field: FieldNode {
+                        name: chain.as_str(),
+                        name_span: chain.as_span(),
+                    },
+                };
+                Ok(ExpressionNode::new(
+                    ExpressionKind::FieldAccess(access),
+                    span,
+                ))
+            }
+            Rule::function => {
+                let method = MethodCallNode {
+                    object: Box::new(object),
+                    function: parse_function_call_node(chain)?,
+                };
+                Ok(ExpressionNode::new(
+                    ExpressionKind::MethodCall(method),
+                    span,
+                ))
+            }
+            other => panic!("unexpected object expression: {other:?}"),
+        }
     })
 }
 
@@ -569,6 +599,13 @@ pub fn expand_aliases<'i>(
                     Ok(node)
                 }
             }
+            ExpressionKind::FieldAccess(access) => {
+                node.kind = ExpressionKind::FieldAccess(FieldAccessNode {
+                    object: Box::new(expand_node(*access.object, state)?),
+                    field: access.field,
+                });
+                Ok(node)
+            }
             ExpressionKind::MethodCall(method) => {
                 node.kind = ExpressionKind::MethodCall(MethodCallNode {
                     object: Box::new(expand_node(*method.object, state)?),
@@ -679,6 +716,7 @@ pub fn expect_string_literal_with<'a, 'i, T>(
         | ExpressionKind::Integer(_)
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
+        | ExpressionKind::FieldAccess(_)
         | ExpressionKind::MethodCall(_)
         | ExpressionKind::Lambda(_) => Err(TemplateParseError::unexpected_expression(
             "Expected string literal",
@@ -701,6 +739,7 @@ pub fn expect_lambda_with<'a, 'i, T>(
         | ExpressionKind::Integer(_)
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
+        | ExpressionKind::FieldAccess(_)
         | ExpressionKind::MethodCall(_) => Err(TemplateParseError::unexpected_expression(
             "Expected lambda expression",
             node.span,
@@ -780,6 +819,16 @@ mod tests {
             ExpressionKind::FunctionCall(function) => {
                 ExpressionKind::FunctionCall(normalize_function_call(function))
             }
+            ExpressionKind::FieldAccess(access) => {
+                let object = Box::new(normalize_tree(*access.object));
+                ExpressionKind::FieldAccess(FieldAccessNode {
+                    object,
+                    field: FieldNode {
+                        name: access.field.name,
+                        name_span: empty_span(),
+                    },
+                })
+            }
             ExpressionKind::MethodCall(method) => {
                 let object = Box::new(normalize_tree(*method.object));
                 let function = normalize_function_call(method.function);
@@ -844,6 +893,18 @@ mod tests {
         assert!(parse_template(r#" label("","") "#).is_ok());
         assert!(parse_template(r#" label("","",) "#).is_ok());
         assert!(parse_template(r#" label("",,"") "#).is_err());
+    }
+
+    #[test]
+    fn test_field_access_syntax() {
+        assert_eq!(
+            parse_normalized("x.a.b").unwrap(),
+            parse_normalized("(x.a).b").unwrap(),
+        );
+
+        // Expression span
+        assert_eq!(parse_template(" x.a ").unwrap().span.as_str(), "x.a");
+        assert_eq!(parse_template(" x.a.b ").unwrap().span.as_str(), "x.a.b");
     }
 
     #[test]
@@ -1000,7 +1061,17 @@ mod tests {
             parse_normalized("b ++ c").unwrap(),
         );
 
-        // Method receiver and arguments should be expanded.
+        // Field access shouldn't be substituted by symbol alias.
+        assert_eq!(
+            with_aliases([("A", "a")]).parse_normalized("x.A").unwrap(),
+            parse_normalized("x.A").unwrap(),
+        );
+
+        // Field/method receiver and arguments should be expanded.
+        assert_eq!(
+            with_aliases([("A", "a")]).parse_normalized("A.b").unwrap(),
+            parse_normalized("a.b").unwrap(),
+        );
         assert_eq!(
             with_aliases([("A", "a")])
                 .parse_normalized("A.f()")

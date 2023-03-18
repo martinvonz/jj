@@ -55,7 +55,7 @@ primary = _{
 }
 
 term = {
-  primary ~ ("." ~ function)*
+  primary ~ ("." ~ (function | identifier))*
 }
 
 concat = _{
