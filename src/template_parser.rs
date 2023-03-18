@@ -333,7 +333,7 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
     };
     inner.try_fold(primary, |object, chain| {
         assert_eq!(chain.as_rule(), Rule::function);
-        let span = chain.as_span();
+        let span = object.span.start_pos().span(&chain.as_span().end_pos());
         let method = MethodCallNode {
             object: Box::new(object),
             function: parse_function_call_node(chain)?,
@@ -844,6 +844,21 @@ mod tests {
         assert!(parse_template(r#" label("","") "#).is_ok());
         assert!(parse_template(r#" label("","",) "#).is_ok());
         assert!(parse_template(r#" label("",,"") "#).is_err());
+    }
+
+    #[test]
+    fn test_method_call_syntax() {
+        assert_eq!(
+            parse_normalized("x.f().g()").unwrap(),
+            parse_normalized("(x.f()).g()").unwrap(),
+        );
+
+        // Expression span
+        assert_eq!(parse_template(" x.f() ").unwrap().span.as_str(), "x.f()");
+        assert_eq!(
+            parse_template(" x.f().g() ").unwrap().span.as_str(),
+            "x.f().g()",
+        );
     }
 
     #[test]
