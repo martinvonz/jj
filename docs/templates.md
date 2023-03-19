@@ -138,7 +138,7 @@ defined.
 
 ### Template type
 
-Any types can be implicitly converted to `Template`. No methods are defined.
+Most types can be implicitly converted to `Template`. No methods are defined.
 
 ### Timestamp type
 

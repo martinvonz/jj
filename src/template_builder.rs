@@ -132,11 +132,12 @@ macro_rules! impl_wrap_property_fns {
 pub(crate) use {impl_core_wrap_property_fns, impl_wrap_property_fns};
 
 /// Provides access to basic template property types.
-pub trait IntoTemplateProperty<'a, C>: IntoTemplate<'a, C> {
+pub trait IntoTemplateProperty<'a, C> {
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>>;
     fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>>;
 
-    fn into_plain_text(self) -> Box<dyn TemplateProperty<C, Output = String> + 'a>;
+    fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<C, Output = String> + 'a>>;
+    fn try_into_template(self) -> Option<Box<dyn Template<C> + 'a>>;
 }
 
 pub enum CoreTemplatePropertyKind<'a, I> {
@@ -174,26 +175,27 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
         }
     }
 
-    fn into_plain_text(self) -> Box<dyn TemplateProperty<I, Output = String> + 'a> {
+    fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<I, Output = String> + 'a>> {
         match self {
-            CoreTemplatePropertyKind::String(property) => property,
-            _ => Box::new(PlainTextFormattedProperty::new(self.into_template())),
+            CoreTemplatePropertyKind::String(property) => Some(property),
+            _ => {
+                let template = self.try_into_template()?;
+                Some(Box::new(PlainTextFormattedProperty::new(template)))
+            }
         }
     }
-}
 
-impl<'a, I: 'a> IntoTemplate<'a, I> for CoreTemplatePropertyKind<'a, I> {
-    fn into_template(self) -> Box<dyn Template<I> + 'a> {
+    fn try_into_template(self) -> Option<Box<dyn Template<I> + 'a>> {
         match self {
-            CoreTemplatePropertyKind::String(property) => property.into_template(),
-            CoreTemplatePropertyKind::StringList(property) => property.into_template(),
-            CoreTemplatePropertyKind::Boolean(property) => property.into_template(),
-            CoreTemplatePropertyKind::Integer(property) => property.into_template(),
-            CoreTemplatePropertyKind::Signature(property) => property.into_template(),
-            CoreTemplatePropertyKind::Timestamp(property) => property.into_template(),
-            CoreTemplatePropertyKind::TimestampRange(property) => property.into_template(),
-            CoreTemplatePropertyKind::Template(template) => template,
-            CoreTemplatePropertyKind::ListTemplate(template) => template.into_template(),
+            CoreTemplatePropertyKind::String(property) => Some(property.into_template()),
+            CoreTemplatePropertyKind::StringList(property) => Some(property.into_template()),
+            CoreTemplatePropertyKind::Boolean(property) => Some(property.into_template()),
+            CoreTemplatePropertyKind::Integer(property) => Some(property.into_template()),
+            CoreTemplatePropertyKind::Signature(property) => Some(property.into_template()),
+            CoreTemplatePropertyKind::Timestamp(property) => Some(property.into_template()),
+            CoreTemplatePropertyKind::TimestampRange(property) => Some(property.into_template()),
+            CoreTemplatePropertyKind::Template(template) => Some(template),
+            CoreTemplatePropertyKind::ListTemplate(template) => Some(template.into_template()),
         }
     }
 }
@@ -233,21 +235,24 @@ impl<P> Expression<P> {
         self.property.try_into_integer()
     }
 
-    pub fn into_plain_text<'a, C: 'a>(self) -> Box<dyn TemplateProperty<C, Output = String> + 'a>
+    pub fn try_into_plain_text<'a, C: 'a>(
+        self,
+    ) -> Option<Box<dyn TemplateProperty<C, Output = String> + 'a>>
     where
         P: IntoTemplateProperty<'a, C>,
     {
-        self.property.into_plain_text()
+        self.property.try_into_plain_text()
     }
-}
 
-impl<'a, C: 'a, P: IntoTemplate<'a, C>> IntoTemplate<'a, C> for Expression<P> {
-    fn into_template(self) -> Box<dyn Template<C> + 'a> {
-        let template = self.property.into_template();
+    pub fn try_into_template<'a, C: 'a>(self) -> Option<Box<dyn Template<C> + 'a>>
+    where
+        P: IntoTemplateProperty<'a, C>,
+    {
+        let template = self.property.try_into_template()?;
         if self.labels.is_empty() {
-            template
+            Some(template)
         } else {
-            Box::new(LabelTemplate::new(template, Literal(self.labels)))
+            Some(Box::new(LabelTemplate::new(template, Literal(self.labels))))
         }
     }
 }
@@ -318,8 +323,7 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
         "contains" => {
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             // TODO: or .try_into_string() to disable implicit type cast?
-            let needle_property =
-                build_expression(language, build_ctx, needle_node)?.into_plain_text();
+            let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
             language.wrap_boolean(TemplateFunction::new(
                 (self_property, needle_property),
                 |(haystack, needle)| haystack.contains(&needle),
@@ -481,7 +485,7 @@ fn build_list_template_method<'a, L: TemplateLanguage<'a>>(
     let property = match function.name {
         "join" => {
             let [separator_node] = template_parser::expect_exact_arguments(function)?;
-            let separator = build_expression(language, build_ctx, separator_node)?.into_template();
+            let separator = expect_template_expression(language, build_ctx, separator_node)?;
             language.wrap_template(self_template.join(separator))
         }
         _ => return Err(TemplateParseError::no_such_method("ListTemplate", function)),
@@ -506,7 +510,7 @@ where
     let property = match function.name {
         "join" => {
             let [separator_node] = template_parser::expect_exact_arguments(function)?;
-            let separator = build_expression(language, build_ctx, separator_node)?.into_template();
+            let separator = expect_template_expression(language, build_ctx, separator_node)?;
             let template =
                 ListPropertyTemplate::new(self_property, separator, |_, formatter, item| {
                     item.format(&(), formatter)
@@ -556,7 +560,7 @@ where
             ));
         }
         let build_ctx = BuildContext { local_variables };
-        Ok(build_expression(language, &build_ctx, &lambda.body)?.into_template())
+        expect_template_expression(language, &build_ctx, &lambda.body)
     })?;
     let list_template = ListPropertyTemplate::new(
         self_property,
@@ -577,7 +581,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
         "fill" => {
             let [width_node, content_node] = template_parser::expect_exact_arguments(function)?;
             let width = expect_integer_expression(language, build_ctx, width_node)?;
-            let content = build_expression(language, build_ctx, content_node)?.into_template();
+            let content = expect_template_expression(language, build_ctx, content_node)?;
             let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
                 let width = width.extract(context).try_into().unwrap_or(0);
                 text_util::write_wrapped(formatter, recorded, width)
@@ -586,8 +590,8 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
         }
         "indent" => {
             let [prefix_node, content_node] = template_parser::expect_exact_arguments(function)?;
-            let prefix = build_expression(language, build_ctx, prefix_node)?.into_template();
-            let content = build_expression(language, build_ctx, content_node)?.into_template();
+            let prefix = expect_template_expression(language, build_ctx, prefix_node)?;
+            let content = expect_template_expression(language, build_ctx, content_node)?;
             let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
                 text_util::write_indented(formatter, recorded, |formatter| {
                     // If Template::format() returned a custom error type, we would need to
@@ -603,9 +607,8 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
         }
         "label" => {
             let [label_node, content_node] = template_parser::expect_exact_arguments(function)?;
-            let label_property =
-                build_expression(language, build_ctx, label_node)?.into_plain_text();
-            let content = build_expression(language, build_ctx, content_node)?.into_template();
+            let label_property = expect_plain_text_expression(language, build_ctx, label_node)?;
+            let content = expect_template_expression(language, build_ctx, content_node)?;
             let labels = TemplateFunction::new(label_property, |s| {
                 s.split_whitespace().map(ToString::to_string).collect()
             });
@@ -615,11 +618,10 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
             let ([condition_node, true_node], [false_node]) =
                 template_parser::expect_arguments(function)?;
             let condition = expect_boolean_expression(language, build_ctx, condition_node)?;
-            let true_template = build_expression(language, build_ctx, true_node)?.into_template();
+            let true_template = expect_template_expression(language, build_ctx, true_node)?;
             let false_template = false_node
-                .map(|node| build_expression(language, build_ctx, node))
-                .transpose()?
-                .map(|x| x.into_template());
+                .map(|node| expect_template_expression(language, build_ctx, node))
+                .transpose()?;
             let template = ConditionalTemplate::new(condition, true_template, false_template);
             language.wrap_template(Box::new(template))
         }
@@ -627,17 +629,17 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
             let contents = function
                 .args
                 .iter()
-                .map(|node| build_expression(language, build_ctx, node).map(|x| x.into_template()))
+                .map(|node| expect_template_expression(language, build_ctx, node))
                 .try_collect()?;
             language.wrap_template(Box::new(ConcatTemplate(contents)))
         }
         "separate" => {
             let ([separator_node], content_nodes) =
                 template_parser::expect_some_arguments(function)?;
-            let separator = build_expression(language, build_ctx, separator_node)?.into_template();
+            let separator = expect_template_expression(language, build_ctx, separator_node)?;
             let contents = content_nodes
                 .iter()
-                .map(|node| build_expression(language, build_ctx, node).map(|x| x.into_template()))
+                .map(|node| expect_template_expression(language, build_ctx, node))
                 .try_collect()?;
             language.wrap_template(Box::new(SeparateTemplate::new(separator, contents)))
         }
@@ -673,7 +675,7 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
         ExpressionKind::Concat(nodes) => {
             let templates = nodes
                 .iter()
-                .map(|node| build_expression(language, build_ctx, node).map(|x| x.into_template()))
+                .map(|node| expect_template_expression(language, build_ctx, node))
                 .try_collect()?;
             let property = language.wrap_template(Box::new(ConcatTemplate(templates)));
             Ok(Expression::unlabeled(property))
@@ -699,8 +701,7 @@ pub fn build<'a, L: TemplateLanguage<'a>>(
     let build_ctx = BuildContext {
         local_variables: HashMap::new(),
     };
-    let expression = build_expression(language, &build_ctx, node)?;
-    Ok(expression.into_template())
+    expect_template_expression(language, &build_ctx, node)
 }
 
 pub fn expect_boolean_expression<'a, L: TemplateLanguage<'a>>(
@@ -721,4 +722,26 @@ pub fn expect_integer_expression<'a, L: TemplateLanguage<'a>>(
     build_expression(language, build_ctx, node)?
         .try_into_integer()
         .ok_or_else(|| TemplateParseError::expected_type("Integer", node.span))
+}
+
+pub fn expect_plain_text_expression<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    node: &ExpressionNode,
+) -> TemplateParseResult<Box<dyn TemplateProperty<L::Context, Output = String> + 'a>> {
+    // Since any formattable type can be converted to a string property,
+    // the expected type is not a String, but a Template.
+    build_expression(language, build_ctx, node)?
+        .try_into_plain_text()
+        .ok_or_else(|| TemplateParseError::expected_type("Template", node.span))
+}
+
+pub fn expect_template_expression<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    node: &ExpressionNode,
+) -> TemplateParseResult<Box<dyn Template<L::Context> + 'a>> {
+    build_expression(language, build_ctx, node)?
+        .try_into_template()
+        .ok_or_else(|| TemplateParseError::expected_type("Template", node.span))
 }
