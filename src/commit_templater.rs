@@ -65,9 +65,13 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
                 build_commit_or_change_id_method(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::CommitOrChangeIdList(property) => {
-                template_builder::build_list_method(self, build_ctx, property, function, |item| {
-                    self.wrap_commit_or_change_id(item)
-                })
+                template_builder::build_formattable_list_method(
+                    self,
+                    build_ctx,
+                    property,
+                    function,
+                    |item| self.wrap_commit_or_change_id(item),
+                )
             }
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
                 build_shortest_id_prefix_method(self, build_ctx, property, function)

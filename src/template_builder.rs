@@ -285,7 +285,7 @@ pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
             build_string_method(language, build_ctx, property, function)
         }
         CoreTemplatePropertyKind::StringList(property) => {
-            build_list_method(language, build_ctx, property, function, |item| {
+            build_formattable_list_method(language, build_ctx, property, function, |item| {
                 language.wrap_string(item)
             })
         }
@@ -494,7 +494,7 @@ fn build_list_template_method<'a, L: TemplateLanguage<'a>>(
 }
 
 /// Builds method call expression for printable list property.
-pub fn build_list_method<'a, L, O>(
+pub fn build_formattable_list_method<'a, L, O>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     self_property: impl TemplateProperty<L::Context, Output = Vec<O>> + 'a,
@@ -517,6 +517,25 @@ where
                 });
             language.wrap_template(Box::new(template))
         }
+        "map" => build_map_operation(language, build_ctx, self_property, function, wrap_item)?,
+        _ => return Err(TemplateParseError::no_such_method("List", function)),
+    };
+    Ok(property)
+}
+
+pub fn build_unformattable_list_method<'a, L, O>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    self_property: impl TemplateProperty<L::Context, Output = Vec<O>> + 'a,
+    function: &FunctionCallNode,
+    wrap_item: impl Fn(PropertyPlaceholder<O>) -> L::Property,
+) -> TemplateParseResult<L::Property>
+where
+    L: TemplateLanguage<'a>,
+    O: Clone + 'a,
+{
+    let property = match function.name {
+        // No "join"
         "map" => build_map_operation(language, build_ctx, self_property, function, wrap_item)?,
         _ => return Err(TemplateParseError::no_such_method("List", function)),
     };
