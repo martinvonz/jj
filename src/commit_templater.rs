@@ -126,21 +126,30 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
         }
     }
 
-    fn into_plain_text(self) -> Box<dyn TemplateProperty<Commit, Output = String> + 'repo> {
+    fn try_into_plain_text(
+        self,
+    ) -> Option<Box<dyn TemplateProperty<Commit, Output = String> + 'repo>> {
         match self {
-            CommitTemplatePropertyKind::Core(property) => property.into_plain_text(),
-            _ => Box::new(PlainTextFormattedProperty::new(self.into_template())),
+            CommitTemplatePropertyKind::Core(property) => property.try_into_plain_text(),
+            _ => {
+                let template = self.try_into_template()?;
+                Some(Box::new(PlainTextFormattedProperty::new(template)))
+            }
         }
     }
-}
 
-impl<'repo> IntoTemplate<'repo, Commit> for CommitTemplatePropertyKind<'repo> {
-    fn into_template(self) -> Box<dyn Template<Commit> + 'repo> {
+    fn try_into_template(self) -> Option<Box<dyn Template<Commit> + 'repo>> {
         match self {
-            CommitTemplatePropertyKind::Core(property) => property.into_template(),
-            CommitTemplatePropertyKind::CommitOrChangeId(property) => property.into_template(),
-            CommitTemplatePropertyKind::CommitOrChangeIdList(property) => property.into_template(),
-            CommitTemplatePropertyKind::ShortestIdPrefix(property) => property.into_template(),
+            CommitTemplatePropertyKind::Core(property) => property.try_into_template(),
+            CommitTemplatePropertyKind::CommitOrChangeId(property) => {
+                Some(property.into_template())
+            }
+            CommitTemplatePropertyKind::CommitOrChangeIdList(property) => {
+                Some(property.into_template())
+            }
+            CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
+                Some(property.into_template())
+            }
         }
     }
 }

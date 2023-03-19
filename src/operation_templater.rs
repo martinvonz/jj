@@ -91,19 +91,20 @@ impl IntoTemplateProperty<'static, Operation> for OperationTemplatePropertyKind 
         }
     }
 
-    fn into_plain_text(self) -> Box<dyn TemplateProperty<Operation, Output = String>> {
+    fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<Operation, Output = String>>> {
         match self {
-            OperationTemplatePropertyKind::Core(property) => property.into_plain_text(),
-            _ => Box::new(PlainTextFormattedProperty::new(self.into_template())),
+            OperationTemplatePropertyKind::Core(property) => property.try_into_plain_text(),
+            _ => {
+                let template = self.try_into_template()?;
+                Some(Box::new(PlainTextFormattedProperty::new(template)))
+            }
         }
     }
-}
 
-impl IntoTemplate<'static, Operation> for OperationTemplatePropertyKind {
-    fn into_template(self) -> Box<dyn Template<Operation>> {
+    fn try_into_template(self) -> Option<Box<dyn Template<Operation>>> {
         match self {
-            OperationTemplatePropertyKind::Core(property) => property.into_template(),
-            OperationTemplatePropertyKind::OperationId(property) => property.into_template(),
+            OperationTemplatePropertyKind::Core(property) => property.try_into_template(),
+            OperationTemplatePropertyKind::OperationId(property) => Some(property.into_template()),
         }
     }
 }
