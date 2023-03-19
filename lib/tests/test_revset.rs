@@ -2046,11 +2046,6 @@ fn test_reverse_graph_iterator() {
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
     let repo = tx.commit();
 
-    let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
-    let pos_d = repo.index().commit_id_to_pos(commit_d.id()).unwrap();
-    let pos_e = repo.index().commit_id_to_pos(commit_e.id()).unwrap();
-    let pos_f = repo.index().commit_id_to_pos(commit_f.id()).unwrap();
-
     let revset = revset_for_commits(
         &repo,
         &[&commit_a, &commit_c, &commit_d, &commit_e, &commit_f],
@@ -2062,15 +2057,24 @@ fn test_reverse_graph_iterator() {
     assert_eq!(commits[2].0.commit_id(), *commit_d.id());
     assert_eq!(commits[3].0.commit_id(), *commit_e.id());
     assert_eq!(commits[4].0.commit_id(), *commit_f.id());
-    assert_eq!(commits[0].1, vec![RevsetGraphEdge::indirect(pos_c)]);
+    assert_eq!(
+        commits[0].1,
+        vec![RevsetGraphEdge::indirect(commit_c.id().clone())]
+    );
     assert_eq!(
         commits[1].1,
         vec![
-            RevsetGraphEdge::direct(pos_e),
-            RevsetGraphEdge::direct(pos_d),
+            RevsetGraphEdge::direct(commit_e.id().clone()),
+            RevsetGraphEdge::direct(commit_d.id().clone()),
         ]
     );
-    assert_eq!(commits[2].1, vec![RevsetGraphEdge::direct(pos_f)]);
-    assert_eq!(commits[3].1, vec![RevsetGraphEdge::direct(pos_f)]);
+    assert_eq!(
+        commits[2].1,
+        vec![RevsetGraphEdge::direct(commit_f.id().clone())]
+    );
+    assert_eq!(
+        commits[3].1,
+        vec![RevsetGraphEdge::direct(commit_f.id().clone())]
+    );
     assert_eq!(commits[4].1, vec![]);
 }

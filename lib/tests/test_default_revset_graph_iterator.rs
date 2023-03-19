@@ -13,12 +13,25 @@
 // limitations under the License.
 
 use itertools::Itertools;
+use jujutsu_lib::commit::Commit;
 use jujutsu_lib::default_revset_engine::revset_for_commits;
 use jujutsu_lib::default_revset_graph_iterator::RevsetGraphIterator;
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::revset::RevsetGraphEdge;
 use test_case::test_case;
 use testutils::{CommitGraphBuilder, TestRepo};
+
+fn direct(commit: &Commit) -> RevsetGraphEdge {
+    RevsetGraphEdge::direct(commit.id().clone())
+}
+
+fn indirect(commit: &Commit) -> RevsetGraphEdge {
+    RevsetGraphEdge::indirect(commit.id().clone())
+}
+
+fn missing(commit: &Commit) -> RevsetGraphEdge {
+    RevsetGraphEdge::missing(commit.id().clone())
+}
 
 #[test_case(false ; "keep transitive edges")]
 #[test_case(true ; "skip transitive edges")]
@@ -42,12 +55,7 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_d = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
     let repo = tx.commit();
-
-    let pos_root = repo
-        .index()
-        .commit_id_to_pos(repo.store().root_commit_id())
-        .unwrap();
-    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
+    let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(&repo, &[&commit_a, &commit_d]);
     let commits = RevsetGraphIterator::new(revset.as_ref())
@@ -56,8 +64,8 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
     assert_eq!(commits.len(), 2);
     assert_eq!(commits[0].0.commit_id(), *commit_d.id());
     assert_eq!(commits[1].0.commit_id(), *commit_a.id());
-    assert_eq!(commits[0].1, vec![RevsetGraphEdge::indirect(pos_a)]);
-    assert_eq!(commits[1].1, vec![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[0].1, vec![indirect(&commit_a)]);
+    assert_eq!(commits[1].1, vec![missing(&root_commit)]);
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -86,14 +94,7 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
     let commit_e = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
     let repo = tx.commit();
-
-    let pos_root = repo
-        .index()
-        .commit_id_to_pos(repo.store().root_commit_id())
-        .unwrap();
-    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
-    let pos_b = repo.index().commit_id_to_pos(commit_b.id()).unwrap();
-    let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
+    let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(&repo, &[&commit_a, &commit_b, &commit_c, &commit_f]);
     let commits = RevsetGraphIterator::new(revset.as_ref())
@@ -107,14 +108,14 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
     assert_eq!(
         commits[0].1,
         vec![
-            RevsetGraphEdge::indirect(pos_c),
-            RevsetGraphEdge::indirect(pos_b),
-            RevsetGraphEdge::indirect(pos_a),
+            indirect(&commit_c),
+            indirect(&commit_b),
+            indirect(&commit_a),
         ]
     );
-    assert_eq!(commits[1].1, vec![RevsetGraphEdge::missing(pos_root)]);
-    assert_eq!(commits[2].1, vec![RevsetGraphEdge::missing(pos_root)]);
-    assert_eq!(commits[3].1, vec![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[1].1, vec![missing(&root_commit)]);
+    assert_eq!(commits[2].1, vec![missing(&root_commit)]);
+    assert_eq!(commits[3].1, vec![missing(&root_commit)]);
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -143,12 +144,7 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
     let commit_d = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_d]);
     let repo = tx.commit();
-
-    let pos_root = repo
-        .index()
-        .commit_id_to_pos(repo.store().root_commit_id())
-        .unwrap();
-    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
+    let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(&repo, &[&commit_a, &commit_c, &commit_e]);
     let commits = RevsetGraphIterator::new(revset.as_ref())
@@ -158,9 +154,9 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
     assert_eq!(commits[0].0.commit_id(), *commit_e.id());
     assert_eq!(commits[1].0.commit_id(), *commit_c.id());
     assert_eq!(commits[2].0.commit_id(), *commit_a.id());
-    assert_eq!(commits[0].1, vec![RevsetGraphEdge::indirect(pos_a)]);
-    assert_eq!(commits[1].1, vec![RevsetGraphEdge::indirect(pos_a)]);
-    assert_eq!(commits[2].1, vec![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[0].1, vec![indirect(&commit_a)]);
+    assert_eq!(commits[1].1, vec![indirect(&commit_a)]);
+    assert_eq!(commits[2].1, vec![missing(&root_commit)]);
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -188,14 +184,7 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
     let commit_e = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
     let repo = tx.commit();
-
-    let pos_root = repo
-        .index()
-        .commit_id_to_pos(repo.store().root_commit_id())
-        .unwrap();
-    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
-    let pos_b = repo.index().commit_id_to_pos(commit_b.id()).unwrap();
-    let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
+    let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(&repo, &[&commit_b, &commit_f]);
     let commits = RevsetGraphIterator::new(revset.as_ref())
@@ -206,13 +195,9 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
     assert_eq!(commits[1].0.commit_id(), *commit_b.id());
     assert_eq!(
         commits[0].1,
-        vec![
-            RevsetGraphEdge::missing(pos_c),
-            RevsetGraphEdge::indirect(pos_b),
-            RevsetGraphEdge::missing(pos_a),
-        ]
+        vec![missing(&commit_c), indirect(&commit_b), missing(&commit_a),]
     );
-    assert_eq!(commits[1].1, vec![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[1].1, vec![missing(&root_commit)]);
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -244,11 +229,6 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
     let repo = tx.commit();
 
-    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
-    let pos_b = repo.index().commit_id_to_pos(commit_b.id()).unwrap();
-    let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
-    let pos_d = repo.index().commit_id_to_pos(commit_d.id()).unwrap();
-
     let revset = revset_for_commits(&repo, &[&commit_c, &commit_d, &commit_f]);
     let commits = RevsetGraphIterator::new(revset.as_ref())
         .set_skip_transitive_edges(skip_transitive_edges)
@@ -258,24 +238,12 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
     assert_eq!(commits[1].0.commit_id(), *commit_d.id());
     assert_eq!(commits[2].0.commit_id(), *commit_c.id());
     if skip_transitive_edges {
-        assert_eq!(commits[0].1, vec![RevsetGraphEdge::direct(pos_d)]);
+        assert_eq!(commits[0].1, vec![direct(&commit_d)]);
     } else {
-        assert_eq!(
-            commits[0].1,
-            vec![
-                RevsetGraphEdge::direct(pos_d),
-                RevsetGraphEdge::indirect(pos_c),
-            ]
-        );
+        assert_eq!(commits[0].1, vec![direct(&commit_d), indirect(&commit_c),]);
     }
-    assert_eq!(
-        commits[1].1,
-        vec![
-            RevsetGraphEdge::direct(pos_c),
-            RevsetGraphEdge::missing(pos_b),
-        ]
-    );
-    assert_eq!(commits[2].1, vec![RevsetGraphEdge::missing(pos_a)]);
+    assert_eq!(commits[1].1, vec![direct(&commit_c), missing(&commit_b),]);
+    assert_eq!(commits[2].1, vec![missing(&commit_a)]);
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -314,15 +282,7 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     let commit_i = graph_builder.commit_with_parents(&[&commit_e, &commit_h]);
     let commit_j = graph_builder.commit_with_parents(&[&commit_g, &commit_i]);
     let repo = tx.commit();
-
-    let pos_root = repo
-        .index()
-        .commit_id_to_pos(repo.store().root_commit_id())
-        .unwrap();
-    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
-    let pos_d = repo.index().commit_id_to_pos(commit_d.id()).unwrap();
-    let pos_g = repo.index().commit_id_to_pos(commit_g.id()).unwrap();
-    let pos_h = repo.index().commit_id_to_pos(commit_h.id()).unwrap();
+    let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(
         &repo,
@@ -338,32 +298,16 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     assert_eq!(commits[3].0.commit_id(), *commit_d.id());
     assert_eq!(commits[4].0.commit_id(), *commit_a.id());
     if skip_transitive_edges {
-        assert_eq!(
-            commits[0].1,
-            vec![
-                RevsetGraphEdge::indirect(pos_h),
-                RevsetGraphEdge::direct(pos_g)
-            ]
-        );
-        assert_eq!(commits[1].1, vec![RevsetGraphEdge::indirect(pos_d)]);
+        assert_eq!(commits[0].1, vec![indirect(&commit_h), direct(&commit_g),]);
+        assert_eq!(commits[1].1, vec![indirect(&commit_d)]);
     } else {
         assert_eq!(
             commits[0].1,
-            vec![
-                RevsetGraphEdge::indirect(pos_h),
-                RevsetGraphEdge::direct(pos_g),
-                RevsetGraphEdge::indirect(pos_d),
-            ]
+            vec![indirect(&commit_h), direct(&commit_g), indirect(&commit_d),]
         );
-        assert_eq!(
-            commits[1].1,
-            vec![
-                RevsetGraphEdge::indirect(pos_d),
-                RevsetGraphEdge::indirect(pos_a)
-            ]
-        );
+        assert_eq!(commits[1].1, vec![indirect(&commit_d), indirect(&commit_a)]);
     }
-    assert_eq!(commits[2].1, vec![RevsetGraphEdge::indirect(pos_a)]);
-    assert_eq!(commits[3].1, vec![RevsetGraphEdge::indirect(pos_a)]);
-    assert_eq!(commits[4].1, vec![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[2].1, vec![indirect(&commit_a)]);
+    assert_eq!(commits[3].1, vec![indirect(&commit_a)]);
+    assert_eq!(commits[4].1, vec![missing(&root_commit)]);
 }

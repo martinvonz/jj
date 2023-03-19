@@ -1535,7 +1535,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 with_content_format.write_graph_text(
                     ui.new_formatter(&mut buffer).as_mut(),
                     |formatter| template.format(&commit, formatter),
-                    || graph.width(&index_entry.position(), &graphlog_edges),
+                    || graph.width(&commit_id, &graphlog_edges),
                 )?;
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
@@ -1557,7 +1557,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 };
 
                 graph.add_node(
-                    &index_entry.position(),
+                    &commit_id,
                     &graphlog_edges,
                     node_symbol,
                     &String::from_utf8_lossy(&buffer),
