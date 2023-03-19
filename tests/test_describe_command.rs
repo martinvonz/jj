@@ -150,7 +150,7 @@ fn test_describe_author() {
 
     test_env.add_config(
         r#"[template-aliases]
-'format_signature(signature)' = 'signature.name() ++ " " ++ signature.email() ++ " " ++ signature.timestamp()'"#,
+'format_signature(signature)' = 'signature.name ++ " " ++ signature.email ++ " " ++ signature.timestamp'"#,
     );
     let get_signatures = || {
         test_env.jj_cmd_success(

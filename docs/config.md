@@ -156,7 +156,7 @@ Can be customized by the `format_short_id()` template alias.
 # Just the shortest possible unique prefix
 'format_short_id(id)' = 'id.shortest()'
 # Show unique prefix and the rest surrounded by brackets
-'format_short_id(id)' = 'id.shortest(12).prefix() ++ "[" ++ id.shortest(12).rest() ++ "]"'
+'format_short_id(id)' = 'id.shortest(12).prefix ++ "[" ++ id.shortest(12).rest ++ "]"'
 # Always show 12 characters
 'format_short_id(id)' = 'id.short(12)'
 ```
@@ -187,7 +187,7 @@ will need to modify the `format_time_range()` template alias.
 
 ```toml
 [template-aliases]
-'format_time_range(time_range)' = 'time_range.start() ++ " - " ++ time_range.end()'
+'format_time_range(time_range)' = 'time_range.start ++ " - " ++ time_range.end'
 ```
 
 ### Author format
@@ -197,11 +197,11 @@ Can be customized by the `format_short_signature()` template alias.
 ```toml
 [template-aliases]
 # Full email address (default)
-'format_short_signature(signature)' = 'signature.email()'
+'format_short_signature(signature)' = 'signature.email'
 # Both name and email address
 'format_short_signature(signature)' = 'signature'
 # Username part of the email address
-'format_short_signature(signature)' = 'signature.username()'
+'format_short_signature(signature)' = 'signature.username'
 ```
 
 ## Pager

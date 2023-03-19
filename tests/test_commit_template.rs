@@ -61,7 +61,7 @@ fn test_log_author_timestamp() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp()"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp"]);
     insta::assert_snapshot!(stdout, @r###"
     @  2001-02-03 04:05:09.000 +07:00
     ●  2001-02-03 04:05:07.000 +07:00
@@ -78,7 +78,7 @@ fn test_log_author_timestamp_ago() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
 
-    let template = r#"author.timestamp().ago() ++ "\n""#;
+    let template = r#"author.timestamp.ago() ++ "\n""#;
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-T", template]);
     let line_re = Regex::new(r"[0-9]+ years ago").unwrap();
     assert!(
@@ -212,7 +212,7 @@ fn test_log_customize_short_id() {
         &[
             "log",
             "--config-toml",
-            &format!(r#"{decl}='id.shortest(5).prefix().upper() ++ "_" ++ id.shortest(5).rest()'"#),
+            &format!(r#"{decl}='id.shortest(5).prefix.upper() ++ "_" ++ id.shortest(5).rest'"#),
         ],
     );
     insta::assert_snapshot!(stdout, @r###"

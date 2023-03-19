@@ -376,9 +376,9 @@ fn test_templater_signature() {
     test_env.jj_cmd_success(&repo_path, &["new"]);
 
     insta::assert_snapshot!(render(r#"author"#), @"Test User <test.user@example.com>");
-    insta::assert_snapshot!(render(r#"author.name()"#), @"Test User");
-    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@example.com");
-    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
+    insta::assert_snapshot!(render(r#"author.name"#), @"Test User");
+    insta::assert_snapshot!(render(r#"author.email"#), @"test.user@example.com");
+    insta::assert_snapshot!(render(r#"author.username"#), @"test.user");
 
     test_env.jj_cmd_success(
         &repo_path,
@@ -386,9 +386,9 @@ fn test_templater_signature() {
     );
 
     insta::assert_snapshot!(render(r#"author"#), @"Another Test User <test.user@example.com>");
-    insta::assert_snapshot!(render(r#"author.name()"#), @"Another Test User");
-    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@example.com");
-    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
+    insta::assert_snapshot!(render(r#"author.name"#), @"Another Test User");
+    insta::assert_snapshot!(render(r#"author.email"#), @"test.user@example.com");
+    insta::assert_snapshot!(render(r#"author.username"#), @"test.user");
 
     test_env.jj_cmd_success(
         &repo_path,
@@ -399,15 +399,15 @@ fn test_templater_signature() {
     );
 
     insta::assert_snapshot!(render(r#"author"#), @"Test User <test.user@invalid@example.com>");
-    insta::assert_snapshot!(render(r#"author.name()"#), @"Test User");
-    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@invalid@example.com");
-    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
+    insta::assert_snapshot!(render(r#"author.name"#), @"Test User");
+    insta::assert_snapshot!(render(r#"author.email"#), @"test.user@invalid@example.com");
+    insta::assert_snapshot!(render(r#"author.username"#), @"test.user");
 
     test_env.jj_cmd_success(&repo_path, &["--config-toml=user.email='test.user'", "new"]);
 
     insta::assert_snapshot!(render(r#"author"#), @"Test User <test.user>");
-    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user");
-    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
+    insta::assert_snapshot!(render(r#"author.email"#), @"test.user");
+    insta::assert_snapshot!(render(r#"author.username"#), @"test.user");
 
     test_env.jj_cmd_success(
         &repo_path,
@@ -418,14 +418,14 @@ fn test_templater_signature() {
     );
 
     insta::assert_snapshot!(render(r#"author"#), @"Test User <test.user+tag@example.com>");
-    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user+tag@example.com");
-    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user+tag");
+    insta::assert_snapshot!(render(r#"author.email"#), @"test.user+tag@example.com");
+    insta::assert_snapshot!(render(r#"author.username"#), @"test.user+tag");
 
     test_env.jj_cmd_success(&repo_path, &["--config-toml=user.email='x@y'", "new"]);
 
     insta::assert_snapshot!(render(r#"author"#), @"Test User <x@y>");
-    insta::assert_snapshot!(render(r#"author.email()"#), @"x@y");
-    insta::assert_snapshot!(render(r#"author.username()"#), @"x");
+    insta::assert_snapshot!(render(r#"author.email"#), @"x@y");
+    insta::assert_snapshot!(render(r#"author.username"#), @"x");
 }
 
 #[test]
@@ -445,45 +445,45 @@ fn test_templater_timestamp_method() {
     );
 
     insta::assert_snapshot!(
-        render(r#"author.timestamp().format("%Y%m%d %H:%M:%S")"#), @"19700101 00:00:00");
+        render(r#"author.timestamp.format("%Y%m%d %H:%M:%S")"#), @"19700101 00:00:00");
 
     // Invalid format string
-    insta::assert_snapshot!(render_err(r#"author.timestamp().format("%_")"#), @r###"
-    Error: Failed to parse template:  --> 1:27
+    insta::assert_snapshot!(render_err(r#"author.timestamp.format("%_")"#), @r###"
+    Error: Failed to parse template:  --> 1:25
       |
-    1 | author.timestamp().format("%_")
-      |                           ^--^
+    1 | author.timestamp.format("%_")
+      |                         ^--^
       |
       = Invalid time format
     "###);
 
     // Invalid type
-    insta::assert_snapshot!(render_err(r#"author.timestamp().format(0)"#), @r###"
-    Error: Failed to parse template:  --> 1:27
+    insta::assert_snapshot!(render_err(r#"author.timestamp.format(0)"#), @r###"
+    Error: Failed to parse template:  --> 1:25
       |
-    1 | author.timestamp().format(0)
-      |                           ^
+    1 | author.timestamp.format(0)
+      |                         ^
       |
       = Expected string literal
     "###);
 
     // Dynamic string isn't supported yet
-    insta::assert_snapshot!(render_err(r#"author.timestamp().format("%Y" ++ "%m")"#), @r###"
-    Error: Failed to parse template:  --> 1:27
+    insta::assert_snapshot!(render_err(r#"author.timestamp.format("%Y" ++ "%m")"#), @r###"
+    Error: Failed to parse template:  --> 1:25
       |
-    1 | author.timestamp().format("%Y" ++ "%m")
-      |                           ^----------^
+    1 | author.timestamp.format("%Y" ++ "%m")
+      |                         ^----------^
       |
       = Expected string literal
     "###);
 
     // Literal alias expansion
-    insta::assert_snapshot!(render(r#"author.timestamp().format(time_format)"#), @"1970-01-01");
-    insta::assert_snapshot!(render_err(r#"author.timestamp().format(bad_time_format)"#), @r###"
-    Error: Failed to parse template:  --> 1:27
+    insta::assert_snapshot!(render(r#"author.timestamp.format(time_format)"#), @"1970-01-01");
+    insta::assert_snapshot!(render_err(r#"author.timestamp.format(bad_time_format)"#), @r###"
+    Error: Failed to parse template:  --> 1:25
       |
-    1 | author.timestamp().format(bad_time_format)
-      |                           ^-------------^
+    1 | author.timestamp.format(bad_time_format)
+      |                         ^-------------^
       |
       = Alias "bad_time_format" cannot be expanded
      --> 1:1

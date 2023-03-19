@@ -281,7 +281,7 @@ fn test_log_shortest_accessors() {
     test_env.add_config(
         r###"
         [template-aliases]
-        'format_id(id)' = 'id.shortest(12).prefix() ++ "[" ++ id.shortest(12).rest() ++ "]"'
+        'format_id(id)' = 'id.shortest(12).prefix ++ "[" ++ id.shortest(12).rest ++ "]"'
         "###,
     );
 
@@ -478,7 +478,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     test_env.add_config(
         r###"
         [template-aliases]
-        'format_id(id)' = 'id.shortest(12).prefix() ++ "[" ++ id.shortest(12).rest() ++ "]"'
+        'format_id(id)' = 'id.shortest(12).prefix ++ "[" ++ id.shortest(12).rest ++ "]"'
         "###,
     );
 
@@ -575,7 +575,7 @@ fn test_log_author_format() {
             &repo_path,
             &[
                 "--config-toml",
-                &format!("{decl}='signature.username()'"),
+                &format!("{decl}='signature.username'"),
                 "log",
                 "--revisions=@",
             ],

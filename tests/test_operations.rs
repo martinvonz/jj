@@ -141,7 +141,7 @@ fn test_op_log_template() {
     "###);
     insta::assert_snapshot!(
         render(r#"separate(" ", id.short(5), current_operation, user,
-                                time.start(), time.end(), time.duration()) ++ "\n""#), @r###"
+                                time.start, time.end, time.duration()) ++ "\n""#), @r###"
     @  a99a3 true test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
     ●  56b94 false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
     "###);

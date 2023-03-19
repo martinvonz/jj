@@ -14,7 +14,7 @@ label(if(current_working_copy, "working_copy"),
         label("divergent", format_short_change_id(change_id) ++ "??"),
         format_short_change_id(change_id)),
       format_short_signature(author),
-      format_timestamp(committer.timestamp()),
+      format_timestamp(committer.timestamp),
       branches,
       tags,
       working_copies,
@@ -54,9 +54,9 @@ show = 'show'
 'format_short_id(id)' = 'id.shortest(12)'
 'format_short_change_id(id)' = 'format_short_id(id)'
 'format_short_commit_id(id)' = 'format_short_id(id)'
-'format_short_signature(signature)' = 'signature.email()'
+'format_short_signature(signature)' = 'signature.email'
 'format_time_range(time_range)' = '''
-  time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
+  time_range.start.ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp'
 
 # TODO: Add branches, tags, etc
@@ -64,8 +64,8 @@ show = 'show'
 concat(
   "Commit ID: " ++ commit_id ++ "\n",
   "Change ID: " ++ change_id ++ "\n",
-  "Author: " ++ author ++ " (" ++ format_timestamp(author.timestamp()) ++ ")\n",
-  "Committer: " ++ committer ++ " (" ++ format_timestamp(committer.timestamp()) ++ ")\n",
+  "Author: " ++ author ++ " (" ++ format_timestamp(author.timestamp) ++ ")\n",
+  "Committer: " ++ committer ++ " (" ++ format_timestamp(committer.timestamp) ++ ")\n",
   "\n",
   indent("    ", if(description, description, description_placeholder ++ "\n")),
   "\n",

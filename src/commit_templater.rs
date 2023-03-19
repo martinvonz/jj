@@ -453,11 +453,18 @@ impl ShortestIdPrefix {
 }
 
 fn build_shortest_id_prefix_field<'repo>(
-    _language: &CommitTemplateLanguage<'repo, '_>,
-    _self_property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
+    language: &CommitTemplateLanguage<'repo, '_>,
+    self_property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
     field: &FieldNode,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    Err(TemplateParseError::no_such_field("ShortestIdPrefix", field))
+    let property = match field.name {
+        "prefix" => language.wrap_string(TemplateFunction::new(self_property, |id| id.prefix)),
+        "rest" => language.wrap_string(TemplateFunction::new(self_property, |id| id.rest)),
+        _ => {
+            return Err(TemplateParseError::no_such_field("ShortestIdPrefix", field));
+        }
+    };
+    Ok(property)
 }
 
 fn build_shortest_id_prefix_method<'repo>(
@@ -467,14 +474,6 @@ fn build_shortest_id_prefix_method<'repo>(
     function: &FunctionCallNode,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
     let property = match function.name {
-        "prefix" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |id| id.prefix))
-        }
-        "rest" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |id| id.rest))
-        }
         "upper" => {
             template_parser::expect_no_arguments(function)?;
             language

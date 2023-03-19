@@ -443,48 +443,36 @@ fn build_integer_method<'a, L: TemplateLanguage<'a>>(
 }
 
 fn build_signature_field<'a, L: TemplateLanguage<'a>>(
-    _language: &L,
-    _self_property: impl TemplateProperty<L::Context, Output = Signature> + 'a,
+    language: &L,
+    self_property: impl TemplateProperty<L::Context, Output = Signature> + 'a,
     field: &FieldNode,
 ) -> TemplateParseResult<L::Property> {
-    Err(TemplateParseError::no_such_field("Signature", field))
+    let property = match field.name {
+        "name" => language.wrap_string(TemplateFunction::new(self_property, |signature| {
+            signature.name
+        })),
+        "email" => language.wrap_string(TemplateFunction::new(self_property, |signature| {
+            signature.email
+        })),
+        "username" => language.wrap_string(TemplateFunction::new(self_property, |signature| {
+            let (username, _) = text_util::split_email(&signature.email);
+            username.to_owned()
+        })),
+        "timestamp" => language.wrap_timestamp(TemplateFunction::new(self_property, |signature| {
+            signature.timestamp
+        })),
+        _ => return Err(TemplateParseError::no_such_field("Signature", field)),
+    };
+    Ok(property)
 }
 
 fn build_signature_method<'a, L: TemplateLanguage<'a>>(
-    language: &L,
+    _language: &L,
     _build_ctx: &BuildContext<L::Property>,
-    self_property: impl TemplateProperty<L::Context, Output = Signature> + 'a,
+    _self_property: impl TemplateProperty<L::Context, Output = Signature> + 'a,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<L::Property> {
-    let property = match function.name {
-        "name" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                signature.name
-            }))
-        }
-        "email" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                signature.email
-            }))
-        }
-        "username" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                let (username, _) = text_util::split_email(&signature.email);
-                username.to_owned()
-            }))
-        }
-        "timestamp" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_timestamp(TemplateFunction::new(self_property, |signature| {
-                signature.timestamp
-            }))
-        }
-        _ => return Err(TemplateParseError::no_such_method("Signature", function)),
-    };
-    Ok(property)
+    Err(TemplateParseError::no_such_method("Signature", function))
 }
 
 fn build_timestamp_field<'a, L: TemplateLanguage<'a>>(
@@ -528,11 +516,20 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
 }
 
 fn build_timestamp_range_field<'a, L: TemplateLanguage<'a>>(
-    _language: &L,
-    _self_property: impl TemplateProperty<L::Context, Output = TimestampRange> + 'a,
+    language: &L,
+    self_property: impl TemplateProperty<L::Context, Output = TimestampRange> + 'a,
     field: &FieldNode,
 ) -> TemplateParseResult<L::Property> {
-    Err(TemplateParseError::no_such_field("TimestampRange", field))
+    let property = match field.name {
+        "start" => language.wrap_timestamp(TemplateFunction::new(self_property, |time_range| {
+            time_range.start
+        })),
+        "end" => language.wrap_timestamp(TemplateFunction::new(self_property, |time_range| {
+            time_range.end
+        })),
+        _ => return Err(TemplateParseError::no_such_field("TimestampRange", field)),
+    };
+    Ok(property)
 }
 
 fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
@@ -542,18 +539,6 @@ fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
     function: &FunctionCallNode,
 ) -> TemplateParseResult<L::Property> {
     let property = match function.name {
-        "start" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_timestamp(TemplateFunction::new(self_property, |time_range| {
-                time_range.start
-            }))
-        }
-        "end" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_timestamp(TemplateFunction::new(self_property, |time_range| {
-                time_range.end
-            }))
-        }
         "duration" => {
             template_parser::expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |time_range| {

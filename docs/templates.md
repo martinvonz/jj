@@ -111,8 +111,8 @@ The following fields/methods are defined.
 
 The following fields/methods are defined.
 
-* `.prefix() -> String`
-* `.rest() -> String`
+* `.prefix: String`
+* `.rest: String`
 * `.upper() -> ShortestIdPrefix`
 * `.lower() -> ShortestIdPrefix`
 
@@ -120,10 +120,10 @@ The following fields/methods are defined.
 
 The following fields/methods are defined.
 
-* `.name() -> String`
-* `.email() -> String`
-* `.username() -> String`
-* `.timestamp() -> Timestamp`
+* `.name: String`
+* `.email: String`
+* `.username: String`
+* `.timestamp: Timestamp`
 
 ### String type
 
@@ -153,8 +153,8 @@ The following fields/methods are defined.
 
 The following fields/methods are defined.
 
-* `.start() -> Timestamp`
-* `.end() -> Timestamp`
+* `.start: Timestamp`
+* `.end: Timestamp`
 * `.duration() -> String`
 
 ## Configuration
