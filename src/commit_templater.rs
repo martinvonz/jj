@@ -85,14 +85,14 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
 impl<'repo> CommitTemplateLanguage<'repo, '_> {
     fn wrap_commit_or_change_id(
         &self,
-        property: impl TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo,
+        property: impl TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::CommitOrChangeId(Box::new(property))
     }
 
     fn wrap_commit_or_change_id_list(
         &self,
-        property: impl TemplateProperty<Commit, Output = Vec<CommitOrChangeId<'repo>>> + 'repo,
+        property: impl TemplateProperty<Commit, Output = Vec<CommitOrChangeId>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::CommitOrChangeIdList(Box::new(property))
     }
@@ -107,10 +107,8 @@ impl<'repo> CommitTemplateLanguage<'repo, '_> {
 
 enum CommitTemplatePropertyKind<'repo> {
     Core(CoreTemplatePropertyKind<'repo, Commit>),
-    CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo>),
-    CommitOrChangeIdList(
-        Box<dyn TemplateProperty<Commit, Output = Vec<CommitOrChangeId<'repo>>> + 'repo>,
-    ),
+    CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo>),
+    CommitOrChangeIdList(Box<dyn TemplateProperty<Commit, Output = Vec<CommitOrChangeId>> + 'repo>),
     ShortestIdPrefix(Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>),
 }
 
@@ -178,17 +176,17 @@ fn build_commit_keyword<'repo>(
         "description" => language.wrap_string(wrap_fn(|commit| {
             text_util::complete_newline(commit.description())
         })),
-        "change_id" => language.wrap_commit_or_change_id(wrap_fn(move |commit| {
-            CommitOrChangeId::new(repo, IdKind::Change(commit.change_id().to_owned()))
+        "change_id" => language.wrap_commit_or_change_id(wrap_fn(|commit| {
+            CommitOrChangeId::Change(commit.change_id().to_owned())
         })),
-        "commit_id" => language.wrap_commit_or_change_id(wrap_fn(move |commit| {
-            CommitOrChangeId::new(repo, IdKind::Commit(commit.id().to_owned()))
+        "commit_id" => language.wrap_commit_or_change_id(wrap_fn(|commit| {
+            CommitOrChangeId::Commit(commit.id().to_owned())
         })),
         "parent_commit_ids" => language.wrap_commit_or_change_id_list(wrap_fn(move |commit| {
             commit
                 .parent_ids()
                 .iter()
-                .map(|id| CommitOrChangeId::new(repo, IdKind::Commit(id.to_owned())))
+                .map(|id| CommitOrChangeId::Commit(id.to_owned()))
                 .collect()
         })),
         "author" => language.wrap_signature(wrap_fn(|commit| commit.author().clone())),
@@ -312,27 +310,17 @@ fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> String {
     }
 }
 
-#[derive(Clone)]
-struct CommitOrChangeId<'repo> {
-    repo: &'repo dyn Repo,
-    id: IdKind,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum IdKind {
+enum CommitOrChangeId {
     Commit(CommitId),
     Change(ChangeId),
 }
 
-impl<'repo> CommitOrChangeId<'repo> {
-    pub fn new(repo: &'repo dyn Repo, id: IdKind) -> Self {
-        CommitOrChangeId { repo, id }
-    }
-
+impl CommitOrChangeId {
     pub fn hex(&self) -> String {
-        match &self.id {
-            IdKind::Commit(id) => id.hex(),
-            IdKind::Change(id) => {
+        match self {
+            CommitOrChangeId::Commit(id) => id.hex(),
+            CommitOrChangeId::Change(id) => {
                 // TODO: We can avoid the unwrap() and make this more efficient by converting
                 // straight from bytes.
                 to_reverse_hex(&id.hex()).unwrap()
@@ -348,11 +336,11 @@ impl<'repo> CommitOrChangeId<'repo> {
 
     /// The length of the id printed will be the maximum of `total_len` and the
     /// length of the shortest unique prefix
-    pub fn shortest(&self, total_len: usize) -> ShortestIdPrefix {
+    pub fn shortest(&self, repo: &dyn Repo, total_len: usize) -> ShortestIdPrefix {
         let mut hex = self.hex();
-        let prefix_len = match &self.id {
-            IdKind::Commit(id) => self.repo.index().shortest_unique_commit_id_prefix_len(id),
-            IdKind::Change(id) => self.repo.shortest_unique_change_id_prefix_len(id),
+        let prefix_len = match self {
+            CommitOrChangeId::Commit(id) => repo.index().shortest_unique_commit_id_prefix_len(id),
+            CommitOrChangeId::Change(id) => repo.shortest_unique_change_id_prefix_len(id),
         };
         hex.truncate(max(prefix_len, total_len));
         let rest = hex.split_off(prefix_len);
@@ -360,13 +348,13 @@ impl<'repo> CommitOrChangeId<'repo> {
     }
 }
 
-impl Template<()> for CommitOrChangeId<'_> {
+impl Template<()> for CommitOrChangeId {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(&self.hex())
     }
 }
 
-impl Template<()> for Vec<CommitOrChangeId<'_>> {
+impl Template<()> for Vec<CommitOrChangeId> {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         templater::format_joined(&(), formatter, self, " ")
     }
@@ -375,7 +363,7 @@ impl Template<()> for Vec<CommitOrChangeId<'_>> {
 fn build_commit_or_change_id_method<'repo>(
     language: &CommitTemplateLanguage<'repo, '_>,
     build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
-    self_property: impl TemplateProperty<Commit, Output = CommitOrChangeId<'repo>> + 'repo,
+    self_property: impl TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
     let parse_optional_integer = |function| -> Result<Option<_>, TemplateParseError> {
@@ -393,10 +381,11 @@ fn build_commit_or_change_id_method<'repo>(
             ))
         }
         "shortest" => {
+            let repo = language.repo;
             let len_property = parse_optional_integer(function)?;
             language.wrap_shortest_id_prefix(TemplateFunction::new(
                 (self_property, len_property),
-                |(id, len)| id.shortest(len.and_then(|l| l.try_into().ok()).unwrap_or(0)),
+                |(id, len)| id.shortest(repo, len.and_then(|l| l.try_into().ok()).unwrap_or(0)),
             ))
         }
         _ => {
