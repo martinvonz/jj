@@ -29,7 +29,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, CommitId, ObjectId};
 use crate::commit::Commit;
-use crate::default_index_store::{IndexEntry, IndexPosition};
+use crate::default_index_store::IndexEntry;
 use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
@@ -1568,24 +1568,24 @@ pub trait Revset<'index> {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct RevsetGraphEdge {
-    pub target: IndexPosition,
+    pub target: CommitId,
     pub edge_type: RevsetGraphEdgeType,
 }
 
 impl RevsetGraphEdge {
-    pub fn missing(target: IndexPosition) -> Self {
+    pub fn missing(target: CommitId) -> Self {
         Self {
             target,
             edge_type: RevsetGraphEdgeType::Missing,
         }
     }
-    pub fn direct(target: IndexPosition) -> Self {
+    pub fn direct(target: CommitId) -> Self {
         Self {
             target,
             edge_type: RevsetGraphEdgeType::Direct,
         }
     }
-    pub fn indirect(target: IndexPosition) -> Self {
+    pub fn indirect(target: CommitId) -> Self {
         Self {
             target,
             edge_type: RevsetGraphEdgeType::Indirect,
@@ -1679,14 +1679,14 @@ impl<'index> ReverseRevsetGraphIterator<'index> {
         input: Box<dyn Iterator<Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>)> + 'revset>,
     ) -> Self {
         let mut entries = vec![];
-        let mut reverse_edges: HashMap<IndexPosition, Vec<RevsetGraphEdge>> = HashMap::new();
+        let mut reverse_edges: HashMap<CommitId, Vec<RevsetGraphEdge>> = HashMap::new();
         for (entry, edges) in input {
             for RevsetGraphEdge { target, edge_type } in edges {
                 reverse_edges
                     .entry(target)
                     .or_default()
                     .push(RevsetGraphEdge {
-                        target: entry.position(),
+                        target: entry.commit_id(),
                         edge_type,
                     })
             }
@@ -1696,7 +1696,7 @@ impl<'index> ReverseRevsetGraphIterator<'index> {
         let mut items = vec![];
         for entry in entries.into_iter() {
             let edges = reverse_edges
-                .get(&entry.position())
+                .get(&entry.commit_id())
                 .cloned()
                 .unwrap_or_default();
             items.push((entry, edges));
