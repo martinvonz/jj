@@ -18,7 +18,7 @@ use regex::Regex;
 pub mod common;
 
 #[test]
-fn test_log_parent_commit_ids() {
+fn test_log_parents() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -27,7 +27,7 @@ fn test_log_parent_commit_ids() {
     test_env.jj_cmd_success(&repo_path, &["new", "@-"]);
     test_env.jj_cmd_success(&repo_path, &["new", "@", "@-"]);
 
-    let template = r#"commit_id ++ "\nP: " ++ parent_commit_ids ++ "\n""#;
+    let template = r#"commit_id ++ "\nP: " ++ parents.map(|c| c.commit_id()) ++ "\n""#;
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
     @    c067170d4ca1bc6162b64f7550617ec809647f84
@@ -40,15 +40,38 @@ fn test_log_parent_commit_ids() {
        P:
     "###);
 
-    let template = r#"parent_commit_ids.map(|id| id.shortest(4))"#;
+    let template = r#"parents.map(|c| c.commit_id().shortest(4))"#;
     let stdout = test_env.jj_cmd_success(
         &repo_path,
         &["log", "-T", template, "-r@", "--color=always"],
     );
     insta::assert_snapshot!(stdout, @r###"
-    @  [1m4[0m[38;5;8mdb4[39m [1m2[0m[38;5;8m30d[39m
+    @  [1m[38;5;4m4[0m[38;5;8mdb4[39m [1m[38;5;4m2[0m[38;5;8m30d[39m
     │
     ~
+    "###);
+
+    // Commit object isn't printable
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-T", "parents"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | parents
+      | ^-----^
+      |
+      = Expected expression of type "Template"
+    "###);
+
+    // Redundant argument passed to keyword method
+    let template = r#"parents.map(|c| c.commit_id(""))"#;
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse template:  --> 1:29
+      |
+    1 | parents.map(|c| c.commit_id(""))
+      |                             ^^
+      |
+      = Function "commit_id": Expected 0 arguments
     "###);
 }
 

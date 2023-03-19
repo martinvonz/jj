@@ -18,7 +18,7 @@ The following keywords can be used in `jj log`/`jj obslog` templates.
 * `description: String`
 * `change_id: ChangeId`
 * `commit_id: CommitId`
-* `parent_commit_ids: List<CommitId>`
+* `parents: List<Commit>`
 * `author: Signature`
 * `committer: Signature`
 * `working_copies: String`: For multi-workspace repository, indicate
@@ -75,6 +75,11 @@ The following functions are defined.
 
 No methods are defined.
 
+### Commit type
+
+This type cannot be printed. All commit keywords are accessible as 0-argument
+methods.
+
 ### CommitId / ChangeId type
 
 The following methods are defined.
@@ -93,7 +98,7 @@ The following methods are defined.
 * `.join(separator: Template) -> Template`: Concatenate elements with
   the given `separator`.
 * `.map(|item| expression) -> ListTemplate`: Apply template `expression`
-  to each element. Example: `parent_commit_ids.map(|id| id.short())`
+  to each element. Example: `parents.map(|c| c.commit_id().short())`
 
 ### ListTemplate type
 
