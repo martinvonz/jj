@@ -31,7 +31,7 @@ use crate::template_parser::{
     self, FunctionCallNode, TemplateAliasesMap, TemplateParseError, TemplateParseResult,
 };
 use crate::templater::{
-    self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
+    IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
     TemplatePropertyFn,
 };
 use crate::text_util;
@@ -61,17 +61,20 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
             CommitTemplatePropertyKind::Core(property) => {
                 template_builder::build_core_method(self, build_ctx, property, function)
             }
-            CommitTemplatePropertyKind::CommitOrChangeId(property) => {
-                build_commit_or_change_id_method(self, build_ctx, property, function)
+            CommitTemplatePropertyKind::Commit(property) => {
+                build_commit_method(self, build_ctx, property, function)
             }
-            CommitTemplatePropertyKind::CommitOrChangeIdList(property) => {
-                template_builder::build_formattable_list_method(
+            CommitTemplatePropertyKind::CommitList(property) => {
+                template_builder::build_unformattable_list_method(
                     self,
                     build_ctx,
                     property,
                     function,
-                    |item| self.wrap_commit_or_change_id(item),
+                    |item| self.wrap_commit(item),
                 )
+            }
+            CommitTemplatePropertyKind::CommitOrChangeId(property) => {
+                build_commit_or_change_id_method(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
                 build_shortest_id_prefix_method(self, build_ctx, property, function)
@@ -83,18 +86,25 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
 // If we need to add multiple languages that support Commit types, this can be
 // turned into a trait which extends TemplateLanguage.
 impl<'repo> CommitTemplateLanguage<'repo, '_> {
+    fn wrap_commit(
+        &self,
+        property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::Commit(Box::new(property))
+    }
+
+    fn wrap_commit_list(
+        &self,
+        property: impl TemplateProperty<Commit, Output = Vec<Commit>> + 'repo,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::CommitList(Box::new(property))
+    }
+
     fn wrap_commit_or_change_id(
         &self,
         property: impl TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::CommitOrChangeId(Box::new(property))
-    }
-
-    fn wrap_commit_or_change_id_list(
-        &self,
-        property: impl TemplateProperty<Commit, Output = Vec<CommitOrChangeId>> + 'repo,
-    ) -> CommitTemplatePropertyKind<'repo> {
-        CommitTemplatePropertyKind::CommitOrChangeIdList(Box::new(property))
     }
 
     fn wrap_shortest_id_prefix(
@@ -107,8 +117,9 @@ impl<'repo> CommitTemplateLanguage<'repo, '_> {
 
 enum CommitTemplatePropertyKind<'repo> {
     Core(CoreTemplatePropertyKind<'repo, Commit>),
+    Commit(Box<dyn TemplateProperty<Commit, Output = Commit> + 'repo>),
+    CommitList(Box<dyn TemplateProperty<Commit, Output = Vec<Commit>> + 'repo>),
     CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo>),
-    CommitOrChangeIdList(Box<dyn TemplateProperty<Commit, Output = Vec<CommitOrChangeId>> + 'repo>),
     ShortestIdPrefix(Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>),
 }
 
@@ -143,10 +154,9 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
     fn try_into_template(self) -> Option<Box<dyn Template<Commit> + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_template(),
+            CommitTemplatePropertyKind::Commit(_) => None,
+            CommitTemplatePropertyKind::CommitList(_) => None,
             CommitTemplatePropertyKind::CommitOrChangeId(property) => {
-                Some(property.into_template())
-            }
-            CommitTemplatePropertyKind::CommitOrChangeIdList(property) => {
                 Some(property.into_template())
             }
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
@@ -169,6 +179,20 @@ fn build_commit_keyword<'repo>(
     let property = TemplatePropertyFn(|commit: &Commit| commit.clone());
     build_commit_keyword_opt(language, property, name)
         .ok_or_else(|| TemplateParseError::no_such_keyword(name, span))
+}
+
+fn build_commit_method<'repo>(
+    language: &CommitTemplateLanguage<'repo, '_>,
+    _build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
+    self_property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
+    function: &FunctionCallNode,
+) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
+    if let Some(property) = build_commit_keyword_opt(language, self_property, function.name) {
+        template_parser::expect_no_arguments(function)?;
+        Ok(property)
+    } else {
+        Err(TemplateParseError::no_such_method("Commit", function))
+    }
 }
 
 fn build_commit_keyword_opt<'repo>(
@@ -201,15 +225,7 @@ fn build_commit_keyword_opt<'repo>(
         "commit_id" => language.wrap_commit_or_change_id(wrap_fn(property, |commit| {
             CommitOrChangeId::Commit(commit.id().to_owned())
         })),
-        "parent_commit_ids" => {
-            language.wrap_commit_or_change_id_list(wrap_fn(property, move |commit| {
-                commit
-                    .parent_ids()
-                    .iter()
-                    .map(|id| CommitOrChangeId::Commit(id.to_owned()))
-                    .collect()
-            }))
-        }
+        "parents" => language.wrap_commit_list(wrap_fn(property, |commit| commit.parents())),
         "author" => language.wrap_signature(wrap_fn(property, |commit| commit.author().clone())),
         "committer" => {
             language.wrap_signature(wrap_fn(property, |commit| commit.committer().clone()))
@@ -378,12 +394,6 @@ impl CommitOrChangeId {
 impl Template<()> for CommitOrChangeId {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(&self.hex())
-    }
-}
-
-impl Template<()> for Vec<CommitOrChangeId> {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        templater::format_joined(&(), formatter, self, " ")
     }
 }
 
