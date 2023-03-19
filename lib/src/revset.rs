@@ -1556,7 +1556,7 @@ pub fn resolve_symbols(
 }
 
 pub trait Revset<'index> {
-    // All revsets currently iterate in order of descending index position
+    /// Iterate in topological order with children before parents.
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
 
     fn iter_graph(
