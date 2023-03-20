@@ -1499,13 +1499,13 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         if !args.no_graph {
             let mut graph = get_graphlog(command.settings(), formatter.raw());
             let default_node_symbol = graph.default_node_symbol().to_owned();
-            let iter: Box<dyn Iterator<Item = (IndexEntry, Vec<RevsetGraphEdge>)>> =
-                if args.reversed {
-                    Box::new(ReverseRevsetGraphIterator::new(revset.iter_graph()))
-                } else {
-                    revset.iter_graph()
-                };
-            for (index_entry, edges) in iter {
+            let iter: Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)>> = if args.reversed
+            {
+                Box::new(ReverseRevsetGraphIterator::new(revset.iter_graph()))
+            } else {
+                revset.iter_graph()
+            };
+            for (commit_id, edges) in iter {
                 let mut graphlog_edges = vec![];
                 // TODO: Should we update RevsetGraphIterator to yield this flag instead of all
                 // the missing edges since we don't care about where they point here
@@ -1530,7 +1530,6 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                     graphlog_edges.push(Edge::Missing);
                 }
                 let mut buffer = vec![];
-                let commit_id = index_entry.commit_id();
                 let commit = store.get_commit(&commit_id)?;
                 with_content_format.write_graph_text(
                     ui.new_formatter(&mut buffer).as_mut(),

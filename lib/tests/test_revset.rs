@@ -2052,11 +2052,11 @@ fn test_reverse_graph_iterator() {
     );
     let commits = ReverseRevsetGraphIterator::new(revset.iter_graph()).collect_vec();
     assert_eq!(commits.len(), 5);
-    assert_eq!(commits[0].0.commit_id(), *commit_a.id());
-    assert_eq!(commits[1].0.commit_id(), *commit_c.id());
-    assert_eq!(commits[2].0.commit_id(), *commit_d.id());
-    assert_eq!(commits[3].0.commit_id(), *commit_e.id());
-    assert_eq!(commits[4].0.commit_id(), *commit_f.id());
+    assert_eq!(commits[0].0, *commit_a.id());
+    assert_eq!(commits[1].0, *commit_c.id());
+    assert_eq!(commits[2].0, *commit_d.id());
+    assert_eq!(commits[3].0, *commit_e.id());
+    assert_eq!(commits[4].0, *commit_f.id());
     assert_eq!(
         commits[0].1,
         vec![RevsetGraphEdge::indirect(commit_c.id().clone())]

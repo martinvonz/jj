@@ -72,9 +72,7 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
         self.inner.iter()
     }
 
-    fn iter_graph(
-        &self,
-    ) -> Box<dyn Iterator<Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>)> + '_> {
+    fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_> {
         Box::new(RevsetGraphIterator::new(self))
     }
 
