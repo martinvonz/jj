@@ -62,8 +62,8 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
     assert_eq!(commits.len(), 2);
-    assert_eq!(commits[0].0.commit_id(), *commit_d.id());
-    assert_eq!(commits[1].0.commit_id(), *commit_a.id());
+    assert_eq!(commits[0].0, *commit_d.id());
+    assert_eq!(commits[1].0, *commit_a.id());
     assert_eq!(commits[0].1, vec![indirect(&commit_a)]);
     assert_eq!(commits[1].1, vec![missing(&root_commit)]);
 }
@@ -101,10 +101,10 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
     assert_eq!(commits.len(), 4);
-    assert_eq!(commits[0].0.commit_id(), *commit_f.id());
-    assert_eq!(commits[1].0.commit_id(), *commit_c.id());
-    assert_eq!(commits[2].0.commit_id(), *commit_b.id());
-    assert_eq!(commits[3].0.commit_id(), *commit_a.id());
+    assert_eq!(commits[0].0, *commit_f.id());
+    assert_eq!(commits[1].0, *commit_c.id());
+    assert_eq!(commits[2].0, *commit_b.id());
+    assert_eq!(commits[3].0, *commit_a.id());
     assert_eq!(
         commits[0].1,
         vec![
@@ -151,9 +151,9 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
     assert_eq!(commits.len(), 3);
-    assert_eq!(commits[0].0.commit_id(), *commit_e.id());
-    assert_eq!(commits[1].0.commit_id(), *commit_c.id());
-    assert_eq!(commits[2].0.commit_id(), *commit_a.id());
+    assert_eq!(commits[0].0, *commit_e.id());
+    assert_eq!(commits[1].0, *commit_c.id());
+    assert_eq!(commits[2].0, *commit_a.id());
     assert_eq!(commits[0].1, vec![indirect(&commit_a)]);
     assert_eq!(commits[1].1, vec![indirect(&commit_a)]);
     assert_eq!(commits[2].1, vec![missing(&root_commit)]);
@@ -191,8 +191,8 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
     assert_eq!(commits.len(), 2);
-    assert_eq!(commits[0].0.commit_id(), *commit_f.id());
-    assert_eq!(commits[1].0.commit_id(), *commit_b.id());
+    assert_eq!(commits[0].0, *commit_f.id());
+    assert_eq!(commits[1].0, *commit_b.id());
     assert_eq!(
         commits[0].1,
         vec![missing(&commit_c), indirect(&commit_b), missing(&commit_a),]
@@ -234,9 +234,9 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
     assert_eq!(commits.len(), 3);
-    assert_eq!(commits[0].0.commit_id(), *commit_f.id());
-    assert_eq!(commits[1].0.commit_id(), *commit_d.id());
-    assert_eq!(commits[2].0.commit_id(), *commit_c.id());
+    assert_eq!(commits[0].0, *commit_f.id());
+    assert_eq!(commits[1].0, *commit_d.id());
+    assert_eq!(commits[2].0, *commit_c.id());
     if skip_transitive_edges {
         assert_eq!(commits[0].1, vec![direct(&commit_d)]);
     } else {
@@ -292,11 +292,11 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
     assert_eq!(commits.len(), 5);
-    assert_eq!(commits[0].0.commit_id(), *commit_j.id());
-    assert_eq!(commits[1].0.commit_id(), *commit_h.id());
-    assert_eq!(commits[2].0.commit_id(), *commit_g.id());
-    assert_eq!(commits[3].0.commit_id(), *commit_d.id());
-    assert_eq!(commits[4].0.commit_id(), *commit_a.id());
+    assert_eq!(commits[0].0, *commit_j.id());
+    assert_eq!(commits[1].0, *commit_h.id());
+    assert_eq!(commits[2].0, *commit_g.id());
+    assert_eq!(commits[3].0, *commit_d.id());
+    assert_eq!(commits[4].0, *commit_a.id());
     if skip_transitive_edges {
         assert_eq!(commits[0].1, vec![indirect(&commit_h), direct(&commit_g),]);
         assert_eq!(commits[1].1, vec![indirect(&commit_d)]);

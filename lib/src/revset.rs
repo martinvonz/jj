@@ -1559,9 +1559,7 @@ pub trait Revset<'index> {
     /// Iterate in topological order with children before parents.
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
 
-    fn iter_graph(
-        &self,
-    ) -> Box<dyn Iterator<Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>)> + '_>;
+    fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_>;
 
     fn is_empty(&self) -> bool;
 }
@@ -1670,43 +1668,40 @@ pub struct RevsetWorkspaceContext<'a> {
     pub workspace_root: &'a Path,
 }
 
-pub struct ReverseRevsetGraphIterator<'index> {
-    items: Vec<(IndexEntry<'index>, Vec<RevsetGraphEdge>)>,
+pub struct ReverseRevsetGraphIterator {
+    items: Vec<(CommitId, Vec<RevsetGraphEdge>)>,
 }
 
-impl<'index> ReverseRevsetGraphIterator<'index> {
+impl ReverseRevsetGraphIterator {
     pub fn new<'revset>(
-        input: Box<dyn Iterator<Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>)> + 'revset>,
+        input: Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + 'revset>,
     ) -> Self {
         let mut entries = vec![];
         let mut reverse_edges: HashMap<CommitId, Vec<RevsetGraphEdge>> = HashMap::new();
-        for (entry, edges) in input {
+        for (commit_id, edges) in input {
             for RevsetGraphEdge { target, edge_type } in edges {
                 reverse_edges
                     .entry(target)
                     .or_default()
                     .push(RevsetGraphEdge {
-                        target: entry.commit_id(),
+                        target: commit_id.clone(),
                         edge_type,
                     })
             }
-            entries.push(entry);
+            entries.push(commit_id);
         }
 
         let mut items = vec![];
-        for entry in entries.into_iter() {
-            let edges = reverse_edges
-                .get(&entry.commit_id())
-                .cloned()
-                .unwrap_or_default();
-            items.push((entry, edges));
+        for commit_id in entries.into_iter() {
+            let edges = reverse_edges.get(&commit_id).cloned().unwrap_or_default();
+            items.push((commit_id, edges));
         }
         Self { items }
     }
 }
 
-impl<'index> Iterator for ReverseRevsetGraphIterator<'index> {
-    type Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>);
+impl Iterator for ReverseRevsetGraphIterator {
+    type Item = (CommitId, Vec<RevsetGraphEdge>);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.items.pop()

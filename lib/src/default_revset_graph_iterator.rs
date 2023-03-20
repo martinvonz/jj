@@ -15,6 +15,7 @@
 use std::cmp::min;
 use std::collections::{BTreeMap, HashSet};
 
+use crate::backend::CommitId;
 use crate::default_index_store::{IndexEntry, IndexPosition};
 use crate::nightly_shims::BTreeMapExt;
 use crate::revset::{Revset, RevsetGraphEdge, RevsetGraphEdgeType};
@@ -267,7 +268,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
 }
 
 impl<'revset, 'index> Iterator for RevsetGraphIterator<'revset, 'index> {
-    type Item = (IndexEntry<'index>, Vec<RevsetGraphEdge>);
+    type Item = (CommitId, Vec<RevsetGraphEdge>);
 
     fn next(&mut self) -> Option<Self::Item> {
         let index_entry = self.next_index_entry()?;
@@ -278,6 +279,6 @@ impl<'revset, 'index> Iterator for RevsetGraphIterator<'revset, 'index> {
         let mut edges: Vec<_> = edges.into_iter().collect();
         edges.sort_by(|(target_pos1, _), (target_pos2, _)| target_pos2.cmp(target_pos1));
         let edges = edges.into_iter().map(|(_, edge)| edge).collect();
-        Some((index_entry, edges))
+        Some((index_entry.commit_id(), edges))
     }
 }
