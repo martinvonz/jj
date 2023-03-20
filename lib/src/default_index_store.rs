@@ -741,7 +741,7 @@ impl Index for MutableIndexImpl {
         repo: &'index dyn Repo,
         expression: &RevsetExpression,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        default_revset_engine::evaluate(repo, expression)
+        default_revset_engine::evaluate(repo, CompositeIndex(self), expression)
     }
 }
 
@@ -833,7 +833,7 @@ trait IndexSegment {
 }
 
 #[derive(Clone)]
-struct CompositeIndex<'a>(&'a dyn IndexSegment);
+pub struct CompositeIndex<'a>(&'a dyn IndexSegment);
 
 impl<'a> CompositeIndex<'a> {
     fn ancestor_files_without_local(&self) -> impl Iterator<Item = &Arc<ReadonlyIndexImpl>> {
@@ -890,7 +890,7 @@ impl<'a> CompositeIndex<'a> {
         }
     }
 
-    fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry<'a> {
+    pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry<'a> {
         let num_parent_commits = self.0.segment_num_parent_commits();
         if pos.0 >= num_parent_commits {
             self.0.segment_entry_by_pos(pos, pos.0 - num_parent_commits)
@@ -960,7 +960,7 @@ impl<'a> CompositeIndex<'a> {
             })
     }
 
-    fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
+    pub(crate) fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
         self.commit_id_to_pos(commit_id)
             .map(|pos| self.entry_by_pos(pos))
     }
@@ -1822,7 +1822,7 @@ impl Index for ReadonlyIndexImpl {
         repo: &'index dyn Repo,
         expression: &RevsetExpression,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        default_revset_engine::evaluate(repo, expression)
+        default_revset_engine::evaluate(repo, CompositeIndex(self), expression)
     }
 }
 
