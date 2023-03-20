@@ -161,59 +161,86 @@ fn build_commit_keyword<'repo>(
     name: &str,
     span: pest::Span,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    fn wrap_fn<O, F: Fn(&Commit) -> O>(f: F) -> TemplatePropertyFn<F> {
-        TemplatePropertyFn(f)
+    // Commit object is lightweight (a few Arc + CommitId), so just clone it
+    // to turn into a property type. Abstraction over "for<'a> (&'a T) -> &'a T"
+    // and "(&T) -> T" wouldn't be simple. If we want to remove Clone/Rc/Arc,
+    // maybe we can add an abstraction that takes "Fn(&Commit) -> O" and returns
+    // "TemplateProperty<Commit, Output = O>".
+    let property = TemplatePropertyFn(|commit: &Commit| commit.clone());
+    build_commit_keyword_opt(language, property, name)
+        .ok_or_else(|| TemplateParseError::no_such_keyword(name, span))
+}
+
+fn build_commit_keyword_opt<'repo>(
+    language: &CommitTemplateLanguage<'repo, '_>,
+    property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
+    name: &str,
+) -> Option<CommitTemplatePropertyKind<'repo>> {
+    fn wrap_fn<'repo, O>(
+        property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
+        f: impl Fn(&Commit) -> O + 'repo,
+    ) -> impl TemplateProperty<Commit, Output = O> + 'repo {
+        TemplateFunction::new(property, move |commit| f(&commit))
     }
     fn wrap_repo_fn<'repo, O>(
         repo: &'repo dyn Repo,
+        property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
         f: impl Fn(&dyn Repo, &Commit) -> O + 'repo,
     ) -> impl TemplateProperty<Commit, Output = O> + 'repo {
-        wrap_fn(move |commit| f(repo, commit))
+        TemplateFunction::new(property, move |commit| f(repo, &commit))
     }
 
     let repo = language.repo;
     let property = match name {
-        "description" => language.wrap_string(wrap_fn(|commit| {
+        "description" => language.wrap_string(wrap_fn(property, |commit| {
             text_util::complete_newline(commit.description())
         })),
-        "change_id" => language.wrap_commit_or_change_id(wrap_fn(|commit| {
+        "change_id" => language.wrap_commit_or_change_id(wrap_fn(property, |commit| {
             CommitOrChangeId::Change(commit.change_id().to_owned())
         })),
-        "commit_id" => language.wrap_commit_or_change_id(wrap_fn(|commit| {
+        "commit_id" => language.wrap_commit_or_change_id(wrap_fn(property, |commit| {
             CommitOrChangeId::Commit(commit.id().to_owned())
         })),
-        "parent_commit_ids" => language.wrap_commit_or_change_id_list(wrap_fn(move |commit| {
-            commit
-                .parent_ids()
-                .iter()
-                .map(|id| CommitOrChangeId::Commit(id.to_owned()))
-                .collect()
-        })),
-        "author" => language.wrap_signature(wrap_fn(|commit| commit.author().clone())),
-        "committer" => language.wrap_signature(wrap_fn(|commit| commit.committer().clone())),
-        "working_copies" => language.wrap_string(wrap_repo_fn(repo, extract_working_copies)),
+        "parent_commit_ids" => {
+            language.wrap_commit_or_change_id_list(wrap_fn(property, move |commit| {
+                commit
+                    .parent_ids()
+                    .iter()
+                    .map(|id| CommitOrChangeId::Commit(id.to_owned()))
+                    .collect()
+            }))
+        }
+        "author" => language.wrap_signature(wrap_fn(property, |commit| commit.author().clone())),
+        "committer" => {
+            language.wrap_signature(wrap_fn(property, |commit| commit.committer().clone()))
+        }
+        "working_copies" => {
+            language.wrap_string(wrap_repo_fn(repo, property, extract_working_copies))
+        }
         "current_working_copy" => {
             let workspace_id = language.workspace_id.clone();
-            language.wrap_boolean(wrap_fn(move |commit| {
+            language.wrap_boolean(wrap_fn(property, move |commit| {
                 Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id)
             }))
         }
-        "branches" => language.wrap_string(wrap_repo_fn(repo, extract_branches)),
-        "tags" => language.wrap_string(wrap_repo_fn(repo, extract_tags)),
-        "git_refs" => language.wrap_string(wrap_repo_fn(repo, extract_git_refs)),
-        "git_head" => language.wrap_string(wrap_repo_fn(repo, extract_git_head)),
-        "divergent" => language.wrap_boolean(wrap_fn(move |commit| {
+        "branches" => language.wrap_string(wrap_repo_fn(repo, property, extract_branches)),
+        "tags" => language.wrap_string(wrap_repo_fn(repo, property, extract_tags)),
+        "git_refs" => language.wrap_string(wrap_repo_fn(repo, property, extract_git_refs)),
+        "git_head" => language.wrap_string(wrap_repo_fn(repo, property, extract_git_head)),
+        "divergent" => language.wrap_boolean(wrap_fn(property, |commit| {
             // The given commit could be hidden in e.g. obslog.
             let maybe_entries = repo.resolve_change_id(commit.change_id());
             maybe_entries.map_or(0, |entries| entries.len()) > 1
         })),
-        "conflict" => language.wrap_boolean(wrap_fn(|commit| commit.tree().has_conflict())),
-        "empty" => language.wrap_boolean(wrap_fn(move |commit| {
+        "conflict" => {
+            language.wrap_boolean(wrap_fn(property, |commit| commit.tree().has_conflict()))
+        }
+        "empty" => language.wrap_boolean(wrap_fn(property, |commit| {
             commit.tree().id() == rewrite::merge_commit_trees(repo, &commit.parents()).id()
         })),
-        _ => return Err(TemplateParseError::no_such_keyword(name, span)),
+        _ => return None,
     };
-    Ok(property)
+    Some(property)
 }
 
 // TODO: return Vec<String>
