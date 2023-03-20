@@ -1158,29 +1158,15 @@ impl Repo for MutableRepo {
     }
 
     fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
-        // TODO: Create a persistent lookup from change id to (visible?) commit ids.
-        let mut found_change_id = None;
-        let mut found_commits = vec![];
-        let heads = self.view().heads().iter().cloned().collect_vec();
-        for entry in self.index().walk_revs(&heads, &[]) {
-            let change_id = entry.change_id();
-            if prefix.matches(&change_id) {
-                if let Some(previous_change_id) = found_change_id.replace(change_id.clone()) {
-                    if previous_change_id != change_id {
-                        return PrefixResolution::AmbiguousMatch;
-                    }
-                }
-                found_commits.push(entry.commit_id());
-            }
-        }
-        if found_change_id.is_none() {
-            return PrefixResolution::NoMatch;
-        }
-        PrefixResolution::SingleMatch(found_commits)
+        let revset = RevsetExpression::all().evaluate(self).unwrap();
+        let change_id_index = revset.change_id_index();
+        change_id_index.resolve_prefix(prefix)
     }
 
     fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
-        target_id.as_bytes().len() * 2 // TODO
+        let revset = RevsetExpression::all().evaluate(self).unwrap();
+        let change_id_index = revset.change_id_index();
+        change_id_index.shortest_unique_prefix_len(target_id)
     }
 }
 
