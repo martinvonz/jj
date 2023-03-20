@@ -18,13 +18,14 @@ use std::iter::Peekable;
 
 use itertools::Itertools;
 
-use crate::backend::CommitId;
-use crate::default_index_store::IndexEntry;
+use crate::backend::{ChangeId, CommitId};
+use crate::default_index_store::{CompositeIndex, IndexEntry, IndexPosition};
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
+use crate::index::{HexPrefix, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
-use crate::repo::Repo;
+use crate::repo::{IdIndex, Repo};
 use crate::revset::{
-    Revset, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
+    ChangeIdIndex, Revset, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
     RevsetIteratorExt, GENERATION_RANGE_FULL,
 };
 use crate::rewrite;
@@ -52,11 +53,18 @@ trait InternalRevset<'index>: ToPredicateFn<'index> {
 
 struct RevsetImpl<'index> {
     inner: Box<dyn InternalRevset<'index> + 'index>,
+    index: CompositeIndex<'index>,
 }
 
 impl<'index> RevsetImpl<'index> {
-    fn new(revset: Box<dyn InternalRevset<'index> + 'index>) -> Self {
-        Self { inner: revset }
+    fn new(
+        revset: Box<dyn InternalRevset<'index> + 'index>,
+        index: CompositeIndex<'index>,
+    ) -> Self {
+        Self {
+            inner: revset,
+            index,
+        }
     }
 }
 
@@ -69,8 +77,37 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
         Box::new(RevsetGraphIterator::new(self))
     }
 
+    fn change_id_index(&self) -> Box<dyn ChangeIdIndex + 'index> {
+        // TODO: Create a persistent lookup from change id to commit ids.
+        let mut pos_by_change = vec![];
+        for entry in self.inner.iter() {
+            pos_by_change.push((entry.change_id(), entry.position()));
+        }
+        let pos_by_change = IdIndex::from_vec(pos_by_change);
+        Box::new(ChangeIdIndexImpl {
+            index: self.index.clone(),
+            pos_by_change,
+        })
+    }
+
     fn is_empty(&self) -> bool {
         self.iter().next().is_none()
+    }
+}
+
+struct ChangeIdIndexImpl<'index> {
+    index: CompositeIndex<'index>,
+    pos_by_change: IdIndex<ChangeId, IndexPosition>,
+}
+
+impl ChangeIdIndex for ChangeIdIndexImpl<'_> {
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
+        self.pos_by_change
+            .resolve_prefix_with(prefix, |pos| self.index.entry_by_pos(*pos).commit_id())
+    }
+
+    fn shortest_unique_prefix_len(&self, change_id: &ChangeId) -> usize {
+        self.pos_by_change.shortest_unique_prefix_len(change_id)
     }
 }
 
@@ -376,10 +413,11 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
 
 pub fn evaluate<'index>(
     repo: &'index dyn Repo,
+    index: CompositeIndex<'index>,
     expression: &RevsetExpression,
 ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
     let internal_revset = internal_evaluate(repo, expression)?;
-    Ok(Box::new(RevsetImpl::new(internal_revset)))
+    Ok(Box::new(RevsetImpl::new(internal_revset, index)))
 }
 
 fn internal_evaluate<'index>(
