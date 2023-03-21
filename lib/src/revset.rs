@@ -1465,9 +1465,7 @@ fn resolve_change_id(repo: &dyn Repo, symbol: &str) -> Result<Option<Vec<CommitI
             PrefixResolution::AmbiguousMatch => {
                 Err(RevsetError::AmbiguousIdPrefix(symbol.to_owned()))
             }
-            PrefixResolution::SingleMatch(entries) => {
-                Ok(Some(entries.iter().map(|e| e.commit_id()).collect()))
-            }
+            PrefixResolution::SingleMatch(entries) => Ok(Some(entries)),
         }
     } else {
         Ok(None)
