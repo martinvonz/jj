@@ -259,7 +259,7 @@ impl ReadonlyRepo {
     }
 }
 
-impl Repo for Arc<ReadonlyRepo> {
+impl Repo for ReadonlyRepo {
     fn store(&self) -> &Arc<Store> {
         &self.store
     }

@@ -170,7 +170,11 @@ fn cmd_branch_set(
         workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
     if !args.allow_backwards
         && !branch_names.iter().all(|branch_name| {
-            is_fast_forward(workspace_command.repo(), branch_name, target_commit.id())
+            is_fast_forward(
+                workspace_command.repo().as_ref(),
+                branch_name,
+                target_commit.id(),
+            )
         })
     {
         return Err(user_error_with_hint(

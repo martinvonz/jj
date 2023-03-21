@@ -599,7 +599,7 @@ fn cmd_git_push(
                 continue;
             }
             if let Some(update) =
-                branch_updates_for_push(workspace_command.repo(), &remote, branch_name)?
+                branch_updates_for_push(workspace_command.repo().as_ref(), &remote, branch_name)?
             {
                 branch_updates.push((branch_name.clone(), update));
             } else {
