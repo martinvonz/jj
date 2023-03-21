@@ -29,7 +29,7 @@ The working copy is clean
 ```
 
 We can see from the output above that our working copy is a real commit with a
-commit ID (`7fd1a60b01f9` in the example). When you make a change in the working
+commit ID (`d7439b06fbef` in the example). When you make a change in the working
 copy, the working-copy commit gets automatically amended by the next `jj`
 command.
 
