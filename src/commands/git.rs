@@ -402,7 +402,7 @@ fn cmd_git_clone(
         if let Some(RefTarget::Normal(commit_id)) = default_branch_target {
             let mut checkout_tx =
                 workspace_command.start_transaction("check out git remote's default branch");
-            if let Ok(commit) = checkout_tx.base_repo().store().get_commit(&commit_id) {
+            if let Ok(commit) = checkout_tx.repo().store().get_commit(&commit_id) {
                 checkout_tx.check_out(&commit)?;
             }
             checkout_tx.finish(ui)?;
