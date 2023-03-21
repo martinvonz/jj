@@ -46,8 +46,6 @@ use crate::view::{RefName, View};
 use crate::{backend, op_store};
 
 pub trait Repo {
-    fn base_repo(&self) -> &Arc<ReadonlyRepo>;
-
     fn store(&self) -> &Arc<Store>;
 
     fn op_store(&self) -> &Arc<dyn OpStore>;
@@ -262,10 +260,6 @@ impl ReadonlyRepo {
 }
 
 impl Repo for Arc<ReadonlyRepo> {
-    fn base_repo(&self) -> &Arc<ReadonlyRepo> {
-        self
-    }
-
     fn store(&self) -> &Arc<Store> {
         &self.store
     }
@@ -646,6 +640,10 @@ impl MutableRepo {
             rewritten_commits: Default::default(),
             abandoned_commits: Default::default(),
         }
+    }
+
+    pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
+        &self.base_repo
     }
 
     fn view_mut(&mut self) -> &mut View {
@@ -1134,10 +1132,6 @@ impl MutableRepo {
 }
 
 impl Repo for MutableRepo {
-    fn base_repo(&self) -> &Arc<ReadonlyRepo> {
-        &self.base_repo
-    }
-
     fn store(&self) -> &Arc<Store> {
         self.base_repo.store()
     }
