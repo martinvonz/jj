@@ -15,7 +15,9 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::io::ErrorKind;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::{fs, io};
 
@@ -28,7 +30,7 @@ use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, O
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
-use crate::default_index_store::{DefaultIndexStore, IndexPosition};
+use crate::default_index_store::DefaultIndexStore;
 use crate::git_backend::GitBackend;
 use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
@@ -36,6 +38,7 @@ use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
 use crate::operation::Operation;
 use crate::refs::merge_ref_targets;
+use crate::revset::{ChangeIdIndex, Revset, RevsetExpression};
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
@@ -77,9 +80,10 @@ pub struct ReadonlyRepo {
     operation: Operation,
     settings: RepoSettings,
     index_store: Arc<dyn IndexStore>,
-    index: OnceCell<Box<dyn ReadonlyIndex>>,
+    index: OnceCell<Pin<Box<dyn ReadonlyIndex>>>,
+    // Declared after `change_id_index` since it must outlive it on drop.
+    change_id_index: OnceCell<Box<dyn ChangeIdIndex>>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
-    change_id_index: OnceCell<ChangeIdIndex>,
     view: View,
 }
 
@@ -209,21 +213,27 @@ impl ReadonlyRepo {
     pub fn readonly_index(&self) -> &dyn ReadonlyIndex {
         self.index
             .get_or_init(|| {
-                self.index_store
-                    .get_index_at_op(&self.operation, &self.store)
+                Box::into_pin(
+                    self.index_store
+                        .get_index_at_op(&self.operation, &self.store),
+                )
             })
-            .as_ref()
+            .deref()
     }
 
-    fn change_id_index(&self) -> &ChangeIdIndex {
-        self.change_id_index.get_or_init(|| {
-            let heads = self.view().heads().iter().cloned().collect_vec();
-            let walk = self.readonly_index().as_index().walk_revs(&heads, &[]);
-            IdIndex::from_vec(
-                walk.map(|entry| (entry.change_id(), entry.position()))
-                    .collect(),
-            )
-        })
+    fn change_id_index<'a>(&'a self) -> &'a (dyn ChangeIdIndex + 'a) {
+        let change_id_index: &'a (dyn ChangeIdIndex + 'a) = self
+            .change_id_index
+            .get_or_init(|| {
+                let revset: Box<dyn Revset<'a>> = RevsetExpression::all().evaluate(self).unwrap();
+                let change_id_index: Box<dyn ChangeIdIndex + 'a> = revset.change_id_index();
+                // evaluate() above only borrows the index, not the whole repo
+                let change_id_index: Box<dyn ChangeIdIndex> =
+                    unsafe { std::mem::transmute(change_id_index) };
+                change_id_index
+            })
+            .as_ref();
+        change_id_index
     }
 
     pub fn op_heads_store(&self) -> &Arc<dyn OpHeadsStore> {
@@ -277,9 +287,7 @@ impl Repo for ReadonlyRepo {
     }
 
     fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
-        let index = self.index();
-        self.change_id_index()
-            .resolve_prefix_with(prefix, |&pos| index.entry_by_pos(pos).commit_id())
+        self.change_id_index().resolve_prefix(prefix)
     }
 
     fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
@@ -578,7 +586,7 @@ impl RepoLoader {
             operation,
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
-            index: OnceCell::with_value(index),
+            index: OnceCell::with_value(Box::into_pin(index)),
             change_id_index: OnceCell::new(),
             view,
         };
@@ -1271,8 +1279,6 @@ mod dirty_cell {
         }
     }
 }
-
-type ChangeIdIndex = IdIndex<ChangeId, IndexPosition>;
 
 #[derive(Debug, Clone)]
 pub struct IdIndex<K, V>(Vec<(K, V)>);

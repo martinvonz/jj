@@ -47,7 +47,7 @@ pub trait IndexStore: Send + Sync + Debug {
     ) -> Result<Box<dyn ReadonlyIndex>, IndexWriteError>;
 }
 
-pub trait Index {
+pub trait Index: Send + Sync {
     fn as_any(&self) -> &dyn Any;
 
     fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
