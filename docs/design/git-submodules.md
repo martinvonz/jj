@@ -137,7 +137,76 @@ I.e. outcomes we would like to see if there were no constraints whatsoever.
 
 ### Guiding principles
 
-TODO
+These guiding principles exist to make it easy for us to create a coherent user
+experience, and for users to understand how submodules work, especially when
+they diverge from Git's implementation.
+
+#### Submodules are not standalone repositories
+
+Treating the submodule as a standalone jj repository is both detrimental and
+unnecessary. The reasons why are easiest understood in comparison to Git, where
+submodules _are_ standalone Git repositories:
+
+- As a standalone repository, it is possible to bypass the superproject to
+  interact with a submodule. This means that properties that the superproject
+  relies on may be invalidated unexpectedly.
+
+  For example, when `git gc` attempts to delete 'unreachable' objects, it takes
+  into account the objects reachable by refs in the repository. However, in a
+  submodule, it is possible that a commit is not reachable by a submodule ref,
+  but it is reachable by a superproject commit. Without knowledge of the
+  superproject, the submodule may delete objects that the superproject is
+  relying on ([see relevant StackOverflow
+  question](https://stackoverflow.com/questions/31640270/will-git-garbage-collect-commit-in-submodule-referred-to-by-a-top-level-reposito)).
+
+- With Git submodules, 'the repository' changes based on where `git` is run in
+  the working tree, which is a source of
+  [confusion](https://github.com/martinvonz/jj/issues/494#issuecomment-1404338917).
+
+We should keep in mind that a submodule exists to be integrated with a
+superproject, otherwise, the submodule could just be an independent clone. As
+such, jj should enforce tight integrations between superproject and submodule
+by requiring that all interactions with the submodule must be initiated
+from the superproject.
+
+#### Commands should involve submodules by default
+
+Submodules should be part of the 'regular' jj workflow. Users shouldn't have to
+remember to tell jj to consider submodules and manual submodule management
+should be reserved only for very exceptional cases. For example,
+
+- `jj git clone` should clone a 'reasonable' set of submodules.
+
+- Updating the working copy in the superproject should also update the submodule
+  working copies.
+
+Contrast these with Git, where the `--recurse-submodules` needs to be explicitly
+passed, and is a constant source of confusion for users.
+
+In exceptional cases, submodules might be excluded (e.g. a submodule remote
+deletes the commits we rely on). We should anticipate these problems, recover
+gracefully, and be explicit to the user.
+
+#### Submodules are globally managed
+
+In a regular jj or Git repository, objects are reusable because they are stored
+in a database independent of the working copy. Similarly, we should manage
+submodules globally and treat that as the source of truth; the working copy
+should, at best, be treated as a hint.
+
+A consequence of this is that it is expected that the working copy may be out
+of sync with the global submodules, e.g. submodules may be missing, their
+commits may not be fetched, and they may have different configurations at
+different points in history. This is different from Git, which tends to
+assume that both are always in sync, and behaves badly when they are not. We
+should be prepared to handle missing submodules/submodule commits.
+
+For this to make sense to users, we must make it easy to manage the global
+submodules and to reconcile them with the working copy submodules. Examples of
+this include: prompting the user to update submodules when the working copy
+changes, reporting when the working copy is out out of sync, letting users
+sync the submodule store to `.gitmodules`, and letting users perform manual CRUD
+on submodules.
 
 ### Storing submodules
 
