@@ -28,7 +28,7 @@ use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, O
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
-use crate::default_index_store::{DefaultIndexStore, IndexEntry, IndexPosition};
+use crate::default_index_store::{DefaultIndexStore, IndexPosition};
 use crate::git_backend::GitBackend;
 use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
@@ -56,7 +56,7 @@ pub trait Repo {
 
     fn view(&self) -> &View;
 
-    fn resolve_change_id(&self, change_id: &ChangeId) -> Option<Vec<IndexEntry>> {
+    fn resolve_change_id(&self, change_id: &ChangeId) -> Option<Vec<CommitId>> {
         // Replace this if we added more efficient lookup method.
         let prefix = HexPrefix::from_bytes(change_id.as_bytes());
         match self.resolve_change_id_prefix(&prefix) {
@@ -66,7 +66,7 @@ pub trait Repo {
         }
     }
 
-    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<IndexEntry>>;
+    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>>;
 
     fn shortest_unique_change_id_prefix_len(&self, target_id_bytes: &ChangeId) -> usize;
 }
@@ -282,10 +282,10 @@ impl Repo for Arc<ReadonlyRepo> {
         &self.view
     }
 
-    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<IndexEntry>> {
+    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
         let index = self.index();
         self.change_id_index()
-            .resolve_prefix_with(prefix, |&pos| index.entry_by_pos(pos))
+            .resolve_prefix_with(prefix, |&pos| index.entry_by_pos(pos).commit_id())
     }
 
     fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
@@ -1155,10 +1155,10 @@ impl Repo for MutableRepo {
             .get_or_ensure_clean(|v| self.enforce_view_invariants(v))
     }
 
-    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<IndexEntry>> {
+    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
         // TODO: Create a persistent lookup from change id to (visible?) commit ids.
         let mut found_change_id = None;
-        let mut found_entries = vec![];
+        let mut found_commits = vec![];
         let heads = self.view().heads().iter().cloned().collect_vec();
         for entry in self.index().walk_revs(&heads, &[]) {
             let change_id = entry.change_id();
@@ -1168,13 +1168,13 @@ impl Repo for MutableRepo {
                         return PrefixResolution::AmbiguousMatch;
                     }
                 }
-                found_entries.push(entry);
+                found_commits.push(entry.commit_id());
             }
         }
         if found_change_id.is_none() {
             return PrefixResolution::NoMatch;
         }
-        PrefixResolution::SingleMatch(found_entries)
+        PrefixResolution::SingleMatch(found_commits)
     }
 
     fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
