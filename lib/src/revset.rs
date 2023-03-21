@@ -1582,7 +1582,7 @@ pub trait Revset<'index> {
     fn is_empty(&self) -> bool;
 }
 
-pub trait ChangeIdIndex {
+pub trait ChangeIdIndex: Send + Sync {
     /// Resolve an unambiguous change ID prefix to the commit IDs in the revset.
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>>;
 

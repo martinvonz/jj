@@ -799,7 +799,7 @@ impl MutableIndex for MutableIndexImpl {
     }
 }
 
-trait IndexSegment {
+trait IndexSegment: Send + Sync {
     fn segment_num_parent_commits(&self) -> u32;
 
     fn segment_num_commits(&self) -> u32;
