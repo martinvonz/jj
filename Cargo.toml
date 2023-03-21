@@ -51,7 +51,7 @@ maplit = "1.0.2"
 once_cell = "1.17.1"
 pest = "2.5.6"
 pest_derive = "2.5"
-regex = "1.7.1"
+regex = "1.7.2"
 rpassword = "7.2.0"
 serde = { version = "1.0", features = ["derive"] }
 slab = "0.4.8"
@@ -74,7 +74,7 @@ criterion = "0.4.0"
 criterion_bencher_compat = "0.4.0"
 insta = { version = "1.28.0", features = ["filters"] }
 predicates = "2.1.5"
-regex = "1.7.1"
+regex = "1.7.2"
 testutils = { path = "lib/testutils" }
 
 [features]
