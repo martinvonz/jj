@@ -66,12 +66,10 @@
             $out/bin/jj support mangen > ./jj.1
             installManPage ./jj.1
 
-            $out/bin/jj support completion --bash > ./completions.bash
-            installShellCompletion --bash --name ${pname}.bash ./completions.bash
-            $out/bin/jj support completion --fish > ./completions.fish
-            installShellCompletion --fish --name ${pname}.fish ./completions.fish
-            $out/bin/jj support completion --zsh > ./completions.zsh
-            installShellCompletion --zsh --name _${pname} ./completions.zsh
+            installShellCompletion --cmd jj \
+              --bash <($out/bin/jj support completion --bash) \
+              --fish <($out/bin/jj support completion --fish) \
+              --zsh <($out/bin/jj support completion --zsh)
           '';
         };
         default = self.packages.${system}.jujutsu;
