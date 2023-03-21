@@ -512,7 +512,7 @@ impl WorkspaceCommandHelper {
         // operation.
         // TODO: Parsed template can be cached if it doesn't capture repo
         parse_commit_summary_template(
-            &repo,
+            repo.as_ref(),
             workspace.workspace_id(),
             &template_aliases_map,
             &settings,
@@ -827,9 +827,12 @@ impl WorkspaceCommandHelper {
         &'repo self,
         revset_expression: Rc<RevsetExpression>,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
-        let revset_expression =
-            resolve_symbols(&self.repo, revset_expression, Some(&self.revset_context()))?;
-        revset_expression.evaluate(&self.repo)
+        let revset_expression = resolve_symbols(
+            self.repo.as_ref(),
+            revset_expression,
+            Some(&self.revset_context()),
+        )?;
+        revset_expression.evaluate(self.repo.as_ref())
     }
 
     fn revset_context(&self) -> RevsetWorkspaceContext {
@@ -849,7 +852,7 @@ impl WorkspaceCommandHelper {
         template_text: &str,
     ) -> Result<Box<dyn Template<Commit> + '_>, TemplateParseError> {
         commit_templater::parse(
-            &self.repo,
+            self.repo.as_ref(),
             self.workspace_id(),
             template_text,
             &self.template_aliases_map,
@@ -871,7 +874,7 @@ impl WorkspaceCommandHelper {
         commit: &Commit,
     ) -> std::io::Result<()> {
         let template = parse_commit_summary_template(
-            &self.repo,
+            self.repo.as_ref(),
             self.workspace_id(),
             &self.template_aliases_map,
             &self.settings,

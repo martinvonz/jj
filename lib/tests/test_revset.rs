@@ -41,7 +41,7 @@ fn test_resolve_symbol_root(use_git: bool) {
     let repo = &test_repo.repo;
 
     assert_matches!(
-        resolve_symbol(repo, "root", None),
+        resolve_symbol(repo.as_ref(), "root", None),
         Ok(v) if v == vec![repo.store().root_commit_id().clone()]
     );
 }
@@ -102,56 +102,71 @@ fn test_resolve_symbol_commit_id() {
 
     // Test lookup by full commit id
     assert_eq!(
-        resolve_symbol(&repo, "0454de3cae04c46cda37ba2e8873b4c17ff51dcb", None).unwrap(),
+        resolve_symbol(
+            repo.as_ref(),
+            "0454de3cae04c46cda37ba2e8873b4c17ff51dcb",
+            None
+        )
+        .unwrap(),
         vec![commits[0].id().clone()]
     );
     assert_eq!(
-        resolve_symbol(&repo, "045f56cd1b17e8abde86771e2705395dcde6a957", None).unwrap(),
+        resolve_symbol(
+            repo.as_ref(),
+            "045f56cd1b17e8abde86771e2705395dcde6a957",
+            None
+        )
+        .unwrap(),
         vec![commits[1].id().clone()]
     );
     assert_eq!(
-        resolve_symbol(&repo, "0468f7da8de2ce442f512aacf83411d26cd2e0cf", None).unwrap(),
+        resolve_symbol(
+            repo.as_ref(),
+            "0468f7da8de2ce442f512aacf83411d26cd2e0cf",
+            None
+        )
+        .unwrap(),
         vec![commits[2].id().clone()]
     );
 
     // Test empty commit id
     assert_matches!(
-        resolve_symbol(&repo, "", None),
+        resolve_symbol(repo.as_ref(), "", None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
 
     // Test commit id prefix
     assert_eq!(
-        resolve_symbol(&repo, "046", None).unwrap(),
+        resolve_symbol(repo.as_ref(), "046", None).unwrap(),
         vec![commits[2].id().clone()]
     );
     assert_matches!(
-        resolve_symbol(&repo, "04", None),
+        resolve_symbol(repo.as_ref(), "04", None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04"
     );
     assert_matches!(
-        resolve_symbol(&repo, "", None),
+        resolve_symbol(repo.as_ref(), "", None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
     assert_matches!(
-        resolve_symbol(&repo, "040", None),
+        resolve_symbol(repo.as_ref(), "040", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "040"
     );
 
     // Test non-hex string
     assert_matches!(
-        resolve_symbol(&repo, "foo", None),
+        resolve_symbol(repo.as_ref(), "foo", None),
         Err(RevsetError::NoSuchRevision(s)) if s == "foo"
     );
 
     // Test present() suppresses only NoSuchRevision error
-    assert_eq!(resolve_commit_ids(&repo, "present(foo)"), []);
+    assert_eq!(resolve_commit_ids(repo.as_ref(), "present(foo)"), []);
     assert_matches!(
-        resolve_symbols(&repo, optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap()), None),
+        resolve_symbols(repo.as_ref(), optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap()), None),
         Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04"
     );
     assert_eq!(
-        resolve_commit_ids(&repo, "present(046)"),
+        resolve_commit_ids(repo.as_ref(), "present(046)"),
         vec![commits[2].id().clone()]
     );
 }
@@ -224,7 +239,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     let _readonly_repo;
     let repo: &dyn Repo = if readonly {
         _readonly_repo = tx.commit();
-        &_readonly_repo
+        _readonly_repo.as_ref()
     } else {
         tx.mut_repo()
     };
@@ -1127,7 +1142,7 @@ fn test_evaluate_expression_none(use_git: bool) {
     let repo = &test_repo.repo;
 
     // none() is empty (doesn't include the checkout, for example)
-    assert_eq!(resolve_commit_ids(repo, "none()"), vec![]);
+    assert_eq!(resolve_commit_ids(repo.as_ref(), "none()"), vec![]);
 }
 
 #[test_case(false ; "local backend")]
@@ -2047,7 +2062,7 @@ fn test_reverse_graph_iterator() {
     let repo = tx.commit();
 
     let revset = revset_for_commits(
-        &repo,
+        repo.as_ref(),
         &[&commit_a, &commit_c, &commit_d, &commit_e, &commit_f],
     );
     let commits = ReverseRevsetGraphIterator::new(revset.iter_graph()).collect_vec();

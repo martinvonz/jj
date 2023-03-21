@@ -1322,7 +1322,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
         let commit =
             workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
         let parents = commit.parents();
-        from_tree = merge_commit_trees(workspace_command.repo(), &parents);
+        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents);
         to_tree = commit.tree()
     }
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
@@ -1431,7 +1431,7 @@ fn cmd_status(
     }
 
     if let Some(wc_commit) = &maybe_wc_commit {
-        let parent_tree = merge_commit_trees(repo, &wc_commit.parents());
+        let parent_tree = merge_commit_trees(repo.as_ref(), &wc_commit.parents());
         let tree = wc_commit.tree();
         if tree.id() == parent_tree.id() {
             formatter.write_str("The working copy is clean\n")?;
@@ -1740,8 +1740,9 @@ fn rebase_to_dest_parent(
         Ok(source.tree())
     } else {
         let destination_parent_tree =
-            merge_commit_trees(workspace_command.repo(), &destination.parents());
-        let source_parent_tree = merge_commit_trees(workspace_command.repo(), &source.parents());
+            merge_commit_trees(workspace_command.repo().as_ref(), &destination.parents());
+        let source_parent_tree =
+            merge_commit_trees(workspace_command.repo().as_ref(), &source.parents());
         let rebased_tree_id = merge_trees(
             &destination_parent_tree,
             &source_parent_tree,
@@ -2567,7 +2568,7 @@ fn cmd_restore(
             .tree();
     } else {
         to_commit = workspace_command.resolve_single_rev("@")?;
-        from_tree = merge_commit_trees(workspace_command.repo(), &to_commit.parents());
+        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &to_commit.parents());
     }
     workspace_command.check_rewritable(&to_commit)?;
 
