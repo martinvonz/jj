@@ -26,7 +26,7 @@ use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
     optimize, parse, resolve_symbol, resolve_symbols, ReverseRevsetGraphIterator, Revset,
     RevsetAliasesMap, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
-    RevsetIteratorExt, RevsetWorkspaceContext,
+    RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::workspace::Workspace;
@@ -502,12 +502,7 @@ fn test_resolve_symbol_git_refs() {
 fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let expression = optimize(parse(revset_str, &RevsetAliasesMap::new(), None).unwrap());
     let expression = resolve_symbols(repo, expression, None).unwrap();
-    expression
-        .evaluate(repo)
-        .unwrap()
-        .iter()
-        .commit_ids()
-        .collect()
+    expression.evaluate(repo).unwrap().iter().collect()
 }
 
 fn resolve_commit_ids_in_workspace(
@@ -524,12 +519,7 @@ fn resolve_commit_ids_in_workspace(
     let expression =
         optimize(parse(revset_str, &RevsetAliasesMap::new(), Some(&workspace_ctx)).unwrap());
     let expression = resolve_symbols(repo, expression, Some(&workspace_ctx)).unwrap();
-    expression
-        .evaluate(repo)
-        .unwrap()
-        .iter()
-        .commit_ids()
-        .collect()
+    expression.evaluate(repo).unwrap().iter().collect()
 }
 
 #[test_case(false ; "local backend")]
@@ -1993,8 +1983,7 @@ fn test_evaluate_expression_file(use_git: bool) {
         let expression =
             RevsetExpression::filter(RevsetFilterPredicate::File(Some(vec![file_path.clone()])));
         let revset = expression.evaluate(mut_repo).unwrap();
-        let commit_ids = revset.iter().commit_ids().collect();
-        commit_ids
+        revset.iter().collect()
     };
 
     assert_eq!(resolve(&added_clean_clean), vec![commit1.id().clone()]);

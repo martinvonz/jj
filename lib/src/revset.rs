@@ -29,7 +29,6 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
-use crate::default_index_store::IndexEntry;
 use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
@@ -1573,7 +1572,7 @@ pub fn resolve_symbols(
 
 pub trait Revset<'index> {
     /// Iterate in topological order with children before parents.
-    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
+    fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_>;
 
     fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_>;
 
@@ -1638,16 +1637,11 @@ pub enum RevsetGraphEdgeType {
 }
 
 pub trait RevsetIteratorExt<'index, I> {
-    fn commit_ids(self) -> RevsetCommitIdIterator<I>;
     fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I>;
-    fn reversed(self) -> ReverseRevsetIterator<'index>;
+    fn reversed(self) -> ReverseRevsetIterator;
 }
 
-impl<'index, I: Iterator<Item = IndexEntry<'index>>> RevsetIteratorExt<'index, I> for I {
-    fn commit_ids(self) -> RevsetCommitIdIterator<I> {
-        RevsetCommitIdIterator(self)
-    }
-
+impl<'index, I: Iterator<Item = CommitId>> RevsetIteratorExt<'index, I> for I {
     fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I> {
         RevsetCommitIterator {
             iter: self,
@@ -1655,20 +1649,10 @@ impl<'index, I: Iterator<Item = IndexEntry<'index>>> RevsetIteratorExt<'index, I
         }
     }
 
-    fn reversed(self) -> ReverseRevsetIterator<'index> {
+    fn reversed(self) -> ReverseRevsetIterator {
         ReverseRevsetIterator {
             entries: self.into_iter().collect_vec(),
         }
-    }
-}
-
-pub struct RevsetCommitIdIterator<I>(I);
-
-impl<'index, I: Iterator<Item = IndexEntry<'index>>> Iterator for RevsetCommitIdIterator<I> {
-    type Item = CommitId;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|index_entry| index_entry.commit_id())
     }
 }
 
@@ -1677,22 +1661,22 @@ pub struct RevsetCommitIterator<I> {
     iter: I,
 }
 
-impl<'index, I: Iterator<Item = IndexEntry<'index>>> Iterator for RevsetCommitIterator<I> {
+impl<I: Iterator<Item = CommitId>> Iterator for RevsetCommitIterator<I> {
     type Item = BackendResult<Commit>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter
             .next()
-            .map(|index_entry| self.store.get_commit(&index_entry.commit_id()))
+            .map(|commit_id| self.store.get_commit(&commit_id))
     }
 }
 
-pub struct ReverseRevsetIterator<'index> {
-    entries: Vec<IndexEntry<'index>>,
+pub struct ReverseRevsetIterator {
+    entries: Vec<CommitId>,
 }
 
-impl<'index> Iterator for ReverseRevsetIterator<'index> {
-    type Item = IndexEntry<'index>;
+impl Iterator for ReverseRevsetIterator {
+    type Item = CommitId;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.entries.pop()

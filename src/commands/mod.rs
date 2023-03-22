@@ -30,7 +30,7 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
-use jujutsu_lib::default_index_store::{DefaultIndexStore, IndexEntry, ReadonlyIndexWrapper};
+use jujutsu_lib::default_index_store::{DefaultIndexStore, ReadonlyIndexWrapper};
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::{ReadonlyRepo, Repo};
@@ -1563,7 +1563,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 )?;
             }
         } else {
-            let iter: Box<dyn Iterator<Item = IndexEntry>> = if args.reversed {
+            let iter: Box<dyn Iterator<Item = CommitId>> = if args.reversed {
                 Box::new(revset.iter().reversed())
             } else {
                 Box::new(revset.iter())
@@ -2054,7 +2054,6 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
             .dag_range_to(&new_parents)
             .evaluate(tx.repo())?
             .iter()
-            .commit_ids()
             .next()
         {
             return Err(user_error(format!(
