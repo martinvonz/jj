@@ -26,7 +26,7 @@ use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use crate::repo::Repo;
 use crate::revset::{
     ChangeIdIndex, Revset, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
-    RevsetIteratorExt, GENERATION_RANGE_FULL,
+    GENERATION_RANGE_FULL,
 };
 use crate::{backend, rewrite};
 
@@ -73,8 +73,8 @@ impl<'index> RevsetImpl<'index> {
 }
 
 impl<'index> Revset<'index> for RevsetImpl<'index> {
-    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
-        self.inner.iter()
+    fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_> {
+        Box::new(RevsetCommitIdIterator(self.inner.iter()))
     }
 
     fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_> {
@@ -96,6 +96,16 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
 
     fn is_empty(&self) -> bool {
         self.iter().next().is_none()
+    }
+}
+
+struct RevsetCommitIdIterator<I>(I);
+
+impl<'index, I: Iterator<Item = IndexEntry<'index>>> Iterator for RevsetCommitIdIterator<I> {
+    type Item = CommitId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|index_entry| index_entry.commit_id())
     }
 }
 
@@ -543,9 +553,9 @@ fn internal_evaluate<'index>(
             generation,
         } => {
             let root_set = internal_evaluate(repo, roots)?;
-            let root_ids = root_set.iter().commit_ids().collect_vec();
+            let root_ids = root_set.iter().map(|entry| entry.commit_id()).collect_vec();
             let head_set = internal_evaluate(repo, heads)?;
-            let head_ids = head_set.iter().commit_ids().collect_vec();
+            let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
             let walk = repo.index().walk_revs(&head_ids, &root_ids);
             if generation == &GENERATION_RANGE_FULL {
                 Ok(Box::new(RevWalkRevset { walk }))
@@ -582,7 +592,10 @@ fn internal_evaluate<'index>(
         )),
         RevsetExpression::Heads(candidates) => {
             let candidate_set = internal_evaluate(repo, candidates)?;
-            let candidate_ids = candidate_set.iter().commit_ids().collect_vec();
+            let candidate_ids = candidate_set
+                .iter()
+                .map(|entry| entry.commit_id())
+                .collect_vec();
             Ok(revset_for_commit_ids(
                 repo,
                 &repo.index().heads(&mut candidate_ids.iter()),

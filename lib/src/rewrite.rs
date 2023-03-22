@@ -161,7 +161,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .evaluate(mut_repo)
             .unwrap()
             .iter()
-            .commit_ids()
             .collect();
 
         let to_visit_expression = old_commits_expression.descendants();
