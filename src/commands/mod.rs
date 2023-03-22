@@ -2050,9 +2050,9 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         }
         let new_children = RevsetExpression::commits(target_ids.clone());
         let new_parents = new_children.parents();
-        if let Some(commit_id) = tx
-            .base_workspace_helper()
-            .evaluate_revset(new_children.dag_range_to(&new_parents))?
+        if let Some(commit_id) = new_children
+            .dag_range_to(&new_parents)
+            .evaluate(tx.repo())?
             .iter()
             .commit_ids()
             .next()
@@ -2063,9 +2063,8 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
                 short_commit_hash(&commit_id),
             )));
         }
-        let mut new_parents_commits: Vec<Commit> = tx
-            .base_workspace_helper()
-            .evaluate_revset(new_parents)?
+        let mut new_parents_commits: Vec<Commit> = new_parents
+            .evaluate(tx.repo())?
             .iter()
             .commits(tx.repo().store())
             .try_collect()?;
@@ -2111,22 +2110,20 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
             let old_parents = RevsetExpression::commits(target_ids);
             // Exclude children that are ancestors of the new commit
             let to_rebase = old_parents.children().minus(&old_parents.ancestors());
-            let commits_to_rebase: Vec<Commit> = tx
-                .base_workspace_helper()
-                .evaluate_revset(to_rebase)?
+            let commits_to_rebase: Vec<Commit> = to_rebase
+                .evaluate(tx.base_repo().as_ref())?
                 .iter()
-                .commits(tx.repo().store())
+                .commits(tx.base_repo().store())
                 .try_collect()?;
             num_rebased = commits_to_rebase.len();
             for child_commit in commits_to_rebase {
                 let commit_parents =
                     RevsetExpression::commits(child_commit.parent_ids().to_owned());
                 let new_parents = commit_parents.minus(&old_parents);
-                let mut new_parent_commits: Vec<Commit> = tx
-                    .base_workspace_helper()
-                    .evaluate_revset(new_parents)?
+                let mut new_parent_commits: Vec<Commit> = new_parents
+                    .evaluate(tx.base_repo().as_ref())?
                     .iter()
-                    .commits(tx.repo().store())
+                    .commits(tx.base_repo().store())
                     .try_collect()?;
                 new_parent_commits.push(new_commit.clone());
                 rebase_commit(
@@ -2879,8 +2876,8 @@ fn rebase_branch(
     let roots_expression = RevsetExpression::commits(parent_ids)
         .range(&RevsetExpression::commits(branch_commit_ids))
         .roots();
-    let root_commits: IndexSet<_> = workspace_command
-        .evaluate_revset(roots_expression)
+    let root_commits: IndexSet<_> = roots_expression
+        .evaluate(workspace_command.repo().as_ref())
         .unwrap()
         .iter()
         .commits(workspace_command.repo().store())
@@ -2930,8 +2927,8 @@ fn rebase_revision(
     workspace_command.check_rewritable(&old_commit)?;
     check_rebase_destinations(workspace_command.repo(), new_parents, &old_commit)?;
     let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
-    let child_commits: Vec<_> = workspace_command
-        .evaluate_revset(children_expression)
+    let child_commits: Vec<_> = children_expression
+        .evaluate(workspace_command.repo().as_ref())
         .unwrap()
         .iter()
         .commits(workspace_command.repo().store())
@@ -2969,12 +2966,11 @@ fn rebase_revision(
                     .parents()
                     .ancestors(),
             );
-        let new_child_parents: Vec<Commit> = tx
-            .base_workspace_helper()
-            .evaluate_revset(new_child_parents_expression)
+        let new_child_parents: Vec<Commit> = new_child_parents_expression
+            .evaluate(tx.base_repo().as_ref())
             .unwrap()
             .iter()
-            .commits(tx.repo().store())
+            .commits(tx.base_repo().store())
             .try_collect()?;
 
         rebase_commit(
