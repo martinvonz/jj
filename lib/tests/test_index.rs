@@ -35,7 +35,7 @@ fn child_commit<'repo>(
 }
 
 // Helper just to reduce line wrapping
-fn generation_number(index: &dyn Index, commit_id: &CommitId) -> u32 {
+fn generation_number(index: &ReadonlyIndexImpl, commit_id: &CommitId) -> u32 {
     index.entry_by_id(commit_id).unwrap().generation_number()
 }
 
