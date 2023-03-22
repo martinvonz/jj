@@ -17,15 +17,15 @@ use std::path::Path;
 use assert_matches::assert_matches;
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
-use jujutsu_lib::default_revset_engine::revset_for_commits;
+use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    optimize, parse, resolve_symbol, resolve_symbols, ReverseRevsetGraphIterator, RevsetAliasesMap,
-    RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge, RevsetIteratorExt,
-    RevsetWorkspaceContext,
+    optimize, parse, resolve_symbol, resolve_symbols, ReverseRevsetGraphIterator, Revset,
+    RevsetAliasesMap, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
+    RevsetIteratorExt, RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::workspace::Workspace;
@@ -34,6 +34,14 @@ use testutils::{
     create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo, TestWorkspace,
 };
 
+fn revset_for_commits<'index>(
+    repo: &'index dyn Repo,
+    commits: &[&Commit],
+) -> Box<dyn Revset<'index> + 'index> {
+    RevsetExpression::commits(commits.iter().map(|commit| commit.id().clone()).collect())
+        .evaluate(repo)
+        .unwrap()
+}
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
 fn test_resolve_symbol_root(use_git: bool) {

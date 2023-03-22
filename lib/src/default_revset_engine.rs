@@ -19,7 +19,6 @@ use std::iter::Peekable;
 use itertools::Itertools;
 
 use crate::backend::CommitId;
-use crate::commit::Commit;
 use crate::default_index_store::IndexEntry;
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
@@ -612,19 +611,6 @@ fn revset_for_commit_ids<'index>(
     index_entries.sort_by_key(|b| Reverse(b.position()));
     index_entries.dedup();
     RevsetImpl::new(Box::new(EagerRevset { index_entries }))
-}
-
-pub fn revset_for_commits<'index>(
-    repo: &'index dyn Repo,
-    commits: &[&Commit],
-) -> Box<dyn Revset<'index> + 'index> {
-    let index = repo.index();
-    let mut index_entries = commits
-        .iter()
-        .map(|commit| index.entry_by_id(commit.id()).unwrap())
-        .collect_vec();
-    index_entries.sort_by_key(|b| Reverse(b.position()));
-    Box::new(RevsetImpl::new(Box::new(EagerRevset { index_entries })))
 }
 
 type PurePredicateFn<'index> = Box<dyn Fn(&IndexEntry<'index>) -> bool + 'index>;

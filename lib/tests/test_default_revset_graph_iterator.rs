@@ -14,12 +14,20 @@
 
 use itertools::Itertools;
 use jujutsu_lib::commit::Commit;
-use jujutsu_lib::default_revset_engine::revset_for_commits;
 use jujutsu_lib::default_revset_graph_iterator::RevsetGraphIterator;
 use jujutsu_lib::repo::Repo;
-use jujutsu_lib::revset::RevsetGraphEdge;
+use jujutsu_lib::revset::{Revset, RevsetExpression, RevsetGraphEdge};
 use test_case::test_case;
 use testutils::{CommitGraphBuilder, TestRepo};
+
+fn revset_for_commits<'index>(
+    repo: &'index dyn Repo,
+    commits: &[&Commit],
+) -> Box<dyn Revset<'index> + 'index> {
+    RevsetExpression::commits(commits.iter().map(|commit| commit.id().clone()).collect())
+        .evaluate(repo)
+        .unwrap()
+}
 
 fn direct(commit: &Commit) -> RevsetGraphEdge {
     RevsetGraphEdge::direct(commit.id().clone())
