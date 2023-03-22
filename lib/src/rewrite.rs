@@ -146,7 +146,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         rewritten: HashMap<CommitId, HashSet<CommitId>>,
         abandoned: HashSet<CommitId>,
     ) -> DescendantRebaser<'settings, 'repo> {
-        let root_commit_id = mut_repo.store().root_commit_id();
+        let store = mut_repo.store();
+        let root_commit_id = store.root_commit_id();
         assert!(!abandoned.contains(root_commit_id));
         assert!(!rewritten.contains_key(root_commit_id));
         let old_commits_expression = RevsetExpression::commits(rewritten.keys().cloned().collect())
@@ -165,38 +166,38 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
         let to_visit_expression = old_commits_expression.descendants();
         let to_visit_revset = to_visit_expression.evaluate(mut_repo).unwrap();
-        let to_visit_entries = to_visit_revset.iter().collect_vec();
+        let to_visit: Vec<_> = to_visit_revset.iter().commits(store).try_collect().unwrap();
         drop(to_visit_revset);
-        let index = mut_repo.index();
-        let to_visit_set: HashSet<CommitId> = to_visit_entries
-            .iter()
-            .map(|entry| entry.commit_id())
-            .collect();
+        let to_visit_set: HashSet<CommitId> =
+            to_visit.iter().map(|commit| commit.id().clone()).collect();
         let mut visited = HashSet::new();
         // Calculate an order where we rebase parents first, but if the parents were
         // rewritten, make sure we rebase the rewritten parent first.
         let to_visit = dag_walk::topo_order_reverse(
-            to_visit_entries,
-            Box::new(|entry| entry.commit_id()),
-            Box::new(|entry| {
-                visited.insert(entry.commit_id());
+            to_visit,
+            Box::new(|commit| commit.id().clone()),
+            Box::new(|commit| {
+                visited.insert(commit.id().clone());
                 let mut dependents = vec![];
-                for parent in entry.parents() {
-                    if let Some(targets) = rewritten.get(&parent.commit_id()) {
+                for parent in commit.parents() {
+                    if let Some(targets) = rewritten.get(parent.id()) {
                         for target in targets {
                             if to_visit_set.contains(target) && !visited.contains(target) {
-                                dependents.push(index.entry_by_id(target).unwrap());
+                                dependents.push(store.get_commit(target).unwrap());
                             }
                         }
                     }
-                    if to_visit_set.contains(&parent.commit_id()) {
+                    if to_visit_set.contains(parent.id()) {
                         dependents.push(parent);
                     }
                 }
                 dependents
             }),
         );
-        let to_visit = to_visit.iter().map(|entry| entry.commit_id()).collect_vec();
+        let to_visit = to_visit
+            .iter()
+            .map(|entry| entry.id().clone())
+            .collect_vec();
 
         let new_commits = rewritten.values().flatten().cloned().collect();
 
