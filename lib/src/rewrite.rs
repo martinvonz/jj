@@ -124,7 +124,7 @@ pub struct DescendantRebaser<'settings, 'repo> {
     new_parents: HashMap<CommitId, Vec<CommitId>>,
     divergent: HashMap<CommitId, Vec<CommitId>>,
     // In reverse order (parents after children), so we can remove the last one to rebase first.
-    to_visit: Vec<CommitId>,
+    to_visit: Vec<Commit>,
     // Commits to visit but skip. These were also in `to_visit` to start with, but we don't
     // want to rebase them. Instead, we record them in `replacements` when we visit them. That way,
     // their descendants will be rebased correctly.
@@ -194,10 +194,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 dependents
             }),
         );
-        let to_visit = to_visit
-            .iter()
-            .map(|entry| entry.id().clone())
-            .collect_vec();
 
         let new_commits = rewritten.values().flatten().cloned().collect();
 
@@ -368,7 +364,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     // TODO: Perhaps change the interface since it's not just about rebasing
     // commits.
     pub fn rebase_next(&mut self) -> Result<Option<RebasedDescendant>, BackendError> {
-        while let Some(old_commit_id) = self.to_visit.pop() {
+        while let Some(old_commit) = self.to_visit.pop() {
+            let old_commit_id = old_commit.id().clone();
             if let Some(new_parent_ids) = self.new_parents.get(&old_commit_id).cloned() {
                 // This is a commit that had already been rebased before `self` was created
                 // (i.e. it's part of the input for this rebase). We don't need
@@ -383,7 +380,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 self.update_references(old_commit_id, divergent_ids, true)?;
                 continue;
             }
-            let old_commit = self.mut_repo.store().get_commit(&old_commit_id)?;
             let old_parent_ids = old_commit.parent_ids();
             let new_parent_ids = self.new_parents(old_parent_ids);
             if self.abandoned.contains(&old_commit_id) {
