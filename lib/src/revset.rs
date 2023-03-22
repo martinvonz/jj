@@ -711,187 +711,188 @@ fn parse_function_expression(
         state.with_alias_expanding(id, &locals, primary_span, |state| {
             parse_program(defn, state)
         })
+    } else if let Some(func) = BUILTIN_FUNCTION_MAP.get(name) {
+        func(name, arguments_pair, state)
     } else {
-        parse_builtin_function(name_pair, arguments_pair, state)
+        Err(RevsetParseError::with_span(
+            RevsetParseErrorKind::NoSuchFunction(name.to_owned()),
+            name_pair.as_span(),
+        ))
     }
 }
 
-fn parse_builtin_function(
-    name_pair: Pair<Rule>,
-    arguments_pair: Pair<Rule>,
-    state: ParseState,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let name = name_pair.as_str();
-    match name {
-        "parents" => {
-            let arg = expect_one_argument(name, arguments_pair)?;
-            let expression = parse_expression_rule(arg.into_inner(), state)?;
-            Ok(expression.parents())
-        }
-        "children" => {
-            let arg = expect_one_argument(name, arguments_pair)?;
-            let expression = parse_expression_rule(arg.into_inner(), state)?;
-            Ok(expression.children())
-        }
-        "ancestors" => {
-            let arg = expect_one_argument(name, arguments_pair)?;
-            let expression = parse_expression_rule(arg.into_inner(), state)?;
-            Ok(expression.ancestors())
-        }
-        "descendants" => {
-            let arg = expect_one_argument(name, arguments_pair)?;
-            let expression = parse_expression_rule(arg.into_inner(), state)?;
-            Ok(expression.descendants())
-        }
-        "connected" => {
-            let arg = expect_one_argument(name, arguments_pair)?;
+type RevsetFunction =
+    fn(&str, Pair<Rule>, ParseState) -> Result<Rc<RevsetExpression>, RevsetParseError>;
+
+static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy::new(|| {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map: HashMap<&'static str, RevsetFunction> = HashMap::new();
+    map.insert("parents", |name, arguments_pair, state| {
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let expression = parse_expression_rule(arg.into_inner(), state)?;
+        Ok(expression.parents())
+    });
+    map.insert("children", |name, arguments_pair, state| {
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let expression = parse_expression_rule(arg.into_inner(), state)?;
+        Ok(expression.children())
+    });
+    map.insert("ancestors", |name, arguments_pair, state| {
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let expression = parse_expression_rule(arg.into_inner(), state)?;
+        Ok(expression.ancestors())
+    });
+    map.insert("descendants", |name, arguments_pair, state| {
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let expression = parse_expression_rule(arg.into_inner(), state)?;
+        Ok(expression.descendants())
+    });
+    map.insert("connected", |name, arguments_pair, state| {
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let candidates = parse_expression_rule(arg.into_inner(), state)?;
+        Ok(candidates.connected())
+    });
+    map.insert("none", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::none())
+    });
+    map.insert("all", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::all())
+    });
+    map.insert("heads", |name, arguments_pair, state| {
+        let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
+        if let Some(arg) = opt_arg {
             let candidates = parse_expression_rule(arg.into_inner(), state)?;
-            Ok(candidates.connected())
+            Ok(candidates.heads())
+        } else {
+            Ok(RevsetExpression::visible_heads())
         }
-        "none" => {
-            expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::none())
-        }
-        "all" => {
-            expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::all())
-        }
-        "heads" => {
-            let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
-            if let Some(arg) = opt_arg {
-                let candidates = parse_expression_rule(arg.into_inner(), state)?;
-                Ok(candidates.heads())
-            } else {
-                Ok(RevsetExpression::visible_heads())
-            }
-        }
-        "roots" => {
-            let arg = expect_one_argument(name, arguments_pair)?;
-            let candidates = parse_expression_rule(arg.into_inner(), state)?;
-            Ok(candidates.roots())
-        }
-        "public_heads" => {
-            expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::public_heads())
-        }
-        "branches" => {
-            let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
-            let needle = if let Some(arg) = opt_arg {
-                parse_function_argument_to_string(name, arg, state)?
-            } else {
-                "".to_owned()
-            };
-            Ok(RevsetExpression::branches(needle))
-        }
-        "remote_branches" => {
-            let ([], [branch_opt_arg, remote_opt_arg]) =
-                expect_named_arguments(name, &["", "remote"], arguments_pair)?;
-            let branch_needle = if let Some(branch_arg) = branch_opt_arg {
-                parse_function_argument_to_string(name, branch_arg, state)?
-            } else {
-                "".to_owned()
-            };
-            let remote_needle = if let Some(remote_arg) = remote_opt_arg {
-                parse_function_argument_to_string(name, remote_arg, state)?
-            } else {
-                "".to_owned()
-            };
-            Ok(RevsetExpression::remote_branches(
-                branch_needle,
-                remote_needle,
-            ))
-        }
-        "tags" => {
-            expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::tags())
-        }
-        "git_refs" => {
-            expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::git_refs())
-        }
-        "git_head" => {
-            expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::git_head())
-        }
-        "merges" => {
-            expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::filter(
-                RevsetFilterPredicate::ParentCount(2..u32::MAX),
-            ))
-        }
-        "description" => {
-            let arg = expect_one_argument(name, arguments_pair)?;
-            let needle = parse_function_argument_to_string(name, arg, state)?;
-            Ok(RevsetExpression::filter(
-                RevsetFilterPredicate::Description(needle),
-            ))
-        }
-        "author" => {
-            let arg = expect_one_argument(name, arguments_pair)?;
-            let needle = parse_function_argument_to_string(name, arg, state)?;
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-                needle,
-            )))
-        }
-        "committer" => {
-            let arg = expect_one_argument(name, arguments_pair)?;
-            let needle = parse_function_argument_to_string(name, arg, state)?;
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
-                needle,
-            )))
-        }
-        "empty" => {
-            expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(None)).negated())
-        }
-        "file" => {
-            if let Some(ctx) = state.workspace_ctx {
-                let arguments_span = arguments_pair.as_span();
-                let paths: Vec<_> = arguments_pair
-                    .into_inner()
-                    .map(|arg| -> Result<_, RevsetParseError> {
-                        let span = arg.as_span();
-                        let needle = parse_function_argument_to_string(name, arg, state)?;
-                        let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)
-                            .map_err(|e| {
-                                RevsetParseError::with_span(
-                                    RevsetParseErrorKind::FsPathParseError(e),
-                                    span,
-                                )
-                            })?;
-                        Ok(path)
-                    })
-                    .try_collect()?;
-                if paths.is_empty() {
-                    Err(RevsetParseError::with_span(
-                        RevsetParseErrorKind::InvalidFunctionArguments {
-                            name: name.to_owned(),
-                            message: "Expected at least 1 argument".to_string(),
-                        },
-                        arguments_span,
-                    ))
-                } else {
-                    Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
-                        paths,
-                    ))))
-                }
-            } else {
-                Err(RevsetParseError::new(
-                    RevsetParseErrorKind::FsPathWithoutWorkspace,
+    });
+    map.insert("roots", |name, arguments_pair, state| {
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let candidates = parse_expression_rule(arg.into_inner(), state)?;
+        Ok(candidates.roots())
+    });
+    map.insert("public_heads", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::public_heads())
+    });
+    map.insert("branches", |name, arguments_pair, state| {
+        let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
+        let needle = if let Some(arg) = opt_arg {
+            parse_function_argument_to_string(name, arg, state)?
+        } else {
+            "".to_owned()
+        };
+        Ok(RevsetExpression::branches(needle))
+    });
+    map.insert("remote_branches", |name, arguments_pair, state| {
+        let ([], [branch_opt_arg, remote_opt_arg]) =
+            expect_named_arguments(name, &["", "remote"], arguments_pair)?;
+        let branch_needle = if let Some(branch_arg) = branch_opt_arg {
+            parse_function_argument_to_string(name, branch_arg, state)?
+        } else {
+            "".to_owned()
+        };
+        let remote_needle = if let Some(remote_arg) = remote_opt_arg {
+            parse_function_argument_to_string(name, remote_arg, state)?
+        } else {
+            "".to_owned()
+        };
+        Ok(RevsetExpression::remote_branches(
+            branch_needle,
+            remote_needle,
+        ))
+    });
+    map.insert("tags", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::tags())
+    });
+    map.insert("git_refs", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::git_refs())
+    });
+    map.insert("git_head", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::git_head())
+    });
+    map.insert("merges", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::filter(
+            RevsetFilterPredicate::ParentCount(2..u32::MAX),
+        ))
+    });
+    map.insert("description", |name, arguments_pair, state| {
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let needle = parse_function_argument_to_string(name, arg, state)?;
+        Ok(RevsetExpression::filter(
+            RevsetFilterPredicate::Description(needle),
+        ))
+    });
+    map.insert("author", |name, arguments_pair, state| {
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let needle = parse_function_argument_to_string(name, arg, state)?;
+        Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
+            needle,
+        )))
+    });
+    map.insert("committer", |name, arguments_pair, state| {
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let needle = parse_function_argument_to_string(name, arg, state)?;
+        Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
+            needle,
+        )))
+    });
+    map.insert("empty", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::filter(RevsetFilterPredicate::File(None)).negated())
+    });
+    map.insert("file", |name, arguments_pair, state| {
+        if let Some(ctx) = state.workspace_ctx {
+            let arguments_span = arguments_pair.as_span();
+            let paths: Vec<_> = arguments_pair
+                .into_inner()
+                .map(|arg| -> Result<_, RevsetParseError> {
+                    let span = arg.as_span();
+                    let needle = parse_function_argument_to_string(name, arg, state)?;
+                    let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)
+                        .map_err(|e| {
+                            RevsetParseError::with_span(
+                                RevsetParseErrorKind::FsPathParseError(e),
+                                span,
+                            )
+                        })?;
+                    Ok(path)
+                })
+                .try_collect()?;
+            if paths.is_empty() {
+                Err(RevsetParseError::with_span(
+                    RevsetParseErrorKind::InvalidFunctionArguments {
+                        name: name.to_owned(),
+                        message: "Expected at least 1 argument".to_string(),
+                    },
+                    arguments_span,
                 ))
+            } else {
+                Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
+                    paths,
+                ))))
             }
+        } else {
+            Err(RevsetParseError::new(
+                RevsetParseErrorKind::FsPathWithoutWorkspace,
+            ))
         }
-        "present" => {
-            let arg = expect_one_argument(name, arguments_pair)?;
-            let expression = parse_expression_rule(arg.into_inner(), state)?;
-            Ok(Rc::new(RevsetExpression::Present(expression)))
-        }
-        _ => Err(RevsetParseError::with_span(
-            RevsetParseErrorKind::NoSuchFunction(name.to_owned()),
-            name_pair.as_span(),
-        )),
-    }
-}
+    });
+    map.insert("present", |name, arguments_pair, state| {
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let expression = parse_expression_rule(arg.into_inner(), state)?;
+        Ok(Rc::new(RevsetExpression::Present(expression)))
+    });
+    map
+});
 
 type OptionalArg<'i> = Option<Pair<'i, Rule>>;
 
