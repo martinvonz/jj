@@ -1568,8 +1568,8 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             } else {
                 Box::new(revset.iter())
             };
-            for index_entry in iter {
-                let commit = store.get_commit(&index_entry.commit_id())?;
+            for commit_or_error in iter.commits(store) {
+                let commit = commit_or_error?;
                 with_content_format
                     .write(formatter, |formatter| template.format(&commit, formatter))?;
                 if !diff_formats.is_empty() {
