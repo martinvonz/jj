@@ -18,7 +18,7 @@ use std::collections::{BTreeMap, HashSet};
 use crate::backend::CommitId;
 use crate::default_index_store::{IndexEntry, IndexPosition};
 use crate::nightly_shims::BTreeMapExt;
-use crate::revset::{Revset, RevsetGraphEdge, RevsetGraphEdgeType};
+use crate::revset::{RevsetGraphEdge, RevsetGraphEdgeType};
 
 // Given an iterator over some set of revisions, yields the same revisions with
 // associated edge types.
@@ -101,9 +101,11 @@ pub struct RevsetGraphIterator<'revset, 'index> {
 }
 
 impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
-    pub fn new(revset: &'revset dyn Revset<'index>) -> RevsetGraphIterator<'revset, 'index> {
+    pub fn new(
+        input_set_iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
+    ) -> RevsetGraphIterator<'revset, 'index> {
         RevsetGraphIterator {
-            input_set_iter: revset.iter(),
+            input_set_iter,
             look_ahead: Default::default(),
             min_position: IndexPosition::MAX,
             edges: Default::default(),
