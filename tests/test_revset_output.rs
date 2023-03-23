@@ -39,7 +39,8 @@ fn test_syntax_error() {
     1 | x - y
       |   ^
       |
-      = '-' is not an infix operator (Did you mean '~' for difference?)
+      = '-' is not an infix operator
+    Hint: Did you mean '~' for difference?
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "HEAD^"]);
@@ -49,7 +50,8 @@ fn test_syntax_error() {
     1 | HEAD^
       |     ^
       |
-      = '^' is not a postfix operator (Did you mean '-' for parents?)
+      = '^' is not a postfix operator
+    Hint: Did you mean '-' for parents?
     "###);
 }
 

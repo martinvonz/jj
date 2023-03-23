@@ -254,6 +254,16 @@ impl From<RevsetParseError> for CommandError {
         let message = iter::successors(Some(&err), |e| e.origin()).join("\n");
         // Only for the top-level error as we can't attach hint to inner errors
         let hint = match err.kind() {
+            RevsetParseErrorKind::NotPostfixOperator {
+                op: _,
+                similar_op,
+                description,
+            }
+            | RevsetParseErrorKind::NotInfixOperator {
+                op: _,
+                similar_op,
+                description,
+            } => Some(format!("Did you mean '{similar_op}' for {description}?")),
             RevsetParseErrorKind::NoSuchFunction { name, candidates } => {
                 format_similarity_hint(&collect_similar(name, candidates))
             }

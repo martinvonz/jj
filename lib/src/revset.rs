@@ -62,13 +62,13 @@ pub struct RevsetParseError {
 pub enum RevsetParseErrorKind {
     #[error("Syntax error")]
     SyntaxError,
-    #[error("'{op}' is not a postfix operator (Did you mean '{similar_op}' for {description}?)")]
+    #[error("'{op}' is not a postfix operator")]
     NotPostfixOperator {
         op: String,
         similar_op: String,
         description: String,
     },
-    #[error("'{op}' is not an infix operator (Did you mean '{similar_op}' for {description}?)")]
+    #[error("'{op}' is not an infix operator")]
     NotInfixOperator {
         op: String,
         similar_op: String,
