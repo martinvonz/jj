@@ -51,7 +51,7 @@ trait InternalRevset<'index>: ToPredicateFn<'index> {
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
 }
 
-struct RevsetImpl<'index> {
+pub struct RevsetImpl<'index> {
     inner: Box<dyn InternalRevset<'index> + 'index>,
     index: CompositeIndex<'index>,
 }
@@ -65,6 +65,10 @@ impl<'index> RevsetImpl<'index> {
             inner: revset,
             index,
         }
+    }
+
+    pub fn iter_graph_impl(&self) -> RevsetGraphIterator<'_, 'index> {
+        RevsetGraphIterator::new(self.inner.iter())
     }
 }
 
@@ -491,9 +495,9 @@ pub fn evaluate<'index>(
     repo: &'index dyn Repo,
     index: CompositeIndex<'index>,
     expression: &RevsetExpression,
-) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
+) -> Result<RevsetImpl<'index>, RevsetError> {
     let internal_revset = internal_evaluate(repo, expression)?;
-    Ok(Box::new(RevsetImpl::new(internal_revset, index)))
+    Ok(RevsetImpl::new(internal_revset, index))
 }
 
 fn internal_evaluate<'index>(

@@ -733,7 +733,8 @@ impl Index for MutableIndexImpl {
         repo: &'index dyn Repo,
         expression: &RevsetExpression,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        default_revset_engine::evaluate(repo, CompositeIndex(self), expression)
+        let revset_impl = default_revset_engine::evaluate(repo, CompositeIndex(self), expression)?;
+        Ok(Box::new(revset_impl))
     }
 }
 
@@ -1698,6 +1699,10 @@ impl ReadonlyIndexImpl {
         }))
     }
 
+    pub fn as_composite(&self) -> CompositeIndex {
+        CompositeIndex(self)
+    }
+
     fn name(&self) -> &str {
         &self.name
     }
@@ -1806,7 +1811,8 @@ impl Index for ReadonlyIndexImpl {
         repo: &'index dyn Repo,
         expression: &RevsetExpression,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        default_revset_engine::evaluate(repo, CompositeIndex(self), expression)
+        let revset_impl = default_revset_engine::evaluate(repo, CompositeIndex(self), expression)?;
+        Ok(Box::new(revset_impl))
     }
 }
 
