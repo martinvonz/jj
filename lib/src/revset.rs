@@ -1449,7 +1449,7 @@ fn resolve_full_commit_id(
         let commit_id = CommitId::new(binary_commit_id);
         match repo.store().get_commit(&commit_id) {
             // Only recognize a commit if we have indexed it
-            Ok(_) if repo.index().entry_by_id(&commit_id).is_some() => Ok(Some(vec![commit_id])),
+            Ok(_) if repo.index().has_id(&commit_id) => Ok(Some(vec![commit_id])),
             Ok(_) | Err(BackendError::ObjectNotFound { .. }) => Ok(None),
             Err(err) => Err(RevsetError::StoreError(err)),
         }
