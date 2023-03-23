@@ -825,6 +825,7 @@ dependencies = [
  "rpassword",
  "serde",
  "slab",
+ "strsim",
  "tempfile",
  "testutils",
  "textwrap 0.16.0",

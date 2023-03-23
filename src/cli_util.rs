@@ -45,7 +45,7 @@ use jujutsu_lib::repo::{
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
     resolve_symbols, Revset, RevsetAliasesMap, RevsetError, RevsetExpression, RevsetIteratorExt,
-    RevsetParseError, RevsetWorkspaceContext,
+    RevsetParseError, RevsetParseErrorKind, RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::transaction::Transaction;
@@ -94,6 +94,29 @@ pub fn user_error_with_hint(message: impl Into<String>, hint: impl Into<String>)
     CommandError::UserError {
         message: message.into(),
         hint: Some(hint.into()),
+    }
+}
+
+fn collect_similar<'a, S: AsRef<str>>(name: &str, candidates: &'a [S]) -> Vec<&'a S> {
+    candidates
+        .iter()
+        .filter_map(|cand| {
+            // The parameter is borrowed from clap f5540d26
+            (strsim::jaro(name, cand.as_ref()) > 0.7).then_some(cand)
+        })
+        .collect_vec()
+}
+
+fn format_similarity_hint<S: AsRef<str>>(candidates: &[S]) -> Option<String> {
+    match candidates {
+        [] => None,
+        names => {
+            let quoted_names = names
+                .iter()
+                .map(|s| format!(r#""{}""#, s.as_ref()))
+                .join(", ");
+            Some(format!("Did you mean {quoted_names}?"))
+        }
     }
 }
 
@@ -229,7 +252,17 @@ impl From<GitExportError> for CommandError {
 impl From<RevsetParseError> for CommandError {
     fn from(err: RevsetParseError) -> Self {
         let message = iter::successors(Some(&err), |e| e.origin()).join("\n");
-        user_error(format!("Failed to parse revset: {message}"))
+        // Only for the top-level error as we can't attach hint to inner errors
+        let hint = match err.kind() {
+            RevsetParseErrorKind::NoSuchFunction { name, candidates } => {
+                format_similarity_hint(&collect_similar(name, candidates))
+            }
+            _ => None,
+        };
+        CommandError::UserError {
+            message: format!("Failed to parse revset: {message}"),
+            hint,
+        }
     }
 }
 

@@ -74,8 +74,11 @@ pub enum RevsetParseErrorKind {
         similar_op: String,
         description: String,
     },
-    #[error("Revset function \"{0}\" doesn't exist")]
-    NoSuchFunction(String),
+    #[error(r#"Revset function "{name}" doesn't exist"#)]
+    NoSuchFunction {
+        name: String,
+        candidates: Vec<String>,
+    },
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
     InvalidFunctionArguments { name: String, message: String },
     #[error("Invalid file pattern: {0}")]
@@ -715,10 +718,24 @@ fn parse_function_expression(
         func(name, arguments_pair, state)
     } else {
         Err(RevsetParseError::with_span(
-            RevsetParseErrorKind::NoSuchFunction(name.to_owned()),
+            RevsetParseErrorKind::NoSuchFunction {
+                name: name.to_owned(),
+                candidates: collect_function_names(state.aliases_map),
+            },
             name_pair.as_span(),
         ))
     }
+}
+
+fn collect_function_names(aliases_map: &RevsetAliasesMap) -> Vec<String> {
+    let mut names = BUILTIN_FUNCTION_MAP
+        .keys()
+        .map(|&n| n.to_owned())
+        .collect_vec();
+    names.extend(aliases_map.function_aliases.keys().map(|n| n.to_owned()));
+    names.sort_unstable();
+    names.dedup();
+    names
 }
 
 type RevsetFunction =
