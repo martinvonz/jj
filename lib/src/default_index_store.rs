@@ -692,10 +692,6 @@ impl Index for MutableIndexImpl {
         self
     }
 
-    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        CompositeIndex(self).commit_id_to_pos(commit_id)
-    }
-
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
         CompositeIndex(self).shortest_unique_commit_id_prefix_len(commit_id)
     }
@@ -706,10 +702,6 @@ impl Index for MutableIndexImpl {
 
     fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
         CompositeIndex(self).entry_by_id(commit_id)
-    }
-
-    fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry {
-        CompositeIndex(self).entry_by_pos(pos)
     }
 
     fn has_id(&self, commit_id: &CommitId) -> bool {
@@ -1773,10 +1765,6 @@ impl Index for ReadonlyIndexImpl {
         self
     }
 
-    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        CompositeIndex(self).commit_id_to_pos(commit_id)
-    }
-
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
         CompositeIndex(self).shortest_unique_commit_id_prefix_len(commit_id)
     }
@@ -1787,10 +1775,6 @@ impl Index for ReadonlyIndexImpl {
 
     fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
         CompositeIndex(self).entry_by_id(commit_id)
-    }
-
-    fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry {
-        CompositeIndex(self).entry_by_pos(pos)
     }
 
     fn has_id(&self, commit_id: &CommitId) -> bool {
