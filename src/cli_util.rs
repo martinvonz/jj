@@ -671,12 +671,8 @@ impl WorkspaceCommandHelper {
             .ok()
             .map(|commit| commit.id());
         if let Some(wc_commit_id) = mut_repo.view().get_wc_commit_id(self.workspace_id()) {
-            let first_parent_id = mut_repo
-                .index()
-                .entry_by_id(wc_commit_id)
-                .unwrap()
-                .parents()[0]
-                .commit_id();
+            let wc_commit = mut_repo.store().get_commit(wc_commit_id)?;
+            let first_parent_id = wc_commit.parent_ids()[0].clone();
             if first_parent_id != *mut_repo.store().root_commit_id() {
                 if let Some(current_git_commit_id) = current_git_commit_id {
                     git_repo.set_head_detached(current_git_commit_id)?;
