@@ -55,6 +55,7 @@ regex = "1.7.2"
 rpassword = "7.2.0"
 serde = { version = "1.0", features = ["derive"] }
 slab = "0.4.8"
+strsim = "0.10.0"
 tempfile = "3.4.0"
 textwrap = "0.16.0"
 timeago = { version = "0.4.1", default-features = false }

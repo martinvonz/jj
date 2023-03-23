@@ -185,6 +185,45 @@ fn test_bad_function_call() {
 }
 
 #[test]
+fn test_function_name_hint() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let evaluate_err = |expr| test_env.jj_cmd_failure(&repo_path, &["log", "-r", expr]);
+
+    test_env.add_config(
+        r###"
+    [revset-aliases]
+    'branches(x)' = 'x' # override builtin function
+    'my_author(x)' = 'author(x)' # similar name to builtin function
+    'author_sym' = 'x' # not a function alias
+    "###,
+    );
+
+    // The suggestion "branches" shouldn't be duplicated
+    insta::assert_snapshot!(evaluate_err("branch()"), @r###"
+    Error: Failed to parse revset:  --> 1:1
+      |
+    1 | branch()
+      | ^----^
+      |
+      = Revset function "branch" doesn't exist
+    Hint: Did you mean "branches"?
+    "###);
+
+    // Both builtin function and function alias should be suggested
+    insta::assert_snapshot!(evaluate_err("author_()"), @r###"
+    Error: Failed to parse revset:  --> 1:1
+      |
+    1 | author_()
+      | ^-----^
+      |
+      = Revset function "author_" doesn't exist
+    Hint: Did you mean "author", "my_author"?
+    "###);
+}
+
+#[test]
 fn test_alias() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
