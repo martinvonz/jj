@@ -724,7 +724,7 @@ impl Index for MutableIndexImpl {
         CompositeIndex(self).heads(candidates)
     }
 
-    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
+    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         CompositeIndex(self).topo_order(input)
     }
 
@@ -1109,10 +1109,10 @@ impl<'a> CompositeIndex<'a> {
     }
 
     /// Parents before children
-    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry<'a>> {
-        let mut entries_by_generation = input.map(|id| self.entry_by_id(id).unwrap()).collect_vec();
-        entries_by_generation.sort_unstable_by_key(|e| e.pos);
-        entries_by_generation
+    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
+        let mut ids = input.cloned().collect_vec();
+        ids.sort_by_cached_key(|id| self.commit_id_to_pos(id).unwrap());
+        ids
     }
 }
 
@@ -1802,7 +1802,7 @@ impl Index for ReadonlyIndexImpl {
         CompositeIndex(self).heads(candidates)
     }
 
-    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry> {
+    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         CompositeIndex(self).topo_order(input)
     }
 

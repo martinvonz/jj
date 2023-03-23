@@ -1902,7 +1902,6 @@ fn cmd_duplicate(
         .index()
         .topo_order(&mut to_duplicate.iter().map(|c| c.id()))
         .into_iter()
-        .map(|index_entry| index_entry.commit_id())
     {
         // Topological order ensures that any parents of `original_commit` are
         // either not in `to_duplicate` or were already duplicated.

@@ -67,7 +67,7 @@ pub trait Index: Send + Sync {
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
 
     /// Parents before children
-    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<IndexEntry>;
+    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
 
     // TODO: It's weird that we pass in the repo here since the repo is a
     // higher-level concept. We should probably pass in the view and store
