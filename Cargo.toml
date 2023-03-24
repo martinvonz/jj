@@ -74,7 +74,6 @@ assert_matches = "1.5.0"
 criterion = "0.4.0"
 criterion_bencher_compat = "0.4.0"
 insta = { version = "1.29.0", features = ["filters"] }
-predicates = "3.0.2"
 regex = "1.7.2"
 testutils = { path = "lib/testutils" }
 
