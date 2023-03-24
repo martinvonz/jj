@@ -54,10 +54,8 @@ you create will look like regular Git commits. You can always switch back to
 Git. The Git support uses the [libgit2](https://libgit2.org/) C library.
 
 [^native-backend]: At this time, there's practically no reason to use the native
-backend (the only minor reason might be
-[#27](https://github.com/martinvonz/jj/issues/27)).
-The backend exists mainly to make sure that it's possible to eventually add
-functionality that cannot easily be added to the Git backend.
+backend. The backend exists mainly to make sure that it's possible to eventually
+add functionality that cannot easily be added to the Git backend.
 
 <img src="demos/git_compat.png" />
 
