@@ -74,7 +74,7 @@ impl<'index> RevsetImpl<'index> {
 
 impl<'index> Revset<'index> for RevsetImpl<'index> {
     fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_> {
-        Box::new(RevsetCommitIdIterator(self.inner.iter()))
+        Box::new(self.inner.iter().map(|index_entry| index_entry.commit_id()))
     }
 
     fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_> {
@@ -96,16 +96,6 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
 
     fn is_empty(&self) -> bool {
         self.iter().next().is_none()
-    }
-}
-
-struct RevsetCommitIdIterator<I>(I);
-
-impl<'index, I: Iterator<Item = IndexEntry<'index>>> Iterator for RevsetCommitIdIterator<I> {
-    type Item = CommitId;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|index_entry| index_entry.commit_id())
     }
 }
 
