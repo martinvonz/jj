@@ -9,7 +9,7 @@ use std::time::Instant;
 use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
 use jujutsu_lib::backend::ObjectId;
-use jujutsu_lib::git::{self, GitFetchError, GitRefUpdate};
+use jujutsu_lib::git::{self, GitFetchError, GitPushError, GitRefUpdate};
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jujutsu_lib::repo::Repo;
@@ -20,8 +20,8 @@ use jujutsu_lib::workspace::Workspace;
 use maplit::hashset;
 
 use crate::cli_util::{
-    print_failed_git_export, short_change_hash, short_commit_hash, user_error, CommandError,
-    CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    print_failed_git_export, short_change_hash, short_commit_hash, user_error,
+    user_error_with_hint, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::commands::make_branch_term;
 use crate::progress::Progress;
@@ -152,6 +152,18 @@ fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     match store.git_repo() {
         None => Err(user_error("The repo is not backed by a git repo")),
         Some(git_repo) => Ok(git_repo),
+    }
+}
+
+fn map_git_error(err: git2::Error) -> CommandError {
+    if err.class() == git2::ErrorClass::Ssh {
+        user_error_with_hint(
+            err.to_string(),
+            "Jujutsu uses libssh2, which doesn't respect ~/.ssh/config. Does `ssh -F /dev/null` \
+             to the host work?",
+        )
+    } else {
+        user_error(err.to_string())
     }
 }
 
@@ -307,7 +319,10 @@ fn cmd_git_fetch(
                 &command.settings().git_settings(),
             )
         })
-        .map_err(|err| user_error(err.to_string()))?;
+        .map_err(|err| match err {
+            GitFetchError::InternalGitError(err) => map_git_error(err),
+            _ => user_error(err.to_string()),
+        })?;
     }
     tx.finish(ui)?;
     Ok(())
@@ -439,7 +454,7 @@ fn do_git_clone(
         GitFetchError::NoSuchRemote(_) => {
             panic!("shouldn't happen as we just created the git remote")
         }
-        GitFetchError::InternalGitError(err) => user_error(format!("Fetch failed: {err}")),
+        GitFetchError::InternalGitError(err) => map_git_error(err),
         GitFetchError::InvalidGlob => {
             unreachable!("we didn't provide any globs")
         }
@@ -860,7 +875,10 @@ fn cmd_git_push(
     with_remote_callbacks(ui, |cb| {
         git::push_updates(&git_repo, &remote, &ref_updates, cb)
     })
-    .map_err(|err| user_error(err.to_string()))?;
+    .map_err(|err| match err {
+        GitPushError::InternalGitError(err) => map_git_error(err),
+        _ => user_error(err.to_string()),
+    })?;
     git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
     tx.finish(ui)?;
     Ok(())
