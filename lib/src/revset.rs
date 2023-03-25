@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::path::Path;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::{error, fmt};
 
@@ -1037,17 +1038,29 @@ fn parse_function_argument_to_string(
     pair: Pair<Rule>,
     state: ParseState,
 ) -> Result<String, RevsetParseError> {
+    parse_function_argument_as_literal("string", name, pair, state)
+}
+
+fn parse_function_argument_as_literal<T: FromStr>(
+    type_name: &str,
+    name: &str,
+    pair: Pair<Rule>,
+    state: ParseState,
+) -> Result<T, RevsetParseError> {
     let span = pair.as_span();
-    let expression = parse_expression_rule(pair.into_inner(), state)?;
-    match expression.as_ref() {
-        RevsetExpression::Symbol(symbol) => Ok(symbol.clone()),
-        _ => Err(RevsetParseError::with_span(
+    let make_error = || {
+        RevsetParseError::with_span(
             RevsetParseErrorKind::InvalidFunctionArguments {
                 name: name.to_string(),
-                message: "Expected function argument of type string".to_owned(),
+                message: format!("Expected function argument of type {type_name}"),
             },
             span,
-        )),
+        )
+    };
+    let expression = parse_expression_rule(pair.into_inner(), state)?;
+    match expression.as_ref() {
+        RevsetExpression::Symbol(symbol) => symbol.parse().map_err(|_| make_error()),
+        _ => Err(make_error()),
     }
 }
 
