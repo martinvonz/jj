@@ -717,7 +717,7 @@ fn revset_for_commit_ids<'index>(
     for id in commit_ids {
         index_entries.push(index.entry_by_id(id).unwrap());
     }
-    index_entries.sort_by_key(|b| Reverse(b.position()));
+    index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
     index_entries.dedup();
     Box::new(EagerRevset { index_entries })
 }
