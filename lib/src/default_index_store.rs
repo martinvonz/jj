@@ -1131,7 +1131,7 @@ pub struct IndexStats {
 }
 
 #[derive(Clone, Eq, PartialEq)]
-pub struct IndexEntryByPosition<'a>(IndexEntry<'a>);
+pub struct IndexEntryByPosition<'a>(pub IndexEntry<'a>);
 
 impl Ord for IndexEntryByPosition<'_> {
     fn cmp(&self, other: &Self) -> Ordering {

@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use std::cmp::{Ordering, Reverse};
-use std::collections::HashSet;
+use std::collections::{BinaryHeap, HashSet};
 use std::iter::Peekable;
 
 use itertools::Itertools;
 
-use crate::backend::{ChangeId, CommitId, ObjectId};
-use crate::default_index_store::{CompositeIndex, IndexEntry, IndexPosition};
+use crate::backend::{ChangeId, CommitId, MillisSinceEpoch, ObjectId};
+use crate::default_index_store::{CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition};
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::index::{HexPrefix, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
@@ -661,6 +661,10 @@ fn internal_evaluate<'index>(
             }
             Ok(revset_for_commit_ids(repo, &commit_ids))
         }
+        RevsetExpression::Latest { candidates, count } => {
+            let candidate_set = internal_evaluate(repo, candidates)?;
+            Ok(take_latest_revset(repo, candidate_set.as_ref(), *count))
+        }
         RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
             candidates: internal_evaluate(repo, &RevsetExpression::All)?,
             predicate: build_predicate_fn(repo, predicate),
@@ -719,6 +723,51 @@ fn revset_for_commit_ids<'index>(
     }
     index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
     index_entries.dedup();
+    Box::new(EagerRevset { index_entries })
+}
+
+fn take_latest_revset<'index>(
+    repo: &dyn Repo,
+    candidate_set: &dyn InternalRevset<'index>,
+    count: usize,
+) -> Box<dyn InternalRevset<'index> + 'index> {
+    if count == 0 {
+        return Box::new(EagerRevset::empty());
+    }
+
+    #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+    struct Item<'a> {
+        timestamp: MillisSinceEpoch,
+        entry: IndexEntryByPosition<'a>, // tie-breaker
+    }
+
+    let store = repo.store();
+    let make_rev_item = |entry: IndexEntry<'index>| {
+        let commit = store.get_commit(&entry.commit_id()).unwrap();
+        Reverse(Item {
+            timestamp: commit.committer().timestamp.timestamp.clone(),
+            entry: IndexEntryByPosition(entry),
+        })
+    };
+
+    // Maintain min-heap containing the latest (greatest) count items. For small
+    // count and large candidate set, this is probably cheaper than building vec
+    // and applying selection algorithm.
+    let mut candidate_iter = candidate_set.iter().map(make_rev_item).fuse();
+    let mut latest_items = BinaryHeap::from_iter(candidate_iter.by_ref().take(count));
+    for item in candidate_iter {
+        let mut earliest = latest_items.peek_mut().unwrap();
+        if earliest.0 < item.0 {
+            *earliest = item;
+        }
+    }
+
+    assert!(latest_items.len() <= count);
+    let mut index_entries = latest_items
+        .into_iter()
+        .map(|item| item.0.entry.0)
+        .collect_vec();
+    index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
     Box::new(EagerRevset { index_entries })
 }
 

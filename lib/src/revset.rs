@@ -232,6 +232,10 @@ pub enum RevsetExpression {
     Tags,
     GitRefs,
     GitHead,
+    Latest {
+        candidates: Rc<RevsetExpression>,
+        count: usize,
+    },
     Filter(RevsetFilterPredicate),
     /// Marker for subtree that should be intersected as filter.
     AsFilter(Rc<RevsetExpression>),
@@ -292,6 +296,13 @@ impl RevsetExpression {
 
     pub fn git_head() -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::GitHead)
+    }
+
+    pub fn latest(self: &Rc<RevsetExpression>, count: usize) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Latest {
+            candidates: self.clone(),
+            count,
+        })
     }
 
     pub fn filter(predicate: RevsetFilterPredicate) -> Rc<RevsetExpression> {
@@ -835,6 +846,16 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         expect_no_arguments(name, arguments_pair)?;
         Ok(RevsetExpression::git_head())
     });
+    map.insert("latest", |name, arguments_pair, state| {
+        let ([candidates_arg], [count_opt_arg]) = expect_arguments(name, arguments_pair)?;
+        let candidates = parse_expression_rule(candidates_arg.into_inner(), state)?;
+        let count = if let Some(count_arg) = count_opt_arg {
+            parse_function_argument_as_literal("integer", name, count_arg, state)?
+        } else {
+            1
+        };
+        Ok(candidates.latest(count))
+    });
     map.insert("merges", |name, arguments_pair, _state| {
         expect_no_arguments(name, arguments_pair)?;
         Ok(RevsetExpression::filter(
@@ -1139,6 +1160,12 @@ fn try_transform_expression_bottom_up(
             RevsetExpression::Tags => None,
             RevsetExpression::GitRefs => None,
             RevsetExpression::GitHead => None,
+            RevsetExpression::Latest { candidates, count } => {
+                transform_rec(candidates, f)?.map(|candidates| RevsetExpression::Latest {
+                    candidates,
+                    count: *count,
+                })
+            }
             RevsetExpression::Filter(_) => None,
             RevsetExpression::AsFilter(candidates) => {
                 transform_rec(candidates, f)?.map(RevsetExpression::AsFilter)
@@ -2371,6 +2398,11 @@ mod tests {
         assert_eq!(
             optimize(parse("roots(branches() & all())").unwrap()),
             RevsetExpression::branches("".to_owned()).roots()
+        );
+
+        assert_eq!(
+            optimize(parse("latest(branches() & all(), 2)").unwrap()),
+            RevsetExpression::branches("".to_owned()).latest(2)
         );
 
         assert_eq!(
