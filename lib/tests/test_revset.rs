@@ -1508,6 +1508,90 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_evaluate_expression_latest(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let mut_repo = tx.mut_repo();
+
+    let mut write_commit_with_committer_timestamp = |msec| {
+        let builder = create_random_commit(mut_repo, &settings);
+        let mut committer = builder.committer().clone();
+        committer.timestamp.timestamp = MillisSinceEpoch(msec);
+        builder.set_committer(committer).write().unwrap()
+    };
+    let commit1_t3 = write_commit_with_committer_timestamp(3);
+    let commit2_t2 = write_commit_with_committer_timestamp(2);
+    let commit3_t2 = write_commit_with_committer_timestamp(2);
+    let commit4_t1 = write_commit_with_committer_timestamp(1);
+
+    // Pick the latest entry by default (count = 1)
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "latest(all())"),
+        vec![commit1_t3.id().clone()],
+    );
+
+    // Should not panic with count = 0 or empty set
+    assert_eq!(resolve_commit_ids(mut_repo, "latest(all(), 0)"), vec![]);
+    assert_eq!(resolve_commit_ids(mut_repo, "latest(none())"), vec![]);
+
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "latest(all(), 1)"),
+        vec![commit1_t3.id().clone()],
+    );
+
+    // Tie-breaking: pick the later entry in position
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "latest(all(), 2)"),
+        vec![commit3_t2.id().clone(), commit1_t3.id().clone()],
+    );
+
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "latest(all(), 3)"),
+        vec![
+            commit3_t2.id().clone(),
+            commit2_t2.id().clone(),
+            commit1_t3.id().clone(),
+        ],
+    );
+
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "latest(all(), 4)"),
+        vec![
+            commit4_t1.id().clone(),
+            commit3_t2.id().clone(),
+            commit2_t2.id().clone(),
+            commit1_t3.id().clone(),
+        ],
+    );
+
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "latest(all(), 5)"),
+        vec![
+            commit4_t1.id().clone(),
+            commit3_t2.id().clone(),
+            commit2_t2.id().clone(),
+            commit1_t3.id().clone(),
+            mut_repo.store().root_commit_id().clone(),
+        ],
+    );
+
+    // Should not panic if count is larger than the candidates size
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "latest(~root, 5)"),
+        vec![
+            commit4_t1.id().clone(),
+            commit3_t2.id().clone(),
+            commit2_t2.id().clone(),
+            commit1_t3.id().clone(),
+        ],
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_merges(use_git: bool) {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);

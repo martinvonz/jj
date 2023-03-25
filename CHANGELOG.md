@@ -59,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to the configured user. `jj describe` also gained a `--no-edit` option to
   avoid opening the editor.
 
+* Added `latest(x[, n])` revset function to select the latest `n` commits.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines

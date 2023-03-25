@@ -108,6 +108,8 @@ revsets (expressions) as arguments.
   If `x` was not specified, it selects all visible heads (as if you had said
   `heads(all())`).
 * `roots(x)`: Commits in `x` that are not descendants of other commits in `x`.
+* `latest(x[, count])`: Latest `count` commits in `x`, based on committer
+  timestamp. The default `count` is 1.
 * `merges()`: Merge commits.
 * `description(needle)`: Commits with the given string in their
   description.

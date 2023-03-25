@@ -101,6 +101,16 @@ fn test_bad_function_call() {
       = Invalid arguments to revset function "heads": Expected 0 to 1 arguments
     "###);
 
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "latest(a, not_an_integer)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:11
+      |
+    1 | latest(a, not_an_integer)
+      |           ^------------^
+      |
+      = Invalid arguments to revset function "latest": Expected function argument of type integer
+    "###);
+
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse revset:  --> 1:6
