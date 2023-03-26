@@ -112,6 +112,31 @@ $ # Push the updated branch to the remote. Jujutsu automatically makes it a forc
 $ jj git push --branch your-feature
 ```
 
+## Using GitHub CLI
+
+GitHub CLI will have trouble finding the proper git repository path in jj repos
+that aren't [co-located](./git-compatibility.md#co-located-jujutsugit-repos)
+(see [issue #1008]). You can configure the `$GIT_DIR` environment variable to
+point it to the right path:
+
+```shell
+$ GIT_DIR=.jj/repo/store/git gh issue list
+```
+
+You can make that automatic by installing [direnv](https://direnv.net) and
+defining hooks in a .envrc file in the repository root to configure `$GIT_DIR`.
+Just add this line into .envrc:
+
+```shell
+export GIT_DIR=$PWD/.jj/repo/store/git
+```
+
+and run `direnv allow` to approve it for direnv to run. Then GitHub CLI will
+work automatically even in repos that aren't co-located so you can execute
+commands like `gh issue list` normally.
+
+[issue #1008]: https://github.com/martinvonz/jj/issues/1008
+
 ## Useful Revsets
 
 Log all revisions across all local branches, which aren't on the main branch nor
