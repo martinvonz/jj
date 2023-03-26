@@ -1,0 +1,5 @@
+# To use: echo "source_env .envrc.recommended" >> .envrc
+
+if has nix; then
+  use flake
+fi
