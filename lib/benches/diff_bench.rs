@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use jujutsu_lib::diff;
 
 fn unchanged_lines(count: usize) -> (String, String) {
@@ -29,46 +29,26 @@ fn reversed_lines(count: usize) -> (String, String) {
     (left_lines.join(""), right_lines.join(""))
 }
 
-fn bench_diff_1k_unchanged_lines(c: &mut Criterion) {
-    let (left, right) = unchanged_lines(1000);
-    c.bench_function("bench_diff_1k_unchanged_lines", |b| {
-        b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()))
-    });
-}
-
-fn bench_diff_10k_unchanged_lines(c: &mut Criterion) {
-    let (left, right) = unchanged_lines(10000);
-    c.bench_function("bench_diff_10k_unchanged_lines", |b| {
-        b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()))
-    });
-}
-
-fn bench_diff_1k_modified_lines(c: &mut Criterion) {
-    let (left, right) = modified_lines(1000);
-    c.bench_function("bench_diff_1k_modified_lines", |b| {
-        b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()))
-    });
-}
-
-fn bench_diff_10k_modified_lines(c: &mut Criterion) {
-    let (left, right) = modified_lines(10000);
-    c.bench_function("bench_diff_10k_modified_lines", |b| {
-        b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()))
-    });
-}
-
-fn bench_diff_1k_lines_reversed(c: &mut Criterion) {
-    let (left, right) = reversed_lines(1000);
-    c.bench_function("bench_diff_1k_lines_reversed", |b| {
-        b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()))
-    });
-}
-
-fn bench_diff_10k_lines_reversed(c: &mut Criterion) {
-    let (left, right) = reversed_lines(10000);
-    c.bench_function("bench_diff_10k_lines_reversed", |b| {
-        b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()))
-    });
+fn bench_diff_lines(c: &mut Criterion) {
+    let mut group = c.benchmark_group("bench_diff_lines");
+    for count in [1000, 10000] {
+        let label = format!("{}k", count / 1000);
+        group.bench_with_input(
+            BenchmarkId::new("unchanged", &label),
+            &unchanged_lines(count),
+            |b, (left, right)| b.iter(|| diff::diff(left.as_bytes(), right.as_bytes())),
+        );
+        group.bench_with_input(
+            BenchmarkId::new("modified", &label),
+            &modified_lines(count),
+            |b, (left, right)| b.iter(|| diff::diff(left.as_bytes(), right.as_bytes())),
+        );
+        group.bench_with_input(
+            BenchmarkId::new("reversed", &label),
+            &reversed_lines(count),
+            |b, (left, right)| b.iter(|| diff::diff(left.as_bytes(), right.as_bytes())),
+        );
+    }
 }
 
 fn bench_diff_git_git_read_tree_c(c: &mut Criterion) {
@@ -218,14 +198,5 @@ int main(int argc, char **argv)
     });
 }
 
-criterion_group!(
-    benches,
-    bench_diff_1k_unchanged_lines,
-    bench_diff_10k_unchanged_lines,
-    bench_diff_1k_modified_lines,
-    bench_diff_10k_modified_lines,
-    bench_diff_1k_lines_reversed,
-    bench_diff_10k_lines_reversed,
-    bench_diff_git_git_read_tree_c,
-);
+criterion_group!(benches, bench_diff_lines, bench_diff_git_git_read_tree_c,);
 criterion_main!(benches);
