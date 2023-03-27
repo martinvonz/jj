@@ -32,10 +32,10 @@ pub enum BenchCommands {
     CommonAncestors(BenchCommonAncestorsArgs),
     #[command(name = "isancestor")]
     IsAncestor(BenchIsAncestorArgs),
-    #[command(name = "walkrevs")]
-    WalkRevs(BenchWalkRevsArgs),
     #[command(name = "resolveprefix")]
     ResolvePrefix(BenchResolvePrefixArgs),
+    #[command(name = "revset")]
+    Revset(BenchRevsetArgs),
 }
 
 /// Find the common ancestor(s) of a set of commits
@@ -52,12 +52,10 @@ pub struct BenchIsAncestorArgs {
     descendant: String,
 }
 
-/// Walk revisions that are ancestors of the second argument but not ancestors
-/// of the first
+/// Walk the revisions in the revset
 #[derive(clap::Args, Clone, Debug)]
-pub struct BenchWalkRevsArgs {
-    unwanted: String,
-    wanted: String,
+pub struct BenchRevsetArgs {
+    revisions: String,
 }
 
 /// Resolve a commit ID prefix
@@ -126,35 +124,32 @@ pub(crate) fn cmd_bench(
                 routine,
             )?;
         }
-        BenchCommands::WalkRevs(command_matches) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let unwanted_commit =
-                workspace_command.resolve_single_rev(&command_matches.unwanted)?;
-            let wanted_commit = workspace_command.resolve_single_rev(&command_matches.wanted)?;
-            let index = workspace_command.repo().index();
-            let routine = || {
-                index
-                    .walk_revs(
-                        &[wanted_commit.id().clone()],
-                        &[unwanted_commit.id().clone()],
-                    )
-                    .count()
-            };
-            run_bench(
-                ui,
-                &format!(
-                    "walkrevs-{}-{}",
-                    &command_matches.unwanted, &command_matches.wanted
-                ),
-                routine,
-            )?;
-        }
         BenchCommands::ResolvePrefix(command_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
             let prefix = HexPrefix::new(&command_matches.prefix).unwrap();
             let index = workspace_command.repo().index();
             let routine = || index.resolve_prefix(&prefix);
             run_bench(ui, &format!("resolveprefix-{}", prefix.hex()), routine)?;
+        }
+        BenchCommands::Revset(command_matches) => {
+            let workspace_command = command.workspace_helper(ui)?;
+            let expression = workspace_command.parse_revset(&command_matches.revisions)?;
+            // Time both evaluation and iteration. Note that we don't clear caches (such as
+            // commit objects in `Store`) between each run (`criterion` doesn't
+            // seem to support that).
+            let routine = || {
+                let count = workspace_command
+                    .evaluate_revset(expression.clone())
+                    .unwrap()
+                    .iter()
+                    .count();
+                format!("{count} commits")
+            };
+            run_bench(
+                ui,
+                &format!("revset-{}", &command_matches.revisions),
+                routine,
+            )?;
         }
     }
     Ok(())
