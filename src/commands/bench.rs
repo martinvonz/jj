@@ -36,6 +36,8 @@ pub enum BenchCommands {
     ResolvePrefix(BenchResolvePrefixArgs),
     #[command(name = "revset")]
     Revset(BenchRevsetArgs),
+    #[command(name = "revsets")]
+    Revsets(BenchRevsetsArgs),
 }
 
 /// Find the common ancestor(s) of a set of commits
@@ -56,6 +58,12 @@ pub struct BenchIsAncestorArgs {
 #[derive(clap::Args, Clone, Debug)]
 pub struct BenchRevsetArgs {
     revisions: String,
+}
+
+/// Benchmark multiple revsets specified in a file
+#[derive(clap::Args, Clone, Debug)]
+pub struct BenchRevsetsArgs {
+    file: String,
 }
 
 /// Resolve a commit ID prefix
@@ -150,6 +158,46 @@ pub(crate) fn cmd_bench(
                 &format!("revset-{}", &command_matches.revisions),
                 routine,
             )?;
+        }
+        BenchCommands::Revsets(command_matches) => {
+            let workspace_command = command.workspace_helper(ui)?;
+            let file_path = command.cwd().join(&command_matches.file);
+            let revsets = std::fs::read_to_string(&file_path)?;
+            let mut criterion = Criterion::default();
+            let mut group = criterion.benchmark_group("revsets");
+            for revset in revsets.lines() {
+                let revset = revset.trim();
+                if revset.starts_with('#') || revset.is_empty() {
+                    continue;
+                }
+                writeln!(ui, "----------Testing revset: {revset}----------\n")?;
+                let expression = workspace_command.parse_revset(revset)?;
+                // Time both evaluation and iteration. Note that we don't clear caches (such as
+                // commit objects in `Store`) between each run (`criterion`
+                // doesn't seem to support that).
+                let routine = || {
+                    workspace_command
+                        .evaluate_revset(expression.clone())
+                        .unwrap()
+                        .iter()
+                        .count()
+                };
+                let before = Instant::now();
+                let result = routine();
+                let after = Instant::now();
+                writeln!(
+                    ui,
+                    "First run took {:?} and produced {result} commits",
+                    after.duration_since(before),
+                )?;
+
+                group.bench_function(&format!("revset {}", &revset), |bencher| {
+                    bencher.iter(routine);
+                });
+            }
+            // Neither of these seem to report anything...
+            group.finish();
+            criterion.final_summary();
         }
     }
     Ok(())

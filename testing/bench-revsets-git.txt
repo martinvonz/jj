@@ -1,0 +1,41 @@
+# Revsets to pass to `jj bench revsets` on the Git 
+
+# Single tags
+v1.0.0
+v2.40.0
+# Old history
+:v1.0.0
+..v1.0.0
+# More history
+:v2.40.0
+..v2.40.0
+# Only recent history
+v2.39.0..v2.40.0
+:v2.40.0 ~ :v2.39.0
+v2.39.0:v2.40.0
+# Tags and branches
+tags()
+branches()
+# Intersection of range with a small subset
+tags() & :v2.40.0
+v2.39.0 & :v2.40.0
+# Author and committer
+author(peff)
+committer(gitster)
+# Intersection and union of large subsets
+author(peff) & committer(gitster)
+author(peff) | committer(gitster)
+# Roots and heads of small subsets
+roots(tags())
+heads(tags())
+# Roots and heads of large subsets
+roots(author(peff))
+heads(author(peff))
+# Roots and heads of range
+roots(:v2.40.0)
+heads(:v2.40.0)
+# Parents and children of small subset
+tags()-
+tags()+
+# Files are unbearably slow, so only filter within small set
+file(Makefile) & v1.0.0..v1.2.0
