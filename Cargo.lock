@@ -785,6 +785,7 @@ dependencies = [
  "clap_complete",
  "clap_mangen",
  "config",
+ "criterion",
  "crossterm",
  "dirs",
  "esl01-renderdag",
