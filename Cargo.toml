@@ -41,10 +41,11 @@ clap_mangen = "0.2.10"
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
 crossterm = { version = "0.26", default-features = false }
 dirs = "4.0.0"
-git2 = "0.16.1"
 esl01-renderdag = "0.3.0"
+git2 = "0.16.1"
 glob = "0.3.1"
 hex = "0.4.3"
+indexmap = "1.9.2"
 itertools = "0.10.5"
 jujutsu-lib = { version = "=0.7.0", path = "lib", default-features = false }
 maplit = "1.0.2"
@@ -58,12 +59,11 @@ slab = "0.4.8"
 strsim = "0.10.0"
 tempfile = "3.4.0"
 textwrap = "0.16.0"
-timeago = { version = "0.4.1", default-features = false }
 thiserror = "1.0.40"
+timeago = { version = "0.4.1", default-features = false }
+toml_edit = { version = "0.19.8", features = ["serde"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", default-features = false, features = ["std", "ansi", "env-filter", "fmt"] }
-indexmap = "1.9.2"
-toml_edit = { version = "0.19.8", features = ["serde"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = { version = "0.2.140" }
