@@ -26,10 +26,6 @@ path = "testing/fake-editor.rs"
 name = "fake-diff-editor"
 path = "testing/fake-diff-editor.rs"
 
-[[bench]]
-name = "diff_bench"
-harness = false
-
 [workspace]
 members = ["lib", "lib/testutils", "lib/gen-protos"]
 
@@ -71,8 +67,6 @@ libc = { version = "0.2.140" }
 [dev-dependencies]
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
-criterion = "0.4.0"
-criterion_bencher_compat = "0.4.0"
 insta = { version = "1.29.0", features = ["filters"] }
 regex = "1.7.2"
 testutils = { path = "lib/testutils" }
