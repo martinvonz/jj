@@ -9,4 +9,5 @@ fetch = "origin"
 # Placeholder: added by user
 
 [ui]
+pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
 log-word-wrap = false
