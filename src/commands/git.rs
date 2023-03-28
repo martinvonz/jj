@@ -489,6 +489,9 @@ fn do_git_clone(
         GitFetchError::InvalidGlob => {
             unreachable!("we didn't provide any globs")
         }
+        GitFetchError::StateReadWriteError(s) => {
+            CommandError::InternalError(format!("io error: {s}"))
+        }
     })?;
     fetch_tx.finish(ui)?;
     Ok((workspace_command, maybe_default_branch))

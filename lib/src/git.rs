@@ -33,6 +33,14 @@ use crate::view::RefName;
 pub enum GitImportError {
     #[error("Unexpected git error when importing refs: {0}")]
     InternalGitError(#[from] git2::Error),
+    #[error("Failed to read last know git ref state: {0}")]
+    StateReadWriteError(String),
+}
+
+impl From<GitRefViewError> for GitImportError {
+    fn from(err: GitRefViewError) -> GitImportError {
+        GitImportError::StateReadWriteError(err.to_string())
+    }
 }
 
 fn parse_git_ref(ref_name: &str) -> Option<RefName> {
@@ -83,16 +91,45 @@ pub fn import_refs(
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
 /// Only branches whose git full reference name pass the filter will be
 /// considered for addition, update, or deletion.
+///
+/// This function detects conflicts (if both Git and JJ modified a branch)
+/// and records them in JJ's view.
 pub fn import_some_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     git_settings: &GitSettings,
     git_ref_filter: impl Fn(&str) -> bool,
 ) -> Result<(), GitImportError> {
+    with_last_seen_refs(mut_repo.base_repo().repo_path().clone(), |last_seen_view| {
+        import_some_refs_and_update_view(
+            mut_repo,
+            last_seen_view,
+            git_repo,
+            git_settings,
+            git_ref_filter,
+        )
+    })
+}
+
+// TODO: At the moment, this function still relies on git refs from the View
+// object for the conflict base when merging branch locations. The
+// `old_git_view` argument is mostly ignored, except for producing the return
+// value. We should switch to using the information in `old_git_view` for the
+// merge, as opposed to the View object. Tests should be written that can
+// distinguish the two behaviors (e.g. try undoing a sequence of two operations:
+// a branch being moved and then deleted).
+fn import_some_refs_and_update_view(
+    mut_repo: &mut MutableRepo,
+    old_git_view: &GitRefView,
+    git_repo: &git2::Repository,
+    git_settings: &GitSettings,
+    git_ref_filter: impl Fn(&str) -> bool,
+) -> Result<(GitRefView, ()), GitImportError> {
     let store = mut_repo.store().clone();
     let mut existing_git_refs = mut_repo.view().git_refs().clone();
     let mut old_git_heads = vec![];
     let mut new_git_heads = HashSet::new();
+    let mut new_git_view = old_git_view.clone();
     for (ref_name, old_target) in &existing_git_refs {
         if git_ref_filter(ref_name) {
             old_git_heads.extend(old_target.adds());
@@ -145,7 +182,8 @@ pub fn import_some_refs(
             }
         };
         let id = CommitId::from_bytes(git_commit.id().as_bytes());
-        new_git_heads.insert(id.clone());
+        new_git_heads.insert(id.clone()); // TODO: document whether it matters that this happens before checking for
+                                          // git_ref_filter.
         if !git_ref_filter(&full_name) {
             continue;
         }
@@ -153,6 +191,13 @@ pub fn import_some_refs(
         // heads here.
         let old_target = existing_git_refs.remove(&full_name);
         let new_target = Some(RefTarget::Normal(id.clone()));
+        if let Some(RefName::LocalBranch(_)) = parse_git_ref(&full_name) {
+            // Record the location of the branch in git repo into our view. Note that the
+            // branch may still become conflicted in jj below. Regardless we need to record
+            // where it was in git when we last synchronized the jj and git views, and the
+            // branch cannot be conflicted on the git side.
+            new_git_view.refs.insert(full_name.clone(), id.clone());
+        }
         if new_target != old_target {
             prevent_gc(git_repo, &id);
             mut_repo.set_git_ref(full_name.clone(), RefTarget::Normal(id.clone()));
@@ -164,6 +209,13 @@ pub fn import_some_refs(
     for (full_name, target) in existing_git_refs {
         if git_ref_filter(&full_name) {
             mut_repo.remove_git_ref(&full_name);
+            // TODO: Write a test showing that the next line is necessary. A
+            // test moving a branch in jj and removing it in git will likely be
+            // sufficient.
+            //
+            // TODO: Our UI for move-deletion conflicts can be improved.
+            // Currently, they may be confusing to users.
+            new_git_view.refs.remove(&full_name);
             changed_git_refs.insert(full_name, (Some(target), None));
         }
     }
@@ -209,7 +261,7 @@ pub fn import_some_refs(
         }
     }
 
-    Ok(())
+    Ok((new_git_view, ()))
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -431,6 +483,8 @@ pub enum GitFetchError {
     // TODO: I'm sure there are other errors possible, such as transport-level errors.
     #[error("Unexpected git error when fetching: {0}")]
     InternalGitError(#[from] git2::Error),
+    #[error("Failed to read or write last know git ref state: {0}")]
+    StateReadWriteError(String),
 }
 
 #[tracing::instrument(skip(mut_repo, git_repo, callbacks))]
@@ -513,6 +567,7 @@ pub fn fetch(
     }
     .map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
+        GitImportError::StateReadWriteError(s) => GitFetchError::StateReadWriteError(s),
     })?;
     Ok(default_branch)
 }
