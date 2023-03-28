@@ -18,10 +18,9 @@ use std::str::FromStr;
 use std::{env, fmt, io, mem};
 
 use crossterm::tty::IsTty;
-use maplit::hashmap;
 
 use crate::cli_util::CommandError;
-use crate::config::{CommandNameAndArgs, NonEmptyCommandArgsVec};
+use crate::config::CommandNameAndArgs;
 use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
 
 pub struct Ui {
@@ -95,19 +94,7 @@ pub enum PaginationChoice {
 fn pager_setting(config: &config::Config) -> Result<CommandNameAndArgs, CommandError> {
     config
         .get::<CommandNameAndArgs>("ui.pager")
-        .or_else(|err| match err {
-            config::ConfigError::NotFound(_) => Ok(CommandNameAndArgs::Structured {
-                command: NonEmptyCommandArgsVec::try_from(vec![
-                    "less".to_string(),
-                    "-FRX".to_string(),
-                ])
-                .unwrap(),
-                env: hashmap! { "LESSCHARSET".to_string() => "utf-8".to_string() },
-            }),
-            err => Err(CommandError::ConfigError(format!(
-                "Invalid `ui.pager`: {err:?}"
-            ))),
-        })
+        .map_err(|err| CommandError::ConfigError(format!("Invalid `ui.pager`: {err:?}")))
 }
 
 impl Ui {
