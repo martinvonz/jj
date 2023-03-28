@@ -1603,6 +1603,56 @@ pub fn resolve_symbols(
                         resolve_symbol(repo, symbol, workspace_ctx.map(|ctx| ctx.workspace_id))?;
                     Some(RevsetExpression::commits(commit_ids))
                 }
+                RevsetExpression::Branches(needle) => {
+                    let mut commit_ids = vec![];
+                    for (branch_name, branch_target) in repo.view().branches() {
+                        if !branch_name.contains(needle) {
+                            continue;
+                        }
+                        if let Some(local_target) = &branch_target.local_target {
+                            commit_ids.extend(local_target.adds());
+                        }
+                    }
+                    Some(RevsetExpression::commits(commit_ids))
+                }
+                RevsetExpression::RemoteBranches {
+                    branch_needle,
+                    remote_needle,
+                } => {
+                    let mut commit_ids = vec![];
+                    for (branch_name, branch_target) in repo.view().branches() {
+                        if !branch_name.contains(branch_needle) {
+                            continue;
+                        }
+                        for (remote_name, remote_target) in branch_target.remote_targets.iter() {
+                            if remote_name.contains(remote_needle) {
+                                commit_ids.extend(remote_target.adds());
+                            }
+                        }
+                    }
+                    Some(RevsetExpression::commits(commit_ids))
+                }
+                RevsetExpression::Tags => {
+                    let mut commit_ids = vec![];
+                    for ref_target in repo.view().tags().values() {
+                        commit_ids.extend(ref_target.adds());
+                    }
+                    Some(RevsetExpression::commits(commit_ids))
+                }
+                RevsetExpression::GitRefs => {
+                    let mut commit_ids = vec![];
+                    for ref_target in repo.view().git_refs().values() {
+                        commit_ids.extend(ref_target.adds());
+                    }
+                    Some(RevsetExpression::commits(commit_ids))
+                }
+                RevsetExpression::GitHead => {
+                    let mut commit_ids = vec![];
+                    if let Some(ref_target) = repo.view().git_head() {
+                        commit_ids.extend(ref_target.adds());
+                    }
+                    Some(RevsetExpression::commits(commit_ids))
+                }
                 _ => None,
             })
         })?
