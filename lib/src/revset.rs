@@ -223,7 +223,6 @@ pub enum RevsetExpression {
     Heads(Rc<RevsetExpression>),
     Roots(Rc<RevsetExpression>),
     VisibleHeads,
-    PublicHeads,
     Branches(String),
     RemoteBranches {
         branch_needle: String,
@@ -269,10 +268,6 @@ impl RevsetExpression {
 
     pub fn visible_heads() -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::VisibleHeads)
-    }
-
-    pub fn public_heads() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::PublicHeads)
     }
 
     pub fn branches(needle: String) -> Rc<RevsetExpression> {
@@ -803,10 +798,6 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         let candidates = parse_expression_rule(arg.into_inner(), state)?;
         Ok(candidates.roots())
     });
-    map.insert("public_heads", |name, arguments_pair, _state| {
-        expect_no_arguments(name, arguments_pair)?;
-        Ok(RevsetExpression::public_heads())
-    });
     map.insert("branches", |name, arguments_pair, state| {
         let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
         let needle = if let Some(arg) = opt_arg {
@@ -1154,7 +1145,6 @@ fn try_transform_expression_bottom_up(
             RevsetExpression::Roots(candidates) => {
                 transform_rec(candidates, f)?.map(RevsetExpression::Roots)
             }
-            RevsetExpression::PublicHeads => None,
             RevsetExpression::Branches(_) => None,
             RevsetExpression::RemoteBranches { .. } => None,
             RevsetExpression::Tags => None,
