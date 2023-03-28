@@ -98,7 +98,7 @@ fn test_bad_function_call() {
     1 | heads(foo, bar)
       |       ^------^
       |
-      = Invalid arguments to revset function "heads": Expected 0 to 1 arguments
+      = Invalid arguments to revset function "heads": Expected 1 arguments
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "latest(a, not_an_integer)"]);

@@ -104,9 +104,8 @@ revsets (expressions) as arguments.
 * `git_refs()`:  All Git ref targets as of the last import. If a Git ref
   is in a conflicted state, all its possible targets are included.
 * `git_head()`: The Git `HEAD` target as of the last import.
-* `heads([x])`: Commits in `x` that are not ancestors of other commits in `x`.
-  If `x` was not specified, it selects all visible heads (as if you had said
-  `heads(all())`).
+* `visible_heads()`: All visible heads (same as `heads(all())`).
+* `heads(x)`: Commits in `x` that are not ancestors of other commits in `x`.
 * `roots(x)`: Commits in `x` that are not descendants of other commits in `x`.
 * `latest(x[, count])`: Latest `count` commits in `x`, based on committer
   timestamp. The default `count` is 1.

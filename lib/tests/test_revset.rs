@@ -600,10 +600,10 @@ fn test_evaluate_expression_heads(use_git: bool) {
         vec![commit3.id().clone()]
     );
 
-    // Heads of all commits is the set of heads in the repo
+    // Heads of all commits is the set of visible heads in the repo
     assert_eq!(
         resolve_commit_ids(mut_repo, "heads(all())"),
-        resolve_commit_ids(mut_repo, "heads()")
+        resolve_commit_ids(mut_repo, "visible_heads()")
     );
 }
 
@@ -1187,7 +1187,7 @@ fn test_evaluate_expression_visible_heads(use_git: bool) {
     let commit3 = graph_builder.commit_with_parents(&[&commit1]);
 
     assert_eq!(
-        resolve_commit_ids(mut_repo, "heads()"),
+        resolve_commit_ids(mut_repo, "visible_heads()"),
         vec![commit3.id().clone(), commit2.id().clone()]
     );
 }
@@ -1626,7 +1626,7 @@ fn test_evaluate_expression_description(use_git: bool) {
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(mut_repo, "heads() & description(\"commit 2\")"),
+        resolve_commit_ids(mut_repo, "visible_heads() & description(\"commit 2\")"),
         vec![]
     );
 }
@@ -1692,7 +1692,7 @@ fn test_evaluate_expression_author(use_git: bool) {
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(mut_repo, "heads() & author(\"name2\")"),
+        resolve_commit_ids(mut_repo, "visible_heads() & author(\"name2\")"),
         vec![]
     );
     // Filter by union of pure predicate and set
@@ -1766,7 +1766,7 @@ fn test_evaluate_expression_committer(use_git: bool) {
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(mut_repo, "heads() & committer(\"name2\")"),
+        resolve_commit_ids(mut_repo, "visible_heads() & committer(\"name2\")"),
         vec![]
     );
 }

@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The minimum supported Rust version (MSRV) is now 1.64.0.
 
+* The `heads()` revset function was split up into two functions. `heads()`
+  without arguments is now called `visible_heads()`. `heads()` with one argument
+  is unchanged.
+
 ### New features
 
 * `jj git push --deleted` will remove all locally deleted branches from the remote.
