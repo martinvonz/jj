@@ -612,10 +612,6 @@ fn internal_evaluate<'index>(
             }
             Ok(Box::new(EagerRevset { index_entries }))
         }
-        RevsetExpression::PublicHeads => Ok(revset_for_commit_ids(
-            repo,
-            &repo.view().public_heads().iter().cloned().collect_vec(),
-        )),
         RevsetExpression::Latest { candidates, count } => {
             let candidate_set = internal_evaluate(repo, candidates)?;
             Ok(take_latest_revset(repo, candidate_set.as_ref(), *count))

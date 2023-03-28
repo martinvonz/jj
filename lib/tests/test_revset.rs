@@ -1194,39 +1194,6 @@ fn test_evaluate_expression_visible_heads(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_evaluate_expression_public_heads(use_git: bool) {
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
-    let repo = &test_repo.repo;
-
-    let root_commit = repo.store().root_commit();
-    let mut tx = repo.start_transaction(&settings, "test");
-    let mut_repo = tx.mut_repo();
-    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
-    let commit1 = graph_builder.initial_commit();
-    let commit2 = graph_builder.initial_commit();
-
-    // Can get public heads with root commit as only public head
-    assert_eq!(
-        resolve_commit_ids(mut_repo, "public_heads()"),
-        vec![root_commit.id().clone()]
-    );
-    // Can get public heads with a single public head
-    mut_repo.add_public_head(&commit1);
-    assert_eq!(
-        resolve_commit_ids(mut_repo, "public_heads()"),
-        vec![commit1.id().clone()]
-    );
-    // Can get public heads with multiple public head
-    mut_repo.add_public_head(&commit2);
-    assert_eq!(
-        resolve_commit_ids(mut_repo, "public_heads()"),
-        vec![commit2.id().clone(), commit1.id().clone()]
-    );
-}
-
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
 fn test_evaluate_expression_git_refs(use_git: bool) {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);
