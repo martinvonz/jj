@@ -798,18 +798,18 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(RevsetExpression::all())
     });
     map.insert("heads", |name, arguments_pair, state| {
-        let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
-        if let Some(arg) = opt_arg {
-            let candidates = parse_expression_rule(arg.into_inner(), state)?;
-            Ok(candidates.heads())
-        } else {
-            Ok(RevsetExpression::visible_heads())
-        }
+        let arg = expect_one_argument(name, arguments_pair)?;
+        let candidates = parse_expression_rule(arg.into_inner(), state)?;
+        Ok(candidates.heads())
     });
     map.insert("roots", |name, arguments_pair, state| {
         let arg = expect_one_argument(name, arguments_pair)?;
         let candidates = parse_expression_rule(arg.into_inner(), state)?;
         Ok(candidates.roots())
+    });
+    map.insert("visible_heads", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::visible_heads())
     });
     map.insert("branches", |name, arguments_pair, state| {
         let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
@@ -2046,7 +2046,7 @@ mod tests {
         assert_eq!(parse("foo | -"), Err(RevsetParseErrorKind::SyntaxError));
         // Space is allowed around infix operators and function arguments
         assert_eq!(
-            parse("   description(  arg1 ) ~    file(  arg1 ,   arg2 )  ~ heads(  )  "),
+            parse("   description(  arg1 ) ~    file(  arg1 ,   arg2 )  ~ visible_heads(  )  "),
             Ok(
                 RevsetExpression::filter(RevsetFilterPredicate::Description("arg1".to_string()))
                     .minus(&RevsetExpression::filter(RevsetFilterPredicate::File(
@@ -2205,7 +2205,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            parse("description(heads())"),
+            parse("description(visible_heads())"),
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "description".to_string(),
                 message: "Expected function argument of type string".to_string()
