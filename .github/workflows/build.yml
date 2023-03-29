@@ -13,20 +13,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [linux, linux-msrv, macos, win]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust_version: [stable]
         include:
-        - build: linux
-          os: ubuntu-latest
-          rust_version: stable
-        - build: linux-msrv
-          os: ubuntu-latest
+        - os: ubuntu-latest
           rust_version: "1.64"
-        - build: macos
-          os: macos-latest
-          rust_version: stable
-        - build: win
-          os: windows-latest
-          rust_version: stable
     runs-on: ${{ matrix.os }}
 
     steps:
