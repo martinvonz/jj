@@ -18,7 +18,7 @@ use std::time::Instant;
 
 use clap::Subcommand;
 use criterion::measurement::Measurement;
-use criterion::{BenchmarkGroup, BenchmarkId, Criterion};
+use criterion::{BatchSize, BenchmarkGroup, BenchmarkId, Criterion};
 use jujutsu_lib::index::HexPrefix;
 use jujutsu_lib::repo::Repo;
 
@@ -146,6 +146,7 @@ pub(crate) fn cmd_bench(
             let mut group = criterion.benchmark_group("revsets");
             bench_revset(
                 ui,
+                command,
                 &workspace_command,
                 &mut group,
                 &command_matches.revisions,
@@ -165,7 +166,7 @@ pub(crate) fn cmd_bench(
                 if revset.starts_with('#') || revset.is_empty() {
                     continue;
                 }
-                bench_revset(ui, &workspace_command, &mut group, revset)?;
+                bench_revset(ui, command, &workspace_command, &mut group, revset)?;
             }
             // Neither of these seem to report anything...
             group.finish();
@@ -177,16 +178,15 @@ pub(crate) fn cmd_bench(
 
 fn bench_revset<M: Measurement>(
     ui: &mut Ui,
+    command: &CommandHelper,
     workspace_command: &WorkspaceCommandHelper,
     group: &mut BenchmarkGroup<M>,
     revset: &str,
 ) -> Result<(), CommandError> {
     writeln!(ui, "----------Testing revset: {revset}----------\n")?;
     let expression = workspace_command.parse_revset(revset)?;
-    // Time both evaluation and iteration. Note that we don't clear caches (such as
-    // commit objects in `Store`) between each run (`criterion`
-    // doesn't seem to support that).
-    let routine = |expression| {
+    // Time both evaluation and iteration.
+    let routine = |workspace_command: &WorkspaceCommandHelper, expression| {
         workspace_command
             .evaluate_revset(expression)
             .unwrap()
@@ -194,7 +194,7 @@ fn bench_revset<M: Measurement>(
             .count()
     };
     let before = Instant::now();
-    let result = routine(expression.clone());
+    let result = routine(workspace_command, expression.clone());
     let after = Instant::now();
     writeln!(
         ui,
@@ -206,7 +206,20 @@ fn bench_revset<M: Measurement>(
         BenchmarkId::from_parameter(revset),
         &expression,
         |bencher, expression| {
-            bencher.iter(|| routine(expression.clone()));
+            bencher.iter_batched(
+                // Reload repo and backend store to clear caches (such as commit objects
+                // in `Store`), but preload index since it's more likely to be loaded
+                // by preceding operation. `repo.reload_at()` isn't enough to clear
+                // store cache.
+                || {
+                    let workspace_command = command.workspace_helper_no_snapshot(ui).unwrap();
+                    workspace_command.repo().readonly_index();
+                    workspace_command
+                },
+                |workspace_command| routine(&workspace_command, expression.clone()),
+                // Index-preloaded repo may consume a fair amount of memory
+                BatchSize::LargeInput,
+            );
         },
     );
     Ok(())
