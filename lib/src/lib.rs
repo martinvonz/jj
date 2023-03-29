@@ -33,8 +33,6 @@ pub mod git_backend;
 pub mod gitignore;
 pub mod hex_util;
 pub mod index;
-#[cfg(feature = "legacy-thrift")]
-mod legacy_thrift_op_store;
 pub mod local_backend;
 pub mod lock;
 pub mod matchers;
@@ -52,8 +50,6 @@ pub mod rewrite;
 pub mod settings;
 pub mod simple_op_heads_store;
 pub mod simple_op_store;
-#[cfg(feature = "legacy-thrift")]
-mod simple_op_store_model;
 pub mod stacked_table;
 pub mod store;
 pub mod transaction;

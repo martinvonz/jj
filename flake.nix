@@ -40,7 +40,7 @@
           pname = "jujutsu";
           version = "unstable-${self.shortRev or "dirty"}";
           buildNoDefaultFeatures = true;
-          buildFeatures = [ "jujutsu-lib/legacy-thrift" ];
+          buildFeatures = [];
           src = filterSrc ./. [
             ".*\\.nix$"
             "^.jj/"
