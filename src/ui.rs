@@ -20,6 +20,7 @@ use std::{env, fmt, io, mem};
 use crossterm::tty::IsTty;
 use maplit::hashmap;
 
+use crate::cli_util::CommandError;
 use crate::config::{CommandNameAndArgs, NonEmptyCommandArgsVec};
 use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
 
@@ -91,18 +92,26 @@ pub enum PaginationChoice {
     Auto,
 }
 
-fn pager_setting(config: &config::Config) -> CommandNameAndArgs {
+fn pager_setting(config: &config::Config) -> Result<CommandNameAndArgs, CommandError> {
     config
-        .get("ui.pager")
-        .unwrap_or_else(|_| CommandNameAndArgs::Structured {
-            command: NonEmptyCommandArgsVec::try_from(vec!["less".to_string(), "-FRX".to_string()])
+        .get::<CommandNameAndArgs>("ui.pager")
+        .or_else(|err| match err {
+            config::ConfigError::NotFound(_) => Ok(CommandNameAndArgs::Structured {
+                command: NonEmptyCommandArgsVec::try_from(vec![
+                    "less".to_string(),
+                    "-FRX".to_string(),
+                ])
                 .unwrap(),
-            env: hashmap! { "LESSCHARSET".to_string() => "utf-8".to_string() },
+                env: hashmap! { "LESSCHARSET".to_string() => "utf-8".to_string() },
+            }),
+            err => Err(CommandError::ConfigError(format!(
+                "Invalid `ui.pager`: {err:?}"
+            ))),
         })
 }
 
 impl Ui {
-    pub fn with_config(config: &config::Config) -> Result<Ui, config::ConfigError> {
+    pub fn with_config(config: &config::Config) -> Result<Ui, CommandError> {
         let color = use_color(color_setting(config));
         // Sanitize ANSI escape codes if we're printing to a terminal. Doesn't affect
         // ANSI escape codes that originate from the formatter itself.
@@ -112,16 +121,16 @@ impl Ui {
         Ok(Ui {
             color,
             formatter_factory,
-            pager_cmd: pager_setting(config),
+            pager_cmd: pager_setting(config)?,
             paginate: PaginationChoice::Auto,
             progress_indicator,
             output: UiOutput::new_terminal(),
         })
     }
 
-    pub fn reset(&mut self, config: &config::Config) -> Result<(), config::ConfigError> {
+    pub fn reset(&mut self, config: &config::Config) -> Result<(), CommandError> {
         self.color = use_color(color_setting(config));
-        self.pager_cmd = pager_setting(config);
+        self.pager_cmd = pager_setting(config)?;
         self.progress_indicator = progress_indicator_setting(config);
         let sanitize = io::stdout().is_tty();
         self.formatter_factory = FormatterFactory::prepare(config, self.color, sanitize)?;
