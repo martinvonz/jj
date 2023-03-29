@@ -90,11 +90,15 @@ If you initialize the Jujutsu repo in the same working copy as the Git repo by
 running `jj init --git-repo=.`, then the import and export will happen
 automatically on every command (because not doing that makes it very confusing
 when the working copy has changed in Git but not in Jujutsu or vice versa). We
-call such repos "co-located". This mode is meant to make it easier to start
-using readonly `jj` commands in an existing Git repo. You should then be able to
-switch to using mutating `jj` commands and readonly Git commands. The mode is
-new and not tested much, and interleaving mutating `jj` and `git` commands might
-not work well (feel free to report bugs).
+call such repos "co-located".
+
+This mode is meant to make it easier to start using readonly `jj` commands in an
+existing Git repo. You should then be able to switch to using mutating `jj`
+commands and readonly Git commands. It's also useful when tools (e.g. build
+tools) expect a Git repo to be present.
+
+The mode is new and not tested much, and interleaving mutating `jj` and `git`
+commands might not work well (feel free to report bugs).
 
 
 ## Creating a repo by cloning a Git repo
