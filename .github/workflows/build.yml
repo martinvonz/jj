@@ -15,9 +15,14 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust_version: [stable]
+        cargo_flags: [""]
         include:
         - os: ubuntu-latest
           rust_version: "1.64"
+          cargo_flags: ""
+        - os: ubuntu-latest
+          rust_version: stable
+          cargo_flags: "--all-features"
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -27,9 +32,9 @@ jobs:
       with:
         toolchain:  ${{ matrix.rust_version }}
     - name: Build
-      run: cargo build --workspace --all-targets --verbose
+      run: cargo build --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
     - name: Test
-      run: cargo test --workspace --all-targets --verbose
+      run: cargo test --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
       env:
         RUST_BACKTRACE: 1
 
