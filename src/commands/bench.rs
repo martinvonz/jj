@@ -18,7 +18,7 @@ use std::time::Instant;
 
 use clap::Subcommand;
 use criterion::measurement::Measurement;
-use criterion::{BenchmarkGroup, Criterion};
+use criterion::{BenchmarkGroup, BenchmarkId, Criterion};
 use jujutsu_lib::index::HexPrefix;
 use jujutsu_lib::repo::Repo;
 
@@ -186,15 +186,15 @@ fn bench_revset<M: Measurement>(
     // Time both evaluation and iteration. Note that we don't clear caches (such as
     // commit objects in `Store`) between each run (`criterion`
     // doesn't seem to support that).
-    let routine = || {
+    let routine = |expression| {
         workspace_command
-            .evaluate_revset(expression.clone())
+            .evaluate_revset(expression)
             .unwrap()
             .iter()
             .count()
     };
     let before = Instant::now();
-    let result = routine();
+    let result = routine(expression.clone());
     let after = Instant::now();
     writeln!(
         ui,
@@ -202,8 +202,12 @@ fn bench_revset<M: Measurement>(
         after.duration_since(before),
     )?;
 
-    group.bench_function(&format!("revset {}", &revset), |bencher| {
-        bencher.iter(routine);
-    });
+    group.bench_with_input(
+        BenchmarkId::from_parameter(revset),
+        &expression,
+        |bencher, expression| {
+            bencher.iter(|| routine(expression.clone()));
+        },
+    );
     Ok(())
 }
