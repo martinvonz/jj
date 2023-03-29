@@ -44,7 +44,12 @@ pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
 
 fn is_word_byte(b: u8) -> bool {
     // TODO: Make this configurable (probably higher up in the call stack)
-    matches!(b, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_')
+    matches!(
+        b,
+        // Count 0x80..0xff as word bytes so multi-byte UTF-8 chars are
+        // treated as a single unit.
+        b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' | b'\x80'..=b'\xff'
+    )
 }
 
 pub fn find_word_ranges(text: &[u8]) -> Vec<Range<usize>> {
@@ -673,6 +678,11 @@ mod tests {
     #[test]
     fn test_find_word_ranges_non_word_then_word() {
         assert_eq!(find_word_ranges(b"   Abc"), vec![3..6]);
+    }
+
+    #[test]
+    fn test_find_word_ranges_multibyte() {
+        assert_eq!(find_word_ranges("⊢".as_bytes()), vec![0..3])
     }
 
     #[test]
