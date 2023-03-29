@@ -42,7 +42,6 @@ regex = "1.7.3"
 serde_json = "1.0.95"
 tempfile = "3.5.0"
 thiserror = "1.0.40"
-thrift = { version = "0.17.0", default-features = false, optional = true }
 tracing = "0.1.37"
 whoami = "1.4.0"
 zstd = "0.12.3"
@@ -56,9 +55,5 @@ test-case = "3.0.0"
 testutils = { path = "testutils" }
 
 [features]
-default = ["legacy-thrift"]
+default = []
 vendored-openssl = ["git2/vendored-openssl"]
-# Enable upgrade of repositories created with storage backends based on
-# Thrift format. Only repos accessed by an unreleased jj version in the
-# (0.5.1,0.6.0) range used Thrift.
-legacy-thrift = ["thrift"]

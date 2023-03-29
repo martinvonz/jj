@@ -32,87 +32,10 @@ impl From<PersistError> for OpStoreError {
     }
 }
 
-// TODO: In version 0.7.0 or so, inline ProtoOpStore into this type and drop
-// support for upgrading from the thrift format
+// TODO: In version 0.7.0 or so, inline ProtoOpStore into this type
 #[derive(Debug)]
 pub struct SimpleOpStore {
     delegate: ProtoOpStore,
-}
-
-#[cfg(feature = "legacy-thrift")]
-fn upgrade_from_thrift(store_path: &Path) -> std::io::Result<()> {
-    use std::collections::{HashMap, HashSet};
-    use std::fs;
-
-    use itertools::Itertools;
-
-    use crate::legacy_thrift_op_store::ThriftOpStore;
-
-    println!("Upgrading operation log to Protobuf format...");
-    let repo_path = store_path.parent().unwrap();
-    let old_store = ThriftOpStore::load(store_path.to_path_buf());
-    let tmp_store_dir = tempfile::Builder::new()
-        .prefix("jj-op-store-upgrade-")
-        .tempdir_in(repo_path)
-        .unwrap();
-    let tmp_store_path = tmp_store_dir.path().to_path_buf();
-
-    // Find the current operation head(s) of the operation log
-    let op_heads_store_path = repo_path.join("op_heads");
-    let mut old_op_heads = HashSet::new();
-    for entry in fs::read_dir(op_heads_store_path)? {
-        let basename = entry?.file_name();
-        let op_id_str = basename.to_str().unwrap();
-        if let Ok(op_id_bytes) = hex::decode(op_id_str) {
-            old_op_heads.insert(OperationId::new(op_id_bytes));
-        }
-    }
-
-    // Do a DFS to rewrite the operations
-    let new_store = ProtoOpStore::init(tmp_store_path.clone());
-    let mut converted: HashMap<OperationId, OperationId> = HashMap::new();
-    // The DFS stack
-    let mut to_convert = old_op_heads
-        .iter()
-        .map(|op_id| (op_id.clone(), old_store.read_operation(op_id).unwrap()))
-        .collect_vec();
-    while !to_convert.is_empty() {
-        let (_, op) = to_convert.last().unwrap();
-        let mut new_parent_ids: Vec<OperationId> = vec![];
-        let mut new_to_convert = vec![];
-        // Check which parents are already converted and which ones we need to rewrite
-        // first
-        for parent_id in &op.parents {
-            if let Some(new_parent_id) = converted.get(parent_id) {
-                new_parent_ids.push(new_parent_id.clone());
-            } else {
-                let parent_op = old_store.read_operation(parent_id).unwrap();
-                new_to_convert.push((parent_id.clone(), parent_op));
-            }
-        }
-        if new_to_convert.is_empty() {
-            // If all parents have already been converted, remove this operation from the
-            // stack and convert it
-            let (old_op_id, mut old_op) = to_convert.pop().unwrap();
-            old_op.parents = new_parent_ids;
-            let old_view = old_store.read_view(&old_op.view_id).unwrap();
-            let new_view_id = new_store.write_view(&old_view).unwrap();
-            old_op.view_id = new_view_id;
-            let new_op_id = new_store.write_operation(&old_op).unwrap();
-            converted.insert(old_op_id, new_op_id);
-        } else {
-            to_convert.extend(new_to_convert);
-        }
-    }
-
-    let backup_store_path = repo_path.join("op_store_old");
-    // Delete existing backup (probably from an earlier upgrade to Thrift)
-    fs::remove_dir_all(&backup_store_path).ok();
-    fs::rename(store_path, backup_store_path)?;
-    fs::rename(&tmp_store_path, store_path)?;
-
-    println!("Upgrade complete");
-    Ok(())
 }
 
 impl SimpleOpStore {
@@ -122,11 +45,6 @@ impl SimpleOpStore {
     }
 
     pub fn load(store_path: &Path) -> Self {
-        #[cfg(feature = "legacy-thrift")]
-        if store_path.join("thrift_store").exists() {
-            upgrade_from_thrift(store_path)
-                .expect("Failed to upgrade operation log to Protobuf format");
-        }
         let delegate = ProtoOpStore::load(store_path.to_path_buf());
         SimpleOpStore { delegate }
     }

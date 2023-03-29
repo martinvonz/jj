@@ -73,6 +73,6 @@ regex = "1.7.3"
 testutils = { path = "lib/testutils" }
 
 [features]
-default = ["jujutsu-lib/legacy-thrift"]
+default = []
 bench = ["criterion"]
 vendored-openssl = ["git2/vendored-openssl", "jujutsu-lib/vendored-openssl"]
