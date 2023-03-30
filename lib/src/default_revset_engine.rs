@@ -944,7 +944,6 @@ mod tests {
     use super::*;
     use crate::backend::{ChangeId, CommitId, ObjectId};
     use crate::default_index_store::MutableIndexImpl;
-    use crate::index::Index;
 
     #[test]
     fn test_id_index_resolve_prefix() {
@@ -1073,7 +1072,7 @@ mod tests {
         index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
         index.add_commit_data(id_4.clone(), new_change_id(), &[id_3.clone()]);
 
-        let get_entry = |id: &CommitId| index.entry_by_id(id).unwrap();
+        let get_entry = |id: &CommitId| index.as_composite().entry_by_id(id).unwrap();
         let make_entries = |ids: &[&CommitId]| ids.iter().map(|id| get_entry(id)).collect_vec();
         let make_set = |ids: &[&CommitId]| -> Box<dyn InternalRevset> {
             let index_entries = make_entries(ids);
