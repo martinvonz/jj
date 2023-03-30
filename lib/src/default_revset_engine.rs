@@ -496,230 +496,236 @@ pub fn evaluate<'index>(
     index: CompositeIndex<'index>,
     expression: &RevsetExpression,
 ) -> Result<RevsetImpl<'index>, RevsetError> {
-    let internal_revset = internal_evaluate(repo, expression)?;
+    let context = EvaluationContext { repo };
+    let internal_revset = context.evaluate(expression)?;
     Ok(RevsetImpl::new(internal_revset, index))
 }
 
-fn internal_evaluate<'index>(
+struct EvaluationContext<'index> {
     repo: &'index dyn Repo,
-    expression: &RevsetExpression,
-) -> Result<Box<dyn InternalRevset<'index> + 'index>, RevsetError> {
-    match expression {
-        RevsetExpression::Symbol(_)
-        | RevsetExpression::Branches(_)
-        | RevsetExpression::RemoteBranches { .. }
-        | RevsetExpression::Tags
-        | RevsetExpression::GitRefs
-        | RevsetExpression::GitHead => {
-            panic!("Expression '{expression:?}' should have been resolved by caller");
-        }
-        RevsetExpression::None => Ok(Box::new(EagerRevset::empty())),
-        RevsetExpression::All => {
-            // Since `all()` does not include hidden commits, some of the logical
-            // transformation rules may subtly change the evaluated set. For example,
-            // `all() & x` is not `x` if `x` is hidden. This wouldn't matter in practice,
-            // but if it does, the heads set could be extended to include the commits
-            // (and `remote_branches()`) specified in the revset expression. Alternatively,
-            // some optimization rules could be removed, but that means `author(_) & x`
-            // would have to test `:heads() & x`.
-            internal_evaluate(repo, &RevsetExpression::visible_heads().ancestors())
-        }
-        RevsetExpression::Commits(commit_ids) => Ok(revset_for_commit_ids(repo, commit_ids)),
-        RevsetExpression::Children(roots) => {
-            let root_set = internal_evaluate(repo, roots)?;
-            let candidates_expression = roots.descendants();
-            let candidate_set = internal_evaluate(repo, &candidates_expression)?;
-            Ok(Box::new(ChildrenRevset {
-                root_set,
-                candidate_set,
-            }))
-        }
-        RevsetExpression::Ancestors { heads, generation } => {
-            let range_expression = RevsetExpression::Range {
-                roots: RevsetExpression::none(),
-                heads: heads.clone(),
-                generation: generation.clone(),
-            };
-            internal_evaluate(repo, &range_expression)
-        }
-        RevsetExpression::Range {
-            roots,
-            heads,
-            generation,
-        } => {
-            let root_set = internal_evaluate(repo, roots)?;
-            let root_ids = root_set.iter().map(|entry| entry.commit_id()).collect_vec();
-            let head_set = internal_evaluate(repo, heads)?;
-            let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
-            let walk = repo.index().walk_revs(&head_ids, &root_ids);
-            if generation == &GENERATION_RANGE_FULL {
-                Ok(Box::new(RevWalkRevset { walk }))
-            } else {
-                let walk = walk.filter_by_generation(generation.clone());
-                Ok(Box::new(RevWalkRevset { walk }))
+}
+
+impl<'index> EvaluationContext<'index> {
+    fn evaluate(
+        &self,
+        expression: &RevsetExpression,
+    ) -> Result<Box<dyn InternalRevset<'index> + 'index>, RevsetError> {
+        match expression {
+            RevsetExpression::Symbol(_)
+            | RevsetExpression::Branches(_)
+            | RevsetExpression::RemoteBranches { .. }
+            | RevsetExpression::Tags
+            | RevsetExpression::GitRefs
+            | RevsetExpression::GitHead => {
+                panic!("Expression '{expression:?}' should have been resolved by caller");
             }
-        }
-        RevsetExpression::DagRange { roots, heads } => {
-            let root_set = internal_evaluate(repo, roots)?;
-            let candidate_set = internal_evaluate(repo, &heads.ancestors())?;
-            let mut reachable: HashSet<_> = root_set.iter().map(|entry| entry.position()).collect();
-            let mut result = vec![];
-            let candidates = candidate_set.iter().collect_vec();
-            for candidate in candidates.into_iter().rev() {
-                if reachable.contains(&candidate.position())
-                    || candidate
+            RevsetExpression::None => Ok(Box::new(EagerRevset::empty())),
+            RevsetExpression::All => {
+                // Since `all()` does not include hidden commits, some of the logical
+                // transformation rules may subtly change the evaluated set. For example,
+                // `all() & x` is not `x` if `x` is hidden. This wouldn't matter in practice,
+                // but if it does, the heads set could be extended to include the commits
+                // (and `remote_branches()`) specified in the revset expression. Alternatively,
+                // some optimization rules could be removed, but that means `author(_) & x`
+                // would have to test `:heads() & x`.
+                self.evaluate(&RevsetExpression::visible_heads().ancestors())
+            }
+            RevsetExpression::Commits(commit_ids) => Ok(self.revset_for_commit_ids(commit_ids)),
+            RevsetExpression::Children(roots) => {
+                let root_set = self.evaluate(roots)?;
+                let candidates_expression = roots.descendants();
+                let candidate_set = self.evaluate(&candidates_expression)?;
+                Ok(Box::new(ChildrenRevset {
+                    root_set,
+                    candidate_set,
+                }))
+            }
+            RevsetExpression::Ancestors { heads, generation } => {
+                let range_expression = RevsetExpression::Range {
+                    roots: RevsetExpression::none(),
+                    heads: heads.clone(),
+                    generation: generation.clone(),
+                };
+                self.evaluate(&range_expression)
+            }
+            RevsetExpression::Range {
+                roots,
+                heads,
+                generation,
+            } => {
+                let root_set = self.evaluate(roots)?;
+                let root_ids = root_set.iter().map(|entry| entry.commit_id()).collect_vec();
+                let head_set = self.evaluate(heads)?;
+                let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
+                let walk = self.repo.index().walk_revs(&head_ids, &root_ids);
+                if generation == &GENERATION_RANGE_FULL {
+                    Ok(Box::new(RevWalkRevset { walk }))
+                } else {
+                    let walk = walk.filter_by_generation(generation.clone());
+                    Ok(Box::new(RevWalkRevset { walk }))
+                }
+            }
+            RevsetExpression::DagRange { roots, heads } => {
+                let root_set = self.evaluate(roots)?;
+                let candidate_set = self.evaluate(&heads.ancestors())?;
+                let mut reachable: HashSet<_> =
+                    root_set.iter().map(|entry| entry.position()).collect();
+                let mut result = vec![];
+                let candidates = candidate_set.iter().collect_vec();
+                for candidate in candidates.into_iter().rev() {
+                    if reachable.contains(&candidate.position())
+                        || candidate
+                            .parent_positions()
+                            .iter()
+                            .any(|parent_pos| reachable.contains(parent_pos))
+                    {
+                        reachable.insert(candidate.position());
+                        result.push(candidate);
+                    }
+                }
+                result.reverse();
+                Ok(Box::new(EagerRevset {
+                    index_entries: result,
+                }))
+            }
+            RevsetExpression::VisibleHeads => {
+                Ok(self
+                    .revset_for_commit_ids(&self.repo.view().heads().iter().cloned().collect_vec()))
+            }
+            RevsetExpression::Heads(candidates) => {
+                let candidate_set = self.evaluate(candidates)?;
+                let candidate_ids = candidate_set
+                    .iter()
+                    .map(|entry| entry.commit_id())
+                    .collect_vec();
+                Ok(self.revset_for_commit_ids(&self.repo.index().heads(&mut candidate_ids.iter())))
+            }
+            RevsetExpression::Roots(candidates) => {
+                let connected_set = self.evaluate(&candidates.connected())?;
+                let filled: HashSet<_> =
+                    connected_set.iter().map(|entry| entry.position()).collect();
+                let mut index_entries = vec![];
+                let candidate_set = self.evaluate(candidates)?;
+                for candidate in candidate_set.iter() {
+                    if !candidate
                         .parent_positions()
                         .iter()
-                        .any(|parent_pos| reachable.contains(parent_pos))
-                {
-                    reachable.insert(candidate.position());
-                    result.push(candidate);
+                        .any(|parent| filled.contains(parent))
+                    {
+                        index_entries.push(candidate);
+                    }
+                }
+                Ok(Box::new(EagerRevset { index_entries }))
+            }
+            RevsetExpression::Latest { candidates, count } => {
+                let candidate_set = self.evaluate(candidates)?;
+                Ok(self.take_latest_revset(candidate_set.as_ref(), *count))
+            }
+            RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
+                candidates: self.evaluate(&RevsetExpression::All)?,
+                predicate: build_predicate_fn(self.repo, predicate),
+            })),
+            RevsetExpression::AsFilter(candidates) => self.evaluate(candidates),
+            RevsetExpression::Present(candidates) => match self.evaluate(candidates) {
+                Ok(set) => Ok(set),
+                Err(RevsetError::NoSuchRevision(_)) => Ok(Box::new(EagerRevset::empty())),
+                r @ Err(RevsetError::AmbiguousIdPrefix(_) | RevsetError::StoreError(_)) => r,
+            },
+            RevsetExpression::NotIn(complement) => {
+                let set1 = self.evaluate(&RevsetExpression::All)?;
+                let set2 = self.evaluate(complement)?;
+                Ok(Box::new(DifferenceRevset { set1, set2 }))
+            }
+            RevsetExpression::Union(expression1, expression2) => {
+                let set1 = self.evaluate(expression1)?;
+                let set2 = self.evaluate(expression2)?;
+                Ok(Box::new(UnionRevset { set1, set2 }))
+            }
+            RevsetExpression::Intersection(expression1, expression2) => {
+                match expression2.as_ref() {
+                    RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
+                        candidates: self.evaluate(expression1)?,
+                        predicate: build_predicate_fn(self.repo, predicate),
+                    })),
+                    RevsetExpression::AsFilter(expression2) => Ok(Box::new(FilterRevset {
+                        candidates: self.evaluate(expression1)?,
+                        predicate: self.evaluate(expression2)?,
+                    })),
+                    _ => {
+                        // TODO: 'set2' can be turned into a predicate, and use FilterRevset
+                        // if a predicate function can terminate the 'set1' iterator early.
+                        let set1 = self.evaluate(expression1)?;
+                        let set2 = self.evaluate(expression2)?;
+                        Ok(Box::new(IntersectionRevset { set1, set2 }))
+                    }
                 }
             }
-            result.reverse();
-            Ok(Box::new(EagerRevset {
-                index_entries: result,
-            }))
-        }
-        RevsetExpression::VisibleHeads => Ok(revset_for_commit_ids(
-            repo,
-            &repo.view().heads().iter().cloned().collect_vec(),
-        )),
-        RevsetExpression::Heads(candidates) => {
-            let candidate_set = internal_evaluate(repo, candidates)?;
-            let candidate_ids = candidate_set
-                .iter()
-                .map(|entry| entry.commit_id())
-                .collect_vec();
-            Ok(revset_for_commit_ids(
-                repo,
-                &repo.index().heads(&mut candidate_ids.iter()),
-            ))
-        }
-        RevsetExpression::Roots(candidates) => {
-            let connected_set = internal_evaluate(repo, &candidates.connected())?;
-            let filled: HashSet<_> = connected_set.iter().map(|entry| entry.position()).collect();
-            let mut index_entries = vec![];
-            let candidate_set = internal_evaluate(repo, candidates)?;
-            for candidate in candidate_set.iter() {
-                if !candidate
-                    .parent_positions()
-                    .iter()
-                    .any(|parent| filled.contains(parent))
-                {
-                    index_entries.push(candidate);
-                }
-            }
-            Ok(Box::new(EagerRevset { index_entries }))
-        }
-        RevsetExpression::Latest { candidates, count } => {
-            let candidate_set = internal_evaluate(repo, candidates)?;
-            Ok(take_latest_revset(repo, candidate_set.as_ref(), *count))
-        }
-        RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
-            candidates: internal_evaluate(repo, &RevsetExpression::All)?,
-            predicate: build_predicate_fn(repo, predicate),
-        })),
-        RevsetExpression::AsFilter(candidates) => internal_evaluate(repo, candidates),
-        RevsetExpression::Present(candidates) => match internal_evaluate(repo, candidates) {
-            Ok(set) => Ok(set),
-            Err(RevsetError::NoSuchRevision(_)) => Ok(Box::new(EagerRevset::empty())),
-            r @ Err(RevsetError::AmbiguousIdPrefix(_) | RevsetError::StoreError(_)) => r,
-        },
-        RevsetExpression::NotIn(complement) => {
-            let set1 = internal_evaluate(repo, &RevsetExpression::All)?;
-            let set2 = internal_evaluate(repo, complement)?;
-            Ok(Box::new(DifferenceRevset { set1, set2 }))
-        }
-        RevsetExpression::Union(expression1, expression2) => {
-            let set1 = internal_evaluate(repo, expression1)?;
-            let set2 = internal_evaluate(repo, expression2)?;
-            Ok(Box::new(UnionRevset { set1, set2 }))
-        }
-        RevsetExpression::Intersection(expression1, expression2) => {
-            match expression2.as_ref() {
-                RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
-                    candidates: internal_evaluate(repo, expression1)?,
-                    predicate: build_predicate_fn(repo, predicate),
-                })),
-                RevsetExpression::AsFilter(expression2) => Ok(Box::new(FilterRevset {
-                    candidates: internal_evaluate(repo, expression1)?,
-                    predicate: internal_evaluate(repo, expression2)?,
-                })),
-                _ => {
-                    // TODO: 'set2' can be turned into a predicate, and use FilterRevset
-                    // if a predicate function can terminate the 'set1' iterator early.
-                    let set1 = internal_evaluate(repo, expression1)?;
-                    let set2 = internal_evaluate(repo, expression2)?;
-                    Ok(Box::new(IntersectionRevset { set1, set2 }))
-                }
+            RevsetExpression::Difference(expression1, expression2) => {
+                let set1 = self.evaluate(expression1)?;
+                let set2 = self.evaluate(expression2)?;
+                Ok(Box::new(DifferenceRevset { set1, set2 }))
             }
         }
-        RevsetExpression::Difference(expression1, expression2) => {
-            let set1 = internal_evaluate(repo, expression1)?;
-            let set2 = internal_evaluate(repo, expression2)?;
-            Ok(Box::new(DifferenceRevset { set1, set2 }))
+    }
+
+    fn revset_for_commit_ids(
+        &self,
+        commit_ids: &[CommitId],
+    ) -> Box<dyn InternalRevset<'index> + 'index> {
+        let index = self.repo.index();
+        let mut index_entries = vec![];
+        for id in commit_ids {
+            index_entries.push(index.entry_by_id(id).unwrap());
         }
-    }
-}
-
-fn revset_for_commit_ids<'index>(
-    repo: &'index dyn Repo,
-    commit_ids: &[CommitId],
-) -> Box<dyn InternalRevset<'index> + 'index> {
-    let index = repo.index();
-    let mut index_entries = vec![];
-    for id in commit_ids {
-        index_entries.push(index.entry_by_id(id).unwrap());
-    }
-    index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
-    index_entries.dedup();
-    Box::new(EagerRevset { index_entries })
-}
-
-fn take_latest_revset<'index>(
-    repo: &dyn Repo,
-    candidate_set: &dyn InternalRevset<'index>,
-    count: usize,
-) -> Box<dyn InternalRevset<'index> + 'index> {
-    if count == 0 {
-        return Box::new(EagerRevset::empty());
+        index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
+        index_entries.dedup();
+        Box::new(EagerRevset { index_entries })
     }
 
-    #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-    struct Item<'a> {
-        timestamp: MillisSinceEpoch,
-        entry: IndexEntryByPosition<'a>, // tie-breaker
-    }
-
-    let store = repo.store();
-    let make_rev_item = |entry: IndexEntry<'index>| {
-        let commit = store.get_commit(&entry.commit_id()).unwrap();
-        Reverse(Item {
-            timestamp: commit.committer().timestamp.timestamp.clone(),
-            entry: IndexEntryByPosition(entry),
-        })
-    };
-
-    // Maintain min-heap containing the latest (greatest) count items. For small
-    // count and large candidate set, this is probably cheaper than building vec
-    // and applying selection algorithm.
-    let mut candidate_iter = candidate_set.iter().map(make_rev_item).fuse();
-    let mut latest_items = BinaryHeap::from_iter(candidate_iter.by_ref().take(count));
-    for item in candidate_iter {
-        let mut earliest = latest_items.peek_mut().unwrap();
-        if earliest.0 < item.0 {
-            *earliest = item;
+    fn take_latest_revset(
+        &self,
+        candidate_set: &dyn InternalRevset<'index>,
+        count: usize,
+    ) -> Box<dyn InternalRevset<'index> + 'index> {
+        if count == 0 {
+            return Box::new(EagerRevset::empty());
         }
-    }
 
-    assert!(latest_items.len() <= count);
-    let mut index_entries = latest_items
-        .into_iter()
-        .map(|item| item.0.entry.0)
-        .collect_vec();
-    index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
-    Box::new(EagerRevset { index_entries })
+        #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+        struct Item<'a> {
+            timestamp: MillisSinceEpoch,
+            entry: IndexEntryByPosition<'a>, // tie-breaker
+        }
+
+        let store = self.repo.store();
+        let make_rev_item = |entry: IndexEntry<'index>| {
+            let commit = store.get_commit(&entry.commit_id()).unwrap();
+            Reverse(Item {
+                timestamp: commit.committer().timestamp.timestamp.clone(),
+                entry: IndexEntryByPosition(entry),
+            })
+        };
+
+        // Maintain min-heap containing the latest (greatest) count items. For small
+        // count and large candidate set, this is probably cheaper than building vec
+        // and applying selection algorithm.
+        let mut candidate_iter = candidate_set.iter().map(make_rev_item).fuse();
+        let mut latest_items = BinaryHeap::from_iter(candidate_iter.by_ref().take(count));
+        for item in candidate_iter {
+            let mut earliest = latest_items.peek_mut().unwrap();
+            if earliest.0 < item.0 {
+                *earliest = item;
+            }
+        }
+
+        assert!(latest_items.len() <= count);
+        let mut index_entries = latest_items
+            .into_iter()
+            .map(|item| item.0.entry.0)
+            .collect_vec();
+        index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
+        Box::new(EagerRevset { index_entries })
+    }
 }
 
 type PurePredicateFn<'index> = Box<dyn Fn(&IndexEntry<'index>) -> bool + 'index>;
