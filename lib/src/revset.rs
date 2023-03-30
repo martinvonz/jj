@@ -403,7 +403,11 @@ impl RevsetExpression {
         &self,
         repo: &'index dyn Repo,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        repo.index().evaluate_revset(repo, self)
+        repo.index().evaluate_revset(
+            self,
+            repo.store(),
+            &repo.view().heads().iter().cloned().collect_vec(),
+        )
     }
 }
 

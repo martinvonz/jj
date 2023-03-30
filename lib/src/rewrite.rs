@@ -13,28 +13,37 @@
 // limitations under the License.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use itertools::{process_results, Itertools};
 
 use crate::backend::{BackendError, BackendResult, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
+use crate::index::Index;
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
 use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
+use crate::store::Store;
 use crate::tree::{merge_trees, Tree};
 use crate::view::RefName;
 
 pub fn merge_commit_trees(repo: &dyn Repo, commits: &[Commit]) -> Tree {
-    let store = repo.store();
+    merge_commit_trees_without_repo(repo.store(), repo.index(), commits)
+}
+
+pub fn merge_commit_trees_without_repo(
+    store: &Arc<Store>,
+    index: &dyn Index,
+    commits: &[Commit],
+) -> Tree {
     if commits.is_empty() {
         store
             .get_tree(&RepoPath::root(), store.empty_tree_id())
             .unwrap()
     } else {
-        let index = repo.index();
         let mut new_tree = commits[0].tree();
         let commit_ids = commits
             .iter()
@@ -46,7 +55,7 @@ pub fn merge_commit_trees(repo: &dyn Repo, commits: &[Commit]) -> Tree {
                 .iter()
                 .map(|id| store.get_commit(id).unwrap())
                 .collect_vec();
-            let ancestor_tree = merge_commit_trees(repo, &ancestors);
+            let ancestor_tree = merge_commit_trees_without_repo(store, index, &ancestors);
             let new_tree_id = merge_trees(&new_tree, &ancestor_tree, &other_commit.tree()).unwrap();
             new_tree = store.get_tree(&RepoPath::root(), &new_tree_id).unwrap();
         }
