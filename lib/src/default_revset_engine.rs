@@ -496,13 +496,17 @@ pub fn evaluate<'index>(
     index: CompositeIndex<'index>,
     expression: &RevsetExpression,
 ) -> Result<RevsetImpl<'index>, RevsetError> {
-    let context = EvaluationContext { repo };
+    let context = EvaluationContext {
+        repo,
+        index: index.clone(),
+    };
     let internal_revset = context.evaluate(expression)?;
     Ok(RevsetImpl::new(internal_revset, index))
 }
 
 struct EvaluationContext<'index> {
     repo: &'index dyn Repo,
+    index: CompositeIndex<'index>,
 }
 
 impl<'index> EvaluationContext<'index> {
@@ -557,7 +561,7 @@ impl<'index> EvaluationContext<'index> {
                 let root_ids = root_set.iter().map(|entry| entry.commit_id()).collect_vec();
                 let head_set = self.evaluate(heads)?;
                 let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
-                let walk = self.repo.index().walk_revs(&head_ids, &root_ids);
+                let walk = self.index.walk_revs(&head_ids, &root_ids);
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset { walk }))
                 } else {
@@ -598,7 +602,7 @@ impl<'index> EvaluationContext<'index> {
                     .iter()
                     .map(|entry| entry.commit_id())
                     .collect_vec();
-                Ok(self.revset_for_commit_ids(&self.repo.index().heads(&mut candidate_ids.iter())))
+                Ok(self.revset_for_commit_ids(&self.index.heads(&mut candidate_ids.iter())))
             }
             RevsetExpression::Roots(candidates) => {
                 let connected_set = self.evaluate(&candidates.connected())?;
@@ -672,10 +676,9 @@ impl<'index> EvaluationContext<'index> {
         &self,
         commit_ids: &[CommitId],
     ) -> Box<dyn InternalRevset<'index> + 'index> {
-        let index = self.repo.index();
         let mut index_entries = vec![];
         for id in commit_ids {
-            index_entries.push(index.entry_by_id(id).unwrap());
+            index_entries.push(self.index.entry_by_id(id).unwrap());
         }
         index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
         index_entries.dedup();

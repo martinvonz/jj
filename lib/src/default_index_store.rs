@@ -1050,7 +1050,7 @@ impl<'a> CompositeIndex<'a> {
         self.heads_pos(result)
     }
 
-    fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
+    pub(crate) fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
         let mut rev_walk = RevWalk::new(self.clone());
         for pos in wanted.iter().map(|id| self.commit_id_to_pos(id).unwrap()) {
             rev_walk.add_wanted(pos);
@@ -1061,7 +1061,10 @@ impl<'a> CompositeIndex<'a> {
         rev_walk
     }
 
-    fn heads(&self, candidate_ids: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
+    pub(crate) fn heads(
+        &self,
+        candidate_ids: &mut dyn Iterator<Item = &CommitId>,
+    ) -> Vec<CommitId> {
         let candidate_positions: BTreeSet<_> = candidate_ids
             .map(|id| self.commit_id_to_pos(id).unwrap())
             .collect();
