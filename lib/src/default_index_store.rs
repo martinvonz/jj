@@ -493,6 +493,10 @@ impl MutableIndexImpl {
         }
     }
 
+    pub fn as_composite(&self) -> CompositeIndex {
+        CompositeIndex(self)
+    }
+
     pub(crate) fn add_commit_data(
         &mut self,
         commit_id: CommitId,
@@ -509,7 +513,7 @@ impl MutableIndexImpl {
             parent_positions: vec![],
         };
         for parent_id in parent_ids {
-            let parent_entry = self
+            let parent_entry = CompositeIndex(self)
                 .entry_by_id(parent_id)
                 .expect("parent commit is not indexed");
             entry.generation_number = max(
@@ -697,10 +701,6 @@ impl Index for MutableIndexImpl {
 
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         CompositeIndex(self).resolve_prefix(prefix)
-    }
-
-    fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
-        CompositeIndex(self).entry_by_id(commit_id)
     }
 
     fn has_id(&self, commit_id: &CommitId) -> bool {
@@ -953,7 +953,7 @@ impl<'a> CompositeIndex<'a> {
             })
     }
 
-    pub(crate) fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
+    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
         self.commit_id_to_pos(commit_id)
             .map(|pos| self.entry_by_pos(pos))
     }
@@ -1779,10 +1779,6 @@ impl Index for ReadonlyIndexImpl {
 
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         CompositeIndex(self).resolve_prefix(prefix)
-    }
-
-    fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
-        CompositeIndex(self).entry_by_id(commit_id)
     }
 
     fn has_id(&self, commit_id: &CommitId) -> bool {

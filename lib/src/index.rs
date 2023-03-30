@@ -20,7 +20,7 @@ use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
 use crate::commit::Commit;
-use crate::default_index_store::{IndexEntry, RevWalk};
+use crate::default_index_store::RevWalk;
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
@@ -52,8 +52,6 @@ pub trait Index: Send + Sync {
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize;
 
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
-
-    fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry>;
 
     fn has_id(&self, commit_id: &CommitId) -> bool;
 
