@@ -40,7 +40,6 @@ pub mod nightly_shims;
 pub mod op_heads_store;
 pub mod op_store;
 pub mod operation;
-mod proto_op_store;
 pub mod protos;
 pub mod refs;
 pub mod repo;
