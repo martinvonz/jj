@@ -44,7 +44,6 @@ use crate::index::{
 use crate::nightly_shims::BTreeSetExt;
 use crate::op_store::OperationId;
 use crate::operation::Operation;
-use crate::repo::Repo;
 use crate::revset::{Revset, RevsetError, RevsetExpression};
 use crate::store::Store;
 use crate::{backend, dag_walk, default_revset_engine};
@@ -730,10 +729,17 @@ impl Index for MutableIndexImpl {
 
     fn evaluate_revset<'index>(
         &'index self,
-        repo: &'index dyn Repo,
         expression: &RevsetExpression,
+        store: &Arc<Store>,
+        visible_heads: &[CommitId],
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        let revset_impl = default_revset_engine::evaluate(repo, CompositeIndex(self), expression)?;
+        let revset_impl = default_revset_engine::evaluate(
+            expression,
+            store,
+            self,
+            CompositeIndex(self),
+            visible_heads,
+        )?;
         Ok(Box::new(revset_impl))
     }
 }
@@ -1811,10 +1817,17 @@ impl Index for ReadonlyIndexImpl {
 
     fn evaluate_revset<'index>(
         &'index self,
-        repo: &'index dyn Repo,
         expression: &RevsetExpression,
+        store: &Arc<Store>,
+        visible_heads: &[CommitId],
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
-        let revset_impl = default_revset_engine::evaluate(repo, CompositeIndex(self), expression)?;
+        let revset_impl = default_revset_engine::evaluate(
+            expression,
+            store,
+            self,
+            CompositeIndex(self),
+            visible_heads,
+        )?;
         Ok(Box::new(revset_impl))
     }
 }

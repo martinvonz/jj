@@ -15,19 +15,20 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BinaryHeap, HashSet};
 use std::iter::Peekable;
+use std::sync::Arc;
 
 use itertools::Itertools;
 
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch, ObjectId};
 use crate::default_index_store::{CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition};
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
-use crate::index::{HexPrefix, PrefixResolution};
+use crate::index::{HexPrefix, Index, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
-use crate::repo::Repo;
 use crate::revset::{
     ChangeIdIndex, Revset, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
     GENERATION_RANGE_FULL,
 };
+use crate::store::Store;
 use crate::{backend, rewrite};
 
 trait ToPredicateFn<'index> {
@@ -491,25 +492,33 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
     }
 }
 
+// TODO: Having to pass both `&dyn Index` and `CompositeIndex` is a bit ugly.
+// Maybe we should make `CompositeIndex` implement `Index`?
 pub fn evaluate<'index>(
-    repo: &'index dyn Repo,
-    index: CompositeIndex<'index>,
     expression: &RevsetExpression,
+    store: &Arc<Store>,
+    index: &'index dyn Index,
+    composite_index: CompositeIndex<'index>,
+    visible_heads: &[CommitId],
 ) -> Result<RevsetImpl<'index>, RevsetError> {
     let context = EvaluationContext {
-        repo,
-        index: index.clone(),
+        store: store.clone(),
+        index,
+        composite_index: composite_index.clone(),
+        visible_heads,
     };
     let internal_revset = context.evaluate(expression)?;
-    Ok(RevsetImpl::new(internal_revset, index))
+    Ok(RevsetImpl::new(internal_revset, composite_index))
 }
 
-struct EvaluationContext<'index> {
-    repo: &'index dyn Repo,
-    index: CompositeIndex<'index>,
+struct EvaluationContext<'index, 'heads> {
+    store: Arc<Store>,
+    index: &'index dyn Index,
+    composite_index: CompositeIndex<'index>,
+    visible_heads: &'heads [CommitId],
 }
 
-impl<'index> EvaluationContext<'index> {
+impl<'index, 'heads> EvaluationContext<'index, 'heads> {
     fn evaluate(
         &self,
         expression: &RevsetExpression,
@@ -561,7 +570,7 @@ impl<'index> EvaluationContext<'index> {
                 let root_ids = root_set.iter().map(|entry| entry.commit_id()).collect_vec();
                 let head_set = self.evaluate(heads)?;
                 let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
-                let walk = self.index.walk_revs(&head_ids, &root_ids);
+                let walk = self.composite_index.walk_revs(&head_ids, &root_ids);
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset { walk }))
                 } else {
@@ -592,17 +601,15 @@ impl<'index> EvaluationContext<'index> {
                     index_entries: result,
                 }))
             }
-            RevsetExpression::VisibleHeads => {
-                Ok(self
-                    .revset_for_commit_ids(&self.repo.view().heads().iter().cloned().collect_vec()))
-            }
+            RevsetExpression::VisibleHeads => Ok(self.revset_for_commit_ids(self.visible_heads)),
             RevsetExpression::Heads(candidates) => {
                 let candidate_set = self.evaluate(candidates)?;
                 let candidate_ids = candidate_set
                     .iter()
                     .map(|entry| entry.commit_id())
                     .collect_vec();
-                Ok(self.revset_for_commit_ids(&self.index.heads(&mut candidate_ids.iter())))
+                Ok(self
+                    .revset_for_commit_ids(&self.composite_index.heads(&mut candidate_ids.iter())))
             }
             RevsetExpression::Roots(candidates) => {
                 let connected_set = self.evaluate(&candidates.connected())?;
@@ -627,7 +634,7 @@ impl<'index> EvaluationContext<'index> {
             }
             RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
                 candidates: self.evaluate(&RevsetExpression::All)?,
-                predicate: build_predicate_fn(self.repo, predicate),
+                predicate: build_predicate_fn(self.store.clone(), self.index, predicate),
             })),
             RevsetExpression::AsFilter(candidates) => self.evaluate(candidates),
             RevsetExpression::Present(candidates) => match self.evaluate(candidates) {
@@ -649,7 +656,7 @@ impl<'index> EvaluationContext<'index> {
                 match expression2.as_ref() {
                     RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
                         candidates: self.evaluate(expression1)?,
-                        predicate: build_predicate_fn(self.repo, predicate),
+                        predicate: build_predicate_fn(self.store.clone(), self.index, predicate),
                     })),
                     RevsetExpression::AsFilter(expression2) => Ok(Box::new(FilterRevset {
                         candidates: self.evaluate(expression1)?,
@@ -678,7 +685,7 @@ impl<'index> EvaluationContext<'index> {
     ) -> Box<dyn InternalRevset<'index> + 'index> {
         let mut index_entries = vec![];
         for id in commit_ids {
-            index_entries.push(self.index.entry_by_id(id).unwrap());
+            index_entries.push(self.composite_index.entry_by_id(id).unwrap());
         }
         index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
         index_entries.dedup();
@@ -700,9 +707,8 @@ impl<'index> EvaluationContext<'index> {
             entry: IndexEntryByPosition<'a>, // tie-breaker
         }
 
-        let store = self.repo.store();
         let make_rev_item = |entry: IndexEntry<'index>| {
-            let commit = store.get_commit(&entry.commit_id()).unwrap();
+            let commit = self.store.get_commit(&entry.commit_id()).unwrap();
             Reverse(Item {
                 timestamp: commit.committer().timestamp.timestamp.clone(),
                 entry: IndexEntryByPosition(entry),
@@ -740,7 +746,8 @@ impl<'index> ToPredicateFn<'index> for PurePredicateFn<'index> {
 }
 
 fn build_predicate_fn<'index>(
-    repo: &'index dyn Repo,
+    store: Arc<Store>,
+    index: &'index dyn Index,
     predicate: &RevsetFilterPredicate,
 ) -> PurePredicateFn<'index> {
     match predicate {
@@ -751,7 +758,7 @@ fn build_predicate_fn<'index>(
         RevsetFilterPredicate::Description(needle) => {
             let needle = needle.clone();
             Box::new(move |entry| {
-                repo.store()
+                store
                     .get_commit(&entry.commit_id())
                     .unwrap()
                     .description()
@@ -764,7 +771,7 @@ fn build_predicate_fn<'index>(
             // syntax for specifying whether it's a regex and whether it's
             // case-sensitive.
             Box::new(move |entry| {
-                let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
                 commit.author().name.contains(needle.as_str())
                     || commit.author().email.contains(needle.as_str())
             })
@@ -772,7 +779,7 @@ fn build_predicate_fn<'index>(
         RevsetFilterPredicate::Committer(needle) => {
             let needle = needle.clone();
             Box::new(move |entry| {
-                let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
                 commit.committer().name.contains(needle.as_str())
                     || commit.committer().email.contains(needle.as_str())
             })
@@ -784,15 +791,20 @@ fn build_predicate_fn<'index>(
             } else {
                 Box::new(EverythingMatcher)
             };
-            Box::new(move |entry| has_diff_from_parent(repo, entry, matcher.as_ref()))
+            Box::new(move |entry| has_diff_from_parent(&store, index, entry, matcher.as_ref()))
         }
     }
 }
 
-fn has_diff_from_parent(repo: &dyn Repo, entry: &IndexEntry<'_>, matcher: &dyn Matcher) -> bool {
-    let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+fn has_diff_from_parent(
+    store: &Arc<Store>,
+    index: &dyn Index,
+    entry: &IndexEntry<'_>,
+    matcher: &dyn Matcher,
+) -> bool {
+    let commit = store.get_commit(&entry.commit_id()).unwrap();
     let parents = commit.parents();
-    let from_tree = rewrite::merge_commit_trees(repo, &parents);
+    let from_tree = rewrite::merge_commit_trees_without_repo(store, index, &parents);
     let to_tree = commit.tree();
     from_tree.diff(&to_tree, matcher).next().is_some()
 }
