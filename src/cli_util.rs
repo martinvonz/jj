@@ -1086,7 +1086,7 @@ impl WorkspaceCommandHelper {
         {
             writeln!(
                 ui.warning(),
-                r#"Name and email not configured. Add something like the following to $HOME/.jjconfig.toml:
+                r#"Name and email not configured. Until configured, your commits will be created with the empty identity, and can't be pushed to remotes. To configure, add something like the following to $HOME/.jjconfig.toml:
   user.name = "Some One"
   user.email = "someone@example.com""#
             )?;
