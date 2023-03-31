@@ -46,6 +46,8 @@ pub enum BenchCommands {
 pub struct BenchCommonAncestorsArgs {
     revision1: String,
     revision2: String,
+    #[command(flatten)]
+    criterion: CriterionArgs,
 }
 
 /// Checks if the first commit is an ancestor of the second commit
@@ -53,36 +55,64 @@ pub struct BenchCommonAncestorsArgs {
 pub struct BenchIsAncestorArgs {
     ancestor: String,
     descendant: String,
+    #[command(flatten)]
+    criterion: CriterionArgs,
 }
 
 /// Walk the revisions in the revset
 #[derive(clap::Args, Clone, Debug)]
 pub struct BenchRevsetArgs {
     revisions: String,
+    #[command(flatten)]
+    criterion: CriterionArgs,
 }
 
 /// Benchmark multiple revsets specified in a file
 #[derive(clap::Args, Clone, Debug)]
 pub struct BenchRevsetsArgs {
     file: String,
+    #[command(flatten)]
+    criterion: CriterionArgs,
 }
 
 /// Resolve a commit ID prefix
 #[derive(clap::Args, Clone, Debug)]
 pub struct BenchResolvePrefixArgs {
     prefix: String,
+    #[command(flatten)]
+    criterion: CriterionArgs,
 }
 
-fn new_criterion(ui: &Ui) -> Criterion {
-    Criterion::default().with_output_color(ui.color())
+#[derive(clap::Args, Clone, Debug)]
+struct CriterionArgs {
+    /// Name of baseline to save results
+    #[arg(long, short = 's', group = "baseline_mode", default_value = "base")]
+    save_baseline: String,
+    /// Name of baseline to compare with
+    #[arg(long, short = 'b', group = "baseline_mode")]
+    baseline: Option<String>,
+    /// Sample size for the benchmarks, which must be at least 10
+    #[arg(long, default_value_t = 100, value_parser = clap::value_parser!(u32).range(10..))]
+    sample_size: u32, // not usize because https://github.com/clap-rs/clap/issues/4253
 }
 
-fn run_bench<R, O>(ui: &mut Ui, id: &str, mut routine: R) -> io::Result<()>
+fn new_criterion(ui: &Ui, args: &CriterionArgs) -> Criterion {
+    let criterion = Criterion::default().with_output_color(ui.color());
+    let criterion = if let Some(name) = &args.baseline {
+        let strict = false; // Do not panic if previous baseline doesn't exist.
+        criterion.retain_baseline(name.clone(), strict)
+    } else {
+        criterion.save_baseline(args.save_baseline.clone())
+    };
+    criterion.sample_size(args.sample_size as usize)
+}
+
+fn run_bench<R, O>(ui: &mut Ui, id: &str, args: &CriterionArgs, mut routine: R) -> io::Result<()>
 where
     R: (FnMut() -> O) + Copy,
     O: Debug,
 {
-    let mut criterion = new_criterion(ui);
+    let mut criterion = new_criterion(ui, args);
     let before = Instant::now();
     let result = routine();
     let after = Instant::now();
@@ -117,6 +147,7 @@ pub(crate) fn cmd_bench(
                     "commonancestors-{}-{}",
                     &command_matches.revision1, &command_matches.revision2
                 ),
+                &command_matches.criterion,
                 routine,
             )?;
         }
@@ -134,6 +165,7 @@ pub(crate) fn cmd_bench(
                     "isancestor-{}-{}",
                     &command_matches.ancestor, &command_matches.descendant
                 ),
+                &command_matches.criterion,
                 routine,
             )?;
         }
@@ -142,11 +174,16 @@ pub(crate) fn cmd_bench(
             let prefix = HexPrefix::new(&command_matches.prefix).unwrap();
             let index = workspace_command.repo().index();
             let routine = || index.resolve_prefix(&prefix);
-            run_bench(ui, &format!("resolveprefix-{}", prefix.hex()), routine)?;
+            run_bench(
+                ui,
+                &format!("resolveprefix-{}", prefix.hex()),
+                &command_matches.criterion,
+                routine,
+            )?;
         }
         BenchCommands::Revset(command_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let mut criterion = new_criterion(ui);
+            let mut criterion = new_criterion(ui, &command_matches.criterion);
             let mut group = criterion.benchmark_group("revsets");
             bench_revset(
                 ui,
@@ -163,7 +200,7 @@ pub(crate) fn cmd_bench(
             let workspace_command = command.workspace_helper(ui)?;
             let file_path = command.cwd().join(&command_matches.file);
             let revsets = std::fs::read_to_string(&file_path)?;
-            let mut criterion = new_criterion(ui);
+            let mut criterion = new_criterion(ui, &command_matches.criterion);
             let mut group = criterion.benchmark_group("revsets");
             for revset in revsets.lines() {
                 let revset = revset.trim();
