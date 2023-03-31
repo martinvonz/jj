@@ -70,6 +70,7 @@ pub struct BenchRevsetArgs {
 /// Benchmark multiple revsets specified in a file
 #[derive(clap::Args, Clone, Debug)]
 pub struct BenchRevsetsArgs {
+    #[arg(value_hint = clap::ValueHint::FilePath)]
     file: String,
     #[command(flatten)]
     criterion: CriterionArgs,
