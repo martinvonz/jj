@@ -73,12 +73,16 @@ pub struct BenchResolvePrefixArgs {
     prefix: String,
 }
 
+fn new_criterion(ui: &Ui) -> Criterion {
+    Criterion::default().with_output_color(ui.color())
+}
+
 fn run_bench<R, O>(ui: &mut Ui, id: &str, mut routine: R) -> io::Result<()>
 where
     R: (FnMut() -> O) + Copy,
     O: Debug,
 {
-    let mut criterion = Criterion::default();
+    let mut criterion = new_criterion(ui);
     let before = Instant::now();
     let result = routine();
     let after = Instant::now();
@@ -142,7 +146,7 @@ pub(crate) fn cmd_bench(
         }
         BenchCommands::Revset(command_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let mut criterion = Criterion::default();
+            let mut criterion = new_criterion(ui);
             let mut group = criterion.benchmark_group("revsets");
             bench_revset(
                 ui,
@@ -159,7 +163,7 @@ pub(crate) fn cmd_bench(
             let workspace_command = command.workspace_helper(ui)?;
             let file_path = command.cwd().join(&command_matches.file);
             let revsets = std::fs::read_to_string(&file_path)?;
-            let mut criterion = Criterion::default();
+            let mut criterion = new_criterion(ui);
             let mut group = criterion.benchmark_group("revsets");
             for revset in revsets.lines() {
                 let revset = revset.trim();
