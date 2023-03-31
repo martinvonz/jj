@@ -1943,6 +1943,9 @@ mod tests {
         let id_1 = CommitId::from_hex("111111");
         let change_id1 = new_change_id();
         let id_2 = CommitId::from_hex("222222");
+        #[allow(clippy::redundant_clone)] // Work around nightly clippy false positive
+        // TODO: Remove the exception after https://github.com/rust-lang/rust-clippy/issues/10577
+        // is fixed or file a new bug.
         let change_id2 = change_id1.clone();
         index.add_commit_data(id_0.clone(), change_id0, &[]);
         index.add_commit_data(id_1.clone(), change_id1.clone(), &[id_0.clone()]);
