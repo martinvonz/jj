@@ -2168,6 +2168,10 @@ pub fn handle_command_result(
         }
         Err(CommandError::ConfigError(message)) => {
             writeln!(ui.error(), "Config error: {message}")?;
+            writeln!(
+                ui.hint(),
+                "For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md."
+            )?;
             Ok(ExitCode::from(1))
         }
         Err(CommandError::CliError(message)) => {
