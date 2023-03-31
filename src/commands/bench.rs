@@ -62,7 +62,8 @@ pub struct BenchIsAncestorArgs {
 /// Walk the revisions in the revset
 #[derive(clap::Args, Clone, Debug)]
 pub struct BenchRevsetArgs {
-    revisions: String,
+    #[arg(required = true)]
+    revisions: Vec<String>,
     #[command(flatten)]
     criterion: CriterionArgs,
 }
@@ -186,13 +187,9 @@ pub(crate) fn cmd_bench(
             let workspace_command = command.workspace_helper(ui)?;
             let mut criterion = new_criterion(ui, &command_matches.criterion);
             let mut group = criterion.benchmark_group("revsets");
-            bench_revset(
-                ui,
-                command,
-                &workspace_command,
-                &mut group,
-                &command_matches.revisions,
-            )?;
+            for revset in &command_matches.revisions {
+                bench_revset(ui, command, &workspace_command, &mut group, revset)?;
+            }
             // Neither of these seem to report anything...
             group.finish();
             criterion.final_summary();
