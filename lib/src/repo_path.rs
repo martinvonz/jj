@@ -317,35 +317,35 @@ mod tests {
     fn parse_fs_path_wc_in_cwd() {
         let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("repo");
-        let wc_path = cwd_path.clone();
+        let wc_path = &cwd_path;
 
         assert_eq!(
-            RepoPath::parse_fs_path(&cwd_path, &wc_path, ""),
+            RepoPath::parse_fs_path(&cwd_path, wc_path, ""),
             Ok(RepoPath::root())
         );
         assert_eq!(
-            RepoPath::parse_fs_path(&cwd_path, &wc_path, "."),
+            RepoPath::parse_fs_path(&cwd_path, wc_path, "."),
             Ok(RepoPath::root())
         );
         assert_eq!(
-            RepoPath::parse_fs_path(&cwd_path, &wc_path, "file"),
+            RepoPath::parse_fs_path(&cwd_path, wc_path, "file"),
             Ok(RepoPath::from_internal_string("file"))
         );
         // Both slash and the platform's separator are allowed
         assert_eq!(
             RepoPath::parse_fs_path(
                 &cwd_path,
-                &wc_path,
+                wc_path,
                 &format!("dir{}file", std::path::MAIN_SEPARATOR)
             ),
             Ok(RepoPath::from_internal_string("dir/file"))
         );
         assert_eq!(
-            RepoPath::parse_fs_path(&cwd_path, &wc_path, "dir/file"),
+            RepoPath::parse_fs_path(&cwd_path, wc_path, "dir/file"),
             Ok(RepoPath::from_internal_string("dir/file"))
         );
         assert_eq!(
-            RepoPath::parse_fs_path(&cwd_path, &wc_path, ".."),
+            RepoPath::parse_fs_path(&cwd_path, wc_path, ".."),
             Err(FsPathParseError::InputNotInRepo("..".to_string()))
         );
         assert_eq!(
