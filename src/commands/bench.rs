@@ -183,7 +183,7 @@ fn bench_revset<M: Measurement>(
     group: &mut BenchmarkGroup<M>,
     revset: &str,
 ) -> Result<(), CommandError> {
-    writeln!(ui, "----------Testing revset: {revset}----------\n")?;
+    writeln!(ui, "----------Testing revset: {revset}----------")?;
     let expression = workspace_command.parse_revset(revset)?;
     // Time both evaluation and iteration.
     let routine = |workspace_command: &WorkspaceCommandHelper, expression| {
