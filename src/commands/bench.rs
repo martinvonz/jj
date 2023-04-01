@@ -37,8 +37,6 @@ pub enum BenchCommands {
     ResolvePrefix(BenchResolvePrefixArgs),
     #[command(name = "revset")]
     Revset(BenchRevsetArgs),
-    #[command(name = "revsets")]
-    Revsets(BenchRevsetsArgs),
 }
 
 /// Find the common ancestor(s) of a set of commits
@@ -61,18 +59,13 @@ pub struct BenchIsAncestorArgs {
 
 /// Walk the revisions in the revset
 #[derive(clap::Args, Clone, Debug)]
+#[command(group(clap::ArgGroup::new("revset_source").required(true)))]
 pub struct BenchRevsetArgs {
-    #[arg(required = true)]
+    #[arg(group = "revset_source")]
     revisions: Vec<String>,
-    #[command(flatten)]
-    criterion: CriterionArgs,
-}
-
-/// Benchmark multiple revsets specified in a file
-#[derive(clap::Args, Clone, Debug)]
-pub struct BenchRevsetsArgs {
-    #[arg(value_hint = clap::ValueHint::FilePath)]
-    file: String,
+    /// Read revsets from file
+    #[arg(long, short = 'f', group = "revset_source", value_hint = clap::ValueHint::FilePath)]
+    file: Option<String>,
     #[command(flatten)]
     criterion: CriterionArgs,
 }
@@ -185,26 +178,18 @@ pub(crate) fn cmd_bench(
         }
         BenchCommands::Revset(command_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
+            let revsets = if let Some(file_path) = &command_matches.file {
+                std::fs::read_to_string(command.cwd().join(file_path))?
+                    .lines()
+                    .map(|line| line.trim().to_owned())
+                    .filter(|line| !line.is_empty() && !line.starts_with('#'))
+                    .collect()
+            } else {
+                command_matches.revisions.clone()
+            };
             let mut criterion = new_criterion(ui, &command_matches.criterion);
             let mut group = criterion.benchmark_group("revsets");
-            for revset in &command_matches.revisions {
-                bench_revset(ui, command, &workspace_command, &mut group, revset)?;
-            }
-            // Neither of these seem to report anything...
-            group.finish();
-            criterion.final_summary();
-        }
-        BenchCommands::Revsets(command_matches) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let file_path = command.cwd().join(&command_matches.file);
-            let revsets = std::fs::read_to_string(&file_path)?;
-            let mut criterion = new_criterion(ui, &command_matches.criterion);
-            let mut group = criterion.benchmark_group("revsets");
-            for revset in revsets.lines() {
-                let revset = revset.trim();
-                if revset.starts_with('#') || revset.is_empty() {
-                    continue;
-                }
+            for revset in &revsets {
                 bench_revset(ui, command, &workspace_command, &mut group, revset)?;
             }
             // Neither of these seem to report anything...
