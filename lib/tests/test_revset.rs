@@ -1973,6 +1973,70 @@ fn test_evaluate_expression_difference(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_evaluate_expression_filter_combinator(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let mut_repo = tx.mut_repo();
+
+    let root_commit_id = repo.store().root_commit_id();
+    let commit1 = create_random_commit(mut_repo, &settings)
+        .set_description("commit 1")
+        .write()
+        .unwrap();
+    let commit2 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![commit1.id().clone()])
+        .set_description("commit 2")
+        .write()
+        .unwrap();
+    let commit3 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![commit2.id().clone()])
+        .set_description("commit 3")
+        .write()
+        .unwrap();
+
+    // Not intersected with a set node
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "~description(1)"),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            root_commit_id.clone(),
+        ],
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "description(1) | description(2)"),
+        vec![commit2.id().clone(), commit1.id().clone()],
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            "description(commit) ~ (description(2) | description(3))",
+        ),
+        vec![commit1.id().clone()],
+    );
+
+    // Intersected with a set node
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "root.. & ~description(1)"),
+        vec![commit3.id().clone(), commit2.id().clone()],
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!(
+                "{}.. & (description(1) | description(2))",
+                commit1.id().hex(),
+            )
+        ),
+        vec![commit2.id().clone()],
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_file(use_git: bool) {
     let settings = testutils::user_settings();
     let test_workspace = TestWorkspace::init(&settings, use_git);
