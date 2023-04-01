@@ -14,6 +14,7 @@
 
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BinaryHeap, HashSet};
+use std::fmt;
 use std::iter::Peekable;
 use std::sync::Arc;
 
@@ -31,7 +32,7 @@ use crate::revset::{
 use crate::store::Store;
 use crate::{backend, rewrite};
 
-trait ToPredicateFn {
+trait ToPredicateFn: fmt::Debug {
     /// Creates function that tests if the given entry is included in the set.
     ///
     /// The predicate function is evaluated in order of `RevsetIterator`.
@@ -44,7 +45,7 @@ impl<T: ToPredicateFn + ?Sized> ToPredicateFn for Box<T> {
     }
 }
 
-trait InternalRevset<'index>: ToPredicateFn {
+trait InternalRevset<'index>: fmt::Debug + ToPredicateFn {
     // All revsets currently iterate in order of descending index position
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
 }
@@ -189,6 +190,7 @@ where
     }
 }
 
+#[derive(Debug)]
 struct EagerRevset<'index> {
     index_entries: Vec<IndexEntry<'index>>,
 }
@@ -215,6 +217,12 @@ impl ToPredicateFn for EagerRevset<'_> {
 
 struct RevWalkRevset<T> {
     walk: T,
+}
+
+impl<T> fmt::Debug for RevWalkRevset<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RevWalkRevset").finish_non_exhaustive()
+    }
 }
 
 impl<'index, T> InternalRevset<'index> for RevWalkRevset<T>
@@ -247,6 +255,7 @@ fn predicate_fn_from_iter<'index, 'iter>(
     })
 }
 
+#[derive(Debug)]
 struct ChildrenRevset<'index> {
     // The revisions we want to find children for
     root_set: Box<dyn InternalRevset<'index> + 'index>,
@@ -278,6 +287,7 @@ impl ToPredicateFn for ChildrenRevset<'_> {
     }
 }
 
+#[derive(Debug)]
 struct FilterRevset<'index, P> {
     candidates: Box<dyn InternalRevset<'index> + 'index>,
     predicate: P,
@@ -299,6 +309,7 @@ impl<P: ToPredicateFn> ToPredicateFn for FilterRevset<'_, P> {
     }
 }
 
+#[derive(Debug)]
 struct UnionRevset<'index> {
     set1: Box<dyn InternalRevset<'index> + 'index>,
     set2: Box<dyn InternalRevset<'index> + 'index>,
@@ -351,6 +362,7 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
     }
 }
 
+#[derive(Debug)]
 struct IntersectionRevset<'index> {
     set1: Box<dyn InternalRevset<'index> + 'index>,
     set2: Box<dyn InternalRevset<'index> + 'index>,
@@ -413,6 +425,7 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
     }
 }
 
+#[derive(Debug)]
 struct DifferenceRevset<'index> {
     // The minuend (what to subtract from)
     set1: Box<dyn InternalRevset<'index> + 'index>,
@@ -724,6 +737,12 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
 }
 
 struct PurePredicateFn<F>(F);
+
+impl<F> fmt::Debug for PurePredicateFn<F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PurePredicateFn").finish_non_exhaustive()
+    }
+}
 
 impl<F: Fn(&IndexEntry<'_>) -> bool> ToPredicateFn for PurePredicateFn<F> {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
