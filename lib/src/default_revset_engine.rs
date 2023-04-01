@@ -216,16 +216,11 @@ impl<'index> ToPredicateFn<'index> for EagerRevset<'index> {
     }
 }
 
-struct RevWalkRevset<'index, T>
-where
-    // RevWalkRevset<'index> appears to be needed to assert 'index outlives 'a
-    // in to_predicate_fn<'a>(&'a self) -> Box<dyn 'a>.
-    T: Iterator<Item = IndexEntry<'index>>,
-{
+struct RevWalkRevset<T> {
     walk: T,
 }
 
-impl<'index, T> InternalRevset<'index> for RevWalkRevset<'index, T>
+impl<'index, T> InternalRevset<'index> for RevWalkRevset<T>
 where
     T: Iterator<Item = IndexEntry<'index>> + Clone,
 {
@@ -234,12 +229,12 @@ where
     }
 }
 
-impl<'index, T> ToPredicateFn<'index> for RevWalkRevset<'index, T>
+impl<'index, T> ToPredicateFn<'index> for RevWalkRevset<T>
 where
     T: Iterator<Item = IndexEntry<'index>> + Clone,
 {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'index>) -> bool + '_> {
-        predicate_fn_from_iter(self.iter())
+        predicate_fn_from_iter(self.walk.clone())
     }
 }
 
