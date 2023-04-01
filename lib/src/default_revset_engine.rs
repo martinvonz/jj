@@ -69,6 +69,22 @@ trait InternalRevset: fmt::Debug + ToPredicateFn {
         Self: 'a;
 }
 
+impl<T: InternalRevset + ?Sized> InternalRevset for Box<T> {
+    fn iter<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
+        <T as InternalRevset>::iter(self, index)
+    }
+
+    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
+    where
+        Self: 'a,
+    {
+        <T as InternalRevset>::into_predicate(*self)
+    }
+}
+
 pub struct RevsetImpl<I> {
     inner: Box<dyn InternalRevset>,
     index: I,
@@ -337,12 +353,16 @@ impl<S: ToPredicateFn> ToPredicateFn for NotInPredicate<S> {
 }
 
 #[derive(Debug)]
-struct UnionRevset {
-    set1: Box<dyn InternalRevset>,
-    set2: Box<dyn InternalRevset>,
+struct UnionRevset<S1, S2> {
+    set1: S1,
+    set2: S2,
 }
 
-impl InternalRevset for UnionRevset {
+impl<S1, S2> InternalRevset for UnionRevset<S1, S2>
+where
+    S1: InternalRevset,
+    S2: InternalRevset,
+{
     fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -361,24 +381,7 @@ impl InternalRevset for UnionRevset {
     }
 }
 
-impl ToPredicateFn for UnionRevset {
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        index: CompositeIndex<'index>,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        let mut p1 = self.set1.to_predicate_fn(index);
-        let mut p2 = self.set2.to_predicate_fn(index);
-        Box::new(move |entry| p1(entry) || p2(entry))
-    }
-}
-
-#[derive(Debug)]
-struct UnionPredicate<S1, S2> {
-    set1: S1,
-    set2: S2,
-}
-
-impl<S1, S2> ToPredicateFn for UnionPredicate<S1, S2>
+impl<S1, S2> ToPredicateFn for UnionRevset<S1, S2>
 where
     S1: ToPredicateFn,
     S2: ToPredicateFn,
@@ -424,12 +427,16 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
 }
 
 #[derive(Debug)]
-struct IntersectionRevset {
-    set1: Box<dyn InternalRevset>,
-    set2: Box<dyn InternalRevset>,
+struct IntersectionRevset<S1, S2> {
+    set1: S1,
+    set2: S2,
 }
 
-impl InternalRevset for IntersectionRevset {
+impl<S1, S2> InternalRevset for IntersectionRevset<S1, S2>
+where
+    S1: InternalRevset,
+    S2: InternalRevset,
+{
     fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -448,7 +455,11 @@ impl InternalRevset for IntersectionRevset {
     }
 }
 
-impl ToPredicateFn for IntersectionRevset {
+impl<S1, S2> ToPredicateFn for IntersectionRevset<S1, S2>
+where
+    S1: ToPredicateFn,
+    S2: ToPredicateFn,
+{
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -500,14 +511,18 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
 }
 
 #[derive(Debug)]
-struct DifferenceRevset {
+struct DifferenceRevset<S1, S2> {
     // The minuend (what to subtract from)
-    set1: Box<dyn InternalRevset>,
+    set1: S1,
     // The subtrahend (what to subtract)
-    set2: Box<dyn InternalRevset>,
+    set2: S2,
 }
 
-impl InternalRevset for DifferenceRevset {
+impl<S1, S2> InternalRevset for DifferenceRevset<S1, S2>
+where
+    S1: InternalRevset,
+    S2: InternalRevset,
+{
     fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -526,7 +541,11 @@ impl InternalRevset for DifferenceRevset {
     }
 }
 
-impl ToPredicateFn for DifferenceRevset {
+impl<S1, S2> ToPredicateFn for DifferenceRevset<S1, S2>
+where
+    S1: ToPredicateFn,
+    S2: ToPredicateFn,
+{
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -809,7 +828,7 @@ impl<'index> EvaluationContext<'index> {
             ResolvedPredicateExpression::Union(expression1, expression2) => {
                 let set1 = self.evaluate_predicate(expression1)?;
                 let set2 = self.evaluate_predicate(expression2)?;
-                Ok(Box::new(UnionPredicate { set1, set2 }))
+                Ok(Box::new(UnionRevset { set1, set2 }))
             }
         }
     }
