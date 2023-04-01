@@ -25,6 +25,9 @@ committer(gitster)
 # Intersection and union of large subsets
 author(peff) & committer(gitster)
 author(peff) | committer(gitster)
+# Intersection of filter with a small subset
+:v1.0.0 & (author(peff) & committer(gitster))
+:v1.0.0 & (author(peff) | committer(gitster))
 # Roots and heads of small subsets
 roots(tags())
 heads(tags())
@@ -37,5 +40,8 @@ heads(:v2.40.0)
 # Parents and children of small subset
 tags()-
 tags()+
+# Filter that doesn't read commit object
+merges()
+~merges()
 # Files are unbearably slow, so only filter within small set
 file(Makefile) & v1.0.0..v1.2.0

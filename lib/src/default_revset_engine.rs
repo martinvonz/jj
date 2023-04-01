@@ -342,10 +342,19 @@ impl<'index, P: ToPredicateFn> InternalRevset<'index> for FilterRevset<'index, P
 
 impl<P: ToPredicateFn> ToPredicateFn for FilterRevset<'_, P> {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        // TODO: optimize 'p1' out if candidates = All
         let mut p1 = self.candidates.to_predicate_fn();
         let mut p2 = self.predicate.to_predicate_fn();
         Box::new(move |entry| p1(entry) && p2(entry))
+    }
+}
+
+#[derive(Debug)]
+struct NotInPredicate<S>(S);
+
+impl<S: ToPredicateFn> ToPredicateFn for NotInPredicate<S> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
+        let mut p = self.0.to_predicate_fn();
+        Box::new(move |entry| !p(entry))
     }
 }
 
@@ -372,6 +381,24 @@ impl<'index> InternalRevset<'index> for UnionRevset<'index> {
 }
 
 impl ToPredicateFn for UnionRevset<'_> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
+        let mut p1 = self.set1.to_predicate_fn();
+        let mut p2 = self.set2.to_predicate_fn();
+        Box::new(move |entry| p1(entry) || p2(entry))
+    }
+}
+
+#[derive(Debug)]
+struct UnionPredicate<S1, S2> {
+    set1: S1,
+    set2: S2,
+}
+
+impl<S1, S2> ToPredicateFn for UnionPredicate<S1, S2>
+where
+    S1: ToPredicateFn,
+    S2: ToPredicateFn,
+{
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
         let mut p1 = self.set1.to_predicate_fn();
         let mut p2 = self.set2.to_predicate_fn();
@@ -505,7 +532,6 @@ impl<'index> InternalRevset<'index> for DifferenceRevset<'index> {
 
 impl ToPredicateFn for DifferenceRevset<'_> {
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        // TODO: optimize 'p1' out for unary negate?
         let mut p1 = self.set1.to_predicate_fn();
         let mut p2 = self.set2.to_predicate_fn();
         Box::new(move |entry| p1(entry) && !p2(entry))
@@ -694,11 +720,14 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 let candidate_set = self.evaluate(candidates)?;
                 Ok(self.take_latest_revset(candidate_set.as_ref(), *count))
             }
-            RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
-                candidates: self.evaluate(&RevsetExpression::All)?,
-                predicate: build_predicate_fn(self.store.clone(), self.index, predicate),
-            })),
-            RevsetExpression::AsFilter(candidates) => self.evaluate(candidates),
+            RevsetExpression::Filter(_) | RevsetExpression::AsFilter(_) => {
+                // Top-level filter without intersection: e.g. "~author(_)" is represented as
+                // `AsFilter(NotIn(Filter(Author(_))))`.
+                Ok(Box::new(FilterRevset {
+                    candidates: self.evaluate(&RevsetExpression::All)?,
+                    predicate: self.evaluate_predicate(expression)?,
+                }))
+            }
             RevsetExpression::NotIn(complement) => {
                 let set1 = self.evaluate(&RevsetExpression::All)?;
                 let set2 = self.evaluate(complement)?;
@@ -711,14 +740,12 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
             }
             RevsetExpression::Intersection(expression1, expression2) => {
                 match expression2.as_ref() {
-                    RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
-                        candidates: self.evaluate(expression1)?,
-                        predicate: build_predicate_fn(self.store.clone(), self.index, predicate),
-                    })),
-                    RevsetExpression::AsFilter(expression2) => Ok(Box::new(FilterRevset {
-                        candidates: self.evaluate(expression1)?,
-                        predicate: self.evaluate(expression2)?,
-                    })),
+                    RevsetExpression::Filter(_) | RevsetExpression::AsFilter(_) => {
+                        Ok(Box::new(FilterRevset {
+                            candidates: self.evaluate(expression1)?,
+                            predicate: self.evaluate_predicate(expression2)?,
+                        }))
+                    }
                     _ => {
                         // TODO: 'set2' can be turned into a predicate, and use FilterRevset
                         // if a predicate function can terminate the 'set1' iterator early.
@@ -732,6 +759,58 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 let set1 = self.evaluate(expression1)?;
                 let set2 = self.evaluate(expression2)?;
                 Ok(Box::new(DifferenceRevset { set1, set2 }))
+            }
+        }
+    }
+
+    /// Evaluates expression tree as filter predicate.
+    ///
+    /// For filter expression, this never inserts a hidden `all()` since a
+    /// filter predicate doesn't need to produce revisions to walk.
+    fn evaluate_predicate(
+        &self,
+        expression: &RevsetExpression,
+    ) -> Result<Box<dyn ToPredicateFn + 'index>, RevsetEvaluationError> {
+        match expression {
+            RevsetExpression::None
+            | RevsetExpression::All
+            | RevsetExpression::Commits(_)
+            | RevsetExpression::Symbol(_)
+            | RevsetExpression::Children(_)
+            | RevsetExpression::Ancestors { .. }
+            | RevsetExpression::Range { .. }
+            | RevsetExpression::DagRange { .. }
+            | RevsetExpression::Heads(_)
+            | RevsetExpression::Roots(_)
+            | RevsetExpression::VisibleHeads
+            | RevsetExpression::Branches(_)
+            | RevsetExpression::RemoteBranches { .. }
+            | RevsetExpression::Tags
+            | RevsetExpression::GitRefs
+            | RevsetExpression::GitHead
+            | RevsetExpression::Latest { .. } => Ok(self.evaluate(expression)?.into_predicate()),
+            RevsetExpression::Filter(predicate) => Ok(build_predicate_fn(
+                self.store.clone(),
+                self.index,
+                predicate,
+            )),
+            RevsetExpression::AsFilter(candidates) => self.evaluate_predicate(candidates),
+            RevsetExpression::Present(_) => {
+                panic!("Expression '{expression:?}' should have been resolved by caller")
+            }
+            RevsetExpression::NotIn(complement) => {
+                let set = self.evaluate_predicate(complement)?;
+                Ok(Box::new(NotInPredicate(set)))
+            }
+            RevsetExpression::Union(expression1, expression2) => {
+                let set1 = self.evaluate_predicate(expression1)?;
+                let set2 = self.evaluate_predicate(expression2)?;
+                Ok(Box::new(UnionPredicate { set1, set2 }))
+            }
+            // Intersection of filters should have been substituted by revset::optimize().
+            // If it weren't, just fall back to the set evaluation path.
+            RevsetExpression::Intersection(..) | RevsetExpression::Difference(..) => {
+                Ok(self.evaluate(expression)?.into_predicate())
             }
         }
     }
