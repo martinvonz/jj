@@ -48,6 +48,10 @@ impl<T: ToPredicateFn + ?Sized> ToPredicateFn for Box<T> {
 trait InternalRevset<'index>: fmt::Debug + ToPredicateFn {
     // All revsets currently iterate in order of descending index position
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
+
+    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
+    where
+        Self: 'a;
 }
 
 pub struct RevsetImpl<'index> {
@@ -215,6 +219,13 @@ impl<'index> InternalRevset<'index> for EagerRevset<'index> {
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
         Box::new(self.index_entries.iter().cloned())
     }
+
+    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
+    where
+        Self: 'a,
+    {
+        self
+    }
 }
 
 impl ToPredicateFn for EagerRevset<'_> {
@@ -239,6 +250,13 @@ where
 {
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
         Box::new(self.walk.clone())
+    }
+
+    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
+    where
+        Self: 'a,
+    {
+        self
     }
 }
 
@@ -286,6 +304,13 @@ impl<'index> InternalRevset<'index> for ChildrenRevset<'index> {
                 .any(|parent_pos| roots.contains(parent_pos))
         }))
     }
+
+    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
+    where
+        Self: 'a,
+    {
+        self
+    }
 }
 
 impl ToPredicateFn for ChildrenRevset<'_> {
@@ -305,6 +330,13 @@ impl<'index, P: ToPredicateFn> InternalRevset<'index> for FilterRevset<'index, P
     fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
         let p = self.predicate.to_predicate_fn();
         Box::new(self.candidates.iter().filter(p))
+    }
+
+    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
+    where
+        Self: 'a,
+    {
+        self
     }
 }
 
@@ -329,6 +361,13 @@ impl<'index> InternalRevset<'index> for UnionRevset<'index> {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
         })
+    }
+
+    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
+    where
+        Self: 'a,
+    {
+        self
     }
 }
 
@@ -382,6 +421,13 @@ impl<'index> InternalRevset<'index> for IntersectionRevset<'index> {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
         })
+    }
+
+    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
+    where
+        Self: 'a,
+    {
+        self
     }
 }
 
@@ -447,6 +493,13 @@ impl<'index> InternalRevset<'index> for DifferenceRevset<'index> {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
         })
+    }
+
+    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
+    where
+        Self: 'a,
+    {
+        self
     }
 }
 
