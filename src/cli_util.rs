@@ -865,13 +865,13 @@ impl WorkspaceCommandHelper {
     pub fn evaluate_revset<'repo>(
         &'repo self,
         revset_expression: Rc<RevsetExpression>,
-    ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
+    ) -> Result<Box<dyn Revset<'repo> + 'repo>, CommandError> {
         let revset_expression = resolve_symbols(
             self.repo.as_ref(),
             revset_expression,
             Some(&self.revset_context()),
         )?;
-        revset_expression.evaluate(self.repo.as_ref())
+        Ok(revset_expression.evaluate(self.repo.as_ref())?)
     }
 
     fn revset_context(&self) -> RevsetWorkspaceContext {
