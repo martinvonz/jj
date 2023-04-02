@@ -23,7 +23,7 @@ use crate::commit::Commit;
 use crate::default_index_store::{IndexEntry, RevWalk};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
-use crate::revset::{Revset, RevsetError, RevsetExpression};
+use crate::revset::{Revset, RevsetEvaluationError, RevsetExpression};
 use crate::store::Store;
 
 #[derive(Debug, Error)]
@@ -73,7 +73,7 @@ pub trait Index: Send + Sync {
         expression: &RevsetExpression,
         store: &Arc<Store>,
         visible_heads: &[CommitId],
-    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError>;
+    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError>;
 }
 
 pub trait ReadonlyIndex: Send + Sync {
