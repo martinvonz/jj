@@ -26,8 +26,8 @@ use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::index::{HexPrefix, Index, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use crate::revset::{
-    ChangeIdIndex, Revset, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
-    GENERATION_RANGE_FULL,
+    ChangeIdIndex, Revset, RevsetEvaluationError, RevsetExpression, RevsetFilterPredicate,
+    RevsetGraphEdge, GENERATION_RANGE_FULL,
 };
 use crate::store::Store;
 use crate::{backend, rewrite};
@@ -507,7 +507,7 @@ pub fn evaluate<'index>(
     index: &'index dyn Index,
     composite_index: CompositeIndex<'index>,
     visible_heads: &[CommitId],
-) -> Result<RevsetImpl<'index>, RevsetError> {
+) -> Result<RevsetImpl<'index>, RevsetEvaluationError> {
     let context = EvaluationContext {
         store: store.clone(),
         index,
@@ -529,7 +529,7 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
     fn evaluate(
         &self,
         expression: &RevsetExpression,
-    ) -> Result<Box<dyn InternalRevset<'index> + 'index>, RevsetError> {
+    ) -> Result<Box<dyn InternalRevset<'index> + 'index>, RevsetEvaluationError> {
         match expression {
             RevsetExpression::Symbol(_)
             | RevsetExpression::Branches(_)
@@ -644,11 +644,7 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 predicate: build_predicate_fn(self.store.clone(), self.index, predicate),
             })),
             RevsetExpression::AsFilter(candidates) => self.evaluate(candidates),
-            RevsetExpression::Present(candidates) => match self.evaluate(candidates) {
-                Ok(set) => Ok(set),
-                Err(RevsetError::NoSuchRevision(_)) => Ok(Box::new(EagerRevset::empty())),
-                r @ Err(RevsetError::AmbiguousIdPrefix(_) | RevsetError::StoreError(_)) => r,
-            },
+            RevsetExpression::Present(candidates) => self.evaluate(candidates),
             RevsetExpression::NotIn(complement) => {
                 let set1 = self.evaluate(&RevsetExpression::All)?;
                 let set2 = self.evaluate(complement)?;

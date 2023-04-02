@@ -25,8 +25,8 @@ use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
     optimize, parse, resolve_symbol, resolve_symbols, ReverseRevsetGraphIterator, Revset,
-    RevsetAliasesMap, RevsetError, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
-    RevsetWorkspaceContext,
+    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
+    RevsetResolutionError, RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::workspace::Workspace;
@@ -141,7 +141,7 @@ fn test_resolve_symbol_commit_id() {
     // Test empty commit id
     assert_matches!(
         resolve_symbol(repo.as_ref(), "", None),
-        Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
+        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
 
     // Test commit id prefix
@@ -151,28 +151,28 @@ fn test_resolve_symbol_commit_id() {
     );
     assert_matches!(
         resolve_symbol(repo.as_ref(), "04", None),
-        Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04"
+        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s == "04"
     );
     assert_matches!(
         resolve_symbol(repo.as_ref(), "", None),
-        Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
+        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
     assert_matches!(
         resolve_symbol(repo.as_ref(), "040", None),
-        Err(RevsetError::NoSuchRevision(s)) if s == "040"
+        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "040"
     );
 
     // Test non-hex string
     assert_matches!(
         resolve_symbol(repo.as_ref(), "foo", None),
-        Err(RevsetError::NoSuchRevision(s)) if s == "foo"
+        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "foo"
     );
 
     // Test present() suppresses only NoSuchRevision error
     assert_eq!(resolve_commit_ids(repo.as_ref(), "present(foo)"), []);
     assert_matches!(
         resolve_symbols(repo.as_ref(), optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap()), None),
-        Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04"
+        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s == "04"
     );
     assert_eq!(
         resolve_commit_ids(repo.as_ref(), "present(046)"),
@@ -288,15 +288,15 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     );
     assert_matches!(
         resolve_symbol(repo, "zvly", None),
-        Err(RevsetError::AmbiguousIdPrefix(s)) if s == "zvly"
+        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s == "zvly"
     );
     assert_matches!(
         resolve_symbol(repo, "", None),
-        Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
+        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
     assert_matches!(
         resolve_symbol(repo, "zvlyw", None),
-        Err(RevsetError::NoSuchRevision(s)) if s == "zvlyw"
+        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "zvlyw"
     );
 
     // Test that commit and changed id don't conflict ("040" and "zvz" are the
@@ -317,7 +317,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     // Test non-hex string
     assert_matches!(
         resolve_symbol(repo, "foo", None),
-        Err(RevsetError::NoSuchRevision(s)) if s == "foo"
+        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "foo"
     );
 }
 
@@ -340,15 +340,15 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     // With no workspaces, no variation can be resolved
     assert_matches!(
         resolve_symbol(mut_repo, "@", None),
-        Err(RevsetError::NoSuchRevision(s)) if s == "@"
+        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "@"
     );
     assert_matches!(
         resolve_symbol(mut_repo, "@", Some(&ws1)),
-        Err(RevsetError::NoSuchRevision(s)) if s == "@"
+        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "@"
     );
     assert_matches!(
         resolve_symbol(mut_repo, "ws1@", Some(&ws1)),
-        Err(RevsetError::NoSuchRevision(s)) if s == "ws1@"
+        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "ws1@"
     );
 
     // Add some workspaces
@@ -359,7 +359,7 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     // @ cannot be resolved without a default workspace ID
     assert_matches!(
         resolve_symbol(mut_repo, "@", None),
-        Err(RevsetError::NoSuchRevision(s)) if s == "@"
+        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "@"
     );
     // Can resolve "@" shorthand with a default workspace ID
     assert_eq!(
@@ -415,7 +415,7 @@ fn test_resolve_symbol_git_refs() {
     // Nonexistent ref
     assert_matches!(
         resolve_symbol(mut_repo, "nonexistent", None),
-        Err(RevsetError::NoSuchRevision(s)) if s == "nonexistent"
+        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "nonexistent"
     );
 
     // Full ref

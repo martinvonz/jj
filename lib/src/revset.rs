@@ -37,12 +37,20 @@ use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPath};
 use crate::store::Store;
 
+/// Error occurred during symbol resolution.
 #[derive(Debug, Error)]
-pub enum RevsetError {
+pub enum RevsetResolutionError {
     #[error("Revision \"{0}\" doesn't exist")]
     NoSuchRevision(String),
     #[error("Commit or change id prefix \"{0}\" is ambiguous")]
     AmbiguousIdPrefix(String),
+    #[error("Unexpected error from store: {0}")]
+    StoreError(#[source] BackendError),
+}
+
+/// Error occurred during revset evaluation.
+#[derive(Debug, Error)]
+pub enum RevsetEvaluationError {
     #[error("Unexpected error from store: {0}")]
     StoreError(#[source] BackendError),
 }
@@ -402,7 +410,7 @@ impl RevsetExpression {
     pub fn evaluate<'index>(
         &self,
         repo: &'index dyn Repo,
-    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
+    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
         repo.index().evaluate_revset(
             self,
             repo.store(),
@@ -1101,7 +1109,8 @@ fn transform_expression_bottom_up(
     try_transform_expression_bottom_up(expression, |expression| Ok(f(expression))).unwrap()
 }
 
-type TransformResult = Result<Option<Rc<RevsetExpression>>, RevsetError>;
+type TransformResult = Result<Option<Rc<RevsetExpression>>, RevsetResolutionError>;
+
 /// Walks `expression` tree and applies `f` recursively from leaf nodes.
 ///
 /// If `f` returns `None`, the original expression node is reused. If no nodes
@@ -1167,8 +1176,11 @@ fn try_transform_expression_bottom_up(
             RevsetExpression::Present(candidates) => match transform_rec(candidates, f) {
                 Ok(None) => None,
                 Ok(Some(expression)) => Some(RevsetExpression::Present(expression)),
-                Err(RevsetError::NoSuchRevision(_)) => Some(RevsetExpression::None),
-                r @ Err(RevsetError::AmbiguousIdPrefix(_) | RevsetError::StoreError(_)) => {
+                Err(RevsetResolutionError::NoSuchRevision(_)) => Some(RevsetExpression::None),
+                r @ Err(
+                    RevsetResolutionError::AmbiguousIdPrefix(_)
+                    | RevsetResolutionError::StoreError(_),
+                ) => {
                     return r;
                 }
             },
@@ -1202,7 +1214,7 @@ fn try_transform_expression_bottom_up(
     fn transform_rec_pair(
         (expression1, expression2): (&Rc<RevsetExpression>, &Rc<RevsetExpression>),
         f: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformResult,
-    ) -> Result<Option<(Rc<RevsetExpression>, Rc<RevsetExpression>)>, RevsetError> {
+    ) -> Result<Option<(Rc<RevsetExpression>, Rc<RevsetExpression>)>, RevsetResolutionError> {
         match (
             transform_rec(expression1, f)?,
             transform_rec(expression2, f)?,
@@ -1475,7 +1487,7 @@ fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
 fn resolve_full_commit_id(
     repo: &dyn Repo,
     symbol: &str,
-) -> Result<Option<Vec<CommitId>>, RevsetError> {
+) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
     if let Ok(binary_commit_id) = hex::decode(symbol) {
         if repo.store().commit_id_length() != binary_commit_id.len() {
             return Ok(None);
@@ -1485,7 +1497,7 @@ fn resolve_full_commit_id(
             // Only recognize a commit if we have indexed it
             Ok(_) if repo.index().has_id(&commit_id) => Ok(Some(vec![commit_id])),
             Ok(_) | Err(BackendError::ObjectNotFound { .. }) => Ok(None),
-            Err(err) => Err(RevsetError::StoreError(err)),
+            Err(err) => Err(RevsetResolutionError::StoreError(err)),
         }
     } else {
         Ok(None)
@@ -1495,12 +1507,12 @@ fn resolve_full_commit_id(
 fn resolve_short_commit_id(
     repo: &dyn Repo,
     symbol: &str,
-) -> Result<Option<Vec<CommitId>>, RevsetError> {
+) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
     if let Some(prefix) = HexPrefix::new(symbol) {
         match repo.index().resolve_prefix(&prefix) {
             PrefixResolution::NoMatch => Ok(None),
             PrefixResolution::AmbiguousMatch => {
-                Err(RevsetError::AmbiguousIdPrefix(symbol.to_owned()))
+                Err(RevsetResolutionError::AmbiguousIdPrefix(symbol.to_owned()))
             }
             PrefixResolution::SingleMatch(commit_id) => Ok(Some(vec![commit_id])),
         }
@@ -1509,12 +1521,15 @@ fn resolve_short_commit_id(
     }
 }
 
-fn resolve_change_id(repo: &dyn Repo, symbol: &str) -> Result<Option<Vec<CommitId>>, RevsetError> {
+fn resolve_change_id(
+    repo: &dyn Repo,
+    symbol: &str,
+) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
     if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
         match repo.resolve_change_id_prefix(&prefix) {
             PrefixResolution::NoMatch => Ok(None),
             PrefixResolution::AmbiguousMatch => {
-                Err(RevsetError::AmbiguousIdPrefix(symbol.to_owned()))
+                Err(RevsetResolutionError::AmbiguousIdPrefix(symbol.to_owned()))
             }
             PrefixResolution::SingleMatch(entries) => Ok(Some(entries)),
         }
@@ -1527,13 +1542,13 @@ pub fn resolve_symbol(
     repo: &dyn Repo,
     symbol: &str,
     workspace_id: Option<&WorkspaceId>,
-) -> Result<Vec<CommitId>, RevsetError> {
+) -> Result<Vec<CommitId>, RevsetResolutionError> {
     if symbol.ends_with('@') {
         let target_workspace = if symbol == "@" {
             if let Some(workspace_id) = workspace_id {
                 workspace_id.clone()
             } else {
-                return Err(RevsetError::NoSuchRevision(symbol.to_owned()));
+                return Err(RevsetResolutionError::NoSuchRevision(symbol.to_owned()));
             }
         } else {
             WorkspaceId::new(symbol.strip_suffix('@').unwrap().to_string())
@@ -1541,7 +1556,7 @@ pub fn resolve_symbol(
         if let Some(commit_id) = repo.view().get_wc_commit_id(&target_workspace) {
             Ok(vec![commit_id.clone()])
         } else {
-            Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+            Err(RevsetResolutionError::NoSuchRevision(symbol.to_owned()))
         }
     } else if symbol == "root" {
         Ok(vec![repo.store().root_commit_id().clone()])
@@ -1577,7 +1592,7 @@ pub fn resolve_symbol(
             return Ok(ids);
         }
 
-        Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+        Err(RevsetResolutionError::NoSuchRevision(symbol.to_owned()))
     }
 }
 
@@ -1588,7 +1603,7 @@ pub fn resolve_symbols(
     repo: &dyn Repo,
     expression: Rc<RevsetExpression>,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
-) -> Result<Rc<RevsetExpression>, RevsetError> {
+) -> Result<Rc<RevsetExpression>, RevsetResolutionError> {
     Ok(
         try_transform_expression_bottom_up(&expression, |expression| {
             Ok(match expression.as_ref() {

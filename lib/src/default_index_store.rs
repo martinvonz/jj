@@ -44,7 +44,7 @@ use crate::index::{
 use crate::nightly_shims::BTreeSetExt;
 use crate::op_store::OperationId;
 use crate::operation::Operation;
-use crate::revset::{Revset, RevsetError, RevsetExpression};
+use crate::revset::{Revset, RevsetEvaluationError, RevsetExpression};
 use crate::store::Store;
 use crate::{backend, dag_walk, default_revset_engine};
 
@@ -732,7 +732,7 @@ impl Index for MutableIndexImpl {
         expression: &RevsetExpression,
         store: &Arc<Store>,
         visible_heads: &[CommitId],
-    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
+    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
         let revset_impl = default_revset_engine::evaluate(
             expression,
             store,
@@ -1820,7 +1820,7 @@ impl Index for ReadonlyIndexImpl {
         expression: &RevsetExpression,
         store: &Arc<Store>,
         visible_heads: &[CommitId],
-    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetError> {
+    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
         let revset_impl = default_revset_engine::evaluate(
             expression,
             store,

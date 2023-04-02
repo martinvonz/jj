@@ -44,8 +44,9 @@ use jujutsu_lib::repo::{
 };
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
-    resolve_symbols, Revset, RevsetAliasesMap, RevsetError, RevsetExpression, RevsetIteratorExt,
-    RevsetParseError, RevsetParseErrorKind, RevsetWorkspaceContext,
+    resolve_symbols, Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression,
+    RevsetIteratorExt, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
+    RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::transaction::Transaction;
@@ -249,6 +250,12 @@ impl From<GitExportError> for CommandError {
     }
 }
 
+impl From<RevsetEvaluationError> for CommandError {
+    fn from(err: RevsetEvaluationError) -> Self {
+        user_error(format!("{err}"))
+    }
+}
+
 impl From<RevsetParseError> for CommandError {
     fn from(err: RevsetParseError) -> Self {
         let message = iter::successors(Some(&err), |e| e.origin()).join("\n");
@@ -276,8 +283,8 @@ impl From<RevsetParseError> for CommandError {
     }
 }
 
-impl From<RevsetError> for CommandError {
-    fn from(err: RevsetError) -> Self {
+impl From<RevsetResolutionError> for CommandError {
+    fn from(err: RevsetResolutionError) -> Self {
         user_error(format!("{err}"))
     }
 }
