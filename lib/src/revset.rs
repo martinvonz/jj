@@ -1186,17 +1186,9 @@ fn try_transform_expression(
             RevsetExpression::AsFilter(candidates) => {
                 transform_rec(candidates, pre, post)?.map(RevsetExpression::AsFilter)
             }
-            RevsetExpression::Present(candidates) => match transform_rec(candidates, pre, post) {
-                Ok(None) => None,
-                Ok(Some(expression)) => Some(RevsetExpression::Present(expression)),
-                Err(RevsetResolutionError::NoSuchRevision(_)) => Some(RevsetExpression::None),
-                r @ Err(
-                    RevsetResolutionError::AmbiguousIdPrefix(_)
-                    | RevsetResolutionError::StoreError(_),
-                ) => {
-                    return r;
-                }
-            },
+            RevsetExpression::Present(candidates) => {
+                transform_rec(candidates, pre, post)?.map(RevsetExpression::Present)
+            }
             RevsetExpression::NotIn(complement) => {
                 transform_rec(complement, pre, post)?.map(RevsetExpression::NotIn)
             }
@@ -1624,7 +1616,20 @@ pub fn resolve_symbols(
 ) -> Result<Rc<RevsetExpression>, RevsetResolutionError> {
     Ok(try_transform_expression(
         &expression,
-        |_| Ok(None),
+        |expression| match expression.as_ref() {
+            // 'present(x)' opens new symbol resolution scope to map error to 'none()'.
+            RevsetExpression::Present(candidates) => {
+                resolve_symbols(repo, candidates.clone(), workspace_ctx)
+                    .or_else(|err| match err {
+                        RevsetResolutionError::NoSuchRevision(_) => Ok(RevsetExpression::none()),
+                        RevsetResolutionError::AmbiguousIdPrefix(_)
+                        | RevsetResolutionError::StoreError(_) => Err(err),
+                    })
+                    .map(Some) // Always rewrite subtree
+            }
+            // Otherwise resolve symbols recursively.
+            _ => Ok(None),
+        },
         |expression| {
             Ok(match expression.as_ref() {
                 RevsetExpression::Symbol(symbol) => {

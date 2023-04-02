@@ -536,7 +536,8 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
             | RevsetExpression::RemoteBranches { .. }
             | RevsetExpression::Tags
             | RevsetExpression::GitRefs
-            | RevsetExpression::GitHead => {
+            | RevsetExpression::GitHead
+            | RevsetExpression::Present(_) => {
                 panic!("Expression '{expression:?}' should have been resolved by caller");
             }
             RevsetExpression::None => Ok(Box::new(EagerRevset::empty())),
@@ -644,7 +645,6 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 predicate: build_predicate_fn(self.store.clone(), self.index, predicate),
             })),
             RevsetExpression::AsFilter(candidates) => self.evaluate(candidates),
-            RevsetExpression::Present(candidates) => self.evaluate(candidates),
             RevsetExpression::NotIn(complement) => {
                 let set1 = self.evaluate(&RevsetExpression::All)?;
                 let set2 = self.evaluate(complement)?;
