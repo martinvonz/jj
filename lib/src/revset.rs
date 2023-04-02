@@ -1102,14 +1102,17 @@ pub fn parse(
     parse_program(revset_str, state)
 }
 
+/// `Some` for rewritten expression, or `None` to reuse the original expression.
+type TransformedExpression = Option<Rc<RevsetExpression>>;
+
 fn transform_expression_bottom_up(
     expression: &Rc<RevsetExpression>,
-    mut f: impl FnMut(&Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>>,
-) -> Option<Rc<RevsetExpression>> {
+    mut f: impl FnMut(&Rc<RevsetExpression>) -> TransformedExpression,
+) -> TransformedExpression {
     try_transform_expression_bottom_up(expression, |expression| Ok(f(expression))).unwrap()
 }
 
-type TransformResult = Result<Option<Rc<RevsetExpression>>, RevsetResolutionError>;
+type TransformResult = Result<TransformedExpression, RevsetResolutionError>;
 
 /// Walks `expression` tree and applies `f` recursively from leaf nodes.
 ///
@@ -1251,7 +1254,7 @@ fn try_transform_expression_bottom_up(
 ///    help further optimization (e.g. combine `file(_)` matchers.)
 /// c. Wraps union of filter and set (e.g. `author(_) | heads()`), to
 ///    ensure inner filter wouldn't need to evaluate all the input sets.
-fn internalize_filter(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+fn internalize_filter(expression: &Rc<RevsetExpression>) -> TransformedExpression {
     fn is_filter(expression: &RevsetExpression) -> bool {
         matches!(
             expression,
@@ -1281,7 +1284,7 @@ fn internalize_filter(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpr
     fn intersect_down(
         expression1: &Rc<RevsetExpression>,
         expression2: &Rc<RevsetExpression>,
-    ) -> Option<Rc<RevsetExpression>> {
+    ) -> TransformedExpression {
         let recurse = |e1, e2| intersect_down(e1, e2).unwrap_or_else(|| e1.intersection(e2));
         match (expression1.as_ref(), expression2.as_ref()) {
             // Don't reorder 'f1 & f2'
@@ -1326,7 +1329,7 @@ fn internalize_filter(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpr
 ///
 /// This does not rewrite 'x & none()' to 'none()' because 'x' may be an invalid
 /// symbol.
-fn fold_redundant_expression(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+fn fold_redundant_expression(expression: &Rc<RevsetExpression>) -> TransformedExpression {
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         RevsetExpression::NotIn(outer) => match outer.as_ref() {
             RevsetExpression::NotIn(inner) => Some(inner.clone()),
@@ -1345,7 +1348,7 @@ fn fold_redundant_expression(expression: &Rc<RevsetExpression>) -> Option<Rc<Rev
 
 /// Transforms negative intersection to difference. Redundant intersections like
 /// `all() & e` should have been removed.
-fn fold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
     fn to_difference(
         expression: &Rc<RevsetExpression>,
         complement: &Rc<RevsetExpression>,
@@ -1387,7 +1390,7 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpress
 ///
 /// For example, `all() ~ e` will become `all() & ~e`, which can be simplified
 /// further by `fold_redundant_expression()`.
-fn unfold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+fn unfold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         // roots..heads -> :heads & ~(:roots)
         RevsetExpression::Range {
@@ -1409,7 +1412,7 @@ fn unfold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpre
 }
 
 /// Transforms nested `ancestors()`/`parents()` like `h---`.
-fn fold_ancestors(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+fn fold_ancestors(expression: &Rc<RevsetExpression>) -> TransformedExpression {
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         RevsetExpression::Ancestors {
             heads,
