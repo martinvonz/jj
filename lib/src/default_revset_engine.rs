@@ -71,6 +71,14 @@ impl<'index> RevsetImpl<'index> {
     }
 }
 
+impl fmt::Debug for RevsetImpl<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RevsetImpl")
+            .field("inner", &self.inner)
+            .finish_non_exhaustive()
+    }
+}
+
 impl<'index> Revset<'index> for RevsetImpl<'index> {
     fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_> {
         Box::new(self.inner.iter().map(|index_entry| index_entry.commit_id()))

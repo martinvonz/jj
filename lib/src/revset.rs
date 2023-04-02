@@ -1654,7 +1654,7 @@ pub fn resolve_symbols(
     )
 }
 
-pub trait Revset<'index> {
+pub trait Revset<'index>: fmt::Debug {
     /// Iterate in topological order with children before parents.
     fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_>;
 
