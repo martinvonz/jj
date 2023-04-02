@@ -20,6 +20,33 @@ use crate::common::TestEnvironment;
 pub mod common;
 
 #[test]
+fn test_debug_revset() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "revset", "root"]);
+    insta::with_settings!({filters => vec![
+        (r"(?m)(^    .*\n)+", "    ..\n"),
+    ]}, {
+        assert_snapshot!(stdout, @r###"
+        -- Expression:
+        Symbol(
+            ..
+        )
+
+        -- Evaluated:
+        RevsetImpl {
+            ..
+        }
+
+        -- Commit IDs:
+        0000000000000000000000000000000000000000
+        "###);
+    });
+}
+
+#[test]
 fn test_debug_index() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

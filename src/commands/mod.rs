@@ -932,8 +932,7 @@ struct SupportConfigSchemaArgs {}
 #[derive(Subcommand, Clone, Debug)]
 #[command(hide = true)]
 enum DebugCommands {
-    #[command(name = "resolverev")]
-    ResolveRev(DebugResolveRevArgs),
+    Revset(DebugRevsetArgs),
     #[command(name = "workingcopy")]
     WorkingCopy(DebugWorkingCopyArgs),
     Template(DebugTemplateArgs),
@@ -943,10 +942,9 @@ enum DebugCommands {
     Operation(DebugOperationArgs),
 }
 
-/// Resolve a revision identifier to its full ID
+/// Evaluate revset to full commit IDs
 #[derive(clap::Args, Clone, Debug)]
-struct DebugResolveRevArgs {
-    #[arg(long, short, default_value = "@")]
+struct DebugRevsetArgs {
     revision: String,
 }
 
@@ -3092,11 +3090,7 @@ fn cmd_debug(
     subcommand: &DebugCommands,
 ) -> Result<(), CommandError> {
     match subcommand {
-        DebugCommands::ResolveRev(resolve_matches) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let commit = workspace_command.resolve_single_rev(&resolve_matches.revision)?;
-            writeln!(ui, "{}", commit.id().hex())?;
-        }
+        DebugCommands::Revset(args) => cmd_debug_revset(ui, command, args)?,
         DebugCommands::WorkingCopy(_wc_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
             let wc = workspace_command.working_copy();
@@ -3170,6 +3164,27 @@ fn cmd_debug(
             writeln!(ui, "{:#?}", op.store_operation())?;
             writeln!(ui, "{:#?}", op.view().store_view())?;
         }
+    }
+    Ok(())
+}
+
+fn cmd_debug_revset(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &DebugRevsetArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let expression = workspace_command.parse_revset(&args.revision)?;
+    writeln!(ui, "-- Expression:")?;
+    writeln!(ui, "{expression:#?}")?;
+    writeln!(ui)?;
+    let revset = workspace_command.evaluate_revset(expression)?;
+    writeln!(ui, "-- Evaluated:")?;
+    writeln!(ui, "{revset:#?}")?;
+    writeln!(ui)?;
+    writeln!(ui, "-- Commit IDs:")?;
+    for commit_id in revset.iter() {
+        writeln!(ui, "{}", commit_id.hex())?;
     }
     Ok(())
 }
