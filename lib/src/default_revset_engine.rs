@@ -549,7 +549,8 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 // (and `remote_branches()`) specified in the revset expression. Alternatively,
                 // some optimization rules could be removed, but that means `author(_) & x`
                 // would have to test `:heads() & x`.
-                self.evaluate(&RevsetExpression::visible_heads().ancestors())
+                let walk = self.composite_index.walk_revs(self.visible_heads, &[]);
+                Ok(Box::new(RevWalkRevset { walk }))
             }
             RevsetExpression::Commits(commit_ids) => Ok(self.revset_for_commit_ids(commit_ids)),
             RevsetExpression::Children(roots) => {
