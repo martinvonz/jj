@@ -8,12 +8,13 @@ use std::time::Instant;
 
 use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
-use jujutsu_lib::backend::ObjectId;
-use jujutsu_lib::git::{self, GitFetchError, GitPushError, GitRefUpdate};
+use jujutsu_lib::backend::{ObjectId, TreeValue};
+use jujutsu_lib::git::{self, parse_gitmodules, GitFetchError, GitPushError, GitRefUpdate};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jujutsu_lib::repo::Repo;
+use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{self, RevsetIteratorExt as _};
 use jujutsu_lib::settings::{ConfigResultExt as _, UserSettings};
 use jujutsu_lib::store::Store;
@@ -43,6 +44,8 @@ pub enum GitCommands {
     Push(GitPushArgs),
     Import(GitImportArgs),
     Export(GitExportArgs),
+    #[command(subcommand, hide = true)]
+    Submodule(GitSubmoduleCommands),
 }
 
 /// Manage Git remotes
@@ -154,6 +157,23 @@ pub struct GitImportArgs {}
 /// Update the underlying Git repo with changes made in the repo
 #[derive(clap::Args, Clone, Debug)]
 pub struct GitExportArgs {}
+
+/// FOR INTERNAL USE ONLY Interact with git submodules
+#[derive(Subcommand, Clone, Debug)]
+pub enum GitSubmoduleCommands {
+    /// Print the relevant contents from .gitmodules. For debugging purposes
+    /// only.
+    PrintGitmodules(GitSubmodulePrintGitmodulesArgs),
+}
+
+/// Print debugging info about Git submodules
+#[derive(clap::Args, Clone, Debug)]
+#[command(hide = true)]
+pub struct GitSubmodulePrintGitmodulesArgs {
+    /// Read .gitmodules from the given revision.
+    #[arg(long, short = 'r', default_value = "@")]
+    revisions: RevisionArg,
+}
 
 fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     match store.backend_impl().downcast_ref::<GitBackend>() {
@@ -1016,6 +1036,37 @@ fn cmd_git_export(
     Ok(())
 }
 
+fn cmd_git_submodule_print_gitmodules(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &GitSubmodulePrintGitmodulesArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
+    let commit = workspace_command.resolve_single_rev(&args.revisions)?;
+    let gitmodules_path = RepoPath::from_internal_string(".gitmodules");
+    let mut gitmodules_file = match commit.tree().path_value(&gitmodules_path) {
+        None => {
+            writeln!(ui, "No submodules!")?;
+            return Ok(());
+        }
+        Some(TreeValue::File { id, .. }) => repo.store().read_file(&gitmodules_path, &id)?,
+        _ => {
+            return Err(user_error(".gitmodules is not a file."));
+        }
+    };
+
+    let submodules = parse_gitmodules(&mut gitmodules_file)?;
+    for (name, submodule) in submodules {
+        writeln!(
+            ui,
+            "name:{}\nurl:{}\npath:{}\n\n",
+            name, submodule.url, submodule.path
+        )?;
+    }
+    Ok(())
+}
+
 pub fn cmd_git(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -1039,5 +1090,8 @@ pub fn cmd_git(
         GitCommands::Push(command_matches) => cmd_git_push(ui, command, command_matches),
         GitCommands::Import(command_matches) => cmd_git_import(ui, command, command_matches),
         GitCommands::Export(command_matches) => cmd_git_export(ui, command, command_matches),
+        GitCommands::Submodule(GitSubmoduleCommands::PrintGitmodules(command_matches)) => {
+            cmd_git_submodule_print_gitmodules(ui, command, command_matches)
+        }
     }
 }

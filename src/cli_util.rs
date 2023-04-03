@@ -31,7 +31,7 @@ use indexmap::IndexSet;
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
 use jujutsu_lib::commit::Commit;
-use jujutsu_lib::git::{GitExportError, GitImportError};
+use jujutsu_lib::git::{GitConfigParseError, GitExportError, GitImportError};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::hex_util::to_reverse_hex;
@@ -319,6 +319,12 @@ impl From<glob::PatternError> for CommandError {
 impl From<clap::Error> for CommandError {
     fn from(err: clap::Error) -> Self {
         CommandError::ClapCliError(Arc::new(err))
+    }
+}
+
+impl From<GitConfigParseError> for CommandError {
+    fn from(err: GitConfigParseError) -> Self {
+        CommandError::InternalError(format!("Failed to parse Git config: {err} "))
     }
 }
 
