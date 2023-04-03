@@ -298,7 +298,11 @@ fn test_git_colocated_squash_undo() {
     "###);
 }
 
-// This test is just like the above test but with a `jj git push` inserted
+// This test is just like the above test but with a couple of `jj git push`
+// inserted
+//
+// TODO: Fix the BUG it reveals. The bug may be related to `jj git push` not
+// calling `jj git export` properly, or it may be a bug in `jj git export.
 #[test]
 fn test_git_colocated_squash_push_undo() {
     let test_env = TestEnvironment::default();
@@ -310,6 +314,7 @@ fn test_git_colocated_squash_push_undo() {
     test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m=B"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "set", "master"]);
+    test_env.jj_cmd_success(&repo_path, &["git", "push", "--all"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
     @  rlvkpnrzqnoo 2a3078eda7fe B master
@@ -319,35 +324,34 @@ fn test_git_colocated_squash_push_undo() {
 
     test_env.jj_cmd_success(&repo_path, &["squash", "-m=A+B"]);
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    @  royxmykxtrkr 83c0d8df2b78
-    ◉  qpvuntsmwlqt 1873a0811bf5 A+B master
+    @  yqosqzytrlsw 91096ede1b94
+    ◉  qpvuntsmwlqt 3ca5eff09136 A+B master*
     ◉  zzzzzzzzzzzz 000000000000
     "###);
     test_env.jj_cmd_success(&repo_path, &["git", "push", "--all"]);
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    @  royxmykxtrkr 83c0d8df2b78
-    ◉  qpvuntsmwlqt 1873a0811bf5 A+B master
+    @  yqosqzytrlsw 91096ede1b94
+    ◉  qpvuntsmwlqt 3ca5eff09136 A+B master
     ◉  zzzzzzzzzzzz 000000000000
     "###);
     let stdout = get_truncated_op_log(&test_env, &repo_path, 9);
     insta::assert_snapshot!(stdout, @r###"
-    @  92f3965076e7 test-username@host.example.com 2001-02-03 04:05:14.000 +07:00 - 2001-02-03 04:05:14.000 +07:00
+    @  e3ba083e16da test-username@host.example.com 2001-02-03 04:05:15.000 +07:00 - 2001-02-03 04:05:15.000 +07:00
     │  push all branches to git remote origin
     │  args: jj git push --all
-    ◉  34f35f48e4eb test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
+    ◉  98b717fda32d test-username@host.example.com 2001-02-03 04:05:13.000 +07:00 - 2001-02-03 04:05:13.000 +07:00
     │  squash commit 2a3078eda7fe17eeb3cd3e390f7476dff078e35f
     │  args: jj squash '-m=A+B'
-    ◉  dfdfe3eb8a2c test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
-    │  point branch master to commit 2a3078eda7fe17eeb3cd3e390f7476dff078e35f
-    │  args: jj branch set master
+    ◉  05b9c30f160f test-username@host.example.com 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00
+    │  push all branches to git remote origin
+    │  args: jj git push --all
     "###);
     // Restore to before the squash
     test_env.jj_cmd_success(&repo_path, &["op", "restore", "@--"]);
-    // We expect `master` to be back at B while master@origin is at A+B. Here,
-    // master ends up conflicted. This is arguably wrong, but not too bad.
+    // BUG: `master` didn't get back to B
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    ◉  qpvuntsmwlqt 1873a0811bf5 A+B master?? master@origin !divergence!
-    │ @  rlvkpnrzqnoo 2a3078eda7fe B master??
+    ◉  qpvuntsmwlqt 3ca5eff09136 A+B master !divergence!
+    │ @  rlvkpnrzqnoo 2a3078eda7fe B
     │ ◉  qpvuntsmwlqt a86754f975f9 A !divergence!
     ├─╯
     ◉  zzzzzzzzzzzz 000000000000
