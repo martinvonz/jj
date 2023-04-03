@@ -65,6 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added `latest(x[, n])` revset function to select the latest `n` commits.
 
+* `jj squash` AKA `jj amend` now accepts a `--message` option to set the
+  description of the squashed commit on the command-line.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines

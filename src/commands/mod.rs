@@ -556,6 +556,9 @@ struct MoveArgs {
 struct SquashArgs {
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
+    /// The description to use for squashed revision (don't open editor)
+    #[arg(long, short)]
+    message: Option<DescriptionArg>,
     /// Interactively choose which parts to squash
     #[arg(long, short)]
     interactive: bool,
@@ -2302,13 +2305,17 @@ from the source will be moved into the parent.
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
     let abandon_child = &new_parent_tree_id == commit.tree_id();
-    let description = combine_messages(
-        tx.base_repo(),
-        &commit,
-        parent,
-        command.settings(),
-        abandon_child,
-    )?;
+    let description = if let Some(m) = &args.message {
+        m.into()
+    } else {
+        combine_messages(
+            tx.base_repo(),
+            &commit,
+            parent,
+            command.settings(),
+            abandon_child,
+        )?
+    };
     let mut_repo = tx.mut_repo();
     let new_parent = mut_repo
         .rewrite_commit(command.settings(), parent)

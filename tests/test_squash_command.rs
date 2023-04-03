@@ -273,6 +273,13 @@ fn test_squash_description() {
     destination
     "###);
 
+    // An explicit description on the command-line overrides this
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["squash", "-m", "custom"]);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
+    custom
+    "###);
+
     // If both descriptions were non-empty, we get asked for a combined description
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "source"]);
@@ -293,6 +300,14 @@ fn test_squash_description() {
     source
 
     JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+
+    // An explicit description on the command-line overrides prevents launching an
+    // editor
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["squash", "-m", "custom"]);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
+    custom
     "###);
 
     // If the source's *content* doesn't become empty, then the source remains and
