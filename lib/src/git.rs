@@ -14,10 +14,12 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::default::Default;
+use std::io::Read;
 use std::path::PathBuf;
 
 use git2::Oid;
 use itertools::Itertools;
+use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
@@ -762,4 +764,84 @@ pub struct Progress {
     /// `Some` iff data transfer is currently in progress
     pub bytes_downloaded: Option<u64>,
     pub overall: f32,
+}
+
+#[derive(Default)]
+struct PartialSubmoduleConfig {
+    path: Option<String>,
+    url: Option<String>,
+}
+
+/// Represents configuration from a submodule, e.g. in .gitmodules
+/// This doesn't include all possible fields, only the ones we care about
+#[derive(Debug, PartialEq)]
+pub struct SubmoduleConfig {
+    pub name: String,
+    pub path: String,
+    pub url: String,
+}
+
+#[derive(Error, Debug)]
+pub enum GitConfigParseError {
+    #[error("Unexpected io error when parsing config: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("Unexpected git error when parsing config: {0}")]
+    InternalGitError(#[from] git2::Error),
+}
+
+pub fn parse_gitmodules(
+    config: &mut dyn Read,
+) -> Result<BTreeMap<String, SubmoduleConfig>, GitConfigParseError> {
+    // git2 can only read from a path, so set one up
+    let mut temp_file = NamedTempFile::new()?;
+    std::io::copy(config, &mut temp_file)?;
+    let path = temp_file.into_temp_path();
+    let git_config = git2::Config::open(&path)?;
+    // Partial config value for each submodule name
+    let mut partial_configs: BTreeMap<String, PartialSubmoduleConfig> = BTreeMap::new();
+
+    let entries = git_config.entries(Some(r#"submodule\..+\."#))?;
+    entries.for_each(|entry| {
+        let (config_name, config_value) = match (entry.name(), entry.value()) {
+            // Reject non-utf8 entries
+            (Some(name), Some(value)) => (name, value),
+            _ => return,
+        };
+
+        // config_name is of the form submodule.<name>.<variable>
+        let (submod_name, submod_var) = config_name
+            .strip_prefix("submodule.")
+            .unwrap()
+            .split_once('.')
+            .unwrap();
+
+        let map_entry = partial_configs.entry(submod_name.to_string()).or_default();
+
+        match (submod_var.to_ascii_lowercase().as_str(), &map_entry) {
+            // TODO Git warns when a duplicate config entry is found, we should
+            // consider doing the same.
+            ("path", PartialSubmoduleConfig { path: None, .. }) => {
+                map_entry.path = Some(config_value.to_string())
+            }
+            ("url", PartialSubmoduleConfig { url: None, .. }) => {
+                map_entry.url = Some(config_value.to_string())
+            }
+            _ => (),
+        };
+    })?;
+
+    let ret = partial_configs
+        .into_iter()
+        .filter_map(|(name, val)| {
+            Some((
+                name.clone(),
+                SubmoduleConfig {
+                    name,
+                    path: val.path?,
+                    url: val.url?,
+                },
+            ))
+        })
+        .collect();
+    Ok(ret)
 }
