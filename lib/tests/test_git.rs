@@ -25,7 +25,7 @@ use jujutsu_lib::backend::{
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::git;
-use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate};
+use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate, SubmoduleConfig};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
@@ -2183,4 +2183,57 @@ fn create_rooted_commit<'repo>(
         )
         .set_author(signature.clone())
         .set_committer(signature)
+}
+
+#[test]
+fn test_parse_gitmodules() {
+    let result = git::parse_gitmodules(
+        &mut r#"
+[submodule "wellformed"]
+url = https://github.com/martinvonz/jj
+path = mod
+update = checkout # Extraneous config
+
+[submodule "uppercase"]
+URL = https://github.com/martinvonz/jj
+PATH = mod2
+
+[submodule "repeated_keys"]
+url = https://github.com/martinvonz/jj
+path = mod3
+url = https://github.com/chooglen/jj
+path = mod4
+
+# The following entries aren't expected in a well-formed .gitmodules
+[submodule "missing_url"]
+path = mod
+
+[submodule]
+ignoreThisSection = foo
+
+[randomConfig]
+ignoreThisSection = foo
+"#
+        .as_bytes(),
+    )
+    .unwrap();
+    let expected = btreemap! {
+        "wellformed".to_string() => SubmoduleConfig {
+            name: "wellformed".to_string(),
+            url: "https://github.com/martinvonz/jj".to_string(),
+            path: "mod".to_string(),
+        },
+        "uppercase".to_string() => SubmoduleConfig {
+            name: "uppercase".to_string(),
+            url: "https://github.com/martinvonz/jj".to_string(),
+            path: "mod2".to_string(),
+        },
+        "repeated_keys".to_string() => SubmoduleConfig {
+            name: "repeated_keys".to_string(),
+            url: "https://github.com/martinvonz/jj".to_string(),
+            path: "mod3".to_string(),
+        },
+    };
+
+    assert_eq!(result, expected);
 }
