@@ -274,23 +274,25 @@ fn test_git_colocated_squash_undo() {
     git2::Repository::init(&repo_path).unwrap();
     test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
     test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m=B"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "master"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    @  rlvkpnrzqnoo 8f71e3b6a3be
-    ◉  qpvuntsmwlqt a86754f975f9 A master
+    @  rlvkpnrzqnoo 2a3078eda7fe B master
+    ◉  qpvuntsmwlqt a86754f975f9 A
     ◉  zzzzzzzzzzzz 000000000000
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["squash"]);
+    test_env.jj_cmd_success(&repo_path, &["squash", "-m=A+B"]);
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    @  zsuskulnrvyr f0c12b0396d9
-    ◉  qpvuntsmwlqt 2f376ea1478c A master
+    @  royxmykxtrkr 83c0d8df2b78
+    ◉  qpvuntsmwlqt 1873a0811bf5 A+B master
     ◉  zzzzzzzzzzzz 000000000000
     "###);
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    @  rlvkpnrzqnoo 8f71e3b6a3be
-    ◉  qpvuntsmwlqt a86754f975f9 A master
+    @  rlvkpnrzqnoo 2a3078eda7fe B master
+    ◉  qpvuntsmwlqt a86754f975f9 A
     ◉  zzzzzzzzzzzz 000000000000
     "###);
 }
