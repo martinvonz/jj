@@ -1380,6 +1380,8 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         RevsetExpression::Intersection(expression1, expression2) => {
             match (expression1.as_ref(), expression2.as_ref()) {
+                // For '~x & f', don't move filter node 'f' left
+                (_, RevsetExpression::Filter(_) | RevsetExpression::AsFilter(_)) => None,
                 (_, RevsetExpression::NotIn(complement)) => {
                     Some(to_difference(expression1, complement))
                 }
@@ -2490,13 +2492,11 @@ mod tests {
         );
 
         assert_eq!(
-            optimize(parse("present(author(foo) ~ bar)").unwrap()),
-            Rc::new(RevsetExpression::AsFilter(Rc::new(
-                RevsetExpression::Present(
-                    RevsetExpression::filter(RevsetFilterPredicate::Author("foo".to_owned()))
-                        .minus(&RevsetExpression::symbol("bar".to_owned()))
-                )
-            )))
+            optimize(parse("present(foo ~ bar)").unwrap()),
+            Rc::new(RevsetExpression::Present(
+                RevsetExpression::symbol("foo".to_owned())
+                    .minus(&RevsetExpression::symbol("bar".to_owned()))
+            ))
         );
         assert_eq!(
             optimize(parse("present(branches() & all())").unwrap()),
@@ -2766,7 +2766,63 @@ mod tests {
                 ),
             ),
         )
-        "###)
+        "###);
+
+        // '~set & filter()' shouldn't be substituted.
+        insta::assert_debug_snapshot!(
+            optimize(parse("~foo & author(bar)").unwrap()), @r###"
+        Intersection(
+            NotIn(
+                Symbol(
+                    "foo",
+                ),
+            ),
+            Filter(
+                Author(
+                    "bar",
+                ),
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("~foo & (author(bar) | baz)").unwrap()), @r###"
+        Intersection(
+            NotIn(
+                Symbol(
+                    "foo",
+                ),
+            ),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            "bar",
+                        ),
+                    ),
+                    Symbol(
+                        "baz",
+                    ),
+                ),
+            ),
+        )
+        "###);
+
+        // Filter should be moved right of the intersection.
+        insta::assert_debug_snapshot!(
+            optimize(parse("author(foo) ~ bar").unwrap()), @r###"
+        Intersection(
+            NotIn(
+                Symbol(
+                    "bar",
+                ),
+            ),
+            Filter(
+                Author(
+                    "foo",
+                ),
+            ),
+        )
+        "###);
     }
 
     #[test]
