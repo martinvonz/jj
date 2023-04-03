@@ -358,6 +358,69 @@ fn test_git_colocated_squash_push_undo() {
     "###);
 }
 
+// TODO: Fix the BUG this reveals.
+#[test]
+fn test_git_colocated_undo_branch_creation() {
+    let test_env = TestEnvironment::default();
+    let source_path = test_env.env_root().join("source");
+    git2::Repository::init_bare(&source_path).unwrap();
+    let repo_path = test_env.env_root().join("repo");
+    git2::Repository::clone(&source_path.as_os_str().to_string_lossy(), &repo_path).unwrap();
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_success(&repo_path, &["ci", "-m=0"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m=A"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "master"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m=B"]);
+
+    // Test the setup
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    @  mzvwutvlkqwt bc15ec74b27a B
+    ◉  rlvkpnrzqnoo 3495bd79af6e A master
+    ◉  qpvuntsmwlqt a56846756248 0
+    ◉  zzzzzzzzzzzz 000000000000
+    "###);
+
+    // Undo the branch creation
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "branch"]);
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    @  mzvwutvlkqwt bc15ec74b27a B branch
+    ◉  rlvkpnrzqnoo 3495bd79af6e A master
+    ◉  qpvuntsmwlqt a56846756248 0
+    ◉  zzzzzzzzzzzz 000000000000
+    "###);
+    test_env.jj_cmd_success(&repo_path, &["op", "undo"]);
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    @  mzvwutvlkqwt bc15ec74b27a B
+    ◉  rlvkpnrzqnoo 3495bd79af6e A master
+    ◉  qpvuntsmwlqt a56846756248 0
+    ◉  zzzzzzzzzzzz 000000000000
+    "###);
+
+    // Undo both branch creation and a push
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "branch"]);
+    test_env.jj_cmd_success(&repo_path, &["git", "push", "--all"]);
+    let stdout = get_truncated_op_log(&test_env, &repo_path, 9);
+    insta::assert_snapshot!(stdout, @r###"
+    @  639dbe50ca03 test-username@host.example.com 2001-02-03 04:05:18.000 +07:00 - 2001-02-03 04:05:18.000 +07:00
+    │  push all branches to git remote origin
+    │  args: jj git push --all
+    ◉  ba43271cb5a5 test-username@host.example.com 2001-02-03 04:05:17.000 +07:00 - 2001-02-03 04:05:17.000 +07:00
+    │  point branch branch to commit bc15ec74b27a6d49c2fed80fe9af240c5962ae47
+    │  args: jj branch set branch
+    ◉  5ea649735d7b test-username@host.example.com 2001-02-03 04:05:15.000 +07:00 - 2001-02-03 04:05:15.000 +07:00
+    │  undo operation 021f54e02ac6e604d7790db9144e12e4328fa67ab649abfb96fc9f6df4fc3ef5a55aae9a8c7ece1e77318cde59fcab92197cd5aae3f8afb48983f3a5e869281a
+    │  args: jj op undo
+    "###);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", "@--"]);
+    // BUG: Branch shouldn't be there.
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    @  mzvwutvlkqwt bc15ec74b27a B branch
+    ◉  rlvkpnrzqnoo 3495bd79af6e A master
+    ◉  qpvuntsmwlqt a56846756248 0
+    ◉  zzzzzzzzzzzz 000000000000
+    "###);
+}
+
 fn get_truncated_op_log(test_env: &TestEnvironment, repo_path: &Path, lines: usize) -> String {
     let result = test_env.jj_cmd_success(repo_path, &["op", "log"]);
     result.lines().take(lines).join("\n")
