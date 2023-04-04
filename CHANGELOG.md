@@ -86,6 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj workspace update-stale` now snapshots the working-copy changes before
   updating to the new working-copy commit.
 
+* It is no longer allowed to create branches at the root commit.
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes

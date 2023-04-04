@@ -46,6 +46,18 @@ fn test_branch_multiple_names() {
 }
 
 #[test]
+fn test_branch_forbidden_at_root() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "create", "fred", "-r=root"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot rewrite the root commit
+    "###);
+}
+
+#[test]
 fn test_branch_empty_name() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
