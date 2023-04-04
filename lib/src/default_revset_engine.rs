@@ -29,8 +29,8 @@ use crate::index::{HexPrefix, Index, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use crate::repo_path::RepoPath;
 use crate::revset::{
-    ChangeIdIndex, Revset, RevsetEvaluationError, RevsetExpression, RevsetFilterPredicate,
-    RevsetGraphEdge, GENERATION_RANGE_FULL,
+    ChangeIdIndex, ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
+    RevsetFilterPredicate, RevsetGraphEdge, GENERATION_RANGE_FULL,
 };
 use crate::store::Store;
 use crate::{backend, rewrite};
@@ -545,7 +545,7 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
 // TODO: Having to pass both `&dyn Index` and `CompositeIndex` is a bit ugly.
 // Maybe we should make `CompositeIndex` implement `Index`?
 pub fn evaluate<'index>(
-    expression: &RevsetExpression,
+    expression: &ResolvedExpression,
     store: &Arc<Store>,
     index: &'index dyn Index,
     composite_index: CompositeIndex<'index>,
@@ -571,14 +571,11 @@ struct EvaluationContext<'index, 'heads> {
 impl<'index, 'heads> EvaluationContext<'index, 'heads> {
     fn evaluate(
         &self,
-        expression: &RevsetExpression,
+        expression: &ResolvedExpression,
     ) -> Result<Box<dyn InternalRevset<'index> + 'index>, RevsetEvaluationError> {
         match expression {
-            RevsetExpression::CommitRef(_) | RevsetExpression::Present(_) => {
-                panic!("Expression '{expression:?}' should have been resolved by caller");
-            }
-            RevsetExpression::None => Ok(Box::new(EagerRevset::empty())),
-            RevsetExpression::All => {
+            ResolvedExpression::None => Ok(Box::new(EagerRevset::empty())),
+            ResolvedExpression::All => {
                 // Since `all()` does not include hidden commits, some of the logical
                 // transformation rules may subtly change the evaluated set. For example,
                 // `all() & x` is not `x` if `x` is hidden. This wouldn't matter in practice,
@@ -589,10 +586,10 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 let walk = self.composite_index.walk_revs(self.visible_heads, &[]);
                 Ok(Box::new(RevWalkRevset { walk }))
             }
-            RevsetExpression::Commits(commit_ids) => {
+            ResolvedExpression::Commits(commit_ids) => {
                 Ok(Box::new(self.revset_for_commit_ids(commit_ids)))
             }
-            RevsetExpression::Children(roots) => {
+            ResolvedExpression::Children(roots) => {
                 let root_set = self.evaluate(roots)?;
                 let head_set = self.revset_for_commit_ids(self.visible_heads);
                 let (walk, root_positions) = self.walk_ancestors_until_roots(&*root_set, &head_set);
@@ -610,7 +607,7 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                     predicate,
                 }))
             }
-            RevsetExpression::Ancestors { heads, generation } => {
+            ResolvedExpression::Ancestors { heads, generation } => {
                 let head_set = self.evaluate(heads)?;
                 let walk = self.walk_ancestors(&*head_set);
                 if generation == &GENERATION_RANGE_FULL {
@@ -620,7 +617,7 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                     Ok(Box::new(RevWalkRevset { walk }))
                 }
             }
-            RevsetExpression::Range {
+            ResolvedExpression::Range {
                 roots,
                 heads,
                 generation,
@@ -637,16 +634,16 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                     Ok(Box::new(RevWalkRevset { walk }))
                 }
             }
-            RevsetExpression::DagRange { roots, heads } => {
+            ResolvedExpression::DagRange { roots, heads } => {
                 let root_set = self.evaluate(roots)?;
                 let head_set = self.evaluate(heads)?;
                 let (dag_range_set, _) = self.collect_dag_range(&*root_set, &*head_set);
                 Ok(Box::new(dag_range_set))
             }
-            RevsetExpression::VisibleHeads => {
+            ResolvedExpression::VisibleHeads => {
                 Ok(Box::new(self.revset_for_commit_ids(self.visible_heads)))
             }
-            RevsetExpression::Heads(candidates) => {
+            ResolvedExpression::Heads(candidates) => {
                 let candidate_set = self.evaluate(candidates)?;
                 let candidate_ids = candidate_set
                     .iter()
@@ -656,7 +653,7 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                     &self.composite_index.heads(&mut candidate_ids.iter()),
                 )))
             }
-            RevsetExpression::Roots(candidates) => {
+            ResolvedExpression::Roots(candidates) => {
                 let candidate_set = EagerRevset {
                     index_entries: self.evaluate(candidates)?.iter().collect(),
                 };
@@ -673,48 +670,30 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 }
                 Ok(Box::new(EagerRevset { index_entries }))
             }
-            RevsetExpression::Latest { candidates, count } => {
+            ResolvedExpression::Latest { candidates, count } => {
                 let candidate_set = self.evaluate(candidates)?;
                 Ok(Box::new(
                     self.take_latest_revset(candidate_set.as_ref(), *count),
                 ))
             }
-            RevsetExpression::Filter(_) | RevsetExpression::AsFilter(_) => {
-                // Top-level filter without intersection: e.g. "~author(_)" is represented as
-                // `AsFilter(NotIn(Filter(Author(_))))`.
-                Ok(Box::new(FilterRevset {
-                    candidates: self.evaluate(&RevsetExpression::All)?,
-                    predicate: self.evaluate_predicate(expression)?,
-                }))
-            }
-            RevsetExpression::NotIn(complement) => {
-                let set1 = self.evaluate(&RevsetExpression::All)?;
-                let set2 = self.evaluate(complement)?;
-                Ok(Box::new(DifferenceRevset { set1, set2 }))
-            }
-            RevsetExpression::Union(expression1, expression2) => {
+            ResolvedExpression::Union(expression1, expression2) => {
                 let set1 = self.evaluate(expression1)?;
                 let set2 = self.evaluate(expression2)?;
                 Ok(Box::new(UnionRevset { set1, set2 }))
             }
-            RevsetExpression::Intersection(expression1, expression2) => {
-                match expression2.as_ref() {
-                    RevsetExpression::Filter(_) | RevsetExpression::AsFilter(_) => {
-                        Ok(Box::new(FilterRevset {
-                            candidates: self.evaluate(expression1)?,
-                            predicate: self.evaluate_predicate(expression2)?,
-                        }))
-                    }
-                    _ => {
-                        // TODO: 'set2' can be turned into a predicate, and use FilterRevset
-                        // if a predicate function can terminate the 'set1' iterator early.
-                        let set1 = self.evaluate(expression1)?;
-                        let set2 = self.evaluate(expression2)?;
-                        Ok(Box::new(IntersectionRevset { set1, set2 }))
-                    }
-                }
+            ResolvedExpression::FilterWithin {
+                candidates,
+                predicate,
+            } => Ok(Box::new(FilterRevset {
+                candidates: self.evaluate(candidates)?,
+                predicate: self.evaluate_predicate(predicate)?,
+            })),
+            ResolvedExpression::Intersection(expression1, expression2) => {
+                let set1 = self.evaluate(expression1)?;
+                let set2 = self.evaluate(expression2)?;
+                Ok(Box::new(IntersectionRevset { set1, set2 }))
             }
-            RevsetExpression::Difference(expression1, expression2) => {
+            ResolvedExpression::Difference(expression1, expression2) => {
                 let set1 = self.evaluate(expression1)?;
                 let set2 = self.evaluate(expression2)?;
                 Ok(Box::new(DifferenceRevset { set1, set2 }))
@@ -722,49 +701,27 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
         }
     }
 
-    /// Evaluates expression tree as filter predicate.
-    ///
-    /// For filter expression, this never inserts a hidden `all()` since a
-    /// filter predicate doesn't need to produce revisions to walk.
     fn evaluate_predicate(
         &self,
-        expression: &RevsetExpression,
+        expression: &ResolvedPredicateExpression,
     ) -> Result<Box<dyn ToPredicateFn + 'index>, RevsetEvaluationError> {
         match expression {
-            RevsetExpression::None
-            | RevsetExpression::All
-            | RevsetExpression::Commits(_)
-            | RevsetExpression::CommitRef(_)
-            | RevsetExpression::Children(_)
-            | RevsetExpression::Ancestors { .. }
-            | RevsetExpression::Range { .. }
-            | RevsetExpression::DagRange { .. }
-            | RevsetExpression::Heads(_)
-            | RevsetExpression::Roots(_)
-            | RevsetExpression::VisibleHeads
-            | RevsetExpression::Latest { .. } => Ok(self.evaluate(expression)?.into_predicate()),
-            RevsetExpression::Filter(predicate) => Ok(build_predicate_fn(
+            ResolvedPredicateExpression::Filter(predicate) => Ok(build_predicate_fn(
                 self.store.clone(),
                 self.index,
                 predicate,
             )),
-            RevsetExpression::AsFilter(candidates) => self.evaluate_predicate(candidates),
-            RevsetExpression::Present(_) => {
-                panic!("Expression '{expression:?}' should have been resolved by caller")
+            ResolvedPredicateExpression::Set(expression) => {
+                Ok(self.evaluate(expression)?.into_predicate())
             }
-            RevsetExpression::NotIn(complement) => {
+            ResolvedPredicateExpression::NotIn(complement) => {
                 let set = self.evaluate_predicate(complement)?;
                 Ok(Box::new(NotInPredicate(set)))
             }
-            RevsetExpression::Union(expression1, expression2) => {
+            ResolvedPredicateExpression::Union(expression1, expression2) => {
                 let set1 = self.evaluate_predicate(expression1)?;
                 let set2 = self.evaluate_predicate(expression2)?;
                 Ok(Box::new(UnionPredicate { set1, set2 }))
-            }
-            // Intersection of filters should have been substituted by revset::optimize().
-            // If it weren't, just fall back to the set evaluation path.
-            RevsetExpression::Intersection(..) | RevsetExpression::Difference(..) => {
-                Ok(self.evaluate(expression)?.into_predicate())
             }
         }
     }

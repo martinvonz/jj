@@ -424,18 +424,80 @@ impl RevsetExpression {
     pub fn resolve(
         self: Rc<Self>,
         repo: &dyn Repo,
-    ) -> Result<Rc<RevsetExpression>, RevsetResolutionError> {
-        resolve_symbols(repo, self, None)
+    ) -> Result<ResolvedExpression, RevsetResolutionError> {
+        resolve_symbols(repo, self, None).map(|expression| resolve_visibility(repo, &expression))
     }
 
     pub fn resolve_in_workspace(
         self: Rc<Self>,
         repo: &dyn Repo,
         workspace_ctx: &RevsetWorkspaceContext,
-    ) -> Result<Rc<RevsetExpression>, RevsetResolutionError> {
+    ) -> Result<ResolvedExpression, RevsetResolutionError> {
         resolve_symbols(repo, self, Some(workspace_ctx))
+            .map(|expression| resolve_visibility(repo, &expression))
     }
+}
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ResolvedPredicateExpression {
+    /// Pure filter predicate.
+    Filter(RevsetFilterPredicate),
+    /// Set expression to be evaluated as filter. This is typically a subtree
+    /// node of `Union` with a pure filter predicate.
+    Set(Box<ResolvedExpression>),
+    NotIn(Box<ResolvedPredicateExpression>),
+    Union(
+        Box<ResolvedPredicateExpression>,
+        Box<ResolvedPredicateExpression>,
+    ),
+}
+
+/// Describes evaluation plan of revset expression.
+///
+/// Unlike `RevsetExpression`, this doesn't contain unresolved symbols or `View`
+/// properties.
+///
+/// Use `RevsetExpression` API to build a query programmatically.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ResolvedExpression {
+    None,
+    All, // TODO: should be substituted at resolve_visibility()
+    Commits(Vec<CommitId>),
+    Children(Box<ResolvedExpression>), // TODO: add heads: VisibleHeads
+    Ancestors {
+        heads: Box<ResolvedExpression>,
+        generation: Range<u32>,
+    },
+    /// Commits that are ancestors of `heads` but not ancestors of `roots`.
+    Range {
+        roots: Box<ResolvedExpression>,
+        heads: Box<ResolvedExpression>,
+        generation: Range<u32>,
+    },
+    /// Commits that are descendants of `roots` and ancestors of `heads`.
+    DagRange {
+        roots: Box<ResolvedExpression>,
+        heads: Box<ResolvedExpression>,
+    },
+    Heads(Box<ResolvedExpression>),
+    Roots(Box<ResolvedExpression>),
+    VisibleHeads, // TODO: should be substituted at resolve_visibility()
+    Latest {
+        candidates: Box<ResolvedExpression>,
+        count: usize,
+    },
+    Union(Box<ResolvedExpression>, Box<ResolvedExpression>),
+    /// Intersects `candidates` with `predicate` by filtering.
+    FilterWithin {
+        candidates: Box<ResolvedExpression>,
+        predicate: ResolvedPredicateExpression,
+    },
+    /// Intersects expressions by merging.
+    Intersection(Box<ResolvedExpression>, Box<ResolvedExpression>),
+    Difference(Box<ResolvedExpression>, Box<ResolvedExpression>),
+}
+
+impl ResolvedExpression {
     pub fn evaluate<'index>(
         &self,
         repo: &'index dyn Repo,
@@ -1699,9 +1761,6 @@ fn resolve_commit_ref(
     }
 }
 
-// TODO: Maybe return a new type (RevsetParameters?) instead of
-// RevsetExpression. Then pass that to evaluate(), so it's clear which variants
-// are allowed.
 fn resolve_symbols(
     repo: &dyn Repo,
     expression: Rc<RevsetExpression>,
@@ -1732,6 +1791,162 @@ fn resolve_symbols(
         },
     )?
     .unwrap_or(expression))
+}
+
+/// Inserts implicit `all()` and `visible_heads()` nodes to the `expression`.
+///
+/// Symbols and commit refs in the `expression` should have been resolved.
+///
+/// This is a separate step because a symbol-resolved `expression` could be
+/// transformed further to e.g. combine OR-ed `Commits(_)`, or to collect
+/// commit ids to make `all()` include hidden-but-specified commits. The
+/// return type `ResolvedExpression` is stricter than `RevsetExpression`,
+/// and isn't designed for such transformation.
+fn resolve_visibility(_repo: &dyn Repo, expression: &RevsetExpression) -> ResolvedExpression {
+    let context = VisibilityResolutionContext {};
+    context.resolve(expression)
+}
+
+#[derive(Clone, Debug)]
+struct VisibilityResolutionContext {
+    // TODO: visible_heads
+}
+
+impl VisibilityResolutionContext {
+    /// Resolves expression tree as set.
+    fn resolve(&self, expression: &RevsetExpression) -> ResolvedExpression {
+        match expression {
+            RevsetExpression::None => ResolvedExpression::None,
+            RevsetExpression::All => self.resolve_all(),
+            RevsetExpression::Commits(commit_ids) => {
+                ResolvedExpression::Commits(commit_ids.clone())
+            }
+            RevsetExpression::CommitRef(_) => {
+                panic!("Expression '{expression:?}' should have been resolved by caller");
+            }
+            RevsetExpression::Children(roots) => {
+                ResolvedExpression::Children(self.resolve(roots).into())
+            }
+            RevsetExpression::Ancestors { heads, generation } => ResolvedExpression::Ancestors {
+                heads: self.resolve(heads).into(),
+                generation: generation.clone(),
+            },
+            RevsetExpression::Range {
+                roots,
+                heads,
+                generation,
+            } => ResolvedExpression::Range {
+                roots: self.resolve(roots).into(),
+                heads: self.resolve(heads).into(),
+                generation: generation.clone(),
+            },
+            RevsetExpression::DagRange { roots, heads } => ResolvedExpression::DagRange {
+                roots: self.resolve(roots).into(),
+                heads: self.resolve(heads).into(),
+            },
+            RevsetExpression::Heads(candidates) => {
+                ResolvedExpression::Heads(self.resolve(candidates).into())
+            }
+            RevsetExpression::Roots(candidates) => {
+                ResolvedExpression::Roots(self.resolve(candidates).into())
+            }
+            RevsetExpression::VisibleHeads => self.resolve_visible_heads(),
+            RevsetExpression::Latest { candidates, count } => ResolvedExpression::Latest {
+                candidates: self.resolve(candidates).into(),
+                count: *count,
+            },
+            RevsetExpression::Filter(_) | RevsetExpression::AsFilter(_) => {
+                // Top-level filter without intersection: e.g. "~author(_)" is represented as
+                // `AsFilter(NotIn(Filter(Author(_))))`.
+                ResolvedExpression::FilterWithin {
+                    candidates: self.resolve_all().into(),
+                    predicate: self.resolve_predicate(expression),
+                }
+            }
+            RevsetExpression::Present(_) => {
+                panic!("Expression '{expression:?}' should have been resolved by caller");
+            }
+            RevsetExpression::NotIn(complement) => ResolvedExpression::Difference(
+                self.resolve_all().into(),
+                self.resolve(complement).into(),
+            ),
+            RevsetExpression::Union(expression1, expression2) => ResolvedExpression::Union(
+                self.resolve(expression1).into(),
+                self.resolve(expression2).into(),
+            ),
+            RevsetExpression::Intersection(expression1, expression2) => {
+                match expression2.as_ref() {
+                    RevsetExpression::Filter(_) | RevsetExpression::AsFilter(_) => {
+                        ResolvedExpression::FilterWithin {
+                            candidates: self.resolve(expression1).into(),
+                            predicate: self.resolve_predicate(expression2),
+                        }
+                    }
+                    _ => ResolvedExpression::Intersection(
+                        self.resolve(expression1).into(),
+                        self.resolve(expression2).into(),
+                    ),
+                }
+            }
+            RevsetExpression::Difference(expression1, expression2) => {
+                ResolvedExpression::Difference(
+                    self.resolve(expression1).into(),
+                    self.resolve(expression2).into(),
+                )
+            }
+        }
+    }
+
+    fn resolve_all(&self) -> ResolvedExpression {
+        ResolvedExpression::All
+    }
+
+    fn resolve_visible_heads(&self) -> ResolvedExpression {
+        ResolvedExpression::VisibleHeads
+    }
+
+    /// Resolves expression tree as filter predicate.
+    ///
+    /// For filter expression, this never inserts a hidden `all()` since a
+    /// filter predicate doesn't need to produce revisions to walk.
+    fn resolve_predicate(&self, expression: &RevsetExpression) -> ResolvedPredicateExpression {
+        match expression {
+            RevsetExpression::None
+            | RevsetExpression::All
+            | RevsetExpression::Commits(_)
+            | RevsetExpression::CommitRef(_)
+            | RevsetExpression::Children(_)
+            | RevsetExpression::Ancestors { .. }
+            | RevsetExpression::Range { .. }
+            | RevsetExpression::DagRange { .. }
+            | RevsetExpression::Heads(_)
+            | RevsetExpression::Roots(_)
+            | RevsetExpression::VisibleHeads
+            | RevsetExpression::Latest { .. } => {
+                ResolvedPredicateExpression::Set(self.resolve(expression).into())
+            }
+            RevsetExpression::Filter(predicate) => {
+                ResolvedPredicateExpression::Filter(predicate.clone())
+            }
+            RevsetExpression::AsFilter(candidates) => self.resolve_predicate(candidates),
+            RevsetExpression::Present(_) => {
+                panic!("Expression '{expression:?}' should have been resolved by caller")
+            }
+            RevsetExpression::NotIn(complement) => {
+                ResolvedPredicateExpression::NotIn(self.resolve_predicate(complement).into())
+            }
+            RevsetExpression::Union(expression1, expression2) => {
+                let predicate1 = self.resolve_predicate(expression1);
+                let predicate2 = self.resolve_predicate(expression2);
+                ResolvedPredicateExpression::Union(predicate1.into(), predicate2.into())
+            }
+            // Intersection of filters should have been substituted by optimize().
+            // If it weren't, just fall back to the set evaluation path.
+            RevsetExpression::Intersection(..) | RevsetExpression::Difference(..) => {
+                ResolvedPredicateExpression::Set(self.resolve(expression).into())
+            }
+        }
+    }
 }
 
 pub trait Revset<'index>: fmt::Debug {
