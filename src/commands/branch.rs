@@ -136,6 +136,7 @@ fn cmd_branch_create(
 
     let target_commit =
         workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+    workspace_command.check_rewritable(&target_commit)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "create {} pointing to commit {}",
         make_branch_term(&branch_names),
@@ -168,6 +169,7 @@ fn cmd_branch_set(
 
     let target_commit =
         workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+    workspace_command.check_rewritable(&target_commit)?;
     if !args.allow_backwards
         && !branch_names.iter().all(|branch_name| {
             is_fast_forward(
