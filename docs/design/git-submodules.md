@@ -139,9 +139,10 @@ I.e. outcomes we would like to see if there were no constraints whatsoever.
 
 TODO
 
-### On-disk representation
+### Storing submodules
 
-TODO
+Possible approaches under discussion. See
+[./git-submodule-storage.md](./git-submodule-storage.md).
 
 ### Snapshotting new submodule changes
 
