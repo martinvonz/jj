@@ -15,6 +15,7 @@
 use std::path::Path;
 
 use git2::Oid;
+use itertools::Itertools;
 
 use crate::common::{get_stderr_string, TestEnvironment};
 
@@ -297,6 +298,67 @@ fn test_git_colocated_squash_undo() {
     "###);
 }
 
+// This test is just like the above test but with a `jj git push` inserted
+#[test]
+fn test_git_colocated_squash_push_undo() {
+    let test_env = TestEnvironment::default();
+    let source_path = test_env.env_root().join("source");
+    git2::Repository::init_bare(&source_path).unwrap();
+    let repo_path = test_env.env_root().join("repo");
+    git2::Repository::clone(&source_path.as_os_str().to_string_lossy(), &repo_path).unwrap();
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m=B"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "master"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    @  rlvkpnrzqnoo 2a3078eda7fe B master
+    ◉  qpvuntsmwlqt a86754f975f9 A
+    ◉  zzzzzzzzzzzz 000000000000
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["squash", "-m=A+B"]);
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    @  royxmykxtrkr 83c0d8df2b78
+    ◉  qpvuntsmwlqt 1873a0811bf5 A+B master
+    ◉  zzzzzzzzzzzz 000000000000
+    "###);
+    test_env.jj_cmd_success(&repo_path, &["git", "push", "--all"]);
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    @  royxmykxtrkr 83c0d8df2b78
+    ◉  qpvuntsmwlqt 1873a0811bf5 A+B master
+    ◉  zzzzzzzzzzzz 000000000000
+    "###);
+    let stdout = get_truncated_op_log(&test_env, &repo_path, 9);
+    insta::assert_snapshot!(stdout, @r###"
+    @  92f3965076e7 test-username@host.example.com 2001-02-03 04:05:14.000 +07:00 - 2001-02-03 04:05:14.000 +07:00
+    │  push all branches to git remote origin
+    │  args: jj git push --all
+    ◉  34f35f48e4eb test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
+    │  squash commit 2a3078eda7fe17eeb3cd3e390f7476dff078e35f
+    │  args: jj squash '-m=A+B'
+    ◉  dfdfe3eb8a2c test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │  point branch master to commit 2a3078eda7fe17eeb3cd3e390f7476dff078e35f
+    │  args: jj branch set master
+    "###);
+    // Restore to before the squash
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", "@--"]);
+    // We expect `master` to be back at B while master@origin is at A+B. Here,
+    // master ends up conflicted. This is arguably wrong, but not too bad.
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    ◉  qpvuntsmwlqt 1873a0811bf5 A+B master?? master@origin !divergence!
+    │ @  rlvkpnrzqnoo 2a3078eda7fe B master??
+    │ ◉  qpvuntsmwlqt a86754f975f9 A !divergence!
+    ├─╯
+    ◉  zzzzzzzzzzzz 000000000000
+    "###);
+}
+
+fn get_truncated_op_log(test_env: &TestEnvironment, repo_path: &Path, lines: usize) -> String {
+    let result = test_env.jj_cmd_success(repo_path, &["op", "log"]);
+    result.lines().take(lines).join("\n")
+}
+
 fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> String {
     let template = r###"
     separate(" ",
@@ -307,7 +369,7 @@ fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> St
       if(divergent, "!divergence!"),
     )
     "###;
-    test_env.jj_cmd_success(repo_path, &["log", "-T", template])
+    test_env.jj_cmd_success(repo_path, &["log", "-T", template, "-r=all()"])
 }
 
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
