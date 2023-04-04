@@ -88,6 +88,23 @@ fn test_git_fetch_single_remote() {
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
+    test_env
+        .jj_cmd(&repo_path, &["git", "fetch"])
+        .assert()
+        .success()
+        .stderr("Fetching from the only existing remote: rem1\n");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    rem1: 6a21102783e8 message
+    "###);
+}
+
+#[test]
+fn test_git_fetch_single_remote_from_arg() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "rem1");
+
     test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote", "rem1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: 6a21102783e8 message

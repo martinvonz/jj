@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use clap::{ArgGroup, Subcommand};
+use config::ConfigError;
 use itertools::Itertools;
 use jujutsu_lib::backend::ObjectId;
 use jujutsu_lib::git::{self, GitFetchError, GitPushError, GitRefUpdate};
@@ -292,17 +293,12 @@ fn cmd_git_fetch(
     args: &GitFetchArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    let git_repo = get_git_repo(workspace_command.repo().store())?;
     let remotes = if args.remotes.is_empty() {
-        const KEY: &str = "git.fetch";
-        let config = command.settings().config();
-        config
-            .get(KEY)
-            .or_else(|_| config.get_string(KEY).map(|r| vec![r]))?
+        get_default_fetch_remotes(ui, command, &git_repo)?
     } else {
         args.remotes.clone()
     };
-    let repo = workspace_command.repo();
-    let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction(&format!(
         "fetch from git remote(s) {}",
         remotes.iter().join(",")
@@ -326,6 +322,47 @@ fn cmd_git_fetch(
     }
     tx.finish(ui)?;
     Ok(())
+}
+
+fn get_single_remote(git_repo: &git2::Repository) -> Result<Option<String>, CommandError> {
+    let git_remotes = git_repo.remotes()?;
+    Ok(match git_remotes.len() {
+        1 => git_remotes.get(0).map(ToOwned::to_owned),
+        _ => None,
+    })
+}
+
+const DEFAULT_REMOTE: &str = "origin";
+
+fn get_default_fetch_remotes(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    git_repo: &git2::Repository,
+) -> Result<Vec<String>, CommandError> {
+    const KEY: &str = "git.fetch";
+    let config = command.settings().config();
+
+    match config
+        .get(KEY)
+        .or_else(|_| config.get_string(KEY).map(|r| vec![r]))
+    {
+        // if nothing was explicitly configured, try to guess
+        Err(ConfigError::NotFound(_)) => {
+            if let Some(remote) = get_single_remote(git_repo)? {
+                if remote != DEFAULT_REMOTE {
+                    writeln!(
+                        ui.hint(),
+                        "Fetching from the only existing remote: {}",
+                        remote
+                    )?;
+                }
+                Ok(vec![remote])
+            } else {
+                Ok(vec![DEFAULT_REMOTE.to_owned()])
+            }
+        }
+        r => Ok(r?),
+    }
 }
 
 fn absolute_git_source(cwd: &Path, source: &str) -> String {
@@ -577,11 +614,14 @@ fn cmd_git_push(
     args: &GitPushArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    let git_repo = get_git_repo(workspace_command.repo().store())?;
+
     let remote = if let Some(name) = &args.remote {
         name.clone()
     } else {
-        command.settings().config().get("git.push")?
+        get_default_push_remote(ui, command, &git_repo)?
     };
+
     let mut tx;
     let mut branch_updates = vec![];
     let mut seen_branches = hashset! {};
@@ -871,7 +911,6 @@ fn cmd_git_push(
         return Ok(());
     }
 
-    let git_repo = get_git_repo(repo.store())?;
     with_remote_callbacks(ui, |cb| {
         git::push_updates(&git_repo, &remote, &ref_updates, cb)
     })
@@ -882,6 +921,27 @@ fn cmd_git_push(
     git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
     tx.finish(ui)?;
     Ok(())
+}
+
+fn get_default_push_remote(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    git_repo: &git2::Repository,
+) -> Result<String, CommandError> {
+    match command.settings().config().get_string("git.push") {
+        // similar to get_default_fetch_remotes
+        Err(ConfigError::NotFound(_)) => {
+            if let Some(remote) = get_single_remote(git_repo)? {
+                if remote != DEFAULT_REMOTE {
+                    writeln!(ui.hint(), "Pushing to the only existing remote: {}", remote)?;
+                }
+                Ok(remote)
+            } else {
+                Ok(DEFAULT_REMOTE.to_owned())
+            }
+        }
+        r => Ok(r?),
+    }
 }
 
 fn branch_updates_for_push(
