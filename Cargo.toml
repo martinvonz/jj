@@ -63,7 +63,7 @@ tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", default-features = false, features = ["std", "ansi", "env-filter", "fmt"] }
 
 [target.'cfg(unix)'.dependencies]
-libc = { version = "0.2.140" }
+libc = { version = "0.2.141" }
 
 [dev-dependencies]
 assert_cmd = "2.0.8"
