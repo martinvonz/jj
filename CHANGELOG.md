@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   based on terminal width. [#1043](https://github.com/martinvonz/jj/issues/1043)
 
 * Nodes in the (text-based) graphical log output now use a `◉` symbol instead
-  of the letter `o`. The ASCII-based graph styles still use `o`.  
+  of the letter `o`. The ASCII-based graph styles still use `o`.
 
 * Commands that accept a diff format (`jj diff`, `jj interdiff`, `jj show`,
   `jj log`, and `jj obslog`) now accept `--types` to show only the type of file
@@ -76,6 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defined by a parent style.
 
 * `jj obslog` and `jj log` now show abandoned commits as hidden.
+
+* `jj git fetch` and `jj git push` will now use the single defined remote even if it is not named "origin".
 
 ### Fixed bugs
 
@@ -211,7 +213,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [the documentation](docs/config.md).
 
 * `jj print` was renamed to `jj cat`. `jj print` remains as an alias.
-  
+
 * In content that goes to the terminal, the ANSI escape byte (0x1b) is replaced
   by a "␛" character. That prevents them from interfering with the ANSI escapes
   jj itself writes.
