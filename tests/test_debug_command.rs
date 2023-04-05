@@ -31,12 +31,12 @@ fn test_debug_revset() {
     ]}, {
         assert_snapshot!(stdout, @r###"
         -- Parsed:
-        Symbol(
+        CommitRef(
             ..
         )
 
         -- Optimized:
-        Symbol(
+        CommitRef(
             ..
         )
 

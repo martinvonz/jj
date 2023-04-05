@@ -574,13 +574,7 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
         expression: &RevsetExpression,
     ) -> Result<Box<dyn InternalRevset<'index> + 'index>, RevsetEvaluationError> {
         match expression {
-            RevsetExpression::Symbol(_)
-            | RevsetExpression::Branches(_)
-            | RevsetExpression::RemoteBranches { .. }
-            | RevsetExpression::Tags
-            | RevsetExpression::GitRefs
-            | RevsetExpression::GitHead
-            | RevsetExpression::Present(_) => {
+            RevsetExpression::CommitRef(_) | RevsetExpression::Present(_) => {
                 panic!("Expression '{expression:?}' should have been resolved by caller");
             }
             RevsetExpression::None => Ok(Box::new(EagerRevset::empty())),
@@ -740,7 +734,7 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
             RevsetExpression::None
             | RevsetExpression::All
             | RevsetExpression::Commits(_)
-            | RevsetExpression::Symbol(_)
+            | RevsetExpression::CommitRef(_)
             | RevsetExpression::Children(_)
             | RevsetExpression::Ancestors { .. }
             | RevsetExpression::Range { .. }
@@ -748,11 +742,6 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
             | RevsetExpression::Heads(_)
             | RevsetExpression::Roots(_)
             | RevsetExpression::VisibleHeads
-            | RevsetExpression::Branches(_)
-            | RevsetExpression::RemoteBranches { .. }
-            | RevsetExpression::Tags
-            | RevsetExpression::GitRefs
-            | RevsetExpression::GitHead
             | RevsetExpression::Latest { .. } => Ok(self.evaluate(expression)?.into_predicate()),
             RevsetExpression::Filter(predicate) => Ok(build_predicate_fn(
                 self.store.clone(),
