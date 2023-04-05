@@ -29,6 +29,7 @@ use jujutsu_lib::revset::{
     RevsetResolutionError, RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;
+use jujutsu_lib::tree::merge_trees;
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::{
@@ -2138,6 +2139,49 @@ fn test_evaluate_expression_file(use_git: bool) {
     // empty() revset, which is identical to ~file(".")
     assert_eq!(
         resolve_commit_ids(mut_repo, &format!("{}: & empty()", commit1.id().hex())),
+        vec![commit4.id().clone()]
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_evaluate_expression_conflict(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let repo = &test_workspace.repo;
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let mut_repo = tx.mut_repo();
+
+    // Create a few trees, including one with a conflict in `file1`
+    let file_path1 = RepoPath::from_internal_string("file1");
+    let file_path2 = RepoPath::from_internal_string("file2");
+    let tree1 = testutils::create_tree(repo, &[(&file_path1, "1"), (&file_path2, "1")]);
+    let tree2 = testutils::create_tree(repo, &[(&file_path1, "2"), (&file_path2, "2")]);
+    let tree3 = testutils::create_tree(repo, &[(&file_path1, "3"), (&file_path2, "1")]);
+    let tree_id4 = merge_trees(&tree2, &tree1, &tree3).unwrap();
+    let tree4 = mut_repo
+        .store()
+        .get_tree(&RepoPath::root(), &tree_id4)
+        .unwrap();
+
+    let mut create_commit = |parent_ids, tree_id| {
+        mut_repo
+            .new_commit(&settings, parent_ids, tree_id)
+            .write()
+            .unwrap()
+    };
+    let commit1 = create_commit(
+        vec![repo.store().root_commit_id().clone()],
+        tree1.id().clone(),
+    );
+    let commit2 = create_commit(vec![commit1.id().clone()], tree2.id().clone());
+    let commit3 = create_commit(vec![commit2.id().clone()], tree3.id().clone());
+    let commit4 = create_commit(vec![commit3.id().clone()], tree4.id().clone());
+
+    // Only commit4 has a conflict
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "conflict()"),
         vec![commit4.id().clone()]
     );
 }
