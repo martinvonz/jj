@@ -24,7 +24,8 @@ use crate::backend::{ChangeId, CommitId, MillisSinceEpoch, ObjectId};
 use crate::default_index_store::{CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition};
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::index::{HexPrefix, Index, PrefixResolution};
-use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
+use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
+use crate::repo_path::RepoPath;
 use crate::revset::{
     ChangeIdIndex, Revset, RevsetEvaluationError, RevsetExpression, RevsetFilterPredicate,
     RevsetGraphEdge, GENERATION_RANGE_FULL,
@@ -954,6 +955,15 @@ fn has_diff_from_parent(
 ) -> bool {
     let commit = store.get_commit(&entry.commit_id()).unwrap();
     let parents = commit.parents();
+    if let [parent] = parents.as_slice() {
+        // Fast path: no need to load the root tree
+        let unchanged = commit.tree_id() == parent.tree_id();
+        if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
+            return !unchanged;
+        } else if unchanged {
+            return false;
+        }
+    }
     let from_tree = rewrite::merge_commit_trees_without_repo(store, index, &parents);
     let to_tree = commit.tree();
     from_tree.diff(&to_tree, matcher).next().is_some()
