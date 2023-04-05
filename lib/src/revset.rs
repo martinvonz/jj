@@ -205,6 +205,8 @@ pub enum RevsetFilterPredicate {
     Committer(String),
     /// Commits modifying the paths specified by the pattern.
     File(Option<Vec<RepoPath>>), // TODO: embed matcher expression?
+    /// Commits with conflicts
+    HasConflict,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -927,6 +929,10 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                 RevsetParseErrorKind::FsPathWithoutWorkspace,
             ))
         }
+    });
+    map.insert("conflict", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::filter(RevsetFilterPredicate::HasConflict))
     });
     map.insert("present", |name, arguments_pair, state| {
         let arg = expect_one_argument(name, arguments_pair)?;

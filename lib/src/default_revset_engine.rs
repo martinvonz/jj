@@ -944,6 +944,10 @@ fn build_predicate_fn<'index>(
                 has_diff_from_parent(&store, index, entry, matcher.as_ref())
             })
         }
+        RevsetFilterPredicate::HasConflict => pure_predicate_fn(move |entry| {
+            let commit = store.get_commit(&entry.commit_id()).unwrap();
+            commit.tree().has_conflict()
+        }),
     }
 }
 

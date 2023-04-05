@@ -43,6 +43,7 @@ tags()+
 # Filter that doesn't read commit object
 merges()
 ~merges()
-# Files are unbearably slow, so only filter within small set
+# These are unbearably slow, so only filter within small set
 file(Makefile) & v1.0.0..v1.2.0
 empty() & v1.0.0..v1.2.0
+conflict() & v1.0.0..v1.2.0
