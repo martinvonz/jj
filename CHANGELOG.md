@@ -68,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj squash` AKA `jj amend` now accepts a `--message` option to set the
   description of the squashed commit on the command-line.
 
+* The progress display on `jj git clone/fetch` now includes the downloaded size.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines
