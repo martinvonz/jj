@@ -574,7 +574,6 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
         expression: &ResolvedExpression,
     ) -> Result<Box<dyn InternalRevset<'index> + 'index>, RevsetEvaluationError> {
         match expression {
-            ResolvedExpression::None => Ok(Box::new(EagerRevset::empty())),
             ResolvedExpression::All => {
                 // Since `all()` does not include hidden commits, some of the logical
                 // transformation rules may subtly change the evaluated set. For example,
