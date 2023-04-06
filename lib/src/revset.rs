@@ -462,7 +462,10 @@ pub enum ResolvedPredicateExpression {
 pub enum ResolvedExpression {
     All, // TODO: should be substituted at resolve_visibility()
     Commits(Vec<CommitId>),
-    Children(Box<ResolvedExpression>), // TODO: add heads: VisibleHeads
+    Children {
+        roots: Box<ResolvedExpression>,
+        heads: Box<ResolvedExpression>,
+    },
     Ancestors {
         heads: Box<ResolvedExpression>,
         generation: Range<u32>,
@@ -1823,9 +1826,10 @@ impl VisibilityResolutionContext {
             RevsetExpression::CommitRef(_) => {
                 panic!("Expression '{expression:?}' should have been resolved by caller");
             }
-            RevsetExpression::Children(roots) => {
-                ResolvedExpression::Children(self.resolve(roots).into())
-            }
+            RevsetExpression::Children(roots) => ResolvedExpression::Children {
+                roots: self.resolve(roots).into(),
+                heads: self.resolve_visible_heads().into(),
+            },
             RevsetExpression::Ancestors { heads, generation } => ResolvedExpression::Ancestors {
                 heads: self.resolve(heads).into(),
                 generation: generation.clone(),

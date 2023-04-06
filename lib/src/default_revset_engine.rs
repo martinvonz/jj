@@ -588,10 +588,11 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
             ResolvedExpression::Commits(commit_ids) => {
                 Ok(Box::new(self.revset_for_commit_ids(commit_ids)))
             }
-            ResolvedExpression::Children(roots) => {
+            ResolvedExpression::Children { roots, heads } => {
                 let root_set = self.evaluate(roots)?;
-                let head_set = self.revset_for_commit_ids(self.visible_heads);
-                let (walk, root_positions) = self.walk_ancestors_until_roots(&*root_set, &head_set);
+                let head_set = self.evaluate(heads)?;
+                let (walk, root_positions) =
+                    self.walk_ancestors_until_roots(&*root_set, &*head_set);
                 let roots: HashSet<_> = root_positions.into_iter().collect();
                 let candidates = Box::new(RevWalkRevset { walk });
                 let predicate = pure_predicate_fn(move |entry| {
@@ -600,7 +601,8 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                         .iter()
                         .any(|parent_pos| roots.contains(parent_pos))
                 });
-                // TODO: ToPredicateFn version can be optimized to only test the predicate()
+                // TODO: Suppose heads include all visible heads, ToPredicateFn version can be
+                // optimized to only test the predicate()
                 Ok(Box::new(FilterRevset {
                     candidates,
                     predicate,
