@@ -21,7 +21,9 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch, ObjectId};
-use crate::default_index_store::{CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition};
+use crate::default_index_store::{
+    CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition, RevWalk,
+};
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::index::{HexPrefix, Index, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
@@ -643,12 +645,14 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 }))
             }
             RevsetExpression::Ancestors { heads, generation } => {
-                let range_expression = RevsetExpression::Range {
-                    roots: RevsetExpression::none(),
-                    heads: heads.clone(),
-                    generation: generation.clone(),
-                };
-                self.evaluate(&range_expression)
+                let head_set = self.evaluate(heads)?;
+                let walk = self.walk_ancestors(&*head_set);
+                if generation == &GENERATION_RANGE_FULL {
+                    Ok(Box::new(RevWalkRevset { walk }))
+                } else {
+                    let walk = walk.filter_by_generation(generation.clone());
+                    Ok(Box::new(RevWalkRevset { walk }))
+                }
             }
             RevsetExpression::Range {
                 roots,
@@ -669,11 +673,11 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
             }
             RevsetExpression::DagRange { roots, heads } => {
                 let root_set = self.evaluate(roots)?;
-                let candidate_set = self.evaluate(&heads.ancestors())?;
+                let head_set = self.evaluate(heads)?;
                 let mut reachable: HashSet<_> =
                     root_set.iter().map(|entry| entry.position()).collect();
                 let mut result = vec![];
-                let candidates = candidate_set.iter().collect_vec();
+                let candidates = self.walk_ancestors(&*head_set).collect_vec();
                 for candidate in candidates.into_iter().rev() {
                     if reachable.contains(&candidate.position())
                         || candidate
@@ -814,6 +818,14 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 Ok(self.evaluate(expression)?.into_predicate())
             }
         }
+    }
+
+    fn walk_ancestors<'a, S>(&self, head_set: &S) -> RevWalk<'index>
+    where
+        S: InternalRevset<'a> + ?Sized,
+    {
+        let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
+        self.composite_index.walk_revs(&head_ids, &[])
     }
 
     fn revset_for_commit_ids(
