@@ -799,6 +799,74 @@ fn test_export_import_sequence() {
     );
 }
 
+// This test is just like `test_export_import_sequence`, but deletes the "last seen git refs" file between import/export operations. Unless there are `undo` or `restore` operations, jj should be able to recover these refs from its view of git refs.
+//
+// The purpose is to make sure that people who upgrade from a version of jj that
+// didn't generate the "last seen git refs" file to one that does, the new
+// version can use the old version's data.
+//
+// TODO: This test was added before jj 0.8.0, remove it sometime after jj 0.10.0
+// release.
+#[test]
+fn test_export_import_sequence_without_git_repo_view_file() {
+    // Import a branch pointing to A, modify it in jj to point to B, export it,
+    // modify it in git to point to C, then import it again. There should be no
+    // conflict.
+    let test_data = GitRepoData::create();
+    let git_settings = GitSettings::default();
+    let git_repo = test_data.git_repo;
+    let mut tx = test_data
+        .repo
+        .start_transaction(&test_data.settings, "test");
+    let mut_repo = tx.mut_repo();
+    let commit_a = write_random_commit(mut_repo, &test_data.settings);
+    let commit_b = write_random_commit(mut_repo, &test_data.settings);
+    let commit_c = write_random_commit(mut_repo, &test_data.settings);
+    // TODO: Create the git_last_seen_refs file in `jj git init`, uncomment the
+    // following line.
+    // std::fs::remove_file(mut_repo.base_repo().repo_path()
+    //    .join("git_last_seen_refs")).unwrap();
+
+    // Import the branch pointing to A
+    git_repo
+        .reference("refs/heads/main", git_id(&commit_a), true, "test")
+        .unwrap();
+    git::import_refs(mut_repo, &git_repo, &git_settings).unwrap();
+    std::fs::remove_file(mut_repo.base_repo().repo_path().join("git_last_seen_refs")).unwrap();
+    assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(commit_a.id().clone()))
+    );
+
+    // Modify the branch in jj to point to B
+    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+
+    // Export the branch to git
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
+    std::fs::remove_file(mut_repo.base_repo().repo_path().join("git_last_seen_refs")).unwrap();
+    assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(commit_b.id().clone()))
+    );
+
+    // Modify the branch in git to point to C
+    git_repo
+        .reference("refs/heads/main", git_id(&commit_c), true, "test")
+        .unwrap();
+
+    // Import from git
+    git::import_refs(mut_repo, &git_repo, &git_settings).unwrap();
+    std::fs::remove_file(mut_repo.base_repo().repo_path().join("git_last_seen_refs")).unwrap();
+    assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(commit_c.id().clone()))
+    );
+    assert_eq!(
+        mut_repo.view().get_local_branch("main"),
+        Some(RefTarget::Normal(commit_c.id().clone()))
+    );
+}
+
 #[test]
 fn test_import_export_no_auto_local_branch() {
     // Import a remote tracking branch and export it. We should not create a git

@@ -120,16 +120,16 @@ pub fn import_some_refs(
 // a branch being moved and then deleted).
 fn import_some_refs_and_update_view(
     mut_repo: &mut MutableRepo,
-    old_git_view: &GitRefView,
+    old_git_view: Option<GitRefView>,
     git_repo: &git2::Repository,
     git_settings: &GitSettings,
     git_ref_filter: impl Fn(&str) -> bool,
 ) -> Result<(GitRefView, ()), GitImportError> {
+    let old_git_view = old_git_view.unwrap_or_else(|| get_default_git_ref_view(mut_repo));
     let store = mut_repo.store().clone();
     let mut existing_git_refs = mut_repo.view().git_refs().clone();
     let mut old_git_heads = vec![];
     let mut new_git_heads = HashSet::new();
-    let mut new_git_view = old_git_view.clone();
     for (ref_name, old_target) in &existing_git_refs {
         if git_ref_filter(ref_name) {
             old_git_heads.extend(old_target.adds());
@@ -158,6 +158,7 @@ fn import_some_refs_and_update_view(
     }
 
     let mut changed_git_refs = BTreeMap::new();
+    let mut new_git_view = old_git_view;
     let git_refs = git_repo.references()?;
     for git_ref in git_refs {
         let git_ref = git_ref?;
@@ -309,9 +310,10 @@ pub fn export_refs(
 /// branches and the new git state (with successfully exported branches moved).
 fn export_branches_since_old_view(
     mut_repo: &mut MutableRepo,
-    old_view: &GitRefView,
+    old_view: Option<GitRefView>,
     git_repo: &git2::Repository,
 ) -> Result<(GitRefView, Vec<String>), GitExportError> {
+    let old_view = old_view.unwrap_or_else(|| get_default_git_ref_view(mut_repo));
     let current_view = mut_repo.view();
     let current_branches: BTreeSet<_> = current_view.branches().keys().cloned().collect();
     let old_branch_names: BTreeSet<_> = old_view
@@ -364,7 +366,7 @@ fn export_branches_since_old_view(
             }
         }
     }
-    let mut exported_view = old_view.clone();
+    let mut exported_view = old_view;
     for (branch_name, old_oid) in branches_to_delete {
         let git_ref_name = local_branch_name_to_ref_name(&branch_name);
         let success = if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
@@ -435,15 +437,42 @@ fn export_branches_since_old_view(
     Ok((exported_view, failed_branches))
 }
 
+/// This constructs a "last seen git view" from git refs in JJ's normal view.
+///
+/// This usually works since those refs are not modified by jj after they are
+/// read from the git repo. This notably fails after a `jj undo`.
+///
+/// This is used in case the user just upgraded from jj 0.7 or below to a
+/// version of jj that uses an external file for storing git refs, or after a
+/// `jj git init`.
+///
+/// The default view might also be used if the `git_last_seen_refs` file is
+/// corrupt, for example because of some Dropbox sync error or concurrent
+/// operations from other machines on a networked filesystem.
+//
+// TODO: Consider simplifying this, especially after jj 0.10 is released.
+fn get_default_git_ref_view(mut_repo: &MutableRepo) -> GitRefView {
+    let mut result = GitRefView::default();
+    for (ref_name, target) in mut_repo.view().git_refs() {
+        if let Some(RefName::LocalBranch(_)) = parse_git_ref(ref_name) {
+            if let RefTarget::Normal(id) = &target {
+                result.refs.insert(ref_name.clone(), id.clone());
+            }
+        }
+    }
+    result
+}
+
 /// Reads the last seen state of git refs from a file, updates it with the
 /// provided function, and writes the result back to disk.
 ///
-/// This cannot be done concurrently, and is thus done under a lock.
+/// This cannot be done concurrently, and is thus done under a lock. If the data
+/// is corrupt, we use the `default_view`. TODO: Make this more robust
 ///
 /// The state currently tracks only the local branches.
 fn with_last_seen_refs<Ret, Err, Err2: From<GitRefViewError> + From<Err>>(
     repo_path: PathBuf,
-    f: impl FnOnce(&GitRefView) -> Result<(GitRefView, Ret), Err>,
+    f: impl FnOnce(Option<GitRefView>) -> Result<(GitRefView, Ret), Err>,
 ) -> Result<Ret, Err2> {
     // TODO 1: It might be better to lock using a libgit2 lock or a git-native lock,
     // if feasible.
@@ -462,11 +491,9 @@ fn with_last_seen_refs<Ret, Err, Err2: From<GitRefViewError> + From<Err>>(
     // large degree.
     let lock = crate::lock::FileLock::lock(repo_path.join("git_refs.lock"));
     let last_seen_refs_path = repo_path.join("git_last_seen_refs");
-    let old_view = GitRefView::read_view_from_file(last_seen_refs_path.clone())
-        // TODO: Do different things on errors other than "not found"?
-        // Short-term TODO: the default is changed in a subsequent commit.
-        .unwrap_or(GitRefView::default());
-    let (new_view, ret) = f(&old_view)?;
+    // TODO: Do different things on errors other than "not found"?
+    let old_view = GitRefView::read_view_from_file(last_seen_refs_path.clone()).ok();
+    let (new_view, ret) = f(old_view)?;
     new_view.write_view_to_file(last_seen_refs_path)?;
     // TODO: Create a test that checks the lock lives long enough. I don't know if
     // removing the following line would break such a test.
