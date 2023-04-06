@@ -731,15 +731,9 @@ impl Index for MutableIndexImpl {
         &'index self,
         expression: &ResolvedExpression,
         store: &Arc<Store>,
-        visible_heads: &[CommitId],
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
-        let revset_impl = default_revset_engine::evaluate(
-            expression,
-            store,
-            self,
-            CompositeIndex(self),
-            visible_heads,
-        )?;
+        let revset_impl =
+            default_revset_engine::evaluate(expression, store, self, CompositeIndex(self))?;
         Ok(Box::new(revset_impl))
     }
 }
@@ -1819,15 +1813,9 @@ impl Index for ReadonlyIndexImpl {
         &'index self,
         expression: &ResolvedExpression,
         store: &Arc<Store>,
-        visible_heads: &[CommitId],
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
-        let revset_impl = default_revset_engine::evaluate(
-            expression,
-            store,
-            self,
-            CompositeIndex(self),
-            visible_heads,
-        )?;
+        let revset_impl =
+            default_revset_engine::evaluate(expression, store, self, CompositeIndex(self))?;
         Ok(Box::new(revset_impl))
     }
 }

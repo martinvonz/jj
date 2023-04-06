@@ -197,7 +197,7 @@ pub const GENERATION_RANGE_EMPTY: Range<u32> = 0..0;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RevsetCommitRef {
     Symbol(String),
-    // TODO: VisibleHeads
+    VisibleHeads,
     Branches(String),
     RemoteBranches {
         branch_needle: String,
@@ -248,7 +248,6 @@ pub enum RevsetExpression {
     },
     Heads(Rc<RevsetExpression>),
     Roots(Rc<RevsetExpression>),
-    VisibleHeads,
     Latest {
         candidates: Rc<RevsetExpression>,
         count: usize,
@@ -285,7 +284,7 @@ impl RevsetExpression {
     }
 
     pub fn visible_heads() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::VisibleHeads)
+        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::VisibleHeads))
     }
 
     pub fn branches(needle: String) -> Rc<RevsetExpression> {
@@ -482,7 +481,6 @@ pub enum ResolvedExpression {
     },
     Heads(Box<ResolvedExpression>),
     Roots(Box<ResolvedExpression>),
-    VisibleHeads, // TODO: should be substituted at resolve_visibility()
     Latest {
         candidates: Box<ResolvedExpression>,
         count: usize,
@@ -503,11 +501,7 @@ impl ResolvedExpression {
         &self,
         repo: &'index dyn Repo,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
-        repo.index().evaluate_revset(
-            self,
-            repo.store(),
-            &repo.view().heads().iter().cloned().collect_vec(),
-        )
+        repo.index().evaluate_revset(self, repo.store())
     }
 }
 
@@ -1262,7 +1256,6 @@ fn try_transform_expression<E>(
                 transform_rec_pair((roots, heads), pre, post)?
                     .map(|(roots, heads)| RevsetExpression::DagRange { roots, heads })
             }
-            RevsetExpression::VisibleHeads => None,
             RevsetExpression::Heads(candidates) => {
                 transform_rec(candidates, pre, post)?.map(RevsetExpression::Heads)
             }
@@ -1709,6 +1702,7 @@ fn resolve_commit_ref(
         RevsetCommitRef::Symbol(symbol) => {
             resolve_symbol(repo, symbol, workspace_ctx.map(|ctx| ctx.workspace_id))
         }
+        RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
         RevsetCommitRef::Branches(needle) => {
             let mut commit_ids = vec![];
             for (branch_name, branch_target) in repo.view().branches() {
@@ -1803,17 +1797,22 @@ fn resolve_symbols(
 /// commit ids to make `all()` include hidden-but-specified commits. The
 /// return type `ResolvedExpression` is stricter than `RevsetExpression`,
 /// and isn't designed for such transformation.
-fn resolve_visibility(_repo: &dyn Repo, expression: &RevsetExpression) -> ResolvedExpression {
-    let context = VisibilityResolutionContext {};
+fn resolve_visibility(repo: &dyn Repo, expression: &RevsetExpression) -> ResolvedExpression {
+    // If we add "operation" scope (#1283), visible_heads might be translated to
+    // `RevsetExpression::WithinOperation(visible_heads, expression)` node to
+    // evaluate filter predicates and "all()" against that scope.
+    let context = VisibilityResolutionContext {
+        visible_heads: &repo.view().heads().iter().cloned().collect_vec(),
+    };
     context.resolve(expression)
 }
 
 #[derive(Clone, Debug)]
-struct VisibilityResolutionContext {
-    // TODO: visible_heads
+struct VisibilityResolutionContext<'a> {
+    visible_heads: &'a [CommitId],
 }
 
-impl VisibilityResolutionContext {
+impl VisibilityResolutionContext<'_> {
     /// Resolves expression tree as set.
     fn resolve(&self, expression: &RevsetExpression) -> ResolvedExpression {
         match expression {
@@ -1852,7 +1851,6 @@ impl VisibilityResolutionContext {
             RevsetExpression::Roots(candidates) => {
                 ResolvedExpression::Roots(self.resolve(candidates).into())
             }
-            RevsetExpression::VisibleHeads => self.resolve_visible_heads(),
             RevsetExpression::Latest { candidates, count } => ResolvedExpression::Latest {
                 candidates: self.resolve(candidates).into(),
                 count: *count,
@@ -1914,7 +1912,7 @@ impl VisibilityResolutionContext {
     }
 
     fn resolve_visible_heads(&self) -> ResolvedExpression {
-        ResolvedExpression::VisibleHeads
+        ResolvedExpression::Commits(self.visible_heads.to_owned())
     }
 
     /// Resolves expression tree as filter predicate.
@@ -1933,7 +1931,6 @@ impl VisibilityResolutionContext {
             | RevsetExpression::DagRange { .. }
             | RevsetExpression::Heads(_)
             | RevsetExpression::Roots(_)
-            | RevsetExpression::VisibleHeads
             | RevsetExpression::Latest { .. } => {
                 ResolvedPredicateExpression::Set(self.resolve(expression).into())
             }
@@ -2982,7 +2979,9 @@ mod tests {
                     "foo",
                 ),
             ),
-            heads: VisibleHeads,
+            heads: CommitRef(
+                VisibleHeads,
+            ),
             generation: 0..4294967295,
         }
         "###);

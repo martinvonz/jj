@@ -549,26 +549,23 @@ pub fn evaluate<'index>(
     store: &Arc<Store>,
     index: &'index dyn Index,
     composite_index: CompositeIndex<'index>,
-    visible_heads: &[CommitId],
 ) -> Result<RevsetImpl<'index>, RevsetEvaluationError> {
     let context = EvaluationContext {
         store: store.clone(),
         index,
         composite_index: composite_index.clone(),
-        visible_heads,
     };
     let internal_revset = context.evaluate(expression)?;
     Ok(RevsetImpl::new(internal_revset, composite_index))
 }
 
-struct EvaluationContext<'index, 'heads> {
+struct EvaluationContext<'index> {
     store: Arc<Store>,
     index: &'index dyn Index,
     composite_index: CompositeIndex<'index>,
-    visible_heads: &'heads [CommitId],
 }
 
-impl<'index, 'heads> EvaluationContext<'index, 'heads> {
+impl<'index> EvaluationContext<'index> {
     fn evaluate(
         &self,
         expression: &ResolvedExpression,
@@ -629,9 +626,6 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 let head_set = self.evaluate(heads)?;
                 let (dag_range_set, _) = self.collect_dag_range(&*root_set, &*head_set);
                 Ok(Box::new(dag_range_set))
-            }
-            ResolvedExpression::VisibleHeads => {
-                Ok(Box::new(self.revset_for_commit_ids(self.visible_heads)))
             }
             ResolvedExpression::Heads(candidates) => {
                 let candidate_set = self.evaluate(candidates)?;
