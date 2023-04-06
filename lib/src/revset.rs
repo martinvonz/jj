@@ -460,7 +460,6 @@ pub enum ResolvedPredicateExpression {
 /// Use `RevsetExpression` API to build a query programmatically.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResolvedExpression {
-    All, // TODO: should be substituted at resolve_visibility()
     Commits(Vec<CommitId>),
     Children {
         roots: Box<ResolvedExpression>,
@@ -1901,7 +1900,17 @@ impl VisibilityResolutionContext {
     }
 
     fn resolve_all(&self) -> ResolvedExpression {
-        ResolvedExpression::All
+        // Since `all()` does not include hidden commits, some of the logical
+        // transformation rules may subtly change the evaluated set. For example,
+        // `all() & x` is not `x` if `x` is hidden. This wouldn't matter in practice,
+        // but if it does, the heads set could be extended to include the commits
+        // (and `remote_branches()`) specified in the revset expression. Alternatively,
+        // some optimization rules could be removed, but that means `author(_) & x`
+        // would have to test `:visble_heads() & x`.
+        ResolvedExpression::Ancestors {
+            heads: self.resolve_visible_heads().into(),
+            generation: GENERATION_RANGE_FULL,
+        }
     }
 
     fn resolve_visible_heads(&self) -> ResolvedExpression {
