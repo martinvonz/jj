@@ -76,7 +76,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3
-    - uses: EmbarkStudios/cargo-deny-action@8af37f5d0c77859223226de776036f7f691e1469
+    - uses: EmbarkStudios/cargo-deny-action@3d26fd4e2adf837aee64b12f86d4dabb799fcfa2
       with:
         command: check ${{ matrix.checks }}
 
