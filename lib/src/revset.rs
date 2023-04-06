@@ -460,7 +460,6 @@ pub enum ResolvedPredicateExpression {
 /// Use `RevsetExpression` API to build a query programmatically.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResolvedExpression {
-    None,
     All, // TODO: should be substituted at resolve_visibility()
     Commits(Vec<CommitId>),
     Children(Box<ResolvedExpression>), // TODO: add heads: VisibleHeads
@@ -1816,7 +1815,7 @@ impl VisibilityResolutionContext {
     /// Resolves expression tree as set.
     fn resolve(&self, expression: &RevsetExpression) -> ResolvedExpression {
         match expression {
-            RevsetExpression::None => ResolvedExpression::None,
+            RevsetExpression::None => ResolvedExpression::Commits(vec![]),
             RevsetExpression::All => self.resolve_all(),
             RevsetExpression::Commits(commit_ids) => {
                 ResolvedExpression::Commits(commit_ids.clone())
