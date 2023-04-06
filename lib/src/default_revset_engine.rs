@@ -825,9 +825,14 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
         S: InternalRevset<'a> + ?Sized,
         T: InternalRevset<'b> + ?Sized,
     {
-        let mut reachable: HashSet<_> = root_set.iter().map(|entry| entry.position()).collect();
+        let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
+        let bottom_position = *root_positions.last().unwrap_or(&IndexPosition::MAX);
+        let mut reachable: HashSet<_> = root_positions.into_iter().collect();
         let mut index_entries = vec![];
-        let candidates = self.walk_ancestors(head_set).collect_vec();
+        let candidates = self
+            .walk_ancestors(head_set)
+            .take_while(|entry| entry.position() >= bottom_position)
+            .collect_vec();
         for candidate in candidates.into_iter().rev() {
             if reachable.contains(&candidate.position())
                 || candidate
