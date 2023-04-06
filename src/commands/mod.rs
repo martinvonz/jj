@@ -3181,14 +3181,33 @@ fn cmd_debug_revset(
     args: &DebugRevsetArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let expression = workspace_command.parse_revset(&args.revision)?;
-    writeln!(ui, "-- Expression:")?;
+    let workspace_ctx = workspace_command.revset_context();
+    let repo = workspace_command.repo().as_ref();
+
+    let expression = revset::parse(
+        &args.revision,
+        workspace_command.revset_aliases_map(),
+        Some(&workspace_ctx),
+    )?;
+    writeln!(ui, "-- Parsed:")?;
     writeln!(ui, "{expression:#?}")?;
     writeln!(ui)?;
-    let revset = workspace_command.evaluate_revset(expression)?;
+
+    let expression = revset::optimize(expression);
+    writeln!(ui, "-- Optimized:")?;
+    writeln!(ui, "{expression:#?}")?;
+    writeln!(ui)?;
+
+    let expression = revset::resolve_symbols(repo, expression, Some(&workspace_ctx))?;
+    writeln!(ui, "-- Resolved:")?;
+    writeln!(ui, "{expression:#?}")?;
+    writeln!(ui)?;
+
+    let revset = expression.evaluate(repo)?;
     writeln!(ui, "-- Evaluated:")?;
     writeln!(ui, "{revset:#?}")?;
     writeln!(ui)?;
+
     writeln!(ui, "-- Commit IDs:")?;
     for commit_id in revset.iter() {
         writeln!(ui, "{}", commit_id.hex())?;

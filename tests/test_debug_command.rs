@@ -30,8 +30,18 @@ fn test_debug_revset() {
         (r"(?m)(^    .*\n)+", "    ..\n"),
     ]}, {
         assert_snapshot!(stdout, @r###"
-        -- Expression:
+        -- Parsed:
         Symbol(
+            ..
+        )
+
+        -- Optimized:
+        Symbol(
+            ..
+        )
+
+        -- Resolved:
+        Commits(
             ..
         )
 
