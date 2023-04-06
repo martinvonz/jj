@@ -72,7 +72,6 @@ pub trait Index: Send + Sync {
         &'index self,
         expression: &ResolvedExpression,
         store: &Arc<Store>,
-        visible_heads: &[CommitId],
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError>;
 }
 

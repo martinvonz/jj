@@ -29,14 +29,7 @@ fn revset_for_commits<'index>(repo: &'index dyn Repo, commits: &[&Commit]) -> Re
         .unwrap();
     let expression =
         ResolvedExpression::Commits(commits.iter().map(|commit| commit.id().clone()).collect());
-    evaluate(
-        &expression,
-        repo.store(),
-        index,
-        index.as_composite(),
-        &repo.view().heads().iter().cloned().collect_vec(),
-    )
-    .unwrap()
+    evaluate(&expression, repo.store(), index, index.as_composite()).unwrap()
 }
 
 fn direct(commit: &Commit) -> RevsetGraphEdge {
