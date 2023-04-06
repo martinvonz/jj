@@ -881,7 +881,11 @@ impl WorkspaceCommandHelper {
         Ok(revset_expression.evaluate(self.repo.as_ref())?)
     }
 
-    fn revset_context(&self) -> RevsetWorkspaceContext {
+    pub(crate) fn revset_aliases_map(&self) -> &RevsetAliasesMap {
+        &self.revset_aliases_map
+    }
+
+    pub(crate) fn revset_context(&self) -> RevsetWorkspaceContext {
         RevsetWorkspaceContext {
             cwd: &self.cwd,
             workspace_id: self.workspace_id(),
