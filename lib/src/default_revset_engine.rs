@@ -674,25 +674,8 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
             RevsetExpression::DagRange { roots, heads } => {
                 let root_set = self.evaluate(roots)?;
                 let head_set = self.evaluate(heads)?;
-                let mut reachable: HashSet<_> =
-                    root_set.iter().map(|entry| entry.position()).collect();
-                let mut result = vec![];
-                let candidates = self.walk_ancestors(&*head_set).collect_vec();
-                for candidate in candidates.into_iter().rev() {
-                    if reachable.contains(&candidate.position())
-                        || candidate
-                            .parent_positions()
-                            .iter()
-                            .any(|parent_pos| reachable.contains(parent_pos))
-                    {
-                        reachable.insert(candidate.position());
-                        result.push(candidate);
-                    }
-                }
-                result.reverse();
-                Ok(Box::new(EagerRevset {
-                    index_entries: result,
-                }))
+                let (dag_range_set, _) = self.collect_dag_range(&*root_set, &*head_set);
+                Ok(Box::new(dag_range_set))
             }
             RevsetExpression::VisibleHeads => Ok(self.revset_for_commit_ids(self.visible_heads)),
             RevsetExpression::Heads(candidates) => {
@@ -826,6 +809,38 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
     {
         let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
         self.composite_index.walk_revs(&head_ids, &[])
+    }
+
+    /// Calculates `root_set:head_set`.
+    ///
+    /// The returned `HashSet` contains all `root_set` positions no matter if
+    /// the entry isn't an ancestor of the `head_set`. The `EagerRevset`
+    /// only contains entries reachable from the `head_set`.
+    fn collect_dag_range<'a, 'b, S, T>(
+        &self,
+        root_set: &S,
+        head_set: &T,
+    ) -> (EagerRevset<'index>, HashSet<IndexPosition>)
+    where
+        S: InternalRevset<'a> + ?Sized,
+        T: InternalRevset<'b> + ?Sized,
+    {
+        let mut reachable: HashSet<_> = root_set.iter().map(|entry| entry.position()).collect();
+        let mut index_entries = vec![];
+        let candidates = self.walk_ancestors(head_set).collect_vec();
+        for candidate in candidates.into_iter().rev() {
+            if reachable.contains(&candidate.position())
+                || candidate
+                    .parent_positions()
+                    .iter()
+                    .any(|parent_pos| reachable.contains(parent_pos))
+            {
+                reachable.insert(candidate.position());
+                index_entries.push(candidate);
+            }
+        }
+        index_entries.reverse();
+        (EagerRevset { index_entries }, reachable)
     }
 
     fn revset_for_commit_ids(
