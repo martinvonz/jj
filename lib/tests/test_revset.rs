@@ -976,6 +976,30 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
         vec![]
     );
 
+    // Empty root
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("none():{}", commit5.id().hex())),
+        vec![],
+    );
+
+    // Multiple root, commit1 shouldn't be hidden by commit2
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!(
+                "({}|{}):{}",
+                commit1.id().hex(),
+                commit2.id().hex(),
+                commit3.id().hex()
+            )
+        ),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone()
+        ]
+    );
+
     // Including a merge
     assert_eq!(
         resolve_commit_ids(
