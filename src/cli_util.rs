@@ -1860,11 +1860,7 @@ pub fn short_operation_hash(operation_id: &OperationId) -> String {
 ///
 /// To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
 #[derive(clap::Parser, Clone, Debug)]
-#[command(
-    name = "jj",
-    author = "Martin von Zweigbergk <martinvonz@google.com>",
-    version
-)]
+#[command(name = "jj", author = "Martin von Zweigbergk <martinvonz@google.com>")]
 pub struct Args {
     #[command(flatten)]
     pub global_args: GlobalArgs,
