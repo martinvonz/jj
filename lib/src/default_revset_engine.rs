@@ -285,45 +285,6 @@ fn predicate_fn_from_iter<'index, 'iter>(
 }
 
 #[derive(Debug)]
-struct ChildrenRevset<'index> {
-    // The revisions we want to find children for
-    root_set: Box<dyn InternalRevset<'index> + 'index>,
-    // Consider only candidates from this set
-    candidate_set: Box<dyn InternalRevset<'index> + 'index>,
-}
-
-impl<'index> InternalRevset<'index> for ChildrenRevset<'index> {
-    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
-        let roots: HashSet<_> = self
-            .root_set
-            .iter()
-            .map(|parent| parent.position())
-            .collect();
-
-        Box::new(self.candidate_set.iter().filter(move |candidate| {
-            candidate
-                .parent_positions()
-                .iter()
-                .any(|parent_pos| roots.contains(parent_pos))
-        }))
-    }
-
-    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
-    where
-        Self: 'a,
-    {
-        self
-    }
-}
-
-impl ToPredicateFn for ChildrenRevset<'_> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        // TODO: can be optimized if candidate_set contains all heads
-        predicate_fn_from_iter(self.iter())
-    }
-}
-
-#[derive(Debug)]
 struct FilterRevset<'index, P> {
     candidates: Box<dyn InternalRevset<'index> + 'index>,
     predicate: P,
@@ -639,11 +600,20 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
             }
             RevsetExpression::Children(roots) => {
                 let root_set = self.evaluate(roots)?;
-                let candidates_expression = roots.descendants();
-                let candidate_set = self.evaluate(&candidates_expression)?;
-                Ok(Box::new(ChildrenRevset {
-                    root_set,
-                    candidate_set,
+                let head_set = self.revset_for_commit_ids(self.visible_heads);
+                let (walk, root_positions) = self.walk_ancestors_until_roots(&*root_set, &head_set);
+                let roots: HashSet<_> = root_positions.into_iter().collect();
+                let candidates = Box::new(RevWalkRevset { walk });
+                let predicate = pure_predicate_fn(move |entry| {
+                    entry
+                        .parent_positions()
+                        .iter()
+                        .any(|parent_pos| roots.contains(parent_pos))
+                });
+                // TODO: ToPredicateFn version can be optimized to only test the predicate()
+                Ok(Box::new(FilterRevset {
+                    candidates,
+                    predicate,
                 }))
             }
             RevsetExpression::Ancestors { heads, generation } => {
@@ -818,6 +788,29 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
         self.composite_index.walk_revs(&head_ids, &[])
     }
 
+    fn walk_ancestors_until_roots<'a, 'b, S, T>(
+        &self,
+        root_set: &S,
+        head_set: &T,
+    ) -> (
+        impl Iterator<Item = IndexEntry<'index>> + Clone,
+        Vec<IndexPosition>,
+    )
+    where
+        S: InternalRevset<'a> + ?Sized,
+        T: InternalRevset<'b> + ?Sized,
+    {
+        // We can also make RevWalk stop visiting based on the generation number. Maybe
+        // it will perform better for unbalanced branchy history.
+        // https://github.com/martinvonz/jj/pull/1492#discussion_r1160678325
+        let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
+        let bottom_position = *root_positions.last().unwrap_or(&IndexPosition::MAX);
+        let walk = self
+            .walk_ancestors(head_set)
+            .take_while(move |entry| entry.position() >= bottom_position);
+        (walk, root_positions)
+    }
+
     /// Calculates `root_set:head_set`.
     ///
     /// The returned `HashSet` contains all `root_set` positions no matter if
@@ -832,15 +825,10 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
         S: InternalRevset<'a> + ?Sized,
         T: InternalRevset<'b> + ?Sized,
     {
-        let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
-        let bottom_position = *root_positions.last().unwrap_or(&IndexPosition::MAX);
+        let (walk, root_positions) = self.walk_ancestors_until_roots(root_set, head_set);
         let mut reachable: HashSet<_> = root_positions.into_iter().collect();
         let mut index_entries = vec![];
-        let candidates = self
-            .walk_ancestors(head_set)
-            .take_while(|entry| entry.position() >= bottom_position)
-            .collect_vec();
-        for candidate in candidates.into_iter().rev() {
+        for candidate in walk.collect_vec().into_iter().rev() {
             if reachable.contains(&candidate.position())
                 || candidate
                     .parent_positions()
