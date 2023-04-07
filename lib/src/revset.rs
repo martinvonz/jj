@@ -421,6 +421,21 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Difference(self.clone(), other.clone()))
     }
 
+    pub fn resolve(
+        self: Rc<Self>,
+        repo: &dyn Repo,
+    ) -> Result<Rc<RevsetExpression>, RevsetResolutionError> {
+        resolve_symbols(repo, self, None)
+    }
+
+    pub fn resolve_in_workspace(
+        self: Rc<Self>,
+        repo: &dyn Repo,
+        workspace_ctx: &RevsetWorkspaceContext,
+    ) -> Result<Rc<RevsetExpression>, RevsetResolutionError> {
+        resolve_symbols(repo, self, Some(workspace_ctx))
+    }
+
     pub fn evaluate<'index>(
         &self,
         repo: &'index dyn Repo,
@@ -1687,7 +1702,7 @@ fn resolve_commit_ref(
 // TODO: Maybe return a new type (RevsetParameters?) instead of
 // RevsetExpression. Then pass that to evaluate(), so it's clear which variants
 // are allowed.
-pub fn resolve_symbols(
+fn resolve_symbols(
     repo: &dyn Repo,
     expression: Rc<RevsetExpression>,
     workspace_ctx: Option<&RevsetWorkspaceContext>,

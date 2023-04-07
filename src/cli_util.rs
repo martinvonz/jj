@@ -44,9 +44,8 @@ use jujutsu_lib::repo::{
 };
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
-    resolve_symbols, Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression,
-    RevsetIteratorExt, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
-    RevsetWorkspaceContext,
+    Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression, RevsetIteratorExt,
+    RevsetParseError, RevsetParseErrorKind, RevsetResolutionError, RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::transaction::Transaction;
@@ -873,11 +872,8 @@ impl WorkspaceCommandHelper {
         &'repo self,
         revset_expression: Rc<RevsetExpression>,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, CommandError> {
-        let revset_expression = resolve_symbols(
-            self.repo.as_ref(),
-            revset_expression,
-            Some(&self.revset_context()),
-        )?;
+        let revset_expression =
+            revset_expression.resolve_in_workspace(self.repo.as_ref(), &self.revset_context())?;
         Ok(revset_expression.evaluate(self.repo.as_ref())?)
     }
 
