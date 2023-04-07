@@ -634,7 +634,9 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 let walk = self.composite_index.walk_revs(self.visible_heads, &[]);
                 Ok(Box::new(RevWalkRevset { walk }))
             }
-            RevsetExpression::Commits(commit_ids) => Ok(self.revset_for_commit_ids(commit_ids)),
+            RevsetExpression::Commits(commit_ids) => {
+                Ok(Box::new(self.revset_for_commit_ids(commit_ids)))
+            }
             RevsetExpression::Children(roots) => {
                 let root_set = self.evaluate(roots)?;
                 let candidates_expression = roots.descendants();
@@ -677,15 +679,18 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                 let (dag_range_set, _) = self.collect_dag_range(&*root_set, &*head_set);
                 Ok(Box::new(dag_range_set))
             }
-            RevsetExpression::VisibleHeads => Ok(self.revset_for_commit_ids(self.visible_heads)),
+            RevsetExpression::VisibleHeads => {
+                Ok(Box::new(self.revset_for_commit_ids(self.visible_heads)))
+            }
             RevsetExpression::Heads(candidates) => {
                 let candidate_set = self.evaluate(candidates)?;
                 let candidate_ids = candidate_set
                     .iter()
                     .map(|entry| entry.commit_id())
                     .collect_vec();
-                Ok(self
-                    .revset_for_commit_ids(&self.composite_index.heads(&mut candidate_ids.iter())))
+                Ok(Box::new(self.revset_for_commit_ids(
+                    &self.composite_index.heads(&mut candidate_ids.iter()),
+                )))
             }
             RevsetExpression::Roots(candidates) => {
                 let candidate_set = EagerRevset {
@@ -706,7 +711,9 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
             }
             RevsetExpression::Latest { candidates, count } => {
                 let candidate_set = self.evaluate(candidates)?;
-                Ok(self.take_latest_revset(candidate_set.as_ref(), *count))
+                Ok(Box::new(
+                    self.take_latest_revset(candidate_set.as_ref(), *count),
+                ))
             }
             RevsetExpression::Filter(_) | RevsetExpression::AsFilter(_) => {
                 // Top-level filter without intersection: e.g. "~author(_)" is represented as
@@ -848,26 +855,23 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
         (EagerRevset { index_entries }, reachable)
     }
 
-    fn revset_for_commit_ids(
-        &self,
-        commit_ids: &[CommitId],
-    ) -> Box<dyn InternalRevset<'index> + 'index> {
+    fn revset_for_commit_ids(&self, commit_ids: &[CommitId]) -> EagerRevset<'index> {
         let mut index_entries = vec![];
         for id in commit_ids {
             index_entries.push(self.composite_index.entry_by_id(id).unwrap());
         }
         index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
         index_entries.dedup();
-        Box::new(EagerRevset { index_entries })
+        EagerRevset { index_entries }
     }
 
     fn take_latest_revset(
         &self,
         candidate_set: &dyn InternalRevset<'index>,
         count: usize,
-    ) -> Box<dyn InternalRevset<'index> + 'index> {
+    ) -> EagerRevset<'index> {
         if count == 0 {
-            return Box::new(EagerRevset::empty());
+            return EagerRevset::empty();
         }
 
         #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
@@ -902,7 +906,7 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
             .map(|item| item.0.entry.0)
             .collect_vec();
         index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
-        Box::new(EagerRevset { index_entries })
+        EagerRevset { index_entries }
     }
 }
 
