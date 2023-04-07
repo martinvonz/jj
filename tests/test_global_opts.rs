@@ -55,9 +55,12 @@ fn test_no_subcommand() {
     insta::assert_snapshot!(stderr.lines().next().unwrap(), @"error: 'jj' requires a subcommand but one was not provided");
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--version"]);
-    insta::assert_snapshot!(stdout.replace(|c: char| c.is_ascii_digit(), "?"), @r###"
-    jj ?.?.?
-    "###);
+    let sanitized = stdout.replace(|c: char| c.is_ascii_hexdigit(), "?");
+    assert!(
+        sanitized == "jj ?.?.?\n"
+            || sanitized == "jj ?.?.?-????????????????????????????????????????\n",
+        "{sanitized}"
+    );
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--help"]);
     insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Jujutsu (An experimental VCS)");
