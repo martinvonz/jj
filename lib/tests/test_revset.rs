@@ -24,9 +24,9 @@ use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    optimize, parse, resolve_symbol, resolve_symbols, ReverseRevsetGraphIterator, Revset,
-    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
-    RevsetResolutionError, RevsetWorkspaceContext,
+    optimize, parse, resolve_symbol, ReverseRevsetGraphIterator, Revset, RevsetAliasesMap,
+    RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge, RevsetResolutionError,
+    RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::tree::merge_trees;
@@ -41,6 +41,8 @@ fn revset_for_commits<'index>(
     commits: &[&Commit],
 ) -> Box<dyn Revset<'index> + 'index> {
     RevsetExpression::commits(commits.iter().map(|commit| commit.id().clone()).collect())
+        .resolve(repo)
+        .unwrap()
         .evaluate(repo)
         .unwrap()
 }
@@ -172,7 +174,7 @@ fn test_resolve_symbol_commit_id() {
     // Test present() suppresses only NoSuchRevision error
     assert_eq!(resolve_commit_ids(repo.as_ref(), "present(foo)"), []);
     assert_matches!(
-        resolve_symbols(repo.as_ref(), optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap()), None),
+        optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap()).resolve(repo.as_ref()),
         Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s == "04"
     );
     assert_eq!(
@@ -502,7 +504,7 @@ fn test_resolve_symbol_git_refs() {
 
 fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let expression = optimize(parse(revset_str, &RevsetAliasesMap::new(), None).unwrap());
-    let expression = resolve_symbols(repo, expression, None).unwrap();
+    let expression = expression.resolve(repo).unwrap();
     expression.evaluate(repo).unwrap().iter().collect()
 }
 
@@ -519,7 +521,9 @@ fn resolve_commit_ids_in_workspace(
     };
     let expression =
         optimize(parse(revset_str, &RevsetAliasesMap::new(), Some(&workspace_ctx)).unwrap());
-    let expression = resolve_symbols(repo, expression, Some(&workspace_ctx)).unwrap();
+    let expression = expression
+        .resolve_in_workspace(repo, &workspace_ctx)
+        .unwrap();
     expression.evaluate(repo).unwrap().iter().collect()
 }
 
@@ -2125,7 +2129,11 @@ fn test_evaluate_expression_file(use_git: bool) {
         let mut_repo = &*mut_repo;
         let expression =
             RevsetExpression::filter(RevsetFilterPredicate::File(Some(vec![file_path.clone()])));
-        let revset = expression.evaluate(mut_repo).unwrap();
+        let revset = expression
+            .resolve(mut_repo)
+            .unwrap()
+            .evaluate(mut_repo)
+            .unwrap();
         revset.iter().collect()
     };
 
