@@ -688,8 +688,10 @@ impl<'index, 'heads> EvaluationContext<'index, 'heads> {
                     .revset_for_commit_ids(&self.composite_index.heads(&mut candidate_ids.iter())))
             }
             RevsetExpression::Roots(candidates) => {
-                let candidate_set = self.evaluate(candidates)?;
-                let (_, filled) = self.collect_dag_range(&*candidate_set, &*candidate_set);
+                let candidate_set = EagerRevset {
+                    index_entries: self.evaluate(candidates)?.iter().collect(),
+                };
+                let (_, filled) = self.collect_dag_range(&candidate_set, &candidate_set);
                 let mut index_entries = vec![];
                 for candidate in candidate_set.iter() {
                     if !candidate
