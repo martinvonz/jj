@@ -803,6 +803,9 @@ fn test_evaluate_expression_children(use_git: bool) {
         ),
         vec![commit5.id().clone()]
     );
+
+    // Empty root
+    assert_eq!(resolve_commit_ids(mut_repo, "none()+"), vec![]);
 }
 
 #[test_case(false ; "local backend")]
