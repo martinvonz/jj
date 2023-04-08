@@ -372,6 +372,7 @@ fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigErr
 
 fn color_for_name(color_name: &str) -> Result<Color, config::ConfigError> {
     match color_name {
+        "default" => Ok(Color::Reset),
         "black" => Ok(Color::Black),
         "red" => Ok(Color::DarkRed),
         "green" => Ok(Color::DarkGreen),
@@ -859,6 +860,36 @@ mod tests {
             .to_string();
         insta::assert_snapshot!(err,
         @"invalid color: bloo");
+    }
+
+    #[test]
+    fn test_color_formatter_normal_color() {
+        // The "default" color resets the color. It is possible to reset only the
+        // background or only the foreground.
+        let config = config_from_string(
+            r#"
+        colors."outer" = {bg="yellow", fg="blue"}
+        colors."outer default_fg" = "default"
+        colors."outer default_bg" = {bg = "default"}
+        "#,
+        );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
+        formatter.push_label("outer").unwrap();
+        formatter.write_str("Blue on yellow, ").unwrap();
+        formatter.push_label("default_fg").unwrap();
+        formatter.write_str(" default fg, ").unwrap();
+        formatter.pop_label().unwrap();
+        formatter.write_str(" and back.\nBlue on yellow, ").unwrap();
+        formatter.push_label("default_bg").unwrap();
+        formatter.write_str(" default bg, ").unwrap();
+        formatter.pop_label().unwrap();
+        formatter.write_str(" and back.").unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(),
+        @r###"
+        [38;5;4m[48;5;3mBlue on yellow, [39m default fg, [38;5;4m and back.[39m[49m
+        [38;5;4m[48;5;3mBlue on yellow, [49m default bg, [48;5;3m and back.
+        "###);
     }
 
     #[test]

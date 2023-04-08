@@ -92,8 +92,11 @@ The following colors are available:
 * magenta
 * cyan
 * white
+* default
 
-They each come in a bright version too, e.g. "bright red".
+All of them but "default" come in a bright version too, e.g. "bright red". The
+"default" color can be used to override a color defined by a parent style
+(explained below).
 
 If you use a string value for a color, as in the example above, it will be used
 for the foreground color. You can also set the background color, or make the
