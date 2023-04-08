@@ -39,6 +39,7 @@ fn get_git_hash() -> Option<String> {
     if let Ok(output) = Command::new("jj")
         .args([
             "--ignore-working-copy",
+            "--color=never",
             "log",
             "--no-graph",
             "-r=@-",
