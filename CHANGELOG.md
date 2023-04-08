@@ -75,6 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The formatter now supports a "default" color that can override another color
   defined by a parent style.
 
+* `jj obslog` and `jj log` now show abandoned commits as hidden.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines

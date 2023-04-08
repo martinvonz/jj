@@ -161,6 +161,7 @@
                         "git_refs",
                         "is_git_head",
                         "divergent",
+                        "hidden",
                         "conflict"
                     ]
                 }

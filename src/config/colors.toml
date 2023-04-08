@@ -14,6 +14,10 @@
 "rest" = "bright black"
 "divergent rest" = "red"
 "divergent prefix" = {fg = "red", underline=true}
+"hidden prefix" = "default"
+"divergent hidden" = {fg = "default", bold = true}
+"divergent hidden prefix" = {fg = "default", underline = false}
+"divergent hidden rest" = {fg ="bright black", bold = false}
 
 "email" = "yellow"
 "timestamp" = "cyan"
@@ -41,7 +45,7 @@
 "working_copy tags" = "bright magenta"
 "working_copy git_refs" = "bright magenta"
 "working_copy divergent" =  "bright red"
-"working_copy divergent change_id"="bright red"
+"working_copy divergent change_id" = "bright red"
 "working_copy conflict" = "bright red"
 "working_copy empty" = "bright green"
 "diff header" = "yellow"

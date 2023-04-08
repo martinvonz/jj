@@ -10,9 +10,11 @@ log = '''
 label(if(current_working_copy, "working_copy"),
   concat(
     separate(" ",
-      if(divergent,
-        label("divergent", format_short_change_id(change_id) ++ "??"),
-        format_short_change_id(change_id)),
+      label(
+        separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
+        separate(" ",
+          format_short_change_id(change_id) ++ if(divergent, "??"),
+          if(hidden, "hidden"))),
       format_short_signature(author),
       format_timestamp(committer.timestamp()),
       branches,

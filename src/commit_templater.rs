@@ -248,6 +248,10 @@ fn build_commit_keyword_opt<'repo>(
             let maybe_entries = repo.resolve_change_id(commit.change_id());
             maybe_entries.map_or(0, |entries| entries.len()) > 1
         })),
+        "hidden" => language.wrap_boolean(wrap_fn(property, |commit| {
+            let maybe_entries = repo.resolve_change_id(commit.change_id());
+            maybe_entries.map_or(true, |entries| !entries.contains(commit.id()))
+        })),
         "conflict" => {
             language.wrap_boolean(wrap_fn(property, |commit| commit.tree().has_conflict()))
         }
