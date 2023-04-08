@@ -45,18 +45,6 @@ fn test_op_log() {
     ◉  56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
        initialize repo
     "###);
-    // Test op log with relative dates
-    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
-    let regex = Regex::new(r"\d\d years").unwrap();
-    insta::assert_snapshot!(regex.replace_all(&stdout, "NN years"), @r###"
-    @  45108169c0f8 test-username@host.example.com NN years ago, lasted less than a microsecond
-    │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    │  args: jj describe -m 'description 0'
-    ◉  a99a3fd5c51e test-username@host.example.com NN years ago, lasted less than a microsecond
-    │  add workspace 'default'
-    ◉  56b94dfc38e7 test-username@host.example.com NN years ago, lasted less than a microsecond
-       initialize repo
-    "###);
     let add_workspace_id = "a99a3fd5c51e";
     let initialize_repo_id = "56b94dfc38e7";
 
@@ -145,6 +133,23 @@ fn test_op_log_template() {
     @  a99a3 true test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
     ◉  56b94 false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
     "###);
+    // Test the default template, i.e. with relative start time and duration. We
+    // don't generally use that template because it depends on the current time,
+    // so we need to reset the time range format here.
+    test_env.add_config(
+        r#"
+[template-aliases]
+'format_time_range(time_range)' = 'time_range.start().ago() ++ ", lasted " ++ time_range.duration()'
+        "#,
+    );
+    let regex = Regex::new(r"\d\d years").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
+    insta::assert_snapshot!(regex.replace_all(&stdout, "NN years"), @r###"
+    @  a99a3fd5c51e test-username@host.example.com NN years ago, lasted less than a microsecond
+    │  add workspace 'default'
+    ◉  56b94dfc38e7 test-username@host.example.com NN years ago, lasted less than a microsecond
+       initialize repo
+    "###);
 }
 
 #[test]
@@ -168,21 +173,21 @@ fn test_op_log_word_wrap() {
 
     // ui.log-word-wrap option works
     insta::assert_snapshot!(render(&["op", "log"], 40, false), @r###"
-    @  a99a3fd5c51e test-username@host.example.com 22 years ago, lasted less than a microsecond
+    @  a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  56b94dfc38e7 test-username@host.example.com 22 years ago, lasted less than a microsecond
+    ◉  56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
        initialize repo
     "###);
     insta::assert_snapshot!(render(&["op", "log"], 40, true), @r###"
     @  a99a3fd5c51e
-    │  test-username@host.example.com 22
-    │  years ago, lasted less than a
-    │  microsecond
+    │  test-username@host.example.com
+    │  2001-02-03 04:05:07.000 +07:00 -
+    │  2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
     ◉  56b94dfc38e7
-       test-username@host.example.com 22
-       years ago, lasted less than a
-       microsecond
+       test-username@host.example.com
+       2001-02-03 04:05:07.000 +07:00 -
+       2001-02-03 04:05:07.000 +07:00
        initialize repo
     "###);
 }

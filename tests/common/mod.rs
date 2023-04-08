@@ -41,7 +41,7 @@ impl Default for TestEnvironment {
         let config_dir = env_root.join("config");
         std::fs::create_dir(&config_dir).unwrap();
         let env_vars = HashMap::new();
-        Self {
+        let env = Self {
             _temp_dir: tmp_dir,
             env_root,
             home_dir,
@@ -49,7 +49,16 @@ impl Default for TestEnvironment {
             env_vars,
             config_file_number: RefCell::new(0),
             command_number: RefCell::new(0),
-        }
+        };
+        // Use absolute timestamps in the operation log to make tests independent of the
+        // current time.
+        env.add_config(
+            r#"
+[template-aliases]
+'format_time_range(time_range)' = 'time_range.start() ++ " - " ++ time_range.end()'
+        "#,
+        );
+        env
     }
 }
 
