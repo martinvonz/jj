@@ -215,6 +215,7 @@ impl Style {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct ColorFormatter<W> {
     output: W,
     rules: Arc<Rules>,
@@ -332,7 +333,7 @@ fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigErr
         match value.kind {
             config::ValueKind::String(color_name) => {
                 let style = Style {
-                    fg_color: color_for_name(&color_name),
+                    fg_color: Some(color_for_name(&color_name)?),
                     bg_color: None,
                     bold: None,
                     underlined: None,
@@ -343,12 +344,12 @@ fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigErr
                 let mut style = Style::default();
                 if let Some(value) = style_table.get("fg") {
                     if let config::ValueKind::String(color_name) = &value.kind {
-                        style.fg_color = color_for_name(color_name);
+                        style.fg_color = Some(color_for_name(color_name)?);
                     }
                 }
                 if let Some(value) = style_table.get("bg") {
                     if let config::ValueKind::String(color_name) = &value.kind {
-                        style.bg_color = color_for_name(color_name);
+                        style.bg_color = Some(color_for_name(color_name)?);
                     }
                 }
                 if let Some(value) = style_table.get("bold") {
@@ -369,25 +370,27 @@ fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigErr
     Ok(result)
 }
 
-fn color_for_name(color_name: &str) -> Option<Color> {
+fn color_for_name(color_name: &str) -> Result<Color, config::ConfigError> {
     match color_name {
-        "black" => Some(Color::Black),
-        "red" => Some(Color::DarkRed),
-        "green" => Some(Color::DarkGreen),
-        "yellow" => Some(Color::DarkYellow),
-        "blue" => Some(Color::DarkBlue),
-        "magenta" => Some(Color::DarkMagenta),
-        "cyan" => Some(Color::DarkCyan),
-        "white" => Some(Color::Grey),
-        "bright black" => Some(Color::DarkGrey),
-        "bright red" => Some(Color::Red),
-        "bright green" => Some(Color::Green),
-        "bright yellow" => Some(Color::Yellow),
-        "bright blue" => Some(Color::Blue),
-        "bright magenta" => Some(Color::Magenta),
-        "bright cyan" => Some(Color::Cyan),
-        "bright white" => Some(Color::White),
-        _ => None,
+        "black" => Ok(Color::Black),
+        "red" => Ok(Color::DarkRed),
+        "green" => Ok(Color::DarkGreen),
+        "yellow" => Ok(Color::DarkYellow),
+        "blue" => Ok(Color::DarkBlue),
+        "magenta" => Ok(Color::DarkMagenta),
+        "cyan" => Ok(Color::DarkCyan),
+        "white" => Ok(Color::Grey),
+        "bright black" => Ok(Color::DarkGrey),
+        "bright red" => Ok(Color::Red),
+        "bright green" => Ok(Color::Green),
+        "bright yellow" => Ok(Color::Yellow),
+        "bright blue" => Ok(Color::Blue),
+        "bright magenta" => Ok(Color::Magenta),
+        "bright cyan" => Ok(Color::Cyan),
+        "bright white" => Ok(Color::White),
+        _ => Err(config::ConfigError::Message(format!(
+            "invalid color: {color_name}"
+        ))),
     }
 }
 
@@ -843,7 +846,7 @@ mod tests {
 
     #[test]
     fn test_color_formatter_unrecognized_color() {
-        // An unrecognized color is ignored; it doesn't reset the color.
+        // An unrecognized color causes an error.
         let config = config_from_string(
             r#"
         colors."outer" = "red"
@@ -851,16 +854,11 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
-        formatter.push_label("outer").unwrap();
-        formatter.write_str(" red before ").unwrap();
-        formatter.push_label("inner").unwrap();
-        formatter.write_str(" still red inside ").unwrap();
-        formatter.pop_label().unwrap();
-        formatter.write_str(" also red afterwards ").unwrap();
-        formatter.pop_label().unwrap();
-        insta::assert_snapshot!(String::from_utf8(output).unwrap(),
-        @"[38;5;1m red before  still red inside  also red afterwards [39m");
+        let err = ColorFormatter::for_config(&mut output, &config)
+            .unwrap_err()
+            .to_string();
+        insta::assert_snapshot!(err,
+        @"invalid color: bloo");
     }
 
     #[test]
