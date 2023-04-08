@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::process::Command;
+use std::str;
 
 use cargo_metadata::MetadataCommand;
 
@@ -56,7 +57,8 @@ fn get_git_hash() -> Option<String> {
     if let Ok(output) = Command::new("git").args(["rev-parse", "HEAD"]).output() {
         if output.status.success() {
             println!("cargo:rerun-if-changed=.git/HEAD");
-            return Some(String::from_utf8(output.stdout).unwrap());
+            let line = str::from_utf8(&output.stdout).unwrap();
+            return Some(line.trim_end().to_owned());
         }
     }
 
