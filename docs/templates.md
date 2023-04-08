@@ -31,6 +31,7 @@ The following keywords can be used in `jj log`/`jj obslog` templates.
 * `git_head: String`
 * `divergent: Boolean`: True if the change id corresponds to multiple visible
   commits.
+* `hidden: Boolean`: True if the commit is not visible (a.k.a. abandoned).
 * `conflict: Boolean`: True if the commit contains merge conflicts.
 * `empty: Boolean`: True if the commit modifies no files.
 

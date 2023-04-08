@@ -156,7 +156,7 @@ fn test_log_default() {
 }
 
 #[test]
-fn test_log_default_divergence() {
+fn test_log_obslog_divergence() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -196,6 +196,28 @@ fn test_log_default_divergence() {
     │ @  [1m[4m[38;5;1mq[24mpvuntsmwlqt[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12m7[38;5;8ma17d52e633c[39m[0m
     ├─╯  [1mdescription 1[0m
     ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzzzzzz[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
+       [38;5;2m(empty)[39m (no description set)
+    "###);
+
+    // Obslog and hidden divergent
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  qpvuntsmwlqt?? test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e633c
+    │  description 1
+    ◉  qpvuntsmwlqt?? hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 3b68ce2550b4
+    │  (no description set)
+    ◉  qpvuntsmwlqt?? hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+       (empty) (no description set)
+    "###);
+
+    // Colored obslog
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--color=always"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  [1m[4m[38;5;1mq[24mpvuntsmwlqt[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12m7[38;5;8ma17d52e633c[39m[0m
+    │  [1mdescription 1[0m
+    ◉  [1m[24m[39mq[0m[38;5;8mpvuntsmwlqt[1m[39m?? hidden[0m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m3[0m[38;5;8mb68ce2550b4[39m
+    │  (no description set)
+    ◉  [1m[24m[39mq[0m[38;5;8mpvuntsmwlqt[1m[39m?? hidden[0m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059e1b0[39m
        [38;5;2m(empty)[39m (no description set)
     "###);
 }

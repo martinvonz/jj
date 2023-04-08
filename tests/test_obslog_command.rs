@@ -33,12 +33,25 @@ fn test_obslog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     @  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad36073
     │  my description
-    ◉  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
+    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
     │  my description
-    ◉  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
+    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
     │  my description
-    ◉  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
+    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
        (empty) my description
+    "###);
+
+    // Color
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "obslog"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  [1m[38;5;13mr[38;5;8mlvkpnrzqnoo[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:10.000 +07:00[39m [38;5;12m66[38;5;8mb42ad36073[39m[0m
+    │  [1mmy description[0m
+    ◉  [1m[39mr[0m[38;5;8mlvkpnrzqnoo[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m [1m[38;5;4maf[0m[38;5;8m536e5af67e[39m [38;5;1mconflict[39m
+    │  my description
+    ◉  [1m[39mr[0m[38;5;8mlvkpnrzqnoo[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m [1m[38;5;4m6f[0m[38;5;8mbba7bcb590[39m
+    │  my description
+    ◉  [1m[39mr[0m[38;5;8mlvkpnrzqnoo[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4me[0m[38;5;8mac0d0dae082[39m
+       [38;5;2m(empty)[39m my description
     "###);
 
     // There should be no diff caused by the rebase because it was a pure rebase
@@ -54,16 +67,16 @@ fn test_obslog_with_or_without_diff() {
     │     4     : +bar
     │     5     : +++++++
     │     6     : >>>>>>>
-    ◉  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
+    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
     │  my description
-    ◉  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
+    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
     │  my description
     │  Modified regular file file1:
     │     1    1: foo
     │          2: bar
     │  Added regular file file2:
     │          1: foo
-    ◉  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
+    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
        (empty) my description
     "###);
 
@@ -72,11 +85,11 @@ fn test_obslog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad36073
     my description
-    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
+    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
     my description
-    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
+    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
     my description
-    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
+    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
     (empty) my description
     "###);
 
@@ -97,9 +110,9 @@ fn test_obslog_with_or_without_diff() {
     -+++++++
     ->>>>>>>
     +resolved
-    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
+    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
     my description
-    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
+    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
     my description
     diff --git a/file1 b/file1
     index 257cc5642c...3bd1f0e297 100644
@@ -115,7 +128,7 @@ fn test_obslog_with_or_without_diff() {
     +++ b/file2
     @@ -1,0 +1,1 @@
     +foo
-    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
+    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
     (empty) my description
     "###);
 }
@@ -145,7 +158,7 @@ fn test_obslog_word_wrap() {
     insta::assert_snapshot!(render(&["obslog"], 40, false), @r###"
     @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
     │  (empty) first
-    ◉  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    ◉  qpvuntsmwlqt hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
        (empty) (no description set)
     "###);
     insta::assert_snapshot!(render(&["obslog"], 40, true), @r###"
@@ -153,15 +166,15 @@ fn test_obslog_word_wrap() {
     │  2001-02-03 04:05:08.000 +07:00
     │  69542c1984c1
     │  (empty) first
-    ◉  qpvuntsmwlqt test.user@example.com
-       2001-02-03 04:05:07.000 +07:00
-       230dd059e1b0
+    ◉  qpvuntsmwlqt hidden
+       test.user@example.com 2001-02-03
+       04:05:07.000 +07:00 230dd059e1b0
        (empty) (no description set)
     "###);
     insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, false), @r###"
     qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
     (empty) first
-    qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    qpvuntsmwlqt hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
     (empty) (no description set)
     "###);
     insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, true), @r###"
@@ -169,9 +182,9 @@ fn test_obslog_word_wrap() {
     2001-02-03 04:05:08.000 +07:00
     69542c1984c1
     (empty) first
-    qpvuntsmwlqt test.user@example.com
-    2001-02-03 04:05:07.000 +07:00
-    230dd059e1b0
+    qpvuntsmwlqt hidden
+    test.user@example.com 2001-02-03
+    04:05:07.000 +07:00 230dd059e1b0
     (empty) (no description set)
     "###);
 }
@@ -198,20 +211,20 @@ fn test_obslog_squash() {
     │ │  Modified regular file file1:
     │ │     1    1: foo
     │ │          2: bar
-    ◉ │  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:09.000 +07:00 9764e503e1a9
+    ◉ │  qpvuntsmwlqt hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 9764e503e1a9
     │ │  first
     │ │  Added regular file file1:
     │ │          1: foo
-    ◉ │  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
+    ◉ │  qpvuntsmwlqt hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
     │ │  (empty) first
-    ◉ │  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    ◉ │  qpvuntsmwlqt hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
       │  (empty) (no description set)
-      ◉  kkmpptxzrspx test.user@example.com 2001-02-03 04:05:10.000 +07:00 f09a38899f2b
+      ◉  kkmpptxzrspx hidden test.user@example.com 2001-02-03 04:05:10.000 +07:00 f09a38899f2b
       │  second
       │  Modified regular file file1:
       │     1    1: foo
       │          2: bar
-      ◉  kkmpptxzrspx test.user@example.com 2001-02-03 04:05:09.000 +07:00 579965369703
+      ◉  kkmpptxzrspx hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 579965369703
          (empty) second
     "###);
 }
