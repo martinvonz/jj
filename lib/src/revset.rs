@@ -545,16 +545,13 @@ impl RevsetAliasesMap {
         Ok(())
     }
 
-    fn get_symbol<'a>(&'a self, name: &str) -> Option<(RevsetAliasId<'a>, &'a str)> {
+    fn get_symbol(&self, name: &str) -> Option<(RevsetAliasId, &str)> {
         self.symbol_aliases
             .get_key_value(name)
             .map(|(name, defn)| (RevsetAliasId::Symbol(name), defn.as_ref()))
     }
 
-    fn get_function<'a>(
-        &'a self,
-        name: &str,
-    ) -> Option<(RevsetAliasId<'a>, &'a [String], &'a str)> {
+    fn get_function(&self, name: &str) -> Option<(RevsetAliasId, &[String], &str)> {
         self.function_aliases
             .get_key_value(name)
             .map(|(name, (params, defn))| {
