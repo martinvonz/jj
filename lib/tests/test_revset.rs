@@ -42,19 +42,15 @@ use testutils::{
     create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo, TestWorkspace,
 };
 
-fn resolve_symbol(
-    repo: &dyn Repo,
-    symbol: &str,
-    workspace_id: Option<&WorkspaceId>,
-) -> Result<Vec<CommitId>, RevsetResolutionError> {
-    DefaultSymbolResolver::new(repo, workspace_id).resolve_symbol(symbol)
+fn resolve_symbol(repo: &dyn Repo, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
+    DefaultSymbolResolver::new(repo).resolve_symbol(symbol)
 }
 
 fn revset_for_commits<'index>(
     repo: &'index dyn Repo,
     commits: &[&Commit],
 ) -> Box<dyn Revset<'index> + 'index> {
-    let symbol_resolver = DefaultSymbolResolver::new(repo, None);
+    let symbol_resolver = DefaultSymbolResolver::new(repo);
     RevsetExpression::commits(commits.iter().map(|commit| commit.id().clone()).collect())
         .resolve_user_expression(repo, &symbol_resolver)
         .unwrap()
@@ -69,7 +65,7 @@ fn test_resolve_symbol_root(use_git: bool) {
     let repo = &test_repo.repo;
 
     assert_matches!(
-        resolve_symbol(repo.as_ref(), "root", None),
+        resolve_symbol(repo.as_ref(), "root"),
         Ok(v) if v == vec![repo.store().root_commit_id().clone()]
     );
 }
@@ -80,7 +76,7 @@ fn test_resolve_symbol_empty_string() {
     let repo = &test_repo.repo;
 
     assert_matches!(
-        resolve_symbol(repo.as_ref(), "", None),
+        resolve_symbol(repo.as_ref(), ""),
         Err(RevsetResolutionError::EmptyString)
     );
 }
@@ -141,56 +137,41 @@ fn test_resolve_symbol_commit_id() {
 
     // Test lookup by full commit id
     assert_eq!(
-        resolve_symbol(
-            repo.as_ref(),
-            "0454de3cae04c46cda37ba2e8873b4c17ff51dcb",
-            None
-        )
-        .unwrap(),
+        resolve_symbol(repo.as_ref(), "0454de3cae04c46cda37ba2e8873b4c17ff51dcb",).unwrap(),
         vec![commits[0].id().clone()]
     );
     assert_eq!(
-        resolve_symbol(
-            repo.as_ref(),
-            "045f56cd1b17e8abde86771e2705395dcde6a957",
-            None
-        )
-        .unwrap(),
+        resolve_symbol(repo.as_ref(), "045f56cd1b17e8abde86771e2705395dcde6a957",).unwrap(),
         vec![commits[1].id().clone()]
     );
     assert_eq!(
-        resolve_symbol(
-            repo.as_ref(),
-            "0468f7da8de2ce442f512aacf83411d26cd2e0cf",
-            None
-        )
-        .unwrap(),
+        resolve_symbol(repo.as_ref(), "0468f7da8de2ce442f512aacf83411d26cd2e0cf",).unwrap(),
         vec![commits[2].id().clone()]
     );
 
     // Test commit id prefix
     assert_eq!(
-        resolve_symbol(repo.as_ref(), "046", None).unwrap(),
+        resolve_symbol(repo.as_ref(), "046").unwrap(),
         vec![commits[2].id().clone()]
     );
     assert_matches!(
-        resolve_symbol(repo.as_ref(), "04", None),
+        resolve_symbol(repo.as_ref(), "04"),
         Err(RevsetResolutionError::AmbiguousCommitIdPrefix(s)) if s == "04"
     );
     assert_matches!(
-        resolve_symbol(repo.as_ref(), "040", None),
+        resolve_symbol(repo.as_ref(), "040"),
         Err(RevsetResolutionError::NoSuchRevision{name, candidates}) if name == "040" && candidates.is_empty()
     );
 
     // Test non-hex string
     assert_matches!(
-        resolve_symbol(repo.as_ref(), "foo", None),
+        resolve_symbol(repo.as_ref(), "foo"),
         Err(RevsetResolutionError::NoSuchRevision{name, candidates}) if name == "foo" && candidates.is_empty()
     );
 
     // Test present() suppresses only NoSuchRevision error
     assert_eq!(resolve_commit_ids(repo.as_ref(), "present(foo)"), []);
-    let symbol_resolver = DefaultSymbolResolver::new(repo.as_ref(), None);
+    let symbol_resolver = DefaultSymbolResolver::new(repo.as_ref());
     assert_matches!(
         optimize(parse("present(04)", &RevsetAliasesMap::new(), &settings.user_email(), None).unwrap()).resolve_user_expression(repo.as_ref(), &symbol_resolver),
         Err(RevsetResolutionError::AmbiguousCommitIdPrefix(s)) if s == "04"
@@ -281,19 +262,19 @@ fn test_resolve_symbol_change_id(readonly: bool) {
 
     // Test lookup by full change id
     assert_eq!(
-        resolve_symbol(repo, "zvlyxpuvtsoopsqzlkorrpqrszrqvlnx", None).unwrap(),
+        resolve_symbol(repo, "zvlyxpuvtsoopsqzlkorrpqrszrqvlnx").unwrap(),
         vec![CommitId::from_hex(
             "8fd68d104372910e19511df709e5dde62a548720"
         )]
     );
     assert_eq!(
-        resolve_symbol(repo, "zvzowopwpuymrlmonvnuruunomzqmlsy", None).unwrap(),
+        resolve_symbol(repo, "zvzowopwpuymrlmonvnuruunomzqmlsy").unwrap(),
         vec![CommitId::from_hex(
             "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
         )]
     );
     assert_eq!(
-        resolve_symbol(repo, "zvlynszrxlvlwvkwkwsymrpypvtsszor", None).unwrap(),
+        resolve_symbol(repo, "zvlynszrxlvlwvkwkwsymrpypvtsszor").unwrap(),
         vec![CommitId::from_hex(
             "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
         )]
@@ -301,36 +282,36 @@ fn test_resolve_symbol_change_id(readonly: bool) {
 
     // Test change id prefix
     assert_eq!(
-        resolve_symbol(repo, "zvlyx", None).unwrap(),
+        resolve_symbol(repo, "zvlyx").unwrap(),
         vec![CommitId::from_hex(
             "8fd68d104372910e19511df709e5dde62a548720"
         )]
     );
     assert_eq!(
-        resolve_symbol(repo, "zvlyn", None).unwrap(),
+        resolve_symbol(repo, "zvlyn").unwrap(),
         vec![CommitId::from_hex(
             "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
         )]
     );
     assert_matches!(
-        resolve_symbol(repo, "zvly", None),
+        resolve_symbol(repo, "zvly"),
         Err(RevsetResolutionError::AmbiguousChangeIdPrefix(s)) if s == "zvly"
     );
     assert_matches!(
-        resolve_symbol(repo, "zvlyw", None),
+        resolve_symbol(repo, "zvlyw"),
         Err(RevsetResolutionError::NoSuchRevision{name, candidates}) if name == "zvlyw" && candidates.is_empty()
     );
 
     // Test that commit and changed id don't conflict ("040" and "zvz" are the
     // same).
     assert_eq!(
-        resolve_symbol(repo, "040", None).unwrap(),
+        resolve_symbol(repo, "040").unwrap(),
         vec![CommitId::from_hex(
             "040031cb4ad0cbc3287914f1d205dabf4a7eb889"
         )]
     );
     assert_eq!(
-        resolve_symbol(repo, "zvz", None).unwrap(),
+        resolve_symbol(repo, "zvz").unwrap(),
         vec![CommitId::from_hex(
             "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
         )]
@@ -338,7 +319,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
 
     // Test non-hex string
     assert_matches!(
-        resolve_symbol(repo, "foo", None),
+        resolve_symbol(repo, "foo"),
         Err(RevsetResolutionError::NoSuchRevision{
             name,
             candidates
@@ -348,7 +329,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_resolve_symbol_checkout(use_git: bool) {
+fn test_resolve_working_copy(use_git: bool) {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
@@ -362,52 +343,33 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     let ws1 = WorkspaceId::new("ws1".to_string());
     let ws2 = WorkspaceId::new("ws2".to_string());
 
-    // With no workspaces, no variation can be resolved
+    // Cannot resolve a working-copy commit for an unknown workspace
     assert_matches!(
-        resolve_symbol(mut_repo, "@", None),
-        Err(RevsetResolutionError::NoSuchRevision{
-            name,
-            candidates,
-        }) if name == "@" && candidates.is_empty()
-    );
-    assert_matches!(
-        resolve_symbol(mut_repo, "@", Some(&ws1)),
-        Err(RevsetResolutionError::NoSuchRevision{
-            name,
-            candidates,
-        }) if name == "@" && candidates.is_empty()
-    );
-    assert_matches!(
-        resolve_symbol(mut_repo, "ws1@", Some(&ws1)),
-        Err(RevsetResolutionError::NoSuchRevision{
-            name,
-            candidates,
-        }) if name == "ws1@" && candidates.is_empty()
+        RevsetExpression::working_copy(ws1.clone()).resolve(mut_repo),
+        Err(RevsetResolutionError::WorkspaceMissingWorkingCopy { name }) if name == "ws1"
     );
 
     // Add some workspaces
     mut_repo
         .set_wc_commit(ws1.clone(), commit1.id().clone())
         .unwrap();
-    mut_repo.set_wc_commit(ws2, commit2.id().clone()).unwrap();
-    // @ cannot be resolved without a default workspace ID
-    assert_matches!(
-        resolve_symbol(mut_repo, "@", None),
-        Err(RevsetResolutionError::NoSuchRevision{
-            name,
-            candidates,
-        }) if name == "@" && candidates.is_empty()
-    );
+    mut_repo
+        .set_wc_commit(ws2.clone(), commit2.id().clone())
+        .unwrap();
+    let resolve = |ws_id: WorkspaceId| -> Vec<CommitId> {
+        RevsetExpression::working_copy(ws_id)
+            .resolve(mut_repo)
+            .unwrap()
+            .evaluate(mut_repo)
+            .unwrap()
+            .iter()
+            .collect()
+    };
+
     // Can resolve "@" shorthand with a default workspace ID
-    assert_eq!(
-        resolve_symbol(mut_repo, "@", Some(&ws1)).unwrap(),
-        vec![commit1.id().clone()]
-    );
+    assert_eq!(resolve(ws1), vec![commit1.id().clone()]);
     // Can resolve an explicit checkout
-    assert_eq!(
-        resolve_symbol(mut_repo, "ws2@", Some(&ws1)).unwrap(),
-        vec![commit2.id().clone()]
-    );
+    assert_eq!(resolve(ws2), vec![commit2.id().clone()]);
 }
 
 #[test]
@@ -461,11 +423,11 @@ fn test_resolve_symbol_branches() {
 
     // Local only
     assert_eq!(
-        resolve_symbol(mut_repo, "local", None).unwrap(),
+        resolve_symbol(mut_repo, "local").unwrap(),
         vec![commit1.id().clone()],
     );
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "local@origin", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "local@origin").unwrap_err(), @r###"
     NoSuchRevision {
         name: "local@origin",
         candidates: [
@@ -479,7 +441,7 @@ fn test_resolve_symbol_branches() {
 
     // Remote only (or locally deleted)
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "remote", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "remote").unwrap_err(), @r###"
     NoSuchRevision {
         name: "remote",
         candidates: [
@@ -490,35 +452,35 @@ fn test_resolve_symbol_branches() {
     }
     "###);
     assert_eq!(
-        resolve_symbol(mut_repo, "remote@origin", None).unwrap(),
+        resolve_symbol(mut_repo, "remote@origin").unwrap(),
         vec![commit2.id().clone()],
     );
 
     // Local/remote/git
     assert_eq!(
-        resolve_symbol(mut_repo, "local-remote", None).unwrap(),
+        resolve_symbol(mut_repo, "local-remote").unwrap(),
         vec![commit3.id().clone()],
     );
     assert_eq!(
-        resolve_symbol(mut_repo, "local-remote@origin", None).unwrap(),
+        resolve_symbol(mut_repo, "local-remote@origin").unwrap(),
         vec![commit4.id().clone()],
     );
     assert_eq!(
-        resolve_symbol(mut_repo, "local-remote@mirror", None).unwrap(),
+        resolve_symbol(mut_repo, "local-remote@mirror").unwrap(),
         vec![commit3.id().clone()],
     );
     assert_eq!(
-        resolve_symbol(mut_repo, "local-remote@git", None).unwrap(),
+        resolve_symbol(mut_repo, "local-remote@git").unwrap(),
         vec![commit3.id().clone()],
     );
 
     // Conflicted
     assert_eq!(
-        resolve_symbol(mut_repo, "local-conflicted", None).unwrap(),
+        resolve_symbol(mut_repo, "local-conflicted").unwrap(),
         vec![commit3.id().clone(), commit2.id().clone()],
     );
     assert_eq!(
-        resolve_symbol(mut_repo, "remote-conflicted@origin", None).unwrap(),
+        resolve_symbol(mut_repo, "remote-conflicted@origin").unwrap(),
         vec![commit5.id().clone(), commit4.id().clone()],
     );
 
@@ -526,7 +488,7 @@ fn test_resolve_symbol_branches() {
     // For "local-emote" (without @remote part), "local-remote@mirror"/"@git" aren't
     // suggested since they point to the same target as "local-remote".
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "local-emote", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "local-emote").unwrap_err(), @r###"
     NoSuchRevision {
         name: "local-emote",
         candidates: [
@@ -538,7 +500,7 @@ fn test_resolve_symbol_branches() {
     }
     "###);
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "local-emote@origin", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "local-emote@origin").unwrap_err(), @r###"
     NoSuchRevision {
         name: "local-emote@origin",
         candidates: [
@@ -553,7 +515,7 @@ fn test_resolve_symbol_branches() {
     }
     "###);
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "local-remote@origine", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "local-remote@origine").unwrap_err(), @r###"
     NoSuchRevision {
         name: "local-remote@origine",
         candidates: [
@@ -570,7 +532,7 @@ fn test_resolve_symbol_branches() {
     // "local-remote@mirror" shouldn't be omitted just because it points to the same
     // target as "local-remote".
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "remote@mirror", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "remote@mirror").unwrap_err(), @r###"
     NoSuchRevision {
         name: "remote@mirror",
         candidates: [
@@ -582,7 +544,7 @@ fn test_resolve_symbol_branches() {
 
     // Typo of remote-only branch name
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "emote", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "emote").unwrap_err(), @r###"
     NoSuchRevision {
         name: "emote",
         candidates: [
@@ -592,7 +554,7 @@ fn test_resolve_symbol_branches() {
     }
     "###);
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "emote@origin", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "emote@origin").unwrap_err(), @r###"
     NoSuchRevision {
         name: "emote@origin",
         candidates: [
@@ -602,7 +564,7 @@ fn test_resolve_symbol_branches() {
     }
     "###);
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "remote@origine", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "remote@origine").unwrap_err(), @r###"
     NoSuchRevision {
         name: "remote@origine",
         candidates: [
@@ -627,14 +589,14 @@ fn test_resolve_symbol_git_head() {
 
     // Without HEAD@git
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "HEAD", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "HEAD").unwrap_err(), @r###"
     NoSuchRevision {
         name: "HEAD",
         candidates: [],
     }
     "###);
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "HEAD@git", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "HEAD@git").unwrap_err(), @r###"
     NoSuchRevision {
         name: "HEAD@git",
         candidates: [],
@@ -644,7 +606,7 @@ fn test_resolve_symbol_git_head() {
     // With HEAD@git
     mut_repo.set_git_head_target(RefTarget::normal(commit1.id().clone()));
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "HEAD", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "HEAD").unwrap_err(), @r###"
     NoSuchRevision {
         name: "HEAD",
         candidates: [
@@ -653,7 +615,7 @@ fn test_resolve_symbol_git_head() {
     }
     "###);
     assert_eq!(
-        resolve_symbol(mut_repo, "HEAD@git", None).unwrap(),
+        resolve_symbol(mut_repo, "HEAD@git").unwrap(),
         vec![commit1.id().clone()],
     );
 }
@@ -696,7 +658,7 @@ fn test_resolve_symbol_git_refs() {
 
     // Nonexistent ref
     assert_matches!(
-        resolve_symbol(mut_repo, "nonexistent", None),
+        resolve_symbol(mut_repo, "nonexistent"),
         Err(RevsetResolutionError::NoSuchRevision{name, candidates})
             if name == "nonexistent" && candidates.is_empty()
     );
@@ -704,7 +666,7 @@ fn test_resolve_symbol_git_refs() {
     // Full ref
     mut_repo.set_git_ref_target("refs/heads/branch", RefTarget::normal(commit4.id().clone()));
     assert_eq!(
-        resolve_symbol(mut_repo, "refs/heads/branch", None).unwrap(),
+        resolve_symbol(mut_repo, "refs/heads/branch").unwrap(),
         vec![commit4.id().clone()]
     );
 
@@ -712,7 +674,7 @@ fn test_resolve_symbol_git_refs() {
     mut_repo.set_git_ref_target("refs/heads/branch", RefTarget::normal(commit5.id().clone()));
     // branch alone is not recognized
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "branch", None).unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "branch").unwrap_err(), @r###"
     NoSuchRevision {
         name: "branch",
         candidates: [
@@ -725,19 +687,19 @@ fn test_resolve_symbol_git_refs() {
     mut_repo.set_git_ref_target("refs/tags/branch", RefTarget::normal(commit4.id().clone()));
     // The *tag* branch is recognized
     assert_eq!(
-        resolve_symbol(mut_repo, "branch", None).unwrap(),
+        resolve_symbol(mut_repo, "branch").unwrap(),
         vec![commit4.id().clone()]
     );
     // heads/branch does get resolved to the git ref refs/heads/branch
     assert_eq!(
-        resolve_symbol(mut_repo, "heads/branch", None).unwrap(),
+        resolve_symbol(mut_repo, "heads/branch").unwrap(),
         vec![commit5.id().clone()]
     );
 
     // Unqualified tag name
     mut_repo.set_git_ref_target("refs/tags/tag", RefTarget::normal(commit4.id().clone()));
     assert_eq!(
-        resolve_symbol(mut_repo, "tag", None).unwrap(),
+        resolve_symbol(mut_repo, "tag").unwrap(),
         vec![commit4.id().clone()]
     );
 
@@ -747,11 +709,11 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::normal(commit2.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo, "origin/remote-branch", None).unwrap(),
+        resolve_symbol(mut_repo, "origin/remote-branch").unwrap(),
         vec![commit2.id().clone()]
     );
 
-    // Cannot shadow checkout ("@") or root symbols
+    // Cannot shadow root symbols
     let ws_id = WorkspaceId::default();
     mut_repo
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
@@ -759,17 +721,13 @@ fn test_resolve_symbol_git_refs() {
     mut_repo.set_git_ref_target("@", RefTarget::normal(commit2.id().clone()));
     mut_repo.set_git_ref_target("root", RefTarget::normal(commit3.id().clone()));
     assert_eq!(
-        resolve_symbol(mut_repo, "@", Some(&ws_id)).unwrap(),
-        vec![mut_repo.view().get_wc_commit_id(&ws_id).unwrap().clone()]
-    );
-    assert_eq!(
-        resolve_symbol(mut_repo, "root", None).unwrap(),
+        resolve_symbol(mut_repo, "root").unwrap(),
         vec![mut_repo.store().root_commit().id().clone()]
     );
 
     // Conflicted ref resolves to its "adds"
     assert_eq!(
-        resolve_symbol(mut_repo, "refs/heads/conflicted", None).unwrap(),
+        resolve_symbol(mut_repo, "refs/heads/conflicted").unwrap(),
         vec![commit1.id().clone(), commit3.id().clone()]
     );
 }
@@ -785,7 +743,7 @@ fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
         )
         .unwrap(),
     );
-    let symbol_resolver = DefaultSymbolResolver::new(repo, None);
+    let symbol_resolver = DefaultSymbolResolver::new(repo);
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)
         .unwrap();
@@ -813,7 +771,7 @@ fn resolve_commit_ids_in_workspace(
         )
         .unwrap(),
     );
-    let symbol_resolver = DefaultSymbolResolver::new(repo, Some(workspace_ctx.workspace_id));
+    let symbol_resolver = DefaultSymbolResolver::new(repo);
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)
         .unwrap();
@@ -2860,9 +2818,9 @@ fn test_no_such_revision_suggestion() {
         );
     }
 
-    assert_matches!(resolve_symbol(mut_repo, "bar", None), Ok(_));
+    assert_matches!(resolve_symbol(mut_repo, "bar"), Ok(_));
     assert_matches!(
-        resolve_symbol(mut_repo, "bax", None),
+        resolve_symbol(mut_repo, "bax"),
         Err(RevsetResolutionError::NoSuchRevision { name, candidates })
         if name == "bax" && candidates == vec!["bar".to_string(), "baz".to_string()]
     );

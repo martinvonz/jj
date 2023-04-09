@@ -1728,7 +1728,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 only_path,
                 &RevsetAliasesMap::new(),
                 &command.settings().user_email(),
-                None,
+                Some(&workspace_command.revset_context()),
             )
             .is_ok()
         {
@@ -2523,7 +2523,7 @@ from the source will be moved into the parent.
                     only_path,
                     &RevsetAliasesMap::new(),
                     &command.settings().user_email(),
-                    None,
+                    Some(&tx.base_workspace_helper().revset_context()),
                 )
                 .is_ok()
             {

@@ -23,7 +23,6 @@ use once_cell::unsync::OnceCell;
 
 use crate::backend::{self, ChangeId, CommitId, ObjectId};
 use crate::index::{HexPrefix, PrefixResolution};
-use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::revset::{DefaultSymbolResolver, RevsetExpression};
 
@@ -31,7 +30,6 @@ struct PrefixDisambiguationError;
 
 struct DisambiguationData {
     expression: Rc<RevsetExpression>,
-    workspace_id: Option<WorkspaceId>,
     indexes: OnceCell<Indexes>,
 }
 
@@ -44,7 +42,7 @@ struct Indexes {
 impl DisambiguationData {
     fn indexes(&self, repo: &dyn Repo) -> Result<&Indexes, PrefixDisambiguationError> {
         self.indexes.get_or_try_init(|| {
-            let symbol_resolver = DefaultSymbolResolver::new(repo, self.workspace_id.as_ref());
+            let symbol_resolver = DefaultSymbolResolver::new(repo);
             let resolved_expression = self
                 .expression
                 .clone()
@@ -99,13 +97,8 @@ pub struct IdPrefixContext {
 }
 
 impl IdPrefixContext {
-    pub fn disambiguate_within(
-        mut self,
-        expression: Rc<RevsetExpression>,
-        workspace_id: Option<WorkspaceId>,
-    ) -> Self {
+    pub fn disambiguate_within(mut self, expression: Rc<RevsetExpression>) -> Self {
         self.disambiguation = Some(DisambiguationData {
-            workspace_id,
             expression,
             indexes: OnceCell::new(),
         });
