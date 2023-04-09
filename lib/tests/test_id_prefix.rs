@@ -184,7 +184,7 @@ fn test_id_prefix() {
     // ---------------------------------------------------------------------------------------------
     let expression =
         RevsetExpression::commits(vec![commits[0].id().clone(), commits[2].id().clone()]);
-    let c = c.disambiguate_within(expression, None);
+    let c = c.disambiguate_within(expression);
     // The prefix is now shorter
     assert_eq!(
         c.shortest_commit_prefix_len(repo.as_ref(), commits[2].id()),
@@ -213,7 +213,7 @@ fn test_id_prefix() {
     // needed.
     // ---------------------------------------------------------------------------------------------
     let expression = RevsetExpression::commit(root_commit_id.clone());
-    let c = c.disambiguate_within(expression, None);
+    let c = c.disambiguate_within(expression);
     assert_eq!(
         c.shortest_commit_prefix_len(repo.as_ref(), root_commit_id),
         1
@@ -243,7 +243,7 @@ fn test_id_prefix() {
     // ---------------------------------------------------------------------------------------------
     // TODO: Should be an error
     let expression = RevsetExpression::symbol("nonexistent".to_string());
-    let context = c.disambiguate_within(expression, None);
+    let context = c.disambiguate_within(expression);
     assert_eq!(
         context.shortest_commit_prefix_len(repo.as_ref(), commits[2].id()),
         2

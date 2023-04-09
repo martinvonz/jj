@@ -51,6 +51,8 @@ pub enum RevsetResolutionError {
         name: String,
         candidates: Vec<String>,
     },
+    #[error("Workspace \"{name}\" doesn't have a working copy")]
+    WorkspaceMissingWorkingCopy { name: String },
     #[error("An empty string is not a valid revision")]
     EmptyString,
     #[error("Commit ID prefix \"{0}\" is ambiguous")]
@@ -108,6 +110,8 @@ pub enum RevsetParseErrorKind {
     FsPathParseError(#[source] FsPathParseError),
     #[error("Cannot resolve file pattern without workspace")]
     FsPathWithoutWorkspace,
+    #[error(r#"Cannot resolve "@" without workspace"#)]
+    WorkingCopyWithoutWorkspace,
     #[error("Redefinition of function parameter")]
     RedefinedFunctionParameter,
     #[error(r#"Alias "{0}" cannot be expanded"#)]
@@ -245,6 +249,7 @@ impl StringPattern {
 /// Symbol or function to be resolved to `CommitId`s.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RevsetCommitRef {
+    WorkingCopy(WorkspaceId),
     Symbol(String),
     VisibleHeads,
     Branches(StringPattern),
@@ -325,6 +330,12 @@ impl RevsetExpression {
 
     pub fn all() -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::All)
+    }
+
+    pub fn working_copy(workspace_id: WorkspaceId) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::WorkingCopy(
+            workspace_id,
+        )))
     }
 
     pub fn symbol(value: String) -> Rc<RevsetExpression> {
@@ -883,7 +894,20 @@ fn parse_symbol_rule(
     match first.as_rule() {
         Rule::identifier => {
             let name = first.as_str();
-            if let Some(expr) = state.locals.get(name) {
+            if name.ends_with('@') {
+                let workspace_id = if name == "@" {
+                    if let Some(ctx) = state.workspace_ctx {
+                        ctx.workspace_id.clone()
+                    } else {
+                        return Err(RevsetParseError::new(
+                            RevsetParseErrorKind::WorkingCopyWithoutWorkspace,
+                        ));
+                    }
+                } else {
+                    WorkspaceId::new(name.strip_suffix('@').unwrap().to_string())
+                };
+                Ok(RevsetExpression::working_copy(workspace_id))
+            } else if let Some(expr) = state.locals.get(name) {
                 Ok(expr.clone())
             } else if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
                 let locals = HashMap::new(); // Don't spill out the current scope
@@ -1903,20 +1927,18 @@ impl SymbolResolver for FailingSymbolResolver {
 
 pub type PrefixResolver<'a, T> = Box<dyn Fn(&dyn Repo, &HexPrefix) -> PrefixResolution<T> + 'a>;
 
-/// Resolves the "root" and "@" symbols, branches, remote branches, tags, git
+/// Resolves the "root" symbol, branches, remote branches, tags, git
 /// refs, and full and abbreviated commit and change ids.
 pub struct DefaultSymbolResolver<'a> {
     repo: &'a dyn Repo,
-    workspace_id: Option<&'a WorkspaceId>,
     commit_id_resolver: PrefixResolver<'a, CommitId>,
     change_id_resolver: PrefixResolver<'a, Vec<CommitId>>,
 }
 
 impl<'a> DefaultSymbolResolver<'a> {
-    pub fn new(repo: &'a dyn Repo, workspace_id: Option<&'a WorkspaceId>) -> Self {
+    pub fn new(repo: &'a dyn Repo) -> Self {
         DefaultSymbolResolver {
             repo,
-            workspace_id,
             commit_id_resolver: Box::new(|repo, prefix| repo.index().resolve_prefix(prefix)),
             change_id_resolver: Box::new(|repo, prefix| repo.resolve_change_id_prefix(prefix)),
         }
@@ -1941,28 +1963,7 @@ impl<'a> DefaultSymbolResolver<'a> {
 
 impl SymbolResolver for DefaultSymbolResolver<'_> {
     fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
-        if symbol.ends_with('@') {
-            let target_workspace = if symbol == "@" {
-                if let Some(workspace_id) = self.workspace_id {
-                    workspace_id.clone()
-                } else {
-                    return Err(RevsetResolutionError::NoSuchRevision {
-                        name: symbol.to_owned(),
-                        candidates: Default::default(),
-                    });
-                }
-            } else {
-                WorkspaceId::new(symbol.strip_suffix('@').unwrap().to_string())
-            };
-            if let Some(commit_id) = self.repo.view().get_wc_commit_id(&target_workspace) {
-                Ok(vec![commit_id.clone()])
-            } else {
-                Err(RevsetResolutionError::NoSuchRevision {
-                    name: symbol.to_owned(),
-                    candidates: Default::default(),
-                })
-            }
-        } else if symbol == "root" {
+        if symbol == "root" {
             Ok(vec![self.repo.store().root_commit_id().clone()])
         } else if symbol.is_empty() {
             Err(RevsetResolutionError::EmptyString)
@@ -2042,6 +2043,15 @@ fn resolve_commit_ref(
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
     match commit_ref {
         RevsetCommitRef::Symbol(symbol) => symbol_resolver.resolve_symbol(symbol),
+        RevsetCommitRef::WorkingCopy(workspace_id) => {
+            if let Some(commit_id) = repo.view().get_wc_commit_id(workspace_id) {
+                Ok(vec![commit_id.clone()])
+            } else {
+                Err(RevsetResolutionError::WorkspaceMissingWorkingCopy {
+                    name: workspace_id.as_str().to_string(),
+                })
+            }
+        }
         RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
         RevsetCommitRef::Branches(pattern) => {
             let view = repo.view();
@@ -2098,7 +2108,8 @@ fn resolve_symbols(
                         RevsetResolutionError::NoSuchRevision { .. } => {
                             Ok(RevsetExpression::none())
                         }
-                        RevsetResolutionError::EmptyString
+                        RevsetResolutionError::WorkspaceMissingWorkingCopy { .. }
+                        | RevsetResolutionError::EmptyString
                         | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
                         | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
                         | RevsetResolutionError::StoreError(_) => Err(err),
@@ -2379,7 +2390,7 @@ impl Iterator for ReverseRevsetIterator {
     }
 }
 
-/// Workspace information needed to evaluate revset expression.
+/// Workspace information needed to parse revset expression.
 #[derive(Clone, Debug)]
 pub struct RevsetWorkspaceContext<'a> {
     pub cwd: &'a Path,
@@ -2395,6 +2406,13 @@ mod tests {
         parse_with_aliases(revset_str, [] as [(&str, &str); 0])
     }
 
+    fn parse_with_workspace(
+        revset_str: &str,
+        workspace_id: &WorkspaceId,
+    ) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
+        parse_with_aliases_and_workspace(revset_str, [] as [(&str, &str); 0], workspace_id)
+    }
+
     fn parse_with_aliases(
         revset_str: &str,
         aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
@@ -2403,12 +2421,25 @@ mod tests {
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
         }
-        // Set up pseudo context to resolve file(path)
+        // Map error to comparable object
+        super::parse(revset_str, &aliases_map, "test.user@example.com", None).map_err(|e| e.kind)
+    }
+
+    fn parse_with_aliases_and_workspace(
+        revset_str: &str,
+        aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
+        workspace_id: &WorkspaceId,
+    ) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
+        // Set up pseudo context to resolve `workspace_id@` and `file(path)`
         let workspace_ctx = RevsetWorkspaceContext {
             cwd: Path::new("/"),
-            workspace_id: &WorkspaceId::default(),
+            workspace_id,
             workspace_root: Path::new("/"),
         };
+        let mut aliases_map = RevsetAliasesMap::new();
+        for (decl, defn) in aliases {
+            aliases_map.insert(decl, defn).unwrap();
+        }
         // Map error to comparable object
         super::parse(
             revset_str,
@@ -2422,36 +2453,36 @@ mod tests {
     #[test]
     #[allow(clippy::redundant_clone)] // allow symbol.clone()
     fn test_revset_expression_building() {
-        let wc_symbol = RevsetExpression::symbol("@".to_string());
+        let current_wc = RevsetExpression::working_copy(WorkspaceId::default());
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
         let bar_symbol = RevsetExpression::symbol("bar".to_string());
         let baz_symbol = RevsetExpression::symbol("baz".to_string());
         assert_eq!(
-            wc_symbol,
-            Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Symbol(
-                "@".to_string()
+            current_wc,
+            Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::WorkingCopy(
+                WorkspaceId::default()
             ))),
         );
         assert_eq!(
-            wc_symbol.heads(),
-            Rc::new(RevsetExpression::Heads(wc_symbol.clone()))
+            current_wc.heads(),
+            Rc::new(RevsetExpression::Heads(current_wc.clone()))
         );
         assert_eq!(
-            wc_symbol.roots(),
-            Rc::new(RevsetExpression::Roots(wc_symbol.clone()))
+            current_wc.roots(),
+            Rc::new(RevsetExpression::Roots(current_wc.clone()))
         );
         assert_eq!(
-            wc_symbol.parents(),
+            current_wc.parents(),
             Rc::new(RevsetExpression::Ancestors {
-                heads: wc_symbol.clone(),
+                heads: current_wc.clone(),
                 generation: 1..2,
                 is_legacy: false,
             })
         );
         assert_eq!(
-            wc_symbol.ancestors(),
+            current_wc.ancestors(),
             Rc::new(RevsetExpression::Ancestors {
-                heads: wc_symbol.clone(),
+                heads: current_wc.clone(),
                 generation: GENERATION_RANGE_FULL,
                 is_legacy: false,
             })
@@ -2473,10 +2504,10 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.dag_range_to(&wc_symbol),
+            foo_symbol.dag_range_to(&current_wc),
             Rc::new(RevsetExpression::DagRange {
                 roots: foo_symbol.clone(),
-                heads: wc_symbol.clone(),
+                heads: current_wc.clone(),
                 is_legacy: false,
             })
         );
@@ -2489,10 +2520,10 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.range(&wc_symbol),
+            foo_symbol.range(&current_wc),
             Rc::new(RevsetExpression::Range {
                 roots: foo_symbol.clone(),
-                heads: wc_symbol.clone(),
+                heads: current_wc.clone(),
                 generation: GENERATION_RANGE_FULL,
             })
         );
@@ -2501,32 +2532,35 @@ mod tests {
             Rc::new(RevsetExpression::NotIn(foo_symbol.clone()))
         );
         assert_eq!(
-            foo_symbol.union(&wc_symbol),
+            foo_symbol.union(&current_wc),
             Rc::new(RevsetExpression::Union(
                 foo_symbol.clone(),
-                wc_symbol.clone()
+                current_wc.clone()
             ))
         );
         assert_eq!(
             RevsetExpression::union_all(&[]),
             Rc::new(RevsetExpression::None)
         );
-        assert_eq!(RevsetExpression::union_all(&[wc_symbol.clone()]), wc_symbol);
         assert_eq!(
-            RevsetExpression::union_all(&[wc_symbol.clone(), foo_symbol.clone()]),
+            RevsetExpression::union_all(&[current_wc.clone()]),
+            current_wc
+        );
+        assert_eq!(
+            RevsetExpression::union_all(&[current_wc.clone(), foo_symbol.clone()]),
             Rc::new(RevsetExpression::Union(
-                wc_symbol.clone(),
+                current_wc.clone(),
                 foo_symbol.clone(),
             ))
         );
         assert_eq!(
             RevsetExpression::union_all(&[
-                wc_symbol.clone(),
+                current_wc.clone(),
                 foo_symbol.clone(),
                 bar_symbol.clone(),
             ]),
             Rc::new(RevsetExpression::Union(
-                wc_symbol.clone(),
+                current_wc.clone(),
                 Rc::new(RevsetExpression::Union(
                     foo_symbol.clone(),
                     bar_symbol.clone(),
@@ -2535,14 +2569,14 @@ mod tests {
         );
         assert_eq!(
             RevsetExpression::union_all(&[
-                wc_symbol.clone(),
+                current_wc.clone(),
                 foo_symbol.clone(),
                 bar_symbol.clone(),
                 baz_symbol.clone(),
             ]),
             Rc::new(RevsetExpression::Union(
                 Rc::new(RevsetExpression::Union(
-                    wc_symbol.clone(),
+                    current_wc.clone(),
                     foo_symbol.clone(),
                 )),
                 Rc::new(RevsetExpression::Union(
@@ -2552,25 +2586,58 @@ mod tests {
             ))
         );
         assert_eq!(
-            foo_symbol.intersection(&wc_symbol),
+            foo_symbol.intersection(&current_wc),
             Rc::new(RevsetExpression::Intersection(
                 foo_symbol.clone(),
-                wc_symbol.clone()
+                current_wc.clone()
             ))
         );
         assert_eq!(
-            foo_symbol.minus(&wc_symbol),
-            Rc::new(RevsetExpression::Difference(foo_symbol, wc_symbol.clone()))
+            foo_symbol.minus(&current_wc),
+            Rc::new(RevsetExpression::Difference(foo_symbol, current_wc.clone()))
         );
     }
 
     #[test]
     fn test_parse_revset() {
-        let wc_symbol = RevsetExpression::symbol("@".to_string());
+        let main_workspace_id = WorkspaceId::new("main".to_string());
+        let other_workspace_id = WorkspaceId::new("other".to_string());
+        let main_wc = RevsetExpression::working_copy(main_workspace_id.clone());
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
         let bar_symbol = RevsetExpression::symbol("bar".to_string());
-        // Parse a single symbol (specifically the "checkout" symbol)
-        assert_eq!(parse("@"), Ok(wc_symbol.clone()));
+        // Parse "@" (the current working copy)
+        assert_eq!(
+            parse("@"),
+            Err(RevsetParseErrorKind::WorkingCopyWithoutWorkspace)
+        );
+        assert_eq!(parse("main@"), Ok(main_wc.clone()));
+        assert_eq!(
+            parse_with_workspace("@", &main_workspace_id),
+            Ok(main_wc.clone())
+        );
+        assert_eq!(
+            parse_with_workspace("main@", &other_workspace_id),
+            Ok(main_wc)
+        );
+        // Quoted "@" is not interpreted as a working copy
+        assert_eq!(
+            parse(r#""@""#),
+            Ok(RevsetExpression::symbol("@".to_string()))
+        );
+        // "@" in function argument must be quoted
+        assert_eq!(
+            parse("author(foo@)"),
+            Err(RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "author".to_string(),
+                message: "Expected function argument of string pattern".to_string(),
+            })
+        );
+        assert_eq!(
+            parse(r#"author("foo@")"#),
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
+                StringPattern::Substring("foo@".to_string()),
+            )))
+        );
         // Parse a single symbol
         assert_eq!(parse("foo"), Ok(foo_symbol.clone()));
         // Internal '.', '-', and '+' are allowed
@@ -2601,20 +2668,20 @@ mod tests {
         // Parse a quoted symbol
         assert_eq!(parse("\"foo\""), Ok(foo_symbol.clone()));
         // Parse the "parents" operator
-        assert_eq!(parse("@-"), Ok(wc_symbol.parents()));
+        assert_eq!(parse("foo-"), Ok(foo_symbol.parents()));
         // Parse the "children" operator
-        assert_eq!(parse("@+"), Ok(wc_symbol.children()));
+        assert_eq!(parse("foo+"), Ok(foo_symbol.children()));
         // Parse the "ancestors" operator
-        assert_eq!(parse("::@"), Ok(wc_symbol.ancestors()));
+        assert_eq!(parse("::foo"), Ok(foo_symbol.ancestors()));
         // Parse the "descendants" operator
-        assert_eq!(parse("@::"), Ok(wc_symbol.descendants()));
+        assert_eq!(parse("foo::"), Ok(foo_symbol.descendants()));
         // Parse the "dag range" operator
         assert_eq!(parse("foo::bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
         // Parse the "range" prefix operator
-        assert_eq!(parse("..@"), Ok(wc_symbol.ancestors()));
+        assert_eq!(parse("..foo"), Ok(foo_symbol.ancestors()));
         assert_eq!(
-            parse("@.."),
-            Ok(wc_symbol.range(&RevsetExpression::visible_heads()))
+            parse("foo.."),
+            Ok(foo_symbol.range(&RevsetExpression::visible_heads()))
         );
         assert_eq!(parse("foo..bar"), Ok(foo_symbol.range(&bar_symbol)));
         // Parse the "negate" operator
@@ -2630,17 +2697,20 @@ mod tests {
         // Parse the "difference" operator
         assert_eq!(parse("foo ~ bar"), Ok(foo_symbol.minus(&bar_symbol)));
         // Parentheses are allowed before suffix operators
-        assert_eq!(parse("(@)-"), Ok(wc_symbol.parents()));
+        assert_eq!(parse("(foo)-"), Ok(foo_symbol.parents()));
         // Space is allowed around expressions
-        assert_eq!(parse(" ::@ "), Ok(wc_symbol.ancestors()));
-        assert_eq!(parse("( ::@ )"), Ok(wc_symbol.ancestors()));
+        assert_eq!(parse(" ::foo "), Ok(foo_symbol.ancestors()));
+        assert_eq!(parse("( ::foo )"), Ok(foo_symbol.ancestors()));
         // Space is not allowed around prefix operators
-        assert_eq!(parse(" :: @ "), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse(" :: foo "), Err(RevsetParseErrorKind::SyntaxError));
         // Incomplete parse
         assert_eq!(parse("foo | -"), Err(RevsetParseErrorKind::SyntaxError));
         // Space is allowed around infix operators and function arguments
         assert_eq!(
-            parse("   description(  arg1 ) ~    file(  arg1 ,   arg2 )  ~ visible_heads(  )  "),
+            parse_with_workspace(
+                "   description(  arg1 ) ~    file(  arg1 ,   arg2 )  ~ visible_heads(  )  ",
+                &main_workspace_id
+            ),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::Description(
                 StringPattern::Substring("arg1".to_string())
             ))
@@ -2666,8 +2736,8 @@ mod tests {
         assert!(parse("branches(,a)").is_err());
         assert!(parse("branches(a,,)").is_err());
         assert!(parse("branches(a  , , )").is_err());
-        assert!(parse("file(a,b,)").is_ok());
-        assert!(parse("file(a,,b)").is_err());
+        assert!(parse_with_workspace("file(a,b,)", &main_workspace_id).is_ok());
+        assert!(parse_with_workspace("file(a,,b)", &main_workspace_id).is_err());
         assert!(parse("remote_branches(a,remote=b  , )").is_ok());
         assert!(parse("remote_branches(a,,remote=b)").is_err());
     }
@@ -2815,17 +2885,17 @@ mod tests {
 
     #[test]
     fn test_parse_revset_function() {
-        let wc_symbol = RevsetExpression::symbol("@".to_string());
-        assert_eq!(parse("parents(@)"), Ok(wc_symbol.parents()));
-        assert_eq!(parse("parents((@))"), Ok(wc_symbol.parents()));
-        assert_eq!(parse("parents(\"@\")"), Ok(wc_symbol.parents()));
+        let foo_symbol = RevsetExpression::symbol("foo".to_string());
+        assert_eq!(parse("parents(foo)"), Ok(foo_symbol.parents()));
+        assert_eq!(parse("parents((foo))"), Ok(foo_symbol.parents()));
+        assert_eq!(parse("parents(\"foo\")"), Ok(foo_symbol.parents()));
         assert_eq!(
-            parse("ancestors(parents(@))"),
-            Ok(wc_symbol.parents().ancestors())
+            parse("ancestors(parents(foo))"),
+            Ok(foo_symbol.parents().ancestors())
         );
-        assert_eq!(parse("parents(@"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("parents(foo"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(
-            parse("parents(@,@)"),
+            parse("parents(foo,foo)"),
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "parents".to_string(),
                 message: "Expected 1 arguments".to_string()
@@ -2870,19 +2940,19 @@ mod tests {
             )))
         );
         assert_eq!(
-            parse("empty()"),
+            parse_with_workspace("empty()", &WorkspaceId::default()),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::File(None)).negated())
         );
-        assert!(parse("empty(foo)").is_err());
-        assert!(parse("file()").is_err());
+        assert!(parse_with_workspace("empty(foo)", &WorkspaceId::default()).is_err());
+        assert!(parse_with_workspace("file()", &WorkspaceId::default()).is_err());
         assert_eq!(
-            parse("file(foo)"),
+            parse_with_workspace("file(foo)", &WorkspaceId::default()),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
                 vec![RepoPath::from_internal_string("foo")]
             ))))
         );
         assert_eq!(
-            parse("file(foo, bar, baz)"),
+            parse_with_workspace("file(foo, bar, baz)", &WorkspaceId::default()),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
                 vec![
                     RepoPath::from_internal_string("foo"),
@@ -2959,11 +3029,18 @@ mod tests {
             parse_with_aliases(r#"A|"A""#, [("A", "a")]).unwrap(),
             parse("a|A").unwrap()
         );
+        // Working copy symbol should not be substituted with alias.
+        // TODO: Make it an error instead of being ignored
+        assert_eq!(
+            parse_with_aliases(r#"a@"#, [("a@", "a")]).unwrap(),
+            parse("a@").unwrap()
+        );
 
         // Alias can be substituted to string literal.
         assert_eq!(
-            parse_with_aliases("file(A)", [("A", "a")]).unwrap(),
-            parse("file(a)").unwrap()
+            parse_with_aliases_and_workspace("file(A)", [("A", "a")], &WorkspaceId::default())
+                .unwrap(),
+            parse_with_workspace("file(a)", &WorkspaceId::default()).unwrap()
         );
 
         // Alias can be substituted to string pattern.
@@ -3032,6 +3109,13 @@ mod tests {
         assert_eq!(
             parse_with_aliases("F(G(a))", [("F(x)", "G(x)&y"), ("G(y)", "x|y")]).unwrap(),
             parse("(x|(x|a))&y").unwrap()
+        );
+
+        // Working copy symbol cannot be used as parameter name
+        // TODO: Make it an error instead of being ignored
+        assert_eq!(
+            parse_with_aliases("F(x)", [("F(a@)", "a@|y")]).unwrap(),
+            parse("a@|y").unwrap()
         );
 
         // Function parameter should precede the symbol alias.
@@ -3690,7 +3774,7 @@ mod tests {
         )
         "###);
         insta::assert_debug_snapshot!(
-            optimize(parse("committer(foo) & file(bar) & baz").unwrap()), @r###"
+            optimize(parse_with_workspace("committer(foo) & file(bar) & baz", &WorkspaceId::default()).unwrap()), @r###"
         Intersection(
             Intersection(
                 CommitRef(
@@ -3718,7 +3802,7 @@ mod tests {
         )
         "###);
         insta::assert_debug_snapshot!(
-            optimize(parse("committer(foo) & file(bar) & author(baz)").unwrap()), @r###"
+            optimize(parse_with_workspace("committer(foo) & file(bar) & author(baz)", &WorkspaceId::default()).unwrap()), @r###"
         Intersection(
             Intersection(
                 Filter(
@@ -3747,7 +3831,7 @@ mod tests {
             ),
         )
         "###);
-        insta::assert_debug_snapshot!(optimize(parse("foo & file(bar) & baz").unwrap()), @r###"
+        insta::assert_debug_snapshot!(optimize(parse_with_workspace("foo & file(bar) & baz", &WorkspaceId::default()).unwrap()), @r###"
         Intersection(
             Intersection(
                 CommitRef(

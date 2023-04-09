@@ -328,6 +328,7 @@ impl From<RevsetResolutionError> for CommandError {
                 candidates,
             } => format_similarity_hint(candidates),
             RevsetResolutionError::EmptyString
+            | RevsetResolutionError::WorkspaceMissingWorkingCopy { .. }
             | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
             | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
             | RevsetResolutionError::StoreError(_) => None,
@@ -1142,7 +1143,7 @@ impl WorkspaceCommandHelper {
             Box::new(|repo, prefix| id_prefix_context.resolve_commit_prefix(repo, prefix));
         let change_id_resolver: revset::PrefixResolver<Vec<CommitId>> =
             Box::new(|repo, prefix| id_prefix_context.resolve_change_prefix(repo, prefix));
-        DefaultSymbolResolver::new(self.repo().as_ref(), Some(self.workspace_id()))
+        DefaultSymbolResolver::new(self.repo().as_ref())
             .with_commit_id_resolver(commit_id_resolver)
             .with_change_id_resolver(change_id_resolver)
     }
@@ -1157,8 +1158,7 @@ impl WorkspaceCommandHelper {
                 .unwrap_or_else(|_| self.settings.default_revset());
             if !revset_string.is_empty() {
                 let disambiguation_revset = self.parse_revset(&revset_string, None).unwrap();
-                context = context
-                    .disambiguate_within(disambiguation_revset, Some(self.workspace_id().clone()));
+                context = context.disambiguate_within(disambiguation_revset);
             }
             context
         })
