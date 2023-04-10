@@ -16,6 +16,7 @@ use std::cmp::{Ordering, Reverse};
 use std::collections::{BinaryHeap, HashSet};
 use std::fmt;
 use std::iter::Peekable;
+use std::ops::Range;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -565,6 +566,17 @@ struct EvaluationContext<'index> {
     composite_index: CompositeIndex<'index>,
 }
 
+fn to_u32_generation_range(range: &Range<u64>) -> Result<Range<u32>, RevsetEvaluationError> {
+    let start = range.start.try_into().map_err(|_| {
+        RevsetEvaluationError::Other(format!(
+            "Lower bound of generation ({}) is too large",
+            range.start
+        ))
+    })?;
+    let end = range.end.try_into().unwrap_or(u32::MAX);
+    Ok(start..end)
+}
+
 impl<'index> EvaluationContext<'index> {
     fn evaluate(
         &self,
@@ -600,7 +612,7 @@ impl<'index> EvaluationContext<'index> {
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset { walk }))
                 } else {
-                    let walk = walk.filter_by_generation(generation.clone());
+                    let walk = walk.filter_by_generation(to_u32_generation_range(generation)?);
                     Ok(Box::new(RevWalkRevset { walk }))
                 }
             }
@@ -617,7 +629,7 @@ impl<'index> EvaluationContext<'index> {
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset { walk }))
                 } else {
-                    let walk = walk.filter_by_generation(generation.clone());
+                    let walk = walk.filter_by_generation(to_u32_generation_range(generation)?);
                     Ok(Box::new(RevWalkRevset { walk }))
                 }
             }
