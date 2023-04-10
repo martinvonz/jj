@@ -54,6 +54,8 @@ pub enum RevsetResolutionError {
 pub enum RevsetEvaluationError {
     #[error("Unexpected error from store: {0}")]
     StoreError(#[source] BackendError),
+    #[error("{0}")]
+    Other(String),
 }
 
 #[derive(Parser)]
@@ -189,9 +191,9 @@ impl error::Error for RevsetParseError {
     }
 }
 
-// assumes index has less than u32::MAX entries.
-pub const GENERATION_RANGE_FULL: Range<u32> = 0..u32::MAX;
-pub const GENERATION_RANGE_EMPTY: Range<u32> = 0..0;
+// assumes index has less than u64::MAX entries.
+pub const GENERATION_RANGE_FULL: Range<u64> = 0..u64::MAX;
+pub const GENERATION_RANGE_EMPTY: Range<u64> = 0..0;
 
 /// Symbol or function to be resolved to `CommitId`s.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -233,13 +235,13 @@ pub enum RevsetExpression {
     Children(Rc<RevsetExpression>),
     Ancestors {
         heads: Rc<RevsetExpression>,
-        generation: Range<u32>,
+        generation: Range<u64>,
     },
     // Commits that are ancestors of "heads" but not ancestors of "roots"
     Range {
         roots: Rc<RevsetExpression>,
         heads: Rc<RevsetExpression>,
-        generation: Range<u32>,
+        generation: Range<u64>,
     },
     // Commits that are descendants of "roots" and ancestors of "heads"
     DagRange {
@@ -466,13 +468,13 @@ pub enum ResolvedExpression {
     },
     Ancestors {
         heads: Box<ResolvedExpression>,
-        generation: Range<u32>,
+        generation: Range<u64>,
     },
     /// Commits that are ancestors of `heads` but not ancestors of `roots`.
     Range {
         roots: Box<ResolvedExpression>,
         heads: Box<ResolvedExpression>,
-        generation: Range<u32>,
+        generation: Range<u64>,
     },
     /// Commits that are descendants of `roots` and ancestors of `heads`.
     DagRange {
@@ -1524,8 +1526,8 @@ fn fold_ancestors(expression: &Rc<RevsetExpression>) -> TransformedExpression {
                     let generation = if generation1.is_empty() || generation2.is_empty() {
                         GENERATION_RANGE_EMPTY
                     } else {
-                        let start = u32::saturating_add(generation1.start, generation2.start);
-                        let end = u32::saturating_add(generation1.end, generation2.end - 1);
+                        let start = u64::saturating_add(generation1.start, generation2.start);
+                        let end = u64::saturating_add(generation1.end, generation2.end - 1);
                         start..end
                     };
                     Some(Rc::new(RevsetExpression::Ancestors {
@@ -2954,7 +2956,7 @@ mod tests {
                     "foo",
                 ),
             ),
-            generation: 0..4294967295,
+            generation: 0..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("~:foo & :bar").unwrap()), @r###"
@@ -2969,7 +2971,7 @@ mod tests {
                     "bar",
                 ),
             ),
-            generation: 0..4294967295,
+            generation: 0..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("foo..").unwrap()), @r###"
@@ -2982,7 +2984,7 @@ mod tests {
             heads: CommitRef(
                 VisibleHeads,
             ),
-            generation: 0..4294967295,
+            generation: 0..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("foo..bar").unwrap()), @r###"
@@ -2997,7 +2999,7 @@ mod tests {
                     "bar",
                 ),
             ),
-            generation: 0..4294967295,
+            generation: 0..18446744073709551615,
         }
         "###);
 
@@ -3750,7 +3752,7 @@ mod tests {
                     "foo",
                 ),
             ),
-            generation: 3..4294967295,
+            generation: 3..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("(:foo)---").unwrap()), @r###"
@@ -3760,7 +3762,7 @@ mod tests {
                     "foo",
                 ),
             ),
-            generation: 3..4294967295,
+            generation: 3..18446744073709551615,
         }
         "###);
 
@@ -3791,7 +3793,7 @@ mod tests {
                     "bar",
                 ),
             ),
-            generation: 2..4294967295,
+            generation: 2..18446744073709551615,
         }
         "###);
         // roots can also be folded, but range expression cannot be reconstructed.
@@ -3804,7 +3806,7 @@ mod tests {
                         "bar",
                     ),
                 ),
-                generation: 3..4294967295,
+                generation: 3..18446744073709551615,
             },
             Ancestors {
                 heads: CommitRef(
@@ -3812,7 +3814,7 @@ mod tests {
                         "foo",
                     ),
                 ),
-                generation: 2..4294967295,
+                generation: 2..18446744073709551615,
             },
         )
         "###);
@@ -3832,7 +3834,7 @@ mod tests {
                         "bar",
                     ),
                 ),
-                generation: 0..4294967295,
+                generation: 0..18446744073709551615,
             },
             generation: 2..3,
         }
@@ -3855,9 +3857,9 @@ mod tests {
                         "baz",
                     ),
                 ),
-                generation: 0..4294967295,
+                generation: 0..18446744073709551615,
             },
-            generation: 0..4294967295,
+            generation: 0..18446744073709551615,
         }
         "###);
 
