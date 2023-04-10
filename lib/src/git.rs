@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::default::Default;
 use std::path::PathBuf;
 
@@ -50,6 +50,14 @@ fn parse_git_ref(ref_name: &str) -> Option<RefName> {
             .strip_prefix("refs/tags/")
             .map(|tag_name| RefName::Tag(tag_name.to_string()))
     }
+}
+
+fn ref_name_to_local_branch_name(ref_name: &str) -> Option<&str> {
+    ref_name.strip_prefix("refs/heads/")
+}
+
+fn local_branch_name_to_ref_name(branch: &str) -> String {
+    format!("refs/heads/{branch}")
 }
 
 fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) {
@@ -220,10 +228,19 @@ impl From<GitRefViewError> for GitExportError {
     }
 }
 
-/// Reflect changes made in the Jujutsu repo compared to our current view of the
-/// Git repo in `mut_repo.view().git_refs()`. Returns a list of names of
-/// branches that failed to export.
-// TODO: Also indicate why we failed to export these branches
+/// Export changes to branches made in the Jujutsu repo compared to our last
+/// seen view of the Git repo. Returns a list of names of branches that failed
+/// to export.
+///
+/// We ignore changed branches that are conflicted (were also changed in the Git
+/// repo compared to our last remembered view of the Git repo). These will be
+/// marked conflicted by the next `jj git import`.
+///
+/// We do not export tags and other refs at the moment, since these aren't
+/// supposed to be modified by JJ. For them, the Git state is considered
+/// authoritative.
+//
+// TODO: Also indicate the reason for any branches we failed to export
 pub fn export_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
@@ -233,41 +250,36 @@ pub fn export_refs(
     })
 }
 
-/// Short-term TODO: Docstring is in the next commit
+/// Exports unconflicted branches.
+///
+/// Potential conflicts between the Git repo state and the JJ state are detected
+/// by using `old_view` as the conflict base. Returns the list of unexported
+/// branches and the new git state (with successfully exported branches moved).
 fn export_branches_since_old_view(
     mut_repo: &mut MutableRepo,
-    // Short-term TODO: Currently, this function ignores old view and always returns an empty
-    // GitRefView
-    _old_view: &GitRefView,
+    old_view: &GitRefView,
     git_repo: &git2::Repository,
 ) -> Result<(GitRefView, Vec<String>), GitExportError> {
-    // First find the changes we want need to make without modifying mut_repo
+    let current_view = mut_repo.view();
+    let current_branches: BTreeSet<_> = current_view.branches().keys().cloned().collect();
+    let old_branch_names: BTreeSet<_> = old_view
+        .refs
+        .keys()
+        .filter_map(|r| ref_name_to_local_branch_name(r).map(|b| b.to_string()))
+        .collect();
+
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeMap::new();
     let mut failed_branches = vec![];
-    let view = mut_repo.view();
-    let all_branch_names: HashSet<&str> = view
-        .git_refs()
-        .keys()
-        .filter_map(|git_ref| git_ref.strip_prefix("refs/heads/"))
-        .chain(view.branches().keys().map(AsRef::as_ref))
-        .collect();
-    for branch_name in all_branch_names {
-        let old_branch = view.get_git_ref(&format!("refs/heads/{branch_name}"));
-        let new_branch = view.get_local_branch(branch_name);
-        if new_branch == old_branch {
+    for branch_name in old_branch_names.union(&current_branches) {
+        let old_commit_id = old_view
+            .refs
+            .get(&local_branch_name_to_ref_name(branch_name));
+        let new_branch = current_view.get_local_branch(branch_name);
+        if old_commit_id.map(|id| RefTarget::Normal(id.clone())) == new_branch {
             continue;
         }
-        let old_oid = match old_branch {
-            None => None,
-            Some(RefTarget::Normal(id)) => Some(Oid::from_bytes(id.as_bytes()).unwrap()),
-            Some(RefTarget::Conflict { .. }) => {
-                // The old git ref should only be a conflict if there were concurrent import
-                // operations while the value changed. Don't overwrite these values.
-                failed_branches.push(branch_name.to_owned());
-                continue;
-            }
-        };
+        let old_oid = old_commit_id.map(|id| Oid::from_bytes(id.as_bytes()).unwrap());
         if let Some(new_branch) = new_branch {
             match new_branch {
                 RefTarget::Normal(id) => {
@@ -275,7 +287,6 @@ fn export_branches_since_old_view(
                     branches_to_update.insert(branch_name.to_owned(), (old_oid, new_oid.unwrap()));
                 }
                 RefTarget::Conflict { .. } => {
-                    // Skip conflicts and leave the old value in git_refs
                     continue;
                 }
             }
@@ -288,7 +299,7 @@ fn export_branches_since_old_view(
         if let (Some(head_git_ref), Ok(current_git_commit)) =
             (head_ref.symbolic_target(), head_ref.peel_to_commit())
         {
-            if let Some(branch_name) = head_git_ref.strip_prefix("refs/heads/") {
+            if let Some(branch_name) = ref_name_to_local_branch_name(head_git_ref) {
                 let detach_head =
                     if let Some((_old_oid, new_oid)) = branches_to_update.get(branch_name) {
                         *new_oid != current_git_commit.id()
@@ -301,14 +312,15 @@ fn export_branches_since_old_view(
             }
         }
     }
+    let mut exported_view = old_view.clone();
     for (branch_name, old_oid) in branches_to_delete {
-        let git_ref_name = format!("refs/heads/{branch_name}");
+        let git_ref_name = local_branch_name_to_ref_name(&branch_name);
         let success = if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
             if git_ref.target() == Some(old_oid) {
                 // The branch has not been updated by git, so go ahead and delete it
                 git_ref.delete().is_ok()
             } else {
-                // The branch was updated by git
+                // The branch was updated by git since we last checked its state
                 false
             }
         } else {
@@ -316,13 +328,14 @@ fn export_branches_since_old_view(
             true
         };
         if success {
+            exported_view.refs.remove(&git_ref_name);
             mut_repo.remove_git_ref(&git_ref_name);
         } else {
             failed_branches.push(branch_name);
         }
     }
     for (branch_name, (old_oid, new_oid)) in branches_to_update {
-        let git_ref_name = format!("refs/heads/{branch_name}");
+        let git_ref_name = local_branch_name_to_ref_name(&branch_name);
         let success = match old_oid {
             None => {
                 if let Ok(git_ref) = git_repo.find_reference(&git_ref_name) {
@@ -351,22 +364,23 @@ fn export_branches_since_old_view(
                         // Iff it was updated to our desired target, we still consider it a success
                         git_ref.target() == Some(new_oid)
                     } else {
-                        // The reference was deleted in git
+                        // The reference was deleted in git and moved in jj
                         false
                     }
                 }
             }
         };
         if success {
-            mut_repo.set_git_ref(
-                git_ref_name,
-                RefTarget::Normal(CommitId::from_bytes(new_oid.as_bytes())),
-            );
+            let new_commit_id = CommitId::from_bytes(new_oid.as_bytes());
+            exported_view
+                .refs
+                .insert(git_ref_name.clone(), new_commit_id.clone());
+            mut_repo.set_git_ref(git_ref_name, RefTarget::Normal(new_commit_id));
         } else {
             failed_branches.push(branch_name);
         }
     }
-    Ok((GitRefView::default(), failed_branches))
+    Ok((exported_view, failed_branches))
 }
 
 /// Reads the last seen state of git refs from a file, updates it with the

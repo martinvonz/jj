@@ -771,6 +771,10 @@ fn test_export_import_sequence() {
         mut_repo.get_git_ref("refs/heads/main"),
         Some(RefTarget::Normal(commit_a.id().clone()))
     );
+    // Short-term TODO: This export is necessary for the "main" branch to be
+    // successfully exported in the following export (after modifying where
+    // "main" points). This is a bug that will be fixed in a subsequent commit.
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
 
     // Modify the branch in jj to point to B
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
