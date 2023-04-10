@@ -1,3 +1,6 @@
+pub mod git_ref_view {
+    include!("git_ref_view.rs");
+}
 pub mod op_store {
     include!("op_store.rs");
 }

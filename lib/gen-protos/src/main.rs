@@ -16,7 +16,12 @@ use std::io::Result;
 use std::path::Path;
 
 fn main() -> Result<()> {
-    let input = ["op_store.proto", "store.proto", "working_copy.proto"];
+    let input = [
+        "git_ref_view.proto",
+        "op_store.proto",
+        "store.proto",
+        "working_copy.proto",
+    ];
 
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let protos_dir = root.join("src").join("protos");
