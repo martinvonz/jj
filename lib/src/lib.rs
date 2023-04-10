@@ -16,6 +16,7 @@
 
 #[macro_use]
 mod content_hash;
+mod git_ref_view;
 
 pub mod backend;
 pub mod commit;
