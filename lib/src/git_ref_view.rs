@@ -53,7 +53,6 @@ type GitRefViewProto = crate::protos::git_ref_view::GitRefView;
 type GitRefProto = crate::protos::git_ref_view::GitRef;
 
 impl GitRefView {
-    #[allow(dead_code)] // Short-term TODO: remove this
     pub fn read_view_from_file(view_path: PathBuf) -> Result<Self, GitRefViewError> {
         let buf = fs::read(view_path)?;
 
@@ -61,7 +60,6 @@ impl GitRefView {
         Ok(view_from_proto(proto))
     }
 
-    #[allow(dead_code)] // Short-term TODO: remove this
     pub fn write_view_to_file(&self, path: PathBuf) -> Result<(), GitRefViewError> {
         let proto = view_to_proto(self);
         Ok(std::fs::write(path, proto.encode_to_vec())?)

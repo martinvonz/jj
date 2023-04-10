@@ -23,6 +23,7 @@ use thiserror::Error;
 use crate::backend::{CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::git_backend::NO_GC_REF_NAMESPACE;
+use crate::git_ref_view::{GitRefView, GitRefViewError};
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
 use crate::settings::GitSettings;
@@ -207,12 +208,16 @@ pub fn import_some_refs(
 pub enum GitExportError {
     #[error("Cannot export conflicted branch '{0}'")]
     ConflictedBranch(String),
-    #[error("Failed to read export state: {0}")]
-    ReadStateError(String),
-    #[error("Failed to write export state: {0}")]
-    WriteStateError(String),
+    #[error("Failed to read or write export state: {0}")]
+    StateReadWriteError(String),
     #[error("Git error: {0}")]
     InternalGitError(#[from] git2::Error),
+}
+
+impl From<GitRefViewError> for GitExportError {
+    fn from(err: GitRefViewError) -> GitExportError {
+        GitExportError::StateReadWriteError(err.to_string())
+    }
 }
 
 /// Reflect changes made in the Jujutsu repo compared to our current view of the
@@ -223,6 +228,19 @@ pub fn export_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
 ) -> Result<Vec<String>, GitExportError> {
+    with_last_seen_refs(mut_repo.base_repo().repo_path().clone(), |last_seen_view| {
+        export_branches_since_old_view(mut_repo, last_seen_view, git_repo)
+    })
+}
+
+/// Short-term TODO: Docstring is in the next commit
+fn export_branches_since_old_view(
+    mut_repo: &mut MutableRepo,
+    // Short-term TODO: Currently, this function ignores old view and always returns an empty
+    // GitRefView
+    _old_view: &GitRefView,
+    git_repo: &git2::Repository,
+) -> Result<(GitRefView, Vec<String>), GitExportError> {
     // First find the changes we want need to make without modifying mut_repo
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeMap::new();
@@ -348,7 +366,38 @@ pub fn export_refs(
             failed_branches.push(branch_name);
         }
     }
-    Ok(failed_branches)
+    Ok((GitRefView::default(), failed_branches))
+}
+
+/// Reads the last seen state of git refs from a file, updates it with the
+/// provided function, and writes the result back to disk.
+///
+/// The state currently tracks only the local branches.
+fn with_last_seen_refs<Ret, Err, Err2: From<GitRefViewError> + From<Err>>(
+    repo_path: PathBuf,
+    f: impl FnOnce(&GitRefView) -> Result<(GitRefView, Ret), Err>,
+) -> Result<Ret, Err2> {
+    // Short-term TODO 1: Modification of this file, as well as the git refs in the
+    // git storage, should be protected by a lock.
+    //
+    // TODO 2: Conceptually, this state should contain all the information in the
+    // repo that's not stored by git and should not be affected by `jj undo`. In
+    // particular, jj's last seen view of remote-tracking branches should be stored
+    // here. It is currently affected by `undo`, which can cause minor issues.
+    //
+    // TODO 2.5: If remote branches were stored here, they should no longer be
+    // stored in jj's normal View and the format of the file would no longer be a
+    // View object. This would allow us to treat the state exported to the git repo
+    // similar to any other remote and unify `jj git push` and `jj git export` to a
+    // large degree.
+    let last_seen_refs_path = repo_path.join("git_last_seen_refs");
+    let old_view = GitRefView::read_view_from_file(last_seen_refs_path.clone())
+        // TODO: Do different things on errors other than "not found"?
+        // Short-term TODO: the default is changed in a subsequent commit.
+        .unwrap_or(GitRefView::default());
+    let (new_view, ret) = f(&old_view)?;
+    new_view.write_view_to_file(last_seen_refs_path)?;
+    Ok(ret)
 }
 
 #[derive(Error, Debug, PartialEq)]
