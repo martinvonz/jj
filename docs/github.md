@@ -35,7 +35,7 @@ branch.
 
 As of December 2022, Jujutsu has no equivalent to a `git pull` command. Until
 such a command is added, you need to use `jj git fetch` followed by a
-`jj git rebase -d $main_branch` to update your changes.
+`jj rebase -d $main_branch` to update your changes.
 
 ## Working in a Git co-located repository
 
@@ -83,7 +83,7 @@ top, you can do that by doing something like this:
 
 ```shell script
 $ # Create a new commit on top of the `your-feature` branch from above.
-$ jj new your-eature
+$ jj new your-feature
 $ # Address the comments, by updating the code
 $ jj diff
 $ # Give the fix a description and create a new working-copy on top.
