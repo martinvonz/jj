@@ -54,6 +54,7 @@ pub struct SimpleOpStore {
 }
 
 impl SimpleOpStore {
+    /// Creates an empty OpStore, panics if it already exists
     pub fn init(store_path: &Path) -> Self {
         fs::create_dir(store_path.join("views")).unwrap();
         fs::create_dir(store_path.join("operations")).unwrap();
@@ -62,6 +63,7 @@ impl SimpleOpStore {
         }
     }
 
+    /// Load an existing OpStore
     pub fn load(store_path: &Path) -> Self {
         SimpleOpStore {
             path: store_path.to_path_buf(),
