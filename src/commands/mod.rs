@@ -177,7 +177,7 @@ impl ConfigArgs {
 /// Operates on jj configuration, which comes from the config file and
 /// environment variables. Uses the config file at ~/.jjconfig.toml or
 /// $XDG_CONFIG_HOME/jj/config.toml, unless overridden with the JJ_CONFIG
-/// environment variable, combined with repo config at ~/.jj/repo/config.toml
+/// environment variable, combined with repo config at .jj/repo/config.toml
 /// if present.
 ///
 /// For supported config options and more details about jj config, see
