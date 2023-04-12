@@ -400,11 +400,14 @@ deleted if you push the branch with `jj git push --branch` or `jj git push
 
 # Alternative ways to specify configuration settings
 
-Instead of `~/.jjconfig.toml`, the config settings can be located at
-`$XDG_CONFIG_HOME/jj/config.toml` as per the [XDG specification]. It is an error
-for both of these files to exist.
+Instead of `~/.jjconfig.toml`, the config settings can be located under
+a platform-specific directory. It is an error for both of these files to exist.
 
-[XDG specification]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+| Platform | Value                                              | Example                                                   |
+| :------- | :------------------------------------------------- | :-------------------------------------------------------- |
+| Linux    | `$XDG_CONFIG_HOME/jj/config.toml`                  | `/home/alice/.config/jj/config.toml`                      |
+| macOS    | `$HOME/Library/Application Support/jj/config.toml` | `/Users/Alice/Library/Application Support/jj/config.toml` |
+| Windows  | `{FOLDERID_RoamingAppData}\jj\config.toml`         | `C:\Users\Alice\AppData\Roaming\jj\config.toml`           |
 
 The location of the `jj` config file can also be overridden with the
 `JJ_CONFIG` environment variable. If it is not empty, it should contain the path
