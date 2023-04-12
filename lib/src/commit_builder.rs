@@ -46,6 +46,7 @@ impl CommitBuilder<'_> {
             description: String::new(),
             author: signature.clone(),
             committer: signature,
+            sig: None,
         };
         CommitBuilder {
             mut_repo,

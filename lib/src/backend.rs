@@ -147,6 +147,7 @@ content_hash! {
         pub description: String,
         pub author: Signature,
         pub committer: Signature,
+        pub sig: Option<Vec<u8>>,
     }
 }
 
@@ -210,6 +211,11 @@ pub enum BackendError {
     #[error("Could not write object of type {object_type}: {source}")]
     WriteObject {
         object_type: &'static str,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    #[error("Failed to read signature for commit {hash}: {source}")]
+    ReadSignature {
+        hash: String,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error("Error: {0}")]
@@ -365,6 +371,7 @@ pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Comm
         description: String::new(),
         author: signature.clone(),
         committer: signature,
+        sig: None,
     }
 }
 

@@ -300,6 +300,7 @@ fn commit_from_proto(proto: crate::protos::store::Commit) -> Commit {
         description: proto.description,
         author: signature_from_proto(proto.author.unwrap_or_default()),
         committer: signature_from_proto(proto.committer.unwrap_or_default()),
+        sig: None, // todo: implement signature storage for native backend
     }
 }
 

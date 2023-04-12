@@ -430,6 +430,17 @@ impl Backend for GitBackend {
         let author = signature_from_git(commit.author());
         let committer = signature_from_git(commit.committer());
 
+        let sig = match locked_repo.extract_signature(&git_commit_id, None) {
+            Ok((sig, _)) => Some(sig.to_owned()),
+            Err(err) if err.code() == git2::ErrorCode::NotFound => None,
+            Err(err) => {
+                return Err(BackendError::ReadSignature {
+                    hash: id.hex(),
+                    source: Box::new(err),
+                })
+            }
+        };
+
         let mut commit = Commit {
             parents,
             predecessors: vec![],
@@ -438,6 +449,7 @@ impl Backend for GitBackend {
             description,
             author,
             committer,
+            sig,
         };
 
         let table = {
@@ -753,6 +765,7 @@ mod tests {
             description: "".to_string(),
             author: create_signature(),
             committer: create_signature(),
+            sig: None,
         };
 
         // No parents
@@ -820,6 +833,7 @@ mod tests {
             description: "initial".to_string(),
             author: signature.clone(),
             committer: signature,
+            sig: None,
         };
         let commit_id = store.write_commit(&commit).unwrap();
         let git_refs = store
@@ -844,6 +858,7 @@ mod tests {
             description: "initial".to_string(),
             author: create_signature(),
             committer: create_signature(),
+            sig: None,
         };
         let commit_id1 = store.write_commit(&commit1).unwrap();
         let mut commit2 = commit1;
