@@ -156,6 +156,35 @@ fn test_log_default() {
 }
 
 #[test]
+fn test_log_builtin_templates() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+
+    insta::assert_snapshot!(render(r#"builtin_log_oneline"#), @r###"
+    @  qpvuntsmwlqt test.user 2001-02-03 04:05:07.000 +07:00 230dd059e1b0 (empty) (no description set)
+    ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000 (empty) (no description set)
+    "###);
+
+    insta::assert_snapshot!(render(r#"builtin_log_compact"#), @r###"
+    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    │  (empty) (no description set)
+    ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+       (empty) (no description set)
+    "###);
+
+    insta::assert_snapshot!(render(r#"builtin_log_comfortable"#), @r###"
+    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    │  (empty) (no description set)
+    │
+    ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+       (empty) (no description set)
+
+    "###);
+}
+
+#[test]
 fn test_log_obslog_divergence() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

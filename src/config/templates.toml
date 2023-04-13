@@ -6,8 +6,37 @@ separate(" ",
 )
 '''
 
-log = '''
-label(if(current_working_copy, "working_copy"),
+log = 'builtin_log_compact'
+
+op_log = 'builtin_op_log_compact'
+
+# Defined as alias to allow 'log -T show'
+show = 'show'
+
+[template-aliases]
+'builtin_log_oneline' = '''label(if(current_working_copy, "working_copy"),
+  concat(
+    separate(" ",
+      label(
+        separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
+        separate(" ",
+          format_short_change_id(change_id) ++ if(divergent, "??"),
+          if(hidden, "hidden"))),
+      author.username(),
+      format_timestamp(committer.timestamp()),
+      branches,
+      tags,
+      working_copies,
+      git_head,
+      format_short_commit_id(commit_id),
+      if(conflict, label("conflict", "conflict")),
+      if(empty, label("empty", "(empty)")),
+      if(description, description.first_line(), description_placeholder),
+    ) ++ "\n",
+  ),
+)
+'''
+'builtin_log_compact' = '''label(if(current_working_copy, "working_copy"),
   concat(
     separate(" ",
       label(
@@ -31,8 +60,9 @@ label(if(current_working_copy, "working_copy"),
   ),
 )
 '''
+builtin_log_comfortable = 'builtin_log_compact ++ "\n"'
 
-op_log = '''
+builtin_op_log_compact = '''
 label(if(current_operation, "current_operation"),
   concat(
     separate(" ",
@@ -41,15 +71,12 @@ label(if(current_operation, "current_operation"),
       format_time_range(time),
     ) ++ "\n",
     description.first_line() ++ "\n",
-    tags,
+    if(tags, tags ++ "\n"),
   ),
 )
 '''
+builtin_op_log_comfortable = 'builtin_op_log_compact ++ "\n"'
 
-# Defined as alias to allow 'log -T show'
-show = 'show'
-
-[template-aliases]
 'description_placeholder' = 'label("description", "(no description set)")'
 
 # Hook points for users to customize the default templates:
