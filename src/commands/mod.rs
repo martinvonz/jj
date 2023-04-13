@@ -115,7 +115,7 @@ enum Commands {
     Squash(SquashArgs),
     Status(StatusArgs),
     #[command(subcommand)]
-    Support(SupportCommands),
+    Util(UtilCommands),
     /// Undo an operation (shortcut for `jj op undo`)
     Undo(operation::OperationUndoArgs),
     Unsquash(UnsquashArgs),
@@ -888,27 +888,27 @@ struct SparseArgs {
 
 /// Infrequently used commands such as for generating shell completions
 #[derive(Subcommand, Clone, Debug)]
-enum SupportCommands {
-    Completion(SupportCompletionArgs),
-    Mangen(SupportMangenArgs),
-    ConfigSchema(SupportConfigSchemaArgs),
+enum UtilCommands {
+    Completion(UtilCompletionArgs),
+    Mangen(UtilMangenArgs),
+    ConfigSchema(UtilConfigSchemaArgs),
 }
 
 /// Print a command-line-completion script
 #[derive(clap::Args, Clone, Debug)]
-struct SupportCompletionArgs {
+struct UtilCompletionArgs {
     /// Print a completion script for Bash
     ///
     /// Apply it by running this:
     ///
-    /// source <(jj support completion)
+    /// source <(jj util completion)
     #[arg(long, verbatim_doc_comment)]
     bash: bool,
     /// Print a completion script for Fish
     ///
     /// Apply it by running this:
     ///
-    /// jj support completion --fish | source
+    /// jj util completion --fish | source
     #[arg(long, verbatim_doc_comment)]
     fish: bool,
     /// Print a completion script for Zsh
@@ -917,7 +917,7 @@ struct SupportCompletionArgs {
     ///
     /// autoload -U compinit
     /// compinit
-    /// source <(jj support completion --zsh | sed '$d')  # remove the last line
+    /// source <(jj util completion --zsh | sed '$d')  # remove the last line
     /// compdef _jj jj
     #[arg(long, verbatim_doc_comment)]
     zsh: bool,
@@ -925,11 +925,11 @@ struct SupportCompletionArgs {
 
 /// Print a ROFF (manpage)
 #[derive(clap::Args, Clone, Debug)]
-struct SupportMangenArgs {}
+struct UtilMangenArgs {}
 
 /// Print the JSON schema for the jj TOML config format.
 #[derive(clap::Args, Clone, Debug)]
-struct SupportConfigSchemaArgs {}
+struct UtilConfigSchemaArgs {}
 
 /// Low-level commands not intended for users
 #[derive(Subcommand, Clone, Debug)]
@@ -3067,13 +3067,13 @@ fn make_branch_term(branch_names: &[impl AsRef<str>]) -> String {
     }
 }
 
-fn cmd_support(
+fn cmd_util(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &SupportCommands,
+    subcommand: &UtilCommands,
 ) -> Result<(), CommandError> {
     match subcommand {
-        SupportCommands::Completion(completion_matches) => {
+        UtilCommands::Completion(completion_matches) => {
             let mut app = command.app().clone();
             let mut buf = vec![];
             let shell = if completion_matches.zsh {
@@ -3086,13 +3086,13 @@ fn cmd_support(
             clap_complete::generate(shell, &mut app, "jj", &mut buf);
             ui.stdout_formatter().write_all(&buf)?;
         }
-        SupportCommands::Mangen(_mangen_matches) => {
+        UtilCommands::Mangen(_mangen_matches) => {
             let mut buf = vec![];
             let man = clap_mangen::Man::new(command.app().clone());
             man.render(&mut buf)?;
             ui.stdout_formatter().write_all(&buf)?;
         }
-        SupportCommands::ConfigSchema(_config_schema_matches) => {
+        UtilCommands::ConfigSchema(_config_schema_matches) => {
             // TODO(#879): Consider generating entire schema dynamically vs. static file.
             let buf = include_bytes!("../config-schema.json");
             ui.stdout_formatter().write_all(buf)?;
@@ -3521,7 +3521,7 @@ pub fn run_command(
         Commands::Workspace(sub_args) => cmd_workspace(ui, command_helper, sub_args),
         Commands::Sparse(sub_args) => cmd_sparse(ui, command_helper, sub_args),
         Commands::Git(sub_args) => git::cmd_git(ui, command_helper, sub_args),
-        Commands::Support(sub_args) => cmd_support(ui, command_helper, sub_args),
+        Commands::Util(sub_args) => cmd_util(ui, command_helper, sub_args),
         #[cfg(feature = "bench")]
         Commands::Bench(sub_args) => bench::cmd_bench(ui, command_helper, sub_args),
         Commands::Debug(sub_args) => cmd_debug(ui, command_helper, sub_args),
