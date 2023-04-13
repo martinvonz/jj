@@ -19,9 +19,9 @@ use crate::common::TestEnvironment;
 pub mod common;
 
 #[test]
-fn test_support_config_schema() {
+fn test_util_config_schema() {
     let test_env = TestEnvironment::default();
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["support", "config-schema"]);
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["util", "config-schema"]);
     // Validate partial snapshot, redacting any lines nested 2+ indent levels.
     insta::with_settings!({filters => vec![(r"(?m)(^        .*$\r?\n)+", "        [...]\n")]}, {
         assert_snapshot!(stdout, @r###"
