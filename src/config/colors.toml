@@ -20,6 +20,7 @@
 "divergent hidden rest" = {fg ="bright black", bold = false}
 
 "email" = "yellow"
+"username" = "yellow"
 "timestamp" = "cyan"
 "working_copies" = "magenta"
 "branch" = "magenta"

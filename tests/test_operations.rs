@@ -153,6 +153,38 @@ fn test_op_log_template() {
 }
 
 #[test]
+fn test_op_log_builtin_templates() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 0"]);
+
+    insta::assert_snapshot!(render(r#"builtin_op_log_compact"#), @r###"
+    @  45108169c0f8 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj describe -m 'description 0'
+    ◉  a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ◉  56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+       initialize repo
+    "###);
+
+    insta::assert_snapshot!(render(r#"builtin_op_log_comfortable"#), @r###"
+    @  45108169c0f8 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj describe -m 'description 0'
+    │
+    ◉  a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    │
+    ◉  56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+       initialize repo
+
+    "###);
+}
+
+#[test]
 fn test_op_log_word_wrap() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
