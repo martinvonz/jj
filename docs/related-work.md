@@ -6,6 +6,10 @@ Similar tools:
   branchless workflow in your Git repo. Supports anonymous branching, undo,
   and faster rebase (`git move`). Under heavy development and quickly gaining
   new features.
+* [Sapling](https://sapling-scm.com/): A heavily modified fork of
+  [Mercurial](https://www.mercurial-scm.org/) developed and used at Meta. It
+  is compatible with Git, has undo functionality, and
+  [a graphical interface](https://sapling-scm.com/docs/addons/isl). 
 * [GitUp](https://gitup.co/): A Mac-only GUI for Git. Like Jujutsu, supports
   undo and restoring the repo to an earlier snapshot. Backed by its
   [GitUpKit library](https://github.com/git-up/GitUp#gitupkit).
