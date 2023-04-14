@@ -69,7 +69,7 @@ fn test_alias_bad_name() {
     insta::assert_snapshot!(stderr, @r###"
     error: unrecognized subcommand 'foo.'
 
-    Usage: jj [OPTIONS] <COMMAND>
+    Usage: jj [OPTIONS] [COMMAND]
 
     For more information, try '--help'.
     "###);
@@ -86,7 +86,7 @@ fn test_alias_calls_unknown_command() {
     insta::assert_snapshot!(stderr, @r###"
     error: unrecognized subcommand 'nonexistent'
 
-    Usage: jj [OPTIONS] <COMMAND>
+    Usage: jj [OPTIONS] [COMMAND]
 
     For more information, try '--help'.
     "###);
@@ -123,7 +123,7 @@ fn test_alias_calls_help() {
 
     To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
 
-    Usage: jj [OPTIONS] <COMMAND>
+    Usage: jj [OPTIONS] [COMMAND]
     "###);
 }
 

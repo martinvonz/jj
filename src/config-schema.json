@@ -51,6 +51,11 @@
                     "description": "Whether to allow initializing a repo with the native backend",
                     "default": false
                 },
+                "default-command": {
+                    "type": "string",
+                    "description": "Default command to run when no explicit command is given",
+                    "default": "log"
+                },
                 "default-revset": {
                     "type": "string",
                     "description": "Default set of revisions to show when no explicit revset is given for jj log and similar commands",

@@ -47,12 +47,25 @@ fn test_non_utf8_arg() {
 #[test]
 fn test_no_subcommand() {
     let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
 
-    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &[]);
-    insta::assert_snapshot!(stderr.lines().next().unwrap(), @"Jujutsu (An experimental VCS)");
+    // Outside of a repo.
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &[]);
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Use `jj -h` for a list of available commands.
+    Set the config `ui.default-command = "log"` to disable this message.
+    Error: There is no jj repo in "."
+    "###);
 
-    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["-R."]);
-    insta::assert_snapshot!(stderr.lines().next().unwrap(), @"error: 'jj' requires a subcommand but one was not provided");
+    test_env.add_config(r#"ui.default-command="log""#);
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &[]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: There is no jj repo in "."
+    "###);
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--help"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Jujutsu (An experimental VCS)");
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--version"]);
     let sanitized = stdout.replace(|c: char| c.is_ascii_hexdigit(), "?");
@@ -62,8 +75,28 @@ fn test_no_subcommand() {
         "{sanitized}"
     );
 
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--help"]);
-    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Jujutsu (An experimental VCS)");
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["-R", "repo"]);
+    assert_eq!(stdout, test_env.jj_cmd_success(&repo_path, &["log"]));
+
+    // Inside of a repo.
+    let stdout = test_env.jj_cmd_success(&repo_path, &[]);
+    assert_eq!(stdout, test_env.jj_cmd_success(&repo_path, &["log"]));
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["-T", "show"]);
+    let stdout = stdout.lines().skip(2).join("\n");
+    insta::assert_snapshot!(stdout, @r###"
+    │  Author: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
+    │  Committer: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
+    │
+    │      (no description set)
+    │
+    ◉  Commit ID: 0000000000000000000000000000000000000000
+       Change ID: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+       Author:  <> (1970-01-01 00:00:00.000 +00:00)
+       Committer:  <> (1970-01-01 00:00:00.000 +00:00)
+
+           (no description set)
+    "###);
 }
 
 #[test]
