@@ -25,6 +25,7 @@ use jujutsu_lib::backend::{
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::repo::StoreFactories;
 use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::signer::Signer;
 use jujutsu_lib::workspace::Workspace;
 
 #[derive(clap::Parser, Clone, Debug)]
@@ -153,7 +154,11 @@ impl Backend for JitBackend {
         self.inner.read_commit(id)
     }
 
-    fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId> {
-        self.inner.write_commit(contents)
+    fn write_commit(
+        &self,
+        contents: &Commit,
+        signer: Option<&dyn Signer>,
+    ) -> BackendResult<CommitId> {
+        self.inner.write_commit(contents, signer)
     }
 }

@@ -30,6 +30,7 @@ use crate::backend::{
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::signer::Signer;
 
 const COMMIT_ID_LENGTH: usize = 64;
 const CHANGE_ID_LENGTH: usize = 16;
@@ -258,7 +259,11 @@ impl Backend for LocalBackend {
         Ok(commit_from_proto(proto))
     }
 
-    fn write_commit(&self, commit: &Commit) -> BackendResult<CommitId> {
+    fn write_commit(
+        &self,
+        commit: &Commit,
+        _signer: Option<&dyn Signer>,
+    ) -> BackendResult<CommitId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = commit_to_proto(commit);

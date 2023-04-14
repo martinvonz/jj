@@ -56,7 +56,7 @@
             makeWrapper
             pkg-config
           ];
-          buildInputs = with pkgs; [ openssl dbus sqlite ]
+          buildInputs = with pkgs; [ openssl dbus sqlite gpgme libgpgerror ]
             ++ lib.optionals stdenv.isDarwin [
             darwin.apple_sdk.frameworks.Security
             darwin.apple_sdk.frameworks.SystemConfiguration
@@ -102,6 +102,8 @@
 
           # Required build dependencies
           openssl
+          gpgme
+          libgpgerror
           pkg-config # to find openssl
 
           # Additional tools recommended by contributing.md

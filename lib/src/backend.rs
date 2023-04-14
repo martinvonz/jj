@@ -22,6 +22,7 @@ use thiserror::Error;
 
 use crate::content_hash::ContentHash;
 use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::signer::Signer;
 
 pub trait ObjectId {
     fn new(value: Vec<u8>) -> Self;
@@ -412,5 +413,9 @@ pub trait Backend: Send + Sync + Debug {
 
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit>;
 
-    fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId>;
+    fn write_commit(
+        &self,
+        contents: &Commit,
+        signer: Option<&dyn Signer>,
+    ) -> BackendResult<CommitId>;
 }

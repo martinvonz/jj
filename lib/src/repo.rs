@@ -41,6 +41,7 @@ use crate::refs::merge_ref_targets;
 use crate::revset::{ChangeIdIndex, Revset, RevsetExpression};
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
+use crate::signer::Signer;
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
 use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
@@ -635,6 +636,7 @@ pub struct MutableRepo {
     view: DirtyCell<View>,
     rewritten_commits: HashMap<CommitId, HashSet<CommitId>>,
     abandoned_commits: HashSet<CommitId>,
+    current_signer: Option<Box<dyn Signer>>,
 }
 
 impl MutableRepo {
@@ -651,6 +653,7 @@ impl MutableRepo {
             view: DirtyCell::with_clean(mut_view),
             rewritten_commits: Default::default(),
             abandoned_commits: Default::default(),
+            current_signer: None,
         }
     }
 
@@ -666,6 +669,14 @@ impl MutableRepo {
         !(self.abandoned_commits.is_empty()
             && self.rewritten_commits.is_empty()
             && self.view() == &self.base_repo.view)
+    }
+
+    pub fn current_signer(&self) -> Option<&dyn Signer> {
+        self.current_signer.as_deref()
+    }
+
+    pub fn set_current_signer(&mut self, signer: Option<Box<dyn Signer>>) {
+        self.current_signer = signer;
     }
 
     pub fn consume(self) -> (Box<dyn MutableIndex>, View) {
@@ -691,7 +702,7 @@ impl MutableRepo {
     }
 
     pub fn write_commit(&mut self, commit: backend::Commit) -> BackendResult<Commit> {
-        let commit = self.store().write_commit(commit)?;
+        let commit = self.store().write_commit(commit, self.current_signer())?;
         self.add_head(&commit);
         Ok(commit)
     }

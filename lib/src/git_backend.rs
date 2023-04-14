@@ -28,6 +28,7 @@ use crate::backend::{
     Tree, TreeId, TreeValue,
 };
 use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::signer::Signer;
 use crate::stacked_table::{ReadonlyTable, TableSegment, TableStore};
 
 const HASH_LENGTH: usize = 20;
@@ -471,7 +472,11 @@ impl Backend for GitBackend {
         Ok(commit)
     }
 
-    fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId> {
+    fn write_commit(
+        &self,
+        contents: &Commit,
+        signer: Option<&dyn Signer>,
+    ) -> BackendResult<CommitId> {
         let locked_repo = self.repo.lock().unwrap();
         let git_tree_id = validate_git_object_id(&contents.root_tree)?;
         let git_tree = locked_repo
@@ -515,19 +520,37 @@ impl Backend for GitBackend {
             .unwrap()
             .start_mutation();
         let id = loop {
-            let git_id = locked_repo
-                .commit(
+            let git_id = match signer {
+                Some(signer) => {
+                    let commit_buf = locked_repo
+                        .commit_create_buffer(&author, &committer, message, &git_tree, &parent_refs)
+                        .unwrap(); // todo error handling
+                    let sig = signer.sign(&commit_buf)?;
+
+                    let commit_str = std::str::from_utf8(&commit_buf).unwrap();
+                    // todo ^ libgit2 docstring suggests that but I'm not sure, maybe still need to
+                    // handle the unwrap
+
+                    let id = locked_repo.commit_signed(commit_str, &sig, None).unwrap(); // todo error handling
+
+                    locked_repo
+                        .reference(&create_no_gc_ref(), id, false, message)
+                        .map(|_| id)
+                }
+                None => locked_repo.commit(
                     Some(&create_no_gc_ref()),
                     &author,
                     &committer,
                     message,
                     &git_tree,
                     &parent_refs,
-                )
-                .map_err(|err| BackendError::WriteObject {
-                    object_type: "commit",
-                    source: Box::new(err),
-                })?;
+                ),
+            }
+            .map_err(|err| BackendError::WriteObject {
+                object_type: "commit",
+                source: Box::new(err),
+            })?;
+
             let id = CommitId::from_bytes(git_id.as_bytes());
             match mut_table.get_value(id.as_bytes()) {
                 Some(existing_extras) if existing_extras != extras => {
@@ -771,13 +794,13 @@ mod tests {
         // No parents
         commit.parents = vec![];
         assert_matches!(
-            backend.write_commit(&commit),
+            backend.write_commit(&commit, None),
             Err(BackendError::Other(message)) if message.contains("no parents")
         );
 
         // Only root commit as parent
         commit.parents = vec![backend.root_commit_id().clone()];
-        let first_id = backend.write_commit(&commit).unwrap();
+        let first_id = backend.write_commit(&commit, None).unwrap();
         let first_commit = backend.read_commit(&first_id).unwrap();
         assert_eq!(first_commit, commit);
         let first_git_commit = git_repo.find_commit(git_id(&first_id)).unwrap();
@@ -785,7 +808,7 @@ mod tests {
 
         // Only non-root commit as parent
         commit.parents = vec![first_id.clone()];
-        let second_id = backend.write_commit(&commit).unwrap();
+        let second_id = backend.write_commit(&commit, None).unwrap();
         let second_commit = backend.read_commit(&second_id).unwrap();
         assert_eq!(second_commit, commit);
         let second_git_commit = git_repo.find_commit(git_id(&second_id)).unwrap();
@@ -796,7 +819,7 @@ mod tests {
 
         // Merge commit
         commit.parents = vec![first_id.clone(), second_id.clone()];
-        let merge_id = backend.write_commit(&commit).unwrap();
+        let merge_id = backend.write_commit(&commit, None).unwrap();
         let merge_commit = backend.read_commit(&merge_id).unwrap();
         assert_eq!(merge_commit, commit);
         let merge_git_commit = git_repo.find_commit(git_id(&merge_id)).unwrap();
@@ -808,7 +831,7 @@ mod tests {
         // Merge commit with root as one parent
         commit.parents = vec![first_id, backend.root_commit_id().clone()];
         assert_matches!(
-            backend.write_commit(&commit),
+            backend.write_commit(&commit, None),
             Err(BackendError::Other(message)) if message.contains("root commit")
         );
     }
@@ -835,7 +858,7 @@ mod tests {
             committer: signature,
             sig: None,
         };
-        let commit_id = store.write_commit(&commit).unwrap();
+        let commit_id = store.write_commit(&commit, None).unwrap();
         let git_refs = store
             .git_repo()
             .unwrap()
@@ -860,12 +883,12 @@ mod tests {
             committer: create_signature(),
             sig: None,
         };
-        let commit_id1 = store.write_commit(&commit1).unwrap();
+        let commit_id1 = store.write_commit(&commit1, None).unwrap();
         let mut commit2 = commit1;
         commit2.predecessors.push(commit_id1.clone());
         // `write_commit` should prevent the ids from being the same by changing the
         // committer timestamp of the commit it actually writes.
-        assert_ne!(store.write_commit(&commit2).unwrap(), commit_id1);
+        assert_ne!(store.write_commit(&commit2, None).unwrap(), commit_id1);
     }
 
     fn git_id(commit_id: &CommitId) -> Oid {

@@ -22,6 +22,7 @@ use crate::backend::{
 };
 use crate::commit::Commit;
 use crate::repo_path::RepoPath;
+use crate::signer::Signer;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 
@@ -90,9 +91,13 @@ impl Store {
         Ok(data)
     }
 
-    pub fn write_commit(self: &Arc<Self>, commit: backend::Commit) -> BackendResult<Commit> {
+    pub fn write_commit(
+        self: &Arc<Self>,
+        commit: backend::Commit,
+        signer: Option<&dyn Signer>,
+    ) -> BackendResult<Commit> {
         assert!(!commit.parents.is_empty());
-        let commit_id = self.backend.write_commit(&commit)?;
+        let commit_id = self.backend.write_commit(&commit, signer)?;
         let data = Arc::new(commit);
         {
             let mut write_locked_cache = self.commit_cache.write().unwrap();
