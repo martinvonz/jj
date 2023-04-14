@@ -124,6 +124,16 @@ Which elements can be colored is not yet documented, but see
 the [default color configuration](https://github.com/martinvonz/jj/blob/main/src/config/colors.toml)
 for some examples of what's possible.
 
+### Default command
+
+When `jj` is run with no explicit subcommand, the value of the
+`ui.default-command` setting will used instead. Possible values are any valid
+subcommand name, subcommand alias, or user-defined alias (defaults to `"log"`).
+
+```toml
+ui.default-command = "log"
+```
+
 ### Diff format
 
 ```toml

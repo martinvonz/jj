@@ -3474,9 +3474,7 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
 
 pub fn default_app() -> Command {
     let app: Command = Commands::augment_subcommands(Args::command());
-    app.arg_required_else_help(true)
-        .subcommand_required(true)
-        .version(env!("JJ_VERSION"))
+    app.version(env!("JJ_VERSION"))
 }
 
 pub fn run_command(

@@ -79,6 +79,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git fetch` and `jj git push` will now use the single defined remote even if it is not named "origin".
 
+* `jj` with no subcommand now defaults to `jj log` instead of showing help. This
+  command can be overridden by setting `ui.default-command`.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines

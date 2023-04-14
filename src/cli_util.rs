@@ -2028,6 +2028,49 @@ impl ValueParserFactory for RevisionArg {
     }
 }
 
+fn resolve_default_command(
+    ui: &mut Ui,
+    config: &config::Config,
+    app: &Command,
+    string_args: &mut Vec<String>,
+) -> Result<(), CommandError> {
+    const PRIORITY_FLAGS: &[&str] = &["help", "--help", "-h", "--version", "-V"];
+
+    let has_priority_flag = string_args
+        .iter()
+        .any(|arg| PRIORITY_FLAGS.contains(&arg.as_str()));
+    if has_priority_flag {
+        return Ok(());
+    }
+
+    let app_clone = app
+        .clone()
+        .allow_external_subcommands(true)
+        .ignore_errors(true);
+    let matches = app_clone.try_get_matches_from(string_args.clone()).ok();
+
+    if let Some(matches) = matches {
+        if matches.subcommand_name().is_none() {
+            if config.get_string("ui.default-command").is_err() {
+                writeln!(
+                    ui.hint(),
+                    "Hint: Use `jj -h` for a list of available commands."
+                )?;
+                writeln!(
+                    ui.hint(),
+                    "Set the config `ui.default-command = \"log\"` to disable this message."
+                )?;
+            }
+            let default_command = config
+                .get_string("ui.default-command")
+                .unwrap_or("log".to_string());
+            // Insert the default command directly after the path to the binary.
+            string_args.insert(1, default_command);
+        }
+    }
+    Ok(())
+}
+
 fn resolve_aliases(
     config: &config::Config,
     app: &Command,
@@ -2119,6 +2162,7 @@ fn handle_early_args(
 }
 
 pub fn expand_args(
+    ui: &mut Ui,
     app: &Command,
     args_os: ArgsOs,
     config: &config::Config,
@@ -2132,6 +2176,7 @@ pub fn expand_args(
         }
     }
 
+    resolve_default_command(ui, config, app, &mut string_args)?;
     resolve_aliases(config, app, &string_args)
 }
 
@@ -2299,7 +2344,7 @@ impl CliRunner {
         layered_configs.read_user_config()?;
         let config = layered_configs.merge();
         ui.reset(&config)?;
-        let string_args = expand_args(&self.app, std::env::args_os(), &config)?;
+        let string_args = expand_args(ui, &self.app, std::env::args_os(), &config)?;
         let (matches, args) = parse_args(
             ui,
             &self.app,
