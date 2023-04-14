@@ -382,6 +382,7 @@ fn test_help() {
     Global Options:
       -R, --repository <REPOSITORY>      Path to repository to operate on
           --ignore-working-copy          Don't snapshot the working copy, and don't update it
+      -S, --sign [<KEY ID>]              If the command creates a commit (including snapshotting working copy), cryptographically sign it
           --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
       -v, --verbose                      Enable verbose logging
           --color <WHEN>                 When to colorize output (always, never, auto)

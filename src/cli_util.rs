@@ -48,6 +48,7 @@ use jujutsu_lib::revset::{
     RevsetParseError, RevsetParseErrorKind, RevsetResolutionError, RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::signer::{GpgMeSigner, Signer};
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{Tree, TreeMergeError};
 use jujutsu_lib::working_copy::{
@@ -361,6 +362,7 @@ pub struct CommandHelper {
     layered_configs: LayeredConfigs,
     maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
     store_factories: StoreFactories,
+    signer: Option<Arc<dyn Signer>>,
 }
 
 impl CommandHelper {
@@ -374,6 +376,7 @@ impl CommandHelper {
         layered_configs: LayeredConfigs,
         maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
         store_factories: StoreFactories,
+        signer: Option<Arc<dyn Signer>>,
     ) -> Self {
         Self {
             app,
@@ -384,6 +387,7 @@ impl CommandHelper {
             layered_configs,
             maybe_workspace_loader,
             store_factories,
+            signer,
         }
     }
 
@@ -405,6 +409,10 @@ impl CommandHelper {
 
     pub fn settings(&self) -> &UserSettings {
         &self.settings
+    }
+
+    pub fn signer(&self) -> &Option<Arc<dyn Signer>> {
+        &self.signer
     }
 
     pub fn resolved_config_values(
@@ -470,6 +478,7 @@ impl CommandHelper {
                     let mut tx = start_repo_transaction(
                         &base_repo,
                         &self.settings,
+                        self.signer.clone(),
                         &self.string_args,
                         "resolve concurrent operations",
                     );
@@ -510,6 +519,7 @@ impl CommandHelper {
             &self.global_args,
             self.settings.clone(),
             repo,
+            self.signer.clone(),
         )
     }
 
@@ -543,9 +553,11 @@ pub struct WorkspaceCommandHelper {
     template_aliases_map: TemplateAliasesMap,
     may_update_working_copy: bool,
     working_copy_shared_with_git: bool,
+    signer: Option<Arc<dyn Signer>>,
 }
 
 impl WorkspaceCommandHelper {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         ui: &mut Ui,
         workspace: Workspace,
@@ -554,6 +566,7 @@ impl WorkspaceCommandHelper {
         global_args: &GlobalArgs,
         settings: UserSettings,
         repo: Arc<ReadonlyRepo>,
+        signer: Option<Arc<dyn Signer>>,
     ) -> Result<Self, CommandError> {
         let revset_aliases_map = load_revset_aliases(ui, &settings)?;
         let template_aliases_map = load_template_aliases(ui, &settings)?;
@@ -588,6 +601,7 @@ impl WorkspaceCommandHelper {
             template_aliases_map,
             may_update_working_copy,
             working_copy_shared_with_git,
+            signer,
         })
     }
 
@@ -994,6 +1008,7 @@ impl WorkspaceCommandHelper {
             let mut tx = start_repo_transaction(
                 &self.repo,
                 &self.settings,
+                self.signer.clone(),
                 &self.string_args,
                 "snapshot working copy",
             );
@@ -1056,7 +1071,13 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn start_transaction(&mut self, description: &str) -> WorkspaceCommandTransaction {
-        let tx = start_repo_transaction(&self.repo, &self.settings, &self.string_args, description);
+        let tx = start_repo_transaction(
+            &self.repo,
+            &self.settings,
+            self.signer.clone(),
+            &self.string_args,
+            description,
+        );
         WorkspaceCommandTransaction { helper: self, tx }
     }
 
@@ -1067,10 +1088,18 @@ impl WorkspaceCommandHelper {
             writeln!(ui, "Nothing changed.")?;
             return Ok(());
         }
+
+        // todo: maybe look for a better way to not (re)sign descendants?
+        let maybe_signer = mut_repo.current_signer().clone();
+        mut_repo.set_current_signer(None);
+
         let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
         if num_rebased > 0 {
             writeln!(ui, "Rebased {num_rebased} descendant commits")?;
         }
+
+        mut_repo.set_current_signer(maybe_signer);
+
         if self.working_copy_shared_with_git {
             self.export_head_to_git(mut_repo)?;
             let git_repo = self.repo.store().git_repo().unwrap();
@@ -1293,10 +1322,11 @@ jj init --git-repo=.",
 pub fn start_repo_transaction(
     repo: &Arc<ReadonlyRepo>,
     settings: &UserSettings,
+    signer: Option<Arc<dyn Signer>>,
     string_args: &[String],
     description: &str,
 ) -> Transaction {
-    let mut tx = repo.start_transaction(settings, description);
+    let mut tx = repo.start_transaction(settings, description, signer);
     // TODO: Either do better shell-escaping here or store the values in some list
     // type (which we currently don't have).
     let shell_escape = |arg: &String| {
@@ -1873,11 +1903,11 @@ pub struct GlobalArgs {
     /// By default, Jujutsu searches for the closest .jj/ directory in an
     /// ancestor of the current working directory.
     #[arg(
-    long,
-    short = 'R',
-    global = true,
-    help_heading = "Global Options",
-    value_hint = clap::ValueHint::DirPath,
+        long,
+        short = 'R',
+        global = true,
+        help_heading = "Global Options",
+        value_hint = clap::ValueHint::DirPath,
     )]
     pub repository: Option<String>,
     /// Don't snapshot the working copy, and don't update it
@@ -1894,6 +1924,20 @@ pub struct GlobalArgs {
     /// implies `--ignore-working-copy`.
     #[arg(long, global = true, help_heading = "Global Options")]
     pub ignore_working_copy: bool,
+    /// If the command creates a commit (including snapshotting working copy),
+    /// cryptographically sign it
+    ///
+    /// Keep in mind that a working copy snapshot taken by a command without
+    /// this flag would not be signed.
+    /// Currently only GPG is supported.
+    #[arg(
+        long,
+        short = 'S',
+        value_name = "KEY ID",
+        global = true,
+        help_heading = "Global Options"
+    )]
+    pub sign: Option<Option<String>>,
     /// Operation to load the repo at
     ///
     /// Operation to load the repo at. By default, Jujutsu loads the repo at the
@@ -2319,6 +2363,15 @@ impl CliRunner {
         let config = layered_configs.merge();
         ui.reset(&config)?;
         let settings = UserSettings::from_config(config);
+
+        let signer = match &args.global_args.sign {
+            Some(key_id) => {
+                let signer = GpgMeSigner::new(key_id.clone());
+                Some(Arc::new(signer) as Arc<dyn Signer>)
+            }
+            None => None,
+        };
+
         let command_helper = CommandHelper::new(
             self.app,
             cwd,
@@ -2328,6 +2381,7 @@ impl CliRunner {
             layered_configs,
             maybe_workspace_loader,
             self.store_factories.unwrap_or_default(),
+            signer,
         );
         (self.dispatch_fn)(ui, &command_helper, &matches)
     }

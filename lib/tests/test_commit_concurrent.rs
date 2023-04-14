@@ -54,7 +54,7 @@ fn test_commit_parallel(use_git: bool) {
         let settings = settings.clone();
         let repo = repo.clone();
         let handle = thread::spawn(move || {
-            let mut tx = repo.start_transaction(&settings, "test");
+            let mut tx = repo.start_transaction(&settings, "test", None);
             write_random_commit(tx.mut_repo(), &settings);
             tx.commit();
         });
@@ -63,7 +63,7 @@ fn test_commit_parallel(use_git: bool) {
     for thread in threads {
         thread.join().ok().unwrap();
     }
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = repo.reload_at_head(&settings, None).unwrap();
     // One commit per thread plus the commit from the initial working-copy on top of
     // the root commit
     assert_eq!(repo.view().heads().len(), num_threads + 1);
@@ -88,7 +88,7 @@ fn test_commit_parallel_instances(use_git: bool) {
         let settings = settings.clone();
         let repo = load_repo_at_head(&settings, repo.repo_path());
         let handle = thread::spawn(move || {
-            let mut tx = repo.start_transaction(&settings, "test");
+            let mut tx = repo.start_transaction(&settings, "test", None);
             write_random_commit(tx.mut_repo(), &settings);
             tx.commit();
         });

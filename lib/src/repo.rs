@@ -257,16 +257,19 @@ impl ReadonlyRepo {
         self: &Arc<ReadonlyRepo>,
         user_settings: &UserSettings,
         description: &str,
+        signer: Option<Arc<dyn Signer>>,
     ) -> Transaction {
-        let mut_repo = MutableRepo::new(self.clone(), self.readonly_index(), &self.view);
+        let mut mut_repo = MutableRepo::new(self.clone(), self.readonly_index(), &self.view);
+        mut_repo.set_current_signer(signer);
         Transaction::new(mut_repo, user_settings, description)
     }
 
     pub fn reload_at_head(
         &self,
         user_settings: &UserSettings,
+        signer: Option<Arc<dyn Signer>>,
     ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<BackendError>> {
-        self.loader().load_at_head(user_settings)
+        self.loader().load_at_head(user_settings, signer)
     }
 
     pub fn reload_at(&self, operation: &Operation) -> Arc<ReadonlyRepo> {
@@ -562,11 +565,12 @@ impl RepoLoader {
     pub fn load_at_head(
         &self,
         user_settings: &UserSettings,
+        signer: Option<Arc<dyn Signer>>,
     ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<BackendError>> {
         let op = op_heads_store::resolve_op_heads(
             self.op_heads_store.as_ref(),
             &self.op_store,
-            |op_heads| self._resolve_op_heads(op_heads, user_settings),
+            |op_heads| self._resolve_op_heads(op_heads, user_settings, signer),
         )?;
         let view = View::new(op.view().take_store_view());
         Ok(self._finish_load(op, view))
@@ -602,9 +606,11 @@ impl RepoLoader {
         &self,
         op_heads: Vec<Operation>,
         user_settings: &UserSettings,
+        signer: Option<Arc<dyn Signer>>,
     ) -> Result<Operation, BackendError> {
         let base_repo = self.load_at(&op_heads[0]);
-        let mut tx = base_repo.start_transaction(user_settings, "resolve concurrent operations");
+        let mut tx =
+            base_repo.start_transaction(user_settings, "resolve concurrent operations", signer);
         for other_op_head in op_heads.into_iter().skip(1) {
             tx.merge_operation(other_op_head);
             tx.mut_repo().rebase_descendants(user_settings)?;
@@ -636,7 +642,7 @@ pub struct MutableRepo {
     view: DirtyCell<View>,
     rewritten_commits: HashMap<CommitId, HashSet<CommitId>>,
     abandoned_commits: HashSet<CommitId>,
-    current_signer: Option<Box<dyn Signer>>,
+    current_signer: Option<Arc<dyn Signer>>,
 }
 
 impl MutableRepo {
@@ -671,11 +677,11 @@ impl MutableRepo {
             && self.view() == &self.base_repo.view)
     }
 
-    pub fn current_signer(&self) -> Option<&dyn Signer> {
-        self.current_signer.as_deref()
+    pub fn current_signer(&self) -> &Option<Arc<dyn Signer>> {
+        &self.current_signer
     }
 
-    pub fn set_current_signer(&mut self, signer: Option<Box<dyn Signer>>) {
+    pub fn set_current_signer(&mut self, signer: Option<Arc<dyn Signer>>) {
         self.current_signer = signer;
     }
 
@@ -702,7 +708,9 @@ impl MutableRepo {
     }
 
     pub fn write_commit(&mut self, commit: backend::Commit) -> BackendResult<Commit> {
-        let commit = self.store().write_commit(commit, self.current_signer())?;
+        let commit = self
+            .store()
+            .write_commit(commit, self.current_signer.as_deref())?;
         self.add_head(&commit);
         Ok(commit)
     }

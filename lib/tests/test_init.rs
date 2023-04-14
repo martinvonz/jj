@@ -32,13 +32,13 @@ fn test_init_local() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
-    let (workspace, repo) = Workspace::init_local(&settings, &uncanonical).unwrap();
+    let (workspace, repo) = Workspace::init_local(&settings, None, &uncanonical).unwrap();
     assert!(repo.store().git_repo().is_none());
     assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
     assert_eq!(workspace.workspace_root(), &canonical);
 
     // Just test that we can write a commit to the store
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     write_random_commit(tx.mut_repo(), &settings);
 }
 
@@ -47,13 +47,13 @@ fn test_init_internal_git() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
-    let (workspace, repo) = Workspace::init_internal_git(&settings, &uncanonical).unwrap();
+    let (workspace, repo) = Workspace::init_internal_git(&settings, None, &uncanonical).unwrap();
     assert!(repo.store().git_repo().is_some());
     assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
     assert_eq!(workspace.workspace_root(), &canonical);
 
     // Just test that we ca write a commit to the store
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     write_random_commit(tx.mut_repo(), &settings);
 }
 
@@ -66,7 +66,8 @@ fn test_init_external_git() {
     git2::Repository::init(&git_repo_path).unwrap();
     std::fs::create_dir(uncanonical.join("jj")).unwrap();
     let (workspace, repo) =
-        Workspace::init_external_git(&settings, &uncanonical.join("jj"), &git_repo_path).unwrap();
+        Workspace::init_external_git(&settings, None, &uncanonical.join("jj"), &git_repo_path)
+            .unwrap();
     assert!(repo.store().git_repo().is_some());
     assert_eq!(
         repo.repo_path(),
@@ -75,7 +76,7 @@ fn test_init_external_git() {
     assert_eq!(workspace.workspace_root(), &canonical.join("jj"));
 
     // Just test that we can write a commit to the store
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     write_random_commit(tx.mut_repo(), &settings);
 }
 

@@ -38,7 +38,7 @@ fn test_unpublished_operation(use_git: bool) {
     let op_id0 = repo.op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
-    let mut tx1 = repo.start_transaction(&settings, "transaction 1");
+    let mut tx1 = repo.start_transaction(&settings, "transaction 1", None);
     write_random_commit(tx1.mut_repo(), &settings);
     let unpublished_op = tx1.write();
     let op_id1 = unpublished_op.operation().id().clone();
@@ -61,14 +61,14 @@ fn test_consecutive_operations(use_git: bool) {
     let op_id0 = repo.op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
-    let mut tx1 = repo.start_transaction(&settings, "transaction 1");
+    let mut tx1 = repo.start_transaction(&settings, "transaction 1", None);
     write_random_commit(tx1.mut_repo(), &settings);
     let op_id1 = tx1.commit().operation().id().clone();
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 
-    let repo = repo.reload_at_head(&settings).unwrap();
-    let mut tx2 = repo.start_transaction(&settings, "transaction 2");
+    let repo = repo.reload_at_head(&settings, None).unwrap();
+    let mut tx2 = repo.start_transaction(&settings, "transaction 2", None);
     write_random_commit(tx2.mut_repo(), &settings);
     let op_id2 = tx2.commit().operation().id().clone();
     assert_ne!(op_id2, op_id0);
@@ -77,7 +77,7 @@ fn test_consecutive_operations(use_git: bool) {
 
     // Reloading the repo makes no difference (there are no conflicting operations
     // to resolve).
-    let _repo = repo.reload_at_head(&settings).unwrap();
+    let _repo = repo.reload_at_head(&settings, None).unwrap();
     assert_eq!(list_dir(&op_heads_dir), vec![op_id2.hex()]);
 }
 
@@ -94,7 +94,7 @@ fn test_concurrent_operations(use_git: bool) {
     let op_id0 = repo.op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
-    let mut tx1 = repo.start_transaction(&settings, "transaction 1");
+    let mut tx1 = repo.start_transaction(&settings, "transaction 1", None);
     write_random_commit(tx1.mut_repo(), &settings);
     let op_id1 = tx1.commit().operation().id().clone();
     assert_ne!(op_id1, op_id0);
@@ -102,7 +102,7 @@ fn test_concurrent_operations(use_git: bool) {
 
     // After both transactions have committed, we should have two op-heads on disk,
     // since they were run in parallel.
-    let mut tx2 = repo.start_transaction(&settings, "transaction 2");
+    let mut tx2 = repo.start_transaction(&settings, "transaction 2", None);
     write_random_commit(tx2.mut_repo(), &settings);
     let op_id2 = tx2.commit().operation().id().clone();
     assert_ne!(op_id2, op_id0);
@@ -114,7 +114,7 @@ fn test_concurrent_operations(use_git: bool) {
     assert_eq!(actual_heads_on_disk, expected_heads_on_disk);
 
     // Reloading the repo causes the operations to be merged
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = repo.reload_at_head(&settings, None).unwrap();
     let merged_op_id = repo.op_id().clone();
     assert_ne!(merged_op_id, op_id0);
     assert_ne!(merged_op_id, op_id1);
@@ -135,16 +135,16 @@ fn test_isolation(use_git: bool) {
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let initial = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write()
         .unwrap();
     let repo = tx.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "transaction 1");
+    let mut tx1 = repo.start_transaction(&settings, "transaction 1", None);
     let mut_repo1 = tx1.mut_repo();
-    let mut tx2 = repo.start_transaction(&settings, "transaction 2");
+    let mut tx2 = repo.start_transaction(&settings, "transaction 2", None);
     let mut_repo2 = tx2.mut_repo();
 
     assert_heads(repo.as_ref(), vec![initial.id()]);
@@ -179,6 +179,6 @@ fn test_isolation(use_git: bool) {
     tx2.commit();
     assert_heads(repo.as_ref(), vec![initial.id()]);
     // After reload, the base repo sees both rewrites.
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = repo.reload_at_head(&settings, None).unwrap();
     assert_heads(repo.as_ref(), vec![rewrite1.id(), rewrite2.id()]);
 }

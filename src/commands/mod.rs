@@ -1054,8 +1054,12 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
                 .join("..")
                 .join(relative_path);
         }
-        let (workspace, repo) =
-            Workspace::init_external_git(command.settings(), &wc_path, &git_store_path)?;
+        let (workspace, repo) = Workspace::init_external_git(
+            command.settings(),
+            command.signer().clone(),
+            &wc_path,
+            &git_store_path,
+        )?;
         let git_repo = repo.store().git_repo().unwrap();
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         workspace_command.snapshot(ui)?;
@@ -1077,7 +1081,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
             }
         }
     } else if args.git {
-        Workspace::init_internal_git(command.settings(), &wc_path)?;
+        Workspace::init_internal_git(command.settings(), command.signer().clone(), &wc_path)?;
     } else {
         if !command.settings().allow_native_backend() {
             return Err(user_error_with_hint(
@@ -1086,7 +1090,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
 Set `ui.allow-init-native` to allow initializing a repo with the native backend.",
             ));
         }
-        Workspace::init_local(command.settings(), &wc_path)?;
+        Workspace::init_local(command.settings(), command.signer().clone(), &wc_path)?;
     };
     let cwd = command.cwd().canonicalize().unwrap();
     let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
@@ -3278,6 +3282,7 @@ fn cmd_workspace_add(
     }
     let (new_workspace, repo) = Workspace::init_workspace_with_existing_repo(
         command.settings(),
+        command.signer().clone(),
         &destination_path,
         repo,
         workspace_id,
@@ -3297,6 +3302,7 @@ fn cmd_workspace_add(
         command.global_args(),
         command.settings().clone(),
         repo,
+        command.signer().clone(),
     )?;
     let mut tx = new_workspace_command.start_transaction(&format!(
         "Create initial working-copy commit in workspace {}",

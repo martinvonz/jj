@@ -75,7 +75,7 @@ fn test_index_commits_standard_cases(use_git: bool) {
     // o root
 
     let root_commit_id = repo.store().root_commit_id();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -133,7 +133,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
     // Create a long chain of criss-crossed merges. If they were traversed without
     // keeping track of visited nodes, it would be 2^50 visits, so if this test
     // finishes in reasonable time, we know that we don't do a naive traversal.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let mut left_commits = vec![graph_builder.initial_commit()];
     let mut right_commits = vec![graph_builder.initial_commit()];
@@ -275,14 +275,14 @@ fn test_index_commits_previous_operations(use_git: bool) {
     // |/
     // o root
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     tx.mut_repo().remove_head(commit_c.id());
     let repo = tx.commit();
 
@@ -324,7 +324,7 @@ fn test_index_commits_incremental(use_git: bool) {
     // o root
 
     let root_commit = repo.store().root_commit();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit)
         .write()
         .unwrap();
@@ -334,7 +334,7 @@ fn test_index_commits_incremental(use_git: bool) {
     // There should be the root commit, plus 1 more
     assert_eq!(index.num_commits(), 1 + 1);
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_b = child_commit(tx.mut_repo(), &settings, &commit_a)
         .write()
         .unwrap();
@@ -376,7 +376,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     // o root
 
     let root_commit = repo.store().root_commit();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit)
         .write()
         .unwrap();
@@ -386,7 +386,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     // There should be the root commit, plus 1 more
     assert_eq!(index.num_commits(), 1 + 1);
 
-    repo.start_transaction(&settings, "test").commit();
+    repo.start_transaction(&settings, "test", None).commit();
 
     let repo = load_repo_at_head(&settings, repo.repo_path());
     let index = as_readonly_impl(&repo);
@@ -419,7 +419,7 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
     // o root
 
     let root_commit = repo.store().root_commit();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit)
         .write()
         .unwrap();
@@ -427,7 +427,7 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
 
     assert!(repo.index().has_id(commit_a.id()));
     assert_eq!(as_readonly_impl(&repo).num_commits(), 1 + 1);
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut_repo = tx.mut_repo();
     mut_repo.add_head(&commit_a);
     assert_eq!(as_mutable_impl(mut_repo).num_commits(), 1 + 1);

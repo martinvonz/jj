@@ -39,7 +39,7 @@ fn test_initial(use_git: bool) {
         ],
     );
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let author_signature = Signature {
         name: "author name".to_string(),
         email: "author email".to_string(),
@@ -113,7 +113,7 @@ fn test_rewrite(use_git: bool) {
         ],
     );
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let initial_commit = tx
         .mut_repo()
         .new_commit(
@@ -141,7 +141,7 @@ fn test_rewrite(use_git: bool) {
         .build()
         .unwrap();
     let rewrite_settings = UserSettings::from_config(config);
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let rewritten_commit = tx
         .mut_repo()
         .rewrite_commit(&rewrite_settings, &initial_commit)
@@ -198,7 +198,7 @@ fn test_rewrite_update_missing_user(use_git: bool) {
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&missing_user_settings, "test");
+    let mut tx = repo.start_transaction(&missing_user_settings, "test", None);
     let initial_commit = tx
         .mut_repo()
         .new_commit(
@@ -247,7 +247,7 @@ fn test_commit_builder_descendants(use_git: bool) {
     let repo = &test_repo.repo;
     let store = repo.store().clone();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -255,7 +255,7 @@ fn test_commit_builder_descendants(use_git: bool) {
     let repo = tx.commit();
 
     // Test with for_new_commit()
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     tx.mut_repo()
         .new_commit(
             &settings,
@@ -268,7 +268,7 @@ fn test_commit_builder_descendants(use_git: bool) {
     assert!(rebaser.rebase_next().unwrap().is_none());
 
     // Test with for_rewrite_from()
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit4 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit2)
@@ -279,7 +279,7 @@ fn test_commit_builder_descendants(use_git: bool) {
     assert!(rebaser.rebase_next().unwrap().is_none());
 
     // Test with for_rewrite_from() but new change id
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     tx.mut_repo()
         .rewrite_commit(&settings, &commit2)
         .generate_new_change_id()

@@ -571,7 +571,7 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     // rebase C2 (the rebased C) onto the resolved conflict. C3 should not have
     // a conflict since it changed an unrelated line.
     let path = RepoPath::from_internal_string("dir/file");
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let tree_a = testutils::create_tree(repo, &[(&path, "abc\ndef\nghi\n")]);
     let commit_a = tx
         .mut_repo()

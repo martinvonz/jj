@@ -98,7 +98,7 @@ fn test_bad_locking_children(use_git: bool) {
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let initial = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write()
@@ -112,9 +112,9 @@ fn test_bad_locking_children(use_git: bool) {
         Workspace::load(&settings, machine1_root.path(), &StoreFactories::default()).unwrap();
     let machine1_repo = machine1_workspace
         .repo_loader()
-        .load_at_head(&settings)
+        .load_at_head(&settings, None)
         .unwrap();
-    let mut machine1_tx = machine1_repo.start_transaction(&settings, "test");
+    let mut machine1_tx = machine1_repo.start_transaction(&settings, "test", None);
     let child1 = create_random_commit(machine1_tx.mut_repo(), &settings)
         .set_parents(vec![initial.id().clone()])
         .write()
@@ -128,9 +128,9 @@ fn test_bad_locking_children(use_git: bool) {
         Workspace::load(&settings, machine2_root.path(), &StoreFactories::default()).unwrap();
     let machine2_repo = machine2_workspace
         .repo_loader()
-        .load_at_head(&settings)
+        .load_at_head(&settings, None)
         .unwrap();
-    let mut machine2_tx = machine2_repo.start_transaction(&settings, "test");
+    let mut machine2_tx = machine2_repo.start_transaction(&settings, "test", None);
     let child2 = create_random_commit(machine2_tx.mut_repo(), &settings)
         .set_parents(vec![initial.id().clone()])
         .write()
@@ -150,7 +150,7 @@ fn test_bad_locking_children(use_git: bool) {
         Workspace::load(&settings, merged_path.path(), &StoreFactories::default()).unwrap();
     let merged_repo = merged_workspace
         .repo_loader()
-        .load_at_head(&settings)
+        .load_at_head(&settings, None)
         .unwrap();
     assert!(merged_repo.view().heads().contains(child1.id()));
     assert!(merged_repo.view().heads().contains(child2.id()));
@@ -169,7 +169,7 @@ fn test_bad_locking_interrupted(use_git: bool) {
     let test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let initial = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write()
@@ -183,7 +183,7 @@ fn test_bad_locking_interrupted(use_git: bool) {
     let op_heads_dir = repo.repo_path().join("op_heads");
     let backup_path = testutils::new_temp_dir();
     copy_directory(&op_heads_dir, backup_path.path());
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![initial.id().clone()])
         .write()

@@ -469,7 +469,8 @@ fn do_git_clone(
     source: &str,
     wc_path: &Path,
 ) -> Result<(WorkspaceCommandHelper, Option<String>), CommandError> {
-    let (workspace, repo) = Workspace::init_internal_git(command.settings(), wc_path)?;
+    let (workspace, repo) =
+        Workspace::init_internal_git(command.settings(), command.signer().clone(), wc_path)?;
     let git_repo = get_git_repo(repo.store())?;
     writeln!(ui, r#"Fetching into new repo in "{}""#, wc_path.display())?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;

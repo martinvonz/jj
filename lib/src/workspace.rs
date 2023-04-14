@@ -30,6 +30,7 @@ use crate::repo::{
     StoreLoadError,
 };
 use crate::settings::UserSettings;
+use crate::signer::Signer;
 use crate::working_copy::WorkingCopy;
 
 #[derive(Error, Debug)]
@@ -81,6 +82,7 @@ fn create_jj_dir(workspace_root: &Path) -> Result<PathBuf, WorkspaceInitError> {
 
 fn init_working_copy(
     user_settings: &UserSettings,
+    signer: Option<Arc<dyn Signer>>,
     repo: &Arc<ReadonlyRepo>,
     workspace_root: &Path,
     jj_dir: &Path,
@@ -92,6 +94,7 @@ fn init_working_copy(
     let mut tx = repo.start_transaction(
         user_settings,
         &format!("add workspace '{}'", workspace_id.as_str()),
+        signer,
     );
     tx.mut_repo().check_out(
         workspace_id.clone(),
@@ -126,9 +129,10 @@ impl Workspace {
 
     pub fn init_local(
         user_settings: &UserSettings,
+        signer: Option<Arc<dyn Signer>>,
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        Self::init_with_backend(user_settings, workspace_root, |store_path| {
+        Self::init_with_backend(user_settings, signer, workspace_root, |store_path| {
             Box::new(LocalBackend::init(store_path))
         })
     }
@@ -137,9 +141,10 @@ impl Workspace {
     /// repo)
     pub fn init_internal_git(
         user_settings: &UserSettings,
+        signer: Option<Arc<dyn Signer>>,
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        Self::init_with_backend(user_settings, workspace_root, |store_path| {
+        Self::init_with_backend(user_settings, signer, workspace_root, |store_path| {
             Box::new(GitBackend::init_internal(store_path))
         })
     }
@@ -148,16 +153,18 @@ impl Workspace {
     /// path
     pub fn init_external_git(
         user_settings: &UserSettings,
+        signer: Option<Arc<dyn Signer>>,
         workspace_root: &Path,
         git_repo_path: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        Self::init_with_backend(user_settings, workspace_root, |store_path| {
+        Self::init_with_backend(user_settings, signer, workspace_root, |store_path| {
             Box::new(GitBackend::init_external(store_path, git_repo_path))
         })
     }
 
     pub fn init_with_factories(
         user_settings: &UserSettings,
+        signer: Option<Arc<dyn Signer>>,
         workspace_root: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
@@ -177,6 +184,7 @@ impl Workspace {
         )?;
         let (working_copy, repo) = init_working_copy(
             user_settings,
+            signer,
             &repo,
             workspace_root,
             &jj_dir,
@@ -189,11 +197,13 @@ impl Workspace {
 
     pub fn init_with_backend(
         user_settings: &UserSettings,
+        signer: Option<Arc<dyn Signer>>,
         workspace_root: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_factories(
             user_settings,
+            signer,
             workspace_root,
             backend_factory,
             ReadonlyRepo::default_op_store_factory(),
@@ -204,6 +214,7 @@ impl Workspace {
 
     pub fn init_workspace_with_existing_repo(
         user_settings: &UserSettings,
+        signer: Option<Arc<dyn Signer>>,
         workspace_root: &Path,
         repo: &Arc<ReadonlyRepo>,
         workspace_id: WorkspaceId,
@@ -222,8 +233,14 @@ impl Workspace {
             )
             .context(&repo_file_path)?;
 
-        let (working_copy, repo) =
-            init_working_copy(user_settings, repo, workspace_root, &jj_dir, workspace_id)?;
+        let (working_copy, repo) = init_working_copy(
+            user_settings,
+            signer,
+            repo,
+            workspace_root,
+            &jj_dir,
+            workspace_id,
+        )?;
         let workspace = Workspace::new(workspace_root, working_copy, repo.loader())?;
         Ok((workspace, repo))
     }

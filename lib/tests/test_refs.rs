@@ -31,7 +31,7 @@ fn test_merge_ref_targets() {
     // | 2
     // |/
     // 1
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);

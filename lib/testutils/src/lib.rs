@@ -136,9 +136,9 @@ impl TestWorkspace {
         let (workspace, repo) = if use_git {
             let git_path = temp_dir.path().join("git-repo");
             git2::Repository::init(&git_path).unwrap();
-            Workspace::init_external_git(settings, &workspace_root, &git_path).unwrap()
+            Workspace::init_external_git(settings, None, &workspace_root, &git_path).unwrap()
         } else {
-            Workspace::init_local(settings, &workspace_root).unwrap()
+            Workspace::init_local(settings, None, &workspace_root).unwrap()
         };
 
         Self {
@@ -156,7 +156,7 @@ impl TestWorkspace {
 pub fn load_repo_at_head(settings: &UserSettings, repo_path: &Path) -> Arc<ReadonlyRepo> {
     RepoLoader::init(settings, repo_path, &StoreFactories::default())
         .unwrap()
-        .load_at_head(settings)
+        .load_at_head(settings, None)
         .unwrap()
 }
 

@@ -44,7 +44,7 @@ fn test_heads_fork(use_git: bool) {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
 
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let initial = graph_builder.initial_commit();
@@ -67,7 +67,7 @@ fn test_heads_merge(use_git: bool) {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
 
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let initial = graph_builder.initial_commit();
@@ -86,7 +86,7 @@ fn test_merge_views_heads() {
     let test_repo = TestRepo::init(false);
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut_repo = tx.mut_repo();
     let head_unchanged = write_random_commit(mut_repo, &settings);
     let head_remove_tx1 = write_random_commit(mut_repo, &settings);
@@ -99,7 +99,7 @@ fn test_merge_views_heads() {
     mut_repo.add_public_head(&public_head_remove_tx2);
     let repo = tx.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings, "test", None);
     tx1.mut_repo().remove_head(head_remove_tx1.id());
     tx1.mut_repo()
         .remove_public_head(public_head_remove_tx1.id());
@@ -108,7 +108,7 @@ fn test_merge_views_heads() {
     tx1.mut_repo().add_public_head(&public_head_add_tx1);
     tx1.commit();
 
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings, "test", None);
     tx2.mut_repo().remove_head(head_remove_tx2.id());
     tx2.mut_repo()
         .remove_public_head(public_head_remove_tx2.id());
@@ -117,7 +117,7 @@ fn test_merge_views_heads() {
     tx2.mut_repo().add_public_head(&public_head_add_tx2);
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = repo.reload_at_head(&settings, None).unwrap();
 
     let expected_heads = hashset! {
         head_unchanged.id().clone(),
@@ -153,7 +153,7 @@ fn test_merge_views_checkout() {
     // Workspace 5 gets deleted in tx2 and modified in tx1.
     // Workspace 6 gets added in tx1.
     // Workspace 7 gets added in tx2.
-    let mut initial_tx = repo.start_transaction(&settings, "test");
+    let mut initial_tx = repo.start_transaction(&settings, "test", None);
     let commit1 = write_random_commit(initial_tx.mut_repo(), &settings);
     let commit2 = write_random_commit(initial_tx.mut_repo(), &settings);
     let commit3 = write_random_commit(initial_tx.mut_repo(), &settings);
@@ -186,7 +186,7 @@ fn test_merge_views_checkout() {
         .unwrap();
     let repo = initial_tx.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings, "test", None);
     tx1.mut_repo()
         .set_wc_commit(ws1_id.clone(), commit2.id().clone())
         .unwrap();
@@ -202,7 +202,7 @@ fn test_merge_views_checkout() {
         .unwrap();
     tx1.commit();
 
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings, "test", None);
     tx2.mut_repo()
         .set_wc_commit(ws1_id.clone(), commit3.id().clone())
         .unwrap();
@@ -221,7 +221,7 @@ fn test_merge_views_checkout() {
     std::thread::sleep(std::time::Duration::from_millis(1));
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = repo.reload_at_head(&settings, None).unwrap();
 
     // We currently arbitrarily pick the first transaction's working-copy commit
     // (first by transaction end time).
@@ -242,7 +242,7 @@ fn test_merge_views_branches() {
     let test_repo = TestRepo::init(false);
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut_repo = tx.mut_repo();
     let main_branch_local_tx0 = write_random_commit(mut_repo, &settings);
     let main_branch_origin_tx0 = write_random_commit(mut_repo, &settings);
@@ -269,7 +269,7 @@ fn test_merge_views_branches() {
     );
     let repo = tx.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings, "test", None);
     let main_branch_local_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo().set_local_branch(
         "main".to_string(),
@@ -287,7 +287,7 @@ fn test_merge_views_branches() {
     );
     tx1.commit();
 
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings, "test", None);
     let main_branch_local_tx2 = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo().set_local_branch(
         "main".to_string(),
@@ -300,7 +300,7 @@ fn test_merge_views_branches() {
     );
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = repo.reload_at_head(&settings, None).unwrap();
     let expected_main_branch = BranchTarget {
         local_target: Some(RefTarget::Conflict {
             removes: vec![main_branch_local_tx0.id().clone()],
@@ -335,7 +335,7 @@ fn test_merge_views_tags() {
     let test_repo = TestRepo::init(false);
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut_repo = tx.mut_repo();
     let v1_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx0.id().clone()));
@@ -343,7 +343,7 @@ fn test_merge_views_tags() {
     mut_repo.set_tag("v2.0".to_string(), RefTarget::Normal(v2_tx0.id().clone()));
     let repo = tx.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings, "test", None);
     let v1_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo()
         .set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx1.id().clone()));
@@ -352,13 +352,13 @@ fn test_merge_views_tags() {
         .set_tag("v2.0".to_string(), RefTarget::Normal(v2_tx1.id().clone()));
     tx1.commit();
 
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings, "test", None);
     let v1_tx2 = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo()
         .set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx2.id().clone()));
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = repo.reload_at_head(&settings, None).unwrap();
     let expected_v1 = RefTarget::Conflict {
         removes: vec![v1_tx0.id().clone()],
         adds: vec![v1_tx1.id().clone(), v1_tx2.id().clone()],
@@ -381,7 +381,7 @@ fn test_merge_views_git_refs() {
     let test_repo = TestRepo::init(false);
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut_repo = tx.mut_repo();
     let main_branch_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_git_ref(
@@ -395,7 +395,7 @@ fn test_merge_views_git_refs() {
     );
     let repo = tx.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings, "test", None);
     let main_branch_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo().set_git_ref(
         "refs/heads/main".to_string(),
@@ -408,7 +408,7 @@ fn test_merge_views_git_refs() {
     );
     tx1.commit();
 
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings, "test", None);
     let main_branch_tx2 = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo().set_git_ref(
         "refs/heads/main".to_string(),
@@ -416,7 +416,7 @@ fn test_merge_views_git_refs() {
     );
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = repo.reload_at_head(&settings, None).unwrap();
     let expected_main_branch = RefTarget::Conflict {
         removes: vec![main_branch_tx0.id().clone()],
         adds: vec![main_branch_tx1.id().clone(), main_branch_tx2.id().clone()],
@@ -439,25 +439,25 @@ fn test_merge_views_git_heads() {
     let test_repo = TestRepo::init(false);
     let repo = &test_repo.repo;
 
-    let mut tx0 = repo.start_transaction(&settings, "test");
+    let mut tx0 = repo.start_transaction(&settings, "test", None);
     let tx0_head = write_random_commit(tx0.mut_repo(), &settings);
     tx0.mut_repo()
         .set_git_head(RefTarget::Normal(tx0_head.id().clone()));
     let repo = tx0.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings, "test", None);
     let tx1_head = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo()
         .set_git_head(RefTarget::Normal(tx1_head.id().clone()));
     tx1.commit();
 
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings, "test", None);
     let tx2_head = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo()
         .set_git_head(RefTarget::Normal(tx2_head.id().clone()));
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = repo.reload_at_head(&settings, None).unwrap();
     let expected_git_head = RefTarget::Conflict {
         removes: vec![tx0_head.id().clone()],
         adds: vec![tx1_head.id().clone(), tx2_head.id().clone()],
@@ -472,7 +472,7 @@ fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<Re
         op_ids.push(tx.commit().op_id().clone());
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
-    let repo = repo_loader.load_at_head(settings).unwrap();
+    let repo = repo_loader.load_at_head(settings, None).unwrap();
     // Test the setup. The assumption here is that the parent order matches the
     // order in which they were merged (which currently matches the transaction
     // commit order), so we want to know make sure they appear in a certain
@@ -489,11 +489,11 @@ fn test_merge_views_divergent() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(false);
 
-    let mut tx = test_repo.repo.start_transaction(&settings, "test");
+    let mut tx = test_repo.repo.start_transaction(&settings, "test", None);
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let repo = tx.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings, "test", None);
     let commit_a2 = tx1
         .mut_repo()
         .rewrite_commit(&settings, &commit_a)
@@ -502,7 +502,7 @@ fn test_merge_views_divergent() {
         .unwrap();
     tx1.mut_repo().rebase_descendants(&settings).unwrap();
 
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings, "test", None);
     let commit_a3 = tx2
         .mut_repo()
         .rewrite_commit(&settings, &commit_a)
@@ -528,17 +528,17 @@ fn test_merge_views_child_on_rewritten(child_first: bool) {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(false);
 
-    let mut tx = test_repo.repo.start_transaction(&settings, "test");
+    let mut tx = test_repo.repo.start_transaction(&settings, "test", None);
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let repo = tx.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings, "test", None);
     let commit_b = create_random_commit(tx1.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
         .write()
         .unwrap();
 
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings, "test", None);
     let commit_a2 = tx2
         .mut_repo()
         .rewrite_commit(&settings, &commit_a)
@@ -574,7 +574,7 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(false);
 
-    let mut tx = test_repo.repo.start_transaction(&settings, "test");
+    let mut tx = test_repo.repo.start_transaction(&settings, "test", None);
     let commit_a2 = write_random_commit(tx.mut_repo(), &settings);
     let commit_a3 = create_random_commit(tx.mut_repo(), &settings)
         .set_change_id(commit_a2.change_id().clone())
@@ -582,14 +582,14 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
         .unwrap();
     let repo = tx.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings, "test", None);
     let parent = if on_rewritten { &commit_a2 } else { &commit_a3 };
     let commit_b = create_random_commit(tx1.mut_repo(), &settings)
         .set_parents(vec![parent.id().clone()])
         .write()
         .unwrap();
 
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings, "test", None);
     let commit_a4 = tx2
         .mut_repo()
         .rewrite_commit(&settings, &commit_a2)
@@ -630,7 +630,7 @@ fn test_merge_views_child_on_abandoned(child_first: bool) {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(false);
 
-    let mut tx = test_repo.repo.start_transaction(&settings, "test");
+    let mut tx = test_repo.repo.start_transaction(&settings, "test", None);
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
@@ -638,13 +638,13 @@ fn test_merge_views_child_on_abandoned(child_first: bool) {
         .unwrap();
     let repo = tx.commit();
 
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings, "test", None);
     let commit_c = create_random_commit(tx1.mut_repo(), &settings)
         .set_parents(vec![commit_b.id().clone()])
         .write()
         .unwrap();
 
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings, "test", None);
     tx2.mut_repo()
         .record_abandoned_commit(commit_b.id().clone());
     tx2.mut_repo().rebase_descendants(&settings).unwrap();

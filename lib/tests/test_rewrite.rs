@@ -38,7 +38,7 @@ fn test_rebase_descendants_sideways(use_git: bool) {
     // | B
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -94,7 +94,7 @@ fn test_rebase_descendants_forward(use_git: bool) {
     // |/
     // B
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -148,7 +148,7 @@ fn test_rebase_descendants_reorder(use_git: bool) {
     // |/
     // B
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -195,7 +195,7 @@ fn test_rebase_descendants_backward(use_git: bool) {
     // C
     // B
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -237,7 +237,7 @@ fn test_rebase_descendants_chain_becomes_branchy(use_git: bool) {
     // B E
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -285,7 +285,7 @@ fn test_rebase_descendants_internal_merge(use_git: bool) {
     // | B
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -336,7 +336,7 @@ fn test_rebase_descendants_external_merge(use_git: bool) {
     // | B
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -383,7 +383,7 @@ fn test_rebase_descendants_abandon(use_git: bool) {
     // |/
     // B
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -425,7 +425,7 @@ fn test_rebase_descendants_abandon_no_descendants(use_git: bool) {
     // C
     // B
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -463,7 +463,7 @@ fn test_rebase_descendants_abandon_and_replace(use_git: bool) {
     // E B
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -502,7 +502,7 @@ fn test_rebase_descendants_abandon_degenerate_merge(use_git: bool) {
     // B C
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -542,7 +542,7 @@ fn test_rebase_descendants_abandon_widen_merge(use_git: bool) {
     // B C D
     //  \|/
     //   A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -586,7 +586,7 @@ fn test_rebase_descendants_multiple_sideways(use_git: bool) {
     // | |/
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -632,7 +632,7 @@ fn test_rebase_descendants_multiple_swap(use_git: bool) {
     // B D
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -675,7 +675,7 @@ fn test_rebase_descendants_multiple_no_descendants(use_git: bool) {
     // B C
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -729,7 +729,7 @@ fn test_rebase_descendants_divergent_rewrite(use_git: bool) {
     // | B2
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -788,7 +788,7 @@ fn test_rebase_descendants_repeated(use_git: bool) {
     // | B2
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -853,7 +853,7 @@ fn test_rebase_descendants_contents(use_git: bool) {
     // | B
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let path1 = RepoPath::from_internal_string("file1");
     let tree1 = testutils::create_tree(repo, &[(&path1, "content")]);
     let commit_a = tx
@@ -929,7 +929,7 @@ fn test_rebase_descendants_basic_branch_update() {
     // B main         B2 main
     // |         =>   |
     // A              A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -937,7 +937,7 @@ fn test_rebase_descendants_basic_branch_update() {
         .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_b2 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_b)
@@ -971,7 +971,7 @@ fn test_rebase_descendants_branch_move_two_steps() {
     // B B2           B2
     // |/             |
     // A              A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -980,7 +980,7 @@ fn test_rebase_descendants_branch_move_two_steps() {
         .set_local_branch("main".to_string(), RefTarget::Normal(commit_c.id().clone()));
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_b2 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_b)
@@ -1018,7 +1018,7 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     // B main main@origin v1          | B main@origin v1
     // |                         =>   |/
     // A                              A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -1033,7 +1033,7 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
         .set_tag("v1".to_string(), RefTarget::Normal(commit_b.id().clone()));
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_b2 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_b)
@@ -1074,7 +1074,7 @@ fn test_rebase_descendants_update_branch_after_abandon() {
     // B main
     // |          =>   A main
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -1082,7 +1082,7 @@ fn test_rebase_descendants_update_branch_after_abandon() {
         .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
@@ -1110,7 +1110,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     // B main         |/B2 main?
     // |         =>   |/
     // A              A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -1118,7 +1118,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_b2 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_b)
@@ -1170,7 +1170,7 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     // Branch "main" is a conflict removing commit A and adding commits B and C.
     // A gets rewritten as A2 and A3. B gets rewritten as B2 and B2. The branch
     // should become a conflict removing A and B, and adding B2, B3, C.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.initial_commit();
@@ -1184,7 +1184,7 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     );
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_a2 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_a)
@@ -1247,7 +1247,7 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     // would result in a conflict removing A and adding B2 and C. However, since C
     // is a descendant of A, and B2 is a descendant of C, the conflict gets
     // resolved to B2.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -1261,7 +1261,7 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     );
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_b2 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_b)
@@ -1291,7 +1291,7 @@ fn test_rebase_descendants_branch_delete_modify_abandon() {
     // leaves the branch pointing to "-A+B". We now abandon B. That should
     // result in the branch pointing to "-A+A=0", so the branch should
     // be deleted.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -1304,7 +1304,7 @@ fn test_rebase_descendants_branch_delete_modify_abandon() {
     );
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(tx.mut_repo().get_local_branch("main"), None);
@@ -1323,7 +1323,7 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
     // C B
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
@@ -1343,7 +1343,7 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
         .unwrap();
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_c = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_b)
@@ -1373,7 +1373,7 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
     // B
     // |
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
@@ -1393,7 +1393,7 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
         .unwrap();
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
@@ -1427,7 +1427,7 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
     // B C
     // |/
     // A
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
@@ -1447,7 +1447,7 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
         .unwrap();
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings, "test", None);
     tx.mut_repo().record_abandoned_commit(commit_d.id().clone());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
