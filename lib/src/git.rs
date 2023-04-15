@@ -372,13 +372,17 @@ fn export_branches_since_old_view(
 /// Reads the last seen state of git refs from a file, updates it with the
 /// provided function, and writes the result back to disk.
 ///
+/// This cannot be done concurrently, and is thus done under a lock.
+///
 /// The state currently tracks only the local branches.
 fn with_last_seen_refs<Ret, Err, Err2: From<GitRefViewError> + From<Err>>(
     repo_path: PathBuf,
     f: impl FnOnce(&GitRefView) -> Result<(GitRefView, Ret), Err>,
 ) -> Result<Ret, Err2> {
-    // Short-term TODO 1: Modification of this file, as well as the git refs in the
-    // git storage, should be protected by a lock.
+    // TODO 1: It might be better to lock using a libgit2 lock or a git-native lock,
+    // if feasible.
+    //
+    // See also https://github.com/git/git/blob/f285f68a/lockfile.h.
     //
     // TODO 2: Conceptually, this state should contain all the information in the
     // repo that's not stored by git and should not be affected by `jj undo`. In
@@ -390,6 +394,7 @@ fn with_last_seen_refs<Ret, Err, Err2: From<GitRefViewError> + From<Err>>(
     // View object. This would allow us to treat the state exported to the git repo
     // similar to any other remote and unify `jj git push` and `jj git export` to a
     // large degree.
+    let lock = crate::lock::FileLock::lock(repo_path.join("git_refs.lock"));
     let last_seen_refs_path = repo_path.join("git_last_seen_refs");
     let old_view = GitRefView::read_view_from_file(last_seen_refs_path.clone())
         // TODO: Do different things on errors other than "not found"?
@@ -397,6 +402,9 @@ fn with_last_seen_refs<Ret, Err, Err2: From<GitRefViewError> + From<Err>>(
         .unwrap_or(GitRefView::default());
     let (new_view, ret) = f(&old_view)?;
     new_view.write_view_to_file(last_seen_refs_path)?;
+    // TODO: Create a test that checks the lock lives long enough. I don't know if
+    // removing the following line would break such a test.
+    drop(lock);
     Ok(ret)
 }
 
