@@ -85,28 +85,73 @@ commits will be accessible in both repos. Use `jj git import` to update the
 Jujutsu repo with changes made in the Git repo. Use `jj git export` to update
 the Git repo with changes made in the Jujutsu repo.
 
-### Co-located Jujutsu/Git repos
-
-If you initialize the Jujutsu repo in the same working copy as the Git repo by
-running `jj init --git-repo=.`, then the import and export will happen
-automatically on every command (because not doing that makes it very confusing
-when the working copy has changed in Git but not in Jujutsu or vice versa). We
-call such repos "co-located".
-
-This mode is meant to make it easier to start using readonly `jj` commands in an
-existing Git repo. You should then be able to switch to using mutating `jj`
-commands and readonly Git commands. It's also useful when tools (e.g. build
-tools) expect a Git repo to be present.
-
-There are some bugs and surprising behavior related to `jj undo` in this mode,
-such as #922.
-
 ## Creating a repo by cloning a Git repo
 
 To create a Jujutsu repo from a remote Git URL, use `jj git clone <URL>
 [<destination>]`. For example, `jj git clone
 https://github.com/octocat/Hello-World` will clone GitHub's "Hello-World" repo
 into a directory by the same name.
+
+
+## Co-located Jujutsu/Git repos
+
+A "co-located" Jujutsu repo is a hybrid Jujutsu/Git repo. These can be created
+if you initialize the Jujutsu repo in an existing Git repo by running `jj init
+--git-repo=.` or with `jj git clone --colocate`. The Git repo and the Jujutsu
+repo then share the same working copy. Jujutsu will import and export from and
+to the Git repo on every `jj` command automatically.
+
+This mode is very convenient when tools (e.g. build tools) expect a Git repo to
+be present.
+
+It is allowed to mix `jj` and `git` commands in such a repo in any order.
+However, it may be easier to keep track of what is going on if you mostly use
+read-only `git` commands and use `jj` to make changes to the repo. One reason
+for this (see below for more) is that `jj` commands will usually put the git
+repo in a "detached HEAD" state, since in `jj` there is not concept of a
+"currently tracked branch". Before doing mutating Git commands, you may need to
+tell Git what the current branch should be with a `git switch` command.
+
+You can undo the results of mutating `git` commands using `jj undo` and `jj op
+restore`. Inside `jj op log`, changes by `git` will be represented as an "import
+git refs" operation.
+
+There are a few downsides to this mode of operation. Generally, using co-located
+repos may require you to deal with more involved Jujutsu and Git concepts.
+
+* Interleaving `jj` and `git` commands increases the chance of confusing branch
+  conflicts or [conflicted (AKA divergent) change
+  ids](glossary.md#divergent-change). These never lose data, but can be
+  annoying.
+
+    Such interleaving can happen unknowingly. For example, some IDEs can cause
+  it because they automatically run `git fetch` in the background from time to
+  time.
+
+* Git tools will have trouble with revisions that contain conflicted files. While
+  `jj` renders these files with conflict markers in the working copy, they are
+  stored in a non-human-readable fashion inside the repo. Git tools will often
+  see this non-human-readable representation.
+
+* When a `jj` branch is conflicted, the position of the branch in the Git repo
+  will disagree with one or more of the conflicted positions. The state of that
+  branch in git will be labeled as though it belongs to a remote named "git",
+  e.g. `branch@git`.
+
+* Jujutsu will ignore Git's staging area. It will not understand merge conflicts
+  as Git represents them, unfinished `git rebase` states, as well as other less
+  common states a Git repository can be in.
+
+* Colocated repositories are less resilient to
+  [concurrency](technical/concurrency.md#syncing-with-rsync-nfs-dropbox-etc)
+  issues if you share the repo using an NFS filesystem or Dropbox. In general,
+  such use of Jujutsu is not currently thoroughly tested.
+
+* There may still be bugs when interleaving mutating `jj` and `git` commands,
+  usually having to do with a branch pointer ending up in the wrong place. We
+  are working on the known ones, and are not aware of any major ones. Please
+  report any new ones you find, or if any of the known bugs are less minor than
+  they appear.
 
 
 ## Branches

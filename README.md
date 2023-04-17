@@ -71,6 +71,10 @@ add functionality that cannot easily be added to the Git backend.
 
 <img src="demos/git_compat.png" />
 
+You can even have a ["co-located" local
+repository](docs/git-compatibility.md#co-located-jujutsugit-repos) where you can
+use both `jj` and `git` commands interchangeably.
+
 ### The working copy is automatically committed
 
 Jujutsu uses a real commit to represent the working copy. Checking out a commit
