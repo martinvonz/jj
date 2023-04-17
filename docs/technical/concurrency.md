@@ -37,6 +37,8 @@ accepting that concurrent changes can always happen. It instead exposes any
 conflicting changes to the user, much like other DVCSs do for conflicting
 changes made remotely.
 
+### Syncing with `rsync`, NFS, Dropbox, etc
+
 Jujutsu's lock-free concurrency means that it's possible to update copies of the
 clone on different machines and then let `rsync` (or Dropbox, or NFS, etc.)
 merge them. The working copy may mismatch what's supposed to be checked out, but
@@ -46,11 +48,23 @@ branch was moved to two different locations, they will appear in `jj log` in
 both locations but with a "?" after the name, and `jj status` will also inform
 the user about the conflict.
 
-The most important piece in the lock-free design is the "operation log". That is
-what allows us to detect and merge concurrent operations.
+Note that, for now, there are known bugs in this area. Most notably, with the
+Git backend, [repository corruption is possible because the backend is not
+entirely lock-free](https://github.com/martinvonz/jj/issues/2193). If you know
+about the bug, it is relatively easy to recover from.
+
+Moreover, such use of Jujutsu is not currently thoroughly tested,
+especially in the context of [co-located
+repositories](../glossary.md#co-located-repos). While the contents of commits
+should be safe, concurrent modification of a repository from different computers
+might conceivably lose some branch pointers. Note that, unlike in pure
+Git, losing a branch pointer does not lead to losing commits.
 
 
 ## Operation log
+
+The most important piece in the lock-free design is the "operation log". That is
+what allows us to detect and merge concurrent operations.
 
 The operation log is similar to a commit DAG (such as in
 [Git's object model](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)),
