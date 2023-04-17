@@ -141,7 +141,7 @@ impl TestEnvironment {
             panic!("add_config not supported when config_path is a file");
         }
         // Concatenating two valid TOML files does not (generally) result in a valid
-        // TOML file, so we use create a new file every time instead.
+        // TOML file, so we create a new file every time instead.
         let mut config_file_number = self.config_file_number.borrow_mut();
         *config_file_number += 1;
         let config_file_number = *config_file_number;
