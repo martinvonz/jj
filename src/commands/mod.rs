@@ -1769,8 +1769,8 @@ fn edit_description(
 ) -> Result<String, CommandError> {
     let description_file_path = (|| -> Result<_, io::Error> {
         let mut file = tempfile::Builder::new()
-            .prefix("description-")
-            .suffix(".txt")
+            .prefix("editor-")
+            .suffix(".jjdescription")
             .tempfile_in(repo.repo_path())?;
         file.write_all(description.as_bytes())?;
         file.write_all(b"\nJJ: Lines starting with \"JJ: \" (like this one) will be removed.\n")?;

@@ -82,6 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj` with no subcommand now defaults to `jj log` instead of showing help. This
   command can be overridden by setting `ui.default-command`.
 
+* Description tempfiles created via `jj describe` now have the file extension
+  `.jjdescription` to help external tooling detect a unique filetype.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines
