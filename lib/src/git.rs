@@ -487,6 +487,8 @@ pub enum GitFetchError {
     StateReadWriteError(String),
 }
 
+// TODO: Investigate whether this uses `with_last_seen_refs` correctly and
+// sufficiently via `import_some_refs`.
 #[tracing::instrument(skip(mut_repo, git_repo, callbacks))]
 pub fn fetch(
     mut_repo: &mut MutableRepo,
@@ -670,6 +672,7 @@ pub fn push_updates(
     result
 }
 
+// TODO: Investigate whether this should use `with_last_seen_refs`.
 fn push_refs(
     git_repo: &git2::Repository,
     remote_name: &str,
