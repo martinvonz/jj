@@ -232,7 +232,6 @@ pub enum RevsetExpression {
     All,
     Commits(Vec<CommitId>),
     CommitRef(RevsetCommitRef),
-    Children(Rc<RevsetExpression>),
     Ancestors {
         heads: Rc<RevsetExpression>,
         generation: Range<u64>,
@@ -360,7 +359,10 @@ impl RevsetExpression {
 
     /// Children of `self`.
     pub fn children(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Children(self.clone()))
+        Rc::new(RevsetExpression::Descendants {
+            roots: self.clone(),
+            generation: 1..2,
+        })
     }
 
     /// Descendants of `self`, including `self`.
@@ -470,10 +472,6 @@ pub enum ResolvedPredicateExpression {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResolvedExpression {
     Commits(Vec<CommitId>),
-    Children {
-        roots: Box<ResolvedExpression>,
-        heads: Box<ResolvedExpression>,
-    },
     Ancestors {
         heads: Box<ResolvedExpression>,
         generation: Range<u64>,
@@ -1244,9 +1242,6 @@ fn try_transform_expression<E>(
             RevsetExpression::All => None,
             RevsetExpression::Commits(_) => None,
             RevsetExpression::CommitRef(_) => None,
-            RevsetExpression::Children(roots) => {
-                transform_rec(roots, pre, post)?.map(RevsetExpression::Children)
-            }
             RevsetExpression::Ancestors { heads, generation } => transform_rec(heads, pre, post)?
                 .map(|heads| RevsetExpression::Ancestors {
                     heads,
@@ -1840,10 +1835,6 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::CommitRef(_) => {
                 panic!("Expression '{expression:?}' should have been resolved by caller");
             }
-            RevsetExpression::Children(roots) => ResolvedExpression::Children {
-                roots: self.resolve(roots).into(),
-                heads: self.resolve_visible_heads().into(),
-            },
             RevsetExpression::Ancestors { heads, generation } => ResolvedExpression::Ancestors {
                 heads: self.resolve(heads).into(),
                 generation: generation.clone(),
@@ -1947,7 +1938,6 @@ impl VisibilityResolutionContext<'_> {
             | RevsetExpression::All
             | RevsetExpression::Commits(_)
             | RevsetExpression::CommitRef(_)
-            | RevsetExpression::Children(_)
             | RevsetExpression::Ancestors { .. }
             | RevsetExpression::Descendants { .. }
             | RevsetExpression::Range { .. }
@@ -2202,7 +2192,10 @@ mod tests {
         );
         assert_eq!(
             foo_symbol.children(),
-            Rc::new(RevsetExpression::Children(foo_symbol.clone()))
+            Rc::new(RevsetExpression::Descendants {
+                roots: foo_symbol.clone(),
+                generation: 1..2
+            }),
         );
         assert_eq!(
             foo_symbol.descendants(),
@@ -3789,8 +3782,8 @@ mod tests {
 
         // 'foo-+' is not 'foo'.
         insta::assert_debug_snapshot!(optimize(parse("foo---+").unwrap()), @r###"
-        Children(
-            Ancestors {
+        Descendants {
+            roots: Ancestors {
                 heads: CommitRef(
                     Symbol(
                         "foo",
@@ -3798,7 +3791,8 @@ mod tests {
                 ),
                 generation: 3..4,
             },
-        )
+            generation: 1..2,
+        }
         "###);
 
         // For 'roots..heads', heads can be folded.

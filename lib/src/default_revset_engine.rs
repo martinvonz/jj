@@ -586,11 +586,6 @@ impl<'index> EvaluationContext<'index> {
             ResolvedExpression::Commits(commit_ids) => {
                 Ok(Box::new(self.revset_for_commit_ids(commit_ids)))
             }
-            ResolvedExpression::Children { roots, heads } => {
-                let root_set = self.evaluate(roots)?;
-                let head_set = self.evaluate(heads)?;
-                Ok(Box::new(self.walk_children(&*root_set, &*head_set)))
-            }
             ResolvedExpression::Ancestors { heads, generation } => {
                 let head_set = self.evaluate(heads)?;
                 let walk = self.walk_ancestors(&*head_set);
@@ -625,9 +620,13 @@ impl<'index> EvaluationContext<'index> {
             } => {
                 let root_set = self.evaluate(roots)?;
                 let head_set = self.evaluate(heads)?;
-                assert_eq!(generation_from_roots, &GENERATION_RANGE_FULL); // TODO
-                let (dag_range_set, _) = self.collect_dag_range(&*root_set, &*head_set);
-                Ok(Box::new(dag_range_set))
+                if generation_from_roots == &(1..2) {
+                    Ok(Box::new(self.walk_children(&*root_set, &*head_set)))
+                } else {
+                    assert_eq!(generation_from_roots, &GENERATION_RANGE_FULL); // TODO
+                    let (dag_range_set, _) = self.collect_dag_range(&*root_set, &*head_set);
+                    Ok(Box::new(dag_range_set))
+                }
             }
             ResolvedExpression::Heads(candidates) => {
                 let candidate_set = self.evaluate(candidates)?;
