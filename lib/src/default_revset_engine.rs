@@ -593,7 +593,7 @@ impl<'index> EvaluationContext<'index> {
                     self.walk_ancestors_until_roots(&*root_set, &*head_set);
                 let roots: HashSet<_> = root_positions.into_iter().collect();
                 let candidates = Box::new(RevWalkRevset { walk });
-                let predicate = pure_predicate_fn(move |entry| {
+                let predicate = PurePredicateFn(move |entry: &IndexEntry| {
                     entry
                         .parent_positions()
                         .iter()
