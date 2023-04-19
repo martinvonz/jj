@@ -618,9 +618,14 @@ impl<'index> EvaluationContext<'index> {
                     Ok(Box::new(RevWalkRevset { walk }))
                 }
             }
-            ResolvedExpression::DagRange { roots, heads } => {
+            ResolvedExpression::DagRange {
+                roots,
+                heads,
+                generation_from_roots,
+            } => {
                 let root_set = self.evaluate(roots)?;
                 let head_set = self.evaluate(heads)?;
+                assert_eq!(generation_from_roots, &GENERATION_RANGE_FULL); // TODO
                 let (dag_range_set, _) = self.collect_dag_range(&*root_set, &*head_set);
                 Ok(Box::new(dag_range_set))
             }
