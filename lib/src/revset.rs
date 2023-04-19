@@ -239,6 +239,7 @@ pub enum RevsetExpression {
     },
     Descendants {
         roots: Rc<RevsetExpression>,
+        generation: Range<u64>,
     },
     // Commits that are ancestors of "heads" but not ancestors of "roots"
     Range {
@@ -250,6 +251,7 @@ pub enum RevsetExpression {
     DagRange {
         roots: Rc<RevsetExpression>,
         heads: Rc<RevsetExpression>,
+        // TODO: maybe add generation_from_roots/heads?
     },
     Heads(Rc<RevsetExpression>),
     Roots(Rc<RevsetExpression>),
@@ -365,6 +367,7 @@ impl RevsetExpression {
     pub fn descendants(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Descendants {
             roots: self.clone(),
+            generation: GENERATION_RANGE_FULL,
         })
     }
 
@@ -485,6 +488,7 @@ pub enum ResolvedExpression {
     DagRange {
         roots: Box<ResolvedExpression>,
         heads: Box<ResolvedExpression>,
+        generation_from_roots: Range<u64>,
     },
     Heads(Box<ResolvedExpression>),
     Roots(Box<ResolvedExpression>),
@@ -1248,8 +1252,11 @@ fn try_transform_expression<E>(
                     heads,
                     generation: generation.clone(),
                 }),
-            RevsetExpression::Descendants { roots } => transform_rec(roots, pre, post)?
-                .map(|roots| RevsetExpression::Descendants { roots }),
+            RevsetExpression::Descendants { roots, generation } => transform_rec(roots, pre, post)?
+                .map(|roots| RevsetExpression::Descendants {
+                    roots,
+                    generation: generation.clone(),
+                }),
             RevsetExpression::Range {
                 roots,
                 heads,
@@ -1841,9 +1848,10 @@ impl VisibilityResolutionContext<'_> {
                 heads: self.resolve(heads).into(),
                 generation: generation.clone(),
             },
-            RevsetExpression::Descendants { roots } => ResolvedExpression::DagRange {
+            RevsetExpression::Descendants { roots, generation } => ResolvedExpression::DagRange {
                 roots: self.resolve(roots).into(),
                 heads: self.resolve_visible_heads().into(),
+                generation_from_roots: generation.clone(),
             },
             RevsetExpression::Range {
                 roots,
@@ -1857,6 +1865,7 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::DagRange { roots, heads } => ResolvedExpression::DagRange {
                 roots: self.resolve(roots).into(),
                 heads: self.resolve(heads).into(),
+                generation_from_roots: GENERATION_RANGE_FULL,
             },
             RevsetExpression::Heads(candidates) => {
                 ResolvedExpression::Heads(self.resolve(candidates).into())
@@ -2199,6 +2208,7 @@ mod tests {
             foo_symbol.descendants(),
             Rc::new(RevsetExpression::Descendants {
                 roots: foo_symbol.clone(),
+                generation: GENERATION_RANGE_FULL,
             })
         );
         assert_eq!(
