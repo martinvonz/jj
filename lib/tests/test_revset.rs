@@ -778,6 +778,10 @@ fn test_evaluate_expression_children(use_git: bool) {
         .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
         .write()
         .unwrap();
+    let commit6 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![commit5.id().clone()])
+        .write()
+        .unwrap();
 
     // Can find children of the root commit
     assert_eq!(
@@ -806,6 +810,28 @@ fn test_evaluate_expression_children(use_git: bool) {
             &format!("({} | {})+", commit3.id().hex(), commit4.id().hex())
         ),
         vec![commit5.id().clone()]
+    );
+
+    // Can find children of children, which may be optimized to single query
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "root++"),
+        vec![commit4.id().clone(), commit2.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("(root | {})++", commit1.id().hex())),
+        vec![
+            commit5.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+        ]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("({} | {})++", commit4.id().hex(), commit2.id().hex())
+        ),
+        vec![commit6.id().clone(), commit5.id().clone()]
     );
 
     // Empty root
@@ -1141,11 +1167,16 @@ fn test_evaluate_expression_descendants(use_git: bool) {
         .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
         .write()
         .unwrap();
+    let commit6 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![commit5.id().clone()])
+        .write()
+        .unwrap();
 
     // The descendants of the root commit are all the commits in the repo
     assert_eq!(
         resolve_commit_ids(mut_repo, "root:"),
         vec![
+            commit6.id().clone(),
             commit5.id().clone(),
             commit4.id().clone(),
             commit3.id().clone(),
@@ -1159,9 +1190,53 @@ fn test_evaluate_expression_descendants(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(mut_repo, &format!("{}:", commit2.id().hex())),
         vec![
+            commit6.id().clone(),
             commit5.id().clone(),
             commit3.id().clone(),
             commit2.id().clone(),
+        ]
+    );
+
+    // Can find descendants of children or children of descendants, which may be
+    // optimized to single query
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("({}+):", commit1.id().hex())),
+        vec![
+            commit6.id().clone(),
+            commit5.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+        ]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("({}++):", commit1.id().hex())),
+        vec![
+            commit6.id().clone(),
+            commit5.id().clone(),
+            commit3.id().clone(),
+        ]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("(({}|{}):)+", commit4.id().hex(), commit2.id().hex()),
+        ),
+        vec![
+            commit6.id().clone(),
+            commit5.id().clone(),
+            commit3.id().clone(),
+        ]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("(({}|{})+):", commit4.id().hex(), commit2.id().hex()),
+        ),
+        vec![
+            commit6.id().clone(),
+            commit5.id().clone(),
+            commit3.id().clone(),
         ]
     );
 }

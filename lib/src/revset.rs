@@ -1516,8 +1516,20 @@ fn unfold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression
     })
 }
 
-/// Transforms nested `ancestors()`/`parents()` like `h---`.
-fn fold_ancestors(expression: &Rc<RevsetExpression>) -> TransformedExpression {
+/// Transforms nested `ancestors()`/`parents()`/`descendants()`/`children()`
+/// like `h---`/`r+++`.
+fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
+    fn add_generation(generation1: &Range<u64>, generation2: &Range<u64>) -> Range<u64> {
+        // For any (g1, g2) in (generation1, generation2), g1 + g2.
+        if generation1.is_empty() || generation2.is_empty() {
+            GENERATION_RANGE_EMPTY
+        } else {
+            let start = u64::saturating_add(generation1.start, generation2.start);
+            let end = u64::saturating_add(generation1.end, generation2.end - 1);
+            start..end
+        }
+    }
+
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         RevsetExpression::Ancestors {
             heads,
@@ -1530,20 +1542,28 @@ fn fold_ancestors(expression: &Rc<RevsetExpression>) -> TransformedExpression {
                 RevsetExpression::Ancestors {
                     heads,
                     generation: generation2,
-                } => {
-                    // For any (g1, g2) in (generation1, generation2), g1 + g2.
-                    let generation = if generation1.is_empty() || generation2.is_empty() {
-                        GENERATION_RANGE_EMPTY
-                    } else {
-                        let start = u64::saturating_add(generation1.start, generation2.start);
-                        let end = u64::saturating_add(generation1.end, generation2.end - 1);
-                        start..end
-                    };
-                    Some(Rc::new(RevsetExpression::Ancestors {
-                        heads: heads.clone(),
-                        generation,
-                    }))
-                }
+                } => Some(Rc::new(RevsetExpression::Ancestors {
+                    heads: heads.clone(),
+                    generation: add_generation(generation1, generation2),
+                })),
+                _ => None,
+            }
+        }
+        RevsetExpression::Descendants {
+            roots,
+            generation: generation1,
+        } => {
+            match roots.as_ref() {
+                // (r+)+ -> descendants(descendants(r, 1), 1) -> descendants(r, 2)
+                // (r+): -> descendants(descendants(r, 1), ..) -> descendants(r, 1..)
+                // (r:)+ -> descendants(descendants(r, ..), 1) -> descendants(r, 1..)
+                RevsetExpression::Descendants {
+                    roots,
+                    generation: generation2,
+                } => Some(Rc::new(RevsetExpression::Descendants {
+                    roots: roots.clone(),
+                    generation: add_generation(generation1, generation2),
+                })),
                 _ => None,
             }
         }
@@ -1557,7 +1577,7 @@ fn fold_ancestors(expression: &Rc<RevsetExpression>) -> TransformedExpression {
 pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
     let expression = unfold_difference(&expression).unwrap_or(expression);
     let expression = fold_redundant_expression(&expression).unwrap_or(expression);
-    let expression = fold_ancestors(&expression).unwrap_or(expression);
+    let expression = fold_generation(&expression).unwrap_or(expression);
     let expression = internalize_filter(&expression).unwrap_or(expression);
     fold_difference(&expression).unwrap_or(expression)
 }
@@ -3917,5 +3937,76 @@ mod tests {
         }
         "###
         );
+    }
+
+    #[test]
+    fn test_optimize_descendants() {
+        // Typical scenario: fold nested children()
+        insta::assert_debug_snapshot!(optimize(parse("foo++").unwrap()), @r###"
+        Descendants {
+            roots: CommitRef(
+                Symbol(
+                    "foo",
+                ),
+            ),
+            generation: 2..3,
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("(foo+++):").unwrap()), @r###"
+        Descendants {
+            roots: CommitRef(
+                Symbol(
+                    "foo",
+                ),
+            ),
+            generation: 3..18446744073709551615,
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("(foo:)+++").unwrap()), @r###"
+        Descendants {
+            roots: CommitRef(
+                Symbol(
+                    "foo",
+                ),
+            ),
+            generation: 3..18446744073709551615,
+        }
+        "###);
+
+        // 'foo+-' is not 'foo'.
+        insta::assert_debug_snapshot!(optimize(parse("foo+++-").unwrap()), @r###"
+        Ancestors {
+            heads: Descendants {
+                roots: CommitRef(
+                    Symbol(
+                        "foo",
+                    ),
+                ),
+                generation: 3..4,
+            },
+            generation: 1..2,
+        }
+        "###);
+
+        // TODO: Inner Descendants can be folded into DagRange. Perhaps, we can rewrite
+        // 'x:y' to 'x: & :y' first, so the common substitution rule can handle both
+        // 'x+:y' and 'x+ & :y'.
+        insta::assert_debug_snapshot!(optimize(parse("(foo++):bar").unwrap()), @r###"
+        DagRange {
+            roots: Descendants {
+                roots: CommitRef(
+                    Symbol(
+                        "foo",
+                    ),
+                ),
+                generation: 2..3,
+            },
+            heads: CommitRef(
+                Symbol(
+                    "bar",
+                ),
+            ),
+        }
+        "###);
     }
 }

@@ -618,12 +618,16 @@ impl<'index> EvaluationContext<'index> {
                 heads,
                 generation_from_roots,
             } => {
-                let root_set = self.evaluate(roots)?;
+                let mut root_set = self.evaluate(roots)?;
                 let head_set = self.evaluate(heads)?;
-                if generation_from_roots == &(1..2) {
-                    Ok(Box::new(self.walk_children(&*root_set, &*head_set)))
+                // TODO: implement generic evaluation path for generation filter
+                for _ in 0..generation_from_roots.start {
+                    root_set = Box::new(self.walk_children(&*root_set, &*head_set));
+                }
+                if generation_from_roots.end == generation_from_roots.start + 1 {
+                    Ok(root_set)
                 } else {
-                    assert_eq!(generation_from_roots, &GENERATION_RANGE_FULL); // TODO
+                    assert_eq!(generation_from_roots.end, u64::MAX); // TODO
                     let (dag_range_set, _) = self.collect_dag_range(&*root_set, &*head_set);
                     Ok(Box::new(dag_range_set))
                 }
