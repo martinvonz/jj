@@ -237,6 +237,9 @@ pub enum RevsetExpression {
         heads: Rc<RevsetExpression>,
         generation: Range<u64>,
     },
+    Descendants {
+        roots: Rc<RevsetExpression>,
+    },
     // Commits that are ancestors of "heads" but not ancestors of "roots"
     Range {
         roots: Rc<RevsetExpression>,
@@ -360,7 +363,9 @@ impl RevsetExpression {
 
     /// Descendants of `self`, including `self`.
     pub fn descendants(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        self.dag_range_to(&RevsetExpression::visible_heads())
+        Rc::new(RevsetExpression::Descendants {
+            roots: self.clone(),
+        })
     }
 
     /// Commits that are descendants of `self` and ancestors of `heads`, both
@@ -1243,6 +1248,8 @@ fn try_transform_expression<E>(
                     heads,
                     generation: generation.clone(),
                 }),
+            RevsetExpression::Descendants { roots } => transform_rec(roots, pre, post)?
+                .map(|roots| RevsetExpression::Descendants { roots }),
             RevsetExpression::Range {
                 roots,
                 heads,
@@ -1834,6 +1841,10 @@ impl VisibilityResolutionContext<'_> {
                 heads: self.resolve(heads).into(),
                 generation: generation.clone(),
             },
+            RevsetExpression::Descendants { roots } => ResolvedExpression::DagRange {
+                roots: self.resolve(roots).into(),
+                heads: self.resolve_visible_heads().into(),
+            },
             RevsetExpression::Range {
                 roots,
                 heads,
@@ -1929,6 +1940,7 @@ impl VisibilityResolutionContext<'_> {
             | RevsetExpression::CommitRef(_)
             | RevsetExpression::Children(_)
             | RevsetExpression::Ancestors { .. }
+            | RevsetExpression::Descendants { .. }
             | RevsetExpression::Range { .. }
             | RevsetExpression::DagRange { .. }
             | RevsetExpression::Heads(_)
@@ -2185,9 +2197,8 @@ mod tests {
         );
         assert_eq!(
             foo_symbol.descendants(),
-            Rc::new(RevsetExpression::DagRange {
+            Rc::new(RevsetExpression::Descendants {
                 roots: foo_symbol.clone(),
-                heads: RevsetExpression::visible_heads(),
             })
         );
         assert_eq!(
