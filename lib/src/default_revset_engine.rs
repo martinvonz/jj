@@ -589,22 +589,7 @@ impl<'index> EvaluationContext<'index> {
             ResolvedExpression::Children { roots, heads } => {
                 let root_set = self.evaluate(roots)?;
                 let head_set = self.evaluate(heads)?;
-                let (walk, root_positions) =
-                    self.walk_ancestors_until_roots(&*root_set, &*head_set);
-                let roots: HashSet<_> = root_positions.into_iter().collect();
-                let candidates = Box::new(RevWalkRevset { walk });
-                let predicate = PurePredicateFn(move |entry: &IndexEntry| {
-                    entry
-                        .parent_positions()
-                        .iter()
-                        .any(|parent_pos| roots.contains(parent_pos))
-                });
-                // TODO: Suppose heads include all visible heads, ToPredicateFn version can be
-                // optimized to only test the predicate()
-                Ok(Box::new(FilterRevset {
-                    candidates,
-                    predicate,
-                }))
+                Ok(Box::new(self.walk_children(&*root_set, &*head_set)))
             }
             ResolvedExpression::Ancestors { heads, generation } => {
                 let head_set = self.evaluate(heads)?;
@@ -735,7 +720,7 @@ impl<'index> EvaluationContext<'index> {
         root_set: &S,
         head_set: &T,
     ) -> (
-        impl Iterator<Item = IndexEntry<'index>> + Clone,
+        impl Iterator<Item = IndexEntry<'index>> + Clone + 'index,
         Vec<IndexPosition>,
     )
     where
@@ -751,6 +736,34 @@ impl<'index> EvaluationContext<'index> {
             .walk_ancestors(head_set)
             .take_while(move |entry| entry.position() >= bottom_position);
         (walk, root_positions)
+    }
+
+    fn walk_children<'a, 'b, S, T>(
+        &self,
+        root_set: &S,
+        head_set: &T,
+    ) -> impl InternalRevset<'index> + 'index
+    where
+        // TODO: 'index shouldn't be required, but rustc 1.64.0 failed to deduce lifetime of
+        // walk. The problem appears to be fixed somewhere between 1.64.0 and 1.69.0.
+        S: InternalRevset<'a> + ?Sized + 'index,
+        T: InternalRevset<'b> + ?Sized + 'index,
+    {
+        let (walk, root_positions) = self.walk_ancestors_until_roots(root_set, head_set);
+        let root_positions: HashSet<_> = root_positions.into_iter().collect();
+        let candidates = Box::new(RevWalkRevset { walk });
+        let predicate = PurePredicateFn(move |entry: &IndexEntry| {
+            entry
+                .parent_positions()
+                .iter()
+                .any(|parent_pos| root_positions.contains(parent_pos))
+        });
+        // TODO: Suppose heads include all visible heads, ToPredicateFn version can be
+        // optimized to only test the predicate()
+        FilterRevset {
+            candidates,
+            predicate,
+        }
     }
 
     /// Calculates `root_set:head_set`.
