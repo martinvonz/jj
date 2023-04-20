@@ -2294,6 +2294,12 @@ impl CliRunner {
         }
     }
 
+    /// Set the version to be displayed by `jj version`.
+    pub fn version(mut self, version: &'static str) -> Self {
+        self.app = self.app.version(version);
+        self
+    }
+
     /// Replaces `StoreFactories` to be used.
     pub fn set_store_factories(mut self, store_factories: StoreFactories) -> Self {
         self.store_factories = Some(store_factories);

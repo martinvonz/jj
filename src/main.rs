@@ -15,5 +15,5 @@
 use jujutsu::cli_util::CliRunner;
 
 fn main() -> std::process::ExitCode {
-    CliRunner::init().run()
+    CliRunner::init().version(env!("JJ_VERSION")).run()
 }
