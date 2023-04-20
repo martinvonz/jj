@@ -111,11 +111,10 @@ fn test_git_push_parent_branch() {
         &["describe", "-m", "modified branch1 commit"],
     );
     test_env.jj_cmd_success(&workspace_root, &["new"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--dry-run"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Force branch branch1 from 45a3aa29e907 to d47326d59ee1
-    Dry-run requested, not pushing.
     "###);
 }
 
@@ -129,7 +128,7 @@ fn test_git_no_push_parent_branch_non_empty_commit() {
     );
     test_env.jj_cmd_success(&workspace_root, &["new"]);
     std::fs::write(workspace_root.join("file"), "file").unwrap();
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--dry-run"]);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: No current branch.
     "###);
@@ -144,7 +143,7 @@ fn test_git_no_push_parent_branch_description() {
         &["describe", "-m", "modified branch1 commit"],
     );
     test_env.jj_cmd_success(&workspace_root, &["new", "-m", "non-empty description"]);
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--dry-run"]);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: No current branch.
     "###);
@@ -411,8 +410,7 @@ fn test_git_push_deleted() {
     Branch changes to push to origin:
       Delete branch branch1 from 45a3aa29e907
     "###);
-    let stdout =
-        test_env.jj_cmd_success(&workspace_root, &["git", "push", "--deleted", "--dry-run"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--deleted"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
