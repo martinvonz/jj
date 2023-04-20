@@ -287,13 +287,10 @@ fn test_git_colocated_squash_undo() {
     ◉  zzzzzzzzzzzz 000000000000
     "###);
     test_env.jj_cmd_success(&repo_path, &["undo"]);
-    // TODO: There should be no divergence here; 2f376ea1478c should be hidden
-    // (#922)
+    // There should be no divergence here; 2f376ea1478c should be hidden
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    ◉  qpvuntsmwlqt 2f376ea1478c A master !divergence!
-    │ @  rlvkpnrzqnoo 8f71e3b6a3be
-    │ ◉  qpvuntsmwlqt a86754f975f9 A !divergence!
-    ├─╯
+    @  rlvkpnrzqnoo 8f71e3b6a3be
+    ◉  qpvuntsmwlqt a86754f975f9 A master
     ◉  zzzzzzzzzzzz 000000000000
     "###);
 }

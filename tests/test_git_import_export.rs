@@ -114,16 +114,10 @@ fn test_git_push_undo() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "v3"]);
     test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
-    // TODO: This should probably not be considered a conflict. It currently is
-    // because the undo made us forget that the remote was at v2, so the fetch
-    // made us think it updated from v1 to v2 (instead of the no-op it could
-    // have been).
+    // There should be no conflict
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    main (conflicted):
-      - 367d4f2f6deb v1
-      + cb20e76758a0 v3
-      + ebba8fecca7e v2
-      @origin (behind by 1 commits): ebba8fecca7e v2
+    main: cb20e76758a0 v3
+      @origin (ahead by 1 commits, behind by 1 commits): 367d4f2f6deb v1
     "###);
 }
 

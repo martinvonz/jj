@@ -658,12 +658,11 @@ fn test_git_fetch_undo() {
     "###);
     // Now try to fetch just one branch
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ◉  c7d4bdcbc215 descr_for_b b
-    ◉  ff36dc55760e descr_for_trunk1
-    │ @  230dd059e1b0
-    ├─╯
+    @  230dd059e1b0
     ◉  000000000000
     "###);
 }

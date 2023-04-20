@@ -1,6 +1,7 @@
 use clap::Subcommand;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::operation::Operation;
+use jujutsu_lib::repo::Repo;
 
 use crate::cli_util::{user_error, CommandError, CommandHelper, LogContentFormat};
 use crate::graphlog::{get_graphlog, Edge};
@@ -138,6 +139,9 @@ pub fn cmd_op_undo(
     let bad_repo = repo_loader.load_at(&bad_op);
     let parent_repo = repo_loader.load_at(&parent_ops[0]);
     tx.mut_repo().merge(&bad_repo, &parent_repo);
+    let mut new_view = tx.repo().view().store_view().clone();
+    new_view.git_refs = tx.base_repo().view().store_view().git_refs.clone();
+    tx.mut_repo().set_view(new_view);
     tx.finish(ui)?;
 
     Ok(())
@@ -153,6 +157,9 @@ fn cmd_op_restore(
     let mut tx = workspace_command
         .start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     tx.mut_repo().set_view(target_op.view().take_store_view());
+    let mut new_view = tx.repo().view().store_view().clone();
+    new_view.git_refs = tx.base_repo().view().store_view().git_refs.clone();
+    tx.mut_repo().set_view(new_view);
     tx.finish(ui)?;
 
     Ok(())
