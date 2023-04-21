@@ -1167,7 +1167,7 @@ impl PartialOrd for IndexEntryByGeneration<'_> {
 }
 
 trait RevWalkIndex<'a> {
-    type Entry: Ord + RevWalkIndexEntry<'a>;
+    type Entry: Clone + Ord + RevWalkIndexEntry<'a>;
 
     fn entry_by_pos(&self, pos: IndexPosition) -> Self::Entry;
     fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Vec<IndexPosition>;
@@ -1319,29 +1319,30 @@ impl<'a, I: RevWalkIndex<'a>, T: Ord> RevWalkQueue<'a, I, T> {
 }
 
 #[derive(Clone)]
-pub struct RevWalk<'a> {
-    queue: RevWalkQueue<'a, CompositeIndex<'a>, ()>,
-}
+pub struct RevWalk<'a>(RevWalkImpl<'a, CompositeIndex<'a>>);
 
 impl<'a> RevWalk<'a> {
     fn new(index: CompositeIndex<'a>) -> Self {
         let queue = RevWalkQueue::new(index);
-        Self { queue }
+        RevWalk(RevWalkImpl { queue })
     }
 
     fn add_wanted(&mut self, pos: IndexPosition) {
-        self.queue.push_wanted(pos, ());
+        self.0.queue.push_wanted(pos, ());
     }
 
     fn add_unwanted(&mut self, pos: IndexPosition) {
-        self.queue.push_unwanted(pos);
+        self.0.queue.push_unwanted(pos);
     }
 
     /// Filters entries by generation (or depth from the current wanted set.)
     ///
     /// The generation of the current wanted entries starts from 0.
     pub fn filter_by_generation(self, generation_range: Range<u32>) -> RevWalkGenerationRange<'a> {
-        RevWalkGenerationRange::new(self.queue, generation_range)
+        RevWalkGenerationRange(RevWalkGenerationRangeImpl::new(
+            self.0.queue,
+            generation_range,
+        ))
     }
 
     /// Walks ancestors until all of the reachable roots in `root_positions` get
@@ -1365,6 +1366,17 @@ impl<'a> Iterator for RevWalk<'a> {
     type Item = IndexEntry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+#[derive(Clone)]
+struct RevWalkImpl<'a, I: RevWalkIndex<'a>> {
+    queue: RevWalkQueue<'a, I, ()>,
+}
+
+impl<'a, I: RevWalkIndex<'a>> RevWalkImpl<'a, I> {
+    fn next(&mut self) -> Option<IndexEntry<'a>> {
         while let Some(item) = self.queue.pop() {
             self.queue.skip_while_eq(&item.entry);
             if item.is_wanted() {
@@ -1388,14 +1400,25 @@ impl<'a> Iterator for RevWalk<'a> {
 }
 
 #[derive(Clone)]
-pub struct RevWalkGenerationRange<'a> {
+pub struct RevWalkGenerationRange<'a>(RevWalkGenerationRangeImpl<'a, CompositeIndex<'a>>);
+
+impl<'a> Iterator for RevWalkGenerationRange<'a> {
+    type Item = IndexEntry<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+#[derive(Clone)]
+struct RevWalkGenerationRangeImpl<'a, I: RevWalkIndex<'a>> {
     // Sort item generations in ascending order
-    queue: RevWalkQueue<'a, CompositeIndex<'a>, Reverse<RevWalkItemGenerationRange>>,
+    queue: RevWalkQueue<'a, I, Reverse<RevWalkItemGenerationRange>>,
     generation_end: u32,
 }
 
-impl<'a> RevWalkGenerationRange<'a> {
-    fn new(queue: RevWalkQueue<'a, CompositeIndex<'a>, ()>, generation_range: Range<u32>) -> Self {
+impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
+    fn new(queue: RevWalkQueue<'a, I, ()>, generation_range: Range<u32>) -> Self {
         // Translate filter range to item ranges so that overlapped ranges can be
         // merged later.
         //
@@ -1408,7 +1431,7 @@ impl<'a> RevWalkGenerationRange<'a> {
             start: 0,
             end: u32::saturating_sub(generation_range.end, generation_range.start),
         };
-        RevWalkGenerationRange {
+        RevWalkGenerationRangeImpl {
             queue: queue.map_wanted(|()| Reverse(item_range)),
             generation_end: generation_range.end,
         }
@@ -1429,12 +1452,8 @@ impl<'a> RevWalkGenerationRange<'a> {
         };
         self.queue.push_wanted_adjacents(entry, Reverse(succ_gen));
     }
-}
 
-impl<'a> Iterator for RevWalkGenerationRange<'a> {
-    type Item = IndexEntry<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self) -> Option<IndexEntry<'a>> {
         while let Some(item) = self.queue.pop() {
             if let RevWalkWorkItemState::Wanted(Reverse(mut pending_gen)) = item.state {
                 let mut some_in_range = pending_gen.contains_end(self.generation_end);
