@@ -720,10 +720,6 @@ impl Index for MutableIndexImpl {
         CompositeIndex(self).common_ancestors(set1, set2)
     }
 
-    fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
-        CompositeIndex(self).walk_revs(wanted, unwanted)
-    }
-
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         CompositeIndex(self).heads(candidates)
     }
@@ -2016,10 +2012,6 @@ impl Index for ReadonlyIndexImpl {
 
     fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
         CompositeIndex(self).common_ancestors(set1, set2)
-    }
-
-    fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
-        CompositeIndex(self).walk_revs(wanted, unwanted)
     }
 
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
