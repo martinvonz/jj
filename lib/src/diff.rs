@@ -635,9 +635,15 @@ pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> Vec<DiffHunk<'a>> {
 mod tests {
     use super::*;
 
+    // Extracted to a function because type inference is ambiguous due to
+    // `impl PartialEq<aho_corasick::util::search::Span> for std::ops::Range<usize>`
+    fn no_ranges() -> Vec<Range<usize>> {
+        vec![]
+    }
+
     #[test]
     fn test_find_line_ranges_empty() {
-        assert_eq!(find_line_ranges(b""), vec![]);
+        assert_eq!(find_line_ranges(b""), no_ranges());
     }
 
     #[test]
@@ -657,7 +663,7 @@ mod tests {
 
     #[test]
     fn test_find_word_ranges_empty() {
-        assert_eq!(find_word_ranges(b""), vec![]);
+        assert_eq!(find_word_ranges(b""), no_ranges());
     }
 
     #[test]
@@ -667,7 +673,7 @@ mod tests {
 
     #[test]
     fn test_find_word_ranges_no_word() {
-        assert_eq!(find_word_ranges(b"+-*/"), vec![]);
+        assert_eq!(find_word_ranges(b"+-*/"), no_ranges());
     }
 
     #[test]
