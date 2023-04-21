@@ -13,7 +13,6 @@ v2.40.0
 v2.39.0..v2.40.0
 :v2.40.0 ~ :v2.39.0
 v2.39.0:v2.40.0
-v2.40.0+
 # Tags and branches
 tags()
 branches()
@@ -42,16 +41,26 @@ heads(:v2.40.0)
 v1.0.0-
 v1.0.0---
 :v1.0.0---
+# Children and descendants of old commit
+v1.0.0+
+v1.0.0+++
+v1.0.0+++:
 # Parents and ancestors of recent commit
 v2.40.0-
 v2.40.0---
 :v2.40.0---
+# Children and descendants of recent commit
+v2.40.0+
+v2.40.0+++
+v2.40.0+++:
 # Parents and ancestors of small subset
 tags()-
 tags()---
 :tags()---
-# Children of small subset
+# Children and descendants of small subset
 tags()+
+tags()+++
+tags()+++:
 # Filter that doesn't read commit object
 merges()
 ~merges()
