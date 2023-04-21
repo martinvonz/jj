@@ -1167,8 +1167,8 @@ impl PartialOrd for IndexEntryByGeneration<'_> {
 }
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
-struct RevWalkWorkItem<'a, T> {
-    entry: IndexEntryByPosition<'a>,
+struct RevWalkWorkItem<E, T> {
+    entry: E,
     state: RevWalkWorkItemState<T>,
 }
 
@@ -1179,12 +1179,19 @@ enum RevWalkWorkItemState<T> {
     Unwanted,
 }
 
-impl<'a, T> RevWalkWorkItem<'a, T> {
+impl<E, T> RevWalkWorkItem<E, T> {
     fn is_wanted(&self) -> bool {
         matches!(self.state, RevWalkWorkItemState::Wanted(_))
     }
 
-    fn map_wanted<U>(self, f: impl FnOnce(T) -> U) -> RevWalkWorkItem<'a, U> {
+    fn map_entry<U>(self, f: impl FnOnce(E) -> U) -> RevWalkWorkItem<U, T> {
+        RevWalkWorkItem {
+            entry: f(self.entry),
+            state: self.state,
+        }
+    }
+
+    fn map_wanted<U>(self, f: impl FnOnce(T) -> U) -> RevWalkWorkItem<E, U> {
         RevWalkWorkItem {
             entry: self.entry,
             state: match self.state {
@@ -1198,7 +1205,7 @@ impl<'a, T> RevWalkWorkItem<'a, T> {
 #[derive(Clone)]
 struct RevWalkQueue<'a, T> {
     index: CompositeIndex<'a>,
-    items: BinaryHeap<RevWalkWorkItem<'a, T>>,
+    items: BinaryHeap<RevWalkWorkItem<IndexEntryByPosition<'a>, T>>,
     unwanted_count: usize,
 }
 
@@ -1253,16 +1260,16 @@ impl<'a, T: Ord> RevWalkQueue<'a, T> {
         }
     }
 
-    fn pop(&mut self) -> Option<RevWalkWorkItem<'a, T>> {
+    fn pop(&mut self) -> Option<RevWalkWorkItem<IndexEntry<'a>, T>> {
         if let Some(x) = self.items.pop() {
             self.unwanted_count -= !x.is_wanted() as usize;
-            Some(x)
+            Some(x.map_entry(|e| e.0))
         } else {
             None
         }
     }
 
-    fn pop_eq(&mut self, entry: &IndexEntry<'_>) -> Option<RevWalkWorkItem<'a, T>> {
+    fn pop_eq(&mut self, entry: &IndexEntry<'_>) -> Option<RevWalkWorkItem<IndexEntry<'a>, T>> {
         if let Some(x) = self.items.peek() {
             (&x.entry.0 == entry).then(|| self.pop().unwrap())
         } else {
@@ -1325,16 +1332,16 @@ impl<'a> Iterator for RevWalk<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(item) = self.queue.pop() {
-            self.queue.skip_while_eq(&item.entry.0);
+            self.queue.skip_while_eq(&item.entry);
             if item.is_wanted() {
-                self.queue.push_wanted_parents(&item.entry.0, ());
-                return Some(item.entry.0);
+                self.queue.push_wanted_parents(&item.entry, ());
+                return Some(item.entry);
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
                 debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
                 return None;
             } else {
-                self.queue.push_unwanted_parents(&item.entry.0);
+                self.queue.push_unwanted_parents(&item.entry);
             }
         }
 
@@ -1393,7 +1400,7 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
         while let Some(item) = self.queue.pop() {
             if let RevWalkWorkItemState::Wanted(Reverse(mut pending_gen)) = item.state {
                 let mut some_in_range = pending_gen.contains_end(self.generation_end);
-                while let Some(x) = self.queue.pop_eq(&item.entry.0) {
+                while let Some(x) = self.queue.pop_eq(&item.entry) {
                     // Merge overlapped ranges to reduce number of the queued items.
                     // For queries like `:(heads-)`, `gen.end` is close to `u32::MAX`, so
                     // ranges can be merged into one. If this is still slow, maybe we can add
@@ -1403,24 +1410,24 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
                         pending_gen = if let Some(merged) = pending_gen.try_merge_end(gen) {
                             merged
                         } else {
-                            self.enqueue_wanted_parents(&item.entry.0, pending_gen);
+                            self.enqueue_wanted_parents(&item.entry, pending_gen);
                             gen
                         };
                     } else {
                         unreachable!("no more unwanted items of the same entry");
                     }
                 }
-                self.enqueue_wanted_parents(&item.entry.0, pending_gen);
+                self.enqueue_wanted_parents(&item.entry, pending_gen);
                 if some_in_range {
-                    return Some(item.entry.0);
+                    return Some(item.entry);
                 }
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
                 debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
                 return None;
             } else {
-                self.queue.skip_while_eq(&item.entry.0);
-                self.queue.push_unwanted_parents(&item.entry.0);
+                self.queue.skip_while_eq(&item.entry);
+                self.queue.push_unwanted_parents(&item.entry);
             }
         }
 
