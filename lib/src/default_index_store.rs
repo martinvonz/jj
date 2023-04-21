@@ -1200,6 +1200,61 @@ impl<'a> RevWalkIndexEntry<'a> for IndexEntryByPosition<'a> {
     }
 }
 
+#[derive(Clone)]
+struct RevWalkDescendantsIndex<'a> {
+    index: CompositeIndex<'a>,
+    children_map: HashMap<IndexPosition, Vec<IndexPosition>>,
+}
+
+impl<'a> RevWalkDescendantsIndex<'a> {
+    fn build<'b>(
+        index: CompositeIndex<'a>,
+        entries: impl IntoIterator<Item = IndexEntry<'b>>,
+    ) -> Self {
+        // For dense set, it's probably cheaper to use `Vec` instead of `HashMap`.
+        let mut children_map: HashMap<IndexPosition, Vec<IndexPosition>> = HashMap::new();
+        for entry in entries {
+            children_map.entry(entry.position()).or_default(); // mark head node
+            for parent_pos in entry.parent_positions() {
+                let parent = children_map.entry(parent_pos).or_default();
+                parent.push(entry.position());
+            }
+        }
+
+        RevWalkDescendantsIndex {
+            index,
+            children_map,
+        }
+    }
+
+    fn contains_pos(&self, pos: IndexPosition) -> bool {
+        self.children_map.contains_key(&pos)
+    }
+}
+
+impl<'a> RevWalkIndex<'a> for RevWalkDescendantsIndex<'a> {
+    type Entry = Reverse<IndexEntryByPosition<'a>>;
+
+    fn entry_by_pos(&self, pos: IndexPosition) -> Self::Entry {
+        Reverse(IndexEntryByPosition(self.index.entry_by_pos(pos)))
+    }
+
+    // TODO: SmallVec, Cow, or GAT AdjacentIter to eliminate .clone()
+    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Vec<IndexPosition> {
+        self.children_map[&entry.position()].clone()
+    }
+}
+
+impl<'a> RevWalkIndexEntry<'a> for Reverse<IndexEntryByPosition<'a>> {
+    fn as_index_entry(&self) -> &IndexEntry<'a> {
+        self.0.as_index_entry()
+    }
+
+    fn into_index_entry(self) -> IndexEntry<'a> {
+        self.0.into_index_entry()
+    }
+}
+
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct RevWalkWorkItem<E, T> {
     entry: E,
@@ -1360,6 +1415,29 @@ impl<'a> RevWalk<'a> {
         let bottom_position = *root_positions.iter().min().unwrap_or(&IndexPosition::MAX);
         self.take_while(move |entry| entry.position() >= bottom_position)
     }
+
+    /// Fully consumes the ancestors and walks back from `root_positions` within
+    /// `generation_range`.
+    ///
+    /// The returned iterator yields entries in order of ascending index
+    /// position.
+    pub fn descendants_filtered_by_generation(
+        self,
+        root_positions: &[IndexPosition],
+        generation_range: Range<u32>,
+    ) -> RevWalkDescendantsGenerationRange<'a> {
+        let index = self.0.queue.index.clone();
+        let entries = self.take_until_roots(root_positions);
+        let descendants_index = RevWalkDescendantsIndex::build(index, entries);
+        let mut queue = RevWalkQueue::new(descendants_index);
+        for &pos in root_positions {
+            // Do not add unreachable roots which shouldn't be visited
+            if queue.index.contains_pos(pos) {
+                queue.push_wanted(pos, ());
+            }
+        }
+        RevWalkDescendantsGenerationRange(RevWalkGenerationRangeImpl::new(queue, generation_range))
+    }
 }
 
 impl<'a> Iterator for RevWalk<'a> {
@@ -1403,6 +1481,19 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkImpl<'a, I> {
 pub struct RevWalkGenerationRange<'a>(RevWalkGenerationRangeImpl<'a, CompositeIndex<'a>>);
 
 impl<'a> Iterator for RevWalkGenerationRange<'a> {
+    type Item = IndexEntry<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+#[derive(Clone)]
+pub struct RevWalkDescendantsGenerationRange<'a>(
+    RevWalkGenerationRangeImpl<'a, RevWalkDescendantsIndex<'a>>,
+);
+
+impl<'a> Iterator for RevWalkDescendantsGenerationRange<'a> {
     type Item = IndexEntry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -2845,6 +2936,116 @@ mod tests {
                 5..6
             ),
             [&ids[3], &ids[2], &ids[1]].map(Clone::clone)
+        );
+    }
+
+    #[test]
+    fn test_walk_revs_descendants_filtered_by_generation() {
+        let mut new_change_id = change_id_generator();
+        let mut index = MutableIndexImpl::full(3, 16);
+        // 8 6
+        // | |
+        // 7 5
+        // |/|
+        // 4 |
+        // | 3
+        // 2 |
+        // |/
+        // 1
+        // |
+        // 0
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        let id_5 = CommitId::from_hex("555555");
+        let id_6 = CommitId::from_hex("666666");
+        let id_7 = CommitId::from_hex("777777");
+        let id_8 = CommitId::from_hex("888888");
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_3.clone()]);
+        index.add_commit_data(id_6.clone(), new_change_id(), &[id_5.clone()]);
+        index.add_commit_data(id_7.clone(), new_change_id(), &[id_4.clone()]);
+        index.add_commit_data(id_8.clone(), new_change_id(), &[id_7.clone()]);
+
+        let visible_heads = [&id_6, &id_8].map(Clone::clone);
+        let walk_commit_ids = |roots: &[CommitId], heads: &[CommitId], range: Range<u32>| {
+            let root_positions = roots
+                .iter()
+                .map(|id| index.as_composite().commit_id_to_pos(id).unwrap())
+                .collect_vec();
+            index
+                .walk_revs(heads, &[])
+                .descendants_filtered_by_generation(&root_positions, range)
+                .map(|entry| entry.commit_id())
+                .collect_vec()
+        };
+
+        // Empty generation bounds
+        assert_eq!(
+            walk_commit_ids(&[&id_0].map(Clone::clone), &visible_heads, 0..0),
+            []
+        );
+        assert_eq!(
+            walk_commit_ids(
+                &[&id_8].map(Clone::clone),
+                &visible_heads,
+                Range { start: 2, end: 1 }
+            ),
+            []
+        );
+
+        // Full generation bounds
+        assert_eq!(
+            walk_commit_ids(&[&id_0].map(Clone::clone), &visible_heads, 0..u32::MAX),
+            [&id_0, &id_1, &id_2, &id_3, &id_4, &id_5, &id_6, &id_7, &id_8].map(Clone::clone)
+        );
+
+        // Simple generation bounds
+        assert_eq!(
+            walk_commit_ids(&[&id_3].map(Clone::clone), &visible_heads, 0..3),
+            [&id_3, &id_5, &id_6].map(Clone::clone)
+        );
+
+        // Descendants may be walked with different generations
+        assert_eq!(
+            walk_commit_ids(&[&id_0].map(Clone::clone), &visible_heads, 2..4),
+            [&id_2, &id_3, &id_4, &id_5].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_1].map(Clone::clone), &visible_heads, 2..3),
+            [&id_4, &id_5].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_2, &id_3].map(Clone::clone), &visible_heads, 2..3),
+            [&id_5, &id_6, &id_7].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_2, &id_4].map(Clone::clone), &visible_heads, 0..2),
+            [&id_2, &id_4, &id_5, &id_7].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_2, &id_3].map(Clone::clone), &visible_heads, 0..3),
+            [&id_2, &id_3, &id_4, &id_5, &id_6, &id_7].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_2, &id_3].map(Clone::clone), &visible_heads, 2..3),
+            [&id_5, &id_6, &id_7].map(Clone::clone)
+        );
+
+        // Roots set contains entries unreachable from heads
+        assert_eq!(
+            walk_commit_ids(
+                &[&id_2, &id_3].map(Clone::clone),
+                &[&id_8].map(Clone::clone),
+                0..3
+            ),
+            [&id_2, &id_4, &id_7].map(Clone::clone)
         );
     }
 
