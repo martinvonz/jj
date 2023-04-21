@@ -1055,7 +1055,7 @@ impl<'a> CompositeIndex<'a> {
         self.heads_pos(result)
     }
 
-    pub(crate) fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
+    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
         let mut rev_walk = RevWalk::new(self.clone());
         for pos in wanted.iter().map(|id| self.commit_id_to_pos(id).unwrap()) {
             rev_walk.add_wanted(pos);
@@ -2759,6 +2759,7 @@ mod tests {
 
         let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId]| {
             index
+                .as_composite()
                 .walk_revs(wanted, unwanted)
                 .map(|entry| entry.commit_id())
                 .collect_vec()
@@ -2848,6 +2849,7 @@ mod tests {
 
         let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId], range: Range<u32>| {
             index
+                .as_composite()
                 .walk_revs(wanted, unwanted)
                 .filter_by_generation(range)
                 .map(|entry| entry.commit_id())
@@ -2924,6 +2926,7 @@ mod tests {
 
         let walk_commit_ids = |wanted: &[CommitId], range: Range<u32>| {
             index
+                .as_composite()
                 .walk_revs(wanted, &[])
                 .filter_by_generation(range)
                 .map(|entry| entry.commit_id())
@@ -2997,6 +3000,7 @@ mod tests {
                 .map(|id| index.as_composite().commit_id_to_pos(id).unwrap())
                 .collect_vec();
             index
+                .as_composite()
                 .walk_revs(heads, &[])
                 .descendants_filtered_by_generation(&root_positions, range)
                 .map(|entry| entry.commit_id())

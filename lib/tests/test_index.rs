@@ -195,18 +195,21 @@ fn test_index_commits_criss_cross(use_git: bool) {
     // RevWalk deduplicates chains by entry.
     assert_eq!(
         index
+            .as_composite()
             .walk_revs(&[left_commits[num_generations - 1].id().clone()], &[])
             .count(),
         2 * num_generations
     );
     assert_eq!(
         index
+            .as_composite()
             .walk_revs(&[right_commits[num_generations - 1].id().clone()], &[])
             .count(),
         2 * num_generations
     );
     assert_eq!(
         index
+            .as_composite()
             .walk_revs(
                 &[left_commits[num_generations - 1].id().clone()],
                 &[left_commits[num_generations - 2].id().clone()]
@@ -216,6 +219,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
     );
     assert_eq!(
         index
+            .as_composite()
             .walk_revs(
                 &[right_commits[num_generations - 1].id().clone()],
                 &[right_commits[num_generations - 2].id().clone()]
@@ -228,6 +232,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
     // be more expensive than RevWalk, but should still finish in reasonable time.
     assert_eq!(
         index
+            .as_composite()
             .walk_revs(&[left_commits[num_generations - 1].id().clone()], &[])
             .filter_by_generation(0..(num_generations + 1) as u32)
             .count(),
@@ -235,6 +240,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
     );
     assert_eq!(
         index
+            .as_composite()
             .walk_revs(&[right_commits[num_generations - 1].id().clone()], &[])
             .filter_by_generation(0..(num_generations + 1) as u32)
             .count(),
@@ -242,6 +248,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
     );
     assert_eq!(
         index
+            .as_composite()
             .walk_revs(
                 &[left_commits[num_generations - 1].id().clone()],
                 &[left_commits[num_generations - 2].id().clone()]
@@ -252,6 +259,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
     );
     assert_eq!(
         index
+            .as_composite()
             .walk_revs(
                 &[right_commits[num_generations - 1].id().clone()],
                 &[right_commits[num_generations - 2].id().clone()]
