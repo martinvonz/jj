@@ -14,6 +14,7 @@ use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jujutsu_lib::repo::Repo;
+use jujutsu_lib::revset::{self, RevsetIteratorExt as _};
 use jujutsu_lib::settings::{ConfigResultExt as _, UserSettings};
 use jujutsu_lib::store::Store;
 use jujutsu_lib::view::View;
@@ -842,8 +843,11 @@ fn cmd_git_push(
     if old_heads.is_empty() {
         old_heads.push(repo.store().root_commit_id().clone());
     }
-    for index_entry in repo.index().walk_revs(&new_heads, &old_heads) {
-        let commit = repo.store().get_commit(&index_entry.commit_id())?;
+    for commit in revset::walk_revs(repo.as_ref(), &new_heads, &old_heads)?
+        .iter()
+        .commits(repo.store())
+    {
+        let commit = commit?;
         let mut reasons = vec![];
         if commit.description().is_empty() {
             reasons.push("it has no description");

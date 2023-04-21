@@ -5,6 +5,7 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId};
 use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo::Repo;
+use jujutsu_lib::revset;
 use jujutsu_lib::view::View;
 
 use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg};
@@ -292,7 +293,6 @@ fn cmd_branch_list(
 
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
-    let index = repo.index();
     for (name, branch_target) in repo.view().branches() {
         write!(formatter.labeled("branch"), "{name}")?;
         print_branch_target(formatter, branch_target.local_target.as_ref())?;
@@ -308,12 +308,12 @@ fn cmd_branch_list(
             write!(formatter, "  ")?;
             write!(formatter.labeled("branch"), "@{remote}")?;
             if let Some(local_target) = branch_target.local_target.as_ref() {
-                let remote_ahead_count = index
-                    .walk_revs(&remote_target.adds(), &local_target.adds())
-                    .count();
-                let local_ahead_count = index
-                    .walk_revs(&local_target.adds(), &remote_target.adds())
-                    .count();
+                let remote_ahead_count =
+                    revset::walk_revs(repo.as_ref(), &remote_target.adds(), &local_target.adds())?
+                        .count();
+                let local_ahead_count =
+                    revset::walk_revs(repo.as_ref(), &local_target.adds(), &remote_target.adds())?
+                        .count();
                 if remote_ahead_count != 0 && local_ahead_count == 0 {
                     write!(formatter, " (ahead by {remote_ahead_count} commits)")?;
                 } else if remote_ahead_count == 0 && local_ahead_count != 0 {

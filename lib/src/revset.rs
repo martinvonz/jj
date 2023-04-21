@@ -1581,6 +1581,21 @@ pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
     fold_difference(&expression).unwrap_or(expression)
 }
 
+// TODO: find better place to host this function (or add compile-time revset
+// parsing and resolution like
+// `revset!("{unwanted}..{wanted}").evaluate(repo)`?)
+pub fn walk_revs<'index>(
+    repo: &'index dyn Repo,
+    wanted: &[CommitId],
+    unwanted: &[CommitId],
+) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
+    RevsetExpression::commits(unwanted.to_vec())
+        .range(&RevsetExpression::commits(wanted.to_vec()))
+        .resolve(repo)
+        .unwrap()
+        .evaluate(repo)
+}
+
 fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
     for git_ref_prefix in &["", "refs/", "refs/heads/", "refs/tags/", "refs/remotes/"] {
