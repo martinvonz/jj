@@ -38,7 +38,7 @@ use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
 use crate::operation::Operation;
 use crate::refs::merge_ref_targets;
-use crate::revset::{ChangeIdIndex, Revset, RevsetExpression};
+use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
@@ -1089,11 +1089,14 @@ impl MutableRepo {
     /// `old_heads` and `new_heads`.
     fn record_rewrites(&mut self, old_heads: &[CommitId], new_heads: &[CommitId]) {
         let mut removed_changes: HashMap<ChangeId, Vec<CommitId>> = HashMap::new();
-        for removed in self.index().walk_revs(old_heads, new_heads) {
+        for (commit_id, change_id) in revset::walk_revs(self, old_heads, new_heads)
+            .unwrap()
+            .commit_change_ids()
+        {
             removed_changes
-                .entry(removed.change_id())
+                .entry(change_id)
                 .or_default()
-                .push(removed.commit_id());
+                .push(commit_id);
         }
         if removed_changes.is_empty() {
             return;
@@ -1101,14 +1104,16 @@ impl MutableRepo {
 
         let mut rewritten_changes = HashSet::new();
         let mut rewritten_commits: HashMap<CommitId, Vec<CommitId>> = HashMap::new();
-        for added in self.index().walk_revs(new_heads, old_heads) {
-            let change_id = added.change_id();
+        for (commit_id, change_id) in revset::walk_revs(self, new_heads, old_heads)
+            .unwrap()
+            .commit_change_ids()
+        {
             if let Some(old_commits) = removed_changes.get(&change_id) {
                 for old_commit in old_commits {
                     rewritten_commits
                         .entry(old_commit.clone())
                         .or_default()
-                        .push(added.commit_id());
+                        .push(commit_id.clone());
                 }
             }
             rewritten_changes.insert(change_id);

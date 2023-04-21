@@ -25,6 +25,7 @@ use crate::commit::Commit;
 use crate::git_backend::NO_GC_REF_NAMESPACE;
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
+use crate::revset;
 use crate::settings::GitSettings;
 use crate::view::RefName;
 
@@ -209,11 +210,14 @@ pub fn import_some_refs(
     // about abandoned commits for now. We may want to change this if we ever
     // add a way of preserving change IDs across rewrites by `git` (e.g. by
     // putting them in the commit message).
-    let abandoned_commits = mut_repo
-        .index()
-        .walk_revs(&old_git_heads, &new_git_heads_set.into_iter().collect_vec())
-        .map(|entry| entry.commit_id())
-        .collect_vec();
+    let abandoned_commits = revset::walk_revs(
+        mut_repo,
+        &old_git_heads,
+        &new_git_heads_set.into_iter().collect_vec(),
+    )
+    .unwrap()
+    .iter()
+    .collect_vec();
     let root_commit_id = mut_repo.store().root_commit_id().clone();
     for abandoned_commit in abandoned_commits {
         if abandoned_commit != root_commit_id {
