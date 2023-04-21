@@ -20,7 +20,6 @@ use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
 use crate::commit::Commit;
-use crate::default_index_store::RevWalk;
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
@@ -58,8 +57,6 @@ pub trait Index: Send + Sync {
     fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool;
 
     fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId>;
-
-    fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk;
 
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
 
