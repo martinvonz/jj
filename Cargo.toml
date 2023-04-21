@@ -52,7 +52,7 @@ maplit = "1.0.2"
 once_cell = "1.17.1"
 pest = "2.5.7"
 pest_derive = "2.5"
-regex = "1.7.3"
+regex = "1.8.1"
 rpassword = "7.2.0"
 serde = { version = "1.0", features = ["derive"] }
 slab = "0.4.8"
@@ -72,7 +72,7 @@ libc = { version = "0.2.141" }
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 insta = { version = "1.29.0", features = ["filters"] }
-regex = "1.7.3"
+regex = "1.8.1"
 testutils = { path = "lib/testutils" }
 
 [features]
