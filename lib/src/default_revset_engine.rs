@@ -121,6 +121,10 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
     fn is_empty(&self) -> bool {
         self.iter().next().is_none()
     }
+
+    fn count(&self) -> usize {
+        self.inner.iter().count()
+    }
 }
 
 struct ChangeIdIndexImpl<'index> {

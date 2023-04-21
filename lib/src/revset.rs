@@ -2037,6 +2037,8 @@ pub trait Revset<'index>: fmt::Debug {
     fn change_id_index(&self) -> Box<dyn ChangeIdIndex + 'index>;
 
     fn is_empty(&self) -> bool;
+
+    fn count(&self) -> usize;
 }
 
 pub trait ChangeIdIndex: Send + Sync {
