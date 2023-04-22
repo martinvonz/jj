@@ -754,10 +754,6 @@ impl<'index> EvaluationContext<'index> {
     }
 
     /// Calculates `root_set:head_set`.
-    ///
-    /// The returned `HashSet` contains all `root_set` positions no matter if
-    /// the entry isn't an ancestor of the `head_set`. The `EagerRevset`
-    /// only contains entries reachable from the `head_set`.
     fn collect_dag_range<'a, 'b, S, T>(
         &self,
         root_set: &S,
@@ -768,21 +764,22 @@ impl<'index> EvaluationContext<'index> {
         T: InternalRevset<'b> + ?Sized,
     {
         let (walk, root_positions) = self.walk_ancestors_until_roots(root_set, head_set);
-        let mut reachable: HashSet<_> = root_positions.into_iter().collect();
+        let root_positions: HashSet<_> = root_positions.into_iter().collect();
+        let mut reachable_positions = HashSet::new();
         let mut index_entries = vec![];
         for candidate in walk.collect_vec().into_iter().rev() {
-            if reachable.contains(&candidate.position())
+            if root_positions.contains(&candidate.position())
                 || candidate
                     .parent_positions()
                     .iter()
-                    .any(|parent_pos| reachable.contains(parent_pos))
+                    .any(|parent_pos| reachable_positions.contains(parent_pos))
             {
-                reachable.insert(candidate.position());
+                reachable_positions.insert(candidate.position());
                 index_entries.push(candidate);
             }
         }
         index_entries.reverse();
-        (EagerRevset { index_entries }, reachable)
+        (EagerRevset { index_entries }, reachable_positions)
     }
 
     fn revset_for_commit_ids(&self, commit_ids: &[CommitId]) -> EagerRevset<'index> {
