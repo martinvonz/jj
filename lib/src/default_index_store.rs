@@ -1302,6 +1302,22 @@ impl<'a> RevWalk<'a> {
     pub fn filter_by_generation(self, generation_range: Range<u32>) -> RevWalkGenerationRange<'a> {
         RevWalkGenerationRange::new(self.queue, generation_range)
     }
+
+    /// Walks ancestors until all of the reachable roots in `root_positions` get
+    /// visited.
+    ///
+    /// Use this if you are only interested in descendants of the given roots.
+    /// The caller still needs to filter out unwanted entries.
+    pub fn take_until_roots(
+        self,
+        root_positions: &[IndexPosition],
+    ) -> impl Iterator<Item = IndexEntry<'a>> + Clone + 'a {
+        // We can also make it stop visiting based on the generation number. Maybe
+        // it will perform better for unbalanced branchy history.
+        // https://github.com/martinvonz/jj/pull/1492#discussion_r1160678325
+        let bottom_position = *root_positions.iter().min().unwrap_or(&IndexPosition::MAX);
+        self.take_while(move |entry| entry.position() >= bottom_position)
+    }
 }
 
 impl<'a> Iterator for RevWalk<'a> {
