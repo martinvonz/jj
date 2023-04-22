@@ -82,20 +82,20 @@ fn test_no_subcommand() {
     let stdout = test_env.jj_cmd_success(&repo_path, &[]);
     assert_eq!(stdout, test_env.jj_cmd_success(&repo_path, &["log"]));
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["-T", "show"]);
-    let stdout = stdout.lines().skip(2).join("\n");
-    insta::assert_snapshot!(stdout, @r###"
-    │  Author: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
-    │  Committer: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
-    │
-    │      (no description set)
-    │
-    ◉  Commit ID: 0000000000000000000000000000000000000000
-       Change ID: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-       Author:  <> (1970-01-01 00:00:00.000 +00:00)
-       Committer:  <> (1970-01-01 00:00:00.000 +00:00)
-
-           (no description set)
+    // Command argument that looks like a command name.
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "help"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "log"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "show"]);
+    // TODO: test_env.jj_cmd_success(&repo_path, &["-r", "help"])
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["-r", "log"]), @r###"
+    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 help log show 230dd059e1b0
+    │  (empty) (no description set)
+    ~
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["-r", "show"]), @r###"
+    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 help log show 230dd059e1b0
+    │  (empty) (no description set)
+    ~
     "###);
 }
 
