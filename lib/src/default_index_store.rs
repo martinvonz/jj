@@ -28,6 +28,7 @@ use blake2::Blake2b512;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use digest::Digest;
 use itertools::Itertools;
+use smallvec::SmallVec;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
@@ -305,6 +306,10 @@ impl IndexPosition {
     pub const MAX: Self = IndexPosition(u32::MAX);
 }
 
+// SmallVec reuses two pointer-size fields as inline area, which meas we can
+// inline up to 16 bytes (on 64-bit platform) for free.
+type SmallIndexPositionsVec = SmallVec<[IndexPosition; 4]>;
+
 struct CommitGraphEntry<'a> {
     data: &'a [u8],
     commit_id_length: usize,
@@ -455,7 +460,7 @@ struct MutableGraphEntry {
     commit_id: CommitId,
     change_id: ChangeId,
     generation_number: u32,
-    parent_positions: Vec<IndexPosition>,
+    parent_positions: SmallIndexPositionsVec,
 }
 
 pub struct MutableIndexImpl {
@@ -510,7 +515,7 @@ impl MutableIndexImpl {
             commit_id,
             change_id,
             generation_number: 0,
-            parent_positions: vec![],
+            parent_positions: SmallVec::new(),
         };
         for parent_id in parent_ids {
             let parent_entry = CompositeIndex(self)
@@ -820,7 +825,7 @@ trait IndexSegment: Send + Sync {
 
     fn segment_num_parents(&self, local_pos: u32) -> u32;
 
-    fn segment_parent_positions(&self, local_pos: u32) -> Vec<IndexPosition>;
+    fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec;
 
     fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry;
 }
@@ -1170,7 +1175,7 @@ trait RevWalkIndex<'a> {
     type Entry: Clone + Ord + RevWalkIndexEntry<'a>;
 
     fn entry_by_pos(&self, pos: IndexPosition) -> Self::Entry;
-    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Vec<IndexPosition>;
+    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> SmallIndexPositionsVec;
 }
 
 trait RevWalkIndexEntry<'a> {
@@ -1185,7 +1190,7 @@ impl<'a> RevWalkIndex<'a> for CompositeIndex<'a> {
         IndexEntryByPosition(CompositeIndex::entry_by_pos(self, pos))
     }
 
-    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Vec<IndexPosition> {
+    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> SmallIndexPositionsVec {
         entry.parent_positions()
     }
 }
@@ -1203,7 +1208,7 @@ impl<'a> RevWalkIndexEntry<'a> for IndexEntryByPosition<'a> {
 #[derive(Clone)]
 struct RevWalkDescendantsIndex<'a> {
     index: CompositeIndex<'a>,
-    children_map: HashMap<IndexPosition, Vec<IndexPosition>>,
+    children_map: HashMap<IndexPosition, SmallIndexPositionsVec>,
 }
 
 impl<'a> RevWalkDescendantsIndex<'a> {
@@ -1212,7 +1217,7 @@ impl<'a> RevWalkDescendantsIndex<'a> {
         entries: impl IntoIterator<Item = IndexEntry<'b>>,
     ) -> Self {
         // For dense set, it's probably cheaper to use `Vec` instead of `HashMap`.
-        let mut children_map: HashMap<IndexPosition, Vec<IndexPosition>> = HashMap::new();
+        let mut children_map: HashMap<IndexPosition, SmallIndexPositionsVec> = HashMap::new();
         for entry in entries {
             children_map.entry(entry.position()).or_default(); // mark head node
             for parent_pos in entry.parent_positions() {
@@ -1239,8 +1244,7 @@ impl<'a> RevWalkIndex<'a> for RevWalkDescendantsIndex<'a> {
         Reverse(IndexEntryByPosition(self.index.entry_by_pos(pos)))
     }
 
-    // TODO: SmallVec, Cow, or GAT AdjacentIter to eliminate .clone()
-    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Vec<IndexPosition> {
+    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> SmallIndexPositionsVec {
         self.children_map[&entry.position()].clone()
     }
 }
@@ -1689,9 +1693,9 @@ impl IndexSegment for ReadonlyIndexImpl {
         self.graph_entry(local_pos).num_parents()
     }
 
-    fn segment_parent_positions(&self, local_pos: u32) -> Vec<IndexPosition> {
+    fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec {
         let graph_entry = self.graph_entry(local_pos);
-        let mut parent_entries = vec![];
+        let mut parent_entries = SmallVec::with_capacity(graph_entry.num_parents() as usize);
         if graph_entry.num_parents() >= 1 {
             parent_entries.push(graph_entry.parent1_pos());
         }
@@ -1783,7 +1787,7 @@ impl IndexSegment for MutableIndexImpl {
         self.graph[local_pos as usize].parent_positions.len() as u32
     }
 
-    fn segment_parent_positions(&self, local_pos: u32) -> Vec<IndexPosition> {
+    fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec {
         self.graph[local_pos as usize].parent_positions.clone()
     }
 
@@ -1849,7 +1853,7 @@ impl<'a> IndexEntry<'a> {
         self.source.segment_num_parents(self.local_pos)
     }
 
-    pub fn parent_positions(&self) -> Vec<IndexPosition> {
+    pub fn parent_positions(&self) -> SmallIndexPositionsVec {
         self.source.segment_parent_positions(self.local_pos)
     }
 
@@ -2039,6 +2043,7 @@ impl Index for ReadonlyIndexImpl {
 
 #[cfg(test)]
 mod tests {
+    use smallvec::smallvec_inline;
     use test_case::test_case;
 
     use super::*;
@@ -2114,7 +2119,7 @@ mod tests {
         assert_eq!(entry.change_id(), change_id0);
         assert_eq!(entry.generation_number(), 0);
         assert_eq!(entry.num_parents(), 0);
-        assert_eq!(entry.parent_positions(), Vec::<IndexPosition>::new());
+        assert_eq!(entry.parent_positions(), SmallIndexPositionsVec::new());
         assert_eq!(entry.parents(), Vec::<IndexEntry>::new());
     }
 
@@ -2203,7 +2208,10 @@ mod tests {
         assert_eq!(entry_1.change_id(), change_id1);
         assert_eq!(entry_1.generation_number(), 1);
         assert_eq!(entry_1.num_parents(), 1);
-        assert_eq!(entry_1.parent_positions(), vec![IndexPosition(0)]);
+        assert_eq!(
+            entry_1.parent_positions(),
+            smallvec_inline![IndexPosition(0)]
+        );
         assert_eq!(entry_1.parents().len(), 1);
         assert_eq!(entry_1.parents()[0].pos, IndexPosition(0));
         assert_eq!(entry_2.pos, IndexPosition(2));
@@ -2211,19 +2219,28 @@ mod tests {
         assert_eq!(entry_2.change_id(), change_id2);
         assert_eq!(entry_2.generation_number(), 1);
         assert_eq!(entry_2.num_parents(), 1);
-        assert_eq!(entry_2.parent_positions(), vec![IndexPosition(0)]);
+        assert_eq!(
+            entry_2.parent_positions(),
+            smallvec_inline![IndexPosition(0)]
+        );
         assert_eq!(entry_3.change_id(), change_id3);
         assert_eq!(entry_3.generation_number(), 2);
-        assert_eq!(entry_3.parent_positions(), vec![IndexPosition(2)]);
+        assert_eq!(
+            entry_3.parent_positions(),
+            smallvec_inline![IndexPosition(2)]
+        );
         assert_eq!(entry_4.pos, IndexPosition(4));
         assert_eq!(entry_4.generation_number(), 2);
         assert_eq!(entry_4.num_parents(), 1);
-        assert_eq!(entry_4.parent_positions(), vec![IndexPosition(1)]);
+        assert_eq!(
+            entry_4.parent_positions(),
+            smallvec_inline![IndexPosition(1)]
+        );
         assert_eq!(entry_5.generation_number(), 3);
         assert_eq!(entry_5.num_parents(), 2);
         assert_eq!(
             entry_5.parent_positions(),
-            vec![IndexPosition(4), IndexPosition(2)]
+            smallvec_inline![IndexPosition(4), IndexPosition(2)]
         );
         assert_eq!(entry_5.parents().len(), 2);
         assert_eq!(entry_5.parents()[0].pos, IndexPosition(4));
@@ -2284,7 +2301,7 @@ mod tests {
         assert_eq!(entry_6.num_parents(), 5);
         assert_eq!(
             entry_6.parent_positions(),
-            vec![
+            smallvec_inline![
                 IndexPosition(1),
                 IndexPosition(2),
                 IndexPosition(3),
