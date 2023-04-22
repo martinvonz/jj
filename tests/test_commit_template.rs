@@ -182,6 +182,23 @@ fn test_log_builtin_templates() {
        (empty) (no description set)
 
     "###);
+
+    insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r###"
+    @  Commit ID: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  Change ID: qpvuntsmwlqtpsluzzsnyyzlmlwvmlnu
+    │  Author: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
+    │  Committer: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
+    │
+    │      (no description set)
+    │
+    ◉  Commit ID: 0000000000000000000000000000000000000000
+       Change ID: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+       Author:  <> (1970-01-01 00:00:00.000 +00:00)
+       Committer:  <> (1970-01-01 00:00:00.000 +00:00)
+
+           (no description set)
+
+    "###);
 }
 
 #[test]

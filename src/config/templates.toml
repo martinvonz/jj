@@ -7,11 +7,8 @@ separate(" ",
 '''
 
 log = 'builtin_log_compact'
-
 op_log = 'builtin_op_log_compact'
-
-# Defined as alias to allow 'log -T show'
-show = 'show'
+show = 'builtin_log_detailed'
 
 [template-aliases]
 'builtin_log_oneline' = '''label(if(current_working_copy, "working_copy"),
@@ -61,6 +58,18 @@ show = 'show'
 )
 '''
 builtin_log_comfortable = 'builtin_log_compact ++ "\n"'
+# TODO: Add branches, tags, etc
+'builtin_log_detailed' = '''
+concat(
+  "Commit ID: " ++ commit_id ++ "\n",
+  "Change ID: " ++ change_id ++ "\n",
+  "Author: " ++ author ++ " (" ++ format_timestamp(author.timestamp()) ++ ")\n",
+  "Committer: " ++ committer ++ " (" ++ format_timestamp(committer.timestamp()) ++ ")\n",
+  "\n",
+  indent("    ", if(description, description, description_placeholder ++ "\n")),
+  "\n",
+)
+'''
 
 builtin_op_log_compact = '''
 label(if(current_operation, "current_operation"),
@@ -87,16 +96,3 @@ builtin_op_log_comfortable = 'builtin_op_log_compact ++ "\n"'
 'format_time_range(time_range)' = '''
   time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp'
-
-# TODO: Add branches, tags, etc
-'show' = '''
-concat(
-  "Commit ID: " ++ commit_id ++ "\n",
-  "Change ID: " ++ change_id ++ "\n",
-  "Author: " ++ author ++ " (" ++ format_timestamp(author.timestamp()) ++ ")\n",
-  "Committer: " ++ committer ++ " (" ++ format_timestamp(committer.timestamp()) ++ ")\n",
-  "\n",
-  indent("    ", if(description, description, description_placeholder ++ "\n")),
-  "\n",
-)
-'''
