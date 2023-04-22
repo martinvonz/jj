@@ -573,8 +573,14 @@ impl<'index> EvaluationContext<'index> {
                 if generation_from_roots == &(1..2) {
                     Ok(Box::new(self.walk_children(&*root_set, &*head_set)))
                 } else if generation_from_roots == &GENERATION_RANGE_FULL {
-                    let (dag_range_set, _) = self.collect_dag_range(&*root_set, &*head_set);
-                    Ok(Box::new(dag_range_set))
+                    let root_positions =
+                        root_set.iter().map(|entry| entry.position()).collect_vec();
+                    let mut index_entries = self
+                        .walk_ancestors(&*head_set)
+                        .descendants(&root_positions)
+                        .collect_vec();
+                    index_entries.reverse();
+                    Ok(Box::new(EagerRevset { index_entries }))
                 } else {
                     // For small generation range, it might be better to build a reachable map
                     // with generation bit set, which can be calculated incrementally from roots:
@@ -608,7 +614,14 @@ impl<'index> EvaluationContext<'index> {
                 let candidate_set = EagerRevset {
                     index_entries: self.evaluate(candidates)?.iter().collect(),
                 };
-                let (_, filled) = self.collect_dag_range(&candidate_set, &candidate_set);
+                let candidate_positions = candidate_set
+                    .iter()
+                    .map(|entry| entry.position())
+                    .collect_vec();
+                let filled = self
+                    .walk_ancestors(&candidate_set)
+                    .descendants(&candidate_positions)
+                    .collect_positions_set();
                 let mut index_entries = vec![];
                 for candidate in candidate_set.iter() {
                     if !candidate
@@ -712,24 +725,6 @@ impl<'index> EvaluationContext<'index> {
             candidates,
             predicate,
         }
-    }
-
-    /// Calculates `root_set::head_set`.
-    fn collect_dag_range<'a, 'b, S, T>(
-        &self,
-        root_set: &S,
-        head_set: &T,
-    ) -> (EagerRevset<'index>, HashSet<IndexPosition>)
-    where
-        S: InternalRevset<'a> + ?Sized,
-        T: InternalRevset<'b> + ?Sized,
-    {
-        let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
-        let mut walk = self.walk_ancestors(head_set).descendants(&root_positions);
-        let mut index_entries = walk.by_ref().collect_vec();
-        let reachable_positions = walk.collect_positions_set();
-        index_entries.reverse();
-        (EagerRevset { index_entries }, reachable_positions)
     }
 
     fn revset_for_commit_ids(&self, commit_ids: &[CommitId]) -> EagerRevset<'index> {
