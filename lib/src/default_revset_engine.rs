@@ -725,23 +725,9 @@ impl<'index> EvaluationContext<'index> {
         T: InternalRevset<'b> + ?Sized,
     {
         let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
-        let walk = self
-            .walk_ancestors(head_set)
-            .take_until_roots(&root_positions);
-        let root_positions: HashSet<_> = root_positions.into_iter().collect();
-        let mut reachable_positions = HashSet::new();
-        let mut index_entries = vec![];
-        for candidate in walk.collect_vec().into_iter().rev() {
-            if root_positions.contains(&candidate.position())
-                || candidate
-                    .parent_positions()
-                    .iter()
-                    .any(|parent_pos| reachable_positions.contains(parent_pos))
-            {
-                reachable_positions.insert(candidate.position());
-                index_entries.push(candidate);
-            }
-        }
+        let mut walk = self.walk_ancestors(head_set).descendants(&root_positions);
+        let mut index_entries = walk.by_ref().collect_vec();
+        let reachable_positions = walk.collect_positions_set();
         index_entries.reverse();
         (EagerRevset { index_entries }, reachable_positions)
     }
