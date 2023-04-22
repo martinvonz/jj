@@ -21,6 +21,7 @@ use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::{Read, Write};
+use std::iter::FusedIterator;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -1381,6 +1382,18 @@ impl<'a> RevWalk<'a> {
         self.take_while(move |entry| entry.position() >= bottom_position)
     }
 
+    /// Fully consumes the ancestors and walks back from `root_positions`.
+    ///
+    /// The returned iterator yields entries in order of ascending index
+    /// position.
+    pub fn descendants(self, root_positions: &[IndexPosition]) -> RevWalkDescendants<'a> {
+        RevWalkDescendants {
+            candidate_entries: self.take_until_roots(root_positions).collect(),
+            root_positions: root_positions.iter().copied().collect(),
+            reachable_positions: HashSet::new(),
+        }
+    }
+
     /// Fully consumes the ancestors and walks back from `root_positions` within
     /// `generation_range`.
     ///
@@ -1588,6 +1601,46 @@ impl RevWalkItemGenerationRange {
         self.start < end && end <= self.end
     }
 }
+
+/// Walks descendants from the roots, in order of ascending index position.
+#[derive(Clone)]
+pub struct RevWalkDescendants<'a> {
+    candidate_entries: Vec<IndexEntry<'a>>,
+    root_positions: HashSet<IndexPosition>,
+    reachable_positions: HashSet<IndexPosition>,
+}
+
+impl RevWalkDescendants<'_> {
+    /// Builds a set of index positions reachable from the roots.
+    ///
+    /// This is equivalent to `.map(|entry| entry.position()).collect()` on
+    /// the new iterator, but returns the internal buffer instead.
+    pub fn collect_positions_set(mut self) -> HashSet<IndexPosition> {
+        self.by_ref().for_each(drop);
+        self.reachable_positions
+    }
+}
+
+impl<'a> Iterator for RevWalkDescendants<'a> {
+    type Item = IndexEntry<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(candidate) = self.candidate_entries.pop() {
+            if self.root_positions.contains(&candidate.position())
+                || candidate
+                    .parent_positions()
+                    .iter()
+                    .any(|parent_pos| self.reachable_positions.contains(parent_pos))
+            {
+                self.reachable_positions.insert(candidate.position());
+                return Some(candidate);
+            }
+        }
+        None
+    }
+}
+
+impl FusedIterator for RevWalkDescendants<'_> {}
 
 /// Removes the greatest items (including duplicates) from the heap, returns
 /// one.
