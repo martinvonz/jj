@@ -723,41 +723,19 @@ impl<'index> EvaluationContext<'index> {
         self.composite_index.walk_revs(&head_ids, &[])
     }
 
-    fn walk_ancestors_until_roots<'a, 'b, S, T>(
-        &self,
-        root_set: &S,
-        head_set: &T,
-    ) -> (
-        impl Iterator<Item = IndexEntry<'index>> + Clone + 'index,
-        Vec<IndexPosition>,
-    )
-    where
-        S: InternalRevset<'a> + ?Sized,
-        T: InternalRevset<'b> + ?Sized,
-    {
-        // We can also make RevWalk stop visiting based on the generation number. Maybe
-        // it will perform better for unbalanced branchy history.
-        // https://github.com/martinvonz/jj/pull/1492#discussion_r1160678325
-        let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
-        let bottom_position = *root_positions.last().unwrap_or(&IndexPosition::MAX);
-        let walk = self
-            .walk_ancestors(head_set)
-            .take_while(move |entry| entry.position() >= bottom_position);
-        (walk, root_positions)
-    }
-
     fn walk_children<'a, 'b, S, T>(
         &self,
         root_set: &S,
         head_set: &T,
     ) -> impl InternalRevset<'index> + 'index
     where
-        // TODO: 'index shouldn't be required, but rustc 1.64.0 failed to deduce lifetime of
-        // walk. The problem appears to be fixed somewhere between 1.64.0 and 1.69.0.
-        S: InternalRevset<'a> + ?Sized + 'index,
-        T: InternalRevset<'b> + ?Sized + 'index,
+        S: InternalRevset<'a> + ?Sized,
+        T: InternalRevset<'b> + ?Sized,
     {
-        let (walk, root_positions) = self.walk_ancestors_until_roots(root_set, head_set);
+        let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
+        let walk = self
+            .walk_ancestors(head_set)
+            .take_until_roots(&root_positions);
         let root_positions: HashSet<_> = root_positions.into_iter().collect();
         let candidates = Box::new(RevWalkRevset { walk });
         let predicate = PurePredicateFn(move |entry: &IndexEntry| {
@@ -784,7 +762,10 @@ impl<'index> EvaluationContext<'index> {
         S: InternalRevset<'a> + ?Sized,
         T: InternalRevset<'b> + ?Sized,
     {
-        let (walk, root_positions) = self.walk_ancestors_until_roots(root_set, head_set);
+        let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
+        let walk = self
+            .walk_ancestors(head_set)
+            .take_until_roots(&root_positions);
         let root_positions: HashSet<_> = root_positions.into_iter().collect();
         let mut reachable_positions = HashSet::new();
         let mut index_entries = vec![];
