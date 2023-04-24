@@ -63,7 +63,7 @@ thiserror = "1.0.40"
 timeago = { version = "0.4.1", default-features = false }
 toml_edit = { version = "0.19.8", features = ["serde"] }
 tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.16", default-features = false, features = ["std", "ansi", "env-filter", "fmt"] }
+tracing-subscriber = { version = "0.3.17", default-features = false, features = ["std", "ansi", "env-filter", "fmt"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = { version = "0.2.142" }
