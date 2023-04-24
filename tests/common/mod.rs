@@ -28,6 +28,24 @@ pub struct TestEnvironment {
     env_vars: HashMap<String, String>,
     config_file_number: RefCell<i64>,
     command_number: RefCell<i64>,
+    /// If true, `jj_cmd_success` does not abort when `jj` exits with nonempty
+    /// stderr and outputs it instead. This is meant only for debugging.
+    ///
+    /// This allows debugging the execution of an integration test by inserting
+    /// `eprintln!` or `dgb!` statements in relevant parts of jj source code.
+    ///
+    /// You can change the value of this parameter directly, or you can set the
+    /// `JJ_DEBUG_ALLOW_STDERR` environment variable.
+    ///
+    /// To see the output, you can run `cargo test` with the --show-output
+    /// argument, like so:
+    ///
+    ///     RUST_BACKTRACE=1 JJ_DEBUG_ALLOW_STDERR=1 cargo test \
+    ///         --test test_git_colocated -- --show-output fetch_del
+    ///
+    /// This would run all the tests that contain `fetch_del` in their name in a
+    /// file that contains `test_git_colocated` and show the output.
+    pub debug_allow_stderr: bool,
 }
 
 impl Default for TestEnvironment {
@@ -49,6 +67,7 @@ impl Default for TestEnvironment {
             env_vars,
             config_file_number: RefCell::new(0),
             command_number: RefCell::new(0),
+            debug_allow_stderr: std::env::var("JJ_DEBUG_ALLOW_STDERR").is_ok(),
         };
         // Use absolute timestamps in the operation log to make tests independent of the
         // current time.
@@ -118,7 +137,19 @@ impl TestEnvironment {
 
     /// Run a `jj` command, check that it was successful, and return its stdout
     pub fn jj_cmd_success(&self, current_dir: &Path, args: &[&str]) -> String {
-        let assert = self.jj_cmd(current_dir, args).assert().success().stderr("");
+        let assert = if self.debug_allow_stderr {
+            let a = self.jj_cmd(current_dir, args).assert().success();
+            let stderr = self.normalize_output(&get_stderr_string(&a));
+            if !stderr.is_empty() {
+                eprintln!(
+                    "==== STDERR from running jj with {args:?} args in {current_dir:?} \
+                     ====\n{stderr}==== END STDERR ===="
+                );
+            }
+            a
+        } else {
+            self.jj_cmd(current_dir, args).assert().success().stderr("")
+        };
         self.normalize_output(&get_stdout_string(&assert))
     }
 
