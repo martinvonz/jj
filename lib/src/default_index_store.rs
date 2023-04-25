@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::any::Any;
-use std::cmp::{max, min, Ordering};
+use std::cmp::{max, min, Ordering, Reverse};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, Bound, HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
@@ -1332,7 +1332,8 @@ impl<'a> Iterator for RevWalk<'a> {
 
 #[derive(Clone)]
 pub struct RevWalkGenerationRange<'a> {
-    queue: RevWalkQueue<'a, RevWalkItemGenerationRange>,
+    // Sort item generations in ascending order
+    queue: RevWalkQueue<'a, Reverse<RevWalkItemGenerationRange>>,
     generation_end: u32,
 }
 
@@ -1351,7 +1352,7 @@ impl<'a> RevWalkGenerationRange<'a> {
             end: u32::saturating_sub(generation_range.end, generation_range.start),
         };
         RevWalkGenerationRange {
-            queue: queue.map_wanted(|()| item_range),
+            queue: queue.map_wanted(|()| Reverse(item_range)),
             generation_end: generation_range.end,
         }
     }
@@ -1365,7 +1366,7 @@ impl<'a> RevWalkGenerationRange<'a> {
             start: gen.start + 1,
             end: gen.end.saturating_add(1),
         };
-        self.queue.push_wanted_parents(entry, succ_gen);
+        self.queue.push_wanted_parents(entry, Reverse(succ_gen));
     }
 }
 
@@ -1374,25 +1375,26 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(item) = self.queue.pop() {
-            if let RevWalkWorkItemState::Wanted(mut known_gen) = item.state {
-                let mut some_in_range = known_gen.contains_end(self.generation_end);
-                self.enqueue_wanted_parents(&item.entry.0, known_gen);
+            if let RevWalkWorkItemState::Wanted(Reverse(mut pending_gen)) = item.state {
+                let mut some_in_range = pending_gen.contains_end(self.generation_end);
                 while let Some(x) = self.queue.pop_eq(&item.entry.0) {
-                    // For wanted item, simply track all generation chains. This can
-                    // be optimized if the wanted range is just upper/lower bounded.
-                    // If the range is fully bounded and if the range is wide, we
-                    // can instead extend 'gen' to a range of the same width, and
-                    // merge overlapping generation ranges.
-                    match x.state {
-                        RevWalkWorkItemState::Wanted(gen) if known_gen != gen => {
-                            some_in_range |= gen.contains_end(self.generation_end);
-                            self.enqueue_wanted_parents(&item.entry.0, gen);
-                            known_gen = gen;
-                        }
-                        RevWalkWorkItemState::Wanted(_) => {}
-                        RevWalkWorkItemState::Unwanted => unreachable!(),
+                    // Merge overlapped ranges to reduce number of the queued items.
+                    // For queries like `:(heads-)`, `gen.end` is close to `u32::MAX`, so
+                    // ranges can be merged into one. If this is still slow, maybe we can add
+                    // special case for upper/lower bounded ranges.
+                    if let RevWalkWorkItemState::Wanted(Reverse(gen)) = x.state {
+                        some_in_range |= gen.contains_end(self.generation_end);
+                        pending_gen = if let Some(merged) = pending_gen.try_merge_end(gen) {
+                            merged
+                        } else {
+                            self.enqueue_wanted_parents(&item.entry.0, pending_gen);
+                            gen
+                        };
+                    } else {
+                        unreachable!("no more unwanted items of the same entry");
                     }
                 }
+                self.enqueue_wanted_parents(&item.entry.0, pending_gen);
                 if some_in_range {
                     return Some(item.entry.0);
                 }
@@ -1421,6 +1423,15 @@ struct RevWalkItemGenerationRange {
 }
 
 impl RevWalkItemGenerationRange {
+    /// Suppose sorted ranges `self, other`, merges them if overlapped.
+    #[must_use]
+    fn try_merge_end(self, other: Self) -> Option<Self> {
+        (other.start <= self.end).then(|| RevWalkItemGenerationRange {
+            start: self.start,
+            end: max(self.end, other.end),
+        })
+    }
+
     #[must_use]
     fn contains_end(self, end: u32) -> bool {
         self.start < end && end <= self.end
@@ -2698,6 +2709,62 @@ mod tests {
         assert_eq!(
             walk_commit_ids(&[&id_5].map(Clone::clone), &[&id_2].map(Clone::clone), 1..5),
             [&id_4, &id_3].map(Clone::clone)
+        );
+    }
+
+    #[test]
+    #[allow(clippy::redundant_clone)] // allow id_n.clone()
+    fn test_walk_revs_filter_by_generation_range_merging() {
+        let mut new_change_id = change_id_generator();
+        let mut index = MutableIndexImpl::full(3, 16);
+        // Long linear history with some short branches
+        let ids = (0..11)
+            .map(|n| CommitId::from_hex(&format!("{n:06x}")))
+            .collect_vec();
+        index.add_commit_data(ids[0].clone(), new_change_id(), &[]);
+        for i in 1..ids.len() {
+            index.add_commit_data(ids[i].clone(), new_change_id(), &[ids[i - 1].clone()]);
+        }
+        let id_branch5_0 = CommitId::from_hex("050000");
+        let id_branch5_1 = CommitId::from_hex("050001");
+        index.add_commit_data(id_branch5_0.clone(), new_change_id(), &[ids[5].clone()]);
+        index.add_commit_data(
+            id_branch5_1.clone(),
+            new_change_id(),
+            &[id_branch5_0.clone()],
+        );
+
+        let walk_commit_ids = |wanted: &[CommitId], range: Range<u32>| {
+            index
+                .walk_revs(wanted, &[])
+                .filter_by_generation(range)
+                .map(|entry| entry.commit_id())
+                .collect_vec()
+        };
+
+        // Multiple non-overlapping generation ranges to track:
+        // 9->6: 3..5, 6: 0..2
+        assert_eq!(
+            walk_commit_ids(&[&ids[9], &ids[6]].map(Clone::clone), 4..6),
+            [&ids[5], &ids[4], &ids[2], &ids[1]].map(Clone::clone)
+        );
+
+        // Multiple non-overlapping generation ranges to track, and merged later:
+        // 10->7: 3..5, 7: 0..2
+        // 10->6: 4..6, 7->6, 1..3, 6: 0..2
+        assert_eq!(
+            walk_commit_ids(&[&ids[10], &ids[7], &ids[6]].map(Clone::clone), 5..7),
+            [&ids[5], &ids[4], &ids[2], &ids[1], &ids[0]].map(Clone::clone)
+        );
+
+        // Merge range with sub-range (1..4 + 2..3 should be 1..4, not 1..3):
+        // 8,7,6->5:1..4, B5_1->5:2..3
+        assert_eq!(
+            walk_commit_ids(
+                &[&ids[8], &ids[7], &ids[6], &id_branch5_1].map(Clone::clone),
+                5..6
+            ),
+            [&ids[3], &ids[2], &ids[1]].map(Clone::clone)
         );
     }
 
