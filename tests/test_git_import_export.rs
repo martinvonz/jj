@@ -13,6 +13,9 @@
 // limitations under the License.
 use std::path::Path;
 
+use itertools::Itertools as _;
+use jujutsu_lib::backend::{CommitId, ObjectId as _};
+
 use crate::common::{get_stderr_string, TestEnvironment};
 
 pub mod common;
@@ -98,6 +101,139 @@ fn test_git_import_remote_only_branch() {
     "###);
 }
 
+#[test]
+fn test_git_export_undo() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
+
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    a: 230dd059e1b0 (no description set)
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
+
+    // "git export" can't be undone.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "undo"]), @r###"
+    "###);
+    insta::assert_debug_snapshot!(get_git_refs(&git_repo), @r###"
+    [
+        (
+            "refs/heads/a",
+            CommitId(
+                "230dd059e1b059aefc0da06a2e5a7dbf22362f22",
+            ),
+        ),
+    ]
+    "###);
+
+    // This would re-export branch "a" as the internal state has been rolled back.
+    // It might be better to preserve the state, and say "Nothing changed" here.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
+}
+
+#[test]
+fn test_git_import_undo() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
+
+    // Create branch "a" in git repo
+    let commit_id =
+        test_env.jj_cmd_success(&repo_path, &["log", "-Tcommit_id", "--no-graph", "-r@"]);
+    let commit = git_repo
+        .find_commit(git2::Oid::from_str(&commit_id).unwrap())
+        .unwrap();
+    git_repo.branch("a", &commit, true).unwrap();
+
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    a: 230dd059e1b0 (no description set)
+    "###);
+
+    // "git import" can be undone.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "undo"]), @r###"
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+
+    // Try "git import" again, which should re-import the branch "a".
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    a: 230dd059e1b0 (no description set)
+    "###);
+}
+
+#[test]
+fn test_git_import_move_export_undo() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
+
+    // Create branch "a" in git repo
+    let commit_id =
+        test_env.jj_cmd_success(&repo_path, &["log", "-Tcommit_id", "--no-graph", "-r@"]);
+    let commit = git_repo
+        .find_commit(git2::Oid::from_str(&commit_id).unwrap())
+        .unwrap();
+    git_repo.branch("a", &commit, true).unwrap();
+
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    a: 230dd059e1b0 (no description set)
+    "###);
+
+    // Move branch "a" and export to git repo
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "a"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    a: 167f90e7600a (no description set)
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
+
+    // "git import" can be undone, but "git export" can't.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "restore", "@----"]), @r###"
+    Working copy now at: 230dd059e1b0 (no description set)
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+    insta::assert_debug_snapshot!(get_git_refs(&git_repo), @r###"
+    [
+        (
+            "refs/heads/a",
+            CommitId(
+                "167f90e7600a50f85c4f909b53eaf546faa82879",
+            ),
+        ),
+    ]
+    "###);
+
+    // The last branch "a" state is imported from git. No idea what's the most
+    // intuitive result here.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    a: 167f90e7600a (no description set)
+    "###);
+}
+
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["branch", "list"])
+}
+
+fn get_git_refs(git_repo: &git2::Repository) -> Vec<(String, CommitId)> {
+    let mut refs: Vec<_> = git_repo
+        .references()
+        .unwrap()
+        .filter_ok(|git_ref| git_ref.is_tag() || git_ref.is_branch() || git_ref.is_remote())
+        .filter_map_ok(|git_ref| {
+            let full_name = git_ref.name()?.to_owned();
+            let git_commit = git_ref.peel_to_commit().ok()?;
+            let commit_id = CommitId::from_bytes(git_commit.id().as_bytes());
+            Some((full_name, commit_id))
+        })
+        .try_collect()
+        .unwrap();
+    refs.sort();
+    refs
 }
