@@ -119,7 +119,10 @@ revsets (expressions) as arguments.
 * `empty()`: Commits modifying no files. This also includes `merges()` without
   user modifications and `root`.
 * `file(pattern..)`: Commits modifying the paths specified by the `pattern..`.
-  Paths are relative to the directory `jj` was invoked from.
+  Paths are relative to the directory `jj` was invoked from. A directory name
+  will match all files in that directory and its subdirectories. For example,
+  `file(foo)` will match files `foo`, `foo/bar`, `foo/bar/baz`, but not file
+  `foobar`.
 * `conflict()`: Commits with conflicts.
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown branch name.)
