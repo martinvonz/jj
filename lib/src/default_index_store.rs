@@ -1300,10 +1300,7 @@ impl<'a> RevWalk<'a> {
     ///
     /// The generation of the current wanted entries starts from 0.
     pub fn filter_by_generation(self, generation_range: Range<u32>) -> RevWalkGenerationRange<'a> {
-        RevWalkGenerationRange {
-            queue: self.queue.map_wanted(|()| 0),
-            generation_range,
-        }
+        RevWalkGenerationRange::new(self.queue, generation_range)
     }
 }
 
@@ -1339,6 +1336,22 @@ pub struct RevWalkGenerationRange<'a> {
     generation_range: Range<u32>,
 }
 
+impl<'a> RevWalkGenerationRange<'a> {
+    fn new(queue: RevWalkQueue<'a, ()>, generation_range: Range<u32>) -> Self {
+        RevWalkGenerationRange {
+            queue: queue.map_wanted(|()| 0),
+            generation_range,
+        }
+    }
+
+    fn enqueue_wanted_parents(&mut self, entry: &IndexEntry<'_>, gen: u32) {
+        if gen + 1 >= self.generation_range.end {
+            return;
+        }
+        self.queue.push_wanted_parents(entry, gen + 1);
+    }
+}
+
 impl<'a> Iterator for RevWalkGenerationRange<'a> {
     type Item = IndexEntry<'a>;
 
@@ -1346,9 +1359,7 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
         while let Some(item) = self.queue.pop() {
             if let RevWalkWorkItemState::Wanted(mut known_gen) = item.state {
                 let mut some_in_range = self.generation_range.contains(&known_gen);
-                if known_gen + 1 < self.generation_range.end {
-                    self.queue.push_wanted_parents(&item.entry.0, known_gen + 1);
-                }
+                self.enqueue_wanted_parents(&item.entry.0, known_gen);
                 while let Some(x) = self.queue.pop_eq(&item.entry.0) {
                     // For wanted item, simply track all generation chains. This can
                     // be optimized if the wanted range is just upper/lower bounded.
@@ -1358,9 +1369,7 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
                     match x.state {
                         RevWalkWorkItemState::Wanted(gen) if known_gen != gen => {
                             some_in_range |= self.generation_range.contains(&gen);
-                            if gen + 1 < self.generation_range.end {
-                                self.queue.push_wanted_parents(&item.entry.0, gen + 1);
-                            }
+                            self.enqueue_wanted_parents(&item.entry.0, gen);
                             known_gen = gen;
                         }
                         RevWalkWorkItemState::Wanted(_) => {}
