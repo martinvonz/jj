@@ -1332,23 +1332,40 @@ impl<'a> Iterator for RevWalk<'a> {
 
 #[derive(Clone)]
 pub struct RevWalkGenerationRange<'a> {
-    queue: RevWalkQueue<'a, u32>,
-    generation_range: Range<u32>,
+    queue: RevWalkQueue<'a, RevWalkItemGenerationRange>,
+    generation_end: u32,
 }
 
 impl<'a> RevWalkGenerationRange<'a> {
     fn new(queue: RevWalkQueue<'a, ()>, generation_range: Range<u32>) -> Self {
+        // Translate filter range to item ranges so that overlapped ranges can be
+        // merged later.
+        //
+        // Example: `generation_range = 1..4`
+        //     (original)                       (translated)
+        //     0 1 2 3 4                        0 1 2 3 4
+        //       *=====o  generation_range              +  generation_end
+        //     + :     :  item's generation     o=====* :  item's range
+        let item_range = RevWalkItemGenerationRange {
+            start: 0,
+            end: u32::saturating_sub(generation_range.end, generation_range.start),
+        };
         RevWalkGenerationRange {
-            queue: queue.map_wanted(|()| 0),
-            generation_range,
+            queue: queue.map_wanted(|()| item_range),
+            generation_end: generation_range.end,
         }
     }
 
-    fn enqueue_wanted_parents(&mut self, entry: &IndexEntry<'_>, gen: u32) {
-        if gen + 1 >= self.generation_range.end {
+    fn enqueue_wanted_parents(&mut self, entry: &IndexEntry<'_>, gen: RevWalkItemGenerationRange) {
+        // `gen.start` is incremented from 0, which should never overflow
+        if gen.start + 1 >= self.generation_end {
             return;
         }
-        self.queue.push_wanted_parents(entry, gen + 1);
+        let succ_gen = RevWalkItemGenerationRange {
+            start: gen.start + 1,
+            end: gen.end.saturating_add(1),
+        };
+        self.queue.push_wanted_parents(entry, succ_gen);
     }
 }
 
@@ -1358,7 +1375,7 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(item) = self.queue.pop() {
             if let RevWalkWorkItemState::Wanted(mut known_gen) = item.state {
-                let mut some_in_range = self.generation_range.contains(&known_gen);
+                let mut some_in_range = known_gen.contains_end(self.generation_end);
                 self.enqueue_wanted_parents(&item.entry.0, known_gen);
                 while let Some(x) = self.queue.pop_eq(&item.entry.0) {
                     // For wanted item, simply track all generation chains. This can
@@ -1368,7 +1385,7 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
                     // merge overlapping generation ranges.
                     match x.state {
                         RevWalkWorkItemState::Wanted(gen) if known_gen != gen => {
-                            some_in_range |= self.generation_range.contains(&gen);
+                            some_in_range |= gen.contains_end(self.generation_end);
                             self.enqueue_wanted_parents(&item.entry.0, gen);
                             known_gen = gen;
                         }
@@ -1394,6 +1411,19 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
             self.queue.unwanted_count
         );
         None
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct RevWalkItemGenerationRange {
+    start: u32,
+    end: u32,
+}
+
+impl RevWalkItemGenerationRange {
+    #[must_use]
+    fn contains_end(self, end: u32) -> bool {
+        self.start < end && end <= self.end
     }
 }
 
@@ -2625,8 +2655,14 @@ mod tests {
                 .collect_vec()
         };
 
-        // Simple generation bounds
+        // Empty generation bounds
         assert_eq!(walk_commit_ids(&[&id_8].map(Clone::clone), &[], 0..0), []);
+        assert_eq!(
+            walk_commit_ids(&[&id_8].map(Clone::clone), &[], Range { start: 2, end: 1 }),
+            []
+        );
+
+        // Simple generation bounds
         assert_eq!(
             walk_commit_ids(&[&id_2].map(Clone::clone), &[], 0..3),
             [&id_2, &id_1, &id_0].map(Clone::clone)
