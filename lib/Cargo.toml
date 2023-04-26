@@ -42,7 +42,7 @@ regex = "1.7.3"
 serde_json = "1.0.96"
 tempfile = "3.5.0"
 thiserror = "1.0.40"
-tracing = "0.1.37"
+tracing = "0.1.38"
 whoami = "1.4.0"
 zstd = "0.12.3"
 
