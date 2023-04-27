@@ -42,16 +42,18 @@ to replace (rare in English). The project is called "Jujutsu" because it matches
 "jj".
 
 If you have any questions, please join us on Discord
-[![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN).
+[![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
+. The [glossary](docs/glossary.md) may also be helpful.
 
 ## Features
 
 ### Compatible with Git
 
-Jujutsu has two backends. One of them is a Git backend (the other is a native
-one [^native-backend]). This lets you use Jujutsu as an alternative interface to Git. The commits
-you create will look like regular Git commits. You can always switch back to
-Git. The Git support uses the [libgit2](https://libgit2.org/) C library.
+Jujutsu has two [backends](docs/glossary.md#backend). One of them is a Git
+backend (the other is a native one [^native-backend]). This lets you use Jujutsu
+as an alternative interface to Git. The commits you create will look like
+regular Git commits. You can always switch back to Git. The Git support uses the
+[libgit2](https://libgit2.org/) C library.
 
 [^native-backend]: At this time, there's practically no reason to use the native
 backend. The backend exists mainly to make sure that it's possible to eventually
@@ -86,12 +88,13 @@ necessarily have to be the most recent operation).
 
 ### Conflicts can be recorded in commits
 
-If an operation results in conflicts, information about those conflicts will be
-recorded in the commit(s). The operation will succeed. You can then resolve the
-conflicts later. One consequence of this design is that there's no need to
-continue interrupted operations. Instead, you get a single workflow for
-resolving conflicts, regardless of which command caused them. This design also
-lets Jujutsu rebase merge commits correctly (unlike both Git and Mercurial).
+If an operation results in [conflicts](docs/glossary.md#conflict), information
+about those conflicts will be recorded in the commit(s). The operation will
+succeed. You can then resolve the conflicts later. One consequence of this
+design is that there's no need to continue interrupted operations. Instead, you
+get a single workflow for resolving conflicts, regardless of which command
+caused them. This design also lets Jujutsu rebase merge commits correctly
+(unlike both Git and Mercurial).
 
 Basic conflict resolution:
 
