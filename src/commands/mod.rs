@@ -1315,6 +1315,18 @@ fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), C
     Ok(())
 }
 
+fn warn_path_may_be_revset(
+    ui: &mut Ui,
+    paths: &Vec<String>,
+    r1: &Option<RevisionArg>,
+    r2: &Option<RevisionArg>,
+    r3: &Option<RevisionArg>,
+) {
+    if let [only_path] = paths.as_slice() {
+
+    }
+}
+
 fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let from_tree;
@@ -1333,6 +1345,23 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
     }
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     ui.request_pager();
+
+    if let [only_path] = args.paths.as_slice() {}
+
+    let mut rev_filter = args
+        .paths
+        .iter()
+        .filter(|p| workspace_command.resolve_revset(p).is_ok())
+        .peekable();
+    if rev_filter.peek().is_some() {
+        writeln!(
+            ui.warning(),
+            "warning: The following arguments are being treated as paths:\n{}\nTo treat them as \
+             revsets, use -r instead.",
+            rev_filter.join("\n")
+        )?;
+    }
+
     diff_util::show_diff(
         ui.stdout_formatter().as_mut(),
         &workspace_command,
