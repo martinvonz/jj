@@ -44,6 +44,7 @@ fn test_squash() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: b9280a9898cb (no description set)
+    Parent commit      : 6ca29c9d2e7c (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  b9280a9898cb
@@ -62,6 +63,7 @@ fn test_squash() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: e87cf8ebc7e1 (no description set)
+    Parent commit      : 893c93ae2a87 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e87cf8ebc7e1 c
@@ -107,6 +109,7 @@ fn test_squash() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 959145c11426 (no description set)
+    Parent commit      : 80960125bb96 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  959145c11426
@@ -157,6 +160,7 @@ fn test_squash_partial() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: f03d5ce4a973 (no description set)
+    Parent commit      : c9f931cd78af (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  f03d5ce4a973 c
@@ -175,6 +179,7 @@ fn test_squash_partial() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: e7a40106bee6 (no description set)
+    Parent commit      : 05d951646873 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e7a40106bee6 c
@@ -207,6 +212,7 @@ fn test_squash_partial() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: a911fa1d0627 (no description set)
+    Parent commit      : fb73ad17899f (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  a911fa1d0627 c
@@ -238,6 +244,7 @@ fn test_squash_partial() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: 5e297967f76c (no description set)
+    Parent commit      : ac2586097a71 (no description set)
     "###);
 
     // We get a warning if we pass a positional argument that looks like a revset
@@ -251,6 +258,7 @@ fn test_squash_partial() {
     "###);
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
     Working copy now at: 1c4e5596a511 (no description set)
+    Parent commit      : 16cc94b4efe9 (no description set)
     "###);
 }
 
@@ -355,6 +363,7 @@ fn test_squash_empty() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: e45abe2cd9a9 (no description set)
+    Parent commit      : 1265289bbbbf parent
     "###);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
     parent

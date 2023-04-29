@@ -44,6 +44,7 @@ fn test_split_by_paths() {
     First part: 5eebce1de3b0 (no description set)
     Second part: 45833353d94e (no description set)
     Working copy now at: 45833353d94e (no description set)
+    Parent commit      : 5eebce1de3b0 (no description set)
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
@@ -89,6 +90,7 @@ fn test_split_by_paths() {
     First part: 31425b568fcf (no description set)
     Second part: af0963926ac3 (no description set)
     Working copy now at: 28d4ec20efa9 (no description set)
+    Parent commit      : af0963926ac3 (no description set)
     "###);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -117,6 +119,7 @@ fn test_split_by_paths() {
     First part: 0647b2cbd0da (no description set)
     Second part: d5d77af65446 (no description set)
     Working copy now at: 86f228dc3a50 (no description set)
+    Parent commit      : d5d77af65446 (no description set)
     "###);
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     The given paths do not match any file: nonexistent

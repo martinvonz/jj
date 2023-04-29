@@ -31,6 +31,7 @@ fn test_checkout() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["checkout", "@"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 05ce7118568d (no description set)
+    Parent commit      : 5c52832c3483 second
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  05ce7118568d3007efc9163b055f9cb4a6becfde

@@ -196,6 +196,7 @@ fn test_git_import_move_export_undo() {
     // "git import" can be undone, but "git export" can't.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "restore", "@----"]), @r###"
     Working copy now at: 230dd059e1b0 (no description set)
+    Parent commit      : 000000000000 (no description set)
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     insta::assert_debug_snapshot!(get_git_refs(&git_repo), @r###"

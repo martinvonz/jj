@@ -44,6 +44,7 @@ fn test_unsquash() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 1b10d78f6136 (no description set)
+    Parent commit      : 90aeefd03044 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  1b10d78f6136 c
@@ -61,6 +62,7 @@ fn test_unsquash() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: 45b8b3ddc25a (no description set)
+    Parent commit      : 9146bcc8d996 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  45b8b3ddc25a c
@@ -106,6 +108,8 @@ fn test_unsquash() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 3217340cb761 merge
+    Parent commit      : 90fe0a96fc90 (no description set)
+    Parent commit      : 5658521e0f8b (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    3217340cb761
@@ -155,6 +159,7 @@ fn test_unsquash_partial() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: 37c961d0d1e2 (no description set)
+    Parent commit      : 000af22057b9 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  37c961d0d1e2 c
@@ -173,6 +178,7 @@ fn test_unsquash_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: a8e8fded1021 (no description set)
+    Parent commit      : 46cc06672a99 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  a8e8fded1021 c

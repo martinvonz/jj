@@ -87,6 +87,7 @@ fn test_move() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 1c03e3d3c63f (no description set)
+    Parent commit      : e9515f21068c (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -114,6 +115,7 @@ fn test_move() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: c8d83075e8c2 (no description set)
+    Parent commit      : 2c50bfc59c68 (no description set)
     "###);
     // The change has been removed from the source (the change pointed to by 'd'
     // became empty and was abandoned)
@@ -139,6 +141,7 @@ fn test_move() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: 2b723b1d6033 (no description set)
+    Parent commit      : 4293930d6333 (no description set)
     "###);
     // The change has been removed from the source (the change pointed to by 'e'
     // became empty and was abandoned)
@@ -201,6 +204,7 @@ fn test_move_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "-i", "--from", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 71b69e433fbc (no description set)
+    Parent commit      : 3db0a2f5b535 (no description set)
     Added 0 files, modified 2 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -231,6 +235,7 @@ fn test_move_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "-i", "--from", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 63f1a6e96edb (no description set)
+    Parent commit      : 3db0a2f5b535 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -264,6 +269,7 @@ fn test_move_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "c", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 17c2e6632cc5 (no description set)
+    Parent commit      : 3db0a2f5b535 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -324,6 +330,7 @@ fn test_move_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "c", "nonexistent"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: b670567d9438 (no description set)
+    Parent commit      : 3db0a2f5b535 (no description set)
     "###);
 }
 

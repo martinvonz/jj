@@ -1055,6 +1055,12 @@ impl WorkspaceCommandHelper {
             ui.write("Working copy now at: ")?;
             self.write_commit_summary(ui.stdout_formatter().as_mut(), &new_commit)?;
             ui.write("\n")?;
+            for parent in new_commit.parents() {
+                //       "Working copy now at: "
+                ui.write("Parent commit      : ")?;
+                self.write_commit_summary(ui.stdout_formatter().as_mut(), &parent)?;
+                ui.write("\n")?;
+            }
         }
         if let Some(stats) = stats {
             print_checkout_stats(ui, stats)?;

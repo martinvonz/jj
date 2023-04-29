@@ -86,6 +86,7 @@ fn test_init_git_external() {
     );
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: f6950fc115ae (no description set)
+    Parent commit      : 8d698d4a8ee1 My commit message
     Added 1 files, modified 0 files, removed 0 files
     Initialized repo in "repo"
     "###);

@@ -41,6 +41,7 @@ fn test_workspaces_add_second_workspace() {
     insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
     Created workspace in "../secondary"
     Working copy now at: 397eac932ad3 (no description set)
+    Parent commit      : 7d308bc9d934 initial
     Added 1 files, modified 0 files, removed 0 files
     "###);
 
@@ -100,6 +101,7 @@ fn test_workspaces_conflicting_edits() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: fe8f41ed01d6 (no description set)
+    Parent commit      : c0d4a99ef98a (no description set)
     "###);
 
     // The secondary workspace's working-copy commit was updated
@@ -182,6 +184,7 @@ fn test_workspaces_updated_by_other() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: fe8f41ed01d6 (no description set)
+    Parent commit      : c0d4a99ef98a (no description set)
     "###);
 
     // The secondary workspace's working-copy commit was updated.

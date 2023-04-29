@@ -59,6 +59,8 @@ fn test_rebase_branch_with_merge() {
     Abandoned commit b7c62f28ed10 d
     Rebased 1 descendant commits onto parents of abandoned commits
     Working copy now at: 11a2e10edf4e e
+    Parent commit      : 2443ea76b0b1 a
+    Parent commit      : fe2e8e8b50b3 c
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -77,6 +79,7 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Abandoned commit 5557ece3e631 e
     Working copy now at: 6b5275139632 (no description set)
+    Parent commit      : 2443ea76b0b1 a
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -98,6 +101,7 @@ fn test_rebase_branch_with_merge() {
       b7c62f28ed10 d
       fe2e8e8b50b3 c
     Working copy now at: e7bb061217d5 (no description set)
+    Parent commit      : 2443ea76b0b1 a
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -134,6 +138,7 @@ fn test_rebase_branch_with_merge() {
       1394f625cbbd b
       2443ea76b0b1 a
     Working copy now at: af874bffee6e (no description set)
+    Parent commit      : 000000000000 (no description set)
     Added 0 files, modified 0 files, removed 4 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

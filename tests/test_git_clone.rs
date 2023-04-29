@@ -56,6 +56,7 @@ fn test_git_clone() {
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
     Working copy now at: 1f0b881a057d (no description set)
+    Parent commit      : 9f01a0e04879 message
     Added 1 files, modified 0 files, removed 0 files
     "###);
     assert!(test_env.env_root().join("clone").join("file").exists());
