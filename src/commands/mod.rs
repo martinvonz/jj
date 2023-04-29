@@ -26,6 +26,7 @@ use std::sync::Arc;
 use std::{fs, io};
 
 use clap::builder::NonEmptyStringValueParser;
+use clap::parser::ValueSource;
 use clap::{ArgGroup, Command, CommandFactory, FromArgMatches, Subcommand};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
@@ -2303,8 +2304,23 @@ from the source will be moved into the parent.
         args.interactive,
         matcher.as_ref(),
     )?;
-    if args.interactive && &new_parent_tree_id == parent.tree_id() {
-        return Err(user_error("No changes selected"));
+    if &new_parent_tree_id == parent.tree_id() {
+        if args.interactive {
+            return Err(user_error("No changes selected"));
+        }
+
+        if let [only_path] = &args.paths[..] {
+            let (_, matches) = command.matches().subcommand().unwrap();
+            if matches.value_source("revision").unwrap() == ValueSource::DefaultValue
+                && revset::parse(only_path, &RevsetAliasesMap::new(), None).is_ok()
+            {
+                writeln!(
+                    ui.warning(),
+                    "warning: The argument {only_path:?} is being interpreted as a path. To \
+                     specify a revset, pass -r {only_path:?} instead."
+                )?;
+            }
+        }
     }
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
