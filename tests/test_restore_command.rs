@@ -37,6 +37,7 @@ fn test_restore() {
     insta::assert_snapshot!(stdout, @r###"
     Created b05f8b84f2fc (no description set)
     Working copy now at: b05f8b84f2fc (no description set)
+    Parent commit      : 1a986a275de6 (no description set)
     Added 1 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -48,6 +49,7 @@ fn test_restore() {
     insta::assert_snapshot!(stdout, @r###"
     Created 9cb58509136b (no description set)
     Working copy now at: 9cb58509136b (no description set)
+    Parent commit      : 1a986a275de6 (no description set)
     Added 1 files, modified 0 files, removed 2 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -62,6 +64,7 @@ fn test_restore() {
     Created 5ed06151e039 (no description set)
     Rebased 1 descendant commits
     Working copy now at: ca6c95b68bd2 (no description set)
+    Parent commit      : 5ed06151e039 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -79,6 +82,7 @@ fn test_restore() {
     Created c83e17dc46fd (no description set)
     Rebased 1 descendant commits
     Working copy now at: df9fb6892f99 (no description set)
+    Parent commit      : c83e17dc46fd (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -95,6 +99,7 @@ fn test_restore() {
     insta::assert_snapshot!(stdout, @r###"
     Created 28647642d4a5 (no description set)
     Working copy now at: 28647642d4a5 (no description set)
+    Parent commit      : 1a986a275de6 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -156,6 +161,8 @@ fn test_restore_conflicted_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Created 63198ca2e4aa conflict
     Working copy now at: 63198ca2e4aa conflict
+    Parent commit      : aa493daf6659 a
+    Parent commit      : db6a4daf6ee7 b
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(
@@ -192,6 +199,8 @@ fn test_restore_conflicted_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Created d955febceac1 conflict
     Working copy now at: d955febceac1 conflict
+    Parent commit      : aa493daf6659 a
+    Parent commit      : db6a4daf6ee7 b
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(

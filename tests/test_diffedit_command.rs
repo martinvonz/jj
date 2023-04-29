@@ -65,6 +65,7 @@ fn test_diffedit() {
     insta::assert_snapshot!(stdout, @r###"
     Created 1930da4a57e9 (no description set)
     Working copy now at: 1930da4a57e9 (no description set)
+    Parent commit      : 613028a4693c (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -80,6 +81,7 @@ fn test_diffedit() {
     Created c03ae96780b6 (no description set)
     Rebased 1 descendant commits
     Working copy now at: 2a4dc204a6ab (no description set)
+    Parent commit      : c03ae96780b6 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let contents = String::from_utf8(std::fs::read(repo_path.join("file3")).unwrap()).unwrap();
@@ -98,6 +100,7 @@ fn test_diffedit() {
     insta::assert_snapshot!(stdout, @r###"
     Created 15f2c966d508 (no description set)
     Working copy now at: 15f2c966d508 (no description set)
+    Parent commit      : 613028a4693c (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -148,6 +151,7 @@ fn test_diffedit_merge() {
     Created a70eded7af9e merge
     Rebased 1 descendant commits
     Working copy now at: a5f1ce845f74 (no description set)
+    Parent commit      : a70eded7af9e merge
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -213,6 +217,7 @@ fn test_diffedit_old_restore_interactive_tests() {
     insta::assert_snapshot!(stdout, @r###"
     Created abdbf6271a1c (no description set)
     Working copy now at: abdbf6271a1c (no description set)
+    Parent commit      : 2375fa164210 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -227,6 +232,7 @@ fn test_diffedit_old_restore_interactive_tests() {
     insta::assert_snapshot!(stdout, @r###"
     Created e31f7f33ad07 (no description set)
     Working copy now at: e31f7f33ad07 (no description set)
+    Parent commit      : 2375fa164210 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);

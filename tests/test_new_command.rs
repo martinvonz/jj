@@ -130,6 +130,8 @@ fn test_new_insert_after() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 descendant commits
     Working copy now at: ca7c6481a8dd G
+    Parent commit      : 6041917ceeb5 B
+    Parent commit      : c9257eff5bf9 D
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉  C
@@ -150,6 +152,7 @@ fn test_new_insert_after() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 descendant commits
     Working copy now at: fcf8281b4135 H
+    Parent commit      : c9257eff5bf9 D
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉  C
@@ -194,6 +197,8 @@ fn test_new_insert_after_children() {
         test_env.jj_cmd_success(&repo_path, &["new", "--insert-after", "-m", "G", "A", "C"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: b48d4d73a39c G
+    Parent commit      : 65b1ef43c737 A
+    Parent commit      : ec18c57d72d8 C
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    G
@@ -236,6 +241,9 @@ fn test_new_insert_before() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 descendant commits
     Working copy now at: ff6bbbc7b8df G
+    Parent commit      : 41a89ffcbba2 E
+    Parent commit      : c9257eff5bf9 D
+    Parent commit      : 6041917ceeb5 B
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉  F
@@ -277,6 +285,7 @@ fn test_new_insert_before_root_successors() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 5 descendant commits
     Working copy now at: 3654197754f8 G
+    Parent commit      : 000000000000 (no description set)
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉    F
@@ -345,6 +354,7 @@ fn test_new_insert_before_no_root_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 4 descendant commits
     Working copy now at: bf9fc49331de G
+    Parent commit      : 65b1ef43c737 A
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉    F

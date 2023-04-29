@@ -203,6 +203,7 @@ fn test_git_colocated_branches() {
         .unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     Working copy now at: eb08b363bb5e (no description set)
+    Parent commit      : 230dd059e1b0 (no description set)
     @  eb08b363bb5ef8ee549314260488980d7bbe8f63
     │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master
     ├─╯

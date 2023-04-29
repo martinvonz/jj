@@ -128,6 +128,7 @@ fn test_rebase_branch() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 commits
     Working copy now at: 9ca2a1544e5d e
+    Parent commit      : 1394f625cbbd b
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -159,6 +160,7 @@ fn test_rebase_branch() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 commits
     Working copy now at: 817e3fb0dc64 e
+    Parent commit      : 1394f625cbbd b
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -201,6 +203,7 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
     Working copy now at: 391c91a7defa e
+    Parent commit      : 1677f79555e4 d
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -217,6 +220,7 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
     Working copy now at: 040ae3a6d358 e
+    Parent commit      : 3d0f3644db16 d
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -260,6 +264,7 @@ fn test_rebase_single_revision() {
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 2 descendant commits onto parent of rebased commit
     Working copy now at: 7e15b97a447f d
+    Parent commit      : 934236c8090e c
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -278,6 +283,8 @@ fn test_rebase_single_revision() {
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
     Working copy now at: bf87078f4560 d
+    Parent commit      : d370aee184ba b
+    Parent commit      : 2443ea76b0b1 a
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -319,6 +326,8 @@ fn test_rebase_single_revision_merge_parent() {
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
     Working copy now at: c62d0789e7c7 d
+    Parent commit      : d370aee184ba b
+    Parent commit      : 2443ea76b0b1 a
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -468,6 +477,7 @@ fn test_rebase_with_descendants() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
     Working copy now at: 309336ffce22 d
+    Parent commit      : 244fa794aa18 c
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d
@@ -483,6 +493,7 @@ fn test_rebase_with_descendants() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 commits
     Working copy now at: 92c2bc9a8623 d
+    Parent commit      : 2443ea76b0b1 a
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -513,6 +524,7 @@ fn test_rebase_with_descendants() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
     Working copy now at: f1e71cb78a06 d
+    Parent commit      : 2443ea76b0b1 a
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -542,6 +554,7 @@ fn test_rebase_with_descendants() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
     Working copy now at: d17539f7ea7c d
+    Parent commit      : 2443ea76b0b1 a
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

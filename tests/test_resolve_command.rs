@@ -88,6 +88,8 @@ fn test_resolution() {
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve"]), @r###"
     Working copy now at: e069f0736a79 conflict
+    Parent commit      : aa493daf6659 a
+    Parent commit      : db6a4daf6ee7 b
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(
@@ -182,6 +184,8 @@ conflict
         ),
         @r###"
     Working copy now at: 0bb40c908c8b conflict
+    Parent commit      : aa493daf6659 a
+    Parent commit      : db6a4daf6ee7 b
     Added 0 files, modified 1 files, removed 0 files
     After this operation, some files at this revision still have conflicts:
     file    2-sided conflict
@@ -239,6 +243,8 @@ conflict
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve"]), @r###"
     Working copy now at: 95418cb82ab1 conflict
+    Parent commit      : aa493daf6659 a
+    Parent commit      : db6a4daf6ee7 b
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(
@@ -628,6 +634,8 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve", "another_file"]), @r###"
     Working copy now at: 07feb084c0d2 conflict
+    Parent commit      : de7553ef5f05 a
+    Parent commit      : f68bc2f0a292 b
     Added 0 files, modified 1 files, removed 0 files
     After this operation, some files at this revision still have conflicts:
     this_file_has_a_very_long_name_to_test_padding 2-sided conflict
@@ -654,6 +662,8 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve", "--quiet", "another_file"]), @r###"
     Working copy now at: ff142405c921 conflict
+    Parent commit      : de7553ef5f05 a
+    Parent commit      : f68bc2f0a292 b
     Added 0 files, modified 1 files, removed 0 files
     "###);
 
