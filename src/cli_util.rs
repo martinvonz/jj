@@ -356,6 +356,7 @@ pub struct CommandHelper {
     app: Command,
     cwd: PathBuf,
     string_args: Vec<String>,
+    matches: ArgMatches,
     global_args: GlobalArgs,
     settings: UserSettings,
     layered_configs: LayeredConfigs,
@@ -369,6 +370,7 @@ impl CommandHelper {
         app: Command,
         cwd: PathBuf,
         string_args: Vec<String>,
+        matches: ArgMatches,
         global_args: GlobalArgs,
         settings: UserSettings,
         layered_configs: LayeredConfigs,
@@ -379,6 +381,7 @@ impl CommandHelper {
             app,
             cwd,
             string_args,
+            matches,
             global_args,
             settings,
             layered_configs,
@@ -397,6 +400,10 @@ impl CommandHelper {
 
     pub fn string_args(&self) -> &Vec<String> {
         &self.string_args
+    }
+
+    pub fn matches(&self) -> &ArgMatches {
+        &self.matches
     }
 
     pub fn global_args(&self) -> &GlobalArgs {
@@ -2274,8 +2281,7 @@ pub struct CliRunner {
     process_global_args_fns: Vec<ProcessGlobalArgsFn>,
 }
 
-type CliDispatchFn =
-    Box<dyn FnOnce(&mut Ui, &CommandHelper, &ArgMatches) -> Result<(), CommandError>>;
+type CliDispatchFn = Box<dyn FnOnce(&mut Ui, &CommandHelper) -> Result<(), CommandError>>;
 
 type ProcessGlobalArgsFn = Box<dyn FnOnce(&mut Ui, &ArgMatches) -> Result<(), CommandError>>;
 
@@ -2314,11 +2320,11 @@ impl CliRunner {
     {
         let old_dispatch_fn = self.dispatch_fn;
         let new_dispatch_fn =
-            move |ui: &mut Ui, command_helper: &CommandHelper, matches: &ArgMatches| {
-                match C::from_arg_matches(matches) {
-                    Ok(command) => custom_dispatch_fn(ui, command_helper, command),
-                    Err(_) => old_dispatch_fn(ui, command_helper, matches),
-                }
+            move |ui: &mut Ui, command_helper: &CommandHelper| match C::from_arg_matches(
+                command_helper.matches(),
+            ) {
+                Ok(command) => custom_dispatch_fn(ui, command_helper, command),
+                Err(_) => old_dispatch_fn(ui, command_helper),
             };
         self.app = C::augment_subcommands(self.app);
         self.dispatch_fn = Box::new(new_dispatch_fn);
@@ -2374,13 +2380,14 @@ impl CliRunner {
             self.app,
             cwd,
             string_args,
+            matches,
             args.global_args,
             settings,
             layered_configs,
             maybe_workspace_loader,
             self.store_factories.unwrap_or_default(),
         );
-        (self.dispatch_fn)(ui, &command_helper, &matches)
+        (self.dispatch_fn)(ui, &command_helper)
     }
 
     #[must_use]
