@@ -230,6 +230,15 @@ fn test_squash_partial() {
     insta::assert_snapshot!(stdout, @r###"
     b
     "###);
+
+    // If we specify only a non-existent file, then the squash still succeeds and
+    // creates unchanged commits.
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "nonexistent"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: 5e297967f76c (no description set)
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
