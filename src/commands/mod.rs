@@ -2220,7 +2220,7 @@ from the source will be moved into the destination.
         args.interactive,
         matcher.as_ref(),
     )?;
-    if &new_parent_tree_id == parent_tree.id() {
+    if args.interactive && &new_parent_tree_id == parent_tree.id() {
         return Err(user_error("No changes to move"));
     }
     let new_parent_tree = tx
