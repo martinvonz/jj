@@ -26,7 +26,7 @@ use std::sync::Arc;
 use std::{fs, io};
 
 use clap::builder::NonEmptyStringValueParser;
-use clap::{ArgGroup, ArgMatches, Command, CommandFactory, FromArgMatches, Subcommand};
+use clap::{ArgGroup, Command, CommandFactory, FromArgMatches, Subcommand};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
@@ -3476,12 +3476,9 @@ pub fn default_app() -> Command {
     Commands::augment_subcommands(Args::command())
 }
 
-pub fn run_command(
-    ui: &mut Ui,
-    command_helper: &CommandHelper,
-    matches: &ArgMatches,
-) -> Result<(), CommandError> {
-    let derived_subcommands: Commands = Commands::from_arg_matches(matches).unwrap();
+pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), CommandError> {
+    let derived_subcommands: Commands =
+        Commands::from_arg_matches(command_helper.matches()).unwrap();
     match &derived_subcommands {
         Commands::Version(sub_args) => cmd_version(ui, command_helper, sub_args),
         Commands::Init(sub_args) => cmd_init(ui, command_helper, sub_args),
