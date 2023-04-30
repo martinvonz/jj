@@ -43,13 +43,6 @@ impl Drop for CleanupGuard {
     }
 }
 
-// Invoked on a background thread. Process exits after this returns.
-fn on_signal(guards: &mut GuardTable) {
-    for guard in guards.drain() {
-        guard();
-    }
-}
-
 #[cfg(unix)]
 mod platform {
     use std::os::unix::io::{IntoRawFd as _, RawFd};
@@ -93,6 +86,13 @@ mod platform {
         Ok(())
     }
 
+    // Invoked on a background thread. Process exits after this returns.
+    fn on_signal(guards: &mut GuardTable) {
+        for guard in guards.drain() {
+            guard();
+        }
+    }
+
     unsafe extern "C" fn handler(signal: c_int) {
         // Treat the second signal as instantly fatal.
         static SIGNALED: AtomicBool = AtomicBool::new(false);
@@ -112,7 +112,9 @@ mod platform {
 mod platform {
     use super::*;
 
-    pub fn init() -> io::Result<()> {
+    /// Safety: this function is safe to call, but is marked as unsafe to have
+    /// the same signature as other `init` functions in other platforms.
+    pub unsafe fn init() -> io::Result<()> {
         Ok(())
     }
 }
