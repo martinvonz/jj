@@ -1701,8 +1701,7 @@ pub fn resolve_symbol(
             return Ok(ids);
         }
 
-        // Try to resolve as a full commit id. We assume a full commit id is unambiguous
-        // even if it's shorter than change id.
+        // Try to resolve as a full commit id.
         if let Some(ids) = resolve_full_commit_id(repo, symbol)? {
             return Ok(ids);
         }
