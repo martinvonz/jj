@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-use crate::common::{get_stderr_string, TestEnvironment};
+use crate::common::TestEnvironment;
 
 pub mod common;
 
@@ -66,6 +66,8 @@ fn test_edit() {
 // Windows says "Access is denied" when trying to delete the object file.
 #[cfg(unix)]
 fn test_edit_current_wc_commit_missing() {
+    use crate::common::get_stderr_string;
+
     // Test that we get a reasonable error message when the current working-copy
     // commit is missing
     let test_env = TestEnvironment::default();
