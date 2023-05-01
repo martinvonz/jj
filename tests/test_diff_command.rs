@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::PathBuf;
-
 use common::TestEnvironment;
 
 pub mod common;
@@ -135,6 +133,7 @@ fn test_diff_types() {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
+        use std::path::PathBuf;
 
         // Executable
         test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=executable"]);
