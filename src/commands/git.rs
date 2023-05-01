@@ -157,11 +157,17 @@ fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
 
 fn map_git_error(err: git2::Error) -> CommandError {
     if err.class() == git2::ErrorClass::Ssh {
-        user_error_with_hint(
-            err.to_string(),
-            "Jujutsu uses libssh2, which doesn't respect ~/.ssh/config. Does `ssh -F /dev/null` \
-             to the host work?",
-        )
+        let hint =
+            if err.code() == git2::ErrorCode::Certificate && std::env::var_os("HOME").is_none() {
+                "The HOME environment variable is not set, and might be required for Git to \
+                 successfully load certificates. Try setting it to the path of a directory that \
+                 contains a `.ssh` directory."
+            } else {
+                "Jujutsu uses libssh2, which doesn't respect ~/.ssh/config. Does `ssh -F \
+                 /dev/null` to the host work?"
+            };
+
+        user_error_with_hint(err.to_string(), hint)
     } else {
         user_error(err.to_string())
     }

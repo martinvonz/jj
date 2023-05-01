@@ -637,15 +637,30 @@ impl<'a> RemoteCallbacks<'a> {
                 return Ok(creds);
             } else if let Some(username) = username_from_url {
                 if allowed_types.contains(git2::CredentialType::SSH_KEY) {
-                    if std::env::var("SSH_AUTH_SOCK").is_ok()
-                        || std::env::var("SSH_AGENT_PID").is_ok()
-                    {
-                        tracing::info!(username, "using ssh_key_from_agent");
-                        return git2::Cred::ssh_key_from_agent(username).map_err(|err| {
-                            tracing::error!(err = %err);
-                            err
-                        });
+                    // Try to get the SSH key from the agent by default, and report an error
+                    // only if it _seems_ like that's what the user wanted.
+                    //
+                    // Note that the env variables read below are **not** the only way to
+                    // communicate with the agent, which is why we request a key from it no
+                    // matter what.
+                    match git2::Cred::ssh_key_from_agent(username) {
+                        Ok(key) => {
+                            tracing::info!(username, "using ssh_key_from_agent");
+                            return Ok(key);
+                        }
+                        Err(err) => {
+                            if std::env::var("SSH_AUTH_SOCK").is_ok()
+                                || std::env::var("SSH_AGENT_PID").is_ok()
+                            {
+                                tracing::error!(err = %err);
+                                return Err(err);
+                            }
+                            // There is no agent-related env variable so we
+                            // consider that the user doesn't care about using
+                            // the agent and proceed.
+                        }
                     }
+
                     if let Some(ref mut cb) = self.get_ssh_key {
                         if let Some(path) = cb(username) {
                             tracing::info!(username, path = ?path, "using ssh_key");
