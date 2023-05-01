@@ -40,7 +40,7 @@ clap_mangen = "0.2.10"
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
 criterion = {version = "0.4.0", optional = true }
 crossterm = { version = "0.26", default-features = false }
-dirs = "5.0.0"
+dirs = "5.0.1"
 esl01-renderdag = "0.3.0"
 git2 = "0.17.1"
 glob = "0.3.1"
