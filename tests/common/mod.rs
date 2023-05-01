@@ -87,6 +87,32 @@ impl TestEnvironment {
         cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
         cmd.env("JJ_OP_TIMESTAMP", timestamp.to_rfc3339());
 
+        #[cfg(all(windows, target_env = "gnu"))]
+        {
+            use itertools::Itertools as _;
+
+            // MinGW executables cannot run without `mingw\bin` in the PATH (which we're
+            // clearing above), so we add it again here.
+            if let Ok(path_var) = std::env::var("PATH").or_else(|_| std::env::var("Path")) {
+                // There can be slight variations of this path (e.g. `mingw64\bin`) so we're
+                // intentionally being lenient here.
+                let mingw_directories = path_var
+                    .split(';')
+                    .filter(|dir| dir.contains("mingw"))
+                    .join(";");
+
+                if !mingw_directories.is_empty() {
+                    cmd.env("PATH", mingw_directories);
+                }
+            }
+
+            // MinGW uses `TEMP` to create temporary directories, which we need for some
+            // tests.
+            if let Ok(tmp_var) = std::env::var("TEMP") {
+                cmd.env("TEMP", tmp_var);
+            }
+        }
+
         cmd
     }
 
