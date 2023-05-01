@@ -377,6 +377,10 @@ impl CommandHelper {
         maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
         store_factories: StoreFactories,
     ) -> Self {
+        // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
+        // to easily compute relative paths between them.
+        let cwd = cwd.canonicalize().unwrap_or(cwd);
+
         Self {
             app,
             cwd,
