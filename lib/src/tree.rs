@@ -309,26 +309,20 @@ impl<T> Diff<T> {
     }
 }
 
-struct TreeEntryDiffIterator<'trees, 'matcher> {
+struct TreeEntryDiffIterator<'trees> {
     it1: Peekable<TreeEntriesNonRecursiveIterator<'trees>>,
     it2: Peekable<TreeEntriesNonRecursiveIterator<'trees>>,
-    // TODO: Restrict walk according to Matcher::visit()
-    _matcher: &'matcher dyn Matcher,
 }
 
-impl<'trees, 'matcher> TreeEntryDiffIterator<'trees, 'matcher> {
-    fn new(tree1: &'trees Tree, tree2: &'trees Tree, matcher: &'matcher dyn Matcher) -> Self {
+impl<'trees> TreeEntryDiffIterator<'trees> {
+    fn new(tree1: &'trees Tree, tree2: &'trees Tree) -> Self {
         let it1 = tree1.entries_non_recursive().peekable();
         let it2 = tree2.entries_non_recursive().peekable();
-        TreeEntryDiffIterator {
-            it1,
-            it2,
-            _matcher: matcher,
-        }
+        TreeEntryDiffIterator { it1, it2 }
     }
 }
 
-impl<'trees, 'matcher> Iterator for TreeEntryDiffIterator<'trees, 'matcher> {
+impl<'trees> Iterator for TreeEntryDiffIterator<'trees> {
     type Item = (
         RepoPathComponent,
         Option<&'trees TreeValue>,
@@ -385,27 +379,39 @@ impl<'trees, 'matcher> Iterator for TreeEntryDiffIterator<'trees, 'matcher> {
     }
 }
 
-fn diff_entries<'trees, 'matcher>(
-    tree1: &'trees Tree,
-    tree2: &'trees Tree,
-    matcher: &'matcher dyn Matcher,
-) -> TreeEntryDiffIterator<'trees, 'matcher> {
-    // TODO: make TreeEntryDiffIterator an enum with one variant that iterates over
-    // the tree entries and filters by the matcher (i.e. what
-    // TreeEntryDiffIterator does now) and another variant that iterates over
-    // what the matcher says to visit
-    TreeEntryDiffIterator::new(tree1, tree2, matcher)
+fn diff_entries<'trees>(tree1: &'trees Tree, tree2: &'trees Tree) -> TreeEntryDiffIterator<'trees> {
+    TreeEntryDiffIterator::new(tree1, tree2)
 }
 
 pub fn recursive_tree_diff(root1: Tree, root2: Tree, matcher: &dyn Matcher) -> TreeDiffIterator {
     TreeDiffIterator::new(RepoPath::root(), root1, root2, matcher)
 }
 
+enum MaybeTreeEntryDiffIterator<'trees> {
+    WalkEntries(TreeEntryDiffIterator<'trees>),
+    Nothing,
+}
+
+impl<'trees> Iterator for MaybeTreeEntryDiffIterator<'trees> {
+    type Item = (
+        RepoPathComponent,
+        Option<&'trees TreeValue>,
+        Option<&'trees TreeValue>,
+    );
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            MaybeTreeEntryDiffIterator::WalkEntries(it) => it.next(),
+            MaybeTreeEntryDiffIterator::Nothing => None,
+        }
+    }
+}
+
 pub struct TreeDiffIterator<'matcher> {
     dir: RepoPath,
     matcher: &'matcher dyn Matcher,
     // Iterator over the diffs between tree1 and tree2
-    entry_iterator: TreeEntryDiffIterator<'static, 'matcher>,
+    entry_iterator: MaybeTreeEntryDiffIterator<'static>,
     // On drop, tree1 and tree2 must outlive entry_iterator
     tree1: Pin<Box<Tree>>,
     tree2: Pin<Box<Tree>>,
@@ -426,9 +432,13 @@ impl<'matcher> TreeDiffIterator<'matcher> {
     ) -> TreeDiffIterator {
         let tree1 = Box::pin(tree1);
         let tree2 = Box::pin(tree2);
-        let root_entry_iterator: TreeEntryDiffIterator = diff_entries(&tree1, &tree2, matcher);
-        let root_entry_iterator: TreeEntryDiffIterator<'static, 'matcher> =
-            unsafe { std::mem::transmute(root_entry_iterator) };
+        let root_entry_iterator = if matcher.visit(&dir).is_nothing() {
+            MaybeTreeEntryDiffIterator::Nothing
+        } else {
+            let iter: TreeEntryDiffIterator = diff_entries(&tree1, &tree2);
+            let iter: TreeEntryDiffIterator<'static> = unsafe { std::mem::transmute(iter) };
+            MaybeTreeEntryDiffIterator::WalkEntries(iter)
+        };
         Self {
             dir,
             matcher,
@@ -536,9 +546,7 @@ pub fn merge_trees(
     // Start with a tree identical to side 1 and modify based on changes from base
     // to side 2.
     let mut new_tree = side1_tree.data().clone();
-    for (basename, maybe_base, maybe_side2) in
-        diff_entries(base_tree, side2_tree, &EverythingMatcher)
-    {
+    for (basename, maybe_base, maybe_side2) in diff_entries(base_tree, side2_tree) {
         let maybe_side1 = side1_tree.value(&basename);
         if maybe_side1 == maybe_base {
             // side 1 is unchanged: use the value from side 2
