@@ -594,10 +594,10 @@ fn get_ssh_key(_username: &str) -> Option<PathBuf> {
     let home_dir = std::env::var("HOME").ok()?;
     let key_path = std::path::Path::new(&home_dir).join(".ssh").join("id_rsa");
     if key_path.is_file() {
-        tracing::debug!(path = ?key_path, "found ssh key");
+        tracing::info!(path = ?key_path, "found ssh key");
         Some(key_path)
     } else {
-        tracing::debug!(path = ?key_path, "no ssh key found");
+        tracing::info!(path = ?key_path, "no ssh key found");
         None
     }
 }

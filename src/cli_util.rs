@@ -347,7 +347,7 @@ impl TracingSubscription {
             .map_err(|err| {
                 CommandError::InternalError(format!("failed to enable verbose logging: {err:?}"))
             })?;
-        tracing::debug!("verbose logging enabled");
+        tracing::info!("verbose logging enabled");
         Ok(())
     }
 }

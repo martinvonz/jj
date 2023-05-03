@@ -633,14 +633,14 @@ impl<'a> RemoteCallbacks<'a> {
             let credential_helper = git_config
                 .and_then(|conf| git2::Cred::credential_helper(&conf, url, username_from_url));
             if let Ok(creds) = credential_helper {
-                tracing::debug!("using credential_helper");
+                tracing::info!("using credential_helper");
                 return Ok(creds);
             } else if let Some(username) = username_from_url {
                 if allowed_types.contains(git2::CredentialType::SSH_KEY) {
                     if std::env::var("SSH_AUTH_SOCK").is_ok()
                         || std::env::var("SSH_AGENT_PID").is_ok()
                     {
-                        tracing::debug!(username, "using ssh_key_from_agent");
+                        tracing::info!(username, "using ssh_key_from_agent");
                         return git2::Cred::ssh_key_from_agent(username).map_err(|err| {
                             tracing::error!(err = %err);
                             err
@@ -648,7 +648,7 @@ impl<'a> RemoteCallbacks<'a> {
                     }
                     if let Some(ref mut cb) = self.get_ssh_key {
                         if let Some(path) = cb(username) {
-                            tracing::debug!(username, path = ?path, "using ssh_key");
+                            tracing::info!(username, path = ?path, "using ssh_key");
                             return git2::Cred::ssh_key(username, None, &path, None).map_err(
                                 |err| {
                                     tracing::error!(err = %err);
@@ -661,7 +661,7 @@ impl<'a> RemoteCallbacks<'a> {
                 if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
                     if let Some(ref mut cb) = self.get_password {
                         if let Some(pw) = cb(url, username) {
-                            tracing::debug!(
+                            tracing::info!(
                                 username,
                                 "using userpass_plaintext with username from url"
                             );
@@ -675,7 +675,7 @@ impl<'a> RemoteCallbacks<'a> {
             } else if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
                 if let Some(ref mut cb) = self.get_username_password {
                     if let Some((username, pw)) = cb(url) {
-                        tracing::debug!(username, "using userpass_plaintext");
+                        tracing::info!(username, "using userpass_plaintext");
                         return git2::Cred::userpass_plaintext(&username, &pw).map_err(|err| {
                             tracing::error!(err = %err);
                             err
@@ -683,7 +683,7 @@ impl<'a> RemoteCallbacks<'a> {
                     }
                 }
             }
-            tracing::debug!("using default");
+            tracing::info!("using default");
             git2::Cred::default()
         });
         callbacks
