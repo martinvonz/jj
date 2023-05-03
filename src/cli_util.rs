@@ -327,7 +327,7 @@ impl TracingSubscription {
     /// called as early as possible.
     pub fn init() -> Self {
         let filter = tracing_subscriber::EnvFilter::builder()
-            .with_default_directive(tracing::metadata::LevelFilter::INFO.into())
+            .with_default_directive(tracing::metadata::LevelFilter::ERROR.into())
             .from_env_lossy();
         let (filter, reload_log_filter) = tracing_subscriber::reload::Layer::new(filter);
         tracing_subscriber::registry()
