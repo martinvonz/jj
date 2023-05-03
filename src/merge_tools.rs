@@ -239,7 +239,7 @@ pub fn run_mergetool(
 
     let mut cmd = Command::new(&editor.program);
     cmd.args(interpolate_variables(&editor.merge_args, &paths));
-    tracing::debug!(?cmd, "Invoking the external merge tool:");
+    tracing::info!(?cmd, "Invoking the external merge tool:");
     let exit_status = cmd
         .status()
         .map_err(|e| ExternalToolError::FailedToExecute {
@@ -363,7 +363,7 @@ pub fn edit_diff(
     };
     let mut cmd = Command::new(&editor.program);
     cmd.args(interpolate_variables(&editor.edit_args, &patterns));
-    tracing::debug!(?cmd, "Invoking the external diff editor:");
+    tracing::info!(?cmd, "Invoking the external diff editor:");
     let exit_status = cmd
         .status()
         .map_err(|e| ExternalToolError::FailedToExecute {
