@@ -387,76 +387,59 @@ pub fn recursive_tree_diff(root1: Tree, root2: Tree, matcher: &dyn Matcher) -> T
     TreeDiffIterator::new(RepoPath::root(), root1, root2, matcher)
 }
 
-enum MaybeTreeEntryDiffIterator<'trees> {
-    WalkEntries(TreeEntryDiffIterator<'trees>),
-    Nothing,
-}
-
-impl<'trees> Iterator for MaybeTreeEntryDiffIterator<'trees> {
-    type Item = (
-        &'trees RepoPathComponent,
-        Option<&'trees TreeValue>,
-        Option<&'trees TreeValue>,
-    );
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            MaybeTreeEntryDiffIterator::WalkEntries(it) => it.next(),
-            MaybeTreeEntryDiffIterator::Nothing => None,
-        }
-    }
-}
-
 pub struct TreeDiffIterator<'matcher> {
-    dir: RepoPath,
+    stack: Vec<TreeDiffItem>,
     matcher: &'matcher dyn Matcher,
+}
+
+struct TreeDiffDirItem {
+    path: RepoPath,
     // Iterator over the diffs between tree1 and tree2
-    entry_iterator: MaybeTreeEntryDiffIterator<'static>,
+    entry_iterator: TreeEntryDiffIterator<'static>,
     // On drop, tree1 and tree2 must outlive entry_iterator
     tree1: Pin<Box<Tree>>,
     tree2: Pin<Box<Tree>>,
+}
+
+enum TreeDiffItem {
+    Dir(TreeDiffDirItem),
     // This is used for making sure that when a directory gets replaced by a file, we
     // yield the value for the addition of the file after we yield the values
     // for removing files in the directory.
-    added_file: Option<(RepoPath, TreeValue)>,
-    // Iterator over the diffs of a subdirectory, if we're currently visiting one.
-    subdir_iterator: Option<Box<TreeDiffIterator<'matcher>>>,
+    File(RepoPath, Diff<TreeValue>),
 }
 
 impl<'matcher> TreeDiffIterator<'matcher> {
-    fn new(
-        dir: RepoPath,
-        tree1: Tree,
-        tree2: Tree,
-        matcher: &'matcher dyn Matcher,
-    ) -> TreeDiffIterator {
+    fn new(dir: RepoPath, tree1: Tree, tree2: Tree, matcher: &'matcher dyn Matcher) -> Self {
+        let mut stack = Vec::new();
+        if !matcher.visit(&dir).is_nothing() {
+            stack.push(TreeDiffItem::Dir(TreeDiffDirItem::new(dir, tree1, tree2)));
+        };
+        Self { stack, matcher }
+    }
+}
+
+impl TreeDiffDirItem {
+    fn new(path: RepoPath, tree1: Tree, tree2: Tree) -> Self {
         let tree1 = Box::pin(tree1);
         let tree2 = Box::pin(tree2);
-        let root_entry_iterator = if matcher.visit(&dir).is_nothing() {
-            MaybeTreeEntryDiffIterator::Nothing
-        } else {
-            let iter: TreeEntryDiffIterator = diff_entries(&tree1, &tree2);
-            let iter: TreeEntryDiffIterator<'static> = unsafe { std::mem::transmute(iter) };
-            MaybeTreeEntryDiffIterator::WalkEntries(iter)
-        };
+        let iter: TreeEntryDiffIterator = diff_entries(&tree1, &tree2);
+        let iter: TreeEntryDiffIterator<'static> = unsafe { std::mem::transmute(iter) };
         Self {
-            dir,
-            matcher,
-            entry_iterator: root_entry_iterator,
+            path,
+            entry_iterator: iter,
             tree1,
             tree2,
-            added_file: None,
-            subdir_iterator: None,
         }
     }
 
-    fn visit_subdir(
-        &mut self,
+    fn subdir(
+        &self,
         name: &RepoPathComponent,
         before: Option<&TreeValue>,
         after: Option<&TreeValue>,
-    ) {
-        let subdir_path = self.dir.join(name);
+    ) -> Self {
+        let subdir_path = self.path.join(name);
         let before_tree = match before {
             Some(TreeValue::Tree(id_before)) => self.tree1.known_sub_tree(name, id_before),
             _ => Tree::null(self.tree1.store().clone(), subdir_path.clone()),
@@ -465,12 +448,7 @@ impl<'matcher> TreeDiffIterator<'matcher> {
             Some(TreeValue::Tree(id_after)) => self.tree2.known_sub_tree(name, id_after),
             _ => Tree::null(self.tree2.store().clone(), subdir_path.clone()),
         };
-        self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
-            subdir_path,
-            before_tree,
-            after_tree,
-            self.matcher,
-        )));
+        Self::new(subdir_path, before_tree, after_tree)
     }
 }
 
@@ -478,27 +456,37 @@ impl Iterator for TreeDiffIterator<'_> {
     type Item = (RepoPath, Diff<TreeValue>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            // First return results from any subdirectory we're currently visiting.
-            if let Some(subdir_iterator) = &mut self.subdir_iterator {
-                if let Some(element) = subdir_iterator.next() {
-                    return Some(element);
+        while let Some(top) = self.stack.last_mut() {
+            let (dir, (name, before, after)) = match top {
+                TreeDiffItem::Dir(dir) => {
+                    if let Some(entry) = dir.entry_iterator.next() {
+                        (dir, entry)
+                    } else {
+                        self.stack.pop().unwrap();
+                        continue;
+                    }
                 }
-                self.subdir_iterator = None;
-            }
-
-            if let Some((name, value)) = self.added_file.take() {
-                return Some((name, Diff::Added(value)));
-            }
+                TreeDiffItem::File(..) => {
+                    if let TreeDiffItem::File(name, diff) = self.stack.pop().unwrap() {
+                        return Some((name, diff));
+                    } else {
+                        unreachable!();
+                    }
+                }
+            };
 
             // Note: whenever we say "file" below, it may also be a symlink or a conflict.
-            let (name, before, after) = self.entry_iterator.next()?;
+            let file_path = dir.path.join(name);
             let tree_before = matches!(before, Some(TreeValue::Tree(_)));
             let tree_after = matches!(after, Some(TreeValue::Tree(_)));
-            if tree_before || tree_after {
-                self.visit_subdir(name, before, after);
-            }
-            let file_path = self.dir.join(name);
+            let post_subdir =
+                if (tree_before || tree_after) && !self.matcher.visit(&file_path).is_nothing() {
+                    let subdir = dir.subdir(name, before, after);
+                    self.stack.push(TreeDiffItem::Dir(subdir));
+                    self.stack.len() - 1
+                } else {
+                    self.stack.len()
+                };
             if self.matcher.matches(&file_path) {
                 if !tree_before && tree_after {
                     if let Some(file_before) = before {
@@ -506,7 +494,10 @@ impl Iterator for TreeDiffIterator<'_> {
                     }
                 } else if tree_before && !tree_after {
                     if let Some(file_after) = after {
-                        self.added_file = Some((file_path, file_after.clone()));
+                        self.stack.insert(
+                            post_subdir,
+                            TreeDiffItem::File(file_path, Diff::Added(file_after.clone())),
+                        );
                     }
                 } else if !tree_before && !tree_after {
                     match (before, after) {
@@ -529,6 +520,7 @@ impl Iterator for TreeDiffIterator<'_> {
                 }
             }
         }
+        None
     }
 }
 
