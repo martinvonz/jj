@@ -449,6 +449,29 @@ impl<'matcher> TreeDiffIterator<'matcher> {
             subdir_iterator: None,
         }
     }
+
+    fn visit_subdir(
+        &mut self,
+        name: &RepoPathComponent,
+        before: Option<&TreeValue>,
+        after: Option<&TreeValue>,
+    ) {
+        let subdir_path = self.dir.join(name);
+        let before_tree = match before {
+            Some(TreeValue::Tree(id_before)) => self.tree1.known_sub_tree(name, id_before),
+            _ => Tree::null(self.tree1.store().clone(), subdir_path.clone()),
+        };
+        let after_tree = match after {
+            Some(TreeValue::Tree(id_after)) => self.tree2.known_sub_tree(name, id_after),
+            _ => Tree::null(self.tree2.store().clone(), subdir_path.clone()),
+        };
+        self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
+            subdir_path,
+            before_tree,
+            after_tree,
+            self.matcher,
+        )));
+    }
 }
 
 impl Iterator for TreeDiffIterator<'_> {
@@ -473,21 +496,7 @@ impl Iterator for TreeDiffIterator<'_> {
             let tree_before = matches!(before, Some(TreeValue::Tree(_)));
             let tree_after = matches!(after, Some(TreeValue::Tree(_)));
             if tree_before || tree_after {
-                let subdir_path = self.dir.join(name);
-                let before_tree = match before {
-                    Some(TreeValue::Tree(id_before)) => self.tree1.known_sub_tree(name, id_before),
-                    _ => Tree::null(self.tree1.store().clone(), subdir_path.clone()),
-                };
-                let after_tree = match after {
-                    Some(TreeValue::Tree(id_after)) => self.tree2.known_sub_tree(name, id_after),
-                    _ => Tree::null(self.tree2.store().clone(), subdir_path.clone()),
-                };
-                self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
-                    subdir_path,
-                    before_tree,
-                    after_tree,
-                    self.matcher,
-                )));
+                self.visit_subdir(name, before, after);
             }
             let file_path = self.dir.join(name);
             if self.matcher.matches(&file_path) {
