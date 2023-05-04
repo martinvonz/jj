@@ -32,6 +32,7 @@ pub mod git;
 pub mod git_backend;
 pub mod gitignore;
 pub mod hex_util;
+pub mod id_prefix;
 pub mod index;
 pub mod local_backend;
 pub mod lock;
