@@ -324,7 +324,7 @@ impl<'trees> TreeEntryDiffIterator<'trees> {
 
 impl<'trees> Iterator for TreeEntryDiffIterator<'trees> {
     type Item = (
-        RepoPathComponent,
+        &'trees RepoPathComponent,
         Option<&'trees TreeValue>,
         Option<&'trees TreeValue>,
     );
@@ -339,12 +339,12 @@ impl<'trees> Iterator for TreeEntryDiffIterator<'trees> {
                         Ordering::Less => {
                             // entry removed
                             let before = self.it1.next().unwrap();
-                            return Some((before.name().clone(), Some(before.value()), None));
+                            return Some((before.name(), Some(before.value()), None));
                         }
                         Ordering::Greater => {
                             // entry added
                             let after = self.it2.next().unwrap();
-                            return Some((after.name().clone(), None, Some(after.value())));
+                            return Some((after.name(), None, Some(after.value())));
                         }
                         Ordering::Equal => {
                             // entry modified or clean
@@ -352,7 +352,7 @@ impl<'trees> Iterator for TreeEntryDiffIterator<'trees> {
                             let after = self.it2.next().unwrap();
                             if before.value() != after.value() {
                                 return Some((
-                                    before.name().clone(),
+                                    before.name(),
                                     Some(before.value()),
                                     Some(after.value()),
                                 ));
@@ -363,12 +363,12 @@ impl<'trees> Iterator for TreeEntryDiffIterator<'trees> {
                 (Some(_), None) => {
                     // second iterator exhausted
                     let before = self.it1.next().unwrap();
-                    return Some((before.name().clone(), Some(before.value()), None));
+                    return Some((before.name(), Some(before.value()), None));
                 }
                 (None, Some(_)) => {
                     // first iterator exhausted
                     let after = self.it2.next().unwrap();
-                    return Some((after.name().clone(), None, Some(after.value())));
+                    return Some((after.name(), None, Some(after.value())));
                 }
                 (None, None) => {
                     // both iterators exhausted
@@ -394,7 +394,7 @@ enum MaybeTreeEntryDiffIterator<'trees> {
 
 impl<'trees> Iterator for MaybeTreeEntryDiffIterator<'trees> {
     type Item = (
-        RepoPathComponent,
+        &'trees RepoPathComponent,
         Option<&'trees TreeValue>,
         Option<&'trees TreeValue>,
     );
@@ -473,16 +473,13 @@ impl Iterator for TreeDiffIterator<'_> {
             let tree_before = matches!(before, Some(TreeValue::Tree(_)));
             let tree_after = matches!(after, Some(TreeValue::Tree(_)));
             if tree_before || tree_after {
-                let subdir = &name;
-                let subdir_path = self.dir.join(subdir);
+                let subdir_path = self.dir.join(name);
                 let before_tree = match before {
-                    Some(TreeValue::Tree(id_before)) => {
-                        self.tree1.known_sub_tree(subdir, id_before)
-                    }
+                    Some(TreeValue::Tree(id_before)) => self.tree1.known_sub_tree(name, id_before),
                     _ => Tree::null(self.tree1.store().clone(), subdir_path.clone()),
                 };
                 let after_tree = match after {
-                    Some(TreeValue::Tree(id_after)) => self.tree2.known_sub_tree(subdir, id_after),
+                    Some(TreeValue::Tree(id_after)) => self.tree2.known_sub_tree(name, id_after),
                     _ => Tree::null(self.tree2.store().clone(), subdir_path.clone()),
                 };
                 self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
@@ -492,7 +489,7 @@ impl Iterator for TreeDiffIterator<'_> {
                     self.matcher,
                 )));
             }
-            let file_path = self.dir.join(&name);
+            let file_path = self.dir.join(name);
             if self.matcher.matches(&file_path) {
                 if !tree_before && tree_after {
                     if let Some(file_before) = before {
@@ -547,12 +544,12 @@ pub fn merge_trees(
     // to side 2.
     let mut new_tree = side1_tree.data().clone();
     for (basename, maybe_base, maybe_side2) in diff_entries(base_tree, side2_tree) {
-        let maybe_side1 = side1_tree.value(&basename);
+        let maybe_side1 = side1_tree.value(basename);
         if maybe_side1 == maybe_base {
             // side 1 is unchanged: use the value from side 2
             match maybe_side2 {
-                None => new_tree.remove(&basename),
-                Some(side2) => new_tree.set(basename, side2.clone()),
+                None => new_tree.remove(basename),
+                Some(side2) => new_tree.set(basename.clone(), side2.clone()),
             };
         } else if maybe_side1 == maybe_side2 {
             // Both sides changed in the same way: new_tree already has the
@@ -560,10 +557,10 @@ pub fn merge_trees(
         } else {
             // The two sides changed in different ways
             let new_value =
-                merge_tree_value(store, dir, &basename, maybe_base, maybe_side1, maybe_side2)?;
+                merge_tree_value(store, dir, basename, maybe_base, maybe_side1, maybe_side2)?;
             match new_value {
-                None => new_tree.remove(&basename),
-                Some(value) => new_tree.set(basename, value),
+                None => new_tree.remove(basename),
+                Some(value) => new_tree.set(basename.clone(), value),
             }
         }
     }
