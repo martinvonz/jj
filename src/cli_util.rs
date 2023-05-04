@@ -34,6 +34,7 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git::{GitExportError, GitImportError};
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::hex_util::to_reverse_hex;
+use jujutsu_lib::id_prefix::IdPrefixContext;
 use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
@@ -56,6 +57,7 @@ use jujutsu_lib::working_copy::{
 };
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader};
 use jujutsu_lib::{dag_walk, file_util, git, revset};
+use once_cell::unsync::OnceCell;
 use thiserror::Error;
 use toml_edit;
 use tracing_subscriber::prelude::*;
@@ -546,11 +548,15 @@ impl CommandHelper {
 /// data is lazily loaded.
 struct ReadonlyUserRepo {
     repo: Arc<ReadonlyRepo>,
+    id_prefix_context: OnceCell<IdPrefixContext<'static>>,
 }
 
 impl ReadonlyUserRepo {
     fn new(repo: Arc<ReadonlyRepo>) -> Self {
-        Self { repo }
+        Self {
+            repo,
+            id_prefix_context: OnceCell::new(),
+        }
     }
 }
 
@@ -584,9 +590,11 @@ impl WorkspaceCommandHelper {
         // Parse commit_summary template early to report error before starting mutable
         // operation.
         // TODO: Parsed template can be cached if it doesn't capture repo
+        let id_prefix_context = IdPrefixContext::new(repo.as_ref());
         parse_commit_summary_template(
             repo.as_ref(),
             workspace.workspace_id(),
+            &id_prefix_context,
             &template_aliases_map,
             &settings,
         )?;
@@ -919,6 +927,14 @@ impl WorkspaceCommandHelper {
         DefaultSymbolResolver::new(self.repo().as_ref(), Some(self.workspace_id()))
     }
 
+    pub fn id_prefix_context(&self) -> &IdPrefixContext<'_> {
+        self.user_repo.id_prefix_context.get_or_init(|| {
+            let context: IdPrefixContext<'_> = IdPrefixContext::new(self.user_repo.repo.as_ref());
+            let context: IdPrefixContext<'static> = unsafe { std::mem::transmute(context) };
+            context
+        })
+    }
+
     pub fn template_aliases_map(&self) -> &TemplateAliasesMap {
         &self.template_aliases_map
     }
@@ -930,6 +946,7 @@ impl WorkspaceCommandHelper {
         commit_templater::parse(
             self.repo().as_ref(),
             self.workspace_id(),
+            self.id_prefix_context(),
             template_text,
             &self.template_aliases_map,
         )
@@ -952,6 +969,7 @@ impl WorkspaceCommandHelper {
         let template = parse_commit_summary_template(
             self.repo().as_ref(),
             self.workspace_id(),
+            self.id_prefix_context(),
             &self.template_aliases_map,
             &self.settings,
         )
@@ -1259,9 +1277,11 @@ impl WorkspaceCommandTransaction<'_> {
         formatter: &mut dyn Formatter,
         commit: &Commit,
     ) -> std::io::Result<()> {
+        let id_prefix_context = IdPrefixContext::new(self.tx.repo());
         let template = parse_commit_summary_template(
             self.tx.repo(),
             self.helper.workspace_id(),
+            &id_prefix_context,
             &self.helper.template_aliases_map,
             &self.helper.settings,
         )
@@ -1696,6 +1716,7 @@ fn load_template_aliases(
 fn parse_commit_summary_template<'a>(
     repo: &'a dyn Repo,
     workspace_id: &WorkspaceId,
+    id_prefix_context: &'a IdPrefixContext<'a>,
     aliases_map: &TemplateAliasesMap,
     settings: &UserSettings,
 ) -> Result<Box<dyn Template<Commit> + 'a>, CommandError> {
@@ -1703,6 +1724,7 @@ fn parse_commit_summary_template<'a>(
     Ok(commit_templater::parse(
         repo,
         workspace_id,
+        id_prefix_context,
         &template_text,
         aliases_map,
     )?)

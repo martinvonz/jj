@@ -19,6 +19,7 @@ use itertools::Itertools as _;
 use jujutsu_lib::backend::{ChangeId, CommitId, ObjectId as _};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::hex_util::to_reverse_hex;
+use jujutsu_lib::id_prefix::IdPrefixContext;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::rewrite;
@@ -39,6 +40,7 @@ use crate::text_util;
 struct CommitTemplateLanguage<'repo, 'b> {
     repo: &'repo dyn Repo,
     workspace_id: &'b WorkspaceId,
+    id_prefix_context: &'repo IdPrefixContext<'repo>,
 }
 
 impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
@@ -383,11 +385,15 @@ impl CommitOrChangeId {
 
     /// The length of the id printed will be the maximum of `total_len` and the
     /// length of the shortest unique prefix
-    pub fn shortest(&self, repo: &dyn Repo, total_len: usize) -> ShortestIdPrefix {
+    pub fn shortest(
+        &self,
+        id_prefix_context: &IdPrefixContext,
+        total_len: usize,
+    ) -> ShortestIdPrefix {
         let mut hex = self.hex();
         let prefix_len = match self {
-            CommitOrChangeId::Commit(id) => repo.index().shortest_unique_commit_id_prefix_len(id),
-            CommitOrChangeId::Change(id) => repo.shortest_unique_change_id_prefix_len(id),
+            CommitOrChangeId::Commit(id) => id_prefix_context.shortest_commit_prefix_len(id),
+            CommitOrChangeId::Change(id) => id_prefix_context.shortest_change_prefix_len(id),
         };
         hex.truncate(max(prefix_len, total_len));
         let rest = hex.split_off(prefix_len);
@@ -422,11 +428,16 @@ fn build_commit_or_change_id_method<'repo>(
             ))
         }
         "shortest" => {
-            let repo = language.repo;
+            let id_prefix_context = &language.id_prefix_context;
             let len_property = parse_optional_integer(function)?;
             language.wrap_shortest_id_prefix(TemplateFunction::new(
                 (self_property, len_property),
-                |(id, len)| id.shortest(repo, len.and_then(|l| l.try_into().ok()).unwrap_or(0)),
+                |(id, len)| {
+                    id.shortest(
+                        id_prefix_context,
+                        len.and_then(|l| l.try_into().ok()).unwrap_or(0),
+                    )
+                },
             ))
         }
         _ => {
@@ -504,10 +515,15 @@ fn build_shortest_id_prefix_method<'repo>(
 pub fn parse<'repo>(
     repo: &'repo dyn Repo,
     workspace_id: &WorkspaceId,
+    id_prefix_context: &'repo IdPrefixContext<'repo>,
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'repo>> {
-    let language = CommitTemplateLanguage { repo, workspace_id };
+    let language = CommitTemplateLanguage {
+        repo,
+        workspace_id,
+        id_prefix_context,
+    };
     let node = template_parser::parse(template_text, aliases_map)?;
     template_builder::build(&language, &node)
 }
