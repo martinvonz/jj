@@ -40,8 +40,9 @@ fn revset_for_commits<'index>(
     repo: &'index dyn Repo,
     commits: &[&Commit],
 ) -> Box<dyn Revset<'index> + 'index> {
+    let symbol_resolver = DefaultSymbolResolver::new(repo, None);
     RevsetExpression::commits(commits.iter().map(|commit| commit.id().clone()).collect())
-        .resolve(repo)
+        .resolve_user_expression(repo, &symbol_resolver)
         .unwrap()
         .evaluate(repo)
         .unwrap()
@@ -173,8 +174,9 @@ fn test_resolve_symbol_commit_id() {
 
     // Test present() suppresses only NoSuchRevision error
     assert_eq!(resolve_commit_ids(repo.as_ref(), "present(foo)"), []);
+    let symbol_resolver = DefaultSymbolResolver::new(repo.as_ref(), None);
     assert_matches!(
-        optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap()).resolve(repo.as_ref()),
+        optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap()).resolve_user_expression(repo.as_ref(), &symbol_resolver),
         Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s == "04"
     );
     assert_eq!(
@@ -504,7 +506,10 @@ fn test_resolve_symbol_git_refs() {
 
 fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let expression = optimize(parse(revset_str, &RevsetAliasesMap::new(), None).unwrap());
-    let expression = expression.resolve(repo).unwrap();
+    let symbol_resolver = DefaultSymbolResolver::new(repo, None);
+    let expression = expression
+        .resolve_user_expression(repo, &symbol_resolver)
+        .unwrap();
     expression.evaluate(repo).unwrap().iter().collect()
 }
 
