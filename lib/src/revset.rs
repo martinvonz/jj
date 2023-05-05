@@ -1647,19 +1647,41 @@ impl SymbolResolver for FailingSymbolResolver {
     }
 }
 
+pub type PrefixResolver<'a, T> = Box<dyn Fn(&HexPrefix) -> PrefixResolution<T> + 'a>;
+
 /// Resolves the "root" and "@" symbols, branches, remote branches, tags, git
 /// refs, and full and abbreviated commit and change ids.
 pub struct DefaultSymbolResolver<'a> {
     repo: &'a dyn Repo,
     workspace_id: Option<&'a WorkspaceId>,
+    commit_id_resolver: Option<PrefixResolver<'a, CommitId>>,
+    change_id_resolver: Option<PrefixResolver<'a, Vec<CommitId>>>,
 }
 
-impl DefaultSymbolResolver<'_> {
-    pub fn new<'a>(
-        repo: &'a dyn Repo,
-        workspace_id: Option<&'a WorkspaceId>,
-    ) -> DefaultSymbolResolver<'a> {
-        DefaultSymbolResolver { repo, workspace_id }
+impl<'a> DefaultSymbolResolver<'a> {
+    pub fn new(repo: &'a dyn Repo, workspace_id: Option<&'a WorkspaceId>) -> Self {
+        DefaultSymbolResolver {
+            repo,
+            workspace_id,
+            commit_id_resolver: None,
+            change_id_resolver: None,
+        }
+    }
+
+    pub fn with_commit_id_resolver(
+        mut self,
+        commit_id_resolver: PrefixResolver<'a, CommitId>,
+    ) -> Self {
+        self.commit_id_resolver = Some(commit_id_resolver);
+        self
+    }
+
+    pub fn with_change_id_resolver(
+        mut self,
+        change_id_resolver: PrefixResolver<'a, Vec<CommitId>>,
+    ) -> Self {
+        self.change_id_resolver = Some(change_id_resolver);
+        self
     }
 }
 
@@ -1705,7 +1727,12 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
 
             // Try to resolve as a commit id.
             if let Some(prefix) = HexPrefix::new(symbol) {
-                match self.repo.index().resolve_prefix(&prefix) {
+                let prefix_resolution = if let Some(commit_id_resolver) = &self.commit_id_resolver {
+                    commit_id_resolver(&prefix)
+                } else {
+                    self.repo.index().resolve_prefix(&prefix)
+                };
+                match prefix_resolution {
                     PrefixResolution::AmbiguousMatch => {
                         return Err(RevsetResolutionError::AmbiguousIdPrefix(symbol.to_owned()));
                     }
@@ -1720,7 +1747,12 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
 
             // Try to resolve as a change id.
             if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
-                match self.repo.resolve_change_id_prefix(&prefix) {
+                let prefix_resolution = if let Some(change_id_resolver) = &self.change_id_resolver {
+                    change_id_resolver(&prefix)
+                } else {
+                    self.repo.resolve_change_id_prefix(&prefix)
+                };
+                match prefix_resolution {
                     PrefixResolution::AmbiguousMatch => {
                         return Err(RevsetResolutionError::AmbiguousIdPrefix(symbol.to_owned()));
                     }
