@@ -102,9 +102,9 @@
           # The CI checks against the latest nightly rustfmt, so we should too.
           (rust-bin.selectLatestNightlyWith (toolchain: toolchain.rustfmt))
 
-          # Required build dependencies
-          openssl
-          pkg-config # to find openssl
+          # Foreign dependencies
+          openssl zstd libgit2 libssh2
+          pkg-config
 
           # Additional tools recommended by contributing.md
           cargo-deny
@@ -112,6 +112,12 @@
           cargo-nextest
           cargo-watch
         ];
+
+        shellHook = ''
+          export RUST_BACKTRACE=1
+          export ZSTD_SYS_USE_PKG_CONFIG=1
+          export LIBSSH2_SYS_USE_PKG_CONFIG=1
+        '';
       };
     }));
 }
