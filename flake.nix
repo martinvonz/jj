@@ -56,7 +56,7 @@
             makeWrapper
             pkg-config
           ];
-          buildInputs = with pkgs; [ openssl dbus sqlite zstd libgit2 libssh2 ]
+          buildInputs = with pkgs; [ openssl zstd libgit2 libssh2 ]
             ++ lib.optionals stdenv.isDarwin [
             darwin.apple_sdk.frameworks.Security
             darwin.apple_sdk.frameworks.SystemConfiguration
