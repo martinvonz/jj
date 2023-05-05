@@ -60,11 +60,10 @@ only symbols.
 * `x+`: Children of `x`.
 * `:x`: Ancestors of `x`, including the commits in `x` itself.
 * `x:`: Descendants of `x`, including the commits in `x` itself.
-* `x:y`: Descendants of `x` that are also ancestors of `y`, both inclusive.
-  Equivalent to `x: & :y`. This is what `git log` calls `--ancestry-path x..y`.
-* `x..y`: Ancestors of `y` that are not also ancestors of `x`, both inclusive.
-  Equivalent to `:y ~ :x`. This is what `git log` calls `x..y` (i.e. the same as
-  we call it).
+* `x:y`: Descendants of `x` that are also ancestors of `y`. Equivalent to
+  `x: & :y`. This is what `git log` calls `--ancestry-path x..y`.
+* `x..y`: Ancestors of `y` that are not also ancestors of `x`. Equivalent to
+  `:y ~ :x`. This is what `git log` calls `x..y` (i.e. the same as we call it).
 * `..x`: Ancestors of `x`, including the commits in `x` itself. Equivalent to
    `:x` and provided for consistency.
 * `x..`: Revisions that are not ancestors of `x`.
