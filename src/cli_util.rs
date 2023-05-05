@@ -924,7 +924,14 @@ impl WorkspaceCommandHelper {
     }
 
     pub(crate) fn revset_symbol_resolver(&self) -> DefaultSymbolResolver<'_> {
+        let id_prefix_context = self.id_prefix_context();
+        let commit_id_resolver: revset::PrefixResolver<'_, CommitId> =
+            Box::new(|prefix| id_prefix_context.resolve_commit_prefix(prefix));
+        let change_id_resolver: revset::PrefixResolver<'_, Vec<CommitId>> =
+            Box::new(|prefix| id_prefix_context.resolve_change_prefix(prefix));
         DefaultSymbolResolver::new(self.repo().as_ref(), Some(self.workspace_id()))
+            .with_commit_id_resolver(commit_id_resolver)
+            .with_change_id_resolver(change_id_resolver)
     }
 
     pub fn id_prefix_context(&self) -> &IdPrefixContext<'_> {
