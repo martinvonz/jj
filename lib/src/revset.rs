@@ -436,7 +436,9 @@ impl RevsetExpression {
         self: Rc<Self>,
         repo: &dyn Repo,
     ) -> Result<ResolvedExpression, RevsetResolutionError> {
-        resolve_symbols(repo, self, None).map(|expression| resolve_visibility(repo, &expression))
+        let symbol_resolver = DefaultSymbolResolver::new(repo, None);
+        resolve_symbols(repo, self, &symbol_resolver)
+            .map(|expression| resolve_visibility(repo, &expression))
     }
 
     pub fn resolve_in_workspace(
@@ -444,7 +446,8 @@ impl RevsetExpression {
         repo: &dyn Repo,
         workspace_ctx: &RevsetWorkspaceContext,
     ) -> Result<ResolvedExpression, RevsetResolutionError> {
-        resolve_symbols(repo, self, Some(workspace_ctx))
+        let symbol_resolver = DefaultSymbolResolver::new(repo, Some(workspace_ctx.workspace_id));
+        resolve_symbols(repo, self, &symbol_resolver)
             .map(|expression| resolve_visibility(repo, &expression))
     }
 }
@@ -1663,72 +1666,96 @@ fn resolve_change_id(
     }
 }
 
+pub trait SymbolResolver {
+    fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError>;
+}
+
+/// Resolves the "root" and "@" symbols, branches, remote branches, tags, git
+/// refs, and full and abbreviated commit and change ids.
+pub struct DefaultSymbolResolver<'a> {
+    repo: &'a dyn Repo,
+    workspace_id: Option<&'a WorkspaceId>,
+}
+
+impl DefaultSymbolResolver<'_> {
+    pub fn new<'a>(
+        repo: &'a dyn Repo,
+        workspace_id: Option<&'a WorkspaceId>,
+    ) -> DefaultSymbolResolver<'a> {
+        DefaultSymbolResolver { repo, workspace_id }
+    }
+}
+
+impl SymbolResolver for DefaultSymbolResolver<'_> {
+    fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
+        if symbol.ends_with('@') {
+            let target_workspace = if symbol == "@" {
+                if let Some(workspace_id) = self.workspace_id {
+                    workspace_id.clone()
+                } else {
+                    return Err(RevsetResolutionError::NoSuchRevision(symbol.to_owned()));
+                }
+            } else {
+                WorkspaceId::new(symbol.strip_suffix('@').unwrap().to_string())
+            };
+            if let Some(commit_id) = self.repo.view().get_wc_commit_id(&target_workspace) {
+                Ok(vec![commit_id.clone()])
+            } else {
+                Err(RevsetResolutionError::NoSuchRevision(symbol.to_owned()))
+            }
+        } else if symbol == "root" {
+            Ok(vec![self.repo.store().root_commit_id().clone()])
+        } else {
+            // Try to resolve as a tag
+            if let Some(target) = self.repo.view().tags().get(symbol) {
+                return Ok(target.adds());
+            }
+
+            // Try to resolve as a branch
+            if let Some(ids) = resolve_branch(self.repo, symbol) {
+                return Ok(ids);
+            }
+
+            // Try to resolve as a git ref
+            if let Some(ids) = resolve_git_ref(self.repo, symbol) {
+                return Ok(ids);
+            }
+
+            // Try to resolve as a full commit id.
+            if let Some(ids) = resolve_full_commit_id(self.repo, symbol)? {
+                return Ok(ids);
+            }
+
+            // Try to resolve as a commit id.
+            if let Some(ids) = resolve_short_commit_id(self.repo, symbol)? {
+                return Ok(ids);
+            }
+
+            // Try to resolve as a change id.
+            if let Some(ids) = resolve_change_id(self.repo, symbol)? {
+                return Ok(ids);
+            }
+
+            Err(RevsetResolutionError::NoSuchRevision(symbol.to_owned()))
+        }
+    }
+}
+
 pub fn resolve_symbol(
     repo: &dyn Repo,
     symbol: &str,
     workspace_id: Option<&WorkspaceId>,
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
-    if symbol.ends_with('@') {
-        let target_workspace = if symbol == "@" {
-            if let Some(workspace_id) = workspace_id {
-                workspace_id.clone()
-            } else {
-                return Err(RevsetResolutionError::NoSuchRevision(symbol.to_owned()));
-            }
-        } else {
-            WorkspaceId::new(symbol.strip_suffix('@').unwrap().to_string())
-        };
-        if let Some(commit_id) = repo.view().get_wc_commit_id(&target_workspace) {
-            Ok(vec![commit_id.clone()])
-        } else {
-            Err(RevsetResolutionError::NoSuchRevision(symbol.to_owned()))
-        }
-    } else if symbol == "root" {
-        Ok(vec![repo.store().root_commit_id().clone()])
-    } else {
-        // Try to resolve as a tag
-        if let Some(target) = repo.view().tags().get(symbol) {
-            return Ok(target.adds());
-        }
-
-        // Try to resolve as a branch
-        if let Some(ids) = resolve_branch(repo, symbol) {
-            return Ok(ids);
-        }
-
-        // Try to resolve as a git ref
-        if let Some(ids) = resolve_git_ref(repo, symbol) {
-            return Ok(ids);
-        }
-
-        // Try to resolve as a full commit id.
-        if let Some(ids) = resolve_full_commit_id(repo, symbol)? {
-            return Ok(ids);
-        }
-
-        // Try to resolve as a commit id.
-        if let Some(ids) = resolve_short_commit_id(repo, symbol)? {
-            return Ok(ids);
-        }
-
-        // Try to resolve as a change id.
-        if let Some(ids) = resolve_change_id(repo, symbol)? {
-            return Ok(ids);
-        }
-
-        Err(RevsetResolutionError::NoSuchRevision(symbol.to_owned()))
-    }
+    DefaultSymbolResolver::new(repo, workspace_id).resolve_symbol(symbol)
 }
 
 fn resolve_commit_ref(
     repo: &dyn Repo,
     commit_ref: &RevsetCommitRef,
-    workspace_ctx: Option<&RevsetWorkspaceContext>,
+    symbol_resolver: &dyn SymbolResolver,
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
     match commit_ref {
-        RevsetCommitRef::Symbol(symbol) => {
-            resolve_symbol(repo, symbol, workspace_ctx.map(|ctx| ctx.workspace_id))
-        }
+        RevsetCommitRef::Symbol(symbol) => symbol_resolver.resolve_symbol(symbol),
         RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
         RevsetCommitRef::Branches(needle) => {
             let mut commit_ids = vec![];
@@ -1786,14 +1813,14 @@ fn resolve_commit_ref(
 fn resolve_symbols(
     repo: &dyn Repo,
     expression: Rc<RevsetExpression>,
-    workspace_ctx: Option<&RevsetWorkspaceContext>,
+    symbol_resolver: &dyn SymbolResolver,
 ) -> Result<Rc<RevsetExpression>, RevsetResolutionError> {
     Ok(try_transform_expression(
         &expression,
         |expression| match expression.as_ref() {
             // 'present(x)' opens new symbol resolution scope to map error to 'none()'.
             RevsetExpression::Present(candidates) => {
-                resolve_symbols(repo, candidates.clone(), workspace_ctx)
+                resolve_symbols(repo, candidates.clone(), symbol_resolver)
                     .or_else(|err| match err {
                         RevsetResolutionError::NoSuchRevision(_) => Ok(RevsetExpression::none()),
                         RevsetResolutionError::AmbiguousIdPrefix(_)
@@ -1806,7 +1833,7 @@ fn resolve_symbols(
         },
         |expression| match expression.as_ref() {
             RevsetExpression::CommitRef(commit_ref) => {
-                let commit_ids = resolve_commit_ref(repo, commit_ref, workspace_ctx)?;
+                let commit_ids = resolve_commit_ref(repo, commit_ref, symbol_resolver)?;
                 Ok(Some(RevsetExpression::commits(commit_ids)))
             }
             _ => Ok(None),
