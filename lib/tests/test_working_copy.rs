@@ -45,7 +45,7 @@ fn test_root(use_git: bool) {
     let wc = test_workspace.workspace.working_copy_mut();
     assert_eq!(wc.sparse_patterns(), vec![RepoPath::root()]);
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.discard();
     let wc_commit_id = repo
         .view()
@@ -209,7 +209,7 @@ fn test_checkout_file_transitions(use_git: bool) {
 
     // Check that the working copy is clean.
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.discard();
     assert_eq!(new_tree_id, right_tree_id);
 
@@ -307,7 +307,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     assert_eq!(new_tree_id, *tree_without_file.id());
     locked_wc.discard();
 
@@ -320,7 +320,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     assert_eq!(new_tree_id, *tree_without_file.id());
     locked_wc.discard();
 
@@ -332,7 +332,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     assert_eq!(new_tree_id, *tree_with_file.id());
     locked_wc.discard();
 }
@@ -408,7 +408,7 @@ fn test_snapshot_racy_timestamps(use_git: bool) {
             file.write_all(format!("contents {i}").as_bytes()).unwrap();
         }
         let mut locked_wc = wc.start_mutation();
-        let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+        let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
         locked_wc.discard();
         assert_ne!(new_tree_id, previous_tree_id);
         previous_tree_id = new_tree_id;
@@ -440,7 +440,7 @@ fn test_snapshot_special_file() {
     // Snapshot the working copy with the socket file
     let wc = test_workspace.workspace.working_copy_mut();
     let mut locked_wc = wc.start_mutation();
-    let tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.finish(OperationId::from_hex("abc123"));
     let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
     // Only the regular files should be in the tree
@@ -457,7 +457,7 @@ fn test_snapshot_special_file() {
     std::fs::remove_file(&file1_disk_path).unwrap();
     UnixListener::bind(&file1_disk_path).unwrap();
     let mut locked_wc = wc.start_mutation();
-    let tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.finish(OperationId::from_hex("abc123"));
     let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
     // Only the regular file should be in the tree
@@ -497,7 +497,7 @@ fn test_gitignores(use_git: bool) {
 
     let wc = test_workspace.workspace.working_copy_mut();
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id1 = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id1 = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.finish(repo.op_id().clone());
     let tree1 = repo
         .store()
@@ -527,7 +527,7 @@ fn test_gitignores(use_git: bool) {
     testutils::write_working_copy_file(&workspace_root, &subdir_ignored_path, "2");
 
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id2 = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id2 = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.discard();
     let tree2 = repo
         .store()
@@ -616,7 +616,7 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     // Check that the file is still in the tree created by snapshotting the working
     // copy (that it didn't get removed because the directory is ignored)
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.discard();
     let new_tree = repo
         .store()
@@ -646,7 +646,7 @@ fn test_dotgit_ignored(use_git: bool) {
         "contents",
     );
     let mut locked_wc = test_workspace.workspace.working_copy_mut().start_mutation();
-    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     assert_eq!(new_tree_id, *repo.store().empty_tree_id());
     locked_wc.discard();
     std::fs::remove_dir_all(&dotgit_path).unwrap();
@@ -658,7 +658,7 @@ fn test_dotgit_ignored(use_git: bool) {
         "contents",
     );
     let mut locked_wc = test_workspace.workspace.working_copy_mut().start_mutation();
-    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     assert_eq!(new_tree_id, *repo.store().empty_tree_id());
     locked_wc.discard();
 }
@@ -712,7 +712,7 @@ fn test_gitsubmodule() {
     // Check that the files present in the submodule are not tracked
     // when we snapshot
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.discard();
     assert_eq!(new_tree_id, tree_id);
 

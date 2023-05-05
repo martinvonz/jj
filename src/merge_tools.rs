@@ -379,7 +379,7 @@ pub fn edit_diff(
         std::fs::remove_file(instructions_path).ok();
     }
 
-    right_tree_state.snapshot(base_ignores)?;
+    right_tree_state.snapshot(base_ignores, None)?;
     Ok(right_tree_state.current_tree_id().clone())
 }
 
