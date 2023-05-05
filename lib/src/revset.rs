@@ -436,7 +436,7 @@ impl RevsetExpression {
         self: Rc<Self>,
         repo: &dyn Repo,
     ) -> Result<ResolvedExpression, RevsetResolutionError> {
-        let symbol_resolver = DefaultSymbolResolver::new(repo, None);
+        let symbol_resolver = FailingSymbolResolver;
         resolve_symbols(repo, self, &symbol_resolver)
             .map(|expression| resolve_visibility(repo, &expression))
     }
@@ -1667,6 +1667,18 @@ fn resolve_change_id(
 
 pub trait SymbolResolver {
     fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError>;
+}
+
+/// Fails on any attempt to resolve a symbol.
+pub struct FailingSymbolResolver;
+
+impl SymbolResolver for FailingSymbolResolver {
+    fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
+        Err(RevsetResolutionError::NoSuchRevision(format!(
+            "Won't resolve symbol {symbol:?}. When creating revsets programmatically, avoid using \
+             RevsetExpression::symbol(); use RevsetExpression::commits() instead."
+        )))
+    }
 }
 
 /// Resolves the "root" and "@" symbols, branches, remote branches, tags, git
