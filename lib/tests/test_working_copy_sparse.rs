@@ -168,7 +168,7 @@ fn test_sparse_commit() {
     // Create a tree from the working copy. Only dir1/file1 should be updated in the
     // tree.
     let mut locked_wc = wc.start_mutation();
-    let modified_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let modified_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.finish(repo.op_id().clone());
     let modified_tree = repo
         .store()
@@ -187,7 +187,7 @@ fn test_sparse_commit() {
     // Create a tree from the working copy. Only dir1/file1 and dir2/file1 should be
     // updated in the tree.
     let mut locked_wc = wc.start_mutation();
-    let modified_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let modified_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.finish(repo.op_id().clone());
     let modified_tree = repo
         .store()
@@ -228,7 +228,7 @@ fn test_sparse_commit_gitignore() {
     // Create a tree from the working copy. Only dir1/file2 should be updated in the
     // tree because dir1/file1 is ignored.
     let mut locked_wc = wc.start_mutation();
-    let modified_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    let modified_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
     locked_wc.finish(repo.op_id().clone());
     let modified_tree = repo
         .store()

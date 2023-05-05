@@ -482,7 +482,11 @@ impl TreeState {
 
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it.
-    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<bool, SnapshotError> {
+    pub fn snapshot(
+        &mut self,
+        base_ignores: Arc<GitIgnoreFile>,
+        progress: Option<&SnapshotProgress<'_>>,
+    ) -> Result<bool, SnapshotError> {
         let sparse_matcher = self.sparse_matcher();
         let mut work = vec![(
             RepoPath::root(),
@@ -535,6 +539,9 @@ impl TreeState {
                 } else {
                     deleted_files.remove(&sub_path);
                     if sparse_matcher.matches(&sub_path) {
+                        if let Some(progress) = progress {
+                            progress(&sub_path);
+                        }
                         self.update_file_state(
                             sub_path,
                             &entry,
@@ -1211,9 +1218,13 @@ impl LockedWorkingCopy<'_> {
     // The base_ignores are passed in here rather than being set on the TreeState
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
-    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
+    pub fn snapshot(
+        &mut self,
+        base_ignores: Arc<GitIgnoreFile>,
+        progress: Option<&SnapshotProgress<'_>>,
+    ) -> Result<TreeId, SnapshotError> {
         let tree_state = self.wc.tree_state_mut();
-        self.tree_state_dirty |= tree_state.snapshot(base_ignores)?;
+        self.tree_state_dirty |= tree_state.snapshot(base_ignores, progress)?;
         Ok(tree_state.current_tree_id().clone())
     }
 
@@ -1278,3 +1289,5 @@ impl Drop for LockedWorkingCopy<'_> {
         }
     }
 }
+
+pub type SnapshotProgress<'a> = dyn Fn(&RepoPath) + 'a;

@@ -1000,7 +1000,7 @@ impl WorkspaceCommandHelper {
                 )));
             }
         };
-        let new_tree_id = locked_wc.snapshot(base_ignores)?;
+        let new_tree_id = locked_wc.snapshot(base_ignores, None)?;
         if new_tree_id != *wc_commit.tree_id() {
             let mut tx = start_repo_transaction(
                 &self.repo,
