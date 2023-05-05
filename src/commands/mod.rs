@@ -3224,7 +3224,8 @@ fn cmd_debug_revset(
     writeln!(ui, "{expression:#?}")?;
     writeln!(ui)?;
 
-    let expression = expression.resolve_in_workspace(repo, &workspace_ctx)?;
+    let expression =
+        expression.resolve_user_expression(repo, &workspace_command.revset_symbol_resolver())?;
     writeln!(ui, "-- Resolved:")?;
     writeln!(ui, "{expression:#?}")?;
     writeln!(ui)?;
