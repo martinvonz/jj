@@ -1631,40 +1631,6 @@ fn resolve_full_commit_id(
     }
 }
 
-fn resolve_short_commit_id(
-    repo: &dyn Repo,
-    symbol: &str,
-) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
-    if let Some(prefix) = HexPrefix::new(symbol) {
-        match repo.index().resolve_prefix(&prefix) {
-            PrefixResolution::NoMatch => Ok(None),
-            PrefixResolution::AmbiguousMatch => {
-                Err(RevsetResolutionError::AmbiguousIdPrefix(symbol.to_owned()))
-            }
-            PrefixResolution::SingleMatch(commit_id) => Ok(Some(vec![commit_id])),
-        }
-    } else {
-        Ok(None)
-    }
-}
-
-fn resolve_change_id(
-    repo: &dyn Repo,
-    symbol: &str,
-) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
-    if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
-        match repo.resolve_change_id_prefix(&prefix) {
-            PrefixResolution::NoMatch => Ok(None),
-            PrefixResolution::AmbiguousMatch => {
-                Err(RevsetResolutionError::AmbiguousIdPrefix(symbol.to_owned()))
-            }
-            PrefixResolution::SingleMatch(entries) => Ok(Some(entries)),
-        }
-    } else {
-        Ok(None)
-    }
-}
-
 pub trait SymbolResolver {
     fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError>;
 }
@@ -1738,13 +1704,33 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             }
 
             // Try to resolve as a commit id.
-            if let Some(ids) = resolve_short_commit_id(self.repo, symbol)? {
-                return Ok(ids);
+            if let Some(prefix) = HexPrefix::new(symbol) {
+                match self.repo.index().resolve_prefix(&prefix) {
+                    PrefixResolution::AmbiguousMatch => {
+                        return Err(RevsetResolutionError::AmbiguousIdPrefix(symbol.to_owned()));
+                    }
+                    PrefixResolution::SingleMatch(id) => {
+                        return Ok(vec![id]);
+                    }
+                    PrefixResolution::NoMatch => {
+                        // Fall through
+                    }
+                }
             }
 
             // Try to resolve as a change id.
-            if let Some(ids) = resolve_change_id(self.repo, symbol)? {
-                return Ok(ids);
+            if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
+                match self.repo.resolve_change_id_prefix(&prefix) {
+                    PrefixResolution::AmbiguousMatch => {
+                        return Err(RevsetResolutionError::AmbiguousIdPrefix(symbol.to_owned()));
+                    }
+                    PrefixResolution::SingleMatch(ids) => {
+                        return Ok(ids);
+                    }
+                    PrefixResolution::NoMatch => {
+                        // Fall through
+                    }
+                }
             }
 
             Err(RevsetResolutionError::NoSuchRevision(symbol.to_owned()))
