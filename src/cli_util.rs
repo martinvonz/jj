@@ -44,8 +44,9 @@ use jujutsu_lib::repo::{
 };
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
-    Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression, RevsetIteratorExt,
-    RevsetParseError, RevsetParseErrorKind, RevsetResolutionError, RevsetWorkspaceContext,
+    DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression,
+    RevsetIteratorExt, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
+    RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::transaction::Transaction;
@@ -883,8 +884,8 @@ impl WorkspaceCommandHelper {
         &'repo self,
         revset_expression: Rc<RevsetExpression>,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, CommandError> {
-        let revset_expression =
-            revset_expression.resolve_in_workspace(self.repo.as_ref(), &self.revset_context())?;
+        let revset_expression = revset_expression
+            .resolve_user_expression(self.repo.as_ref(), &self.revset_symbol_resolver())?;
         Ok(revset_expression.evaluate(self.repo.as_ref())?)
     }
 
@@ -898,6 +899,10 @@ impl WorkspaceCommandHelper {
             workspace_id: self.workspace_id(),
             workspace_root: self.workspace.workspace_root(),
         }
+    }
+
+    pub(crate) fn revset_symbol_resolver(&self) -> DefaultSymbolResolver<'_> {
+        DefaultSymbolResolver::new(self.repo().as_ref(), Some(self.workspace_id()))
     }
 
     pub fn template_aliases_map(&self) -> &TemplateAliasesMap {

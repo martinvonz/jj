@@ -24,9 +24,9 @@ use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    optimize, parse, resolve_symbol, ReverseRevsetGraphIterator, Revset, RevsetAliasesMap,
-    RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge, RevsetResolutionError,
-    RevsetWorkspaceContext,
+    optimize, parse, resolve_symbol, DefaultSymbolResolver, ReverseRevsetGraphIterator, Revset,
+    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
+    RevsetResolutionError, RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::tree::merge_trees;
@@ -521,8 +521,9 @@ fn resolve_commit_ids_in_workspace(
     };
     let expression =
         optimize(parse(revset_str, &RevsetAliasesMap::new(), Some(&workspace_ctx)).unwrap());
+    let symbol_resolver = DefaultSymbolResolver::new(repo, Some(workspace_ctx.workspace_id));
     let expression = expression
-        .resolve_in_workspace(repo, &workspace_ctx)
+        .resolve_user_expression(repo, &symbol_resolver)
         .unwrap();
     expression.evaluate(repo).unwrap().iter().collect()
 }

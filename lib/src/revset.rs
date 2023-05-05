@@ -441,13 +441,12 @@ impl RevsetExpression {
             .map(|expression| resolve_visibility(repo, &expression))
     }
 
-    pub fn resolve_in_workspace(
+    pub fn resolve_user_expression(
         self: Rc<Self>,
         repo: &dyn Repo,
-        workspace_ctx: &RevsetWorkspaceContext,
+        symbol_resolver: &dyn SymbolResolver,
     ) -> Result<ResolvedExpression, RevsetResolutionError> {
-        let symbol_resolver = DefaultSymbolResolver::new(repo, Some(workspace_ctx.workspace_id));
-        resolve_symbols(repo, self, &symbol_resolver)
+        resolve_symbols(repo, self, symbol_resolver)
             .map(|expression| resolve_visibility(repo, &expression))
     }
 }
