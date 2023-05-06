@@ -12,27 +12,114 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::rc::Rc;
+
+use once_cell::unsync::OnceCell;
+
 use crate::backend::{self, ChangeId, CommitId, ObjectId};
 use crate::index::{HexPrefix, PrefixResolution};
+use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
+use crate::revset::{DefaultSymbolResolver, RevsetExpression, RevsetIteratorExt};
+
+struct PrefixDisambiguationError;
+
+struct DisambiguationData {
+    expression: Rc<RevsetExpression>,
+    workspace_id: Option<WorkspaceId>,
+    // TODO: We shouldn't have to duplicate the CommitId as value
+    indexes: OnceCell<Indexes>,
+}
+
+struct Indexes {
+    commit_index: IdIndex<CommitId, CommitId>,
+    change_index: IdIndex<ChangeId, CommitId>,
+}
+
+impl DisambiguationData {
+    fn indexes(&self, repo: &dyn Repo) -> Result<&Indexes, PrefixDisambiguationError> {
+        self.indexes.get_or_try_init(|| {
+            let symbol_resolver = DefaultSymbolResolver::new(repo, self.workspace_id.as_ref());
+            let resolved_expression = self
+                .expression
+                .clone()
+                .resolve_user_expression(repo, &symbol_resolver)
+                .map_err(|_| PrefixDisambiguationError)?;
+            let revset = resolved_expression
+                .evaluate(repo)
+                .map_err(|_| PrefixDisambiguationError)?;
+
+            // TODO: We should be able to get the change IDs from the revset, without having
+            // to read the whole commit objects
+            let mut commit_id_vec = vec![];
+            let mut change_id_vec = vec![];
+            for commit in revset.iter().commits(repo.store()) {
+                let commit = commit.map_err(|_| PrefixDisambiguationError)?;
+                commit_id_vec.push((commit.id().clone(), commit.id().clone()));
+                change_id_vec.push((commit.change_id().clone(), commit.id().clone()));
+            }
+            Ok(Indexes {
+                commit_index: IdIndex::from_vec(commit_id_vec),
+                change_index: IdIndex::from_vec(change_id_vec),
+            })
+        })
+    }
+}
 
 pub struct IdPrefixContext<'repo> {
     repo: &'repo dyn Repo,
+    disambiguation: Option<DisambiguationData>,
 }
 
 impl IdPrefixContext<'_> {
     pub fn new(repo: &dyn Repo) -> IdPrefixContext {
-        IdPrefixContext { repo }
+        IdPrefixContext {
+            repo,
+            disambiguation: None,
+        }
+    }
+
+    pub fn disambiguate_within(
+        mut self,
+        expression: Rc<RevsetExpression>,
+        workspace_id: Option<WorkspaceId>,
+    ) -> Self {
+        self.disambiguation = Some(DisambiguationData {
+            workspace_id,
+            expression,
+            indexes: OnceCell::new(),
+        });
+        self
+    }
+
+    fn disambiguation_indexes(&self) -> Option<&Indexes> {
+        // TODO: propagate errors instead of treating them as if no revset was specified
+        self.disambiguation
+            .as_ref()
+            .and_then(|disambiguation| disambiguation.indexes(self.repo).ok())
     }
 
     /// Resolve an unambiguous commit ID prefix.
     pub fn resolve_commit_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+        if let Some(indexes) = self.disambiguation_indexes() {
+            let resolution = indexes.commit_index.resolve_prefix(prefix);
+            if let PrefixResolution::SingleMatch(mut ids) = resolution {
+                assert_eq!(ids.len(), 1);
+                return PrefixResolution::SingleMatch(ids.pop().unwrap());
+            }
+        }
         self.repo.index().resolve_prefix(prefix)
     }
 
     /// Returns the shortest length of a prefix of `commit_id` that
     /// can still be resolved by `resolve_commit_prefix()`.
     pub fn shortest_commit_prefix_len(&self, commit_id: &CommitId) -> usize {
+        if let Some(indexes) = self.disambiguation_indexes() {
+            // TODO: Avoid the double lookup here (has_key() + shortest_unique_prefix_len())
+            if indexes.commit_index.has_key(commit_id) {
+                return indexes.commit_index.shortest_unique_prefix_len(commit_id);
+            }
+        }
         self.repo
             .index()
             .shortest_unique_commit_id_prefix_len(commit_id)
@@ -40,12 +127,23 @@ impl IdPrefixContext<'_> {
 
     /// Resolve an unambiguous change ID prefix to the commit IDs in the revset.
     pub fn resolve_change_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
+        if let Some(indexes) = self.disambiguation_indexes() {
+            let resolution = indexes.change_index.resolve_prefix(prefix);
+            if let PrefixResolution::SingleMatch(ids) = resolution {
+                return PrefixResolution::SingleMatch(ids);
+            }
+        }
         self.repo.resolve_change_id_prefix(prefix)
     }
 
     /// Returns the shortest length of a prefix of `change_id` that
     /// can still be resolved by `resolve_change_prefix()`.
     pub fn shortest_change_prefix_len(&self, change_id: &ChangeId) -> usize {
+        if let Some(indexes) = self.disambiguation_indexes() {
+            if indexes.change_index.has_key(change_id) {
+                return indexes.change_index.shortest_unique_prefix_len(change_id);
+            }
+        }
         self.repo.shortest_unique_change_id_prefix_len(change_id)
     }
 }
@@ -71,6 +169,10 @@ where
         prefix: &HexPrefix,
         mut value_mapper: impl FnMut(&V) -> U,
     ) -> PrefixResolution<Vec<U>> {
+        if prefix.min_prefix_bytes().is_empty() {
+            // We consider an empty prefix ambiguous even if the index has a single entry.
+            return PrefixResolution::AmbiguousMatch;
+        }
         let mut range = self.resolve_prefix_range(prefix).peekable();
         if let Some((first_key, _)) = range.peek().copied() {
             let maybe_entries: Option<Vec<_>> = range
@@ -135,7 +237,8 @@ where
                 backend::common_hex_len(key.as_bytes(), neighbor.as_bytes()) + 1
             })
             .max()
-            .unwrap_or(0)
+            // Even if the key is the only one in the index, we require at least one digit.
+            .unwrap_or(1)
     }
 }
 
@@ -214,7 +317,7 @@ mod tests {
         let id_index = IdIndex::from_vec(vec![] as Vec<(ChangeId, ())>);
         assert_eq!(
             id_index.shortest_unique_prefix_len(&ChangeId::from_hex("00")),
-            0
+            1
         );
 
         let id_index = IdIndex::from_vec(vec![
