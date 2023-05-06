@@ -542,6 +542,18 @@ impl CommandHelper {
     }
 }
 
+/// A ReadonlyRepo along with user-config-dependent derived data. The derived
+/// data is lazily loaded.
+struct ReadonlyUserRepo {
+    repo: Arc<ReadonlyRepo>,
+}
+
+impl ReadonlyUserRepo {
+    fn new(repo: Arc<ReadonlyRepo>) -> Self {
+        Self { repo }
+    }
+}
+
 // Provides utilities for writing a command that works on a workspace (like most
 // commands do).
 pub struct WorkspaceCommandHelper {
@@ -550,7 +562,7 @@ pub struct WorkspaceCommandHelper {
     global_args: GlobalArgs,
     settings: UserSettings,
     workspace: Workspace,
-    repo: Arc<ReadonlyRepo>,
+    user_repo: ReadonlyUserRepo,
     revset_aliases_map: RevsetAliasesMap,
     template_aliases_map: TemplateAliasesMap,
     may_update_working_copy: bool,
@@ -595,7 +607,7 @@ impl WorkspaceCommandHelper {
             global_args: global_args.clone(),
             settings,
             workspace,
-            repo,
+            user_repo: ReadonlyUserRepo::new(repo),
             revset_aliases_map,
             template_aliases_map,
             may_update_working_copy,
@@ -624,7 +636,7 @@ impl WorkspaceCommandHelper {
     pub fn snapshot(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             if self.working_copy_shared_with_git {
-                let maybe_git_repo = self.repo.store().git_repo();
+                let maybe_git_repo = self.repo().store().git_repo();
                 self.import_git_refs_and_head(ui, maybe_git_repo.as_ref().unwrap())?;
             }
             self.snapshot_working_copy(ui)?;
@@ -640,16 +652,16 @@ impl WorkspaceCommandHelper {
         let mut tx = self.start_transaction("import git refs").into_inner();
         git::import_refs(tx.mut_repo(), git_repo, &self.settings.git_settings())?;
         if tx.mut_repo().has_changes() {
-            let old_git_head = self.repo.view().git_head().cloned();
+            let old_git_head = self.repo().view().git_head().cloned();
             let new_git_head = tx.mut_repo().view().git_head().cloned();
             // If the Git HEAD has changed, abandon our old checkout and check out the new
             // Git HEAD.
             match new_git_head {
                 Some(RefTarget::Normal(new_git_head_id)) if new_git_head != old_git_head => {
                     let workspace_id = self.workspace_id().to_owned();
-                    let mut locked_working_copy =
-                        self.workspace.working_copy_mut().start_mutation();
-                    if let Some(old_wc_commit_id) = self.repo.view().get_wc_commit_id(&workspace_id)
+                    let op_id = self.repo().op_id().clone();
+                    if let Some(old_wc_commit_id) =
+                        self.repo().view().get_wc_commit_id(&workspace_id)
                     {
                         tx.mut_repo()
                             .record_abandoned_commit(old_wc_commit_id.clone());
@@ -657,13 +669,15 @@ impl WorkspaceCommandHelper {
                     let new_git_head_commit = tx.mut_repo().store().get_commit(&new_git_head_id)?;
                     tx.mut_repo()
                         .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
+                    let mut locked_working_copy =
+                        self.workspace.working_copy_mut().start_mutation();
                     // The working copy was presumably updated by the git command that updated
                     // HEAD, so we just need to reset our working copy
                     // state to it without updating working copy files.
                     locked_working_copy.reset(&new_git_head_commit.tree())?;
                     tx.mut_repo().rebase_descendants(&self.settings)?;
-                    self.repo = tx.commit();
-                    locked_working_copy.finish(self.repo.op_id().clone());
+                    self.user_repo = ReadonlyUserRepo::new(tx.commit());
+                    locked_working_copy.finish(op_id);
                 }
                 _ => {
                     let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
@@ -710,7 +724,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn repo(&self) -> &Arc<ReadonlyRepo> {
-        &self.repo
+        &self.user_repo.repo
     }
 
     pub fn working_copy(&self) -> &WorkingCopy {
@@ -722,7 +736,7 @@ impl WorkspaceCommandHelper {
     ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
         self.check_working_copy_writable()?;
         let wc_commit = if let Some(wc_commit_id) = self.get_wc_commit_id() {
-            self.repo.store().get_commit(wc_commit_id)?
+            self.repo().store().get_commit(wc_commit_id)?
         } else {
             return Err(user_error("Nothing checked out in this workspace"));
         };
@@ -751,7 +765,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn get_wc_commit_id(&self) -> Option<&CommitId> {
-        self.repo.view().get_wc_commit_id(self.workspace_id())
+        self.repo().view().get_wc_commit_id(self.workspace_id())
     }
 
     pub fn working_copy_shared_with_git(&self) -> bool {
@@ -785,7 +799,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn git_config(&self) -> Result<git2::Config, git2::Error> {
-        if let Some(git_repo) = self.repo.store().git_repo() {
+        if let Some(git_repo) = self.repo().store().git_repo() {
             git_repo.config()
         } else {
             git2::Config::open_default()
@@ -814,7 +828,7 @@ impl WorkspaceCommandHelper {
         {
             git_ignores = git_ignores.chain_with_file("", excludes_file_path);
         }
-        if let Some(git_repo) = self.repo.store().git_repo() {
+        if let Some(git_repo) = self.repo().store().git_repo() {
             git_ignores =
                 git_ignores.chain_with_file("", git_repo.path().join("info").join("exclude"));
         }
@@ -825,9 +839,9 @@ impl WorkspaceCommandHelper {
         // When resolving the "@" operation in a `ReadonlyRepo`, we resolve it to the
         // operation the repo was loaded at.
         resolve_single_op(
-            self.repo.op_store(),
-            self.repo.op_heads_store(),
-            || Ok(self.repo.operation().clone()),
+            self.repo().op_store(),
+            self.repo().op_heads_store(),
+            || Ok(self.repo().operation().clone()),
             op_str,
         )
     }
@@ -835,7 +849,7 @@ impl WorkspaceCommandHelper {
     pub fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
         let revset_expression = self.parse_revset(revision_str)?;
         let revset = self.evaluate_revset(revset_expression)?;
-        let mut iter = revset.iter().commits(self.repo.store()).fuse();
+        let mut iter = revset.iter().commits(self.repo().store()).fuse();
         match (iter.next(), iter.next()) {
             (Some(commit), None) => Ok(commit?),
             (None, _) => Err(user_error(format!(
@@ -865,7 +879,7 @@ impl WorkspaceCommandHelper {
     pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
         let revset_expression = self.parse_revset(revision_str)?;
         let revset = self.evaluate_revset(revset_expression)?;
-        Ok(revset.iter().commits(self.repo.store()).try_collect()?)
+        Ok(revset.iter().commits(self.repo().store()).try_collect()?)
     }
 
     pub fn parse_revset(
@@ -885,8 +899,8 @@ impl WorkspaceCommandHelper {
         revset_expression: Rc<RevsetExpression>,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, CommandError> {
         let revset_expression = revset_expression
-            .resolve_user_expression(self.repo.as_ref(), &self.revset_symbol_resolver())?;
-        Ok(revset_expression.evaluate(self.repo.as_ref())?)
+            .resolve_user_expression(self.repo().as_ref(), &self.revset_symbol_resolver())?;
+        Ok(revset_expression.evaluate(self.repo().as_ref())?)
     }
 
     pub(crate) fn revset_aliases_map(&self) -> &RevsetAliasesMap {
@@ -914,7 +928,7 @@ impl WorkspaceCommandHelper {
         template_text: &str,
     ) -> Result<Box<dyn Template<Commit> + '_>, TemplateParseError> {
         commit_templater::parse(
-            self.repo.as_ref(),
+            self.repo().as_ref(),
             self.workspace_id(),
             template_text,
             &self.template_aliases_map,
@@ -936,7 +950,7 @@ impl WorkspaceCommandHelper {
         commit: &Commit,
     ) -> std::io::Result<()> {
         let template = parse_commit_summary_template(
-            self.repo.as_ref(),
+            self.repo().as_ref(),
             self.workspace_id(),
             &self.template_aliases_map,
             &self.settings,
@@ -946,7 +960,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn check_rewritable(&self, commit: &Commit) -> Result<(), CommandError> {
-        if commit.id() == self.repo.store().root_commit_id() {
+        if commit.id() == self.repo().store().root_commit_id() {
             return Err(user_error("Cannot rewrite the root commit"));
         }
         Ok(())
@@ -960,7 +974,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn snapshot_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
-        let repo = self.repo.clone();
+        let repo = self.repo().clone();
         let workspace_id = self.workspace_id().to_owned();
         let wc_commit_id = match repo.view().get_wc_commit_id(&workspace_id) {
             Some(wc_commit_id) => wc_commit_id.clone(),
@@ -974,7 +988,7 @@ impl WorkspaceCommandHelper {
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
         let old_op_id = locked_wc.old_operation_id().clone();
         let wc_commit = repo.store().get_commit(&wc_commit_id)?;
-        self.repo = match check_stale_working_copy(&locked_wc, &wc_commit, repo.clone()) {
+        let repo = match check_stale_working_copy(&locked_wc, &wc_commit, repo.clone()) {
             Ok(repo) => repo,
             Err(StaleWorkingCopyError::WorkingCopyStale) => {
                 locked_wc.discard();
@@ -1005,12 +1019,13 @@ impl WorkspaceCommandHelper {
                 )));
             }
         };
+        self.user_repo = ReadonlyUserRepo::new(repo);
         let progress = crate::progress::snapshot_progress(ui);
         let new_tree_id = locked_wc.snapshot(base_ignores, progress.as_ref().map(|x| x as _))?;
         drop(progress);
         if new_tree_id != *wc_commit.tree_id() {
             let mut tx = start_repo_transaction(
-                &self.repo,
+                &self.user_repo.repo,
                 &self.settings,
                 &self.string_args,
                 "snapshot working copy",
@@ -1032,14 +1047,14 @@ impl WorkspaceCommandHelper {
             }
 
             if self.working_copy_shared_with_git {
-                let git_repo = self.repo.store().git_repo().unwrap();
+                let git_repo = self.user_repo.repo.store().git_repo().unwrap();
                 let failed_branches = git::export_refs(mut_repo, &git_repo)?;
                 print_failed_git_export(ui, &failed_branches)?;
             }
 
-            self.repo = tx.commit();
+            self.user_repo = ReadonlyUserRepo::new(tx.commit());
         }
-        locked_wc.finish(self.repo.op_id().clone());
+        locked_wc.finish(self.user_repo.repo.op_id().clone());
         Ok(())
     }
 
@@ -1050,14 +1065,14 @@ impl WorkspaceCommandHelper {
     ) -> Result<(), CommandError> {
         assert!(self.may_update_working_copy);
         let new_commit = match self.get_wc_commit_id() {
-            Some(commit_id) => self.repo.store().get_commit(commit_id)?,
+            Some(commit_id) => self.repo().store().get_commit(commit_id)?,
             None => {
                 // It seems the workspace was deleted, so we shouldn't try to update it.
                 return Ok(());
             }
         };
         let stats = update_working_copy(
-            &self.repo,
+            &self.user_repo.repo,
             self.workspace.working_copy_mut(),
             maybe_old_commit,
             &new_commit,
@@ -1080,7 +1095,8 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn start_transaction(&mut self, description: &str) -> WorkspaceCommandTransaction {
-        let tx = start_repo_transaction(&self.repo, &self.settings, &self.string_args, description);
+        let tx =
+            start_repo_transaction(self.repo(), &self.settings, &self.string_args, description);
         WorkspaceCommandTransaction { helper: self, tx }
     }
 
@@ -1097,7 +1113,7 @@ impl WorkspaceCommandHelper {
         }
         if self.working_copy_shared_with_git {
             self.export_head_to_git(mut_repo)?;
-            let git_repo = self.repo.store().git_repo().unwrap();
+            let git_repo = self.repo().store().git_repo().unwrap();
             let failed_branches = git::export_refs(mut_repo, &git_repo)?;
             print_failed_git_export(ui, &failed_branches)?;
         }
@@ -1107,7 +1123,7 @@ impl WorkspaceCommandHelper {
             .get_wc_commit_id(self.workspace_id())
             .map(|commit_id| store.get_commit(commit_id))
             .transpose()?;
-        self.repo = tx.commit();
+        self.user_repo = ReadonlyUserRepo::new(tx.commit());
         if self.may_update_working_copy {
             self.update_working_copy(ui, maybe_old_commit.as_ref())?;
         }
