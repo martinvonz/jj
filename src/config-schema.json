@@ -270,6 +270,11 @@
                     "type": "string",
                     "description": "Default set of revisions to show when no explicit revset is given for jj log and similar commands",
                     "default": "@ | (remote_branches() | tags()).. | ((remote_branches() | tags())..)-"
+                },
+                "short-prefixes": {
+                    "type": "string",
+                    "description": "Revisions to give shorter change and commit IDs to",
+                    "default": "<revsets.log>"
                 }
             },
             "additionalProperties": {

@@ -936,7 +936,17 @@ impl WorkspaceCommandHelper {
 
     pub fn id_prefix_context(&self) -> &IdPrefixContext<'_> {
         self.user_repo.id_prefix_context.get_or_init(|| {
-            let context: IdPrefixContext<'_> = IdPrefixContext::new(self.user_repo.repo.as_ref());
+            let mut context: IdPrefixContext<'_> = IdPrefixContext::new(self.repo().as_ref());
+            let revset_string: String = self
+                .settings
+                .config()
+                .get_string("revsets.short-prefixes")
+                .unwrap_or_else(|_| self.settings.default_revset());
+            if !revset_string.is_empty() {
+                let disambiguation_revset = self.parse_revset(&revset_string).unwrap();
+                context = context
+                    .disambiguate_within(disambiguation_revset, Some(self.workspace_id().clone()));
+            }
             let context: IdPrefixContext<'static> = unsafe { std::mem::transmute(context) };
             context
         })
@@ -1284,6 +1294,7 @@ impl WorkspaceCommandTransaction<'_> {
         formatter: &mut dyn Formatter,
         commit: &Commit,
     ) -> std::io::Result<()> {
+        // TODO: Use the disambiguation revset
         let id_prefix_context = IdPrefixContext::new(self.tx.repo());
         let template = parse_commit_summary_template(
             self.tx.repo(),

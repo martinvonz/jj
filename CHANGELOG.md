@@ -87,6 +87,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Description tempfiles created via `jj describe` now have the file extension
   `.jjdescription` to help external tooling detect a unique filetype.
 
+* The shortest unique change ID prefixes and commit ID prefixes in `jj log` are
+  now shorter within the default log revset. You can override the default by
+  setting the `revsets.short-prefixes` config to a different revset.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines

@@ -281,7 +281,7 @@ fn test_log_git_head() {
     insta::assert_snapshot!(stdout, @r###"
     @  [1m[38;5;13mr[38;5;8mlvkpnrzqnoo[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;12m5[38;5;8m0aaf4754c1e[39m[0m
     │  [1minitial[0m
-    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsmwlqt[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [38;5;5mmaster[39m [38;5;5mHEAD@git[39m [1m[38;5;4m23[0m[38;5;8m0dd059e1b0[39m
+    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsmwlqt[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [38;5;5mmaster[39m [38;5;5mHEAD@git[39m [1m[38;5;4m2[0m[38;5;8m30dd059e1b0[39m
     │  [38;5;2m(empty)[39m (no description set)
     ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzzzzzz[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
        [38;5;2m(empty)[39m (no description set)
