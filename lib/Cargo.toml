@@ -47,6 +47,9 @@ tracing = "0.1.37"
 whoami = "1.4.0"
 zstd = "0.12.3"
 
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "0.37.19", features = ["fs"] }
+
 [dev-dependencies]
 assert_matches = "1.5.0"
 criterion = "0.4.0"
