@@ -1,11 +1,14 @@
 use std::io;
+use std::path::Path;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crossterm::terminal::{Clear, ClearType};
 use jujutsu_lib::git;
+use jujutsu_lib::repo_path::RepoPath;
 
 use crate::cleanup_guard::CleanupGuard;
-use crate::ui::Ui;
+use crate::ui::{OutputGuard, Ui};
 
 pub struct Progress {
     next_print: Instant,
@@ -164,6 +167,43 @@ impl RateEstimateState {
             }
         }
     }
+}
+
+pub fn snapshot_progress(ui: &mut Ui) -> Option<impl Fn(&RepoPath) + '_> {
+    struct State<'a> {
+        guard: Option<OutputGuard>,
+        ui: &'a mut Ui,
+    }
+
+    if !ui.use_progress_indicator() {
+        return None;
+    }
+
+    let start = Instant::now();
+    let state = Mutex::new(State { guard: None, ui });
+
+    Some(move |path: &RepoPath| {
+        if start.elapsed() < Duration::from_millis(250) {
+            // Don't clutter the output during fast operations. Future work: Display current
+            // path after exactly 250ms has elapsed, to better handle large single files
+            return;
+        }
+        let mut state = state.lock().unwrap();
+        if state.guard.is_none() {
+            state.guard = Some(
+                state
+                    .ui
+                    .output_guard(format!("\r{}", Clear(ClearType::CurrentLine))),
+            );
+        }
+        _ = write!(
+            state.ui,
+            "\r{}Snapshotting {}",
+            Clear(ClearType::CurrentLine),
+            path.to_fs_path(Path::new("")).display()
+        );
+        _ = state.ui.flush();
+    })
 }
 
 #[cfg(test)]
