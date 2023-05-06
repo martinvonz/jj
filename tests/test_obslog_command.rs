@@ -44,7 +44,7 @@ fn test_obslog_with_or_without_diff() {
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "obslog"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  [1m[38;5;13mr[38;5;8mlvkpnrzqnoo[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:10.000 +07:00[39m [38;5;12m66[38;5;8mb42ad36073[39m[0m
+    @  [1m[38;5;13mr[38;5;8mlvkpnrzqnoo[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:10.000 +07:00[39m [38;5;12m6[38;5;8m6b42ad36073[39m[0m
     │  [1mmy description[0m
     ◉  [1m[39mr[0m[38;5;8mlvkpnrzqnoo[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m [1m[38;5;4maf[0m[38;5;8m536e5af67e[39m [38;5;1mconflict[39m
     │  my description

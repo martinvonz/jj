@@ -192,6 +192,13 @@ To customize these separately, use the `format_short_commit_id()` and
 'format_short_change_id(id)' = 'format_short_id(id).upper()'
 ```
 
+To get shorter prefixes for certain revisions, set `revsets.short-prefixes`:
+
+```toml
+# Prioritize the current branch
+revsets.short-prefixes = "(main..@):"
+```
+
 ### Relative timestamps
 
 Can be customized by the `format_timestamp()` template alias.

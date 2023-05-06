@@ -315,13 +315,49 @@ fn test_log_shortest_accessors() {
     zn 38
     yo 0cf
     vr 9e
-    yq 06f
+    yq 06
     ro 1f
     mz 7b
     qpv ba1
     zzz 00
     "###);
 
+    insta::assert_snapshot!(
+        render(":@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
+        @r###"
+    wq[nwkozpkust] 03[f51310b83e]
+    km[kuslswpqwq] f7[7fb1909080]
+    kp[qxywonksrl] e7[15ad5db646]
+    zn[kkpsqqskkl] 38[622e54e2e5]
+    yo[stqsxwqrlt] 0cf[42f60199c]
+    vr[uxwmqvtpmx] 9e[6015e4e622]
+    yq[osqzytrlsw] 06[f34d9b1475]
+    ro[yxmykxtrkr] 1f[99a5e19891]
+    mz[vwutvlkqwt] 7b[1f7dee65b4]
+    qpv[untsmwlqt] ba1[a30916d29]
+    zzz[zzzzzzzzz] 00[0000000000]
+    "###);
+
+    // Can get shorter prefixes in configured revset
+    test_env.add_config(r#"revsets.short-prefixes = "(@----):""#);
+    insta::assert_snapshot!(
+        render(":@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
+        @r###"
+    w[qnwkozpkust] 03[f51310b83e]
+    km[kuslswpqwq] f[77fb1909080]
+    kp[qxywonksrl] e[715ad5db646]
+    z[nkkpsqqskkl] 3[8622e54e2e5]
+    y[ostqsxwqrlt] 0c[f42f60199c]
+    vr[uxwmqvtpmx] 9e[6015e4e622]
+    yq[osqzytrlsw] 06f[34d9b1475]
+    ro[yxmykxtrkr] 1f[99a5e19891]
+    mz[vwutvlkqwt] 7b[1f7dee65b4]
+    qpv[untsmwlqt] ba1[a30916d29]
+    zzz[zzzzzzzzz] 00[0000000000]
+    "###);
+
+    // Can disable short prefixes by setting to empty string
+    test_env.add_config(r#"revsets.short-prefixes = """#);
     insta::assert_snapshot!(
         render(":@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
         @r###"
@@ -409,7 +445,7 @@ fn test_log_prefix_highlight_styled() {
     ◉  Change [1m[38;5;5mzn[0m[38;5;8mkkpsqqskkl[39m commit6 [1m[38;5;4m38[0m[38;5;8m622e54e2e5[39m
     ◉  Change [1m[38;5;5myo[0m[38;5;8mstqsxwqrlt[39m commit5 [1m[38;5;4m0cf[0m[38;5;8m42f60199c[39m
     ◉  Change [1m[38;5;5mvr[0m[38;5;8muxwmqvtpmx[39m commit4 [1m[38;5;4m9e[0m[38;5;8m6015e4e622[39m
-    ◉  Change [1m[38;5;5myq[0m[38;5;8mosqzytrlsw[39m commit3 [1m[38;5;4m06f[0m[38;5;8m34d9b1475[39m
+    ◉  Change [1m[38;5;5myq[0m[38;5;8mosqzytrlsw[39m commit3 [1m[38;5;4m06[0m[38;5;8mf34d9b1475[39m
     ◉  Change [1m[38;5;5mro[0m[38;5;8myxmykxtrkr[39m commit2 [1m[38;5;4m1f[0m[38;5;8m99a5e19891[39m
     ◉  Change [1m[38;5;5mmz[0m[38;5;8mvwutvlkqwt[39m commit1 [1m[38;5;4m7b[0m[38;5;8m1f7dee65b4[39m
     ◉  Change [1m[38;5;5mqpv[0m[38;5;8muntsmwlqt[39m initial [1m[38;5;4mba1[0m[38;5;8ma30916d29[39m [38;5;5moriginal[39m
@@ -435,7 +471,7 @@ fn test_log_prefix_highlight_styled() {
     ◉  Change [1m[38;5;5mzn[0m[38;5;8mk[39m commit6 [1m[38;5;4m38[0m[38;5;8m6[39m
     ◉  Change [1m[38;5;5myo[0m[38;5;8ms[39m commit5 [1m[38;5;4m0cf[0m
     ◉  Change [1m[38;5;5mvr[0m[38;5;8mu[39m commit4 [1m[38;5;4m9e[0m[38;5;8m6[39m
-    ◉  Change [1m[38;5;5myq[0m[38;5;8mo[39m commit3 [1m[38;5;4m06f[0m
+    ◉  Change [1m[38;5;5myq[0m[38;5;8mo[39m commit3 [1m[38;5;4m06[0m[38;5;8mf[39m
     ◉  Change [1m[38;5;5mro[0m[38;5;8my[39m commit2 [1m[38;5;4m1f[0m[38;5;8m9[39m
     ◉  Change [1m[38;5;5mmz[0m[38;5;8mv[39m commit1 [1m[38;5;4m7b[0m[38;5;8m1[39m
     ◉  Change [1m[38;5;5mqpv[0m initial [1m[38;5;4mba1[0m [38;5;5moriginal[39m
@@ -461,7 +497,7 @@ fn test_log_prefix_highlight_styled() {
     ◉  Change [1m[38;5;5mzn[0m commit6 [1m[38;5;4m38[0m
     ◉  Change [1m[38;5;5myo[0m commit5 [1m[38;5;4m0cf[0m
     ◉  Change [1m[38;5;5mvr[0m commit4 [1m[38;5;4m9e[0m
-    ◉  Change [1m[38;5;5myq[0m commit3 [1m[38;5;4m06f[0m
+    ◉  Change [1m[38;5;5myq[0m commit3 [1m[38;5;4m06[0m
     ◉  Change [1m[38;5;5mro[0m commit2 [1m[38;5;4m1f[0m
     ◉  Change [1m[38;5;5mmz[0m commit1 [1m[38;5;4m7b[0m
     ◉  Change [1m[38;5;5mqpv[0m initial [1m[38;5;4mba1[0m [38;5;5moriginal[39m
@@ -514,10 +550,10 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-T", prefix_format]),
         @r###"
-    @  Change w[qnwkozpkust] 44[4c3c5066d3]
-    │ ◉  Change q[pvuntsmwlqt] initial ba[1a30916d29] original
+    @  Change w[qnwkozpkust] 4[44c3c5066d3]
+    │ ◉  Change q[pvuntsmwlqt] initial b[a1a30916d29] original
     ├─╯
-    ◉  Change z[zzzzzzzzzzz] 00[0000000000]
+    ◉  Change z[zzzzzzzzzzz] 0[00000000000]
     "###
     );
     insta::assert_snapshot!(
