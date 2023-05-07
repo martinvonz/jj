@@ -178,7 +178,7 @@ parent.
     <tr>
       <td>Discard working copy changes in some files</td>
       <td><code>jj restore &lt;paths&gt;...</code></td>
-      <td><code>git checkout -- &lt;paths&gt;...</code></td>
+      <td><code>git restore &lt;paths&gt;...</code> or <code>git checkout HEAD -- &lt;paths&gt;...</code></td>
     </tr>
     <tr>
       <td>Edit description (commit message) of the current change</td>
@@ -199,8 +199,9 @@ parent.
     <tr>
       <td>Start working on a new change based on the &lt;main&gt; branch</td>
       <td><code>jj co main</code></td>
-      <td><code>git checkout -b topic main</code> (may need to stash or commit
-          first)</td>
+      <td><code>git switch -c topic main</code> or
+        <code>git checkout -b topic main</code> (may need to stash or commit
+        first)</td>
     </tr>
     <tr>
       <td>Move branch A onto branch B</td>
