@@ -86,6 +86,15 @@ where
         }
     }
 
+    /// Looks up entries with the given prefix, and collects values if matched
+    /// entries have unambiguous keys.
+    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<V>>
+    where
+        V: Clone,
+    {
+        self.resolve_prefix_with(prefix, |v: &V| v.clone())
+    }
+
     /// Iterates over entries with the given prefix.
     pub fn resolve_prefix_range<'a: 'b, 'b>(
         &'a self,
@@ -150,35 +159,35 @@ mod tests {
             (ChangeId::from_hex("0aab"), 4),
         ]);
         assert_eq!(
-            id_index.resolve_prefix_with(&HexPrefix::new("0").unwrap(), |&v| v),
+            id_index.resolve_prefix(&HexPrefix::new("0").unwrap()),
             PrefixResolution::AmbiguousMatch,
         );
         assert_eq!(
-            id_index.resolve_prefix_with(&HexPrefix::new("00").unwrap(), |&v| v),
+            id_index.resolve_prefix(&HexPrefix::new("00").unwrap()),
             PrefixResolution::AmbiguousMatch,
         );
         assert_eq!(
-            id_index.resolve_prefix_with(&HexPrefix::new("000").unwrap(), |&v| v),
+            id_index.resolve_prefix(&HexPrefix::new("000").unwrap()),
             PrefixResolution::SingleMatch(vec![0]),
         );
         assert_eq!(
-            id_index.resolve_prefix_with(&HexPrefix::new("0001").unwrap(), |&v| v),
+            id_index.resolve_prefix(&HexPrefix::new("0001").unwrap()),
             PrefixResolution::NoMatch,
         );
         assert_eq!(
-            sorted(id_index.resolve_prefix_with(&HexPrefix::new("009").unwrap(), |&v| v)),
+            sorted(id_index.resolve_prefix(&HexPrefix::new("009").unwrap())),
             PrefixResolution::SingleMatch(vec![1, 2]),
         );
         assert_eq!(
-            id_index.resolve_prefix_with(&HexPrefix::new("0aa").unwrap(), |&v| v),
+            id_index.resolve_prefix(&HexPrefix::new("0aa").unwrap()),
             PrefixResolution::AmbiguousMatch,
         );
         assert_eq!(
-            id_index.resolve_prefix_with(&HexPrefix::new("0aab").unwrap(), |&v| v),
+            id_index.resolve_prefix(&HexPrefix::new("0aab").unwrap()),
             PrefixResolution::SingleMatch(vec![4]),
         );
         assert_eq!(
-            id_index.resolve_prefix_with(&HexPrefix::new("f").unwrap(), |&v| v),
+            id_index.resolve_prefix(&HexPrefix::new("f").unwrap()),
             PrefixResolution::NoMatch,
         );
     }
