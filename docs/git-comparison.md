@@ -176,6 +176,11 @@ parent.
           has no concept of a "change")</td>
     </tr>
     <tr>
+      <td>Discard working copy changes in some files</td>
+      <td><code>jj restore &lt;paths&gt;...</code></td>
+      <td><code>git checkout -- &lt;paths&gt;...</code></td>
+    </tr>
+    <tr>
       <td>Edit description (commit message) of the current change</td>
       <td><code>jj describe</code></td>
       <td>Not supported</td>
