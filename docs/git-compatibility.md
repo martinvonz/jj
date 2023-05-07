@@ -97,9 +97,8 @@ existing Git repo. You should then be able to switch to using mutating `jj`
 commands and readonly Git commands. It's also useful when tools (e.g. build
 tools) expect a Git repo to be present.
 
-The mode is new and not tested much, and interleaving mutating `jj` and `git`
-commands might not work well (feel free to report bugs).
-
+There are some bugs and surprising behavior related to `jj undo` in this mode,
+such as #864 and #922.
 
 ## Creating a repo by cloning a Git repo
 
