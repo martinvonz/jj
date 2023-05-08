@@ -183,7 +183,7 @@ fn test_import_refs_reimport() {
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_ref(&git_repo, "refs/remotes/origin/main", commit1.id());
     let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
-    let _commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
+    let commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
     let commit4 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
     let pgp_key_oid = git_repo.blob(b"my PGP key").unwrap();
     git_repo
@@ -194,6 +194,13 @@ fn test_import_refs_reimport() {
     git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
+
+    let expected_heads = hashset! {
+            jj_id(&commit3),
+            jj_id(&commit4),
+    };
+    let view = repo.view();
+    assert_eq!(*view.heads(), expected_heads);
 
     // Delete feature1 and rewrite feature2
     delete_git_ref(&git_repo, "refs/heads/feature1");
