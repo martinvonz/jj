@@ -108,6 +108,10 @@ where
             .map(|(k, v)| (k, v))
     }
 
+    pub fn has_key(&self, key: &K) -> bool {
+        self.0.binary_search_by(|(k, _)| k.cmp(key)).is_ok()
+    }
+
     /// This function returns the shortest length of a prefix of `key` that
     /// disambiguates it from every other key in the index.
     ///
@@ -190,6 +194,18 @@ mod tests {
             id_index.resolve_prefix(&HexPrefix::new("f").unwrap()),
             PrefixResolution::NoMatch,
         );
+    }
+
+    #[test]
+    fn test_has_key() {
+        // No crash if empty
+        let id_index = IdIndex::from_vec(vec![] as Vec<(ChangeId, ())>);
+        assert!(!id_index.has_key(&ChangeId::from_hex("00")));
+
+        let id_index = IdIndex::from_vec(vec![(ChangeId::from_hex("ab"), ())]);
+        assert!(!id_index.has_key(&ChangeId::from_hex("aa")));
+        assert!(id_index.has_key(&ChangeId::from_hex("ab")));
+        assert!(!id_index.has_key(&ChangeId::from_hex("ac")));
     }
 
     #[test]
