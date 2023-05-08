@@ -81,10 +81,10 @@ pub fn import_some_refs(
     git_ref_filter: impl Fn(&str) -> bool,
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
-    let mut existing_git_refs = mut_repo.view().git_refs().clone();
+    let mut jj_view_git_refs = mut_repo.view().git_refs().clone();
     let mut old_git_heads = vec![];
     let mut new_git_heads = HashSet::new();
-    for (ref_name, old_target) in &existing_git_refs {
+    for (ref_name, old_target) in &jj_view_git_refs {
         if git_ref_filter(ref_name) {
             old_git_heads.extend(old_target.adds());
         } else {
@@ -112,23 +112,23 @@ pub fn import_some_refs(
     }
 
     let mut changed_git_refs = BTreeMap::new();
-    let git_refs = git_repo.references()?;
-    for git_ref in git_refs {
-        let git_ref = git_ref?;
-        if !(git_ref.is_tag() || git_ref.is_branch() || git_ref.is_remote())
-            || git_ref.name().is_none()
+    let git_repo_refs = git_repo.references()?;
+    for git_repo_ref in git_repo_refs {
+        let git_repo_ref = git_repo_ref?;
+        if !(git_repo_ref.is_tag() || git_repo_ref.is_branch() || git_repo_ref.is_remote())
+            || git_repo_ref.name().is_none()
         {
             // Skip other refs (such as notes) and symbolic refs, as well as non-utf8 refs.
             continue;
         }
-        let full_name = git_ref.name().unwrap().to_string();
+        let full_name = git_repo_ref.name().unwrap().to_string();
         if let Some(RefName::RemoteBranch { branch, remote: _ }) = parse_git_ref(&full_name) {
             // "refs/remotes/origin/HEAD" isn't a real remote-tracking branch
             if &branch == "HEAD" {
                 continue;
             }
         }
-        let git_commit = match git_ref.peel_to_commit() {
+        let git_commit = match git_repo_ref.peel_to_commit() {
             Ok(git_commit) => git_commit,
             Err(_) => {
                 // Perhaps a tag pointing to a GPG key or similar. Just skip it.
@@ -142,7 +142,7 @@ pub fn import_some_refs(
         }
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
-        let old_target = existing_git_refs.remove(&full_name);
+        let old_target = jj_view_git_refs.remove(&full_name);
         let new_target = Some(RefTarget::Normal(id.clone()));
         if new_target != old_target {
             prevent_gc(git_repo, &id);
@@ -152,7 +152,7 @@ pub fn import_some_refs(
             changed_git_refs.insert(full_name, (old_target, new_target));
         }
     }
-    for (full_name, target) in existing_git_refs {
+    for (full_name, target) in jj_view_git_refs {
         if git_ref_filter(&full_name) {
             mut_repo.remove_git_ref(&full_name);
             changed_git_refs.insert(full_name, (Some(target), None));
@@ -228,13 +228,13 @@ pub fn export_refs(
     let mut branches_to_delete = BTreeMap::new();
     let mut failed_branches = vec![];
     let view = mut_repo.view();
-    let all_branch_names: HashSet<&str> = view
+    let all_local_branch_names: HashSet<&str> = view
         .git_refs()
         .keys()
         .filter_map(|git_ref| git_ref.strip_prefix("refs/heads/"))
         .chain(view.branches().keys().map(AsRef::as_ref))
         .collect();
-    for branch_name in all_branch_names {
+    for branch_name in all_local_branch_names {
         let old_branch = view.get_git_ref(&format!("refs/heads/{branch_name}"));
         let new_branch = view.get_local_branch(branch_name);
         if new_branch == old_branch {
