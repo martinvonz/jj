@@ -115,6 +115,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the previously checked-out anonymous branch.
   [#1042](https://github.com/martinvonz/jj/issues/1042).
 
+* `jj git fetch` in a colocated repo now abandons branches deleted on the
+  remote, just like in a non-colocated repo.
+  [#864](https://github.com/martinvonz/jj/issues/864)
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes

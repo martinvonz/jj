@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::default::Default;
 use std::path::PathBuf;
 
@@ -83,12 +83,12 @@ pub fn import_some_refs(
     let store = mut_repo.store().clone();
     let mut jj_view_git_refs = mut_repo.view().git_refs().clone();
     let mut old_git_heads = vec![];
-    let mut new_git_heads = HashSet::new();
+    let mut new_git_heads = HashMap::new();
     for (ref_name, old_target) in &jj_view_git_refs {
         if git_ref_filter(ref_name) {
             old_git_heads.extend(old_target.adds());
         } else {
-            new_git_heads.extend(old_target.adds());
+            new_git_heads.insert(ref_name.to_string(), old_target.adds().clone());
         }
     }
 
@@ -103,7 +103,7 @@ pub fn import_some_refs(
         // HEAD branch has been rewritten.
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
         let head_commit = store.get_commit(&head_commit_id).unwrap();
-        new_git_heads.insert(head_commit_id.clone());
+        new_git_heads.insert("HEAD".to_string(), vec![head_commit_id.clone()]);
         prevent_gc(git_repo, &head_commit_id);
         mut_repo.add_head(&head_commit);
         mut_repo.set_git_head(RefTarget::Normal(head_commit_id));
@@ -136,7 +136,7 @@ pub fn import_some_refs(
             }
         };
         let id = CommitId::from_bytes(git_commit.id().as_bytes());
-        new_git_heads.insert(id.clone());
+        new_git_heads.insert(full_name.to_string(), vec![id.clone()]);
         if !git_ref_filter(&full_name) {
             continue;
         }
@@ -169,10 +169,16 @@ pub fn import_some_refs(
             }
             if let RefName::RemoteBranch { branch, remote: _ } = ref_name {
                 mut_repo.merge_single_ref(
-                    &RefName::LocalBranch(branch),
+                    &RefName::LocalBranch(branch.clone()),
                     old_git_target.as_ref(),
                     new_git_target.as_ref(),
                 );
+                match mut_repo.get_local_branch(&branch) {
+                    None => new_git_heads.remove(&format!("refs/heads/{branch}")),
+                    Some(target) => {
+                        new_git_heads.insert(format!("refs/heads/{branch}"), target.adds())
+                    }
+                };
             }
         }
     }
@@ -180,17 +186,18 @@ pub fn import_some_refs(
     // Find commits that are no longer referenced in the git repo and abandon them
     // in jj as well. We must remove non-existing commits from new_git_heads, as
     // they could have come from branches which were never fetched.
-    let new_git_heads = new_git_heads
-        .into_iter()
-        .filter(|id| mut_repo.index().has_id(id))
-        .collect_vec();
+    let mut new_git_heads_set = HashSet::new();
+    for heads_for_ref in new_git_heads.into_values() {
+        new_git_heads_set.extend(heads_for_ref.into_iter());
+    }
+    new_git_heads_set.retain(|id| mut_repo.index().has_id(id));
     // We could use mut_repo.record_rewrites() here but we know we only need to care
     // about abandoned commits for now. We may want to change this if we ever
     // add a way of preserving change IDs across rewrites by `git` (e.g. by
     // putting them in the commit message).
     let abandoned_commits = mut_repo
         .index()
-        .walk_revs(&old_git_heads, &new_git_heads)
+        .walk_revs(&old_git_heads, &new_git_heads_set.into_iter().collect_vec())
         .map(|entry| entry.commit_id())
         .collect_vec();
     let root_commit_id = mut_repo.store().root_commit_id().clone();

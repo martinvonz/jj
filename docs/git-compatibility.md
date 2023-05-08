@@ -98,7 +98,7 @@ commands and readonly Git commands. It's also useful when tools (e.g. build
 tools) expect a Git repo to be present.
 
 There are some bugs and surprising behavior related to `jj undo` in this mode,
-such as #864 and #922.
+such as #922.
 
 ## Creating a repo by cloning a Git repo
 
