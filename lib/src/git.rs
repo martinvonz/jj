@@ -51,6 +51,14 @@ fn parse_git_ref(ref_name: &str) -> Option<RefName> {
     }
 }
 
+fn ref_name_to_local_branch_name(ref_name: &str) -> Option<&str> {
+    ref_name.strip_prefix("refs/heads/")
+}
+
+fn local_branch_name_to_ref_name(branch: &str) -> String {
+    format!("refs/heads/{branch}")
+}
+
 fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) {
     git_repo
         .reference(
@@ -174,9 +182,10 @@ pub fn import_some_refs(
                     new_git_target.as_ref(),
                 );
                 match mut_repo.get_local_branch(&branch) {
-                    None => new_git_heads.remove(&format!("refs/heads/{branch}")),
+                    None => new_git_heads.remove(&local_branch_name_to_ref_name(&branch)),
                     Some(target) => {
-                        new_git_heads.insert(format!("refs/heads/{branch}"), target.adds())
+                        // Note that we are mostly *replacing*, not inserting
+                        new_git_heads.insert(local_branch_name_to_ref_name(&branch), target.adds())
                     }
                 };
             }
@@ -238,11 +247,11 @@ pub fn export_refs(
     let all_local_branch_names: HashSet<&str> = view
         .git_refs()
         .keys()
-        .filter_map(|git_ref| git_ref.strip_prefix("refs/heads/"))
+        .filter_map(|r| ref_name_to_local_branch_name(r))
         .chain(view.branches().keys().map(AsRef::as_ref))
         .collect();
     for branch_name in all_local_branch_names {
-        let old_branch = view.get_git_ref(&format!("refs/heads/{branch_name}"));
+        let old_branch = view.get_git_ref(&local_branch_name_to_ref_name(branch_name));
         let new_branch = view.get_local_branch(branch_name);
         if new_branch == old_branch {
             continue;
@@ -277,7 +286,7 @@ pub fn export_refs(
         if let (Some(head_git_ref), Ok(current_git_commit)) =
             (head_ref.symbolic_target(), head_ref.peel_to_commit())
         {
-            if let Some(branch_name) = head_git_ref.strip_prefix("refs/heads/") {
+            if let Some(branch_name) = ref_name_to_local_branch_name(head_git_ref) {
                 let detach_head =
                     if let Some((_old_oid, new_oid)) = branches_to_update.get(branch_name) {
                         *new_oid != current_git_commit.id()
@@ -291,7 +300,7 @@ pub fn export_refs(
         }
     }
     for (branch_name, old_oid) in branches_to_delete {
-        let git_ref_name = format!("refs/heads/{branch_name}");
+        let git_ref_name = local_branch_name_to_ref_name(&branch_name);
         let success = if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
             if git_ref.target() == Some(old_oid) {
                 // The branch has not been updated by git, so go ahead and delete it
@@ -311,7 +320,7 @@ pub fn export_refs(
         }
     }
     for (branch_name, (old_oid, new_oid)) in branches_to_update {
-        let git_ref_name = format!("refs/heads/{branch_name}");
+        let git_ref_name = local_branch_name_to_ref_name(&branch_name);
         let success = match old_oid {
             None => {
                 if let Ok(git_ref) = git_repo.find_reference(&git_ref_name) {
