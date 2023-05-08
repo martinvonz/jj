@@ -265,14 +265,11 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     test_env.jj_cmd_success(&origin_path, &["describe", "C_to_move", "-m", "moved C"]);
     let stdout = test_env.jj_cmd_success(&clone_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
-    // TODO: 929e and 8d4e should have been abandoned (#864)
+    // 929e and 8d4e are abandoned, as the corresponding branches were deleted or
+    // moved on the remote (#864)
     insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
     ◉  04fd29df05638156b20044b3b6136b42abcb09ab C_to_move
     │ @  0335878796213c3a701f1c9c34dcae242bee4131
-    ├─╯
-    │ ◉  8d4e006fd63547965fbc3a26556a9aa531076d32
-    ├─╯
-    │ ◉  929e298ae9edf969b405a304c75c10457c47d52c
     ├─╯
     ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A master HEAD@git
     ◉  0000000000000000000000000000000000000000

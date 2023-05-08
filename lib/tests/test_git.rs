@@ -480,11 +480,7 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
             jj_id(&commit_main),
             // Neither commit_remote_only nor commit_remote_and_local should be
             // listed as a head. commit_remote_only was never affected by #864,
-            // but commit_remote_and_local is.
-            // BUG: commit_remote_and_local is still listed as a head (#864)
-            // even though the feature-remote branch was deleted as we'll see
-            // below.
-            jj_id(&commit_remote_and_local),
+            // but commit_remote_and_local was.
     };
     assert_eq!(*view.heads(), expected_heads);
 }
@@ -601,8 +597,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
             jj_id(&new_commit_remote_only),
             // Neither commit_remote_only nor commit_remote_and_local should be
             // listed as a head. commit_remote_only was never affected by #864,
-            // but commit_remote_and_local is.
-            jj_id(&commit_remote_and_local),
+            // but commit_remote_and_local was.
     };
     assert_eq!(*view.heads(), expected_heads);
 }
