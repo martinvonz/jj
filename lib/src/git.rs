@@ -91,9 +91,6 @@ pub fn import_some_refs(
             new_git_heads.extend(old_target.adds());
         }
     }
-    if let Some(old_git_head) = mut_repo.view().git_head() {
-        old_git_heads.extend(old_git_head.adds());
-    }
 
     // TODO: Should this be a separate function? We may not always want to import
     // the Git HEAD (and add it to our set of heads).
@@ -101,6 +98,9 @@ pub fn import_some_refs(
         .head()
         .and_then(|head_ref| head_ref.peel_to_commit())
     {
+        // Add the current HEAD to `new_git_heads` to pin the branch. It's not added
+        // to `old_git_heads` because HEAD move doesn't automatically mean the old
+        // HEAD branch has been rewritten.
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
         let head_commit = store.get_commit(&head_commit_id).unwrap();
         new_git_heads.insert(head_commit_id.clone());

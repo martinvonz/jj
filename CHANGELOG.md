@@ -105,6 +105,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * It is no longer allowed to create branches at the root commit.
 
+* `git checkout` (without using `jj`) in colocated repo no longer abandons
+  the previously checked-out anonymous branch.
+  [#1042](https://github.com/martinvonz/jj/issues/1042).
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes
