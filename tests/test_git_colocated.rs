@@ -268,6 +268,44 @@ fn test_git_colocated_fetch_deleted_branch() {
 }
 
 #[test]
+fn test_git_colocated_external_checkout() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&repo_path).unwrap();
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m=B", "root"]);
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+
+    // Checked out anonymous branch
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  53637cd508ff02427dd78eca98f5b2450a6370ce
+    ◉  66f4d1806ae41bd604f69155dece64062a0056cf
+    │ ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+
+    // Check out another branch by external command
+    git_repo
+        .set_head_detached(
+            git_repo
+                .find_reference("refs/heads/master")
+                .unwrap()
+                .target()
+                .unwrap(),
+        )
+        .unwrap();
+
+    // The old HEAD branch gets abandoned because jj thinks it has been rewritten.
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  0521ce3b8c4e29aab79f3c750e2845dcbc4c3874
+    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master
+    ◉  0000000000000000000000000000000000000000
+    "###);
+}
+
+#[test]
 fn test_git_colocated_squash_undo() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
