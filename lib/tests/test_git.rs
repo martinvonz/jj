@@ -336,11 +336,13 @@ fn test_import_refs_reimport_git_head_without_ref() {
     // Move HEAD to commit2 (by e.g. `git checkout` command)
     git_repo.set_head_detached(git_id(&commit2)).unwrap();
 
-    // Reimport HEAD, which abandons the old HEAD branch because jj thinks it
-    // would be rewritten by e.g. `git commit --amend` command.
+    // Reimport HEAD, which doesn't abandon the old HEAD branch because jj thinks it
+    // would be moved by `git checkout` command. This isn't always true because the
+    // detached HEAD commit could be rewritten by e.g. `git commit --amend` command,
+    // but it should be safer than abandoning old checkout branch.
     git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    assert!(!tx.mut_repo().view().heads().contains(commit1.id()));
+    assert!(tx.mut_repo().view().heads().contains(commit1.id()));
     assert!(tx.mut_repo().view().heads().contains(commit2.id()));
 }
 
@@ -374,7 +376,7 @@ fn test_import_refs_reimport_git_head_with_moved_ref() {
         .unwrap();
     git_repo.set_head_detached(git_id(&commit2)).unwrap();
 
-    // Reimport HEAD and main, which abandons the old HEAD/main branch.
+    // Reimport HEAD and main, which abandons the old main branch.
     git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert!(!tx.mut_repo().view().heads().contains(commit1.id()));
