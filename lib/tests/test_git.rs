@@ -313,6 +313,109 @@ fn test_import_refs_reimport_git_head_counts() {
 }
 
 #[test]
+fn test_import_refs_reimport_git_head_without_ref() {
+    // Simulate external `git checkout` in colocated repo, from anonymous branch.
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+    let git_repo = repo.store().git_repo().unwrap();
+
+    // First, HEAD points to commit1.
+    let mut tx = repo.start_transaction(&settings, "test");
+    let commit1 = write_random_commit(tx.mut_repo(), &settings);
+    let commit2 = write_random_commit(tx.mut_repo(), &settings);
+    git_repo.set_head_detached(git_id(&commit1)).unwrap();
+
+    // Import HEAD.
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    assert!(tx.mut_repo().view().heads().contains(commit1.id()));
+    assert!(tx.mut_repo().view().heads().contains(commit2.id()));
+
+    // Move HEAD to commit2 (by e.g. `git checkout` command)
+    git_repo.set_head_detached(git_id(&commit2)).unwrap();
+
+    // Reimport HEAD, which abandons the old HEAD branch because jj thinks it
+    // would be rewritten by e.g. `git commit --amend` command.
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    assert!(!tx.mut_repo().view().heads().contains(commit1.id()));
+    assert!(tx.mut_repo().view().heads().contains(commit2.id()));
+}
+
+#[test]
+fn test_import_refs_reimport_git_head_with_moved_ref() {
+    // Simulate external history rewriting in colocated repo.
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+    let git_repo = repo.store().git_repo().unwrap();
+
+    // First, both HEAD and main point to commit1.
+    let mut tx = repo.start_transaction(&settings, "test");
+    let commit1 = write_random_commit(tx.mut_repo(), &settings);
+    let commit2 = write_random_commit(tx.mut_repo(), &settings);
+    git_repo
+        .reference("refs/heads/main", git_id(&commit1), true, "test")
+        .unwrap();
+    git_repo.set_head_detached(git_id(&commit1)).unwrap();
+
+    // Import HEAD and main.
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    assert!(tx.mut_repo().view().heads().contains(commit1.id()));
+    assert!(tx.mut_repo().view().heads().contains(commit2.id()));
+
+    // Move both HEAD and main to commit2 (by e.g. `git commit --amend` command)
+    git_repo
+        .reference("refs/heads/main", git_id(&commit2), true, "test")
+        .unwrap();
+    git_repo.set_head_detached(git_id(&commit2)).unwrap();
+
+    // Reimport HEAD and main, which abandons the old HEAD/main branch.
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    assert!(!tx.mut_repo().view().heads().contains(commit1.id()));
+    assert!(tx.mut_repo().view().heads().contains(commit2.id()));
+}
+
+#[test]
+fn test_import_refs_reimport_git_head_with_fixed_ref() {
+    // Simulate external `git checkout` in colocated repo, from named branch.
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+    let git_repo = repo.store().git_repo().unwrap();
+
+    // First, both HEAD and main point to commit1.
+    let mut tx = repo.start_transaction(&settings, "test");
+    let commit1 = write_random_commit(tx.mut_repo(), &settings);
+    let commit2 = write_random_commit(tx.mut_repo(), &settings);
+    git_repo
+        .reference("refs/heads/main", git_id(&commit1), true, "test")
+        .unwrap();
+    git_repo.set_head_detached(git_id(&commit1)).unwrap();
+
+    // Import HEAD and main.
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    assert!(tx.mut_repo().view().heads().contains(commit1.id()));
+    assert!(tx.mut_repo().view().heads().contains(commit2.id()));
+
+    // Move only HEAD to commit2 (by e.g. `git checkout` command)
+    git_repo.set_head_detached(git_id(&commit2)).unwrap();
+
+    // Reimport HEAD, which shouldn't abandon the old HEAD branch.
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    assert!(tx.mut_repo().view().heads().contains(commit1.id()));
+    assert!(tx.mut_repo().view().heads().contains(commit2.id()));
+}
+
+#[test]
 fn test_import_refs_reimport_all_from_root_removed() {
     // Test that if a chain of commits all the way from the root gets unreferenced,
     // we abandon the whole stack, but not including the root commit.
