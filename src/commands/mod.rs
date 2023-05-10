@@ -944,6 +944,7 @@ enum DebugCommands {
     Index(DebugIndexArgs),
     #[command(name = "reindex")]
     ReIndex(DebugReIndexArgs),
+    #[command(visible_alias = "view")]
     Operation(DebugOperationArgs),
 }
 
@@ -976,6 +977,18 @@ struct DebugReIndexArgs {}
 struct DebugOperationArgs {
     #[arg(default_value = "@")]
     operation: String,
+    #[arg(long, value_enum, default_value = "all")]
+    display: DebugOperationDisplay,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
+enum DebugOperationDisplay {
+    /// Show only the operation details.
+    Operation,
+    /// Show only the view details
+    View,
+    /// Show both the view and the operation
+    All,
 }
 
 fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), CommandError> {
@@ -3200,8 +3213,12 @@ fn cmd_debug(
         DebugCommands::Operation(operation_args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let op = workspace_command.resolve_single_op(&operation_args.operation)?;
-            writeln!(ui, "{:#?}", op.store_operation())?;
-            writeln!(ui, "{:#?}", op.view().store_view())?;
+            if operation_args.display != DebugOperationDisplay::View {
+                writeln!(ui, "{:#?}", op.store_operation())?;
+            }
+            if operation_args.display != DebugOperationDisplay::Operation {
+                writeln!(ui, "{:#?}", op.view().store_view())?;
+            }
         }
     }
     Ok(())
