@@ -196,10 +196,15 @@ pub fn snapshot_progress(ui: &mut Ui) -> Option<impl Fn(&RepoPath) + '_> {
                     .output_guard(format!("\r{}", Clear(ClearType::CurrentLine))),
             );
         }
+
+        let line_width = state.ui.term_width().map(usize::from).unwrap_or(80);
+        let path_width = line_width.saturating_sub(13); // Account for "Snapshotting "
+
         _ = write!(
             state.ui,
-            "\r{}Snapshotting {}",
+            "\r{}Snapshotting {:.*}",
             Clear(ClearType::CurrentLine),
+            path_width,
             path.to_fs_path(Path::new("")).display()
         );
         _ = state.ui.flush();
