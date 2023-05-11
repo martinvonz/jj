@@ -119,7 +119,7 @@ fn signature_from_git(signature: git2::Signature) -> Signature {
     }
 }
 
-fn signature_to_git(signature: &Signature) -> git2::Signature {
+fn signature_to_git(signature: &Signature) -> git2::Signature<'static> {
     let name = &signature.name;
     let email = &signature.email;
     let time = git2::Time::new(
@@ -468,7 +468,7 @@ impl Backend for GitBackend {
         Ok(commit)
     }
 
-    fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId> {
+    fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)> {
         let locked_repo = self.repo.lock().unwrap();
         let git_tree_id = validate_git_object_id(&contents.root_tree)?;
         let git_tree = locked_repo
@@ -505,7 +505,7 @@ impl Backend for GitBackend {
             }
         }
         let parent_refs = parents.iter().collect_vec();
-        let extras = serialize_extras(contents);
+        let extras = serialize_extras(&contents);
         let mut mut_table = self
             .extra_metadata_store
             .get_head()
@@ -553,7 +553,7 @@ impl Backend for GitBackend {
                 BackendError::Other(format!("Failed to write non-git metadata: {err}"))
             })?;
         *self.cached_extra_metadata.lock().unwrap() = None;
-        Ok(id)
+        Ok((id, contents))
     }
 }
 
@@ -767,13 +767,13 @@ mod tests {
         // No parents
         commit.parents = vec![];
         assert_matches!(
-            backend.write_commit(&commit),
+            backend.write_commit(commit.clone()),
             Err(BackendError::Other(message)) if message.contains("no parents")
         );
 
         // Only root commit as parent
         commit.parents = vec![backend.root_commit_id().clone()];
-        let first_id = backend.write_commit(&commit).unwrap();
+        let first_id = backend.write_commit(commit.clone()).unwrap().0;
         let first_commit = backend.read_commit(&first_id).unwrap();
         assert_eq!(first_commit, commit);
         let first_git_commit = git_repo.find_commit(git_id(&first_id)).unwrap();
@@ -781,7 +781,7 @@ mod tests {
 
         // Only non-root commit as parent
         commit.parents = vec![first_id.clone()];
-        let second_id = backend.write_commit(&commit).unwrap();
+        let second_id = backend.write_commit(commit.clone()).unwrap().0;
         let second_commit = backend.read_commit(&second_id).unwrap();
         assert_eq!(second_commit, commit);
         let second_git_commit = git_repo.find_commit(git_id(&second_id)).unwrap();
@@ -792,7 +792,7 @@ mod tests {
 
         // Merge commit
         commit.parents = vec![first_id.clone(), second_id.clone()];
-        let merge_id = backend.write_commit(&commit).unwrap();
+        let merge_id = backend.write_commit(commit.clone()).unwrap().0;
         let merge_commit = backend.read_commit(&merge_id).unwrap();
         assert_eq!(merge_commit, commit);
         let merge_git_commit = git_repo.find_commit(git_id(&merge_id)).unwrap();
@@ -804,7 +804,7 @@ mod tests {
         // Merge commit with root as one parent
         commit.parents = vec![first_id, backend.root_commit_id().clone()];
         assert_matches!(
-            backend.write_commit(&commit),
+            backend.write_commit(commit),
             Err(BackendError::Other(message)) if message.contains("root commit")
         );
     }
@@ -830,7 +830,7 @@ mod tests {
             author: signature.clone(),
             committer: signature,
         };
-        let commit_id = store.write_commit(&commit).unwrap();
+        let commit_id = store.write_commit(commit).unwrap().0;
         let git_refs = store
             .git_repo()
             .references_glob("refs/jj/keep/*")
@@ -853,12 +853,11 @@ mod tests {
             author: create_signature(),
             committer: create_signature(),
         };
-        let commit_id1 = store.write_commit(&commit1).unwrap();
-        let mut commit2 = commit1;
+        let (commit_id1, mut commit2) = store.write_commit(commit1).unwrap();
         commit2.predecessors.push(commit_id1.clone());
         // `write_commit` should prevent the ids from being the same by changing the
         // committer timestamp of the commit it actually writes.
-        assert_ne!(store.write_commit(&commit2).unwrap(), commit_id1);
+        assert_ne!(store.write_commit(commit2).unwrap().0, commit_id1);
     }
 
     fn git_id(commit_id: &CommitId) -> Oid {

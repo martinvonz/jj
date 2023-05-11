@@ -406,5 +406,11 @@ pub trait Backend: Send + Sync + Debug {
 
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit>;
 
-    fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId>;
+    /// Writes a commit and returns its ID and the commit itself. The commit
+    /// should contain the data that was actually written, which may differ
+    /// from the data passed in. For example, the backend may change the
+    /// committer name to an authenticated user's name, or the backend's
+    /// timestamps may have less precision than the millisecond precision in
+    /// `Commit`.
+    fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)>;
 }
