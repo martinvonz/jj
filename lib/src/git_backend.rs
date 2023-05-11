@@ -468,7 +468,7 @@ impl Backend for GitBackend {
         Ok(commit)
     }
 
-    fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)> {
+    fn write_commit(&self, mut contents: Commit) -> BackendResult<(CommitId, Commit)> {
         let locked_repo = self.repo.lock().unwrap();
         let git_tree_id = validate_git_object_id(&contents.root_tree)?;
         let git_tree = locked_repo
@@ -546,6 +546,11 @@ impl Backend for GitBackend {
                 }
             }
         };
+        // Update the signatures to match the ones that were actually written to the
+        // object store
+        contents.author.timestamp.timestamp = MillisSinceEpoch(author.when().seconds() * 1000);
+        contents.committer.timestamp.timestamp =
+            MillisSinceEpoch(committer.when().seconds() * 1000);
         mut_table.add_entry(id.to_bytes(), extras);
         self.extra_metadata_store
             .save_table(mut_table)
@@ -844,7 +849,7 @@ mod tests {
     fn overlapping_git_commit_id() {
         let temp_dir = testutils::new_temp_dir();
         let store = GitBackend::init_internal(temp_dir.path());
-        let commit1 = Commit {
+        let mut commit1 = Commit {
             parents: vec![store.root_commit_id().clone()],
             predecessors: vec![],
             root_tree: store.empty_tree_id().clone(),
@@ -853,11 +858,27 @@ mod tests {
             author: create_signature(),
             committer: create_signature(),
         };
+        // libgit2 doesn't seem to preserve negative timestamps, so set it to at least 1
+        // second after the epoch, so the timestamp adjustment can remove 1
+        // second and it will still be nonnegative
+        commit1.committer.timestamp.timestamp = MillisSinceEpoch(1000);
         let (commit_id1, mut commit2) = store.write_commit(commit1).unwrap();
         commit2.predecessors.push(commit_id1.clone());
         // `write_commit` should prevent the ids from being the same by changing the
         // committer timestamp of the commit it actually writes.
-        assert_ne!(store.write_commit(commit2).unwrap().0, commit_id1);
+        let (commit_id2, mut actual_commit2) = store.write_commit(commit2.clone()).unwrap();
+        // The returned matches the ID
+        assert_eq!(store.read_commit(&commit_id2).unwrap(), actual_commit2);
+        assert_ne!(commit_id2, commit_id1);
+        // The committer timestamp should differ
+        assert_ne!(
+            actual_commit2.committer.timestamp.timestamp,
+            commit2.committer.timestamp.timestamp
+        );
+        // The rest of the commit should be the same
+        actual_commit2.committer.timestamp.timestamp =
+            commit2.committer.timestamp.timestamp.clone();
+        assert_eq!(actual_commit2, commit2);
     }
 
     fn git_id(commit_id: &CommitId) -> Oid {
