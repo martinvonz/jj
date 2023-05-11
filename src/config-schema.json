@@ -56,11 +56,6 @@
                     "description": "Default command to run when no explicit command is given",
                     "default": "log"
                 },
-                "default-revset": {
-                    "type": "string",
-                    "description": "Default set of revisions to show when no explicit revset is given for jj log and similar commands",
-                    "default": "@ | (remote_branches() | tags()).. | ((remote_branches() | tags())..)-"
-                },
                 "color": {
                     "description": "Whether to colorize command output",
                     "enum": [
@@ -265,6 +260,20 @@
                         "default": false
                     }
                 }
+            }
+        },
+        "revsets": {
+            "type": "object",
+            "description": "Revset expressions used by various commands",
+            "properties": {
+                "log": {
+                    "type": "string",
+                    "description": "Default set of revisions to show when no explicit revset is given for jj log and similar commands",
+                    "default": "@ | (remote_branches() | tags()).. | ((remote_branches() | tags())..)-"
+                }
+            },
+            "additionalProperties": {
+                "type": "string"
             }
         },
         "revset-aliases": {

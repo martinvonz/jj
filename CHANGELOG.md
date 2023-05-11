@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without arguments is now called `visible_heads()`. `heads()` with one argument
   is unchanged.
 
+* The `ui.default-revset` config was renamed to `revsets.log`.
+
 ### New features
 
 * `jj git push --deleted` will remove all locally deleted branches from the remote.
