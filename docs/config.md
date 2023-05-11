@@ -141,6 +141,15 @@ ui.default-command = "log"
 ui.diff.format = "git"
 ```
 
+### Default revisions to log
+
+You can configure the revisions `jj log` without `-r` should show.
+
+```toml
+# Show commits that are not in `main`
+revsets.log = "main.."
+```
+
 ### Graph style
 
 ```toml

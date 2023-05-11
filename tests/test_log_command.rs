@@ -788,7 +788,7 @@ fn test_default_revset() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add a file"]);
 
     // Set configuration to only show the root commit.
-    test_env.add_config(r#"ui.default-revset = "root""#);
+    test_env.add_config(r#"revsets.log = "root""#);
 
     // Log should only contain one line (for the root commit), and not show the
     // commit created above.
@@ -813,7 +813,7 @@ fn test_default_revset_per_repo() {
     // Set configuration to only show the root commit.
     std::fs::write(
         repo_path.join(".jj/repo/config.toml"),
-        r#"ui.default-revset = "root""#,
+        r#"revsets.log = "root""#,
     )
     .unwrap();
 

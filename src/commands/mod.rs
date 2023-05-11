@@ -328,7 +328,7 @@ struct StatusArgs {}
 /// Show commit history
 #[derive(clap::Args, Clone, Debug)]
 struct LogArgs {
-    /// Which revisions to show. Defaults to the `ui.default-revset` setting,
+    /// Which revisions to show. Defaults to the `revsets.log` setting,
     /// or `@ | (remote_branches() | tags()).. | ((remote_branches() |
     /// tags())..)-` if it is not set.
     #[arg(long, short)]
