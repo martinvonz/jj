@@ -35,7 +35,7 @@ cargo_metadata = "0.15.4"
 [dependencies]
 chrono = { version = "0.4.24", default-features = false, features = ["std", "clock"] }
 clap = { version = "4.1.11", features = ["derive", "deprecated"] }
-clap_complete = "4.2.1"
+clap_complete = "4.2.2"
 clap_mangen = "0.2.10"
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
 criterion = {version = "0.4.0", optional = true }
