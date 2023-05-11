@@ -1611,10 +1611,10 @@ fn test_evaluate_expression_latest(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
 
-    let mut write_commit_with_committer_timestamp = |msec| {
+    let mut write_commit_with_committer_timestamp = |sec: i64| {
         let builder = create_random_commit(mut_repo, &settings);
         let mut committer = builder.committer().clone();
-        committer.timestamp.timestamp = MillisSinceEpoch(msec);
+        committer.timestamp.timestamp = MillisSinceEpoch(sec * 1000);
         builder.set_committer(committer).write().unwrap()
     };
     let commit1_t3 = write_commit_with_committer_timestamp(3);

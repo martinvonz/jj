@@ -44,7 +44,7 @@ fn test_initial(use_git: bool) {
         name: "author name".to_string(),
         email: "author email".to_string(),
         timestamp: Timestamp {
-            timestamp: MillisSinceEpoch(100),
+            timestamp: MillisSinceEpoch(1000),
             tz_offset: 60,
         },
     };
@@ -52,7 +52,7 @@ fn test_initial(use_git: bool) {
         name: "committer name".to_string(),
         email: "committer email".to_string(),
         timestamp: Timestamp {
-            timestamp: MillisSinceEpoch(200),
+            timestamp: MillisSinceEpoch(2000),
             tz_offset: -60,
         },
     };
