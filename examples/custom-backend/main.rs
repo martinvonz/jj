@@ -153,7 +153,7 @@ impl Backend for JitBackend {
         self.inner.read_commit(id)
     }
 
-    fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId> {
+    fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)> {
         self.inner.write_commit(contents)
     }
 }

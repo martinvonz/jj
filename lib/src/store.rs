@@ -93,7 +93,7 @@ impl Store {
 
     pub fn write_commit(self: &Arc<Self>, commit: backend::Commit) -> BackendResult<Commit> {
         assert!(!commit.parents.is_empty());
-        let commit_id = self.backend.write_commit(&commit)?;
+        let (commit_id, commit) = self.backend.write_commit(commit)?;
         let data = Arc::new(commit);
         {
             let mut write_locked_cache = self.commit_cache.write().unwrap();

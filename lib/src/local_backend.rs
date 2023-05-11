@@ -259,16 +259,16 @@ impl Backend for LocalBackend {
         Ok(commit_from_proto(proto))
     }
 
-    fn write_commit(&self, commit: &Commit) -> BackendResult<CommitId> {
+    fn write_commit(&self, commit: Commit) -> BackendResult<(CommitId, Commit)> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
-        let proto = commit_to_proto(commit);
+        let proto = commit_to_proto(&commit);
         temp_file.as_file().write_all(&proto.encode_to_vec())?;
 
-        let id = CommitId::new(blake2b_hash(commit).to_vec());
+        let id = CommitId::new(blake2b_hash(&commit).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.commit_path(&id))?;
-        Ok(id)
+        Ok((id, commit))
     }
 }
 
