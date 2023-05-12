@@ -1647,7 +1647,7 @@ impl SymbolResolver for FailingSymbolResolver {
     }
 }
 
-pub type PrefixResolver<'a, T> = Box<dyn Fn(&HexPrefix) -> PrefixResolution<T> + 'a>;
+pub type PrefixResolver<'a, T> = Box<dyn Fn(&dyn Repo, &HexPrefix) -> PrefixResolution<T> + 'a>;
 
 /// Resolves the "root" and "@" symbols, branches, remote branches, tags, git
 /// refs, and full and abbreviated commit and change ids.
@@ -1728,7 +1728,7 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             // Try to resolve as a commit id.
             if let Some(prefix) = HexPrefix::new(symbol) {
                 let prefix_resolution = if let Some(commit_id_resolver) = &self.commit_id_resolver {
-                    commit_id_resolver(&prefix)
+                    commit_id_resolver(self.repo, &prefix)
                 } else {
                     self.repo.index().resolve_prefix(&prefix)
                 };
@@ -1748,7 +1748,7 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             // Try to resolve as a change id.
             if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
                 let prefix_resolution = if let Some(change_id_resolver) = &self.change_id_resolver {
-                    change_id_resolver(&prefix)
+                    change_id_resolver(self.repo, &prefix)
                 } else {
                     self.repo.resolve_change_id_prefix(&prefix)
                 };

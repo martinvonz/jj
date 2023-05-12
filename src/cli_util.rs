@@ -548,7 +548,7 @@ impl CommandHelper {
 /// data is lazily loaded.
 struct ReadonlyUserRepo {
     repo: Arc<ReadonlyRepo>,
-    id_prefix_context: OnceCell<IdPrefixContext<'static>>,
+    id_prefix_context: OnceCell<IdPrefixContext>,
 }
 
 impl ReadonlyUserRepo {
@@ -590,7 +590,7 @@ impl WorkspaceCommandHelper {
         // Parse commit_summary template early to report error before starting mutable
         // operation.
         // TODO: Parsed template can be cached if it doesn't capture repo
-        let id_prefix_context = IdPrefixContext::new(repo.as_ref());
+        let id_prefix_context = IdPrefixContext::default();
         parse_commit_summary_template(
             repo.as_ref(),
             workspace.workspace_id(),
@@ -925,18 +925,18 @@ impl WorkspaceCommandHelper {
 
     pub(crate) fn revset_symbol_resolver(&self) -> DefaultSymbolResolver<'_> {
         let id_prefix_context = self.id_prefix_context();
-        let commit_id_resolver: revset::PrefixResolver<'_, CommitId> =
-            Box::new(|prefix| id_prefix_context.resolve_commit_prefix(prefix));
-        let change_id_resolver: revset::PrefixResolver<'_, Vec<CommitId>> =
-            Box::new(|prefix| id_prefix_context.resolve_change_prefix(prefix));
+        let commit_id_resolver: revset::PrefixResolver<CommitId> =
+            Box::new(|repo, prefix| id_prefix_context.resolve_commit_prefix(repo, prefix));
+        let change_id_resolver: revset::PrefixResolver<Vec<CommitId>> =
+            Box::new(|repo, prefix| id_prefix_context.resolve_change_prefix(repo, prefix));
         DefaultSymbolResolver::new(self.repo().as_ref(), Some(self.workspace_id()))
             .with_commit_id_resolver(commit_id_resolver)
             .with_change_id_resolver(change_id_resolver)
     }
 
-    pub fn id_prefix_context(&self) -> &IdPrefixContext<'_> {
+    pub fn id_prefix_context(&self) -> &IdPrefixContext {
         self.user_repo.id_prefix_context.get_or_init(|| {
-            let mut context: IdPrefixContext<'_> = IdPrefixContext::new(self.repo().as_ref());
+            let mut context: IdPrefixContext = IdPrefixContext::default();
             let revset_string: String = self
                 .settings
                 .config()
@@ -947,7 +947,6 @@ impl WorkspaceCommandHelper {
                 context = context
                     .disambiguate_within(disambiguation_revset, Some(self.workspace_id().clone()));
             }
-            let context: IdPrefixContext<'static> = unsafe { std::mem::transmute(context) };
             context
         })
     }
@@ -1295,7 +1294,7 @@ impl WorkspaceCommandTransaction<'_> {
         commit: &Commit,
     ) -> std::io::Result<()> {
         // TODO: Use the disambiguation revset
-        let id_prefix_context = IdPrefixContext::new(self.tx.repo());
+        let id_prefix_context = IdPrefixContext::default();
         let template = parse_commit_summary_template(
             self.tx.repo(),
             self.helper.workspace_id(),
@@ -1734,7 +1733,7 @@ fn load_template_aliases(
 fn parse_commit_summary_template<'a>(
     repo: &'a dyn Repo,
     workspace_id: &WorkspaceId,
-    id_prefix_context: &'a IdPrefixContext<'a>,
+    id_prefix_context: &'a IdPrefixContext,
     aliases_map: &TemplateAliasesMap,
     settings: &UserSettings,
 ) -> Result<Box<dyn Template<Commit> + 'a>, CommandError> {

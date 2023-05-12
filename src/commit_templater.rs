@@ -40,7 +40,7 @@ use crate::text_util;
 struct CommitTemplateLanguage<'repo, 'b> {
     repo: &'repo dyn Repo,
     workspace_id: &'b WorkspaceId,
-    id_prefix_context: &'repo IdPrefixContext<'repo>,
+    id_prefix_context: &'repo IdPrefixContext,
 }
 
 impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
@@ -387,13 +387,14 @@ impl CommitOrChangeId {
     /// length of the shortest unique prefix
     pub fn shortest(
         &self,
+        repo: &dyn Repo,
         id_prefix_context: &IdPrefixContext,
         total_len: usize,
     ) -> ShortestIdPrefix {
         let mut hex = self.hex();
         let prefix_len = match self {
-            CommitOrChangeId::Commit(id) => id_prefix_context.shortest_commit_prefix_len(id),
-            CommitOrChangeId::Change(id) => id_prefix_context.shortest_change_prefix_len(id),
+            CommitOrChangeId::Commit(id) => id_prefix_context.shortest_commit_prefix_len(repo, id),
+            CommitOrChangeId::Change(id) => id_prefix_context.shortest_change_prefix_len(repo, id),
         };
         hex.truncate(max(prefix_len, total_len));
         let rest = hex.split_off(prefix_len);
@@ -434,6 +435,7 @@ fn build_commit_or_change_id_method<'repo>(
                 (self_property, len_property),
                 |(id, len)| {
                     id.shortest(
+                        language.repo,
                         id_prefix_context,
                         len.and_then(|l| l.try_into().ok()).unwrap_or(0),
                     )
@@ -515,7 +517,7 @@ fn build_shortest_id_prefix_method<'repo>(
 pub fn parse<'repo>(
     repo: &'repo dyn Repo,
     workspace_id: &WorkspaceId,
-    id_prefix_context: &'repo IdPrefixContext<'repo>,
+    id_prefix_context: &'repo IdPrefixContext,
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'repo>> {
