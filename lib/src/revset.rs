@@ -1770,14 +1770,6 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
     }
 }
 
-pub fn resolve_symbol(
-    repo: &dyn Repo,
-    symbol: &str,
-    workspace_id: Option<&WorkspaceId>,
-) -> Result<Vec<CommitId>, RevsetResolutionError> {
-    DefaultSymbolResolver::new(repo, workspace_id).resolve_symbol(symbol)
-}
-
 fn resolve_commit_ref(
     repo: &dyn Repo,
     commit_ref: &RevsetCommitRef,
