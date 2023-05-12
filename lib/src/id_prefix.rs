@@ -66,19 +66,12 @@ impl DisambiguationData {
     }
 }
 
-pub struct IdPrefixContext<'repo> {
-    repo: &'repo dyn Repo,
+#[derive(Default)]
+pub struct IdPrefixContext {
     disambiguation: Option<DisambiguationData>,
 }
 
-impl IdPrefixContext<'_> {
-    pub fn new(repo: &dyn Repo) -> IdPrefixContext {
-        IdPrefixContext {
-            repo,
-            disambiguation: None,
-        }
-    }
-
+impl IdPrefixContext {
     pub fn disambiguate_within(
         mut self,
         expression: Rc<RevsetExpression>,
@@ -92,59 +85,65 @@ impl IdPrefixContext<'_> {
         self
     }
 
-    fn disambiguation_indexes(&self) -> Option<&Indexes> {
+    fn disambiguation_indexes(&self, repo: &dyn Repo) -> Option<&Indexes> {
         // TODO: propagate errors instead of treating them as if no revset was specified
         self.disambiguation
             .as_ref()
-            .and_then(|disambiguation| disambiguation.indexes(self.repo).ok())
+            .and_then(|disambiguation| disambiguation.indexes(repo).ok())
     }
 
     /// Resolve an unambiguous commit ID prefix.
-    pub fn resolve_commit_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        if let Some(indexes) = self.disambiguation_indexes() {
+    pub fn resolve_commit_prefix(
+        &self,
+        repo: &dyn Repo,
+        prefix: &HexPrefix,
+    ) -> PrefixResolution<CommitId> {
+        if let Some(indexes) = self.disambiguation_indexes(repo) {
             let resolution = indexes.commit_index.resolve_prefix(prefix);
             if let PrefixResolution::SingleMatch(mut ids) = resolution {
                 assert_eq!(ids.len(), 1);
                 return PrefixResolution::SingleMatch(ids.pop().unwrap());
             }
         }
-        self.repo.index().resolve_prefix(prefix)
+        repo.index().resolve_prefix(prefix)
     }
 
     /// Returns the shortest length of a prefix of `commit_id` that
     /// can still be resolved by `resolve_commit_prefix()`.
-    pub fn shortest_commit_prefix_len(&self, commit_id: &CommitId) -> usize {
-        if let Some(indexes) = self.disambiguation_indexes() {
+    pub fn shortest_commit_prefix_len(&self, repo: &dyn Repo, commit_id: &CommitId) -> usize {
+        if let Some(indexes) = self.disambiguation_indexes(repo) {
             // TODO: Avoid the double lookup here (has_key() + shortest_unique_prefix_len())
             if indexes.commit_index.has_key(commit_id) {
                 return indexes.commit_index.shortest_unique_prefix_len(commit_id);
             }
         }
-        self.repo
-            .index()
-            .shortest_unique_commit_id_prefix_len(commit_id)
+        repo.index().shortest_unique_commit_id_prefix_len(commit_id)
     }
 
     /// Resolve an unambiguous change ID prefix to the commit IDs in the revset.
-    pub fn resolve_change_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
-        if let Some(indexes) = self.disambiguation_indexes() {
+    pub fn resolve_change_prefix(
+        &self,
+        repo: &dyn Repo,
+        prefix: &HexPrefix,
+    ) -> PrefixResolution<Vec<CommitId>> {
+        if let Some(indexes) = self.disambiguation_indexes(repo) {
             let resolution = indexes.change_index.resolve_prefix(prefix);
             if let PrefixResolution::SingleMatch(ids) = resolution {
                 return PrefixResolution::SingleMatch(ids);
             }
         }
-        self.repo.resolve_change_id_prefix(prefix)
+        repo.resolve_change_id_prefix(prefix)
     }
 
     /// Returns the shortest length of a prefix of `change_id` that
     /// can still be resolved by `resolve_change_prefix()`.
-    pub fn shortest_change_prefix_len(&self, change_id: &ChangeId) -> usize {
-        if let Some(indexes) = self.disambiguation_indexes() {
+    pub fn shortest_change_prefix_len(&self, repo: &dyn Repo, change_id: &ChangeId) -> usize {
+        if let Some(indexes) = self.disambiguation_indexes(repo) {
             if indexes.change_index.has_key(change_id) {
                 return indexes.change_index.shortest_unique_prefix_len(change_id);
             }
         }
-        self.repo.shortest_unique_change_id_prefix_len(change_id)
+        repo.shortest_unique_change_id_prefix_len(change_id)
     }
 }
 
