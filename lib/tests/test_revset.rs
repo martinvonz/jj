@@ -24,9 +24,9 @@ use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    optimize, parse, resolve_symbol, DefaultSymbolResolver, ReverseRevsetGraphIterator, Revset,
-    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge,
-    RevsetResolutionError, RevsetWorkspaceContext,
+    optimize, parse, DefaultSymbolResolver, ReverseRevsetGraphIterator, Revset, RevsetAliasesMap,
+    RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge, RevsetResolutionError,
+    RevsetWorkspaceContext, SymbolResolver as _,
 };
 use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::tree::merge_trees;
@@ -35,6 +35,14 @@ use test_case::test_case;
 use testutils::{
     create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo, TestWorkspace,
 };
+
+fn resolve_symbol(
+    repo: &dyn Repo,
+    symbol: &str,
+    workspace_id: Option<&WorkspaceId>,
+) -> Result<Vec<CommitId>, RevsetResolutionError> {
+    DefaultSymbolResolver::new(repo, workspace_id).resolve_symbol(symbol)
+}
 
 fn revset_for_commits<'index>(
     repo: &'index dyn Repo,
@@ -47,6 +55,7 @@ fn revset_for_commits<'index>(
         .evaluate(repo)
         .unwrap()
 }
+
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
 fn test_resolve_symbol_root(use_git: bool) {
