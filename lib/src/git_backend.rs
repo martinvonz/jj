@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::fmt::{Debug, Error, Formatter};
 use std::fs::File;
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use git2::Oid;
 use itertools::Itertools;
@@ -91,6 +92,15 @@ impl GitBackend {
         let repo = git2::Repository::open(git_repo_path).unwrap();
         let extra_metadata_store = TableStore::load(store_path.join("extra"), HASH_LENGTH);
         GitBackend::new(repo, extra_metadata_store)
+    }
+
+    pub fn git_repo(&self) -> MutexGuard<'_, git2::Repository> {
+        self.repo.lock().unwrap()
+    }
+
+    pub fn git_repo_clone(&self) -> git2::Repository {
+        let path = self.repo.lock().unwrap().path().to_owned();
+        git2::Repository::open(path).unwrap()
     }
 }
 
@@ -187,6 +197,10 @@ impl Debug for GitBackend {
 }
 
 impl Backend for GitBackend {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn name(&self) -> &str {
         "git"
     }
@@ -197,11 +211,6 @@ impl Backend for GitBackend {
 
     fn change_id_length(&self) -> usize {
         CHANGE_ID_LENGTH
-    }
-
-    fn git_repo(&self) -> Option<git2::Repository> {
-        let path = self.repo.lock().unwrap().path().to_owned();
-        Some(git2::Repository::open(path).unwrap())
     }
 
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
@@ -824,7 +833,6 @@ mod tests {
         let commit_id = store.write_commit(&commit).unwrap();
         let git_refs = store
             .git_repo()
-            .unwrap()
             .references_glob("refs/jj/keep/*")
             .unwrap()
             .map(|git_ref| git_ref.unwrap().target().unwrap())

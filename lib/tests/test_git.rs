@@ -58,13 +58,21 @@ fn git_id(commit: &Commit) -> Oid {
     Oid::from_bytes(commit.id().as_bytes()).unwrap()
 }
 
+fn get_git_repo(repo: &Arc<ReadonlyRepo>) -> git2::Repository {
+    repo.store()
+        .backend_impl()
+        .downcast_ref::<GitBackend>()
+        .unwrap()
+        .git_repo_clone()
+}
+
 #[test]
 fn test_import_refs() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = get_git_repo(repo);
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_ref(&git_repo, "refs/remotes/origin/main", commit1.id());
@@ -79,7 +87,7 @@ fn test_import_refs() {
 
     git_repo.set_head("refs/heads/main").unwrap();
 
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = get_git_repo(repo);
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -170,7 +178,7 @@ fn test_import_refs_reimport() {
     let git_settings = GitSettings::default();
     let test_workspace = TestRepo::init(true);
     let repo = &test_workspace.repo;
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = get_git_repo(repo);
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_ref(&git_repo, "refs/remotes/origin/main", commit1.id());
@@ -266,7 +274,7 @@ fn test_import_refs_reimport_head_removed() {
     let git_settings = GitSettings::default();
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = get_git_repo(repo);
 
     let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let mut tx = repo.start_transaction(&settings, "test");
@@ -291,7 +299,7 @@ fn test_import_refs_reimport_git_head_counts() {
     let git_settings = GitSettings::default();
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = get_git_repo(repo);
 
     let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_repo.set_head_detached(commit.id()).unwrap();
@@ -319,7 +327,7 @@ fn test_import_refs_reimport_git_head_without_ref() {
     let git_settings = GitSettings::default();
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = get_git_repo(repo);
 
     // First, HEAD points to commit1.
     let mut tx = repo.start_transaction(&settings, "test");
@@ -353,7 +361,7 @@ fn test_import_refs_reimport_git_head_with_moved_ref() {
     let git_settings = GitSettings::default();
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = get_git_repo(repo);
 
     // First, both HEAD and main point to commit1.
     let mut tx = repo.start_transaction(&settings, "test");
@@ -390,7 +398,7 @@ fn test_import_refs_reimport_git_head_with_fixed_ref() {
     let git_settings = GitSettings::default();
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = get_git_repo(repo);
 
     // First, both HEAD and main point to commit1.
     let mut tx = repo.start_transaction(&settings, "test");
@@ -425,7 +433,7 @@ fn test_import_refs_reimport_all_from_root_removed() {
     let git_settings = GitSettings::default();
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = get_git_repo(repo);
 
     let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let mut tx = repo.start_transaction(&settings, "test");
@@ -451,7 +459,7 @@ fn test_import_some_refs() {
     let git_settings = GitSettings::default();
     let test_workspace = TestRepo::init(true);
     let repo = &test_workspace.repo;
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = get_git_repo(repo);
 
     let commit_main = empty_git_commit(&git_repo, "refs/remotes/origin/main", &[]);
     let commit_feat1 = empty_git_commit(&git_repo, "refs/remotes/origin/feature1", &[&commit_main]);
@@ -1475,7 +1483,7 @@ fn test_push_updates_success() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
-    let clone_repo = setup.jj_repo.store().git_repo().unwrap();
+    let clone_repo = get_git_repo(&setup.jj_repo);
     let result = git::push_updates(
         &clone_repo,
         "origin",
@@ -1512,14 +1520,14 @@ fn test_push_updates_deletion() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
-    let clone_repo = setup.jj_repo.store().git_repo().unwrap();
+    let clone_repo = get_git_repo(&setup.jj_repo);
 
     let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
     // Test the setup
     assert!(source_repo.find_reference("refs/heads/main").is_ok());
 
     let result = git::push_updates(
-        &setup.jj_repo.store().git_repo().unwrap(),
+        &get_git_repo(&setup.jj_repo),
         "origin",
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
@@ -1546,7 +1554,7 @@ fn test_push_updates_mixed_deletion_and_addition() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
-    let clone_repo = setup.jj_repo.store().git_repo().unwrap();
+    let clone_repo = get_git_repo(&setup.jj_repo);
     let result = git::push_updates(
         &clone_repo,
         "origin",
@@ -1587,7 +1595,7 @@ fn test_push_updates_not_fast_forward() {
     let new_commit = write_random_commit(tx.mut_repo(), &settings);
     setup.jj_repo = tx.commit();
     let result = git::push_updates(
-        &setup.jj_repo.store().git_repo().unwrap(),
+        &get_git_repo(&setup.jj_repo),
         "origin",
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
@@ -1608,7 +1616,7 @@ fn test_push_updates_not_fast_forward_with_force() {
     let new_commit = write_random_commit(tx.mut_repo(), &settings);
     setup.jj_repo = tx.commit();
     let result = git::push_updates(
-        &setup.jj_repo.store().git_repo().unwrap(),
+        &get_git_repo(&setup.jj_repo),
         "origin",
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
@@ -1634,7 +1642,7 @@ fn test_push_updates_no_such_remote() {
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let result = git::push_updates(
-        &setup.jj_repo.store().git_repo().unwrap(),
+        &get_git_repo(&setup.jj_repo),
         "invalid-remote",
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
@@ -1652,7 +1660,7 @@ fn test_push_updates_invalid_remote() {
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let result = git::push_updates(
-        &setup.jj_repo.store().git_repo().unwrap(),
+        &get_git_repo(&setup.jj_repo),
         "http://invalid-remote",
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),

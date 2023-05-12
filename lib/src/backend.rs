@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Read;
@@ -369,6 +370,8 @@ pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Comm
 }
 
 pub trait Backend: Send + Sync + Debug {
+    fn as_any(&self) -> &dyn Any;
+
     /// A unique name that identifies this backend. Written to
     /// `.jj/repo/store/backend` when the repo is created.
     fn name(&self) -> &str;
@@ -378,8 +381,6 @@ pub trait Backend: Send + Sync + Debug {
 
     /// The length of change IDs in bytes.
     fn change_id_length(&self) -> usize;
-
-    fn git_repo(&self) -> Option<git2::Repository>;
 
     fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>>;
 

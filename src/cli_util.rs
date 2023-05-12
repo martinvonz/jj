@@ -32,6 +32,7 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git::{GitExportError, GitImportError};
+use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::hex_util::to_reverse_hex;
 use jujutsu_lib::id_prefix::IdPrefixContext;
@@ -558,6 +559,10 @@ impl ReadonlyUserRepo {
             id_prefix_context: OnceCell::new(),
         }
     }
+
+    pub fn git_backend(&self) -> Option<&GitBackend> {
+        self.repo.store().backend_impl().downcast_ref()
+    }
 }
 
 // Provides utilities for writing a command that works on a workspace (like most
@@ -601,10 +606,9 @@ impl WorkspaceCommandHelper {
         let loaded_at_head = &global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !global_args.ignore_working_copy;
         let mut working_copy_shared_with_git = false;
-        let maybe_git_repo = repo.store().git_repo();
-        if let Some(git_workdir) = maybe_git_repo
-            .as_ref()
-            .and_then(|git_repo| git_repo.workdir())
+        let maybe_git_backend = repo.store().backend_impl().downcast_ref::<GitBackend>();
+        if let Some(git_workdir) = maybe_git_backend
+            .and_then(|git_backend| git_backend.git_repo().workdir().map(ToOwned::to_owned))
             .and_then(|workdir| workdir.canonicalize().ok())
         {
             working_copy_shared_with_git = git_workdir == workspace.workspace_root().as_path();
@@ -621,6 +625,10 @@ impl WorkspaceCommandHelper {
             may_update_working_copy,
             working_copy_shared_with_git,
         })
+    }
+
+    pub fn git_backend(&self) -> Option<&GitBackend> {
+        self.user_repo.git_backend()
     }
 
     pub fn check_working_copy_writable(&self) -> Result<(), CommandError> {
@@ -644,8 +652,8 @@ impl WorkspaceCommandHelper {
     pub fn snapshot(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             if self.working_copy_shared_with_git {
-                let maybe_git_repo = self.repo().store().git_repo();
-                self.import_git_refs_and_head(ui, maybe_git_repo.as_ref().unwrap())?;
+                let git_repo = self.git_backend().unwrap().git_repo_clone();
+                self.import_git_refs_and_head(ui, &git_repo)?;
             }
             self.snapshot_working_copy(ui)?;
         }
@@ -704,7 +712,12 @@ impl WorkspaceCommandHelper {
     }
 
     fn export_head_to_git(&self, mut_repo: &mut MutableRepo) -> Result<(), CommandError> {
-        let git_repo = mut_repo.store().git_repo().unwrap();
+        let git_repo = mut_repo
+            .store()
+            .backend_impl()
+            .downcast_ref::<GitBackend>()
+            .unwrap()
+            .git_repo_clone();
         let current_git_head_ref = git_repo.find_reference("HEAD").unwrap();
         let current_git_commit_id = current_git_head_ref
             .peel_to_commit()
@@ -807,8 +820,8 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn git_config(&self) -> Result<git2::Config, git2::Error> {
-        if let Some(git_repo) = self.repo().store().git_repo() {
-            git_repo.config()
+        if let Some(git_backend) = self.git_backend() {
+            git_backend.git_repo().config()
         } else {
             git2::Config::open_default()
         }
@@ -836,9 +849,11 @@ impl WorkspaceCommandHelper {
         {
             git_ignores = git_ignores.chain_with_file("", excludes_file_path);
         }
-        if let Some(git_repo) = self.repo().store().git_repo() {
-            git_ignores =
-                git_ignores.chain_with_file("", git_repo.path().join("info").join("exclude"));
+        if let Some(git_backend) = self.git_backend() {
+            git_ignores = git_ignores.chain_with_file(
+                "",
+                git_backend.git_repo().path().join("info").join("exclude"),
+            );
         }
         git_ignores
     }
@@ -1081,8 +1096,8 @@ impl WorkspaceCommandHelper {
             }
 
             if self.working_copy_shared_with_git {
-                let git_repo = self.user_repo.repo.store().git_repo().unwrap();
-                let failed_branches = git::export_refs(mut_repo, &git_repo)?;
+                let failed_branches =
+                    git::export_refs(mut_repo, &self.user_repo.git_backend().unwrap().git_repo())?;
                 print_failed_git_export(ui, &failed_branches)?;
             }
 
@@ -1147,8 +1162,8 @@ impl WorkspaceCommandHelper {
         }
         if self.working_copy_shared_with_git {
             self.export_head_to_git(mut_repo)?;
-            let git_repo = self.repo().store().git_repo().unwrap();
-            let failed_branches = git::export_refs(mut_repo, &git_repo)?;
+            let failed_branches =
+                git::export_refs(mut_repo, &self.git_backend().unwrap().git_repo())?;
             print_failed_git_export(ui, &failed_branches)?;
         }
         let maybe_old_commit = tx

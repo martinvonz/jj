@@ -19,6 +19,7 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{ChangeId, CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git;
+use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::index::{HexPrefix, PrefixResolution};
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
@@ -203,7 +204,12 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
 
-    let git_repo = repo.store().git_repo().unwrap();
+    let git_repo = repo
+        .store()
+        .backend_impl()
+        .downcast_ref::<GitBackend>()
+        .unwrap()
+        .git_repo_clone();
     // Add some commits that will end up having change ids with common prefixes
     let empty_tree_id = git_repo.treebuilder(None).unwrap().write().unwrap();
     let git_author = git2::Signature::new(

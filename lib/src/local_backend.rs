@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
@@ -125,6 +126,10 @@ impl LocalBackend {
 }
 
 impl Backend for LocalBackend {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn name(&self) -> &str {
         "local"
     }
@@ -135,10 +140,6 @@ impl Backend for LocalBackend {
 
     fn change_id_length(&self) -> usize {
         CHANGE_ID_LENGTH
-    }
-
-    fn git_repo(&self) -> Option<git2::Repository> {
-        None
     }
 
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
