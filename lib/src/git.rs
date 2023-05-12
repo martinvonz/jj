@@ -71,6 +71,9 @@ fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) {
 }
 
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
+///
+/// This function detects conflicts (if both Git and JJ modified a branch) and
+/// records them in JJ's view.
 pub fn import_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
@@ -80,6 +83,7 @@ pub fn import_refs(
 }
 
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
+///
 /// Only branches whose git full reference name pass the filter will be
 /// considered for addition, update, or deletion.
 pub fn import_some_refs(
@@ -231,9 +235,17 @@ pub enum GitExportError {
     InternalGitError(#[from] git2::Error),
 }
 
-/// Reflect changes made in the Jujutsu repo compared to our current view of the
-/// Git repo in `mut_repo.view().git_refs()`. Returns a list of names of
-/// branches that failed to export.
+/// Export changes to branches made in the Jujutsu repo compared to our last
+/// seen view of the Git repo in `mut_repo.view().git_refs()`. Returns a list of
+/// names of branches that failed to export.
+///
+/// We ignore changed branches that are conflicted (were also changed in the Git
+/// repo compared to our last remembered view of the Git repo). These will be
+/// marked conflicted by the next `jj git import`.
+///
+/// We do not export tags and other refs at the moment, since these aren't
+/// supposed to be modified by JJ. For them, the Git state is considered
+/// authoritative.
 // TODO: Also indicate why we failed to export these branches
 pub fn export_refs(
     mut_repo: &mut MutableRepo,
@@ -324,8 +336,8 @@ pub fn export_refs(
         let success = match old_oid {
             None => {
                 if let Ok(git_ref) = git_repo.find_reference(&git_ref_name) {
-                    // The branch was added in jj and in git. Iff git already pointed it to our
-                    // desired target, we're good
+                    // The branch was added in jj and in git. We're good if and only if git
+                    // pointed it to our desired target.
                     git_ref.target() == Some(new_oid)
                 } else {
                     // The branch was added in jj but still doesn't exist in git, so add it
@@ -346,10 +358,10 @@ pub fn export_refs(
                 } else {
                     // The reference was probably updated in git
                     if let Ok(git_ref) = git_repo.find_reference(&git_ref_name) {
-                        // Iff it was updated to our desired target, we still consider it a success
+                        // We still consider this a success if it was updated to our desired target
                         git_ref.target() == Some(new_oid)
                     } else {
-                        // The reference was deleted in git
+                        // The reference was deleted in git and moved in jj
                         false
                     }
                 }
