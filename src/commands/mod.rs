@@ -34,6 +34,7 @@ use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::default_index_store::{DefaultIndexStore, ReadonlyIndexWrapper};
+use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::{ReadonlyRepo, Repo};
@@ -1057,7 +1058,12 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
         }
         let (workspace, repo) =
             Workspace::init_external_git(command.settings(), &wc_path, &git_store_path)?;
-        let git_repo = repo.store().git_repo().unwrap();
+        let git_repo = repo
+            .store()
+            .backend_impl()
+            .downcast_ref::<GitBackend>()
+            .unwrap()
+            .git_repo_clone();
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         workspace_command.snapshot(ui)?;
         if workspace_command.working_copy_shared_with_git() {

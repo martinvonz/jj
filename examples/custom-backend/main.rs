@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::io::Read;
 use std::path::Path;
 
-use git2::Repository;
 use jujutsu::cli_util::{CliRunner, CommandError, CommandHelper};
 use jujutsu::ui::Ui;
 use jujutsu_lib::backend::{
@@ -89,6 +89,10 @@ impl JitBackend {
 }
 
 impl Backend for JitBackend {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn name(&self) -> &str {
         "jit"
     }
@@ -99,10 +103,6 @@ impl Backend for JitBackend {
 
     fn change_id_length(&self) -> usize {
         self.inner.change_id_length()
-    }
-
-    fn git_repo(&self) -> Option<Repository> {
-        self.inner.git_repo()
     }
 
     fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {

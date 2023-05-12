@@ -14,6 +14,7 @@
 
 use std::path::{Path, PathBuf};
 
+use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::settings::UserSettings;
@@ -33,7 +34,11 @@ fn test_init_local() {
     let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
     let (workspace, repo) = Workspace::init_local(&settings, &uncanonical).unwrap();
-    assert!(repo.store().git_repo().is_none());
+    assert!(repo
+        .store()
+        .backend_impl()
+        .downcast_ref::<GitBackend>()
+        .is_none());
     assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
     assert_eq!(workspace.workspace_root(), &canonical);
 
@@ -48,7 +53,11 @@ fn test_init_internal_git() {
     let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
     let (workspace, repo) = Workspace::init_internal_git(&settings, &uncanonical).unwrap();
-    assert!(repo.store().git_repo().is_some());
+    assert!(repo
+        .store()
+        .backend_impl()
+        .downcast_ref::<GitBackend>()
+        .is_some());
     assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
     assert_eq!(workspace.workspace_root(), &canonical);
 
@@ -67,7 +76,12 @@ fn test_init_external_git() {
     std::fs::create_dir(uncanonical.join("jj")).unwrap();
     let (workspace, repo) =
         Workspace::init_external_git(&settings, &uncanonical.join("jj"), &git_repo_path).unwrap();
-    assert!(repo.store().git_repo().is_some());
+
+    assert!(repo
+        .store()
+        .backend_impl()
+        .downcast_ref::<GitBackend>()
+        .is_some());
     assert_eq!(
         repo.repo_path(),
         &canonical.join("jj").join(".jj").join("repo")

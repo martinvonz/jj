@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::collections::HashMap;
 use std::io::Read;
 use std::sync::{Arc, RwLock};
@@ -43,16 +44,16 @@ impl Store {
         })
     }
 
+    pub fn backend_impl(&self) -> &dyn Any {
+        self.backend.as_any()
+    }
+
     pub fn commit_id_length(&self) -> usize {
         self.backend.commit_id_length()
     }
 
     pub fn change_id_length(&self) -> usize {
         self.backend.change_id_length()
-    }
-
-    pub fn git_repo(&self) -> Option<git2::Repository> {
-        self.backend.git_repo()
     }
 
     pub fn empty_tree_id(&self) -> &TreeId {

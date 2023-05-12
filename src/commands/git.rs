@@ -10,6 +10,7 @@ use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
 use jujutsu_lib::backend::ObjectId;
 use jujutsu_lib::git::{self, GitFetchError, GitPushError, GitRefUpdate};
+use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jujutsu_lib::repo::Repo;
@@ -149,9 +150,9 @@ pub struct GitImportArgs {}
 pub struct GitExportArgs {}
 
 fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
-    match store.git_repo() {
+    match store.backend_impl().downcast_ref::<GitBackend>() {
         None => Err(user_error("The repo is not backed by a git repo")),
-        Some(git_repo) => Ok(git_repo),
+        Some(git_backend) => Ok(git_backend.git_repo_clone()),
     }
 }
 
