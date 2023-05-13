@@ -37,6 +37,7 @@ pub mod index;
 pub mod local_backend;
 pub mod lock;
 pub mod matchers;
+pub mod merge;
 pub mod nightly_shims;
 pub mod op_heads_store;
 pub mod op_store;
