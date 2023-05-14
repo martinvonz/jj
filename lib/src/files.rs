@@ -207,11 +207,8 @@ struct SyncRegion {
     right: Range<usize>,
 }
 
-// TODO: Should we require `add.len() == removes.len() + 1`? If that condition
-// is false, it effectively means that we should pretend that there are empty
-// strings in `removes` or `adds` to make it true. Maybe we should have to
-// caller make it explicitly that way.
 pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
+    assert_eq!(adds.len(), removes.len() + 1);
     let num_removes = removes.len();
     // TODO: Using the first remove as base (first in the inputs) is how it's
     // usually done for 3-way conflicts. Are there better heuristics when there are
@@ -225,9 +222,7 @@ pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
     for diff_hunk in diff.hunks() {
         match diff_hunk {
             DiffHunk::Matching(content) => {
-                if adds.len() > removes.len() {
-                    resolved_hunk.extend(content);
-                }
+                resolved_hunk.extend(content);
             }
             DiffHunk::Different(parts) => {
                 let mut removed_parts = parts[..num_removes].to_vec();
@@ -338,42 +333,34 @@ mod tests {
         );
         // All sides added same content
         assert_eq!(
-            merge(&[], &[b"a\n", b"a\n", b"a\n"]),
+            merge(&[b"", b""], &[b"a\n", b"a\n", b"a\n"]),
             MergeResult::Resolved(b"a\n".to_vec())
         );
         // One side modified, two sides added
         assert_eq!(
-            merge(&[b"a"], &[b"b", b"b", b"b"]),
+            merge(&[b"a", b""], &[b"b", b"b", b"b"]),
             MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
-                removes: vec![b"a".to_vec()],
+                removes: vec![b"a".to_vec(), b"".to_vec()],
                 adds: vec![b"b".to_vec(), b"b".to_vec(), b"b".to_vec()]
             })])
         );
         // All sides removed same content
         assert_eq!(
-            merge(&[b"a\n", b"a\n", b"a\n"], &[]),
+            merge(&[b"a\n", b"a\n", b"a\n"], &[b"", b"", b"", b""]),
             MergeResult::Resolved(b"".to_vec())
         );
         // One side modified, two sides removed
         assert_eq!(
-            merge(&[b"a\n", b"a\n", b"a\n"], &[b""]),
+            merge(&[b"a\n", b"a\n"], &[b"b\n", b"", b""]),
             MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
-                removes: vec![b"a\n".to_vec(), b"a\n".to_vec(), b"a\n".to_vec()],
-                adds: vec![b"".to_vec()]
+                removes: vec![b"a\n".to_vec(), b"a\n".to_vec()],
+                adds: vec![b"b\n".to_vec(), b"".to_vec(), b"".to_vec()]
             })])
         );
         // Three sides made the same change
         assert_eq!(
             merge(&[b"a", b"a"], &[b"b", b"b", b"b"]),
             MergeResult::Resolved(b"b".to_vec())
-        );
-        // One side unchanged, one side added
-        assert_eq!(
-            merge(&[b"a\n"], &[b"a\nb\n"]),
-            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
-                removes: vec![b"".to_vec()],
-                adds: vec![b"b\n".to_vec()]
-            })])
         );
         // Two sides left one line unchanged, and added conflicting additional lines
         assert_eq!(
