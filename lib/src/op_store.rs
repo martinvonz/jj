@@ -113,7 +113,7 @@ impl OperationId {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum RefTarget {
     Normal(CommitId),
     Conflict {

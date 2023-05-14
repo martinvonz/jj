@@ -14,6 +14,7 @@
 
 use crate::backend::CommitId;
 use crate::index::Index;
+use crate::merge::trivial_merge;
 use crate::op_store::{BranchTarget, RefTarget};
 
 pub fn merge_ref_targets(
@@ -22,43 +23,39 @@ pub fn merge_ref_targets(
     base: Option<&RefTarget>,
     right: Option<&RefTarget>,
 ) -> Option<RefTarget> {
-    if left == base || left == right {
-        right.cloned()
-    } else if base == right {
-        left.cloned()
+    if let Some(resolved) = trivial_merge(&[base], &[left, right]) {
+        return resolved.cloned();
+    }
+
+    let mut adds = vec![];
+    let mut removes = vec![];
+    if let Some(left) = left {
+        adds.extend(left.adds());
+        removes.extend(left.removes());
+    }
+    if let Some(base) = base {
+        // Note that these are backwards (because the base is subtracted).
+        adds.extend(base.removes());
+        removes.extend(base.adds());
+    }
+    if let Some(right) = right {
+        adds.extend(right.adds());
+        removes.extend(right.removes());
+    }
+
+    while let Some((maybe_remove_index, add_index)) = find_pair_to_remove(index, &adds, &removes) {
+        if let Some(remove_index) = maybe_remove_index {
+            removes.remove(remove_index);
+        }
+        adds.remove(add_index);
+    }
+
+    if adds.is_empty() {
+        None
+    } else if adds.len() == 1 && removes.is_empty() {
+        Some(RefTarget::Normal(adds[0].clone()))
     } else {
-        let mut adds = vec![];
-        let mut removes = vec![];
-        if let Some(left) = left {
-            adds.extend(left.adds());
-            removes.extend(left.removes());
-        }
-        if let Some(base) = base {
-            // Note that these are backwards (because the base is subtracted).
-            adds.extend(base.removes());
-            removes.extend(base.adds());
-        }
-        if let Some(right) = right {
-            adds.extend(right.adds());
-            removes.extend(right.removes());
-        }
-
-        while let Some((maybe_remove_index, add_index)) =
-            find_pair_to_remove(index, &adds, &removes)
-        {
-            if let Some(remove_index) = maybe_remove_index {
-                removes.remove(remove_index);
-            }
-            adds.remove(add_index);
-        }
-
-        if adds.is_empty() {
-            None
-        } else if adds.len() == 1 && removes.is_empty() {
-            Some(RefTarget::Normal(adds[0].clone()))
-        } else {
-            Some(RefTarget::Conflict { removes, adds })
-        }
+        Some(RefTarget::Conflict { removes, adds })
     }
 }
 
