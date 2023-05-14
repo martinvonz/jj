@@ -28,6 +28,7 @@ use crate::backend::{
 };
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
+use crate::merge::trivial_merge;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::{backend, files};
@@ -534,11 +535,8 @@ pub fn merge_trees(
     assert_eq!(side1_tree.dir(), dir);
     assert_eq!(side2_tree.dir(), dir);
 
-    if base_tree.id() == side1_tree.id() {
-        return Ok(side2_tree.id().clone());
-    }
-    if base_tree.id() == side2_tree.id() || side1_tree.id() == side2_tree.id() {
-        return Ok(side1_tree.id().clone());
+    if let Some(resolved) = trivial_merge(&[&base_tree.id], &[&side1_tree.id, &side2_tree.id]) {
+        return Ok(resolved.clone());
     }
 
     // Start with a tree identical to side 1 and modify based on changes from base
