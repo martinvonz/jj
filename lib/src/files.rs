@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Range;
 
@@ -20,6 +20,7 @@ use itertools::Itertools;
 
 use crate::diff;
 use crate::diff::{Diff, DiffHunk};
+use crate::merge::trivial_merge;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct DiffLine<'a> {
@@ -209,7 +210,7 @@ struct SyncRegion {
 
 pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
     assert_eq!(adds.len(), removes.len() + 1);
-    let num_removes = removes.len();
+    let num_diffs = removes.len();
     // TODO: Using the first remove as base (first in the inputs) is how it's
     // usually done for 3-way conflicts. Are there better heuristics when there are
     // more than 3 parts?
@@ -225,52 +226,19 @@ pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
                 resolved_hunk.extend(content);
             }
             DiffHunk::Different(parts) => {
-                let mut removed_parts = parts[..num_removes].to_vec();
-                let mut added_parts = parts[num_removes..].to_vec();
-                // Remove pairs of parts that match in the removes and adds.
-                let mut added_index = 0;
-                while added_index < added_parts.len() {
-                    let added_part = added_parts[added_index];
-                    added_index += 1;
-                    for (removed_index, removed_part) in removed_parts.iter().enumerate() {
-                        if *removed_part == added_part {
-                            added_index -= 1;
-                            added_parts.remove(added_index);
-                            removed_parts.remove(removed_index);
-                            break;
-                        }
-                    }
-                }
-                let distinct_removes: HashSet<&[u8]> = removed_parts.iter().copied().collect();
-                let distinct_adds: HashSet<&[u8]> = added_parts.iter().copied().collect();
-                if removed_parts.is_empty() && added_parts.is_empty() {
-                    // The same content was added and removed, so there's
-                    // nothing left.
-                } else if distinct_removes.is_empty() && distinct_adds.len() == 1 {
-                    // All sides added the same content
-                    resolved_hunk.extend(added_parts[0]);
-                } else if distinct_removes.len() == 1 && distinct_adds.is_empty() {
-                    // All sides removed the same content
-                } else if distinct_removes.len() == 1
-                    && distinct_adds.len() == 1
-                    && added_parts.len() == removed_parts.len() + 1
-                {
-                    // All sides made the same change, and there's a matching extra base to apply it
-                    // to
-                    resolved_hunk.extend(added_parts[0]);
+                if let Some(resolved) = trivial_merge(&parts[..num_diffs], &parts[num_diffs..]) {
+                    resolved_hunk.extend(resolved);
                 } else {
                     if !resolved_hunk.is_empty() {
                         merge_hunks.push(MergeHunk::Resolved(resolved_hunk));
                         resolved_hunk = vec![];
                     }
-                    // Include the unfiltered lists of removed and added here, so the caller
-                    // knows which part corresponds to which input.
                     merge_hunks.push(MergeHunk::Conflict(ConflictHunk {
-                        removes: parts[..num_removes]
+                        removes: parts[..num_diffs]
                             .iter()
                             .map(|part| part.to_vec())
                             .collect_vec(),
-                        adds: parts[num_removes..]
+                        adds: parts[num_diffs..]
                             .iter()
                             .map(|part| part.to_vec())
                             .collect_vec(),
@@ -404,8 +372,11 @@ mod tests {
         );
         // One side unchanged, two other sides make the same change
         assert_eq!(
-            merge(&[b"a", b"a"], &[b"", b"a", b""]),
-            MergeResult::Resolved(b"".to_vec())
+            merge(&[b"a", b"a"], &[b"b", b"a", b"b"]),
+            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
+                removes: vec![b"a".to_vec(), b"a".to_vec()],
+                adds: vec![b"b".to_vec(), b"a".to_vec(), b"b".to_vec()]
+            })])
         );
         // One side unchanged, two other sides make the different change
         assert_eq!(
