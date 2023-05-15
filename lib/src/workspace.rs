@@ -30,6 +30,7 @@ use crate::repo::{
     StoreLoadError,
 };
 use crate::settings::UserSettings;
+use crate::submodule_store::SubmoduleStore;
 use crate::working_copy::WorkingCopy;
 
 #[derive(Error, Debug)]
@@ -163,6 +164,7 @@ impl Workspace {
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
         op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
         index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
+        submodule_store_factory: impl FnOnce(&Path) -> Box<dyn SubmoduleStore>,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
         let repo_dir = jj_dir.join("repo");
@@ -174,6 +176,7 @@ impl Workspace {
             op_store_factory,
             op_heads_store_factory,
             index_store_factory,
+            submodule_store_factory,
         )?;
         let (working_copy, repo) = init_working_copy(
             user_settings,
@@ -199,6 +202,7 @@ impl Workspace {
             ReadonlyRepo::default_op_store_factory(),
             ReadonlyRepo::default_op_heads_store_factory(),
             ReadonlyRepo::default_index_store_factory(),
+            ReadonlyRepo::default_submodule_store_factory(),
         )
     }
 

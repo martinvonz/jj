@@ -99,6 +99,7 @@ impl TestRepo {
                 ReadonlyRepo::default_op_store_factory(),
                 ReadonlyRepo::default_op_heads_store_factory(),
                 ReadonlyRepo::default_index_store_factory(),
+                ReadonlyRepo::default_submodule_store_factory(),
             )
             .unwrap()
         } else {
@@ -109,6 +110,7 @@ impl TestRepo {
                 ReadonlyRepo::default_op_store_factory(),
                 ReadonlyRepo::default_op_heads_store_factory(),
                 ReadonlyRepo::default_index_store_factory(),
+                ReadonlyRepo::default_submodule_store_factory(),
             )
             .unwrap()
         };
