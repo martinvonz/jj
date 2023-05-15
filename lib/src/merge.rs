@@ -29,6 +29,19 @@ where
         "trivial_merge() requires exactly one more adds than removes"
     );
 
+    // Optimize the common case of a 3-way merge
+    if adds.len() == 2 {
+        return if adds[0] == adds[1] {
+            Some(adds[0].clone())
+        } else if adds[0] == removes[0] {
+            Some(adds[1].clone())
+        } else if adds[1] == removes[0] {
+            Some(adds[0].clone())
+        } else {
+            None
+        };
+    }
+
     // Check if all sides made the same change.
     // This matches what Git and Mercurial do (in the 3-way case at least), but not
     // what Darcs and Pijul do. It means that repeated 3-way merging of multiple
