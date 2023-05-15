@@ -263,7 +263,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_merge() {
+    fn test_merge_single_hunk() {
         // Unchanged and empty on all sides
         assert_eq!(
             merge(&[b""], &[b"", b""]),
@@ -329,17 +329,6 @@ mod tests {
         assert_eq!(
             merge(&[b"a", b"a"], &[b"b", b"b", b"b"]),
             MergeResult::Resolved(b"b".to_vec())
-        );
-        // Two sides left one line unchanged, and added conflicting additional lines
-        assert_eq!(
-            merge(&[b"a\n"], &[b"a\nb\n", b"a\nc\n"]),
-            MergeResult::Conflict(vec![
-                MergeHunk::Resolved(b"a\n".to_vec()),
-                MergeHunk::Conflict(ConflictHunk {
-                    removes: vec![b"".to_vec()],
-                    adds: vec![b"b\n".to_vec(), b"c\n".to_vec()]
-                })
-            ])
         );
         // One side removed, one side modified
         assert_eq!(
@@ -408,6 +397,84 @@ mod tests {
                 removes: vec![b"a".to_vec(), b"b".to_vec()],
                 adds: vec![b"c".to_vec(), b"c".to_vec(), b"c".to_vec()]
             })])
+        );
+    }
+
+    #[test]
+    fn test_merge_multi_hunk() {
+        // Two sides left one line unchanged, and added conflicting additional lines
+        assert_eq!(
+            merge(&[b"a\n"], &[b"a\nb\n", b"a\nc\n"]),
+            MergeResult::Conflict(vec![
+                MergeHunk::Resolved(b"a\n".to_vec()),
+                MergeHunk::Conflict(ConflictHunk {
+                    removes: vec![b"".to_vec()],
+                    adds: vec![b"b\n".to_vec(), b"c\n".to_vec()]
+                })
+            ])
+        );
+        // Two sides changed different lines: no conflict
+        assert_eq!(
+            merge(&[b"a\nb\nc\n"], &[b"a2\nb\nc\n", b"a\nb\nc2\n"]),
+            MergeResult::Resolved(b"a2\nb\nc2\n".to_vec())
+        );
+        // Conflict with non-conflicting lines around
+        assert_eq!(
+            merge(&[b"a\nb\nc\n"], &[b"a\nb1\nc\n", b"a\nb2\nc\n"]),
+            MergeResult::Conflict(vec![
+                MergeHunk::Resolved(b"a\n".to_vec()),
+                MergeHunk::Conflict(ConflictHunk {
+                    removes: vec![b"b\n".to_vec()],
+                    adds: vec![b"b1\n".to_vec(), b"b2\n".to_vec()]
+                }),
+                MergeHunk::Resolved(b"c\n".to_vec())
+            ])
+        );
+        // One side changes a line and adds a block after. The other side just adds the
+        // same block. This currently behaves as one would reasonably hope, but
+        // it's likely that it will change if when we fix
+        // https://github.com/martinvonz/jj/issues/761. Git and Mercurial both duplicate
+        // the block in the result.
+        assert_eq!(
+            merge(
+                &[b"\
+a {
+    p
+}
+"],
+                &[
+                    b"\
+a {
+    q
+}
+
+b {
+    x
+}
+",
+                    b"\
+a {
+    p
+}
+
+b {
+    x
+}
+"
+                ]
+            ),
+            MergeResult::Resolved(
+                b"\
+a {
+    q
+}
+
+b {
+    x
+}
+"
+                .to_vec()
+            )
         );
     }
 }
