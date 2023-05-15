@@ -30,6 +30,7 @@ use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, O
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::default_index_store::DefaultIndexStore;
+use crate::default_submodule_store::DefaultSubmoduleStore;
 use crate::git_backend::GitBackend;
 use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
@@ -43,6 +44,7 @@ use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
 use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
+use crate::submodule_store::SubmoduleStore;
 use crate::transaction::Transaction;
 use crate::view::{RefName, View};
 use crate::{backend, dag_walk, op_store};
@@ -55,6 +57,8 @@ pub trait Repo {
     fn index(&self) -> &dyn Index;
 
     fn view(&self) -> &View;
+
+    fn submodule_store(&self) -> &Arc<dyn SubmoduleStore>;
 
     fn resolve_change_id(&self, change_id: &ChangeId) -> Option<Vec<CommitId>> {
         // Replace this if we added more efficient lookup method.
@@ -79,6 +83,7 @@ pub struct ReadonlyRepo {
     operation: Operation,
     settings: RepoSettings,
     index_store: Arc<dyn IndexStore>,
+    submodule_store: Arc<dyn SubmoduleStore>,
     index: OnceCell<Pin<Box<dyn ReadonlyIndex>>>,
     // Declared after `change_id_index` since it must outlive it on drop.
     change_id_index: OnceCell<Box<dyn ChangeIdIndex>>,
@@ -111,6 +116,10 @@ impl ReadonlyRepo {
         |store_path| Box::new(DefaultIndexStore::init(store_path))
     }
 
+    pub fn default_submodule_store_factory() -> impl FnOnce(&Path) -> Box<dyn SubmoduleStore> {
+        |store_path| Box::new(DefaultSubmoduleStore::init(store_path))
+    }
+
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
@@ -118,6 +127,7 @@ impl ReadonlyRepo {
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
         op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
         index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
+        submodule_store_factory: impl FnOnce(&Path) -> Box<dyn SubmoduleStore>,
     ) -> Result<Arc<ReadonlyRepo>, PathError> {
         let repo_path = repo_path.canonicalize().context(repo_path)?;
 
@@ -167,6 +177,14 @@ impl ReadonlyRepo {
         fs::write(&index_type_path, index_store.name()).context(&index_type_path)?;
         let index_store = Arc::from(index_store);
 
+        let submodule_store_path = repo_path.join("submodule_store");
+        fs::create_dir(&submodule_store_path).context(&submodule_store_path)?;
+        let submodule_store = submodule_store_factory(&submodule_store_path);
+        let submodule_store_type_path = submodule_store_path.join("type");
+        fs::write(&submodule_store_type_path, submodule_store.name())
+            .context(&submodule_store_type_path)?;
+        let submodule_store = Arc::from(submodule_store);
+
         let view = View::new(root_view);
         Ok(Arc::new(ReadonlyRepo {
             repo_path,
@@ -179,6 +197,7 @@ impl ReadonlyRepo {
             index: OnceCell::new(),
             change_id_index: OnceCell::new(),
             view,
+            submodule_store,
         }))
     }
 
@@ -190,6 +209,7 @@ impl ReadonlyRepo {
             op_store: self.op_store.clone(),
             op_heads_store: self.op_heads_store.clone(),
             index_store: self.index_store.clone(),
+            submodule_store: self.submodule_store.clone(),
         }
     }
 
@@ -289,6 +309,10 @@ impl Repo for ReadonlyRepo {
         &self.view
     }
 
+    fn submodule_store(&self) -> &Arc<dyn SubmoduleStore> {
+        &self.submodule_store
+    }
+
     fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
         self.change_id_index().resolve_prefix(prefix)
     }
@@ -302,12 +326,14 @@ type BackendFactory = Box<dyn Fn(&Path) -> Box<dyn Backend>>;
 type OpStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpStore>>;
 type OpHeadsStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpHeadsStore>>;
 type IndexStoreFactory = Box<dyn Fn(&Path) -> Box<dyn IndexStore>>;
+type SubmoduleStoreFactory = Box<dyn Fn(&Path) -> Box<dyn SubmoduleStore>>;
 
 pub struct StoreFactories {
     backend_factories: HashMap<String, BackendFactory>,
     op_store_factories: HashMap<String, OpStoreFactory>,
     op_heads_store_factories: HashMap<String, OpHeadsStoreFactory>,
     index_store_factories: HashMap<String, IndexStoreFactory>,
+    submodule_store_factories: HashMap<String, SubmoduleStoreFactory>,
 }
 
 impl Default for StoreFactories {
@@ -342,6 +368,12 @@ impl Default for StoreFactories {
             Box::new(|store_path| Box::new(DefaultIndexStore::load(store_path))),
         );
 
+        // SubmoduleStores
+        factories.add_submodule_store(
+            DefaultSubmoduleStore::name(),
+            Box::new(|store_path| Box::new(DefaultSubmoduleStore::load(store_path))),
+        );
+
         factories
     }
 }
@@ -367,6 +399,7 @@ impl StoreFactories {
             op_store_factories: HashMap::new(),
             op_heads_store_factories: HashMap::new(),
             index_store_factories: HashMap::new(),
+            submodule_store_factories: HashMap::new(),
         }
     }
 
@@ -503,6 +536,43 @@ impl StoreFactories {
             })?;
         Ok(index_store_factory(store_path))
     }
+
+    pub fn add_submodule_store(&mut self, name: &str, factory: SubmoduleStoreFactory) {
+        self.submodule_store_factories
+            .insert(name.to_string(), factory);
+    }
+
+    pub fn load_submodule_store(
+        &self,
+        store_path: &Path,
+    ) -> Result<Box<dyn SubmoduleStore>, StoreLoadError> {
+        let submodule_store_type = match fs::read_to_string(store_path.join("type")) {
+            Ok(content) => content,
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                // For compatibility with repos without repo/submodule_store.
+                // TODO Delete in TBD version
+                let default_type = DefaultSubmoduleStore::name().to_string();
+                fs::create_dir(store_path).unwrap();
+                fs::write(store_path.join("type"), &default_type).unwrap();
+                default_type
+            }
+            Err(err) => {
+                return Err(StoreLoadError::ReadError {
+                    store: "submodule_store",
+                    source: err,
+                });
+            }
+        };
+        let submodule_store_factory = self
+            .submodule_store_factories
+            .get(&submodule_store_type)
+            .ok_or_else(|| StoreLoadError::UnsupportedType {
+                store: "submodule_store",
+                store_type: submodule_store_type.to_string(),
+            })?;
+
+        Ok(submodule_store_factory(store_path))
+    }
 }
 
 #[derive(Clone)]
@@ -513,6 +583,7 @@ pub struct RepoLoader {
     op_store: Arc<dyn OpStore>,
     op_heads_store: Arc<dyn OpHeadsStore>,
     index_store: Arc<dyn IndexStore>,
+    submodule_store: Arc<dyn SubmoduleStore>,
 }
 
 impl RepoLoader {
@@ -527,6 +598,8 @@ impl RepoLoader {
         let op_heads_store =
             Arc::from(store_factories.load_op_heads_store(&repo_path.join("op_heads"))?);
         let index_store = Arc::from(store_factories.load_index_store(&repo_path.join("index"))?);
+        let submodule_store =
+            Arc::from(store_factories.load_submodule_store(&repo_path.join("submodule_store"))?);
         Ok(Self {
             repo_path: repo_path.to_path_buf(),
             repo_settings,
@@ -534,6 +607,7 @@ impl RepoLoader {
             op_store,
             op_heads_store,
             index_store,
+            submodule_store,
         })
     }
 
@@ -589,6 +663,7 @@ impl RepoLoader {
             operation,
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
+            submodule_store: self.submodule_store.clone(),
             index: OnceCell::with_value(Box::into_pin(index)),
             change_id_index: OnceCell::new(),
             view,
@@ -620,6 +695,7 @@ impl RepoLoader {
             operation,
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
+            submodule_store: self.submodule_store.clone(),
             index: OnceCell::new(),
             change_id_index: OnceCell::new(),
             view,
@@ -1162,6 +1238,10 @@ impl Repo for MutableRepo {
 
     fn index(&self) -> &dyn Index {
         self.index.as_index()
+    }
+
+    fn submodule_store(&self) -> &Arc<dyn SubmoduleStore> {
+        self.base_repo.submodule_store()
     }
 
     fn view(&self) -> &View {
