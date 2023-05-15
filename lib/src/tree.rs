@@ -667,18 +667,14 @@ fn try_resolve_file_conflict(
     // early so we don't waste time reading file contents if we can't merge them
     // anyway. At the same time we determine whether the resulting file should
     // be executable.
-    let mut exec_delta = 0;
-    let mut regular_delta = 0;
+    let mut executable_removes = vec![];
+    let mut executable_adds = vec![];
     let mut removed_file_ids = vec![];
     let mut added_file_ids = vec![];
-    for term in &conflict.removes {
+    for term in conflict.removes.iter() {
         match &term.value {
             TreeValue::File { id, executable } => {
-                if *executable {
-                    exec_delta -= 1;
-                } else {
-                    regular_delta -= 1;
-                }
+                executable_removes.push(*executable);
                 removed_file_ids.push(id.clone());
             }
             _ => {
@@ -686,14 +682,10 @@ fn try_resolve_file_conflict(
             }
         }
     }
-    for term in &conflict.adds {
+    for term in conflict.adds.iter() {
         match &term.value {
             TreeValue::File { id, executable } => {
-                if *executable {
-                    exec_delta += 1;
-                } else {
-                    regular_delta += 1;
-                }
+                executable_adds.push(*executable);
                 added_file_ids.push(id.clone());
             }
             _ => {
@@ -701,10 +693,9 @@ fn try_resolve_file_conflict(
             }
         }
     }
-    let executable = if exec_delta > 0 && regular_delta <= 0 {
-        true
-    } else if regular_delta > 0 && exec_delta <= 0 {
-        false
+    let executable = if let Some(executable) = trivial_merge(&executable_removes, &executable_adds)
+    {
+        executable
     } else {
         // We're unable to determine whether the result should be executable
         return Ok(None);
