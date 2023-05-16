@@ -234,36 +234,45 @@ fn test_git_colocated_conflicting_git_refs() {
 }
 
 #[test]
-fn test_git_colocated_fetch_deleted_branch() {
+fn test_git_colocated_fetch_deleted_or_moved_branch() {
     let test_env = TestEnvironment::default();
     let origin_path = test_env.env_root().join("origin");
     git2::Repository::init(&origin_path).unwrap();
     test_env.jj_cmd_success(&origin_path, &["init", "--git-repo=."]);
     test_env.jj_cmd_success(&origin_path, &["describe", "-m=A"]);
     test_env.jj_cmd_success(&origin_path, &["branch", "create", "A"]);
-    test_env.jj_cmd_success(&origin_path, &["new", "-m=B"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "B"]);
-    test_env.jj_cmd_success(&origin_path, &["new", "-m=C"]);
+    test_env.jj_cmd_success(&origin_path, &["new", "-m=B_to_delete"]);
+    test_env.jj_cmd_success(&origin_path, &["branch", "create", "B_to_delete"]);
+    test_env.jj_cmd_success(&origin_path, &["new", "-m=original C", "@-"]);
+    test_env.jj_cmd_success(&origin_path, &["branch", "create", "C_to_move"]);
 
     let clone_path = test_env.env_root().join("clone");
     git2::Repository::clone(origin_path.to_str().unwrap(), &clone_path).unwrap();
     test_env.jj_cmd_success(&clone_path, &["init", "--git-repo=."]);
     test_env.jj_cmd_success(&clone_path, &["new", "A"]);
     insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
-    @  1fa8b2e27c8c3da9764bda953dd81a06fb292d1a
-    │ ◉  e1f4268fabd2c84e880c5eb5bd87e076180fc8e3 B
+    @  0335878796213c3a701f1c9c34dcae242bee4131
+    │ ◉  8d4e006fd63547965fbc3a26556a9aa531076d32 C_to_move
+    ├─╯
+    │ ◉  929e298ae9edf969b405a304c75c10457c47d52c B_to_delete
     ├─╯
     ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A master HEAD@git
     ◉  0000000000000000000000000000000000000000
     "###);
 
-    test_env.jj_cmd_success(&origin_path, &["branch", "delete", "B"]);
+    test_env.jj_cmd_success(&origin_path, &["branch", "delete", "B_to_delete"]);
+    // Move branch C sideways
+    test_env.jj_cmd_success(&origin_path, &["describe", "C_to_move", "-m", "moved C"]);
     let stdout = test_env.jj_cmd_success(&clone_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
-    // TODO: e1f4 should have been abandoned (#864)
+    // TODO: 929e and 8d4e should have been abandoned (#864)
     insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
-    @  1fa8b2e27c8c3da9764bda953dd81a06fb292d1a
-    │ ◉  e1f4268fabd2c84e880c5eb5bd87e076180fc8e3
+    ◉  04fd29df05638156b20044b3b6136b42abcb09ab C_to_move
+    │ @  0335878796213c3a701f1c9c34dcae242bee4131
+    ├─╯
+    │ ◉  8d4e006fd63547965fbc3a26556a9aa531076d32
+    ├─╯
+    │ ◉  929e298ae9edf969b405a304c75c10457c47d52c
     ├─╯
     ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A master HEAD@git
     ◉  0000000000000000000000000000000000000000

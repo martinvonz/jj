@@ -489,6 +489,124 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     assert_eq!(*view.heads(), expected_heads);
 }
 
+/// This test is nearly identical to the previous one, except the branches are
+/// moved sideways instead of being deleted.
+#[test]
+fn test_import_refs_reimport_with_moved_remote_ref() {
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
+    let test_workspace = TestRepo::init(true);
+    let repo = &test_workspace.repo;
+    let git_repo = get_git_repo(repo);
+
+    let commit_base = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    let commit_main = empty_git_commit(&git_repo, "refs/heads/main", &[&commit_base]);
+    let commit_remote_only = empty_git_commit(
+        &git_repo,
+        "refs/remotes/origin/feature-remote-only",
+        &[&commit_base],
+    );
+    let commit_remote_and_local = empty_git_commit(
+        &git_repo,
+        "refs/remotes/origin/feature-remote-and-local",
+        &[&commit_base],
+    );
+    git_ref(
+        &git_repo,
+        "refs/heads/feature-remote-and-local",
+        commit_remote_and_local.id(),
+    );
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit();
+
+    let expected_heads = hashset! {
+            jj_id(&commit_main),
+            jj_id(dbg!(&commit_remote_only)),
+            jj_id(dbg!(&commit_remote_and_local)),
+    };
+    let view = repo.view();
+    assert_eq!(*view.heads(), expected_heads);
+    assert_eq!(view.branches().len(), 3);
+    assert_eq!(
+        view.branches().get("feature-remote-only"),
+        Some(&BranchTarget {
+            // Even though the git repo does not have a local branch for `feature-remote-only`, jj
+            // creates one. This follows the model explained in docs/branches.md.
+            local_target: Some(RefTarget::Normal(jj_id(&commit_remote_only))),
+            remote_targets: btreemap! {
+                "origin".to_string() => RefTarget::Normal(jj_id(&commit_remote_only))
+            },
+        }),
+    );
+    assert_eq!(
+        view.branches().get("feature-remote-and-local"),
+        Some(&BranchTarget {
+            local_target: Some(RefTarget::Normal(jj_id(&commit_remote_and_local))),
+            remote_targets: btreemap! {
+                "origin".to_string() => RefTarget::Normal(jj_id(&commit_remote_and_local))
+            },
+        }),
+    );
+    view.branches().get("main").unwrap(); // branch #3 of 3
+
+    // Simulate fetching from a remote where feature-remote-only and
+    // feature-remote-and-local branches were moved. This leads to the
+    // following import moving the corresponding local branches.
+    delete_git_ref(&git_repo, "refs/remotes/origin/feature-remote-only");
+    delete_git_ref(&git_repo, "refs/remotes/origin/feature-remote-and-local");
+    let new_commit_remote_only = empty_git_commit(
+        &git_repo,
+        "refs/remotes/origin/feature-remote-only",
+        &[&commit_base],
+    );
+    let new_commit_remote_and_local = empty_git_commit(
+        &git_repo,
+        "refs/remotes/origin/feature-remote-and-local",
+        &[&commit_base],
+    );
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit();
+
+    let view = repo.view();
+    assert_eq!(view.branches().len(), 3);
+    // The local branches are moved
+    assert_eq!(
+        view.branches().get("feature-remote-only"),
+        Some(&BranchTarget {
+            local_target: Some(RefTarget::Normal(jj_id(&new_commit_remote_only))),
+            remote_targets: btreemap! {
+                "origin".to_string() => RefTarget::Normal(jj_id(&new_commit_remote_only))
+            },
+        }),
+    );
+    assert_eq!(
+        view.branches().get("feature-remote-and-local"),
+        Some(&BranchTarget {
+            local_target: Some(RefTarget::Normal(jj_id(&new_commit_remote_and_local))),
+            remote_targets: btreemap! {
+                "origin".to_string() => RefTarget::Normal(jj_id(&new_commit_remote_and_local))
+            },
+        }),
+    );
+    view.branches().get("main").unwrap(); // branch #3 of 3
+    let expected_heads = hashset! {
+            jj_id(&commit_main),
+            jj_id(&new_commit_remote_and_local),
+            jj_id(&new_commit_remote_only),
+            // Neither commit_remote_only nor commit_remote_and_local should be
+            // listed as a head. commit_remote_only was never affected by #864,
+            // but commit_remote_and_local is.
+            jj_id(&commit_remote_and_local),
+    };
+    assert_eq!(*view.heads(), expected_heads);
+}
+
 #[test]
 fn test_import_refs_reimport_git_head_with_fixed_ref() {
     // Simulate external `git checkout` in colocated repo, from named branch.
