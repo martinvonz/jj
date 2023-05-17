@@ -210,6 +210,59 @@ fn test_same_type(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_executable(use_git: bool) {
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+    let store = repo.store();
+
+    // The file name encodes whether the file was executable or normal in the base
+    // and in each side
+    let files = vec!["nnn", "nnx", "nxn", "nxx", "xnn", "xnx", "xxn", "xxx"];
+
+    let write_tree = |files: &[(&str, bool)]| -> Tree {
+        let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
+        for (path, executable) in files {
+            let repo_path = RepoPath::from_internal_string(path);
+            if *executable {
+                testutils::write_executable_file(&mut tree_builder, &repo_path, "contents");
+            } else {
+                testutils::write_normal_file(&mut tree_builder, &repo_path, "contents");
+            }
+        }
+        let tree_id = tree_builder.write_tree();
+        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
+    };
+
+    fn contents_in_tree<'a>(files: &[&'a str], index: usize) -> Vec<(&'a str, bool)> {
+        files
+            .iter()
+            .map(|f| (*f, &f[index..index + 1] == "x"))
+            .collect()
+    }
+
+    let base_tree = write_tree(&contents_in_tree(&files, 0));
+    let side1_tree = write_tree(&contents_in_tree(&files, 1));
+    let side2_tree = write_tree(&contents_in_tree(&files, 2));
+
+    // Create the merged tree
+    let merged_tree_id = tree::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
+    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
+
+    // Check that the merged tree has the correct executable bits
+    let norm = base_tree.value(&RepoPathComponent::from("nnn"));
+    let exec = base_tree.value(&RepoPathComponent::from("xxx"));
+    assert_eq!(merged_tree.value(&RepoPathComponent::from("nnn")), norm);
+    assert_eq!(merged_tree.value(&RepoPathComponent::from("nnx")), exec);
+    assert_eq!(merged_tree.value(&RepoPathComponent::from("nxn")), exec);
+    assert_eq!(merged_tree.value(&RepoPathComponent::from("nxx")), exec);
+    assert_eq!(merged_tree.value(&RepoPathComponent::from("xnn")), norm);
+    assert_eq!(merged_tree.value(&RepoPathComponent::from("xnx")), norm);
+    assert_eq!(merged_tree.value(&RepoPathComponent::from("xxn")), norm);
+    assert_eq!(merged_tree.value(&RepoPathComponent::from("xxx")), exec);
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_subtrees(use_git: bool) {
     // Tests that subtrees are merged.
 
