@@ -409,7 +409,9 @@ impl TableStore {
         let table = mut_table.save_in(self)?;
         self.add_head(&table)?;
         if let Some(parent_table) = maybe_parent_table {
-            self.remove_head(&parent_table);
+            if parent_table.name != table.name {
+                self.remove_head(&parent_table);
+            }
         }
         {
             let mut locked_cache = self.cached_tables.write().unwrap();
@@ -675,5 +677,22 @@ mod tests {
         assert_eq!(merged_table.get_value(b"yyy"), Some(b"val5".as_slice()));
         assert_eq!(merged_table.get_value(b"zzz"), Some(b"val3".as_slice()));
         assert_eq!(merged_table.get_value(b"\xff\xff\xff"), None);
+    }
+
+    #[test]
+    fn stacked_table_store_save_empty() {
+        let temp_dir = testutils::new_temp_dir();
+        let store = TableStore::init(temp_dir.path().to_path_buf(), 3);
+
+        let mut mut_table = store.get_head().unwrap().start_mutation();
+        mut_table.add_entry(b"abc".to_vec(), b"value".to_vec());
+        store.save_table(mut_table).unwrap();
+
+        let mut_table = store.get_head().unwrap().start_mutation();
+        store.save_table(mut_table).unwrap();
+
+        // Table head shouldn't be removed on empty save
+        let table = store.get_head().unwrap();
+        assert_eq!(table.get_value(b"abc"), Some(b"value".as_slice()));
     }
 }
