@@ -12,22 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{mpsc, Arc, Barrier};
+use std::thread;
 
 use git2::Oid;
 use itertools::Itertools;
-use jujutsu_lib::backend::{CommitId, ObjectId};
+use jujutsu_lib::backend::{
+    BackendError, ChangeId, CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp,
+};
 use jujutsu_lib::commit::Commit;
+use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::git;
 use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
-use jujutsu_lib::repo::{ReadonlyRepo, Repo};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jujutsu_lib::settings::{GitSettings, UserSettings};
 use maplit::{btreemap, hashset};
 use tempfile::TempDir;
-use testutils::{create_random_commit, write_random_commit, TestRepo};
+use testutils::{create_random_commit, load_repo_at_head, write_random_commit, TestRepo};
 
 fn empty_git_commit<'r>(
     git_repo: &'r git2::Repository,
@@ -1881,4 +1886,245 @@ fn test_push_updates_invalid_remote() {
         git::RemoteCallbacks::default(),
     );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
+}
+
+#[test]
+fn test_rewrite_imported_commit() {
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+    let git_repo = get_git_repo(repo);
+
+    // Import git commit, which generates change id from the commit id.
+    let git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit();
+    let imported_commit = repo.store().get_commit(&jj_id(&git_commit)).unwrap();
+
+    // Try to create identical commit with different change id.
+    let mut tx = repo.start_transaction(&settings, "test");
+    let _authored_commit = tx
+        .mut_repo()
+        .new_commit(
+            &settings,
+            imported_commit.parent_ids().to_vec(),
+            imported_commit.tree_id().clone(),
+        )
+        .set_author(imported_commit.author().clone())
+        .set_committer(imported_commit.committer().clone())
+        .set_description(imported_commit.description())
+        .write()
+        .unwrap();
+    let _repo = tx.commit();
+
+    // Imported commit shouldn't be reused, and the timestamp of the authored
+    // commit should be adjusted to create new commit.
+    /* TODO
+    assert_ne!(imported_commit.id(), authored_commit.id());
+    assert_ne!(
+        imported_commit.committer().timestamp,
+        authored_commit.committer().timestamp,
+    );
+    */
+
+    // The index should be consistent with the store.
+    /* TODO
+    assert_eq!(
+        repo.resolve_change_id(imported_commit.change_id()),
+        Some(vec![imported_commit.id().clone()]),
+    );
+    assert_eq!(
+        repo.resolve_change_id(authored_commit.change_id()),
+        Some(vec![authored_commit.id().clone()]),
+    );
+    */
+}
+
+#[test]
+fn test_concurrent_write_commit() {
+    let settings = &testutils::user_settings();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    // Try to create identical commits with different change ids. Timestamp of the
+    // commits should be adjusted such that each commit has a unique commit id.
+    let num_thread = 8;
+    let (sender, receiver) = mpsc::channel();
+    thread::scope(|s| {
+        let barrier = Arc::new(Barrier::new(num_thread));
+        for i in 0..num_thread {
+            let repo = load_repo_at_head(settings, repo.repo_path()); // unshare loader
+            let barrier = barrier.clone();
+            let sender = sender.clone();
+            s.spawn(move || {
+                barrier.wait();
+                let mut tx = repo.start_transaction(settings, &format!("writer {i}"));
+                let commit = create_rooted_commit(tx.mut_repo(), settings)
+                    .set_description("racy commit")
+                    .write()
+                    .unwrap();
+                tx.commit();
+                sender
+                    .send((commit.id().clone(), commit.change_id().clone()))
+                    .unwrap();
+            });
+        }
+    });
+
+    drop(sender);
+    let mut commit_change_ids: BTreeMap<CommitId, HashSet<ChangeId>> = BTreeMap::new();
+    for (commit_id, change_id) in receiver {
+        commit_change_ids
+            .entry(commit_id)
+            .or_default()
+            .insert(change_id);
+    }
+
+    // Ideally, each commit should have unique commit/change ids.
+    // TODO: assert_eq!(commit_change_ids.len(), num_thread);
+
+    // All unique commits should be preserved.
+    let repo = repo.reload_at_head(settings).unwrap();
+    for (commit_id, change_ids) in &commit_change_ids {
+        let commit = repo.store().get_commit(commit_id).unwrap();
+        assert_eq!(commit.id(), commit_id);
+        assert!(change_ids.contains(commit.change_id()));
+    }
+
+    // The index should be consistent with the store.
+    for commit_id in commit_change_ids.keys() {
+        assert!(repo.index().has_id(commit_id));
+        /* TODO
+        let commit = repo.store().get_commit(commit_id).unwrap();
+        assert_eq!(
+            repo.resolve_change_id(commit.change_id()),
+            Some(vec![commit_id.clone()]),
+        );
+        */
+    }
+}
+
+#[test]
+fn test_concurrent_read_write_commit() {
+    let settings = &testutils::user_settings();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    // Create unique commits and load them concurrently. In this test, we assume
+    // that writer doesn't fall back to timestamp adjustment, so the expected
+    // commit ids are static. If reader could interrupt in the timestamp
+    // adjustment loop, this assumption wouldn't apply.
+    let commit_ids = [
+        "c5c6efd6ac240102e7f047234c3cade55eedd621",
+        "9f7a96a6c9d044b228f3321a365bdd3514e6033a",
+        "aa7867ad0c566df5bbb708d8d6ddc88eefeea0ff",
+        "930a76e333d5cc17f40a649c3470cb99aae24a0c",
+        "88e9a719df4f0cc3daa740b814e271341f6ea9f4",
+        "4883bdc57448a53b4eef1af85e34b85b9ee31aee",
+        "308345f8d058848e83beed166704faac2ecd4541",
+        "9e35ff61ea8d1d4ef7f01edc5fd23873cc301b30",
+        "8010ac8c65548dd619e7c83551d983d724dda216",
+        "bbe593d556ea31acf778465227f340af7e627b2b",
+        "2f6800f4b8e8fc4c42dc0e417896463d13673654",
+        "a3a7e4fcddeaa11bb84f66f3428f107f65eb3268",
+        "96e17ff3a7ee1b67ddfa5619b2bf5380b80f619a",
+        "34613f7609524c54cc990ada1bdef3dcad0fd29f",
+        "95867e5aed6b62abc2cd6258da9fee8873accfd3",
+        "7635ce107ae7ba71821b8cd74a1405ca6d9e49ac",
+    ]
+    .into_iter()
+    .map(CommitId::from_hex)
+    .collect_vec();
+    let num_reader_thread = 8;
+    thread::scope(|s| {
+        let barrier = Arc::new(Barrier::new(commit_ids.len() + num_reader_thread));
+
+        // Writer assigns random change id
+        for (i, commit_id) in commit_ids.iter().enumerate() {
+            let repo = load_repo_at_head(settings, repo.repo_path()); // unshare loader
+            let barrier = barrier.clone();
+            s.spawn(move || {
+                barrier.wait();
+                let mut tx = repo.start_transaction(settings, &format!("writer {i}"));
+                let commit = create_rooted_commit(tx.mut_repo(), settings)
+                    .set_description(format!("commit {i}"))
+                    .write()
+                    .unwrap();
+                tx.commit();
+                assert_eq!(commit.id(), commit_id);
+            });
+        }
+
+        // Reader may generate change id (if not yet assigned by the writer)
+        for i in 0..num_reader_thread {
+            let mut repo = load_repo_at_head(settings, repo.repo_path()); // unshare loader
+            let barrier = barrier.clone();
+            let mut pending_commit_ids = commit_ids.clone();
+            pending_commit_ids.rotate_left(i); // start lookup from different place
+            s.spawn(move || {
+                barrier.wait();
+                while !pending_commit_ids.is_empty() {
+                    repo = repo.reload_at_head(settings).unwrap();
+                    let mut tx = repo.start_transaction(settings, &format!("reader {i}"));
+                    pending_commit_ids = pending_commit_ids
+                        .into_iter()
+                        .filter_map(|commit_id| {
+                            match repo.store().get_commit(&commit_id) {
+                                Ok(commit) => {
+                                    // update index as git::import_refs() would do
+                                    tx.mut_repo().add_head(&commit);
+                                    None
+                                }
+                                Err(BackendError::ObjectNotFound { .. }) => Some(commit_id),
+                                Err(err) => panic!("unexpected error: {err}"),
+                            }
+                        })
+                        .collect_vec();
+                    if tx.mut_repo().has_changes() {
+                        tx.commit();
+                    }
+                    thread::yield_now();
+                }
+            });
+        }
+    });
+
+    // The index should be consistent with the store.
+    let repo = repo.reload_at_head(settings).unwrap();
+    for commit_id in &commit_ids {
+        assert!(repo.index().has_id(commit_id));
+        /* TODO
+        let commit = repo.store().get_commit(commit_id).unwrap();
+        assert_eq!(
+            repo.resolve_change_id(commit.change_id()),
+            Some(vec![commit_id.clone()]),
+        );
+        */
+    }
+}
+
+fn create_rooted_commit<'repo>(
+    mut_repo: &'repo mut MutableRepo,
+    settings: &UserSettings,
+) -> CommitBuilder<'repo> {
+    let signature = Signature {
+        name: "Test User".to_owned(),
+        email: "test.user@example.com".to_owned(),
+        timestamp: Timestamp {
+            // avoid underflow during timestamp adjustment
+            timestamp: MillisSinceEpoch(1_000_000),
+            tz_offset: 0,
+        },
+    };
+    mut_repo
+        .new_commit(
+            settings,
+            vec![mut_repo.store().root_commit_id().clone()],
+            mut_repo.store().empty_tree_id().clone(),
+        )
+        .set_author(signature.clone())
+        .set_committer(signature)
 }
