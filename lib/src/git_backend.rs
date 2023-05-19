@@ -120,6 +120,23 @@ impl GitBackend {
             .get_head()
             .map_err(|err| BackendError::Other(format!("Failed to read non-git metadata: {err}")))
     }
+
+    fn write_extra_metadata_entry(
+        &self,
+        table: &Arc<ReadonlyTable>,
+        id: &CommitId,
+        extras: Vec<u8>,
+    ) -> BackendResult<()> {
+        let mut mut_table = table.start_mutation();
+        mut_table.add_entry(id.to_bytes(), extras);
+        self.extra_metadata_store
+            .save_table(mut_table)
+            .map_err(|err| {
+                BackendError::Other(format!("Failed to write non-git metadata: {err}"))
+            })?;
+        *self.cached_extra_metadata.lock().unwrap() = None;
+        Ok(())
+    }
 }
 
 fn signature_from_git(signature: git2::Signature) -> Signature {
@@ -514,7 +531,6 @@ impl Backend for GitBackend {
         let parent_refs = parents.iter().collect_vec();
         let extras = serialize_extras(&contents);
         let table = self.read_extra_metadata_table()?;
-        let mut mut_table = table.start_mutation();
         let id = loop {
             let git_id = locked_repo
                 .commit(
@@ -555,13 +571,7 @@ impl Backend for GitBackend {
         contents.author.timestamp.timestamp = MillisSinceEpoch(author.when().seconds() * 1000);
         contents.committer.timestamp.timestamp =
             MillisSinceEpoch(committer.when().seconds() * 1000);
-        mut_table.add_entry(id.to_bytes(), extras);
-        self.extra_metadata_store
-            .save_table(mut_table)
-            .map_err(|err| {
-                BackendError::Other(format!("Failed to write non-git metadata: {err}"))
-            })?;
-        *self.cached_extra_metadata.lock().unwrap() = None;
+        self.write_extra_metadata_entry(&table, &id, extras)?;
         Ok((id, contents))
     }
 }
