@@ -485,7 +485,7 @@ impl Backend for GitBackend {
         };
 
         let table = self.cached_extra_metadata_table()?;
-        if let Some(extras) = table.get_value(git_commit_id.as_bytes()) {
+        if let Some(extras) = table.get_value(id.as_bytes()) {
             deserialize_extras(&mut commit, extras);
         }
 
