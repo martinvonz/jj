@@ -935,9 +935,10 @@ impl MutableRepo {
                 |commit: &Commit| commit.id().clone(),
                 |commit: &Commit| -> Vec<Commit> {
                     commit
-                        .parents()
-                        .into_iter()
-                        .filter(|parent| !self.index().has_id(parent.id()))
+                        .parent_ids()
+                        .iter()
+                        .filter(|id| !self.index().has_id(id))
+                        .map(|id| self.store().get_commit(id).unwrap())
                         .collect()
                 },
             );
