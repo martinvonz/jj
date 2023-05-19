@@ -102,6 +102,24 @@ impl GitBackend {
         let path = self.repo.lock().unwrap().path().to_owned();
         git2::Repository::open(path).unwrap()
     }
+
+    fn cached_extra_metadata_table(&self) -> BackendResult<Arc<ReadonlyTable>> {
+        let mut locked_head = self.cached_extra_metadata.lock().unwrap();
+        match locked_head.as_ref() {
+            Some(head) => Ok(head.clone()),
+            None => {
+                let table = self.read_extra_metadata_table()?;
+                *locked_head = Some(table.clone());
+                Ok(table)
+            }
+        }
+    }
+
+    fn read_extra_metadata_table(&self) -> BackendResult<Arc<ReadonlyTable>> {
+        self.extra_metadata_store
+            .get_head()
+            .map_err(|err| BackendError::Other(format!("Failed to read non-git metadata: {err}")))
+    }
 }
 
 fn signature_from_git(signature: git2::Signature) -> Signature {
@@ -449,19 +467,8 @@ impl Backend for GitBackend {
             committer,
         };
 
-        let table = {
-            let mut locked_head = self.cached_extra_metadata.lock().unwrap();
-            match locked_head.as_ref() {
-                Some(head) => Ok(head.clone()),
-                None => self.extra_metadata_store.get_head().map(|x| {
-                    *locked_head = Some(x.clone());
-                    x
-                }),
-            }
-        }
-        .map_err(|err| BackendError::Other(format!("Failed to read non-git metadata: {err}")))?;
-        let maybe_extras = table.get_value(git_commit_id.as_bytes());
-        if let Some(extras) = maybe_extras {
+        let table = self.cached_extra_metadata_table()?;
+        if let Some(extras) = table.get_value(git_commit_id.as_bytes()) {
             deserialize_extras(&mut commit, extras);
         }
 
