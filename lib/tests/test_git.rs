@@ -1906,7 +1906,7 @@ fn test_rewrite_imported_commit() {
 
     // Try to create identical commit with different change id.
     let mut tx = repo.start_transaction(&settings, "test");
-    let _authored_commit = tx
+    let authored_commit = tx
         .mut_repo()
         .new_commit(
             &settings,
@@ -1918,20 +1918,17 @@ fn test_rewrite_imported_commit() {
         .set_description(imported_commit.description())
         .write()
         .unwrap();
-    let _repo = tx.commit();
+    let repo = tx.commit();
 
     // Imported commit shouldn't be reused, and the timestamp of the authored
     // commit should be adjusted to create new commit.
-    /* TODO
     assert_ne!(imported_commit.id(), authored_commit.id());
     assert_ne!(
         imported_commit.committer().timestamp,
         authored_commit.committer().timestamp,
     );
-    */
 
     // The index should be consistent with the store.
-    /* TODO
     assert_eq!(
         repo.resolve_change_id(imported_commit.change_id()),
         Some(vec![imported_commit.id().clone()]),
@@ -1940,7 +1937,6 @@ fn test_rewrite_imported_commit() {
         repo.resolve_change_id(authored_commit.change_id()),
         Some(vec![authored_commit.id().clone()]),
     );
-    */
 }
 
 #[test]
@@ -2094,13 +2090,11 @@ fn test_concurrent_read_write_commit() {
     let repo = repo.reload_at_head(settings).unwrap();
     for commit_id in &commit_ids {
         assert!(repo.index().has_id(commit_id));
-        /* TODO
         let commit = repo.store().get_commit(commit_id).unwrap();
         assert_eq!(
             repo.resolve_change_id(commit.change_id()),
             Some(vec![commit_id.clone()]),
         );
-        */
     }
 }
 
