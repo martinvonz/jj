@@ -479,29 +479,35 @@ impl TableStore {
             // head. Note that the locking isn't necessary for correctness; we
             // take the lock only to avoid other concurrent processes from doing
             // the same work (and producing another set of divergent heads).
-            let _lock = self.lock();
-            let mut tables = self.get_head_tables()?;
-
-            if tables.is_empty() {
-                let empty_table = MutableTable::full(self.key_size);
-                return self.save_table(empty_table);
-            }
-
-            if tables.len() == 1 {
-                // Return early so we don't write a table with no changes compared to its parent
-                return Ok(tables.pop().unwrap());
-            }
-
-            let mut merged_table = MutableTable::incremental(tables[0].clone());
-            for other in &tables[1..] {
-                merged_table.merge_in(other);
-            }
-            let merged_table = self.save_table(merged_table)?;
-            for table in &tables[1..] {
-                self.remove_head(table);
-            }
-            Ok(merged_table)
+            let (table, _) = self.get_head_locked()?;
+            Ok(table)
         }
+    }
+
+    pub fn get_head_locked(&self) -> TableStoreResult<(Arc<ReadonlyTable>, FileLock)> {
+        let lock = self.lock();
+        let mut tables = self.get_head_tables()?;
+
+        if tables.is_empty() {
+            let empty_table = MutableTable::full(self.key_size);
+            let table = self.save_table(empty_table)?;
+            return Ok((table, lock));
+        }
+
+        if tables.len() == 1 {
+            // Return early so we don't write a table with no changes compared to its parent
+            return Ok((tables.pop().unwrap(), lock));
+        }
+
+        let mut merged_table = MutableTable::incremental(tables[0].clone());
+        for other in &tables[1..] {
+            merged_table.merge_in(other);
+        }
+        let merged_table = self.save_table(merged_table)?;
+        for table in &tables[1..] {
+            self.remove_head(table);
+        }
+        Ok((merged_table, lock))
     }
 }
 
