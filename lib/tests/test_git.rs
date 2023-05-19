@@ -1984,7 +1984,7 @@ fn test_concurrent_write_commit() {
     }
 
     // Ideally, each commit should have unique commit/change ids.
-    // TODO: assert_eq!(commit_change_ids.len(), num_thread);
+    assert_eq!(commit_change_ids.len(), num_thread);
 
     // All unique commits should be preserved.
     let repo = repo.reload_at_head(settings).unwrap();
@@ -1997,13 +1997,11 @@ fn test_concurrent_write_commit() {
     // The index should be consistent with the store.
     for commit_id in commit_change_ids.keys() {
         assert!(repo.index().has_id(commit_id));
-        /* TODO
         let commit = repo.store().get_commit(commit_id).unwrap();
         assert_eq!(
             repo.resolve_change_id(commit.change_id()),
             Some(vec![commit_id.clone()]),
         );
-        */
     }
 }
 

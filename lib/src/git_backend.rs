@@ -28,6 +28,7 @@ use crate::backend::{
     ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
     Tree, TreeId, TreeValue,
 };
+use crate::lock::FileLock;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::stacked_table::{ReadonlyTable, TableSegment, TableStore};
 
@@ -108,22 +109,25 @@ impl GitBackend {
         match locked_head.as_ref() {
             Some(head) => Ok(head.clone()),
             None => {
-                let table = self.read_extra_metadata_table()?;
+                let table = self.extra_metadata_store.get_head().map_err(|err| {
+                    BackendError::Other(format!("Failed to read non-git metadata: {err}"))
+                })?;
                 *locked_head = Some(table.clone());
                 Ok(table)
             }
         }
     }
 
-    fn read_extra_metadata_table(&self) -> BackendResult<Arc<ReadonlyTable>> {
+    fn read_extra_metadata_table_locked(&self) -> BackendResult<(Arc<ReadonlyTable>, FileLock)> {
         self.extra_metadata_store
-            .get_head()
+            .get_head_locked()
             .map_err(|err| BackendError::Other(format!("Failed to read non-git metadata: {err}")))
     }
 
     fn write_extra_metadata_entry(
         &self,
         table: &Arc<ReadonlyTable>,
+        _table_lock: &FileLock,
         id: &CommitId,
         extras: Vec<u8>,
     ) -> BackendResult<()> {
@@ -530,7 +534,13 @@ impl Backend for GitBackend {
         }
         let parent_refs = parents.iter().collect_vec();
         let extras = serialize_extras(&contents);
-        let table = self.read_extra_metadata_table()?;
+        // If two writers write commits of the same id with different metadata, they
+        // will both succeed and the metadata entries will be "merged" later. Since
+        // metadata entry is keyed by the commit id, one of the entries would be lost.
+        // To prevent such race condition locally, we extend the scope covered by the
+        // table lock. This is still racy if multiple machines are involved and the
+        // repository is rsync-ed.
+        let (table, table_lock) = self.read_extra_metadata_table_locked()?;
         let id = loop {
             let git_id = locked_repo
                 .commit(
@@ -571,7 +581,7 @@ impl Backend for GitBackend {
         contents.author.timestamp.timestamp = MillisSinceEpoch(author.when().seconds() * 1000);
         contents.committer.timestamp.timestamp =
             MillisSinceEpoch(committer.when().seconds() * 1000);
-        self.write_extra_metadata_entry(&table, &id, extras)?;
+        self.write_extra_metadata_entry(&table, &table_lock, &id, extras)?;
         Ok((id, contents))
     }
 }
