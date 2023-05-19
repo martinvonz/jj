@@ -133,12 +133,15 @@ impl GitBackend {
     ) -> BackendResult<()> {
         let mut mut_table = table.start_mutation();
         mut_table.add_entry(id.to_bytes(), extras);
-        self.extra_metadata_store
+        let table = self
+            .extra_metadata_store
             .save_table(mut_table)
             .map_err(|err| {
                 BackendError::Other(format!("Failed to write non-git metadata: {err}"))
             })?;
-        *self.cached_extra_metadata.lock().unwrap() = None;
+        // Since the parent table was the head, saved table are likely to be new head.
+        // If it's not, cache will be reloaded when entry can't be found.
+        *self.cached_extra_metadata.lock().unwrap() = Some(table);
         Ok(())
     }
 }
