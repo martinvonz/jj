@@ -513,11 +513,8 @@ impl Backend for GitBackend {
         }
         let parent_refs = parents.iter().collect_vec();
         let extras = serialize_extras(&contents);
-        let mut mut_table = self
-            .extra_metadata_store
-            .get_head()
-            .unwrap()
-            .start_mutation();
+        let table = self.read_extra_metadata_table()?;
+        let mut mut_table = table.start_mutation();
         let id = loop {
             let git_id = locked_repo
                 .commit(
@@ -533,7 +530,7 @@ impl Backend for GitBackend {
                     source: Box::new(err),
                 })?;
             let id = CommitId::from_bytes(git_id.as_bytes());
-            match mut_table.get_value(id.as_bytes()) {
+            match table.get_value(id.as_bytes()) {
                 Some(existing_extras) if existing_extras != extras => {
                     // It's possible a commit already exists with the same commit id but different
                     // change id. Adjust the timestamp until this is no longer the case.
