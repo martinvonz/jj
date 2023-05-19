@@ -491,6 +491,18 @@ impl Backend for GitBackend {
         let table = self.cached_extra_metadata_table()?;
         if let Some(extras) = table.get_value(id.as_bytes()) {
             deserialize_extras(&mut commit, extras);
+        } else {
+            let (table, table_lock) = self.read_extra_metadata_table_locked()?;
+            if let Some(extras) = table.get_value(id.as_bytes()) {
+                // Concurrent write_commit() would update extras before taking a lock.
+                deserialize_extras(&mut commit, extras);
+                *self.cached_extra_metadata.lock().unwrap() = Some(table);
+            } else {
+                // Make our change id persist (otherwise future write_commit() could reassign
+                // new change id.)
+                let extras = serialize_extras(&commit);
+                self.write_extra_metadata_entry(&table, &table_lock, id, extras)?;
+            }
         }
 
         Ok(commit)
