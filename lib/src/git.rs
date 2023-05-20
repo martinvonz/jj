@@ -59,15 +59,16 @@ fn local_branch_name_to_ref_name(branch: &str) -> String {
     format!("refs/heads/{branch}")
 }
 
-fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) {
-    git_repo
-        .reference(
-            &format!("{}{}", NO_GC_REF_NAMESPACE, id.hex()),
-            Oid::from_bytes(id.as_bytes()).unwrap(),
-            true,
-            "used by jj",
-        )
-        .unwrap();
+fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) -> Result<(), git2::Error> {
+    // If multiple processes do git::import_refs() in parallel, this can fail to
+    // acquire a lock file even with force=true.
+    git_repo.reference(
+        &format!("{}{}", NO_GC_REF_NAMESPACE, id.hex()),
+        Oid::from_bytes(id.as_bytes()).unwrap(),
+        true,
+        "used by jj",
+    )?;
+    Ok(())
 }
 
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
@@ -116,7 +117,7 @@ pub fn import_some_refs(
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
         let head_commit = store.get_commit(&head_commit_id).unwrap();
         new_git_heads.insert("HEAD".to_string(), vec![head_commit_id.clone()]);
-        prevent_gc(git_repo, &head_commit_id);
+        prevent_gc(git_repo, &head_commit_id)?;
         mut_repo.add_head(&head_commit);
         mut_repo.set_git_head(RefTarget::Normal(head_commit_id));
     } else {
@@ -157,7 +158,7 @@ pub fn import_some_refs(
         let old_target = jj_view_git_refs.remove(&full_name);
         let new_target = Some(RefTarget::Normal(id.clone()));
         if new_target != old_target {
-            prevent_gc(git_repo, &id);
+            prevent_gc(git_repo, &id)?;
             mut_repo.set_git_ref(full_name.clone(), RefTarget::Normal(id.clone()));
             let commit = store.get_commit(&id).unwrap();
             mut_repo.add_head(&commit);
