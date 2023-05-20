@@ -14,54 +14,32 @@
 
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::iter::Iterator;
+use std::iter;
 
-pub struct BfsIter<'id_fn, 'neighbors_fn, T, ID, NI> {
-    id_fn: Box<dyn Fn(&T) -> ID + 'id_fn>,
-    neighbors_fn: Box<dyn FnMut(&T) -> NI + 'neighbors_fn>,
-    work: Vec<T>,
-    visited: HashSet<ID>,
-}
-
-impl<T, ID, NI> Iterator for BfsIter<'_, '_, T, ID, NI>
-where
-    ID: Hash + Eq,
-    NI: IntoIterator<Item = T>,
-{
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let c = self.work.pop()?;
-            let id = (self.id_fn)(&c);
-            if self.visited.contains(&id) {
-                continue;
-            }
-            for p in (self.neighbors_fn)(&c) {
-                self.work.push(p);
-            }
-            self.visited.insert(id);
-            return Some(c);
-        }
-    }
-}
-
-pub fn bfs<'id_fn, 'neighbors_fn, T, ID, II, NI>(
+pub fn bfs<T, ID, II, NI>(
     start: II,
-    id_fn: Box<dyn Fn(&T) -> ID + 'id_fn>,
-    neighbors_fn: Box<dyn FnMut(&T) -> NI + 'neighbors_fn>,
-) -> BfsIter<'id_fn, 'neighbors_fn, T, ID, NI>
+    id_fn: impl Fn(&T) -> ID,
+    mut neighbors_fn: impl FnMut(&T) -> NI,
+) -> impl Iterator<Item = T>
 where
     ID: Hash + Eq,
     II: IntoIterator<Item = T>,
     NI: IntoIterator<Item = T>,
 {
-    BfsIter {
-        id_fn,
-        neighbors_fn,
-        work: start.into_iter().collect(),
-        visited: Default::default(),
-    }
+    let mut work: Vec<T> = start.into_iter().collect();
+    let mut visited: HashSet<ID> = HashSet::new();
+    iter::from_fn(move || loop {
+        let c = work.pop()?;
+        let id = id_fn(&c);
+        if visited.contains(&id) {
+            continue;
+        }
+        for p in neighbors_fn(&c) {
+            work.push(p);
+        }
+        visited.insert(id);
+        return Some(c);
+    })
 }
 
 /// Returns neighbors before the node itself.
@@ -158,17 +136,13 @@ where
 {
     let start: Vec<T> = start.into_iter().collect();
     let mut reachable: HashSet<T> = start.iter().cloned().collect();
-    for _node in bfs(
-        start.into_iter(),
-        Box::new(id_fn),
-        Box::new(|node| {
-            let neighbors: Vec<T> = neighbors_fn(node).into_iter().collect();
-            for neighbor in &neighbors {
-                reachable.remove(neighbor);
-            }
-            neighbors
-        }),
-    ) {}
+    for _node in bfs(start.into_iter(), id_fn, |node| {
+        let neighbors: Vec<T> = neighbors_fn(node).into_iter().collect();
+        for neighbor in &neighbors {
+            reachable.remove(neighbor);
+        }
+        neighbors
+    }) {}
     reachable
 }
 
