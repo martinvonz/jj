@@ -1889,6 +1889,52 @@ fn test_push_updates_invalid_remote() {
 }
 
 #[test]
+fn test_bulk_update_extra_on_import_refs() {
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+    let git_repo = get_git_repo(repo);
+
+    let count_extra_tables = || {
+        let extra_dir = repo.repo_path().join("store").join("extra");
+        extra_dir
+            .read_dir()
+            .unwrap()
+            .filter(|entry| entry.as_ref().unwrap().metadata().unwrap().is_file())
+            .count()
+    };
+    let import_refs = |repo: &Arc<ReadonlyRepo>| {
+        let mut tx = repo.start_transaction(&settings, "test");
+        git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+        tx.mut_repo().rebase_descendants(&settings).unwrap();
+        tx.commit()
+    };
+
+    // Extra metadata table shouldn't be created per read_commit() call. The number
+    // of the table files should be way smaller than the number of the heads.
+    let mut commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    for _ in 1..10 {
+        commit = empty_git_commit(&git_repo, "refs/heads/main", &[&commit]);
+    }
+    let repo = import_refs(repo);
+    assert_eq!(count_extra_tables(), 2); // empty + imported_heads == 2
+
+    // Noop import shouldn't create a table file.
+    let repo = import_refs(&repo);
+    assert_eq!(count_extra_tables(), 2);
+
+    // Importing new head should add exactly one table file.
+    for _ in 0..10 {
+        commit = empty_git_commit(&git_repo, "refs/heads/main", &[&commit]);
+    }
+    let repo = import_refs(&repo);
+    assert_eq!(count_extra_tables(), 3);
+
+    drop(repo); // silence clippy
+}
+
+#[test]
 fn test_rewrite_imported_commit() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
