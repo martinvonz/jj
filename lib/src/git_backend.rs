@@ -30,7 +30,7 @@ use crate::backend::{
 };
 use crate::lock::FileLock;
 use crate::repo_path::{RepoPath, RepoPathComponent};
-use crate::stacked_table::{ReadonlyTable, TableSegment, TableStore};
+use crate::stacked_table::{MutableTable, ReadonlyTable, TableSegment, TableStore};
 
 const HASH_LENGTH: usize = 20;
 const CHANGE_ID_LENGTH: usize = 16;
@@ -124,15 +124,11 @@ impl GitBackend {
             .map_err(|err| BackendError::Other(format!("Failed to read non-git metadata: {err}")))
     }
 
-    fn write_extra_metadata_entry(
+    fn save_extra_metadata_table(
         &self,
-        table: &Arc<ReadonlyTable>,
+        mut_table: MutableTable,
         _table_lock: &FileLock,
-        id: &CommitId,
-        extras: Vec<u8>,
     ) -> BackendResult<()> {
-        let mut mut_table = table.start_mutation();
-        mut_table.add_entry(id.to_bytes(), extras);
         let table = self
             .extra_metadata_store
             .save_table(mut_table)
@@ -507,8 +503,9 @@ impl Backend for GitBackend {
             } else {
                 // Make our change id persist (otherwise future write_commit() could reassign
                 // new change id.)
-                let extras = serialize_extras(&commit);
-                self.write_extra_metadata_entry(&table, &table_lock, id, extras)?;
+                let mut mut_table = table.start_mutation();
+                mut_table.add_entry(id.to_bytes(), serialize_extras(&commit));
+                self.save_extra_metadata_table(mut_table, &table_lock)?;
             }
         }
 
@@ -600,7 +597,9 @@ impl Backend for GitBackend {
         contents.author.timestamp.timestamp = MillisSinceEpoch(author.when().seconds() * 1000);
         contents.committer.timestamp.timestamp =
             MillisSinceEpoch(committer.when().seconds() * 1000);
-        self.write_extra_metadata_entry(&table, &table_lock, &id, extras)?;
+        let mut mut_table = table.start_mutation();
+        mut_table.add_entry(id.to_bytes(), extras);
+        self.save_extra_metadata_table(mut_table, &table_lock)?;
         Ok((id, contents))
     }
 }
