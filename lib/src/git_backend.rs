@@ -17,6 +17,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::fs::File;
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
+use std::slice;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use git2::Oid;
@@ -260,6 +261,33 @@ fn map_not_found_err(err: git2::Error, id: &impl ObjectId) -> BackendError {
     }
 }
 
+fn import_extra_metadata_entries_from_heads(
+    git_repo: &git2::Repository,
+    mut_table: &mut MutableTable,
+    _table_lock: &FileLock,
+    head_ids: &[CommitId],
+) -> BackendResult<()> {
+    let mut work_ids = head_ids
+        .iter()
+        .filter(|id| mut_table.get_value(id.as_bytes()).is_none())
+        .cloned()
+        .collect_vec();
+    while let Some(id) = work_ids.pop() {
+        let git_commit = git_repo
+            .find_commit(validate_git_object_id(&id)?)
+            .map_err(|err| map_not_found_err(err, &id))?;
+        let commit = commit_from_git_without_root_parent(&git_commit);
+        mut_table.add_entry(id.to_bytes(), serialize_extras(&commit));
+        work_ids.extend(
+            commit
+                .parents
+                .into_iter()
+                .filter(|id| mut_table.get_value(id.as_bytes()).is_none()),
+        );
+    }
+    Ok(())
+}
+
 impl Debug for GitBackend {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         f.debug_struct("GitStore")
@@ -473,6 +501,7 @@ impl Backend for GitBackend {
         Ok(ConflictId::from_bytes(oid.as_bytes()))
     }
 
+    #[tracing::instrument(skip(self))]
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if *id == self.root_commit_id {
             return Ok(make_root_commit(
@@ -501,10 +530,20 @@ impl Backend for GitBackend {
                 deserialize_extras(&mut commit, extras);
                 *self.cached_extra_metadata.lock().unwrap() = Some(table);
             } else {
-                // Make our change id persist (otherwise future write_commit() could reassign
-                // new change id.)
+                // This commit is imported from Git. Make our change id persist (otherwise
+                // future write_commit() could reassign new change id.) It's likely that
+                // the commit is a branch head, so bulk-import metadata as much as possible.
+                tracing::debug!("import extra metadata entries");
                 let mut mut_table = table.start_mutation();
                 mut_table.add_entry(id.to_bytes(), serialize_extras(&commit));
+                if commit.parents != slice::from_ref(&self.root_commit_id) {
+                    import_extra_metadata_entries_from_heads(
+                        &locked_repo,
+                        &mut mut_table,
+                        &table_lock,
+                        &commit.parents,
+                    )?;
+                }
                 self.save_extra_metadata_table(mut_table, &table_lock)?;
             }
         }
