@@ -1676,8 +1676,8 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
 
     let commits = topo_order_reverse(
         vec![start_commit],
-        Box::new(|commit: &Commit| commit.id().clone()),
-        Box::new(|commit: &Commit| commit.predecessors()),
+        |commit: &Commit| commit.id().clone(),
+        |commit: &Commit| commit.predecessors(),
     );
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
