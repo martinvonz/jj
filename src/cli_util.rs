@@ -1457,8 +1457,8 @@ pub fn check_stale_working_copy(
         let maybe_ancestor_op = dag_walk::closest_common_node(
             [wc_operation.clone()],
             [repo_operation.clone()],
-            &|op: &Operation| op.parents(),
-            &|op: &Operation| op.id().clone(),
+            |op: &Operation| op.parents(),
+            |op: &Operation| op.id().clone(),
         );
         if let Some(ancestor_op) = maybe_ancestor_op {
             if ancestor_op.id() == repo_operation.id() {

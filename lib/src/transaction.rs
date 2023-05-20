@@ -68,8 +68,8 @@ impl Transaction {
         let ancestor_op = closest_common_node(
             self.parent_ops.clone(),
             vec![other_op.clone()],
-            &|op: &Operation| op.parents(),
-            &|op: &Operation| op.id().clone(),
+            |op: &Operation| op.parents(),
+            |op: &Operation| op.id().clone(),
         )
         .unwrap();
         let repo_loader = self.base_repo().loader();

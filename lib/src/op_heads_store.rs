@@ -55,7 +55,7 @@ pub trait OpHeadsStore: Send + Sync + Debug {
         let neighbors_fn = |op: &Operation| op.parents();
         // Remove ancestors so we don't create merge operation with an operation and its
         // ancestor
-        let op_heads = dag_walk::heads(op_heads, &neighbors_fn, &|op: &Operation| op.id().clone());
+        let op_heads = dag_walk::heads(op_heads, neighbors_fn, |op: &Operation| op.id().clone());
         let op_head_ids_after: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
         for removed_op_head in op_head_ids_before.difference(&op_head_ids_after) {
             self.remove_op_head(removed_op_head);
