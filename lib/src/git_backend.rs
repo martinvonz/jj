@@ -146,6 +146,40 @@ impl GitBackend {
     }
 }
 
+fn commit_from_git_without_root_parent(commit: &git2::Commit) -> Commit {
+    // We reverse the bits of the commit id to create the change id. We don't want
+    // to use the first bytes unmodified because then it would be ambiguous
+    // if a given hash prefix refers to the commit id or the change id. It
+    // would have been enough to pick the last 16 bytes instead of the
+    // leading 16 bytes to address that. We also reverse the bits to make it less
+    // likely that users depend on any relationship between the two ids.
+    let change_id = ChangeId::new(
+        commit.id().as_bytes()[4..HASH_LENGTH]
+            .iter()
+            .rev()
+            .map(|b| b.reverse_bits())
+            .collect(),
+    );
+    let parents = commit
+        .parent_ids()
+        .map(|oid| CommitId::from_bytes(oid.as_bytes()))
+        .collect_vec();
+    let tree_id = TreeId::from_bytes(commit.tree_id().as_bytes());
+    let description = commit.message().unwrap_or("<no message>").to_owned();
+    let author = signature_from_git(commit.author());
+    let committer = signature_from_git(commit.committer());
+
+    Commit {
+        parents,
+        predecessors: vec![],
+        root_tree: tree_id,
+        change_id,
+        description,
+        author,
+        committer,
+    }
+}
+
 fn signature_from_git(signature: git2::Signature) -> Signature {
     let name = signature.name().unwrap_or("<no name>").to_owned();
     let email = signature.email().unwrap_or("<no email>").to_owned();
@@ -456,39 +490,9 @@ impl Backend for GitBackend {
         let commit = locked_repo
             .find_commit(git_commit_id)
             .map_err(|err| map_not_found_err(err, id))?;
-        // We reverse the bits of the commit id to create the change id. We don't want
-        // to use the first bytes unmodified because then it would be ambiguous
-        // if a given hash prefix refers to the commit id or the change id. It
-        // would have been enough to pick the last 16 bytes instead of the
-        // leading 16 bytes to address that. We also reverse the bits to make it less
-        // likely that users depend on any relationship between the two ids.
-        let change_id = ChangeId::new(
-            commit.id().as_bytes()[4..HASH_LENGTH]
-                .iter()
-                .rev()
-                .map(|b| b.reverse_bits())
-                .collect(),
-        );
-        let mut parents = commit
-            .parent_ids()
-            .map(|oid| CommitId::from_bytes(oid.as_bytes()))
-            .collect_vec();
-        if parents.is_empty() {
-            parents.push(self.root_commit_id.clone());
-        };
-        let tree_id = TreeId::from_bytes(commit.tree_id().as_bytes());
-        let description = commit.message().unwrap_or("<no message>").to_owned();
-        let author = signature_from_git(commit.author());
-        let committer = signature_from_git(commit.committer());
-
-        let mut commit = Commit {
-            parents,
-            predecessors: vec![],
-            root_tree: tree_id,
-            change_id,
-            description,
-            author,
-            committer,
+        let mut commit = commit_from_git_without_root_parent(&commit);
+        if commit.parents.is_empty() {
+            commit.parents.push(self.root_commit_id.clone());
         };
 
         let table = self.cached_extra_metadata_table()?;
