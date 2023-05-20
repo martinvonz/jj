@@ -463,7 +463,7 @@ impl Backend for GitBackend {
         // leading 16 bytes to address that. We also reverse the bits to make it less
         // likely that users depend on any relationship between the two ids.
         let change_id = ChangeId::new(
-            id.as_bytes()[4..HASH_LENGTH]
+            commit.id().as_bytes()[4..HASH_LENGTH]
                 .iter()
                 .rev()
                 .map(|b| b.reverse_bits())
