@@ -43,10 +43,10 @@ where
 }
 
 /// Returns neighbors before the node itself.
-pub fn topo_order_reverse<'a, T, ID, II, NI>(
+pub fn topo_order_reverse<T, ID, II, NI>(
     start: II,
-    id_fn: Box<dyn Fn(&T) -> ID + 'a>,
-    mut neighbors_fn: Box<dyn FnMut(&T) -> NI + 'a>,
+    id_fn: impl Fn(&T) -> ID,
+    mut neighbors_fn: impl FnMut(&T) -> NI,
 ) -> Vec<T>
 where
     T: Hash + Eq + Clone,
@@ -215,11 +215,8 @@ mod tests {
             'C' => vec!['B'],
         };
 
-        let common = topo_order_reverse(
-            vec!['C'],
-            Box::new(|node| *node),
-            Box::new(move |node| neighbors[node].clone()),
-        );
+        let common =
+            topo_order_reverse(vec!['C'], |node| *node, move |node| neighbors[node].clone());
 
         assert_eq!(common, vec!['C', 'B', 'A']);
     }
@@ -245,11 +242,8 @@ mod tests {
             'F' => vec!['E', 'D'],
         };
 
-        let common = topo_order_reverse(
-            vec!['F'],
-            Box::new(|node| *node),
-            Box::new(move |node| neighbors[node].clone()),
-        );
+        let common =
+            topo_order_reverse(vec!['F'], |node| *node, move |node| neighbors[node].clone());
 
         assert_eq!(common, vec!['F', 'E', 'D', 'C', 'B', 'A']);
     }
@@ -279,8 +273,8 @@ mod tests {
 
         let common = topo_order_reverse(
             vec!['F', 'C'],
-            Box::new(|node| *node),
-            Box::new(move |node| neighbors[node].clone()),
+            |node| *node,
+            move |node| neighbors[node].clone(),
         );
 
         assert_eq!(common, vec!['F', 'E', 'D', 'C', 'B', 'A']);

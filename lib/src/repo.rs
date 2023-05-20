@@ -851,14 +851,14 @@ impl MutableRepo {
         } else {
             let missing_commits = topo_order_reverse(
                 vec![head.clone()],
-                Box::new(|commit: &Commit| commit.id().clone()),
-                Box::new(|commit: &Commit| -> Vec<Commit> {
+                |commit: &Commit| commit.id().clone(),
+                |commit: &Commit| -> Vec<Commit> {
                     commit
                         .parents()
                         .into_iter()
                         .filter(|parent| !self.index().has_id(parent.id()))
                         .collect()
-                }),
+                },
             );
             for missing_commit in missing_commits.iter().rev() {
                 self.index.add_commit(missing_commit);

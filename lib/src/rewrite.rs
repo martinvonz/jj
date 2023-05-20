@@ -189,8 +189,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         // rewritten, make sure we rebase the rewritten parent first.
         let to_visit = dag_walk::topo_order_reverse(
             to_visit,
-            Box::new(|commit| commit.id().clone()),
-            Box::new(|commit| {
+            |commit| commit.id().clone(),
+            |commit| {
                 visited.insert(commit.id().clone());
                 let mut dependents = vec![];
                 for parent in commit.parents() {
@@ -206,7 +206,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                     }
                 }
                 dependents
-            }),
+            },
         );
 
         let new_commits = rewritten.values().flatten().cloned().collect();

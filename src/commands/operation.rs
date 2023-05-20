@@ -84,8 +84,8 @@ fn cmd_op_log(
     let default_node_symbol = graph.default_node_symbol().to_owned();
     for op in topo_order_reverse(
         vec![head_op],
-        Box::new(|op: &Operation| op.id().clone()),
-        Box::new(|op: &Operation| op.parents()),
+        |op: &Operation| op.id().clone(),
+        |op: &Operation| op.parents(),
     ) {
         let mut edges = vec![];
         for parent in op.parents() {
