@@ -111,8 +111,8 @@ impl DefaultIndexStore {
         let mut parent_op_id: Option<OperationId> = None;
         for op in dag_walk::bfs(
             vec![operation.clone()],
-            Box::new(|op: &Operation| op.id().clone()),
-            Box::new(|op: &Operation| op.parents()),
+            |op: &Operation| op.id().clone(),
+            |op: &Operation| op.parents(),
         ) {
             if operations_dir.join(op.id().hex()).is_file() {
                 if parent_op_id.is_none() {
