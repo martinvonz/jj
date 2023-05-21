@@ -1037,8 +1037,9 @@ impl WorkspaceCommandHelper {
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
         let old_op_id = locked_wc.old_operation_id().clone();
         let wc_commit = repo.store().get_commit(&wc_commit_id)?;
-        let repo = match check_stale_working_copy(&locked_wc, &wc_commit, repo.clone()) {
-            Ok(repo) => repo,
+        let repo = match check_stale_working_copy(&locked_wc, &wc_commit, &repo) {
+            Ok(None) => repo,
+            Ok(Some(wc_operation)) => repo.reload_at(&wc_operation),
             Err(StaleWorkingCopyError::WorkingCopyStale) => {
                 locked_wc.discard();
                 return Err(user_error_with_hint(
@@ -1430,12 +1431,13 @@ pub enum StaleWorkingCopyError {
 pub fn check_stale_working_copy(
     locked_wc: &LockedWorkingCopy,
     wc_commit: &Commit,
-    repo: Arc<ReadonlyRepo>,
-) -> Result<Arc<ReadonlyRepo>, StaleWorkingCopyError> {
+    repo: &ReadonlyRepo,
+) -> Result<Option<Operation>, StaleWorkingCopyError> {
     // Check if the working copy's tree matches the repo's view
     let wc_tree_id = locked_wc.old_tree_id().clone();
     if *wc_commit.tree_id() == wc_tree_id {
-        Ok(repo)
+        // The working copy isn't stale, and no need to reload the repo.
+        Ok(None)
     } else {
         let wc_operation_data = repo
             .op_store()
@@ -1455,9 +1457,9 @@ pub fn check_stale_working_copy(
         );
         if let Some(ancestor_op) = maybe_ancestor_op {
             if ancestor_op.id() == repo_operation.id() {
-                // The working copy was updated since we loaded the repo. We reload the repo
-                // at the working copy's operation.
-                Ok(repo.reload_at(&wc_operation))
+                // The working copy was updated since we loaded the repo. The repo must be
+                // reloaded at the working copy's operation.
+                Ok(Some(wc_operation))
             } else if ancestor_op.id() == wc_operation.id() {
                 // The working copy was not updated when some repo operation committed,
                 // meaning that it's stale compared to the repo view.
