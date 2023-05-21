@@ -116,7 +116,7 @@ fn test_untrack_sparse() {
     file1
     file2
     "###);
-    test_env.jj_cmd_success(&repo_path, &["sparse", "--clear", "--add", "file1"]);
+    test_env.jj_cmd_success(&repo_path, &["sparse", "set", "--clear", "--add", "file1"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["untrack", "file2"]);
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["files"]);
