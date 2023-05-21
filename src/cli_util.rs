@@ -1023,23 +1023,37 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn snapshot_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
-        let repo = self.repo().clone();
         let workspace_id = self.workspace_id().to_owned();
-        let wc_commit_id = match repo.view().get_wc_commit_id(&workspace_id) {
-            Some(wc_commit_id) => wc_commit_id.clone(),
-            None => {
-                // If the workspace has been deleted, it's unclear what to do, so we just skip
-                // committing the working copy.
-                return Ok(());
-            }
+        let get_wc_commit = |repo: &ReadonlyRepo| -> Result<Option<_>, _> {
+            repo.view()
+                .get_wc_commit_id(&workspace_id)
+                .map(|id| repo.store().get_commit(id))
+                .transpose()
+        };
+        let repo = self.repo().clone();
+        let wc_commit = if let Some(wc_commit) = get_wc_commit(&repo)? {
+            wc_commit
+        } else {
+            // If the workspace has been deleted, it's unclear what to do, so we just skip
+            // committing the working copy.
+            return Ok(());
         };
         let base_ignores = self.base_ignores();
+
+        // Compare working-copy tree and operation with repo's, and reload as needed.
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
         let old_op_id = locked_wc.old_operation_id().clone();
-        let wc_commit = repo.store().get_commit(&wc_commit_id)?;
-        let repo = match check_stale_working_copy(&locked_wc, &wc_commit, &repo) {
-            Ok(None) => repo,
-            Ok(Some(wc_operation)) => repo.reload_at(&wc_operation),
+        let (repo, wc_commit) = match check_stale_working_copy(&locked_wc, &wc_commit, &repo) {
+            Ok(None) => (repo, wc_commit),
+            Ok(Some(wc_operation)) => {
+                let repo = repo.reload_at(&wc_operation);
+                let wc_commit = if let Some(wc_commit) = get_wc_commit(&repo)? {
+                    wc_commit
+                } else {
+                    return Ok(()); // The workspace has been deleted (see above)
+                };
+                (repo, wc_commit)
+            }
             Err(StaleWorkingCopyError::WorkingCopyStale) => {
                 locked_wc.discard();
                 return Err(user_error_with_hint(
