@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The `ui.default-revset` config was renamed to `revsets.log`.
 
+* The `jj sparse` command was split up into `jj sparse list` and
+  `jj sparse set`.
+
 ### New features
 
 * `jj git push --deleted` will remove all locally deleted branches from the remote.
