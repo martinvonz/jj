@@ -193,18 +193,22 @@ fn test_git_colocated_branches() {
     );
 
     // Update the branch in Git
+    let target_id = test_env.jj_cmd_success(
+        &workspace_root,
+        &["log", "--no-graph", "-T=commit_id", "-r=description(foo)"],
+    );
     git_repo
         .reference(
             "refs/heads/master",
-            Oid::from_str("1e6f0b403ed2ff9713b5d6b1dc601e4804250cda").unwrap(),
+            Oid::from_str(&target_id).unwrap(),
             true,
             "test",
         )
         .unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
-    Working copy now at: eb08b363bb5e (no description set)
+    Working copy now at: 096dc80da670 (no description set)
     Parent commit      : 230dd059e1b0 (no description set)
-    @  eb08b363bb5ef8ee549314260488980d7bbe8f63
+    @  096dc80da67094fbaa6683e2a205dddffa31f9a8
     │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master foo
     ├─╯
     ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
@@ -265,8 +269,8 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     test_env.jj_cmd_success(&origin_path, &["describe", "C_to_move", "-m", "moved C"]);
     let stdout = test_env.jj_cmd_success(&clone_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
-    // 929e and 8d4e are abandoned, as the corresponding branches were deleted or
-    // moved on the remote (#864)
+    // "original C" and "B_to_delete" are abandoned, as the corresponding branches
+    // were deleted or moved on the remote (#864)
     insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
     ◉  04fd29df05638156b20044b3b6136b42abcb09ab C_to_move moved C
     │ @  0335878796213c3a701f1c9c34dcae242bee4131

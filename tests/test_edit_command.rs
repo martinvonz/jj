@@ -77,12 +77,10 @@ fn test_edit_current_wc_commit_missing() {
     test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "second"]);
     test_env.jj_cmd_success(&repo_path, &["edit", "@-"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  5c52832c3483 second
-    @  69542c1984c1 first
-    ◉  000000000000
-    "###);
 
+    let wc_id = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-T=commit_id", "-r=@"]);
+    let wc_child_id =
+        test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-T=commit_id", "-r=@+"]);
     // Make the Git backend fail to read the current working copy commit
     let commit_object_path = repo_path
         .join(".jj")
@@ -90,16 +88,13 @@ fn test_edit_current_wc_commit_missing() {
         .join("store")
         .join("git")
         .join("objects")
-        .join("69")
-        .join("542c1984c1f9d91f7c6c9c9e6941782c944bd9");
+        .join(&wc_id[..2])
+        .join(&wc_id[2..]);
     std::fs::remove_file(commit_object_path).unwrap();
 
     // Pass --ignore-working-copy to avoid triggering the error at snapshot time
     let assert = test_env
-        .jj_cmd(
-            &repo_path,
-            &["edit", "--ignore-working-copy", "5c52832c3483"],
-        )
+        .jj_cmd(&repo_path, &["edit", "--ignore-working-copy", &wc_child_id])
         .assert()
         .code(255);
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"

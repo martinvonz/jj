@@ -14,6 +14,7 @@
 
 use std::path::Path;
 
+use itertools::Itertools;
 use regex::Regex;
 
 use crate::common::{get_stdout_string, TestEnvironment};
@@ -45,8 +46,9 @@ fn test_op_log() {
     ◉  56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
        initialize repo
     "###);
-    let add_workspace_id = "a99a3fd5c51e";
-    let initialize_repo_id = "56b94dfc38e7";
+    let op_log_lines = stdout.lines().collect_vec();
+    let add_workspace_id = op_log_lines[3].split(' ').nth(2).unwrap();
+    let initialize_repo_id = op_log_lines[5].split(' ').nth(2).unwrap();
 
     // Can load the repo at a specific operation ID
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, initialize_repo_id), @r###"
