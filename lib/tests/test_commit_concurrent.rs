@@ -49,20 +49,17 @@ fn test_commit_parallel(use_git: bool) {
     let repo = &test_workspace.repo;
 
     let num_threads = max(num_cpus::get(), 4);
-    let mut threads = vec![];
-    for _ in 0..num_threads {
-        let settings = settings.clone();
-        let repo = repo.clone();
-        let handle = thread::spawn(move || {
-            let mut tx = repo.start_transaction(&settings, "test");
-            write_random_commit(tx.mut_repo(), &settings);
-            tx.commit();
-        });
-        threads.push(handle);
-    }
-    for thread in threads {
-        thread.join().ok().unwrap();
-    }
+    thread::scope(|s| {
+        for _ in 0..num_threads {
+            let settings = settings.clone();
+            let repo = repo.clone();
+            s.spawn(move || {
+                let mut tx = repo.start_transaction(&settings, "test");
+                write_random_commit(tx.mut_repo(), &settings);
+                tx.commit();
+            });
+        }
+    });
     let repo = repo.reload_at_head(&settings).unwrap();
     // One commit per thread plus the commit from the initial working-copy on top of
     // the root commit
@@ -83,20 +80,17 @@ fn test_commit_parallel_instances(use_git: bool) {
     let repo = &test_workspace.repo;
 
     let num_threads = max(num_cpus::get(), 4);
-    let mut threads = vec![];
-    for _ in 0..num_threads {
-        let settings = settings.clone();
-        let repo = load_repo_at_head(&settings, repo.repo_path());
-        let handle = thread::spawn(move || {
-            let mut tx = repo.start_transaction(&settings, "test");
-            write_random_commit(tx.mut_repo(), &settings);
-            tx.commit();
-        });
-        threads.push(handle);
-    }
-    for thread in threads {
-        thread.join().ok().unwrap();
-    }
+    thread::scope(|s| {
+        for _ in 0..num_threads {
+            let settings = settings.clone();
+            let repo = load_repo_at_head(&settings, repo.repo_path());
+            s.spawn(move || {
+                let mut tx = repo.start_transaction(&settings, "test");
+                write_random_commit(tx.mut_repo(), &settings);
+                tx.commit();
+            });
+        }
+    });
     // One commit per thread plus the commit from the initial working-copy commit on
     // top of the root commit
     let repo = load_repo_at_head(&settings, repo.repo_path());

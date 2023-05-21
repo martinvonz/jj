@@ -53,26 +53,23 @@ mod tests {
             .unwrap();
         data_file.write_u32::<LittleEndian>(0).unwrap();
         let num_threads = max(num_cpus::get(), 4);
-        let mut threads = vec![];
-        for _ in 0..num_threads {
-            let data_path = data_path.clone();
-            let lock_path = lock_path.clone();
-            let handle = thread::spawn(move || {
-                let _lock = FileLock::lock(lock_path);
-                let mut data_file = OpenOptions::new()
-                    .read(true)
-                    .open(data_path.clone())
-                    .unwrap();
-                let value = data_file.read_u32::<LittleEndian>().unwrap();
-                thread::sleep(Duration::from_millis(1));
-                let mut data_file = OpenOptions::new().write(true).open(data_path).unwrap();
-                data_file.write_u32::<LittleEndian>(value + 1).unwrap();
-            });
-            threads.push(handle);
-        }
-        for thread in threads {
-            thread.join().ok().unwrap();
-        }
+        thread::scope(|s| {
+            for _ in 0..num_threads {
+                let data_path = data_path.clone();
+                let lock_path = lock_path.clone();
+                s.spawn(move || {
+                    let _lock = FileLock::lock(lock_path);
+                    let mut data_file = OpenOptions::new()
+                        .read(true)
+                        .open(data_path.clone())
+                        .unwrap();
+                    let value = data_file.read_u32::<LittleEndian>().unwrap();
+                    thread::sleep(Duration::from_millis(1));
+                    let mut data_file = OpenOptions::new().write(true).open(data_path).unwrap();
+                    data_file.write_u32::<LittleEndian>(value + 1).unwrap();
+                });
+            }
+        });
         let mut data_file = OpenOptions::new().read(true).open(data_path).unwrap();
         let value = data_file.read_u32::<LittleEndian>().unwrap();
         assert_eq!(value, num_threads as u32);
