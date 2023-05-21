@@ -60,7 +60,7 @@ fn test_git_colocated() {
     test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  3e9369cd54227eb88455e1834dbc08aad6a16ac4
-    ◉  e61b6729ff4292870702f2f72b2a60165679ef37 master HEAD@git
+    ◉  e61b6729ff4292870702f2f72b2a60165679ef37 master HEAD@git initial
     ◉  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(
@@ -73,7 +73,7 @@ fn test_git_colocated() {
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  b26951a9c6f5c270e4d039880208952fd5faae5e
-    ◉  e61b6729ff4292870702f2f72b2a60165679ef37 master HEAD@git
+    ◉  e61b6729ff4292870702f2f72b2a60165679ef37 master HEAD@git initial
     ◉  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(
@@ -85,8 +85,8 @@ fn test_git_colocated() {
     test_env.jj_cmd_success(&workspace_root, &["new"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  9dbb23ff2ff5e66c43880f1042369d704f7a321e
-    ◉  b26951a9c6f5c270e4d039880208952fd5faae5e  HEAD@git
-    ◉  e61b6729ff4292870702f2f72b2a60165679ef37 master
+    ◉  b26951a9c6f5c270e4d039880208952fd5faae5e HEAD@git
+    ◉  e61b6729ff4292870702f2f72b2a60165679ef37 master initial
     ◉  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(
@@ -159,7 +159,7 @@ fn test_git_colocated_rebase_on_import() {
     git_repo.set_head("refs/heads/master").unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  7f96185cfbe36341d0f9a86ebfaeab67a5922c7e
-    ◉  4bcbeaba9a4b309c5f45a8807fbf5499b9714315 master HEAD@git
+    ◉  4bcbeaba9a4b309c5f45a8807fbf5499b9714315 master HEAD@git add a file
     ◉  0000000000000000000000000000000000000000
     "###);
 }
@@ -173,8 +173,8 @@ fn test_git_colocated_branches() {
     test_env.jj_cmd_success(&workspace_root, &["new", "-m", "foo"]);
     test_env.jj_cmd_success(&workspace_root, &["new", "@-", "-m", "bar"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
-    @  3560559274ab431feea00b7b7e0b9250ecce951f
-    │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda
+    @  3560559274ab431feea00b7b7e0b9250ecce951f bar
+    │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda foo
     ├─╯
     ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 master HEAD@git
     ◉  0000000000000000000000000000000000000000
@@ -205,9 +205,9 @@ fn test_git_colocated_branches() {
     Working copy now at: eb08b363bb5e (no description set)
     Parent commit      : 230dd059e1b0 (no description set)
     @  eb08b363bb5ef8ee549314260488980d7bbe8f63
-    │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master
+    │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master foo
     ├─╯
-    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22  HEAD@git
+    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◉  0000000000000000000000000000000000000000
     "###);
 }
@@ -252,11 +252,11 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     test_env.jj_cmd_success(&clone_path, &["new", "A"]);
     insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
     @  0335878796213c3a701f1c9c34dcae242bee4131
-    │ ◉  8d4e006fd63547965fbc3a26556a9aa531076d32 C_to_move
+    │ ◉  8d4e006fd63547965fbc3a26556a9aa531076d32 C_to_move original C
     ├─╯
-    │ ◉  929e298ae9edf969b405a304c75c10457c47d52c B_to_delete
+    │ ◉  929e298ae9edf969b405a304c75c10457c47d52c B_to_delete B_to_delete
     ├─╯
-    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A master HEAD@git
+    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A master HEAD@git A
     ◉  0000000000000000000000000000000000000000
     "###);
 
@@ -268,10 +268,10 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     // 929e and 8d4e are abandoned, as the corresponding branches were deleted or
     // moved on the remote (#864)
     insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
-    ◉  04fd29df05638156b20044b3b6136b42abcb09ab C_to_move
+    ◉  04fd29df05638156b20044b3b6136b42abcb09ab C_to_move moved C
     │ @  0335878796213c3a701f1c9c34dcae242bee4131
     ├─╯
-    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A master HEAD@git
+    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A master HEAD@git A
     ◉  0000000000000000000000000000000000000000
     "###);
 }
@@ -289,8 +289,8 @@ fn test_git_colocated_external_checkout() {
     // Checked out anonymous branch
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  53637cd508ff02427dd78eca98f5b2450a6370ce
-    ◉  66f4d1806ae41bd604f69155dece64062a0056cf  HEAD@git
-    │ ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master
+    ◉  66f4d1806ae41bd604f69155dece64062a0056cf HEAD@git B
+    │ ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master A
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -310,8 +310,8 @@ fn test_git_colocated_external_checkout() {
     // be abandoned. (#1042)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  0521ce3b8c4e29aab79f3c750e2845dcbc4c3874
-    │ ◉  66f4d1806ae41bd604f69155dece64062a0056cf
-    ◉ │  a86754f975f953fa25da4265764adc0c62e9ce6b master HEAD@git
+    │ ◉  66f4d1806ae41bd604f69155dece64062a0056cf B
+    ◉ │  a86754f975f953fa25da4265764adc0c62e9ce6b master HEAD@git A
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -364,7 +364,7 @@ fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> St
 }
 
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
-    let template = r#"commit_id ++ " " ++ branches ++ " " ++ git_head"#;
+    let template = r#"separate(" ", commit_id, branches, git_head, description)"#;
     test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
@@ -425,7 +425,7 @@ fn test_git_colocated_unreachable_commits() {
     test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  66ae47cee4f8c28ee8d7e4f5d9401b03c07e22f2
-    ◉  2ee37513d2b5e549f7478c671a780053614bff19 master HEAD@git
+    ◉  2ee37513d2b5e549f7478c671a780053614bff19 master HEAD@git initial
     ◉  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(
