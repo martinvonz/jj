@@ -106,41 +106,39 @@ fn test_checkout_parallel(use_git: bool) {
         .check_out(repo.op_id().clone(), None, &tree)
         .unwrap();
 
-    let mut threads = vec![];
-    for tree_id in &tree_ids {
-        let op_id = repo.op_id().clone();
-        let tree_ids = tree_ids.clone();
-        let tree_id = tree_id.clone();
-        let settings = settings.clone();
-        let workspace_root = workspace_root.clone();
-        let handle = thread::spawn(move || {
-            let mut workspace =
-                Workspace::load(&settings, &workspace_root, &StoreFactories::default()).unwrap();
-            let tree = workspace
-                .repo_loader()
-                .store()
-                .get_tree(&RepoPath::root(), &tree_id)
-                .unwrap();
-            // The operation ID is not correct, but that doesn't matter for this test
-            let stats = workspace
-                .working_copy_mut()
-                .check_out(op_id, None, &tree)
-                .unwrap();
-            assert_eq!(stats.updated_files, 0);
-            assert_eq!(stats.added_files, 1);
-            assert_eq!(stats.removed_files, 1);
-            // Check that the working copy contains one of the trees. We may see a
-            // different tree than the one we just checked out, but since
-            // write_tree() should take the same lock as check_out(), write_tree()
-            // should never produce a different tree.
-            let mut locked_wc = workspace.working_copy_mut().start_mutation();
-            let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
-            locked_wc.discard();
-            assert!(tree_ids.contains(&new_tree_id));
-        });
-        threads.push(handle);
-    }
-    for thread in threads {
-        thread.join().ok().unwrap();
-    }
+    thread::scope(|s| {
+        for tree_id in &tree_ids {
+            let op_id = repo.op_id().clone();
+            let tree_ids = tree_ids.clone();
+            let tree_id = tree_id.clone();
+            let settings = settings.clone();
+            let workspace_root = workspace_root.clone();
+            s.spawn(move || {
+                let mut workspace =
+                    Workspace::load(&settings, &workspace_root, &StoreFactories::default())
+                        .unwrap();
+                let tree = workspace
+                    .repo_loader()
+                    .store()
+                    .get_tree(&RepoPath::root(), &tree_id)
+                    .unwrap();
+                // The operation ID is not correct, but that doesn't matter for this test
+                let stats = workspace
+                    .working_copy_mut()
+                    .check_out(op_id, None, &tree)
+                    .unwrap();
+                assert_eq!(stats.updated_files, 0);
+                assert_eq!(stats.added_files, 1);
+                assert_eq!(stats.removed_files, 1);
+                // Check that the working copy contains one of the trees. We may see a
+                // different tree than the one we just checked out, but since
+                // write_tree() should take the same lock as check_out(), write_tree()
+                // should never produce a different tree.
+                let mut locked_wc = workspace.working_copy_mut().start_mutation();
+                let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty(), None).unwrap();
+                locked_wc.discard();
+                assert!(tree_ids.contains(&new_tree_id));
+            });
+        }
+    });
 }
