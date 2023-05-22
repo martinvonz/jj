@@ -2558,7 +2558,7 @@ fn print_conflicted_paths(
         // TODO: We might decide it's OK for `jj resolve` to ignore special files in the
         // `removes` of a conflict (see e.g. https://github.com/martinvonz/jj/pull/978). In
         // that case, `conflict.removes` should be removed below.
-        for object in itertools::chain(conflict.adds.iter(), conflict.removes.iter()) {
+        for object in itertools::chain(conflict.removes.iter(), conflict.adds.iter()) {
             seen_objects.insert(
                 match object.value {
                     TreeValue::File {

@@ -402,11 +402,11 @@ fn signature_from_proto(proto: crate::protos::store::commit::Signature) -> Signa
 
 fn conflict_to_proto(conflict: &Conflict) -> crate::protos::store::Conflict {
     let mut proto = crate::protos::store::Conflict::default();
-    for term in &conflict.adds {
-        proto.adds.push(conflict_term_to_proto(term));
-    }
     for term in &conflict.removes {
         proto.removes.push(conflict_term_to_proto(term));
+    }
+    for term in &conflict.adds {
+        proto.adds.push(conflict_term_to_proto(term));
     }
     proto
 }

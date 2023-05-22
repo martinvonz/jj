@@ -59,7 +59,7 @@ fn describe_conflict_term(term: &ConflictTerm) -> String {
     }
 }
 
-/// Give a summary description of a conflict's "adds" and "removes"
+/// Give a summary description of a conflict's "removes" and "adds"
 pub fn describe_conflict(conflict: &Conflict, file: &mut dyn Write) -> std::io::Result<()> {
     file.write_all(b"Conflict:\n")?;
     for term in &conflict.removes {
@@ -150,24 +150,24 @@ pub fn extract_file_conflict_as_single_hunk(
     path: &RepoPath,
     conflict: &Conflict,
 ) -> Option<ConflictHunk> {
-    let file_adds = file_terms(&conflict.adds);
     let file_removes = file_terms(&conflict.removes);
-    if file_adds.len() != conflict.adds.len() || file_removes.len() != conflict.removes.len() {
+    let file_adds = file_terms(&conflict.adds);
+    if file_removes.len() != conflict.removes.len() || file_adds.len() != conflict.adds.len() {
         return None;
     }
-    let mut added_content = file_adds
+    let mut removed_content = file_removes
         .iter()
         .map(|term| get_file_contents(store, path, term))
         .collect_vec();
-    let mut removed_content = file_removes
+    let mut added_content = file_adds
         .iter()
         .map(|term| get_file_contents(store, path, term))
         .collect_vec();
     // If the conflict had removed the file on one side, we pretend that the file
     // was empty there.
     let l = max(added_content.len(), removed_content.len() + 1);
-    added_content.resize(l, vec![]);
     removed_content.resize(l - 1, vec![]);
+    added_content.resize(l, vec![]);
 
     Some(ConflictHunk {
         removes: removed_content,

@@ -27,23 +27,23 @@ pub fn merge_ref_targets(
         return resolved.cloned();
     }
 
-    let mut adds = vec![];
     let mut removes = vec![];
+    let mut adds = vec![];
     if let Some(left) = left {
-        adds.extend(left.adds());
         removes.extend(left.removes());
+        adds.extend(left.adds());
     }
     if let Some(base) = base {
         // Note that these are backwards (because the base is subtracted).
-        adds.extend(base.removes());
         removes.extend(base.adds());
+        adds.extend(base.removes());
     }
     if let Some(right) = right {
-        adds.extend(right.adds());
         removes.extend(right.removes());
+        adds.extend(right.adds());
     }
 
-    while let Some((maybe_remove_index, add_index)) = find_pair_to_remove(index, &adds, &removes) {
+    while let Some((maybe_remove_index, add_index)) = find_pair_to_remove(index, &removes, &adds) {
         if let Some(remove_index) = maybe_remove_index {
             removes.remove(remove_index);
         }
@@ -61,12 +61,12 @@ pub fn merge_ref_targets(
 
 fn find_pair_to_remove(
     index: &dyn Index,
-    adds: &[CommitId],
     removes: &[CommitId],
+    adds: &[CommitId],
 ) -> Option<(Option<usize>, usize)> {
     // Removes pairs of matching adds and removes.
-    for (add_index, add) in adds.iter().enumerate() {
-        for (remove_index, remove) in removes.iter().enumerate() {
+    for (remove_index, remove) in removes.iter().enumerate() {
+        for (add_index, add) in adds.iter().enumerate() {
             if add == remove {
                 return Some((Some(remove_index), add_index));
             }
