@@ -877,10 +877,18 @@ enum SparseArgs {
 }
 
 /// List the patterns that are currently present in the working copy
+///
+/// By default, a newly cloned or initialized repo will have have a pattern
+/// matching all files from the repo root. That pattern is rendered as `.` (a
+/// single period).
 #[derive(clap::Args, Clone, Debug)]
 struct SparseListArgs {}
 
 /// Update the patterns that are present in the working copy
+///
+/// For example, if all you need is the `README.md` and the `lib/`
+/// directory, use `jj sparse set --clear --add README.md --add lib`.
+/// If you no longer need the `lib` directory, use `jj sparse set --remove lib`.
 #[derive(clap::Args, Clone, Debug)]
 struct SparseSetArgs {
     /// Patterns to add to the working copy
