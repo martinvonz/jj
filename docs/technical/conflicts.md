@@ -23,7 +23,7 @@ together can be a viewed as a simple algebraic expression of positive and
 negative terms. The order of terms is undefined.
 
 For example, a regular 3-way merge between B and C, with A as base, is `B+C-A`
-(`{ adds=[B,C], removes=[A] }`). A modify/remove conflict is `B-A`. An add/add
+(`{ removes=[A], adds=[B,C] }`). A modify/remove conflict is `B-A`. An add/add
 conflict is `B+C`. An octopus merge of N commits usually has N positive terms
 and N-1 negative terms. A non-conflict state A is equivalent to a conflict state
 containing just the term `A`. An empty expression indicates absence of any

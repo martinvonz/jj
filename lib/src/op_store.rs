@@ -144,6 +144,15 @@ impl RefTarget {
         matches!(self, RefTarget::Conflict { .. })
     }
 
+    pub fn removes(&self) -> Vec<CommitId> {
+        match self {
+            RefTarget::Normal(_) => {
+                vec![]
+            }
+            RefTarget::Conflict { removes, adds: _ } => removes.clone(),
+        }
+    }
+
     pub fn adds(&self) -> Vec<CommitId> {
         match self {
             RefTarget::Normal(id) => {
@@ -157,15 +166,6 @@ impl RefTarget {
         match self {
             RefTarget::Normal(id) => id == needle,
             RefTarget::Conflict { removes: _, adds } => adds.contains(needle),
-        }
-    }
-
-    pub fn removes(&self) -> Vec<CommitId> {
-        match self {
-            RefTarget::Normal(_) => {
-                vec![]
-            }
-            RefTarget::Conflict { removes, adds: _ } => removes.clone(),
         }
     }
 }

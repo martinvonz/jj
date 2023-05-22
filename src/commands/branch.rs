@@ -267,7 +267,7 @@ fn cmd_branch_list(
                     workspace_command.write_commit_summary(formatter, &commit)?;
                     writeln!(formatter)?;
                 }
-                Some(RefTarget::Conflict { adds, removes }) => {
+                Some(RefTarget::Conflict { removes, adds }) => {
                     write!(formatter, " ")?;
                     write!(formatter.labeled("conflict"), "(conflicted)")?;
                     writeln!(formatter, ":")?;
