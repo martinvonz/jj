@@ -559,15 +559,15 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     "###
     );
     insta::assert_snapshot!(
-        test_env.jj_cmd_failure(&repo_path, &["log", "-r", "d", "-T", prefix_format]),
+        test_env.jj_cmd_failure(&repo_path, &["log", "-r", "4", "-T", prefix_format]),
         @r###"
-    Error: Commit or change id prefix "d" is ambiguous
+    Error: Commit or change id prefix "4" is ambiguous
     "###
     );
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-r", "d0", "-T", prefix_format]),
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", "44", "-T", prefix_format]),
         @r###"
-    ◉  Change p[szsrknsmxqw] extra d0[947f34cec4]
+    @  Change w[qnwkozpkust] 44[4c3c5066d3]
     │
     ~
     "###
