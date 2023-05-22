@@ -513,6 +513,8 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     let repo_path = test_env.env_root().join("repo");
     test_env.add_config(
         r###"
+        [revsets]
+        short-prefixes = "" # Disable short prefixes
         [template-aliases]
         'format_id(id)' = 'id.shortest(12).prefix() ++ "[" ++ id.shortest(12).rest() ++ "]"'
         "###,
@@ -546,14 +548,14 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     }
     test_env.jj_cmd_success(&repo_path, &["abandon", "description(extra)"]);
 
-    // The first commit's unique prefix became longer.
+    // The unique prefixes became longer.
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-T", prefix_format]),
         @r###"
-    @  Change w[qnwkozpkust] 4[44c3c5066d3]
-    │ ◉  Change q[pvuntsmwlqt] initial b[a1a30916d29] original
+    @  Change w[qnwkozpkust] 44[4c3c5066d3]
+    │ ◉  Change q[pvuntsmwlqt] initial ba[1a30916d29] original
     ├─╯
-    ◉  Change z[zzzzzzzzzzz] 0[00000000000]
+    ◉  Change z[zzzzzzzzzzz] 00[0000000000]
     "###
     );
     insta::assert_snapshot!(
