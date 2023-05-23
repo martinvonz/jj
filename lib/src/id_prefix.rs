@@ -27,12 +27,11 @@ struct PrefixDisambiguationError;
 struct DisambiguationData {
     expression: Rc<RevsetExpression>,
     workspace_id: Option<WorkspaceId>,
-    // TODO: We shouldn't have to duplicate the CommitId as value
     indexes: OnceCell<Indexes>,
 }
 
 struct Indexes {
-    commit_index: IdIndex<CommitId, CommitId>,
+    commit_index: IdIndex<CommitId, ()>,
     change_index: IdIndex<ChangeId, CommitId>,
 }
 
@@ -55,7 +54,7 @@ impl DisambiguationData {
             let mut change_id_vec = vec![];
             for commit in revset.iter().commits(repo.store()) {
                 let commit = commit.map_err(|_| PrefixDisambiguationError)?;
-                commit_id_vec.push((commit.id().clone(), commit.id().clone()));
+                commit_id_vec.push((commit.id().clone(), ()));
                 change_id_vec.push((commit.change_id().clone(), commit.id().clone()));
             }
             Ok(Indexes {
@@ -99,10 +98,9 @@ impl IdPrefixContext {
         prefix: &HexPrefix,
     ) -> PrefixResolution<CommitId> {
         if let Some(indexes) = self.disambiguation_indexes(repo) {
-            let resolution = indexes.commit_index.resolve_prefix_to_values(prefix);
-            if let PrefixResolution::SingleMatch(mut ids) = resolution {
-                assert_eq!(ids.len(), 1);
-                return PrefixResolution::SingleMatch(ids.pop().unwrap());
+            let resolution = indexes.commit_index.resolve_prefix_to_key(prefix);
+            if let PrefixResolution::SingleMatch(id) = resolution {
+                return PrefixResolution::SingleMatch(id.clone());
             }
         }
         repo.index().resolve_prefix(prefix)
