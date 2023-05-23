@@ -517,15 +517,7 @@ impl CommandHelper {
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
-        WorkspaceCommandHelper::new(
-            ui,
-            workspace,
-            self.cwd.clone(),
-            self.string_args.clone(),
-            &self.global_args,
-            self.settings.clone(),
-            repo,
-        )
+        WorkspaceCommandHelper::new(ui, self, workspace, repo)
     }
 
     /// Loads workspace that will diverge from the last working-copy operation.
@@ -583,15 +575,12 @@ pub struct WorkspaceCommandHelper {
 impl WorkspaceCommandHelper {
     pub fn new(
         ui: &mut Ui,
+        command: &CommandHelper,
         workspace: Workspace,
-        cwd: PathBuf,
-        string_args: Vec<String>,
-        global_args: &GlobalArgs,
-        settings: UserSettings,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
-        let revset_aliases_map = load_revset_aliases(ui, &settings)?;
-        let template_aliases_map = load_template_aliases(ui, &settings)?;
+        let revset_aliases_map = load_revset_aliases(ui, &command.settings)?;
+        let template_aliases_map = load_template_aliases(ui, &command.settings)?;
         // Parse commit_summary template early to report error before starting mutable
         // operation.
         // TODO: Parsed template can be cached if it doesn't capture repo
@@ -601,10 +590,10 @@ impl WorkspaceCommandHelper {
             workspace.workspace_id(),
             &id_prefix_context,
             &template_aliases_map,
-            &settings,
+            &command.settings,
         )?;
-        let loaded_at_head = &global_args.at_operation == "@";
-        let may_update_working_copy = loaded_at_head && !global_args.ignore_working_copy;
+        let loaded_at_head = command.global_args.at_operation == "@";
+        let may_update_working_copy = loaded_at_head && !command.global_args.ignore_working_copy;
         let mut working_copy_shared_with_git = false;
         let maybe_git_backend = repo.store().backend_impl().downcast_ref::<GitBackend>();
         if let Some(git_workdir) = maybe_git_backend
@@ -614,10 +603,10 @@ impl WorkspaceCommandHelper {
             working_copy_shared_with_git = git_workdir == workspace.workspace_root().as_path();
         }
         Ok(Self {
-            cwd,
-            string_args,
-            global_args: global_args.clone(),
-            settings,
+            cwd: command.cwd.clone(),
+            string_args: command.string_args.clone(),
+            global_args: command.global_args.clone(),
+            settings: command.settings.clone(),
             workspace,
             user_repo: ReadonlyUserRepo::new(repo),
             revset_aliases_map,

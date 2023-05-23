@@ -3346,15 +3346,7 @@ fn cmd_workspace_add(
             .display()
     )?;
 
-    let mut new_workspace_command = WorkspaceCommandHelper::new(
-        ui,
-        new_workspace,
-        command.cwd().to_owned(),
-        command.string_args().clone(),
-        command.global_args(),
-        command.settings().clone(),
-        repo,
-    )?;
+    let mut new_workspace_command = WorkspaceCommandHelper::new(ui, command, new_workspace, repo)?;
     let mut tx = new_workspace_command.start_transaction(&format!(
         "Create initial working-copy commit in workspace {}",
         &name
