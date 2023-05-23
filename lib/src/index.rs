@@ -165,6 +165,16 @@ pub enum PrefixResolution<T> {
     AmbiguousMatch,
 }
 
+impl<T> PrefixResolution<T> {
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> PrefixResolution<U> {
+        match self {
+            PrefixResolution::NoMatch => PrefixResolution::NoMatch,
+            PrefixResolution::SingleMatch(x) => PrefixResolution::SingleMatch(f(x)),
+            PrefixResolution::AmbiguousMatch => PrefixResolution::AmbiguousMatch,
+        }
+    }
+}
+
 impl<T: Clone> PrefixResolution<T> {
     pub fn plus(&self, other: &PrefixResolution<T>) -> PrefixResolution<T> {
         match (self, other) {

@@ -249,13 +249,10 @@ mod tests {
     #[test]
     fn test_id_index_resolve_prefix() {
         fn sorted(resolution: PrefixResolution<Vec<i32>>) -> PrefixResolution<Vec<i32>> {
-            match resolution {
-                PrefixResolution::SingleMatch(mut xs) => {
-                    xs.sort(); // order of values might not be preserved by IdIndex
-                    PrefixResolution::SingleMatch(xs)
-                }
-                _ => resolution,
-            }
+            resolution.map(|mut xs| {
+                xs.sort(); // order of values might not be preserved by IdIndex
+                xs
+            })
         }
         let id_index = IdIndex::from_vec(vec![
             (ChangeId::from_hex("0000"), 0),
