@@ -99,7 +99,7 @@ impl IdPrefixContext {
         prefix: &HexPrefix,
     ) -> PrefixResolution<CommitId> {
         if let Some(indexes) = self.disambiguation_indexes(repo) {
-            let resolution = indexes.commit_index.resolve_prefix(prefix);
+            let resolution = indexes.commit_index.resolve_prefix_to_values(prefix);
             if let PrefixResolution::SingleMatch(mut ids) = resolution {
                 assert_eq!(ids.len(), 1);
                 return PrefixResolution::SingleMatch(ids.pop().unwrap());
@@ -127,7 +127,7 @@ impl IdPrefixContext {
         prefix: &HexPrefix,
     ) -> PrefixResolution<Vec<CommitId>> {
         if let Some(indexes) = self.disambiguation_indexes(repo) {
-            let resolution = indexes.change_index.resolve_prefix(prefix);
+            let resolution = indexes.change_index.resolve_prefix_to_values(prefix);
             if let PrefixResolution::SingleMatch(ids) = resolution {
                 return PrefixResolution::SingleMatch(ids);
             }
@@ -189,7 +189,7 @@ where
 
     /// Looks up entries with the given prefix, and collects values if matched
     /// entries have unambiguous keys.
-    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<V>>
+    pub fn resolve_prefix_to_values(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<V>>
     where
         V: Clone,
     {
@@ -262,35 +262,35 @@ mod tests {
             (ChangeId::from_hex("0aab"), 4),
         ]);
         assert_eq!(
-            id_index.resolve_prefix(&HexPrefix::new("0").unwrap()),
+            id_index.resolve_prefix_to_values(&HexPrefix::new("0").unwrap()),
             PrefixResolution::AmbiguousMatch,
         );
         assert_eq!(
-            id_index.resolve_prefix(&HexPrefix::new("00").unwrap()),
+            id_index.resolve_prefix_to_values(&HexPrefix::new("00").unwrap()),
             PrefixResolution::AmbiguousMatch,
         );
         assert_eq!(
-            id_index.resolve_prefix(&HexPrefix::new("000").unwrap()),
+            id_index.resolve_prefix_to_values(&HexPrefix::new("000").unwrap()),
             PrefixResolution::SingleMatch(vec![0]),
         );
         assert_eq!(
-            id_index.resolve_prefix(&HexPrefix::new("0001").unwrap()),
+            id_index.resolve_prefix_to_values(&HexPrefix::new("0001").unwrap()),
             PrefixResolution::NoMatch,
         );
         assert_eq!(
-            sorted(id_index.resolve_prefix(&HexPrefix::new("009").unwrap())),
+            sorted(id_index.resolve_prefix_to_values(&HexPrefix::new("009").unwrap())),
             PrefixResolution::SingleMatch(vec![1, 2]),
         );
         assert_eq!(
-            id_index.resolve_prefix(&HexPrefix::new("0aa").unwrap()),
+            id_index.resolve_prefix_to_values(&HexPrefix::new("0aa").unwrap()),
             PrefixResolution::AmbiguousMatch,
         );
         assert_eq!(
-            id_index.resolve_prefix(&HexPrefix::new("0aab").unwrap()),
+            id_index.resolve_prefix_to_values(&HexPrefix::new("0aab").unwrap()),
             PrefixResolution::SingleMatch(vec![4]),
         );
         assert_eq!(
-            id_index.resolve_prefix(&HexPrefix::new("f").unwrap()),
+            id_index.resolve_prefix_to_values(&HexPrefix::new("f").unwrap()),
             PrefixResolution::NoMatch,
         );
     }
