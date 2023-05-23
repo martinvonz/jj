@@ -809,6 +809,36 @@ fn test_templater_alias() {
 }
 
 #[test]
+fn test_templater_alias_override() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        r###"
+    [template-aliases]
+    'f(x)' = '"user"'
+    "###,
+    );
+
+    // 'f(x)' should be overridden by --config-toml 'f(a)'. If aliases were sorted
+    // purely by name, 'f(a)' would come first.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "--no-graph",
+            "-r@",
+            "-T",
+            r#"f(_)"#,
+            "--config-toml",
+            r#"template-aliases.'f(a)' = '"arg"'"#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"arg");
+}
+
+#[test]
 fn test_templater_bad_alias_decl() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

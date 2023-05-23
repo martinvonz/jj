@@ -117,7 +117,7 @@ impl LayeredConfigs {
             .expect("loaded configs should be merged without error")
     }
 
-    fn sources(&self) -> Vec<(ConfigSource, &config::Config)> {
+    pub fn sources(&self) -> Vec<(ConfigSource, &config::Config)> {
         let config_sources = [
             (ConfigSource::Default, Some(&self.default)),
             (ConfigSource::Env, Some(&self.env_base)),
