@@ -163,28 +163,37 @@ where
 
     /// Looks up entries with the given prefix, and collects values if matched
     /// entries have unambiguous keys.
-    pub fn resolve_prefix_with<U>(
-        &self,
+    pub fn resolve_prefix_with<'a, B, U>(
+        &'a self,
         prefix: &HexPrefix,
-        mut value_mapper: impl FnMut(&V) -> U,
-    ) -> PrefixResolution<Vec<U>> {
+        mut value_mapper: impl FnMut(&'a V) -> U,
+    ) -> PrefixResolution<(&'a K, B)>
+    where
+        B: FromIterator<U>,
+    {
         if prefix.min_prefix_bytes().is_empty() {
             // We consider an empty prefix ambiguous even if the index has a single entry.
             return PrefixResolution::AmbiguousMatch;
         }
         let mut range = self.resolve_prefix_range(prefix).peekable();
         if let Some((first_key, _)) = range.peek().copied() {
-            let maybe_entries: Option<Vec<_>> = range
+            let maybe_values: Option<B> = range
                 .map(|(k, v)| (k == first_key).then(|| value_mapper(v)))
                 .collect();
-            if let Some(entries) = maybe_entries {
-                PrefixResolution::SingleMatch(entries)
+            if let Some(values) = maybe_values {
+                PrefixResolution::SingleMatch((first_key, values))
             } else {
                 PrefixResolution::AmbiguousMatch
             }
         } else {
             PrefixResolution::NoMatch
         }
+    }
+
+    /// Looks up unambiguous key with the given prefix.
+    pub fn resolve_prefix_to_key<'a>(&'a self, prefix: &HexPrefix) -> PrefixResolution<&'a K> {
+        self.resolve_prefix_with(prefix, |_| ())
+            .map(|(key, ())| key)
     }
 
     /// Looks up entries with the given prefix, and collects values if matched
@@ -194,6 +203,7 @@ where
         V: Clone,
     {
         self.resolve_prefix_with(prefix, |v: &V| v.clone())
+            .map(|(_, values)| values)
     }
 
     /// Iterates over entries with the given prefix.
