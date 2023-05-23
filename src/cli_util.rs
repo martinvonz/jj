@@ -50,7 +50,7 @@ use jujutsu_lib::revset::{
     RevsetIteratorExt, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
     RevsetWorkspaceContext,
 };
-use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::settings::{ConfigResultExt as _, UserSettings};
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{Tree, TreeMergeError};
 use jujutsu_lib::working_copy::{
@@ -579,8 +579,8 @@ impl WorkspaceCommandHelper {
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
-        let revset_aliases_map = load_revset_aliases(ui, &command.settings)?;
-        let template_aliases_map = load_template_aliases(ui, &command.settings)?;
+        let revset_aliases_map = load_revset_aliases(ui, &command.layered_configs)?;
+        let template_aliases_map = load_template_aliases(ui, &command.layered_configs)?;
         // Parse commit_summary template early to report error before starting mutable
         // operation.
         // TODO: Parsed template can be cached if it doesn't capture repo
@@ -1626,18 +1626,26 @@ fn resolve_single_op_from_store(
 
 fn load_revset_aliases(
     ui: &mut Ui,
-    settings: &UserSettings,
+    layered_configs: &LayeredConfigs,
 ) -> Result<RevsetAliasesMap, CommandError> {
     const TABLE_KEY: &str = "revset-aliases";
     let mut aliases_map = RevsetAliasesMap::new();
-    let table = settings.config().get_table(TABLE_KEY)?;
-    for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
-        let r = value
-            .into_string()
-            .map_err(|e| e.to_string())
-            .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
-        if let Err(s) = r {
-            writeln!(ui.warning(), r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#)?;
+    // Load from all config layers in order. 'f(x)' in default layer should be
+    // overridden by 'f(a)' in user.
+    for (_, config) in layered_configs.sources() {
+        let table = if let Some(table) = config.get_table(TABLE_KEY).optional()? {
+            table
+        } else {
+            continue;
+        };
+        for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
+            let r = value
+                .into_string()
+                .map_err(|e| e.to_string())
+                .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
+            if let Err(s) = r {
+                writeln!(ui.warning(), r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#)?;
+            }
         }
     }
     Ok(aliases_map)
@@ -1733,18 +1741,26 @@ pub fn update_working_copy(
 
 fn load_template_aliases(
     ui: &mut Ui,
-    settings: &UserSettings,
+    layered_configs: &LayeredConfigs,
 ) -> Result<TemplateAliasesMap, CommandError> {
     const TABLE_KEY: &str = "template-aliases";
     let mut aliases_map = TemplateAliasesMap::new();
-    let table = settings.config().get_table(TABLE_KEY)?;
-    for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
-        let r = value
-            .into_string()
-            .map_err(|e| e.to_string())
-            .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
-        if let Err(s) = r {
-            writeln!(ui.warning(), r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#)?;
+    // Load from all config layers in order. 'f(x)' in default layer should be
+    // overridden by 'f(a)' in user.
+    for (_, config) in layered_configs.sources() {
+        let table = if let Some(table) = config.get_table(TABLE_KEY).optional()? {
+            table
+        } else {
+            continue;
+        };
+        for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
+            let r = value
+                .into_string()
+                .map_err(|e| e.to_string())
+                .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
+            if let Err(s) = r {
+                writeln!(ui.warning(), r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#)?;
+            }
         }
     }
     Ok(aliases_map)

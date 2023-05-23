@@ -338,6 +338,36 @@ fn test_alias() {
 }
 
 #[test]
+fn test_alias_override() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        r###"
+    [revset-aliases]
+    'f(x)' = 'user'
+    "###,
+    );
+
+    // 'f(x)' should be overridden by --config-toml 'f(a)'. If aliases were sorted
+    // purely by name, 'f(a)' would come first.
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &[
+            "log",
+            "-r",
+            "f(_)",
+            "--config-toml",
+            "revset-aliases.'f(a)' = 'arg'",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revision "arg" doesn't exist
+    "###);
+}
+
+#[test]
 fn test_bad_alias_decl() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
