@@ -124,6 +124,7 @@ impl ChangeIdIndex for ChangeIdIndexImpl<'_> {
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
         self.pos_by_change
             .resolve_prefix_with(prefix, |pos| self.index.entry_by_pos(*pos).commit_id())
+            .map(|(_, commit_ids)| commit_ids)
     }
 
     fn shortest_unique_prefix_len(&self, change_id: &ChangeId) -> usize {
