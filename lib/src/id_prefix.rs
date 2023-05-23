@@ -20,7 +20,7 @@ use crate::backend::{self, ChangeId, CommitId, ObjectId};
 use crate::index::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
-use crate::revset::{DefaultSymbolResolver, RevsetExpression, RevsetIteratorExt};
+use crate::revset::{DefaultSymbolResolver, RevsetExpression};
 
 struct PrefixDisambiguationError;
 
@@ -48,14 +48,11 @@ impl DisambiguationData {
                 .evaluate(repo)
                 .map_err(|_| PrefixDisambiguationError)?;
 
-            // TODO: We should be able to get the change IDs from the revset, without having
-            // to read the whole commit objects
             let mut commit_id_vec = vec![];
             let mut change_id_vec = vec![];
-            for commit in revset.iter().commits(repo.store()) {
-                let commit = commit.map_err(|_| PrefixDisambiguationError)?;
-                commit_id_vec.push((commit.id().clone(), ()));
-                change_id_vec.push((commit.change_id().clone(), commit.id().clone()));
+            for (commit_id, change_id) in revset.commit_change_ids() {
+                commit_id_vec.push((commit_id.clone(), ()));
+                change_id_vec.push((change_id, commit_id));
             }
             Ok(Indexes {
                 commit_index: IdIndex::from_vec(commit_id_vec),

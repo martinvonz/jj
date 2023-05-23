@@ -2029,6 +2029,9 @@ pub trait Revset<'index>: fmt::Debug {
     /// Iterate in topological order with children before parents.
     fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_>;
 
+    /// Iterates commit/change id pairs in topological order.
+    fn commit_change_ids(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + '_>;
+
     fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_>;
 
     fn change_id_index(&self) -> Box<dyn ChangeIdIndex + 'index>;

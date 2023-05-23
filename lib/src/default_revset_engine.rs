@@ -93,6 +93,14 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
         Box::new(self.inner.iter().map(|index_entry| index_entry.commit_id()))
     }
 
+    fn commit_change_ids(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + '_> {
+        Box::new(
+            self.inner
+                .iter()
+                .map(|index_entry| (index_entry.commit_id(), index_entry.change_id())),
+        )
+    }
+
     fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_> {
         Box::new(RevsetGraphIterator::new(self.inner.iter()))
     }
