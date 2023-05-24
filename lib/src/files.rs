@@ -430,5 +430,13 @@ mod tests {
                 adds: vec![b"c".to_vec(), b"d".to_vec(), b"e".to_vec()]
             })])
         );
+        // Two sides made the same change, third side made a different change
+        assert_eq!(
+            merge(&[b"a", b"b"], &[b"c", b"c", b"c"]),
+            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
+                removes: vec![b"a".to_vec(), b"b".to_vec()],
+                adds: vec![b"c".to_vec(), b"c".to_vec(), b"c".to_vec()]
+            })])
+        );
     }
 }
