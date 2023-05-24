@@ -61,7 +61,7 @@ tempfile = "3.5.0"
 textwrap = "0.16.0"
 thiserror = "1.0.40"
 timeago = { version = "0.4.1", default-features = false }
-toml_edit = { version = "0.19.9", features = ["serde"] }
+toml_edit = { version = "0.19.10", features = ["serde"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", default-features = false, features = ["std", "ansi", "env-filter", "fmt"] }
 
