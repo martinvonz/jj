@@ -1664,7 +1664,7 @@ pub fn resolve_multiple_nonempty_revsets(
     Ok(acc)
 }
 
-pub fn resolve_mutliple_nonempty_revsets_flag_guarded(
+pub fn resolve_multiple_nonempty_revsets_flag_guarded(
     workspace_command: &WorkspaceCommandHelper,
     revisions: &[RevisionArg],
     allow_plural_revsets: bool,
