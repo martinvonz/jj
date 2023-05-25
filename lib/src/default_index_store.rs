@@ -826,7 +826,7 @@ trait IndexSegment: Send + Sync {
     fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct CompositeIndex<'a>(&'a dyn IndexSegment);
 
 impl<'a> CompositeIndex<'a> {
@@ -1052,7 +1052,7 @@ impl<'a> CompositeIndex<'a> {
     }
 
     pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
-        let mut rev_walk = RevWalk::new(self.clone());
+        let mut rev_walk = RevWalk::new(*self);
         for pos in wanted.iter().map(|id| self.commit_id_to_pos(id).unwrap()) {
             rev_walk.add_wanted(pos);
         }
@@ -1426,7 +1426,7 @@ impl<'a> RevWalk<'a> {
         root_positions: &[IndexPosition],
         generation_range: Range<u32>,
     ) -> RevWalkDescendantsGenerationRange<'a> {
-        let index = self.0.queue.index.clone();
+        let index = self.0.queue.index;
         let entries = self.take_until_roots(root_positions);
         let descendants_index = RevWalkDescendantsIndex::build(index, entries);
         let mut queue = RevWalkQueue::new(descendants_index);

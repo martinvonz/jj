@@ -113,7 +113,7 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
         }
         let pos_by_change = IdIndex::from_vec(pos_by_change);
         Box::new(ChangeIdIndexImpl {
-            index: self.index.clone(),
+            index: self.index,
             pos_by_change,
         })
     }
@@ -492,7 +492,7 @@ pub fn evaluate<'index>(
     let context = EvaluationContext {
         store: store.clone(),
         index,
-        composite_index: composite_index.clone(),
+        composite_index,
     };
     let internal_revset = context.evaluate(expression)?;
     Ok(RevsetImpl::new(internal_revset, composite_index))
