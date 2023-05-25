@@ -52,7 +52,7 @@ use maplit::{hashmap, hashset};
 
 use crate::cli_util::{
     check_stale_working_copy, get_config_file_path, print_checkout_stats,
-    resolve_multiple_nonempty_revsets, resolve_mutliple_nonempty_revsets_flag_guarded,
+    resolve_multiple_nonempty_revsets, resolve_multiple_nonempty_revsets_flag_guarded,
     run_ui_editor, serialize_config_value, short_commit_hash, user_error, user_error_with_hint,
     write_config_value_to_file, Args, CommandError, CommandHelper, DescriptionArg,
     LogContentFormat, RevisionArg, WorkspaceCommandHelper,
@@ -2051,7 +2051,7 @@ fn resolve_destination_revs(
     revisions: &[RevisionArg],
     allow_plural_revsets: bool,
 ) -> Result<IndexSet<Commit>, CommandError> {
-    let commits = resolve_mutliple_nonempty_revsets_flag_guarded(
+    let commits = resolve_multiple_nonempty_revsets_flag_guarded(
         workspace_command,
         revisions,
         allow_plural_revsets,
@@ -2889,7 +2889,7 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
     if let Some(rev_str) = &args.revision {
         rebase_revision(ui, command, &mut workspace_command, &new_parents, rev_str)?;
     } else if !args.source.is_empty() {
-        let source_commits = resolve_mutliple_nonempty_revsets_flag_guarded(
+        let source_commits = resolve_multiple_nonempty_revsets_flag_guarded(
             &workspace_command,
             &args.source,
             args.allow_large_revsets,
@@ -2905,7 +2905,7 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
         let branch_commits = if args.branch.is_empty() {
             IndexSet::from([workspace_command.resolve_single_rev("@")?])
         } else {
-            resolve_mutliple_nonempty_revsets_flag_guarded(
+            resolve_multiple_nonempty_revsets_flag_guarded(
                 &workspace_command,
                 &args.branch,
                 args.allow_large_revsets,
