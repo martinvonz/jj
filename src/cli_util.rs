@@ -1050,7 +1050,9 @@ impl WorkspaceCommandHelper {
                         "The working copy is stale (not updated since operation {}).",
                         short_operation_hash(&old_op_id)
                     ),
-                    "Run `jj workspace update-stale` to update it.",
+                    "Run `jj workspace update-stale` to update it.
+See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy \
+                     for more information.",
                 ));
             }
             Err(StaleWorkingCopyError::SiblingOperation) => {
