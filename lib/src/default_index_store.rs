@@ -721,8 +721,7 @@ impl Index for MutableIndexImpl {
         expression: &ResolvedExpression,
         store: &Arc<Store>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
-        let revset_impl = default_revset_engine::evaluate(expression, store, CompositeIndex(self))?;
-        Ok(Box::new(revset_impl))
+        CompositeIndex(self).evaluate_revset(expression, store)
     }
 }
 
@@ -1039,6 +1038,15 @@ impl<'a> CompositeIndex<'a> {
         }
         candidate_positions
     }
+
+    fn evaluate_revset(
+        &self,
+        expression: &ResolvedExpression,
+        store: &Arc<Store>,
+    ) -> Result<Box<dyn Revset<'a> + 'a>, RevsetEvaluationError> {
+        let revset_impl = default_revset_engine::evaluate(expression, store, *self)?;
+        Ok(Box::new(revset_impl))
+    }
 }
 
 impl Index for CompositeIndex<'_> {
@@ -1116,8 +1124,7 @@ impl Index for CompositeIndex<'_> {
         expression: &ResolvedExpression,
         store: &Arc<Store>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
-        let revset_impl = default_revset_engine::evaluate(expression, store, *self)?;
-        Ok(Box::new(revset_impl))
+        CompositeIndex::evaluate_revset(self, expression, store)
     }
 }
 
@@ -2016,8 +2023,7 @@ impl Index for ReadonlyIndexImpl {
         expression: &ResolvedExpression,
         store: &Arc<Store>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
-        let revset_impl = default_revset_engine::evaluate(expression, store, CompositeIndex(self))?;
-        Ok(Box::new(revset_impl))
+        CompositeIndex(self).evaluate_revset(expression, store)
     }
 }
 
