@@ -18,6 +18,7 @@ use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::default_index_store::{CompositeIndex, MutableIndexImpl, ReadonlyIndexWrapper};
+use jujutsu_lib::index::Index as _;
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jujutsu_lib::settings::UserSettings;
 use test_case::test_case;
