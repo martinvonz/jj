@@ -16,7 +16,6 @@ use itertools::Itertools;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::default_index_store::ReadonlyIndexWrapper;
 use jujutsu_lib::default_revset_engine::{evaluate, RevsetImpl};
-use jujutsu_lib::index::ReadonlyIndex as _;
 use jujutsu_lib::repo::{ReadonlyRepo, Repo as _};
 use jujutsu_lib::revset::{ResolvedExpression, RevsetGraphEdge};
 use test_case::test_case;
@@ -30,16 +29,11 @@ fn revset_for_commits<'index>(
         .readonly_index()
         .as_any()
         .downcast_ref::<ReadonlyIndexWrapper>()
-        .unwrap();
+        .unwrap()
+        .as_composite();
     let expression =
         ResolvedExpression::Commits(commits.iter().map(|commit| commit.id().clone()).collect());
-    evaluate(
-        &expression,
-        repo.store(),
-        index.as_index(),
-        index.as_composite(),
-    )
-    .unwrap()
+    evaluate(&expression, repo.store(), index).unwrap()
 }
 
 fn direct(commit: &Commit) -> RevsetGraphEdge {

@@ -481,27 +481,22 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
     }
 }
 
-// TODO: Having to pass both `&dyn Index` and `CompositeIndex` is a bit ugly.
-// Maybe we should make `CompositeIndex` implement `Index`?
 pub fn evaluate<'index>(
     expression: &ResolvedExpression,
     store: &Arc<Store>,
-    index: &'index dyn Index,
-    composite_index: CompositeIndex<'index>,
+    index: CompositeIndex<'index>,
 ) -> Result<RevsetImpl<'index>, RevsetEvaluationError> {
     let context = EvaluationContext {
         store: store.clone(),
         index,
-        composite_index,
     };
     let internal_revset = context.evaluate(expression)?;
-    Ok(RevsetImpl::new(internal_revset, composite_index))
+    Ok(RevsetImpl::new(internal_revset, index))
 }
 
 struct EvaluationContext<'index> {
     store: Arc<Store>,
-    index: &'index dyn Index,
-    composite_index: CompositeIndex<'index>,
+    index: CompositeIndex<'index>,
 }
 
 fn to_u32_generation_range(range: &Range<u64>) -> Result<Range<u32>, RevsetEvaluationError> {
@@ -543,7 +538,7 @@ impl<'index> EvaluationContext<'index> {
                 let root_ids = root_set.iter().map(|entry| entry.commit_id()).collect_vec();
                 let head_set = self.evaluate(heads)?;
                 let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
-                let walk = self.composite_index.walk_revs(&head_ids, &root_ids);
+                let walk = self.index.walk_revs(&head_ids, &root_ids);
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset { walk }))
                 } else {
@@ -587,7 +582,7 @@ impl<'index> EvaluationContext<'index> {
                     .map(|entry| entry.commit_id())
                     .collect_vec();
                 Ok(Box::new(self.revset_for_commit_ids(
-                    &self.composite_index.heads(&mut candidate_ids.iter()),
+                    &self.index.heads(&mut candidate_ids.iter()),
                 )))
             }
             ResolvedExpression::Roots(candidates) => {
@@ -668,7 +663,7 @@ impl<'index> EvaluationContext<'index> {
         S: InternalRevset<'a> + ?Sized,
     {
         let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
-        self.composite_index.walk_revs(&head_ids, &[])
+        self.index.walk_revs(&head_ids, &[])
     }
 
     fn walk_children<'a, 'b, S, T>(
@@ -735,7 +730,7 @@ impl<'index> EvaluationContext<'index> {
     fn revset_for_commit_ids(&self, commit_ids: &[CommitId]) -> EagerRevset<'index> {
         let mut index_entries = vec![];
         for id in commit_ids {
-            index_entries.push(self.composite_index.entry_by_id(id).unwrap());
+            index_entries.push(self.index.entry_by_id(id).unwrap());
         }
         index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
         index_entries.dedup();
@@ -809,7 +804,7 @@ fn pure_predicate_fn<'index>(
 
 fn build_predicate_fn<'index>(
     store: Arc<Store>,
-    index: &'index dyn Index,
+    index: CompositeIndex<'index>,
     predicate: &RevsetFilterPredicate,
 ) -> Box<dyn ToPredicateFn + 'index> {
     match predicate {
@@ -866,7 +861,7 @@ fn build_predicate_fn<'index>(
 
 fn has_diff_from_parent(
     store: &Arc<Store>,
-    index: &dyn Index,
+    index: CompositeIndex<'_>,
     entry: &IndexEntry<'_>,
     matcher: &dyn Matcher,
 ) -> bool {
@@ -881,7 +876,7 @@ fn has_diff_from_parent(
             return false;
         }
     }
-    let from_tree = rewrite::merge_commit_trees_without_repo(store, index, &parents);
+    let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents);
     let to_tree = commit.tree();
     from_tree.diff(&to_tree, matcher).next().is_some()
 }
