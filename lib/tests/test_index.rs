@@ -17,7 +17,7 @@ use std::sync::Arc;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::default_index_store::{CompositeIndex, MutableIndexImpl, ReadonlyIndexImpl};
+use jujutsu_lib::default_index_store::{CompositeIndex, MutableIndexImpl, ReadonlyIndexWrapper};
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jujutsu_lib::settings::UserSettings;
 use test_case::test_case;
@@ -445,16 +445,15 @@ fn create_n_commits(
     tx.commit()
 }
 
-fn as_readonly_impl(repo: &Arc<ReadonlyRepo>) -> &ReadonlyIndexImpl {
+fn as_readonly_wrapper(repo: &Arc<ReadonlyRepo>) -> &ReadonlyIndexWrapper {
     repo.readonly_index()
-        .as_index()
         .as_any()
-        .downcast_ref::<ReadonlyIndexImpl>()
+        .downcast_ref::<ReadonlyIndexWrapper>()
         .unwrap()
 }
 
 fn as_readonly_composite(repo: &Arc<ReadonlyRepo>) -> CompositeIndex<'_> {
-    as_readonly_impl(repo).as_composite()
+    as_readonly_wrapper(repo).as_composite()
 }
 
 fn as_mutable_impl(repo: &MutableRepo) -> &MutableIndexImpl {
