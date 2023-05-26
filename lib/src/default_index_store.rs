@@ -409,7 +409,7 @@ pub enum IndexLoadError {
 // TODO: replace the table by a trie so we don't have to repeat the full commit
 //       ids
 // TODO: add a fanout table like git's commit graph has?
-pub struct ReadonlyIndexImpl {
+pub(crate) struct ReadonlyIndexImpl {
     parent_file: Option<Arc<ReadonlyIndexImpl>>,
     num_parent_commits: u32,
     name: String,
@@ -484,7 +484,7 @@ impl MutableIndexImpl {
         }
     }
 
-    pub fn incremental(parent_file: Arc<ReadonlyIndexImpl>) -> Self {
+    pub(crate) fn incremental(parent_file: Arc<ReadonlyIndexImpl>) -> Self {
         let num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
         let commit_id_length = parent_file.commit_id_length;
         let change_id_length = parent_file.change_id_length;
