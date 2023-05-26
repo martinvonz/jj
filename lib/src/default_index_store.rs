@@ -888,7 +888,7 @@ impl<'a> CompositeIndex<'a> {
         }
     }
 
-    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
+    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         self.ancestor_index_segments()
             .find_map(|segment| segment.segment_commit_id_to_pos(commit_id))
     }
@@ -991,12 +991,12 @@ impl<'a> CompositeIndex<'a> {
         self.heads_pos(result)
     }
 
-    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
+    pub fn walk_revs(&self, wanted: &[IndexPosition], unwanted: &[IndexPosition]) -> RevWalk<'a> {
         let mut rev_walk = RevWalk::new(*self);
-        for pos in wanted.iter().map(|id| self.commit_id_to_pos(id).unwrap()) {
+        for &pos in wanted {
             rev_walk.add_wanted(pos);
         }
-        for pos in unwanted.iter().map(|id| self.commit_id_to_pos(id).unwrap()) {
+        for &pos in unwanted {
             rev_walk.add_unwanted(pos);
         }
         rev_walk
@@ -2041,6 +2041,13 @@ mod tests {
         move || iter.next().unwrap()
     }
 
+    fn to_positions_vec(index: CompositeIndex<'_>, commit_ids: &[CommitId]) -> Vec<IndexPosition> {
+        commit_ids
+            .iter()
+            .map(|id| index.commit_id_to_pos(id).unwrap())
+            .collect()
+    }
+
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_empty(on_disk: bool) {
@@ -2743,9 +2750,11 @@ mod tests {
         index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_2.clone()]);
 
         let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId]| {
+            let index = index.as_composite();
+            let wanted_positions = to_positions_vec(index, wanted);
+            let unwanted_positions = to_positions_vec(index, unwanted);
             index
-                .as_composite()
-                .walk_revs(wanted, unwanted)
+                .walk_revs(&wanted_positions, &unwanted_positions)
                 .map(|entry| entry.commit_id())
                 .collect_vec()
         };
@@ -2833,9 +2842,11 @@ mod tests {
         index.add_commit_data(id_8.clone(), new_change_id(), &[id_7.clone()]);
 
         let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId], range: Range<u32>| {
+            let index = index.as_composite();
+            let wanted_positions = to_positions_vec(index, wanted);
+            let unwanted_positions = to_positions_vec(index, unwanted);
             index
-                .as_composite()
-                .walk_revs(wanted, unwanted)
+                .walk_revs(&wanted_positions, &unwanted_positions)
                 .filter_by_generation(range)
                 .map(|entry| entry.commit_id())
                 .collect_vec()
@@ -2910,9 +2921,10 @@ mod tests {
         );
 
         let walk_commit_ids = |wanted: &[CommitId], range: Range<u32>| {
+            let index = index.as_composite();
+            let wanted_positions = to_positions_vec(index, wanted);
             index
-                .as_composite()
-                .walk_revs(wanted, &[])
+                .walk_revs(&wanted_positions, &[])
                 .filter_by_generation(range)
                 .map(|entry| entry.commit_id())
                 .collect_vec()
@@ -2980,13 +2992,11 @@ mod tests {
 
         let visible_heads = [&id_6, &id_8].map(Clone::clone);
         let walk_commit_ids = |roots: &[CommitId], heads: &[CommitId], range: Range<u32>| {
-            let root_positions = roots
-                .iter()
-                .map(|id| index.as_composite().commit_id_to_pos(id).unwrap())
-                .collect_vec();
+            let index = index.as_composite();
+            let root_positions = to_positions_vec(index, roots);
+            let head_positions = to_positions_vec(index, heads);
             index
-                .as_composite()
-                .walk_revs(heads, &[])
+                .walk_revs(&head_positions, &[])
                 .descendants_filtered_by_generation(&root_positions, range)
                 .map(|entry| entry.commit_id())
                 .collect_vec()

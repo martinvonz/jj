@@ -17,7 +17,9 @@ use std::sync::Arc;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::default_index_store::{CompositeIndex, MutableIndexImpl, ReadonlyIndexWrapper};
+use jujutsu_lib::default_index_store::{
+    CompositeIndex, IndexPosition, MutableIndexImpl, ReadonlyIndexWrapper,
+};
 use jujutsu_lib::index::Index as _;
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jujutsu_lib::settings::UserSettings;
@@ -37,6 +39,13 @@ fn child_commit<'repo>(
 // Helper just to reduce line wrapping
 fn generation_number(index: CompositeIndex, commit_id: &CommitId) -> u32 {
     index.entry_by_id(commit_id).unwrap().generation_number()
+}
+
+fn to_positions_vec(index: CompositeIndex<'_>, commit_ids: &[CommitId]) -> Vec<IndexPosition> {
+    commit_ids
+        .iter()
+        .map(|id| index.commit_id_to_pos(id).unwrap())
+        .collect()
 }
 
 #[test_case(false ; "local backend")]
@@ -188,72 +197,68 @@ fn test_index_commits_criss_cross(use_git: bool) {
         }
     }
 
+    let walk_revs = |wanted: &[CommitId], unwanted: &[CommitId]| {
+        let wanted_positions = to_positions_vec(index, wanted);
+        let unwanted_positions = to_positions_vec(index, unwanted);
+        index.walk_revs(&wanted_positions, &unwanted_positions)
+    };
+
     // RevWalk deduplicates chains by entry.
     assert_eq!(
-        index
-            .walk_revs(&[left_commits[num_generations - 1].id().clone()], &[])
-            .count(),
+        walk_revs(&[left_commits[num_generations - 1].id().clone()], &[]).count(),
         2 * num_generations
     );
     assert_eq!(
-        index
-            .walk_revs(&[right_commits[num_generations - 1].id().clone()], &[])
-            .count(),
+        walk_revs(&[right_commits[num_generations - 1].id().clone()], &[]).count(),
         2 * num_generations
     );
     assert_eq!(
-        index
-            .walk_revs(
-                &[left_commits[num_generations - 1].id().clone()],
-                &[left_commits[num_generations - 2].id().clone()]
-            )
-            .count(),
+        walk_revs(
+            &[left_commits[num_generations - 1].id().clone()],
+            &[left_commits[num_generations - 2].id().clone()]
+        )
+        .count(),
         2
     );
     assert_eq!(
-        index
-            .walk_revs(
-                &[right_commits[num_generations - 1].id().clone()],
-                &[right_commits[num_generations - 2].id().clone()]
-            )
-            .count(),
+        walk_revs(
+            &[right_commits[num_generations - 1].id().clone()],
+            &[right_commits[num_generations - 2].id().clone()]
+        )
+        .count(),
         2
     );
 
     // RevWalkGenerationRange deduplicates chains by (entry, generation), which may
     // be more expensive than RevWalk, but should still finish in reasonable time.
     assert_eq!(
-        index
-            .walk_revs(&[left_commits[num_generations - 1].id().clone()], &[])
+        walk_revs(&[left_commits[num_generations - 1].id().clone()], &[])
             .filter_by_generation(0..(num_generations + 1) as u32)
             .count(),
         2 * num_generations
     );
     assert_eq!(
-        index
-            .walk_revs(&[right_commits[num_generations - 1].id().clone()], &[])
+        walk_revs(&[right_commits[num_generations - 1].id().clone()], &[])
             .filter_by_generation(0..(num_generations + 1) as u32)
             .count(),
         2 * num_generations
     );
     assert_eq!(
-        index
-            .walk_revs(
-                &[left_commits[num_generations - 1].id().clone()],
-                &[left_commits[num_generations - 2].id().clone()]
-            )
-            .filter_by_generation(0..(num_generations + 1) as u32)
-            .count(),
+        walk_revs(
+            &[left_commits[num_generations - 1].id().clone()],
+            &[left_commits[num_generations - 2].id().clone()]
+        )
+        .filter_by_generation(0..(num_generations + 1) as u32)
+        .count(),
         2
     );
     assert_eq!(
-        index
-            .walk_revs(
-                &[right_commits[num_generations - 1].id().clone()],
-                &[right_commits[num_generations - 2].id().clone()]
-            )
-            .filter_by_generation(0..(num_generations + 1) as u32)
-            .count(),
+        walk_revs(
+            &[right_commits[num_generations - 1].id().clone()],
+            &[right_commits[num_generations - 2].id().clone()]
+        )
+        .filter_by_generation(0..(num_generations + 1) as u32)
+        .count(),
         2
     );
 }

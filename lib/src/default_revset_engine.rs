@@ -535,10 +535,10 @@ impl<'index> EvaluationContext<'index> {
                 generation,
             } => {
                 let root_set = self.evaluate(roots)?;
-                let root_ids = root_set.iter().map(|entry| entry.commit_id()).collect_vec();
+                let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
                 let head_set = self.evaluate(heads)?;
-                let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
-                let walk = self.index.walk_revs(&head_ids, &root_ids);
+                let head_positions = head_set.iter().map(|entry| entry.position()).collect_vec();
+                let walk = self.index.walk_revs(&head_positions, &root_positions);
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset { walk }))
                 } else {
@@ -662,8 +662,8 @@ impl<'index> EvaluationContext<'index> {
     where
         S: InternalRevset<'a> + ?Sized,
     {
-        let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
-        self.index.walk_revs(&head_ids, &[])
+        let head_positions = head_set.iter().map(|entry| entry.position()).collect_vec();
+        self.index.walk_revs(&head_positions, &[])
     }
 
     fn walk_children<'a, 'b, S, T>(
