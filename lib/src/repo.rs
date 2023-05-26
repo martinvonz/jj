@@ -662,6 +662,10 @@ impl MutableRepo {
         self.view.get_mut()
     }
 
+    pub fn mutable_index(&self) -> &dyn MutableIndex {
+        self.index.as_ref()
+    }
+
     pub fn has_changes(&self) -> bool {
         !(self.abandoned_commits.is_empty()
             && self.rewritten_commits.is_empty()

@@ -457,7 +457,7 @@ fn as_readonly_composite(repo: &Arc<ReadonlyRepo>) -> CompositeIndex<'_> {
 }
 
 fn as_mutable_impl(repo: &MutableRepo) -> &MutableIndexImpl {
-    repo.index()
+    repo.mutable_index()
         .as_any()
         .downcast_ref::<MutableIndexImpl>()
         .unwrap()

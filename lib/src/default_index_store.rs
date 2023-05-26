@@ -688,10 +688,6 @@ impl MutableIndexImpl {
 }
 
 impl Index for MutableIndexImpl {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
         CompositeIndex(self).shortest_unique_commit_id_prefix_len(commit_id)
     }
@@ -732,6 +728,10 @@ impl Index for MutableIndexImpl {
 }
 
 impl MutableIndex for MutableIndexImpl {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         Box::new(*self)
     }
@@ -1976,10 +1976,6 @@ impl ReadonlyIndexImpl {
 }
 
 impl Index for ReadonlyIndexImpl {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
         CompositeIndex(self).shortest_unique_commit_id_prefix_len(commit_id)
     }
