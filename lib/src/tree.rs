@@ -133,7 +133,7 @@ impl Tree {
     }
 
     pub fn path_value(&self, path: &RepoPath) -> Option<TreeValue> {
-        assert_eq!(self.dir(), &RepoPath::root());
+        assert!(self.dir().is_root());
         match path.split() {
             Some((dir, basename)) => self
                 .sub_tree_recursive(dir.components())
