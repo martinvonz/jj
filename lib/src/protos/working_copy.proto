@@ -20,7 +20,7 @@ enum FileType {
   Normal = 0;
   Symlink = 1;
   Executable = 2;
-  Conflict = 3;
+  Conflict = 3 [deprecated = true];
   GitSubmodule = 4;
 }
 
