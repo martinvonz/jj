@@ -29,7 +29,7 @@ message FileState {
   uint64 size = 2;
   FileType file_type = 3;
   // Set only if file_type is Conflict
-  bytes conflict_id = 4;
+  bytes conflict_id = 4 [deprecated = true];
 }
 
 message SparsePatterns {

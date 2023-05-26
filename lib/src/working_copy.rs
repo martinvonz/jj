@@ -49,7 +49,7 @@ pub enum FileType {
     Normal { executable: bool },
     Symlink,
     GitSubmodule,
-    Conflict { id: ConflictId },
+    Conflict,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -82,9 +82,9 @@ impl FileState {
         }
     }
 
-    fn for_conflict(id: ConflictId, size: u64, metadata: &Metadata) -> Self {
+    fn for_conflict(size: u64, metadata: &Metadata) -> Self {
         FileState {
-            file_type: FileType::Conflict { id },
+            file_type: FileType::Conflict,
             mtime: mtime_from_metadata(metadata),
             size,
         }
@@ -130,10 +130,7 @@ fn file_state_from_proto(proto: crate::protos::working_copy::FileState) -> FileS
         crate::protos::working_copy::FileType::Normal => FileType::Normal { executable: false },
         crate::protos::working_copy::FileType::Executable => FileType::Normal { executable: true },
         crate::protos::working_copy::FileType::Symlink => FileType::Symlink,
-        crate::protos::working_copy::FileType::Conflict => {
-            let id = ConflictId::new(proto.conflict_id);
-            FileType::Conflict { id }
-        }
+        crate::protos::working_copy::FileType::Conflict => FileType::Conflict,
         crate::protos::working_copy::FileType::GitSubmodule => FileType::GitSubmodule,
     };
     FileState {
@@ -149,10 +146,7 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
         FileType::Normal { executable: false } => crate::protos::working_copy::FileType::Normal,
         FileType::Normal { executable: true } => crate::protos::working_copy::FileType::Executable,
         FileType::Symlink => crate::protos::working_copy::FileType::Symlink,
-        FileType::Conflict { id } => {
-            proto.conflict_id = id.to_bytes();
-            crate::protos::working_copy::FileType::Conflict
-        }
+        FileType::Conflict => crate::protos::working_copy::FileType::Conflict,
         FileType::GitSubmodule => crate::protos::working_copy::FileType::GitSubmodule,
     };
     proto.file_type = file_type as i32;
@@ -494,6 +488,7 @@ impl TreeState {
             base_ignores,
         )];
 
+        let current_tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
         let mut deleted_files: HashSet<_> = self
             .file_states
@@ -546,6 +541,7 @@ impl TreeState {
                             sub_path,
                             &entry,
                             git_ignore.as_ref(),
+                            &current_tree,
                             &mut tree_builder,
                         )?;
                     }
@@ -586,6 +582,7 @@ impl TreeState {
         repo_path: RepoPath,
         dir_entry: &DirEntry,
         git_ignore: &GitIgnoreFile,
+        current_tree: &Tree,
         tree_builder: &mut TreeBuilder,
     ) -> Result<(), SnapshotError> {
         let maybe_current_file_state = self.file_states.get_mut(&repo_path);
@@ -638,7 +635,7 @@ impl TreeState {
                 // conflict and the contents are now a file, then we take interpret that as if
                 // it is still a conflict.
                 if !clean
-                    && matches!(current_file_state.file_type, FileType::Conflict { .. })
+                    && current_file_state.file_type == FileType::Conflict
                     && matches!(new_file_state.file_type, FileType::Normal { .. })
                 {
                     // If the only change is that the type changed from conflict to regular file,
@@ -649,11 +646,14 @@ impl TreeState {
                     {
                         clean = true;
                     } else {
+                        let current_tree_value = current_tree.path_value(&repo_path);
                         // If the file contained a conflict before and is now a normal file on disk
                         // (new_file_state cannot be a Conflict at this point), we try to parse
                         // any conflict markers in the file into a conflict.
-                        if let (FileType::Conflict { id }, FileType::Normal { executable: _ }) =
-                            (&current_file_state.file_type, &new_file_state.file_type)
+                        if let (
+                            Some(TreeValue::Conflict(conflict_id)),
+                            FileType::Normal { executable: _ },
+                        ) = (&current_tree_value, &new_file_state.file_type)
                         {
                             let mut file = File::open(&disk_path).unwrap();
                             let mut content = vec![];
@@ -661,14 +661,12 @@ impl TreeState {
                             if let Some(new_conflict_id) = update_conflict_from_content(
                                 self.store.as_ref(),
                                 &repo_path,
-                                id,
+                                conflict_id,
                                 &content,
                             )
                             .unwrap()
                             {
-                                new_file_state.file_type = FileType::Conflict {
-                                    id: new_conflict_id.clone(),
-                                };
+                                new_file_state.file_type = FileType::Conflict;
                                 *current_file_state = new_file_state;
                                 tree_builder.set(repo_path, TreeValue::Conflict(new_conflict_id));
                                 return Ok(());
@@ -801,7 +799,7 @@ impl TreeState {
         let metadata = file
             .metadata()
             .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
-        Ok(FileState::for_conflict(id.clone(), size, &metadata))
+        Ok(FileState::for_conflict(size, &metadata))
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
@@ -982,7 +980,7 @@ impl TreeState {
                     let file_type = match after {
                         TreeValue::File { id: _, executable } => FileType::Normal { executable },
                         TreeValue::Symlink(_id) => FileType::Symlink,
-                        TreeValue::Conflict(id) => FileType::Conflict { id },
+                        TreeValue::Conflict(_id) => FileType::Conflict,
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {path:?}");
                             FileType::GitSubmodule

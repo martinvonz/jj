@@ -8,6 +8,7 @@ pub struct FileState {
     #[prost(enumeration = "FileType", tag = "3")]
     pub file_type: i32,
     /// Set only if file_type is Conflict
+    #[deprecated]
     #[prost(bytes = "vec", tag = "4")]
     pub conflict_id: ::prost::alloc::vec::Vec<u8>,
 }
