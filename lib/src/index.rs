@@ -46,8 +46,6 @@ pub trait IndexStore: Send + Sync + Debug {
 }
 
 pub trait Index: Send + Sync {
-    fn as_any(&self) -> &dyn Any;
-
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize;
 
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
@@ -79,6 +77,8 @@ pub trait ReadonlyIndex: Send + Sync {
 }
 
 pub trait MutableIndex: Any {
+    fn as_any(&self) -> &dyn Any;
+
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
     fn as_index(&self) -> &dyn Index;
