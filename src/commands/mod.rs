@@ -3183,7 +3183,7 @@ fn cmd_debug(
             let index_impl: Option<&ReadonlyIndexWrapper> =
                 repo.readonly_index().as_any().downcast_ref();
             if let Some(index_impl) = index_impl {
-                let stats = index_impl.stats();
+                let stats = index_impl.as_composite().stats();
                 writeln!(ui, "Number of commits: {}", stats.num_commits)?;
                 writeln!(ui, "Number of merges: {}", stats.num_merges)?;
                 writeln!(ui, "Max generation number: {}", stats.max_generation_number)?;
@@ -3218,7 +3218,7 @@ fn cmd_debug(
                 writeln!(
                     ui,
                     "Finished indexing {:?} commits.",
-                    index_impl.stats().num_commits
+                    index_impl.as_composite().stats().num_commits
                 )?;
             } else {
                 return Err(user_error(format!(
