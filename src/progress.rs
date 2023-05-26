@@ -173,22 +173,31 @@ pub fn snapshot_progress(ui: &mut Ui) -> Option<impl Fn(&RepoPath) + '_> {
     struct State<'a> {
         guard: Option<OutputGuard>,
         ui: &'a mut Ui,
+        next_display_time: Instant,
     }
 
     if !ui.use_progress_indicator() {
         return None;
     }
 
-    let start = Instant::now();
-    let state = Mutex::new(State { guard: None, ui });
+    // Don't clutter the output during fast operations.
+    let next_display_time = Instant::now() + Duration::from_millis(250);
+    let state = Mutex::new(State {
+        guard: None,
+        ui,
+        next_display_time,
+    });
 
     Some(move |path: &RepoPath| {
-        if start.elapsed() < Duration::from_millis(250) {
-            // Don't clutter the output during fast operations. Future work: Display current
-            // path after exactly 250ms has elapsed, to better handle large single files
+        let mut state = state.lock().unwrap();
+        let now = Instant::now();
+        if now < state.next_display_time {
+            // Future work: Display current path after exactly, say, 250ms has elapsed, to
+            // better handle large single files
             return;
         }
-        let mut state = state.lock().unwrap();
+        state.next_display_time = now + Duration::from_millis(10);
+
         if state.guard.is_none() {
             state.guard = Some(
                 state
