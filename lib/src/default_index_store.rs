@@ -896,20 +896,6 @@ impl<'a> CompositeIndex<'a> {
             .find_map(|segment| segment.segment_commit_id_to_pos(commit_id))
     }
 
-    /// Suppose the given `commit_id` exists, returns the minimum prefix length
-    /// to disambiguate it. The length to be returned is a number of hexadecimal
-    /// digits.
-    ///
-    /// If the given `commit_id` doesn't exist, this will return the prefix
-    /// length that never matches with any commit ids.
-    pub fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
-        let (prev_id, next_id) = self.resolve_neighbor_commit_ids(commit_id);
-        itertools::chain(prev_id, next_id)
-            .map(|id| backend::common_hex_len(commit_id.as_bytes(), id.as_bytes()) + 1)
-            .max()
-            .unwrap_or(0)
-    }
-
     /// Suppose the given `commit_id` exists, returns the previous and next
     /// commit ids in lexicographical order.
     fn resolve_neighbor_commit_ids(
@@ -936,31 +922,9 @@ impl<'a> CompositeIndex<'a> {
             .unwrap()
     }
 
-    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        self.ancestor_index_segments()
-            .fold(PrefixResolution::NoMatch, |acc_match, segment| {
-                if acc_match == PrefixResolution::AmbiguousMatch {
-                    acc_match // avoid checking the parent file(s)
-                } else {
-                    let local_match = segment.segment_resolve_prefix(prefix);
-                    acc_match.plus(&local_match)
-                }
-            })
-    }
-
     pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
         self.commit_id_to_pos(commit_id)
             .map(|pos| self.entry_by_pos(pos))
-    }
-
-    pub fn has_id(&self, commit_id: &CommitId) -> bool {
-        self.commit_id_to_pos(commit_id).is_some()
-    }
-
-    pub fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
-        let ancestor_pos = self.commit_id_to_pos(ancestor_id).unwrap();
-        let descendant_pos = self.commit_id_to_pos(descendant_id).unwrap();
-        self.is_ancestor_pos(ancestor_pos, descendant_pos)
     }
 
     fn is_ancestor_pos(&self, ancestor_pos: IndexPosition, descendant_pos: IndexPosition) -> bool {
@@ -981,21 +945,6 @@ impl<'a> CompositeIndex<'a> {
             work.extend(descendant_entry.parent_positions());
         }
         false
-    }
-
-    pub fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
-        let pos1 = set1
-            .iter()
-            .map(|id| self.commit_id_to_pos(id).unwrap())
-            .collect_vec();
-        let pos2 = set2
-            .iter()
-            .map(|id| self.commit_id_to_pos(id).unwrap())
-            .collect_vec();
-        self.common_ancestors_pos(&pos1, &pos2)
-            .iter()
-            .map(|pos| self.entry_by_pos(*pos).commit_id())
-            .collect()
     }
 
     fn common_ancestors_pos(
@@ -1056,20 +1005,6 @@ impl<'a> CompositeIndex<'a> {
         rev_walk
     }
 
-    pub(crate) fn heads(
-        &self,
-        candidate_ids: &mut dyn Iterator<Item = &CommitId>,
-    ) -> Vec<CommitId> {
-        let candidate_positions: BTreeSet<_> = candidate_ids
-            .map(|id| self.commit_id_to_pos(id).unwrap())
-            .collect();
-
-        self.heads_pos(candidate_positions)
-            .iter()
-            .map(|pos| self.entry_by_pos(*pos).commit_id())
-            .collect()
-    }
-
     fn heads_pos(
         &self,
         mut candidate_positions: BTreeSet<IndexPosition>,
@@ -1105,12 +1040,85 @@ impl<'a> CompositeIndex<'a> {
         }
         candidate_positions
     }
+}
+
+impl Index for CompositeIndex<'_> {
+    /// Suppose the given `commit_id` exists, returns the minimum prefix length
+    /// to disambiguate it. The length to be returned is a number of hexadecimal
+    /// digits.
+    ///
+    /// If the given `commit_id` doesn't exist, this will return the prefix
+    /// length that never matches with any commit ids.
+    fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
+        let (prev_id, next_id) = self.resolve_neighbor_commit_ids(commit_id);
+        itertools::chain(prev_id, next_id)
+            .map(|id| backend::common_hex_len(commit_id.as_bytes(), id.as_bytes()) + 1)
+            .max()
+            .unwrap_or(0)
+    }
+
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+        self.ancestor_index_segments()
+            .fold(PrefixResolution::NoMatch, |acc_match, segment| {
+                if acc_match == PrefixResolution::AmbiguousMatch {
+                    acc_match // avoid checking the parent file(s)
+                } else {
+                    let local_match = segment.segment_resolve_prefix(prefix);
+                    acc_match.plus(&local_match)
+                }
+            })
+    }
+
+    fn has_id(&self, commit_id: &CommitId) -> bool {
+        self.commit_id_to_pos(commit_id).is_some()
+    }
+
+    fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
+        let ancestor_pos = self.commit_id_to_pos(ancestor_id).unwrap();
+        let descendant_pos = self.commit_id_to_pos(descendant_id).unwrap();
+        self.is_ancestor_pos(ancestor_pos, descendant_pos)
+    }
+
+    fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
+        let pos1 = set1
+            .iter()
+            .map(|id| self.commit_id_to_pos(id).unwrap())
+            .collect_vec();
+        let pos2 = set2
+            .iter()
+            .map(|id| self.commit_id_to_pos(id).unwrap())
+            .collect_vec();
+        self.common_ancestors_pos(&pos1, &pos2)
+            .iter()
+            .map(|pos| self.entry_by_pos(*pos).commit_id())
+            .collect()
+    }
+
+    fn heads(&self, candidate_ids: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
+        let candidate_positions: BTreeSet<_> = candidate_ids
+            .map(|id| self.commit_id_to_pos(id).unwrap())
+            .collect();
+
+        self.heads_pos(candidate_positions)
+            .iter()
+            .map(|pos| self.entry_by_pos(*pos).commit_id())
+            .collect()
+    }
 
     /// Parents before children
-    pub fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
+    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         let mut ids = input.cloned().collect_vec();
         ids.sort_by_cached_key(|id| self.commit_id_to_pos(id).unwrap());
         ids
+    }
+
+    fn evaluate_revset<'index>(
+        &'index self,
+        expression: &ResolvedExpression,
+        store: &Arc<Store>,
+    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
+        let revset_impl = default_revset_engine::evaluate(expression, store, self, *self)?;
+        Ok(Box::new(revset_impl))
     }
 }
 
