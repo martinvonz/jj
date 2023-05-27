@@ -231,24 +231,34 @@ impl Tree {
 }
 
 pub struct TreeEntriesIterator<'matcher> {
-    entry_iterator: TreeEntriesNonRecursiveIterator<'static>,
-    // On drop, tree must outlive entry_iterator
-    tree: Pin<Box<Tree>>,
-    subdir_iterator: Option<Box<TreeEntriesIterator<'matcher>>>,
+    stack: Vec<TreeEntriesDirItem>,
     matcher: &'matcher dyn Matcher,
 }
 
-impl<'matcher> TreeEntriesIterator<'matcher> {
-    fn new(tree: Tree, matcher: &'matcher dyn Matcher) -> Self {
+struct TreeEntriesDirItem {
+    entry_iterator: TreeEntriesNonRecursiveIterator<'static>,
+    // On drop, tree must outlive entry_iterator
+    tree: Pin<Box<Tree>>,
+}
+
+impl TreeEntriesDirItem {
+    fn new(tree: Tree) -> Self {
         let tree = Box::pin(tree);
-        // TODO: Restrict walk according to Matcher::visit()
         let entry_iterator = tree.entries_non_recursive();
         let entry_iterator: TreeEntriesNonRecursiveIterator<'static> =
             unsafe { std::mem::transmute(entry_iterator) };
         Self {
             entry_iterator,
             tree,
-            subdir_iterator: None,
+        }
+    }
+}
+
+impl<'matcher> TreeEntriesIterator<'matcher> {
+    fn new(tree: Tree, matcher: &'matcher dyn Matcher) -> Self {
+        // TODO: Restrict walk according to Matcher::visit()
+        Self {
+            stack: vec![TreeEntriesDirItem::new(tree)],
             matcher,
         }
     }
@@ -258,30 +268,25 @@ impl Iterator for TreeEntriesIterator<'_> {
     type Item = (RepoPath, TreeValue);
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            // First return results from any subdirectory we're currently visiting.
-            if let Some(subdir_iter) = &mut self.subdir_iterator {
-                if let Some(item) = subdir_iter.next() {
-                    return Some(item);
-                }
-                self.subdir_iterator = None;
-            }
-            let entry = self.entry_iterator.next()?;
-            match entry.value() {
-                TreeValue::Tree(id) => {
-                    let subtree = self.tree.known_sub_tree(entry.name(), id);
-                    self.subdir_iterator =
-                        Some(Box::new(TreeEntriesIterator::new(subtree, self.matcher)));
-                }
-                other => {
-                    let path = self.tree.dir().join(entry.name());
-                    if !self.matcher.matches(&path) {
-                        continue;
+        while let Some(top) = self.stack.last_mut() {
+            if let Some(entry) = top.entry_iterator.next() {
+                let path = top.tree.dir().join(entry.name());
+                match entry.value() {
+                    TreeValue::Tree(id) => {
+                        let subtree = top.tree.known_sub_tree(entry.name(), id);
+                        self.stack.push(TreeEntriesDirItem::new(subtree));
                     }
-                    return Some((path, other.clone()));
-                }
-            };
+                    value => {
+                        if self.matcher.matches(&path) {
+                            return Some((path, value.clone()));
+                        }
+                    }
+                };
+            } else {
+                self.stack.pop();
+            }
         }
+        None
     }
 }
 
