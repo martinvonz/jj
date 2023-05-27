@@ -273,6 +273,10 @@ impl Iterator for TreeEntriesIterator<'_> {
                 let path = top.tree.dir().join(entry.name());
                 match entry.value() {
                     TreeValue::Tree(id) => {
+                        // TODO: Handle the other cases (specific files and trees)
+                        if self.matcher.visit(&path).is_nothing() {
+                            continue;
+                        }
                         let subtree = top.tree.known_sub_tree(entry.name(), id);
                         self.stack.push(TreeEntriesDirItem::new(subtree));
                     }
