@@ -24,9 +24,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
-use crate::default_index_store::{
-    CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition, RevWalk,
-};
+use crate::default_index_store::{CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition};
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
 use crate::index::{HexPrefix, PrefixResolution};
@@ -538,7 +536,8 @@ impl<'index> EvaluationContext<'index> {
             }
             ResolvedExpression::Ancestors { heads, generation } => {
                 let head_set = self.evaluate(heads)?;
-                let walk = self.walk_ancestors(&*head_set);
+                let head_positions = head_set.iter().map(|entry| entry.position()).collect_vec();
+                let walk = self.index.walk_revs(&head_positions, &[]);
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset { walk }))
                 } else {
@@ -568,12 +567,14 @@ impl<'index> EvaluationContext<'index> {
                 heads,
                 generation_from_roots,
             } => {
+                let index = self.index;
                 let root_set = self.evaluate(roots)?;
                 let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
                 let head_set = self.evaluate(heads)?;
+                let head_positions = head_set.iter().map(|entry| entry.position()).collect_vec();
                 if generation_from_roots == &(1..2) {
-                    let walk = self
-                        .walk_ancestors(&*head_set)
+                    let walk = index
+                        .walk_revs(&head_positions, &[])
                         .take_until_roots(&root_positions);
                     let root_positions_set: HashSet<_> = root_positions.into_iter().collect();
                     let candidates = Box::new(RevWalkRevset { walk });
@@ -590,8 +591,8 @@ impl<'index> EvaluationContext<'index> {
                         predicate,
                     }))
                 } else if generation_from_roots == &GENERATION_RANGE_FULL {
-                    let mut index_entries = self
-                        .walk_ancestors(&*head_set)
+                    let mut index_entries = index
+                        .walk_revs(&head_positions, &[])
                         .descendants(&root_positions)
                         .collect_vec();
                     index_entries.reverse();
@@ -600,13 +601,13 @@ impl<'index> EvaluationContext<'index> {
                     // For small generation range, it might be better to build a reachable map
                     // with generation bit set, which can be calculated incrementally from roots:
                     //   reachable[pos] = (reachable[parent_pos] | ...) << 1
-                    let walk = self
-                        .walk_ancestors(&*head_set)
+                    let mut index_entries = index
+                        .walk_revs(&head_positions, &[])
                         .descendants_filtered_by_generation(
                             &root_positions,
                             to_u32_generation_range(generation_from_roots)?,
-                        );
-                    let mut index_entries = walk.collect_vec();
+                        )
+                        .collect_vec();
                     index_entries.reverse();
                     Ok(Box::new(EagerRevset { index_entries }))
                 }
@@ -624,19 +625,18 @@ impl<'index> EvaluationContext<'index> {
                 Ok(Box::new(EagerRevset { index_entries }))
             }
             ResolvedExpression::Roots(candidates) => {
-                let candidate_set = EagerRevset {
-                    index_entries: self.evaluate(candidates)?.iter().collect(),
-                };
-                let candidate_positions = candidate_set
+                let candidate_entries = self.evaluate(candidates)?.iter().collect_vec();
+                let candidate_positions = candidate_entries
                     .iter()
                     .map(|entry| entry.position())
                     .collect_vec();
                 let filled = self
-                    .walk_ancestors(&candidate_set)
+                    .index
+                    .walk_revs(&candidate_positions, &[])
                     .descendants(&candidate_positions)
                     .collect_positions_set();
                 let mut index_entries = vec![];
-                for candidate in candidate_set.iter() {
+                for candidate in candidate_entries {
                     if !candidate
                         .parent_positions()
                         .iter()
@@ -701,14 +701,6 @@ impl<'index> EvaluationContext<'index> {
                 Ok(Box::new(UnionPredicate { set1, set2 }))
             }
         }
-    }
-
-    fn walk_ancestors<'a, S>(&self, head_set: &S) -> RevWalk<'index>
-    where
-        S: InternalRevset<'a> + ?Sized,
-    {
-        let head_positions = head_set.iter().map(|entry| entry.position()).collect_vec();
-        self.index.walk_revs(&head_positions, &[])
     }
 
     fn revset_for_commit_ids(&self, commit_ids: &[CommitId]) -> EagerRevset<'index> {
