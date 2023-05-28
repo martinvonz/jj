@@ -569,12 +569,27 @@ impl<'index> EvaluationContext<'index> {
                 generation_from_roots,
             } => {
                 let root_set = self.evaluate(roots)?;
+                let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
                 let head_set = self.evaluate(heads)?;
                 if generation_from_roots == &(1..2) {
-                    Ok(Box::new(self.walk_children(&*root_set, &*head_set)))
+                    let walk = self
+                        .walk_ancestors(&*head_set)
+                        .take_until_roots(&root_positions);
+                    let root_positions_set: HashSet<_> = root_positions.into_iter().collect();
+                    let candidates = Box::new(RevWalkRevset { walk });
+                    let predicate = PurePredicateFn(move |entry: &IndexEntry| {
+                        entry
+                            .parent_positions()
+                            .iter()
+                            .any(|parent_pos| root_positions_set.contains(parent_pos))
+                    });
+                    // TODO: Suppose heads include all visible heads, ToPredicateFn version can be
+                    // optimized to only test the predicate()
+                    Ok(Box::new(FilterRevset {
+                        candidates,
+                        predicate,
+                    }))
                 } else if generation_from_roots == &GENERATION_RANGE_FULL {
-                    let root_positions =
-                        root_set.iter().map(|entry| entry.position()).collect_vec();
                     let mut index_entries = self
                         .walk_ancestors(&*head_set)
                         .descendants(&root_positions)
@@ -585,8 +600,6 @@ impl<'index> EvaluationContext<'index> {
                     // For small generation range, it might be better to build a reachable map
                     // with generation bit set, which can be calculated incrementally from roots:
                     //   reachable[pos] = (reachable[parent_pos] | ...) << 1
-                    let root_positions =
-                        root_set.iter().map(|entry| entry.position()).collect_vec();
                     let walk = self
                         .walk_ancestors(&*head_set)
                         .descendants_filtered_by_generation(
@@ -696,35 +709,6 @@ impl<'index> EvaluationContext<'index> {
     {
         let head_positions = head_set.iter().map(|entry| entry.position()).collect_vec();
         self.index.walk_revs(&head_positions, &[])
-    }
-
-    fn walk_children<'a, 'b, S, T>(
-        &self,
-        root_set: &S,
-        head_set: &T,
-    ) -> impl InternalRevset<'index> + 'index
-    where
-        S: InternalRevset<'a> + ?Sized,
-        T: InternalRevset<'b> + ?Sized,
-    {
-        let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
-        let walk = self
-            .walk_ancestors(head_set)
-            .take_until_roots(&root_positions);
-        let root_positions: HashSet<_> = root_positions.into_iter().collect();
-        let candidates = Box::new(RevWalkRevset { walk });
-        let predicate = PurePredicateFn(move |entry: &IndexEntry| {
-            entry
-                .parent_positions()
-                .iter()
-                .any(|parent_pos| root_positions.contains(parent_pos))
-        });
-        // TODO: Suppose heads include all visible heads, ToPredicateFn version can be
-        // optimized to only test the predicate()
-        FilterRevset {
-            candidates,
-            predicate,
-        }
     }
 
     fn revset_for_commit_ids(&self, commit_ids: &[CommitId]) -> EagerRevset<'index> {
