@@ -66,7 +66,7 @@ fn test_git_push_current_branch() {
         &workspace_root,
         &["describe", "branch1", "-m", "modified branch1 commit"],
     );
-    test_env.jj_cmd_success(&workspace_root, &["co", "branch2"]);
+    test_env.jj_cmd_success(&workspace_root, &["new", "branch2"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch2"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "create", "my-branch"]);
     test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
@@ -162,7 +162,7 @@ fn test_git_push_no_current_branch() {
 #[test]
 fn test_git_push_current_branch_unchanged() {
     let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["co", "branch1"]);
+    test_env.jj_cmd_success(&workspace_root, &["new", "branch1"]);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
@@ -433,7 +433,7 @@ fn test_git_push_missing_author() {
             .assert()
             .success();
     };
-    run_without_var("JJ_USER", &["checkout", "root", "-m=initial"]);
+    run_without_var("JJ_USER", &["new", "root", "-m=initial"]);
     run_without_var("JJ_USER", &["branch", "create", "missing-name"]);
     let stderr = test_env.jj_cmd_failure(
         &workspace_root,
@@ -442,7 +442,7 @@ fn test_git_push_missing_author() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 574dffd73428 since it has no author and/or committer set
     "###);
-    run_without_var("JJ_EMAIL", &["checkout", "root", "-m=initial"]);
+    run_without_var("JJ_EMAIL", &["new", "root", "-m=initial"]);
     run_without_var("JJ_EMAIL", &["branch", "create", "missing-email"]);
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
@@ -468,7 +468,7 @@ fn test_git_push_missing_committer() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit e009726caa4a since it has no author and/or committer set
     "###);
-    test_env.jj_cmd_success(&workspace_root, &["checkout", "root"]);
+    test_env.jj_cmd_success(&workspace_root, &["new", "root"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "create", "missing-email"]);
     run_without_var("JJ_EMAIL", &["describe", "-m=no committer email"]);
     let stderr =

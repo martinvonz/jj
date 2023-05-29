@@ -104,7 +104,7 @@ fn test_squash() {
     "###);
 
     // Can squash into a merge commit
-    test_env.jj_cmd_success(&repo_path, &["co", "e"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "e"]);
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"

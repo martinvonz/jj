@@ -75,7 +75,6 @@ enum Commands {
     Branch(branch::BranchSubcommand),
     #[command(alias = "print")]
     Cat(CatArgs),
-    Checkout(CheckoutArgs),
     Commit(CommitArgs),
     #[command(subcommand)]
     Config(ConfigSubcommand),
@@ -224,23 +223,6 @@ struct ConfigSetArgs {
 struct ConfigEditArgs {
     #[clap(flatten)]
     pub config_args: ConfigArgs,
-}
-
-/// Create a new, empty change and edit it in the working copy
-///
-/// For more information, see
-/// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
-#[derive(clap::Args, Clone, Debug)]
-#[command(visible_aliases = &["co"])]
-struct CheckoutArgs {
-    /// The revision to update to
-    revision: RevisionArg,
-    /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true)]
-    unused_revision: bool,
-    /// The change description to use
-    #[arg(long, short, default_value = "")]
-    message: DescriptionArg,
 }
 
 /// Stop tracking specified paths in the working copy
@@ -1171,29 +1153,6 @@ fn cmd_config_edit(
         command.workspace_loader()?,
     )?;
     run_ui_editor(command.settings(), &config_path)
-}
-
-fn cmd_checkout(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &CheckoutArgs,
-) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let target = workspace_command.resolve_single_rev(&args.revision)?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("check out commit {}", target.id().hex()));
-    let commit_builder = tx
-        .mut_repo()
-        .new_commit(
-            command.settings(),
-            vec![target.id().clone()],
-            target.tree_id().clone(),
-        )
-        .set_description(&args.message);
-    let new_commit = commit_builder.write()?;
-    tx.edit(&new_commit).unwrap();
-    tx.finish(ui)?;
-    Ok(())
 }
 
 fn cmd_untrack(
@@ -3371,7 +3330,6 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Version(sub_args) => cmd_version(ui, command_helper, sub_args),
         Commands::Init(sub_args) => cmd_init(ui, command_helper, sub_args),
         Commands::Config(sub_args) => cmd_config(ui, command_helper, sub_args),
-        Commands::Checkout(sub_args) => cmd_checkout(ui, command_helper, sub_args),
         Commands::Untrack(sub_args) => cmd_untrack(ui, command_helper, sub_args),
         Commands::Files(sub_args) => cmd_files(ui, command_helper, sub_args),
         Commands::Cat(sub_args) => cmd_cat(ui, command_helper, sub_args),

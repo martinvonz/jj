@@ -81,9 +81,7 @@ stayed the same. Each change to the working-copy commit amends the previous
 version. So how do we tell Jujutsu that we are done amending the current change
 and want to start working on a new one? That is what `jj new` is for. That will
 create a new commit on top of your current working-copy commit. The new commit
-is for the working-copy changes. For familiarity for user coming from other
-VCSs, there is also a `jj checkout/co` command, which is practically a synonym
-for `jj new` (you can specify a destination for `jj new` as well).
+is for the working-copy changes.
 
 So, let's say we're now done with this change, so we create a new change:
 ```shell script
@@ -106,7 +104,7 @@ Alternatively, we can use `jj edit <commit>` to resume editing a commit in the
 working copy. Any further changes in the working copy will then amend the
 commit. Whether you choose to checkout-and-squash or to edit typically depends
 on how done you are with the change; if the change is almost done, it makes
-sense to use `jj checkout` so you can easily review your adjustments with
+sense to use `jj new` so you can easily review your adjustments with
 `jj diff` before running `jj squash`. 
 
 ## The log command and "revsets"

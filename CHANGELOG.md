@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* The command `jj checkout` (shorthand `jj co`) has been removed; the hope is
+  to avoid confusion when compared to `git checkout`, which has subtly different
+  semantics. Use `jj new` instead, which can do everything `jj co` could, and it
+  can also perform merges as well.
+
 * The `ui.oplog-relative-timestamps` option has been removed. Use the
   `format_time_range()` template alias instead. For details, see
   [the documentation](docs/config.md).

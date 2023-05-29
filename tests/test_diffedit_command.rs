@@ -122,7 +122,7 @@ fn test_diffedit_merge() {
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "b"]);
     std::fs::write(repo_path.join("file1"), "b\n").unwrap();
     std::fs::write(repo_path.join("file2"), "b\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["co", "@-"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "@-"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
