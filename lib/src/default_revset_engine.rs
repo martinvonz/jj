@@ -42,18 +42,30 @@ trait ToPredicateFn: fmt::Debug {
     /// Creates function that tests if the given entry is included in the set.
     ///
     /// The predicate function is evaluated in order of `RevsetIterator`.
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_>;
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a>;
 }
 
 impl<T: ToPredicateFn + ?Sized> ToPredicateFn for Box<T> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        <T as ToPredicateFn>::to_predicate_fn(self)
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
+        <T as ToPredicateFn>::to_predicate_fn(self, index)
     }
 }
 
+// TODO: move <'index> parameter to iter<'a, 'index: 'a>
 trait InternalRevset<'index>: fmt::Debug + ToPredicateFn {
     // All revsets currently iterate in order of descending index position
-    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_>;
+    fn iter<'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
+    where
+        'index: 'a;
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
     where
@@ -77,7 +89,7 @@ impl<'index> RevsetImpl<'index> {
     }
 
     fn entries(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
-        self.inner.iter()
+        self.inner.iter(self.index)
     }
 
     pub fn iter_graph_impl(&self) -> RevsetGraphIterator<'_, 'index> {
@@ -176,7 +188,13 @@ impl EagerRevset<'static> {
 }
 
 impl<'index> InternalRevset<'index> for EagerRevset<'index> {
-    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+    fn iter<'a>(
+        &'a self,
+        _index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
+    where
+        'index: 'a,
+    {
         Box::new(self.index_entries.iter().cloned())
     }
 
@@ -189,8 +207,11 @@ impl<'index> InternalRevset<'index> for EagerRevset<'index> {
 }
 
 impl ToPredicateFn for EagerRevset<'_> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        predicate_fn_from_iter(self.iter())
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        _index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
+        predicate_fn_from_iter(self.index_entries.iter().cloned())
     }
 }
 
@@ -208,7 +229,13 @@ impl<'index, T> InternalRevset<'index> for RevWalkRevset<T>
 where
     T: Iterator<Item = IndexEntry<'index>> + Clone,
 {
-    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+    fn iter<'a>(
+        &'a self,
+        _index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
+    where
+        'index: 'a,
+    {
         Box::new(self.walk.clone())
     }
 
@@ -224,7 +251,11 @@ impl<'index, T> ToPredicateFn for RevWalkRevset<T>
 where
     T: Iterator<Item = IndexEntry<'index>> + Clone,
 {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
+    // TODO: remove 'index from RevWalkRevset<'index, F>
+    fn to_predicate_fn<'a, 'index2: 'a>(
+        &'a self,
+        _index: CompositeIndex<'index2>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         predicate_fn_from_iter(self.walk.clone())
     }
 }
@@ -248,9 +279,15 @@ struct FilterRevset<'index, P> {
 }
 
 impl<'index, P: ToPredicateFn> InternalRevset<'index> for FilterRevset<'index, P> {
-    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
-        let p = self.predicate.to_predicate_fn();
-        Box::new(self.candidates.iter().filter(p))
+    fn iter<'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
+    where
+        'index: 'a,
+    {
+        let p = self.predicate.to_predicate_fn(index);
+        Box::new(self.candidates.iter(index).filter(p))
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -262,9 +299,12 @@ impl<'index, P: ToPredicateFn> InternalRevset<'index> for FilterRevset<'index, P
 }
 
 impl<P: ToPredicateFn> ToPredicateFn for FilterRevset<'_, P> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        let mut p1 = self.candidates.to_predicate_fn();
-        let mut p2 = self.predicate.to_predicate_fn();
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
+        let mut p1 = self.candidates.to_predicate_fn(index);
+        let mut p2 = self.predicate.to_predicate_fn(index);
         Box::new(move |entry| p1(entry) && p2(entry))
     }
 }
@@ -273,8 +313,11 @@ impl<P: ToPredicateFn> ToPredicateFn for FilterRevset<'_, P> {
 struct NotInPredicate<S>(S);
 
 impl<S: ToPredicateFn> ToPredicateFn for NotInPredicate<S> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        let mut p = self.0.to_predicate_fn();
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
+        let mut p = self.0.to_predicate_fn(index);
         Box::new(move |entry| !p(entry))
     }
 }
@@ -286,10 +329,16 @@ struct UnionRevset<'index> {
 }
 
 impl<'index> InternalRevset<'index> for UnionRevset<'index> {
-    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+    fn iter<'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
+    where
+        'index: 'a,
+    {
         Box::new(UnionRevsetIterator {
-            iter1: self.set1.iter().peekable(),
-            iter2: self.set2.iter().peekable(),
+            iter1: self.set1.iter(index).peekable(),
+            iter2: self.set2.iter(index).peekable(),
         })
     }
 
@@ -302,9 +351,12 @@ impl<'index> InternalRevset<'index> for UnionRevset<'index> {
 }
 
 impl ToPredicateFn for UnionRevset<'_> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        let mut p1 = self.set1.to_predicate_fn();
-        let mut p2 = self.set2.to_predicate_fn();
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
+        let mut p1 = self.set1.to_predicate_fn(index);
+        let mut p2 = self.set2.to_predicate_fn(index);
         Box::new(move |entry| p1(entry) || p2(entry))
     }
 }
@@ -320,9 +372,12 @@ where
     S1: ToPredicateFn,
     S2: ToPredicateFn,
 {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        let mut p1 = self.set1.to_predicate_fn();
-        let mut p2 = self.set2.to_predicate_fn();
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
+        let mut p1 = self.set1.to_predicate_fn(index);
+        let mut p2 = self.set2.to_predicate_fn(index);
         Box::new(move |entry| p1(entry) || p2(entry))
     }
 }
@@ -364,10 +419,16 @@ struct IntersectionRevset<'index> {
 }
 
 impl<'index> InternalRevset<'index> for IntersectionRevset<'index> {
-    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+    fn iter<'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
+    where
+        'index: 'a,
+    {
         Box::new(IntersectionRevsetIterator {
-            iter1: self.set1.iter().peekable(),
-            iter2: self.set2.iter().peekable(),
+            iter1: self.set1.iter(index).peekable(),
+            iter2: self.set2.iter(index).peekable(),
         })
     }
 
@@ -380,9 +441,12 @@ impl<'index> InternalRevset<'index> for IntersectionRevset<'index> {
 }
 
 impl ToPredicateFn for IntersectionRevset<'_> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        let mut p1 = self.set1.to_predicate_fn();
-        let mut p2 = self.set2.to_predicate_fn();
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
+        let mut p1 = self.set1.to_predicate_fn(index);
+        let mut p2 = self.set2.to_predicate_fn(index);
         Box::new(move |entry| p1(entry) && p2(entry))
     }
 }
@@ -436,10 +500,16 @@ struct DifferenceRevset<'index> {
 }
 
 impl<'index> InternalRevset<'index> for DifferenceRevset<'index> {
-    fn iter(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+    fn iter<'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
+    where
+        'index: 'a,
+    {
         Box::new(DifferenceRevsetIterator {
-            iter1: self.set1.iter().peekable(),
-            iter2: self.set2.iter().peekable(),
+            iter1: self.set1.iter(index).peekable(),
+            iter2: self.set2.iter(index).peekable(),
         })
     }
 
@@ -452,9 +522,12 @@ impl<'index> InternalRevset<'index> for DifferenceRevset<'index> {
 }
 
 impl ToPredicateFn for DifferenceRevset<'_> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
-        let mut p1 = self.set1.to_predicate_fn();
-        let mut p2 = self.set2.to_predicate_fn();
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
+        let mut p1 = self.set1.to_predicate_fn(index);
+        let mut p2 = self.set2.to_predicate_fn(index);
         Box::new(move |entry| p1(entry) && !p2(entry))
     }
 }
@@ -533,13 +606,17 @@ impl<'index> EvaluationContext<'index> {
         &self,
         expression: &ResolvedExpression,
     ) -> Result<Box<dyn InternalRevset<'index> + 'index>, RevsetEvaluationError> {
+        let index = self.index;
         match expression {
             ResolvedExpression::Commits(commit_ids) => {
                 Ok(Box::new(self.revset_for_commit_ids(commit_ids)))
             }
             ResolvedExpression::Ancestors { heads, generation } => {
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set.iter().map(|entry| entry.position()).collect_vec();
+                let head_positions = head_set
+                    .iter(index)
+                    .map(|entry| entry.position())
+                    .collect_vec();
                 let walk = self.index.walk_revs(&head_positions, &[]);
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset { walk }))
@@ -554,9 +631,15 @@ impl<'index> EvaluationContext<'index> {
                 generation,
             } => {
                 let root_set = self.evaluate(roots)?;
-                let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
+                let root_positions = root_set
+                    .iter(index)
+                    .map(|entry| entry.position())
+                    .collect_vec();
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set.iter().map(|entry| entry.position()).collect_vec();
+                let head_positions = head_set
+                    .iter(index)
+                    .map(|entry| entry.position())
+                    .collect_vec();
                 let walk = self.index.walk_revs(&head_positions, &root_positions);
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset { walk }))
@@ -570,11 +653,16 @@ impl<'index> EvaluationContext<'index> {
                 heads,
                 generation_from_roots,
             } => {
-                let index = self.index;
                 let root_set = self.evaluate(roots)?;
-                let root_positions = root_set.iter().map(|entry| entry.position()).collect_vec();
+                let root_positions = root_set
+                    .iter(index)
+                    .map(|entry| entry.position())
+                    .collect_vec();
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set.iter().map(|entry| entry.position()).collect_vec();
+                let head_positions = head_set
+                    .iter(index)
+                    .map(|entry| entry.position())
+                    .collect_vec();
                 if generation_from_roots == &(1..2) {
                     let walk = index
                         .walk_revs(&head_positions, &[])
@@ -617,24 +705,26 @@ impl<'index> EvaluationContext<'index> {
             }
             ResolvedExpression::Heads(candidates) => {
                 let candidate_set = self.evaluate(candidates)?;
-                let head_positions: BTreeSet<_> = self
-                    .index
-                    .heads_pos(candidate_set.iter().map(|entry| entry.position()).collect());
+                let head_positions: BTreeSet<_> = index.heads_pos(
+                    candidate_set
+                        .iter(index)
+                        .map(|entry| entry.position())
+                        .collect(),
+                );
                 let index_entries = head_positions
                     .into_iter()
                     .rev()
-                    .map(|pos| self.index.entry_by_pos(pos))
+                    .map(|pos| index.entry_by_pos(pos))
                     .collect();
                 Ok(Box::new(EagerRevset { index_entries }))
             }
             ResolvedExpression::Roots(candidates) => {
-                let candidate_entries = self.evaluate(candidates)?.iter().collect_vec();
+                let candidate_entries = self.evaluate(candidates)?.iter(index).collect_vec();
                 let candidate_positions = candidate_entries
                     .iter()
                     .map(|entry| entry.position())
                     .collect_vec();
-                let filled = self
-                    .index
+                let filled = index
                     .walk_revs(&candidate_positions, &[])
                     .descendants(&candidate_positions)
                     .collect_positions_set();
@@ -742,7 +832,7 @@ impl<'index> EvaluationContext<'index> {
         // Maintain min-heap containing the latest (greatest) count items. For small
         // count and large candidate set, this is probably cheaper than building vec
         // and applying selection algorithm.
-        let mut candidate_iter = candidate_set.iter().map(make_rev_item).fuse();
+        let mut candidate_iter = candidate_set.iter(self.index).map(make_rev_item).fuse();
         let mut latest_items = BinaryHeap::from_iter(candidate_iter.by_ref().take(count));
         for item in candidate_iter {
             let mut earliest = latest_items.peek_mut().unwrap();
@@ -770,7 +860,10 @@ impl<F> fmt::Debug for PurePredicateFn<F> {
 }
 
 impl<F: Fn(&IndexEntry<'_>) -> bool> ToPredicateFn for PurePredicateFn<F> {
-    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + '_> {
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        _index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         Box::new(&self.0)
     }
 }
@@ -891,14 +984,14 @@ mod tests {
         };
 
         let set = make_set(&[&id_4, &id_3, &id_2, &id_0]);
-        let mut p = set.to_predicate_fn();
+        let mut p = set.to_predicate_fn(index.as_composite());
         assert!(p(&get_entry(&id_4)));
         assert!(p(&get_entry(&id_3)));
         assert!(p(&get_entry(&id_2)));
         assert!(!p(&get_entry(&id_1)));
         assert!(p(&get_entry(&id_0)));
         // Uninteresting entries can be skipped
-        let mut p = set.to_predicate_fn();
+        let mut p = set.to_predicate_fn(index.as_composite());
         assert!(p(&get_entry(&id_3)));
         assert!(!p(&get_entry(&id_1)));
         assert!(p(&get_entry(&id_0)));
@@ -907,8 +1000,11 @@ mod tests {
             candidates: make_set(&[&id_4, &id_2, &id_0]),
             predicate: pure_predicate_fn(|entry| entry.commit_id() != id_4),
         };
-        assert_eq!(set.iter().collect_vec(), make_entries(&[&id_2, &id_0]));
-        let mut p = set.to_predicate_fn();
+        assert_eq!(
+            set.iter(index.as_composite()).collect_vec(),
+            make_entries(&[&id_2, &id_0])
+        );
+        let mut p = set.to_predicate_fn(index.as_composite());
         assert!(!p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
         assert!(p(&get_entry(&id_2)));
@@ -920,8 +1016,11 @@ mod tests {
             candidates: make_set(&[&id_4, &id_2, &id_0]),
             predicate: make_set(&[&id_3, &id_2, &id_1]),
         };
-        assert_eq!(set.iter().collect_vec(), make_entries(&[&id_2]));
-        let mut p = set.to_predicate_fn();
+        assert_eq!(
+            set.iter(index.as_composite()).collect_vec(),
+            make_entries(&[&id_2])
+        );
+        let mut p = set.to_predicate_fn(index.as_composite());
         assert!(!p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
         assert!(p(&get_entry(&id_2)));
@@ -933,10 +1032,10 @@ mod tests {
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
         assert_eq!(
-            set.iter().collect_vec(),
+            set.iter(index.as_composite()).collect_vec(),
             make_entries(&[&id_4, &id_3, &id_2, &id_1])
         );
-        let mut p = set.to_predicate_fn();
+        let mut p = set.to_predicate_fn(index.as_composite());
         assert!(p(&get_entry(&id_4)));
         assert!(p(&get_entry(&id_3)));
         assert!(p(&get_entry(&id_2)));
@@ -947,8 +1046,11 @@ mod tests {
             set1: make_set(&[&id_4, &id_2, &id_0]),
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
-        assert_eq!(set.iter().collect_vec(), make_entries(&[&id_2]));
-        let mut p = set.to_predicate_fn();
+        assert_eq!(
+            set.iter(index.as_composite()).collect_vec(),
+            make_entries(&[&id_2])
+        );
+        let mut p = set.to_predicate_fn(index.as_composite());
         assert!(!p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
         assert!(p(&get_entry(&id_2)));
@@ -959,8 +1061,11 @@ mod tests {
             set1: make_set(&[&id_4, &id_2, &id_0]),
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
-        assert_eq!(set.iter().collect_vec(), make_entries(&[&id_4, &id_0]));
-        let mut p = set.to_predicate_fn();
+        assert_eq!(
+            set.iter(index.as_composite()).collect_vec(),
+            make_entries(&[&id_4, &id_0])
+        );
+        let mut p = set.to_predicate_fn(index.as_composite());
         assert!(p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
         assert!(!p(&get_entry(&id_2)));
