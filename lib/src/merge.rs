@@ -19,9 +19,9 @@ use itertools::Itertools;
 
 /// Attempt to resolve trivial conflicts between the inputs. There must be
 /// exactly one more adds than removes.
-pub fn trivial_merge<T>(removes: &[T], adds: &[T]) -> Option<T>
+pub fn trivial_merge<'a, T>(removes: &'a [T], adds: &'a [T]) -> Option<&'a T>
 where
-    T: Eq + Hash + Clone,
+    T: Eq + Hash,
 {
     assert_eq!(
         adds.len(),
@@ -32,11 +32,11 @@ where
     // Optimize the common case of a 3-way merge
     if adds.len() == 2 {
         return if adds[0] == adds[1] {
-            Some(adds[0].clone())
+            Some(&adds[0])
         } else if adds[0] == removes[0] {
-            Some(adds[1].clone())
+            Some(&adds[1])
         } else if adds[1] == removes[0] {
-            Some(adds[0].clone())
+            Some(&adds[0])
         } else {
             None
         };
@@ -50,24 +50,18 @@ where
     // and maybe add a more lenient version that is used when the user explicitly
     // asks for conflict resolution.
     if removes.iter().all_equal() && adds.iter().all_equal() {
-        return Some(adds[0].clone());
+        return Some(&adds[0]);
     }
 
     // Number of occurrences of each value, with positive indexes counted as +1 and
     // negative as -1, thereby letting positive and negative terms with the same
     // value (i.e. key in the map) cancel each other.
-    let mut counts: HashMap<T, i32> = HashMap::new();
+    let mut counts: HashMap<&T, i32> = HashMap::new();
     for value in adds.iter() {
-        counts
-            .entry(value.clone())
-            .and_modify(|e| *e += 1)
-            .or_insert(1);
+        counts.entry(value).and_modify(|e| *e += 1).or_insert(1);
     }
     for value in removes.iter() {
-        counts
-            .entry(value.clone())
-            .and_modify(|e| *e -= 1)
-            .or_insert(-1);
+        counts.entry(value).and_modify(|e| *e -= 1).or_insert(-1);
     }
 
     // If there is a single value (i.e. key in the map) with a count of 1 left, then
@@ -78,7 +72,7 @@ where
         .filter(|&(_, count)| *count != 0)
         .collect_vec();
     match x[..] {
-        [(value, 1)] => Some(value.clone()),
+        [(value, 1)] => Some(value),
         _ => None,
     }
 }
@@ -89,52 +83,52 @@ mod tests {
 
     #[test]
     fn test_trivial_merge() {
-        assert_eq!(trivial_merge(&[], &[0]), Some(0));
-        assert_eq!(trivial_merge(&[0], &[0, 0]), Some(0));
-        assert_eq!(trivial_merge(&[0], &[0, 1]), Some(1));
-        assert_eq!(trivial_merge(&[0], &[1, 0]), Some(1));
-        assert_eq!(trivial_merge(&[0], &[1, 1]), Some(1));
+        assert_eq!(trivial_merge(&[], &[0]), Some(&0));
+        assert_eq!(trivial_merge(&[0], &[0, 0]), Some(&0));
+        assert_eq!(trivial_merge(&[0], &[0, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0], &[1, 0]), Some(&1));
+        assert_eq!(trivial_merge(&[0], &[1, 1]), Some(&1));
         assert_eq!(trivial_merge(&[0], &[1, 2]), None);
-        assert_eq!(trivial_merge(&[0, 0], &[0, 0, 0]), Some(0));
-        assert_eq!(trivial_merge(&[0, 0], &[0, 0, 1]), Some(1));
-        assert_eq!(trivial_merge(&[0, 0], &[0, 1, 0]), Some(1));
+        assert_eq!(trivial_merge(&[0, 0], &[0, 0, 0]), Some(&0));
+        assert_eq!(trivial_merge(&[0, 0], &[0, 0, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 0], &[0, 1, 0]), Some(&1));
         assert_eq!(trivial_merge(&[0, 0], &[0, 1, 1]), None);
         assert_eq!(trivial_merge(&[0, 0], &[0, 1, 2]), None);
-        assert_eq!(trivial_merge(&[0, 0], &[1, 0, 0]), Some(1));
+        assert_eq!(trivial_merge(&[0, 0], &[1, 0, 0]), Some(&1));
         assert_eq!(trivial_merge(&[0, 0], &[1, 0, 1]), None);
         assert_eq!(trivial_merge(&[0, 0], &[1, 0, 2]), None);
         assert_eq!(trivial_merge(&[0, 0], &[1, 1, 0]), None);
-        assert_eq!(trivial_merge(&[0, 0], &[1, 1, 1]), Some(1));
+        assert_eq!(trivial_merge(&[0, 0], &[1, 1, 1]), Some(&1));
         assert_eq!(trivial_merge(&[0, 0], &[1, 1, 2]), None);
         assert_eq!(trivial_merge(&[0, 0], &[1, 2, 0]), None);
         assert_eq!(trivial_merge(&[0, 0], &[1, 2, 1]), None);
         assert_eq!(trivial_merge(&[0, 0], &[1, 2, 2]), None);
         assert_eq!(trivial_merge(&[0, 0], &[1, 2, 3]), None);
         assert_eq!(trivial_merge(&[0, 1], &[0, 0, 0]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[0, 0, 1]), Some(0));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 0, 1]), Some(&0));
         assert_eq!(trivial_merge(&[0, 1], &[0, 0, 2]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 0]), Some(0));
-        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 1]), Some(1));
-        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 2]), Some(2));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 0]), Some(&0));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 2]), Some(&2));
         assert_eq!(trivial_merge(&[0, 1], &[0, 2, 0]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[0, 2, 1]), Some(2));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 2, 1]), Some(&2));
         assert_eq!(trivial_merge(&[0, 1], &[0, 2, 2]), None);
         assert_eq!(trivial_merge(&[0, 1], &[0, 2, 3]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 0]), Some(0));
-        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 1]), Some(1));
-        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 2]), Some(2));
-        assert_eq!(trivial_merge(&[0, 1], &[1, 1, 0]), Some(1));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 0]), Some(&0));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 2]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 1, 0]), Some(&1));
         assert_eq!(trivial_merge(&[0, 1], &[1, 1, 1]), None);
         assert_eq!(trivial_merge(&[0, 1], &[1, 1, 2]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[1, 2, 0]), Some(2));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 2, 0]), Some(&2));
         assert_eq!(trivial_merge(&[0, 1], &[1, 2, 1]), None);
         assert_eq!(trivial_merge(&[0, 1], &[1, 2, 2]), None);
         assert_eq!(trivial_merge(&[0, 1], &[1, 2, 3]), None);
         assert_eq!(trivial_merge(&[0, 1], &[2, 0, 0]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 0, 1]), Some(2));
+        assert_eq!(trivial_merge(&[0, 1], &[2, 0, 1]), Some(&2));
         assert_eq!(trivial_merge(&[0, 1], &[2, 0, 2]), None);
         assert_eq!(trivial_merge(&[0, 1], &[2, 0, 3]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 1, 0]), Some(2));
+        assert_eq!(trivial_merge(&[0, 1], &[2, 1, 0]), Some(&2));
         assert_eq!(trivial_merge(&[0, 1], &[2, 1, 1]), None);
         assert_eq!(trivial_merge(&[0, 1], &[2, 1, 2]), None);
         assert_eq!(trivial_merge(&[0, 1], &[2, 1, 3]), None);
