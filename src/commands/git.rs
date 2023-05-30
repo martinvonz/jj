@@ -845,7 +845,7 @@ fn cmd_git_push(
         {
             reasons.push("it has no author and/or committer set");
         }
-        if commit.tree().has_conflict() {
+        if commit.merged_tree()?.has_conflict() {
             reasons.push("it has conflicts");
         }
         if !reasons.is_empty() {
