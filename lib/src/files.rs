@@ -227,7 +227,7 @@ pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
             }
             DiffHunk::Different(parts) => {
                 if let Some(resolved) = trivial_merge(&parts[..num_diffs], &parts[num_diffs..]) {
-                    resolved_hunk.extend(resolved);
+                    resolved_hunk.extend(*resolved);
                 } else {
                     if !resolved_hunk.is_empty() {
                         merge_hunks.push(MergeHunk::Resolved(resolved_hunk));

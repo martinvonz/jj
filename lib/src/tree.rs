@@ -545,7 +545,7 @@ pub fn merge_trees(
     assert_eq!(side2_tree.dir(), dir);
 
     if let Some(resolved) = trivial_merge(&[&base_tree.id], &[&side1_tree.id, &side2_tree.id]) {
-        return Ok(resolved.clone());
+        return Ok((*resolved).clone());
     }
 
     // Start with a tree identical to side 1 and modify based on changes from base
@@ -738,7 +738,7 @@ fn try_resolve_file_conflict(
         &added_contents.iter().map(Vec::as_slice).collect_vec(),
     );
     match merge_result {
-        MergeResult::Resolved(merged_content) => Ok(Some((merged_content, executable))),
+        MergeResult::Resolved(merged_content) => Ok(Some((merged_content, *executable))),
         MergeResult::Conflict(_) => Ok(None),
     }
 }
