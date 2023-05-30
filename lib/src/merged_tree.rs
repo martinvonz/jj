@@ -21,7 +21,7 @@ use std::{iter, vec};
 use itertools::Itertools;
 
 use crate::backend;
-use crate::backend::{ConflictId, TreeValue};
+use crate::backend::{ConflictId, TreeId, TreeValue};
 use crate::merge::Merge;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
@@ -46,6 +46,15 @@ pub enum MergedTreeValue<'a> {
     /// TODO: Make this a `Merge<Option<&'a TreeValue>>` (reference to the
     /// value) once we have removed the `MergedTree::Legacy` variant.
     Conflict(Merge<Option<TreeValue>>),
+}
+
+impl MergedTreeValue<'_> {
+    fn to_merge(&self) -> Merge<Option<TreeValue>> {
+        match self {
+            MergedTreeValue::Resolved(value) => Merge::resolved(value.cloned()),
+            MergedTreeValue::Conflict(merge) => merge.clone(),
+        }
+    }
 }
 
 impl MergedTree {
@@ -200,6 +209,70 @@ impl MergedTree {
         match self {
             MergedTree::Legacy(tree) => tree.has_conflict(),
             MergedTree::Merge(trees) => !trees.is_resolved(),
+        }
+    }
+
+    /// Gets the `MergeTree` in a subdirectory of the current tree. If the path
+    /// doesn't correspond to a tree in any of the inputs to the merge, then
+    /// that entry will be replace by an empty tree in the result.
+    pub fn sub_tree(&self, name: &RepoPathComponent) -> Option<MergedTree> {
+        if let MergedTree::Legacy(tree) = self {
+            tree.sub_tree(name).map(MergedTree::Legacy)
+        } else {
+            match self.value(name) {
+                MergedTreeValue::Resolved(Some(TreeValue::Tree(sub_tree_id))) => {
+                    let subdir = self.dir().join(name);
+                    Some(MergedTree::resolved(
+                        self.store().get_tree(&subdir, sub_tree_id).unwrap(),
+                    ))
+                }
+                MergedTreeValue::Resolved(_) => None,
+                MergedTreeValue::Conflict(merge) => {
+                    let merged_trees = merge.map(|value| match value {
+                        Some(TreeValue::Tree(sub_tree_id)) => {
+                            let subdir = self.dir().join(name);
+                            self.store().get_tree(&subdir, sub_tree_id).unwrap()
+                        }
+                        _ => {
+                            let subdir = self.dir().join(name);
+                            Tree::null(self.store().clone(), subdir.clone())
+                        }
+                    });
+                    Some(MergedTree::Merge(merged_trees))
+                }
+            }
+        }
+    }
+
+    /// The value at the given path. The value can be `Resolved` even if
+    /// `self` is a `Conflict`, which happens if the value at the path can be
+    /// trivially merged.
+    pub fn path_value(&self, path: &RepoPath) -> Merge<Option<TreeValue>> {
+        assert_eq!(self.dir(), &RepoPath::root());
+        match path.split() {
+            Some((dir, basename)) => match self.sub_tree_recursive(dir.components()) {
+                None => Merge::absent(),
+                Some(tree) => tree.value(basename).to_merge(),
+            },
+            None => self
+                .id()
+                .map(|tree_id| Some(TreeValue::Tree((*tree_id).clone()))),
+        }
+    }
+
+    fn id(&self) -> Merge<&TreeId> {
+        match self {
+            MergedTree::Legacy(tree) => Merge::resolved(tree.id()),
+            MergedTree::Merge(merge) => merge.map(|tree| tree.id()),
+        }
+    }
+
+    fn sub_tree_recursive(&self, components: &[RepoPathComponent]) -> Option<MergedTree> {
+        if let Some((first, tail)) = components.split_first() {
+            tail.iter()
+                .try_fold(self.sub_tree(first)?, |tree, name| tree.sub_tree(name))
+        } else {
+            Some(self.clone())
         }
     }
 }
