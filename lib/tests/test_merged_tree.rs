@@ -182,6 +182,101 @@ fn test_from_legacy_tree() {
 }
 
 #[test]
+fn test_path_value() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    // Create a MergedTree
+    let resolved_file_path = RepoPath::from_internal_string("dir1/subdir/resolved");
+    let resolved_dir_path = resolved_file_path.parent().unwrap();
+    let conflicted_file_path = RepoPath::from_internal_string("dir2/conflicted");
+    let missing_path = RepoPath::from_internal_string("dir2/missing_file");
+    let modify_delete_path = RepoPath::from_internal_string("dir2/modify_delete");
+    let file_dir_conflict_path = RepoPath::from_internal_string("file_dir");
+    let file_dir_conflict_sub_path = RepoPath::from_internal_string("file_dir/file");
+    let tree1 = create_tree(
+        repo,
+        &[
+            (&resolved_file_path, "unchanged"),
+            (&conflicted_file_path, "1"),
+            (&modify_delete_path, "1"),
+            (&file_dir_conflict_path, "1"),
+        ],
+    );
+    let tree2 = create_tree(
+        repo,
+        &[
+            (&resolved_file_path, "unchanged"),
+            (&conflicted_file_path, "2"),
+            (&modify_delete_path, "2"),
+            (&file_dir_conflict_path, "2"),
+        ],
+    );
+    let tree3 = create_tree(
+        repo,
+        &[
+            (&resolved_file_path, "unchanged"),
+            (&conflicted_file_path, "3"),
+            // No modify_delete_path in this tree
+            (&file_dir_conflict_sub_path, "1"),
+        ],
+    );
+    let merged_tree = MergedTree::Merge(Merge::new(
+        vec![tree1.clone()],
+        vec![tree2.clone(), tree3.clone()],
+    ));
+
+    // Get the root tree
+    assert_eq!(
+        merged_tree.path_value(&RepoPath::root()),
+        Merge::new(
+            vec![Some(TreeValue::Tree(tree1.id().clone()))],
+            vec![
+                Some(TreeValue::Tree(tree2.id().clone())),
+                Some(TreeValue::Tree(tree3.id().clone())),
+            ]
+        )
+    );
+    // Get file path without conflict
+    assert_eq!(
+        merged_tree.path_value(&resolved_file_path),
+        Merge::resolved(tree1.path_value(&resolved_file_path)),
+    );
+    // Get directory path without conflict
+    assert_eq!(
+        merged_tree.path_value(&resolved_dir_path),
+        Merge::resolved(tree1.path_value(&resolved_dir_path)),
+    );
+    // Get missing path
+    assert_eq!(merged_tree.path_value(&missing_path), Merge::absent());
+    // Get modify/delete conflict (some None values)
+    assert_eq!(
+        merged_tree.path_value(&modify_delete_path),
+        Merge::new(
+            vec![tree1.path_value(&modify_delete_path)],
+            vec![tree2.path_value(&modify_delete_path), None]
+        ),
+    );
+    // Get file/dir conflict path
+    assert_eq!(
+        merged_tree.path_value(&file_dir_conflict_path),
+        Merge::new(
+            vec![tree1.path_value(&file_dir_conflict_path)],
+            vec![
+                tree2.path_value(&file_dir_conflict_path),
+                tree3.path_value(&file_dir_conflict_path)
+            ]
+        ),
+    );
+    // Get file inside file/dir conflict
+    // There is a conflict in the parent directory, but this file is still resolved
+    assert_eq!(
+        merged_tree.path_value(&file_dir_conflict_sub_path),
+        Merge::resolved(tree3.path_value(&file_dir_conflict_sub_path)),
+    );
+}
+
+#[test]
 fn test_resolve_success() {
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
