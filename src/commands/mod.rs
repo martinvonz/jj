@@ -1524,13 +1524,13 @@ fn cmd_status(
             )?;
         }
 
-        let conflicts = tree.conflicts();
+        let conflicts = wc_commit.merged_tree()?.conflicts().collect_vec();
         if !conflicts.is_empty() {
             writeln!(
                 formatter.labeled("conflict"),
                 "There are unresolved conflicts at these paths:"
             )?;
-            print_conflicted_paths(&conflicts, &tree, formatter, &workspace_command)?
+            print_conflicted_paths(&conflicts, formatter, &workspace_command)?
         }
     }
 
@@ -2667,8 +2667,11 @@ fn cmd_resolve(
     let mut workspace_command = command.workspace_helper(ui)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    let tree = commit.tree();
-    let conflicts = tree.conflicts_matching(matcher.as_ref());
+    let tree = commit.merged_tree()?;
+    let conflicts = tree
+        .conflicts()
+        .filter(|path| matcher.matches(&path.0))
+        .collect_vec();
     if conflicts.is_empty() {
         return Err(CommandError::CliError(format!(
             "No conflicts found {}",
@@ -2682,7 +2685,6 @@ fn cmd_resolve(
     if args.list {
         return print_conflicted_paths(
             &conflicts,
-            &tree,
             ui.stdout_formatter().as_mut(),
             &workspace_command,
         );
@@ -2703,13 +2705,12 @@ fn cmd_resolve(
     tx.finish(ui)?;
 
     if !args.quiet {
-        let new_tree = new_commit.tree();
-        let new_conflicts = new_tree.conflicts_matching(&EverythingMatcher);
+        let new_tree = new_commit.merged_tree()?;
+        let new_conflicts = new_tree.conflicts().collect_vec();
         if !new_conflicts.is_empty() {
             ui.write("After this operation, some files at this revision still have conflicts:\n")?;
             print_conflicted_paths(
                 &new_conflicts,
-                &tree,
                 ui.stdout_formatter().as_mut(),
                 &workspace_command,
             )?;
@@ -2719,24 +2720,20 @@ fn cmd_resolve(
 }
 
 fn print_conflicted_paths(
-    conflicts: &[(RepoPath, jj_lib::backend::ConflictId)],
-    tree: &Tree,
+    conflicts: &[(RepoPath, Conflict<Option<TreeValue>>)],
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
     let formatted_paths = conflicts
         .iter()
-        .map(|(path, _id)| workspace_command.format_file_path(path))
+        .map(|(path, _conflict)| workspace_command.format_file_path(path))
         .collect_vec();
     let max_path_len = formatted_paths.iter().map(|p| p.len()).max().unwrap_or(0);
     let formatted_paths = formatted_paths
         .into_iter()
         .map(|p| format!("{:width$}", p, width = max_path_len.min(32) + 3));
 
-    for ((repo_path, conflict_id), formatted_path) in
-        std::iter::zip(conflicts.iter(), formatted_paths)
-    {
-        let conflict = tree.store().read_conflict(repo_path, conflict_id)?;
+    for ((_, conflict), formatted_path) in std::iter::zip(conflicts.iter(), formatted_paths) {
         let sides = conflict.adds().len();
         let n_adds = conflict.adds().iter().flatten().count();
         let deletions = sides - n_adds;

@@ -870,7 +870,7 @@ fn build_predicate_fn<'index>(
         }
         RevsetFilterPredicate::HasConflict => pure_predicate_fn(move |entry| {
             let commit = store.get_commit(&entry.commit_id()).unwrap();
-            commit.tree().has_conflict()
+            commit.merged_tree().unwrap().has_conflict()
         }),
     }
 }

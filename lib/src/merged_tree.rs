@@ -194,6 +194,14 @@ impl MergedTree {
     pub fn conflicts(&self) -> impl Iterator<Item = (RepoPath, Conflict<Option<TreeValue>>)> {
         ConflictIterator::new(self.clone())
     }
+
+    /// Whether this tree has conflicts.
+    pub fn has_conflict(&self) -> bool {
+        match self {
+            MergedTree::Legacy(tree) => tree.has_conflict(),
+            MergedTree::Merge(conflict) => !conflict.is_resolved(),
+        }
+    }
 }
 
 fn all_tree_conflict_names(conflict: &Conflict<Tree>) -> impl Iterator<Item = &RepoPathComponent> {
