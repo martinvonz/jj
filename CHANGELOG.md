@@ -99,6 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Modify/delete conflicts now include context lines
   [#1244](https://github.com/martinvonz/jj/issues/1244).
 
+* It is now possible to modify either side of a modify/delete conflict (any
+  change used to be considered a resolution).
+
 * Fixed a bug that could get partially resolved conflicts to be interpreted
   incorrectly.
 
