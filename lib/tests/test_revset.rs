@@ -70,6 +70,17 @@ fn test_resolve_symbol_root(use_git: bool) {
 }
 
 #[test]
+fn test_resolve_symbol_empty_string() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    assert_matches!(
+        resolve_symbol(repo.as_ref(), "", None),
+        Err(RevsetResolutionError::EmptyString)
+    );
+}
+
+#[test]
 fn test_resolve_symbol_commit_id() {
     let settings = testutils::user_settings();
     // Test only with git so we can get predictable commit ids
@@ -152,12 +163,6 @@ fn test_resolve_symbol_commit_id() {
         vec![commits[2].id().clone()]
     );
 
-    // Test empty commit id
-    assert_matches!(
-        resolve_symbol(repo.as_ref(), "", None),
-        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s.is_empty()
-    );
-
     // Test commit id prefix
     assert_eq!(
         resolve_symbol(repo.as_ref(), "046", None).unwrap(),
@@ -165,11 +170,7 @@ fn test_resolve_symbol_commit_id() {
     );
     assert_matches!(
         resolve_symbol(repo.as_ref(), "04", None),
-        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s == "04"
-    );
-    assert_matches!(
-        resolve_symbol(repo.as_ref(), "", None),
-        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s.is_empty()
+        Err(RevsetResolutionError::AmbiguousCommitIdPrefix(s)) if s == "04"
     );
     assert_matches!(
         resolve_symbol(repo.as_ref(), "040", None),
@@ -187,7 +188,7 @@ fn test_resolve_symbol_commit_id() {
     let symbol_resolver = DefaultSymbolResolver::new(repo.as_ref(), None);
     assert_matches!(
         optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap()).resolve_user_expression(repo.as_ref(), &symbol_resolver),
-        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s == "04"
+        Err(RevsetResolutionError::AmbiguousCommitIdPrefix(s)) if s == "04"
     );
     assert_eq!(
         resolve_commit_ids(repo.as_ref(), "present(046)"),
@@ -308,11 +309,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     );
     assert_matches!(
         resolve_symbol(repo, "zvly", None),
-        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s == "zvly"
-    );
-    assert_matches!(
-        resolve_symbol(repo, "", None),
-        Err(RevsetResolutionError::AmbiguousIdPrefix(s)) if s.is_empty()
+        Err(RevsetResolutionError::AmbiguousChangeIdPrefix(s)) if s == "zvly"
     );
     assert_matches!(
         resolve_symbol(repo, "zvlyw", None),

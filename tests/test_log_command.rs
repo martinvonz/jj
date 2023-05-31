@@ -561,7 +561,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     insta::assert_snapshot!(
         test_env.jj_cmd_failure(&repo_path, &["log", "-r", "4", "-T", prefix_format]),
         @r###"
-    Error: Commit or change id prefix "4" is ambiguous
+    Error: Commit ID prefix "4" is ambiguous
     "###
     );
     insta::assert_snapshot!(
