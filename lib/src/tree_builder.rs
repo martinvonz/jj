@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::sync::Arc;
+
+use itertools::Itertools as _;
 
 use crate::backend;
 use crate::backend::{TreeId, TreeValue};
@@ -81,34 +83,29 @@ impl TreeBuilder {
             }
         }
 
-        // Write trees level by level, starting with trees without children.
+        // Write trees in reverse lexicographical order, starting with trees without
+        // children.
         let store = self.store.as_ref();
-        loop {
-            let mut dirs_to_write: HashSet<RepoPath> = trees_to_write.keys().cloned().collect();
-
-            for dir in trees_to_write.keys() {
-                if let Some(parent) = dir.parent() {
-                    dirs_to_write.remove(&parent);
-                }
-            }
-
-            for dir in dirs_to_write {
-                let tree = trees_to_write.remove(&dir).unwrap();
-
-                if let Some((parent, basename)) = dir.split() {
-                    let parent_tree = trees_to_write.get_mut(&parent).unwrap();
-                    if tree.is_empty() {
-                        parent_tree.remove(basename);
-                    } else {
-                        let tree_id = store.write_tree(&dir, &tree).unwrap();
-                        parent_tree.set(basename.clone(), TreeValue::Tree(tree_id));
-                    }
+        // TODO: trees_to_write.pop_last() can be used, but requires Rust 1.66.0
+        let mut dirs_to_write = trees_to_write.keys().cloned().collect_vec();
+        while let Some(dir) = dirs_to_write.pop() {
+            let tree = trees_to_write.remove(&dir).unwrap();
+            if let Some((parent, basename)) = dir.split() {
+                let parent_tree = trees_to_write.get_mut(&parent).unwrap();
+                if tree.is_empty() {
+                    parent_tree.remove(basename);
                 } else {
-                    // We're writing the root tree. Write it even if empty. Return its id.
-                    return store.write_tree(&dir, &tree).unwrap();
+                    let tree_id = store.write_tree(&dir, &tree).unwrap();
+                    parent_tree.set(basename.clone(), TreeValue::Tree(tree_id));
                 }
+            } else {
+                // We're writing the root tree. Write it even if empty. Return its id.
+                assert!(dirs_to_write.is_empty());
+                return store.write_tree(&dir, &tree).unwrap();
             }
         }
+
+        unreachable!("trees_to_write must contain the root tree");
     }
 
     fn get_base_trees(&mut self) -> BTreeMap<RepoPath, backend::Tree> {
