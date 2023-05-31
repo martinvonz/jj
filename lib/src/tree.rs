@@ -643,8 +643,7 @@ fn merge_tree_value(
                 let id = store.write_file(&filename, &mut merged_content.as_slice())?;
                 Some(TreeValue::File { id, executable })
             } else {
-                let conflict_id =
-                    store.write_conflict(&filename, &conflict.to_backend_conflict())?;
+                let conflict_id = store.write_conflict(&filename, &conflict)?;
                 Some(TreeValue::Conflict(conflict_id))
             }
         }
@@ -733,10 +732,7 @@ fn tree_value_to_conflict(
     value: &TreeValue,
 ) -> Result<Conflict<Option<TreeValue>>, BackendError> {
     match value {
-        TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(path, id)?;
-            Ok(Conflict::from_backend_conflict(&conflict))
-        }
+        TreeValue::Conflict(id) => store.read_conflict(path, id),
         value => Ok(Conflict::new(vec![], vec![Some(value.clone())])),
     }
 }

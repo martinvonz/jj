@@ -644,9 +644,7 @@ fn test_update_conflict_from_content() {
             Some(file_value(&right_file_id)),
         ],
     );
-    let conflict_id = store
-        .write_conflict(&path, &conflict.to_backend_conflict())
-        .unwrap();
+    let conflict_id = store.write_conflict(&path, &conflict).unwrap();
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
@@ -676,7 +674,6 @@ fn test_update_conflict_from_content() {
     assert_ne!(result, None);
     assert_ne!(result, Some(conflict_id));
     let new_conflict = store.read_conflict(&path, &result.unwrap()).unwrap();
-    let new_conflict = Conflict::from_backend_conflict(&new_conflict);
     // Calculate expected new FileIds
     let new_base_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nline 3\n");
     let new_left_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nleft 3\n");
@@ -705,9 +702,7 @@ fn test_update_conflict_from_content_modify_delete() {
         vec![Some(file_value(&before_file_id))],
         vec![Some(file_value(&after_file_id)), None],
     );
-    let conflict_id = store
-        .write_conflict(&path, &conflict.to_backend_conflict())
-        .unwrap();
+    let conflict_id = store.write_conflict(&path, &conflict).unwrap();
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
@@ -731,7 +726,6 @@ fn test_update_conflict_from_content_modify_delete() {
     assert_ne!(result, None);
     assert_ne!(result, Some(conflict_id));
     let new_conflict = store.read_conflict(&path, &result.unwrap()).unwrap();
-    let new_conflict = Conflict::from_backend_conflict(&new_conflict);
     // Calculate expected new FileIds
     let new_base_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
     let new_left_file_id =

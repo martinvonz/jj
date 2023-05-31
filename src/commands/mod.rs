@@ -32,7 +32,6 @@ use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
-use jujutsu_lib::conflicts::Conflict;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::default_index_store::{DefaultIndexStore, ReadonlyIndexWrapper};
 use jujutsu_lib::git_backend::GitBackend;
@@ -1341,7 +1340,6 @@ fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), C
         }
         Some(TreeValue::Conflict(id)) => {
             let conflict = repo.store().read_conflict(&path, &id)?;
-            let conflict = Conflict::from_backend_conflict(&conflict);
             let mut contents = vec![];
             conflicts::materialize_conflict(repo.store(), &path, &conflict, &mut contents).unwrap();
             ui.request_pager();
@@ -2542,7 +2540,6 @@ fn print_conflicted_paths(
         std::iter::zip(conflicts.iter(), formatted_paths)
     {
         let conflict = tree.store().read_conflict(repo_path, conflict_id)?;
-        let conflict = Conflict::from_backend_conflict(&conflict);
         let n_adds = conflict.adds().iter().flatten().count();
         let sides = n_adds.max(conflict.removes().iter().flatten().count() + 1);
         let deletions = sides - n_adds;

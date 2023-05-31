@@ -17,14 +17,14 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::sync::{Arc, RwLock};
 
-use crate::backend;
 use crate::backend::{
-    Backend, BackendResult, ChangeId, CommitId, Conflict, ConflictId, FileId, SymlinkId, TreeId,
+    Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, SymlinkId, TreeId, TreeValue,
 };
 use crate::commit::Commit;
 use crate::repo_path::RepoPath;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
+use crate::{backend, conflicts};
 
 /// Wraps the low-level backend and makes it return more convenient types. Also
 /// adds caching.
@@ -143,16 +143,24 @@ impl Store {
         self.backend.write_symlink(path, contents)
     }
 
-    pub fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
-        self.backend.read_conflict(path, id)
+    pub fn read_conflict(
+        &self,
+        path: &RepoPath,
+        id: &ConflictId,
+    ) -> BackendResult<conflicts::Conflict<Option<TreeValue>>> {
+        let backend_conflict = self.backend.read_conflict(path, id)?;
+        Ok(conflicts::Conflict::from_backend_conflict(
+            &backend_conflict,
+        ))
     }
 
     pub fn write_conflict(
         &self,
         path: &RepoPath,
-        contents: &Conflict,
+        contents: &conflicts::Conflict<Option<TreeValue>>,
     ) -> BackendResult<ConflictId> {
-        self.backend.write_conflict(path, contents)
+        self.backend
+            .write_conflict(path, &contents.to_backend_conflict())
     }
 
     pub fn tree_builder(self: &Arc<Self>, base_tree_id: TreeId) -> TreeBuilder {

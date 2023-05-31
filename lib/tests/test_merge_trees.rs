@@ -14,7 +14,7 @@
 
 use assert_matches::assert_matches;
 use itertools::Itertools;
-use jujutsu_lib::backend::{ConflictTerm, TreeValue};
+use jujutsu_lib::backend::TreeValue;
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::rewrite::rebase_commit;
@@ -124,17 +124,13 @@ fn test_same_type(use_git: bool) {
                 .read_conflict(&RepoPath::from_internal_string("_ab"), id)
                 .unwrap();
             assert_eq!(
-                conflict.adds,
+                conflict.adds(),
                 vec![
-                    ConflictTerm {
-                        value: side1_tree.value(&component).cloned().unwrap()
-                    },
-                    ConflictTerm {
-                        value: side2_tree.value(&component).cloned().unwrap()
-                    }
+                    side1_tree.value(&component).cloned(),
+                    side2_tree.value(&component).cloned(),
                 ]
             );
-            assert!(conflict.removes.is_empty());
+            assert_eq!(conflict.removes(), vec![None]);
         }
         _ => panic!("unexpected value"),
     };
@@ -145,16 +141,12 @@ fn test_same_type(use_git: bool) {
                 .read_conflict(&RepoPath::from_internal_string("a_b"), id)
                 .unwrap();
             assert_eq!(
-                conflict.removes,
-                vec![ConflictTerm {
-                    value: base_tree.value(&component).cloned().unwrap()
-                }]
+                conflict.removes(),
+                vec![base_tree.value(&component).cloned()]
             );
             assert_eq!(
-                conflict.adds,
-                vec![ConflictTerm {
-                    value: side2_tree.value(&component).cloned().unwrap()
-                }]
+                conflict.adds(),
+                vec![side2_tree.value(&component).cloned(), None]
             );
         }
         _ => panic!("unexpected value"),
@@ -166,16 +158,12 @@ fn test_same_type(use_git: bool) {
                 .read_conflict(&RepoPath::from_internal_string("ab_"), id)
                 .unwrap();
             assert_eq!(
-                conflict.removes,
-                vec![ConflictTerm {
-                    value: base_tree.value(&component).cloned().unwrap()
-                }]
+                conflict.removes(),
+                vec![base_tree.value(&component).cloned()]
             );
             assert_eq!(
-                conflict.adds,
-                vec![ConflictTerm {
-                    value: side1_tree.value(&component).cloned().unwrap()
-                }]
+                conflict.adds(),
+                vec![side1_tree.value(&component).cloned(), None]
             );
         }
         _ => panic!("unexpected value"),
@@ -187,20 +175,14 @@ fn test_same_type(use_git: bool) {
                 .read_conflict(&RepoPath::from_internal_string("abc"), id)
                 .unwrap();
             assert_eq!(
-                conflict.removes,
-                vec![ConflictTerm {
-                    value: base_tree.value(&component).cloned().unwrap()
-                }]
+                conflict.removes(),
+                vec![base_tree.value(&component).cloned()]
             );
             assert_eq!(
-                conflict.adds,
+                conflict.adds(),
                 vec![
-                    ConflictTerm {
-                        value: side1_tree.value(&component).cloned().unwrap()
-                    },
-                    ConflictTerm {
-                        value: side2_tree.value(&component).cloned().unwrap()
-                    }
+                    side1_tree.value(&component).cloned(),
+                    side2_tree.value(&component).cloned(),
                 ]
             );
         }
@@ -458,20 +440,14 @@ fn test_types(use_git: bool) {
                 )
                 .unwrap();
             assert_eq!(
-                conflict.removes,
-                vec![ConflictTerm {
-                    value: base_tree.value(&component).cloned().unwrap()
-                }]
+                conflict.removes(),
+                vec![base_tree.value(&component).cloned()]
             );
             assert_eq!(
-                conflict.adds,
+                conflict.adds(),
                 vec![
-                    ConflictTerm {
-                        value: side1_tree.value(&component).cloned().unwrap()
-                    },
-                    ConflictTerm {
-                        value: side2_tree.value(&component).cloned().unwrap()
-                    },
+                    side1_tree.value(&component).cloned(),
+                    side2_tree.value(&component).cloned(),
                 ]
             );
         }
@@ -484,20 +460,14 @@ fn test_types(use_git: bool) {
                 .read_conflict(&RepoPath::from_internal_string("tree_normal_symlink"), id)
                 .unwrap();
             assert_eq!(
-                conflict.removes,
-                vec![ConflictTerm {
-                    value: base_tree.value(&component).cloned().unwrap()
-                }]
+                conflict.removes(),
+                vec![base_tree.value(&component).cloned()]
             );
             assert_eq!(
-                conflict.adds,
+                conflict.adds(),
                 vec![
-                    ConflictTerm {
-                        value: side1_tree.value(&component).cloned().unwrap()
-                    },
-                    ConflictTerm {
-                        value: side2_tree.value(&component).cloned().unwrap()
-                    },
+                    side1_tree.value(&component).cloned(),
+                    side2_tree.value(&component).cloned(),
                 ]
             );
         }
@@ -559,20 +529,14 @@ fn test_simplify_conflict(use_git: bool) {
                 .read_conflict(&RepoPath::from_components(vec![component.clone()]), id)
                 .unwrap();
             assert_eq!(
-                conflict.removes,
-                vec![ConflictTerm {
-                    value: base_tree.value(&component).cloned().unwrap()
-                }]
+                conflict.removes(),
+                vec![base_tree.value(&component).cloned()]
             );
             assert_eq!(
-                conflict.adds,
+                conflict.adds(),
                 vec![
-                    ConflictTerm {
-                        value: branch_tree.value(&component).cloned().unwrap()
-                    },
-                    ConflictTerm {
-                        value: upstream2_tree.value(&component).cloned().unwrap()
-                    },
+                    branch_tree.value(&component).cloned(),
+                    upstream2_tree.value(&component).cloned(),
                 ]
             );
         }
@@ -583,20 +547,14 @@ fn test_simplify_conflict(use_git: bool) {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(&path, id).unwrap();
             assert_eq!(
-                conflict.removes,
-                vec![ConflictTerm {
-                    value: base_tree.value(&component).cloned().unwrap()
-                }]
+                conflict.removes(),
+                vec![base_tree.value(&component).cloned()]
             );
             assert_eq!(
-                conflict.adds,
+                conflict.adds(),
                 vec![
-                    ConflictTerm {
-                        value: upstream2_tree.value(&component).cloned().unwrap()
-                    },
-                    ConflictTerm {
-                        value: branch_tree.value(&component).cloned().unwrap()
-                    },
+                    upstream2_tree.value(&component).cloned(),
+                    branch_tree.value(&component).cloned(),
                 ]
             );
         }
