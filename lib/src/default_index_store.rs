@@ -18,7 +18,7 @@ use std::collections::{BTreeMap, BTreeSet, BinaryHeap, Bound, HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::io::{Cursor, Read, Write};
+use std::io::{Read, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -670,9 +670,8 @@ impl MutableIndexImpl {
         file.write_all(&buf)?;
         persist_content_addressed_temp_file(temp_file, index_file_path)?;
 
-        let mut cursor = Cursor::new(&buf);
         ReadonlyIndexImpl::load_from(
-            &mut cursor,
+            &mut buf.as_slice(),
             dir,
             index_file_id_hex,
             commit_id_length,

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::cmp::max;
-use std::io::{Cursor, Write};
+use std::io::Write;
 
 use itertools::Itertools;
 
@@ -264,7 +264,7 @@ pub fn conflict_to_materialized_value(
 ) -> TreeValue {
     let mut buf = vec![];
     materialize_conflict(store, path, conflict, &mut buf).unwrap();
-    let file_id = store.write_file(path, &mut Cursor::new(&buf)).unwrap();
+    let file_id = store.write_file(path, &mut buf.as_slice()).unwrap();
     TreeValue::File {
         id: file_id,
         executable: false,
@@ -426,7 +426,7 @@ pub fn update_conflict_from_content(
         // with conflict markers. Update the Conflict object with the new
         // FileIds.
         for (i, buf) in removed_content.iter().enumerate() {
-            let file_id = store.write_file(path, &mut Cursor::new(buf))?;
+            let file_id = store.write_file(path, &mut buf.as_slice())?;
             if let TreeValue::File { id, executable: _ } = &mut conflict.removes[i].value {
                 *id = file_id;
             } else {
@@ -437,7 +437,7 @@ pub fn update_conflict_from_content(
             }
         }
         for (i, buf) in added_content.iter().enumerate() {
-            let file_id = store.write_file(path, &mut Cursor::new(buf))?;
+            let file_id = store.write_file(path, &mut buf.as_slice())?;
             if let TreeValue::File { id, executable: _ } = &mut conflict.adds[i].value {
                 *id = file_id;
             } else {
