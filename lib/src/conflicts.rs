@@ -40,6 +40,11 @@ pub struct Conflict<T> {
 }
 
 impl<T> Conflict<T> {
+    pub fn new(removes: Vec<T>, adds: Vec<T>) -> Self {
+        assert_eq!(adds.len(), removes.len() + 1);
+        Conflict { removes, adds }
+    }
+
     pub fn removes(&self) -> &[T] {
         &self.removes
     }
@@ -208,15 +213,14 @@ fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result
 pub fn materialize_conflict(
     store: &Store,
     path: &RepoPath,
-    conflict: &backend::Conflict,
+    conflict: &Conflict<Option<TreeValue>>,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
-    let conflict = Conflict::from_backend_conflict(conflict);
-    match extract_file_conflict_as_single_hunk(store, path, &conflict) {
+    match extract_file_conflict_as_single_hunk(store, path, conflict) {
         None => {
             // Unless all terms are regular files, we can't do much better than to try to
             // describe the conflict.
-            describe_conflict(&conflict, output)
+            describe_conflict(conflict, output)
         }
         Some(content) => materialize_merge_result(&content, output),
     }
@@ -446,6 +450,10 @@ pub fn update_conflict_from_content(
     content: &[u8],
 ) -> BackendResult<Option<ConflictId>> {
     let conflict = store.read_conflict(path, conflict_id)?;
+    let mut conflict = Conflict::from_backend_conflict(&conflict);
+    // TODO: Check that the conflict only involves files and convert it to a
+    // `Conflict<Option<FileId>>` so we can remove the wildcard pattern in the loops
+    // further down.
 
     // First check if the new content is unchanged compared to the old content. If
     // it is, we don't need parse the content or write any new objects to the
@@ -458,10 +466,6 @@ pub fn update_conflict_from_content(
         return Ok(Some(conflict_id.clone()));
     }
 
-    let mut conflict = Conflict::from_backend_conflict(&conflict);
-    // TODO: Check that the conflict only involves files and convert it to a
-    // `Conflict<Option<FileId>>` so we can remove the wildcard pattern in the loops
-    // further down.
     let mut removed_content = vec![vec![]; conflict.removes().len()];
     let mut added_content = vec![vec![]; conflict.adds().len()];
     // TODO: Change to let-else once our MSRV is above 1.65
