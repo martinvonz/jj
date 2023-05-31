@@ -21,7 +21,7 @@ use std::os::unix::net::UnixListener;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{Conflict, ConflictTerm, TreeValue};
+use jujutsu_lib::backend::{Conflict, ConflictTerm, TreeId, TreeValue};
 use jujutsu_lib::gitignore::GitIgnoreFile;
 #[cfg(unix)]
 use jujutsu_lib::op_store::OperationId;
@@ -272,6 +272,51 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
         };
     }
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_tree_builder_file_directory_transition(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let repo = &test_workspace.repo;
+    let store = repo.store();
+    let mut workspace = test_workspace.workspace;
+    let workspace_root = workspace.workspace_root().clone();
+    let mut check_out_tree = |tree_id: &TreeId| {
+        let tree = repo.store().get_tree(&RepoPath::root(), tree_id).unwrap();
+        let wc = workspace.working_copy_mut();
+        wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
+    };
+
+    let parent_path = RepoPath::from_internal_string("foo/bar");
+    let child_path = RepoPath::from_internal_string("foo/bar/baz");
+
+    // Add file at parent_path
+    let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
+    testutils::write_normal_file(&mut tree_builder, &parent_path, "");
+    let tree_id = tree_builder.write_tree();
+    check_out_tree(&tree_id);
+    assert!(parent_path.to_fs_path(&workspace_root).is_file());
+    assert!(!child_path.to_fs_path(&workspace_root).exists());
+
+    // Turn parent_path into directory, add file at child_path
+    let mut tree_builder = store.tree_builder(tree_id);
+    tree_builder.remove(parent_path.clone());
+    testutils::write_normal_file(&mut tree_builder, &child_path, "");
+    let tree_id = tree_builder.write_tree();
+    check_out_tree(&tree_id);
+    assert!(parent_path.to_fs_path(&workspace_root).is_dir());
+    assert!(child_path.to_fs_path(&workspace_root).is_file());
+
+    // Turn parent_path back to file
+    let mut tree_builder = store.tree_builder(tree_id);
+    tree_builder.remove(child_path.clone());
+    testutils::write_normal_file(&mut tree_builder, &parent_path, "");
+    let tree_id = tree_builder.write_tree();
+    check_out_tree(&tree_id);
+    // TODO: assert!(parent_path.to_fs_path(&workspace_root).is_file());
+    assert!(!child_path.to_fs_path(&workspace_root).exists());
 }
 
 #[test]
