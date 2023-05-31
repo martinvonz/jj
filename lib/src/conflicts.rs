@@ -257,20 +257,6 @@ fn diff_size(hunks: &[DiffHunk]) -> usize {
         .sum()
 }
 
-pub fn conflict_to_materialized_value(
-    store: &Store,
-    path: &RepoPath,
-    conflict: &Conflict,
-) -> TreeValue {
-    let mut buf = vec![];
-    materialize_conflict(store, path, conflict, &mut buf).unwrap();
-    let file_id = store.write_file(path, &mut buf.as_slice()).unwrap();
-    TreeValue::File {
-        id: file_id,
-        executable: false,
-    }
-}
-
 /// Parses conflict markers from a slice. Returns None if there were no valid
 /// conflict markers. The caller has to provide the expected number of removed
 /// and added inputs to the conflicts. Conflict markers that are otherwise valid
