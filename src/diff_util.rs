@@ -20,7 +20,6 @@ use std::sync::Arc;
 use itertools::Itertools;
 use jujutsu_lib::backend::{ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
-use jujutsu_lib::conflicts::Conflict;
 use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::matchers::Matcher;
@@ -307,7 +306,6 @@ fn diff_content(
         }
         TreeValue::Conflict(id) => {
             let conflict = repo.store().read_conflict(path, id).unwrap();
-            let conflict = Conflict::from_backend_conflict(&conflict);
             let mut content = vec![];
             conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content).unwrap();
             Ok(content)
@@ -458,7 +456,6 @@ fn git_diff_part(
             mode = "100644".to_string();
             hash = id.hex();
             let conflict = repo.store().read_conflict(path, id).unwrap();
-            let conflict = Conflict::from_backend_conflict(&conflict);
             conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content).unwrap();
         }
     }

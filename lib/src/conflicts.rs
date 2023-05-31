@@ -449,8 +449,7 @@ pub fn update_conflict_from_content(
     conflict_id: &ConflictId,
     content: &[u8],
 ) -> BackendResult<Option<ConflictId>> {
-    let conflict = store.read_conflict(path, conflict_id)?;
-    let mut conflict = Conflict::from_backend_conflict(&conflict);
+    let mut conflict = store.read_conflict(path, conflict_id)?;
     // TODO: Check that the conflict only involves files and convert it to a
     // `Conflict<Option<FileId>>` so we can remove the wildcard pattern in the loops
     // further down.
@@ -542,7 +541,7 @@ pub fn update_conflict_from_content(
             }
         }
     }
-    let new_conflict_id = store.write_conflict(path, &conflict.to_backend_conflict())?;
+    let new_conflict_id = store.write_conflict(path, &conflict)?;
     Ok(Some(new_conflict_id))
 }
 

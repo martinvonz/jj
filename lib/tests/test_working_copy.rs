@@ -21,7 +21,8 @@ use std::os::unix::net::UnixListener;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{Conflict, ConflictTerm, TreeId, TreeValue};
+use jujutsu_lib::backend::{TreeId, TreeValue};
+use jujutsu_lib::conflicts::Conflict;
 use jujutsu_lib::gitignore::GitIgnoreFile;
 #[cfg(unix)]
 use jujutsu_lib::op_store::OperationId;
@@ -120,28 +121,22 @@ fn test_checkout_file_transitions(use_git: bool) {
                 let base_file_id = testutils::write_file(store, path, "base file contents");
                 let left_file_id = testutils::write_file(store, path, "left file contents");
                 let right_file_id = testutils::write_file(store, path, "right file contents");
-                let conflict = Conflict {
-                    removes: vec![ConflictTerm {
-                        value: TreeValue::File {
-                            id: base_file_id,
+                let conflict = Conflict::new(
+                    vec![Some(TreeValue::File {
+                        id: base_file_id,
+                        executable: false,
+                    })],
+                    vec![
+                        Some(TreeValue::File {
+                            id: left_file_id,
                             executable: false,
-                        },
-                    }],
-                    adds: vec![
-                        ConflictTerm {
-                            value: TreeValue::File {
-                                id: left_file_id,
-                                executable: false,
-                            },
-                        },
-                        ConflictTerm {
-                            value: TreeValue::File {
-                                id: right_file_id,
-                                executable: false,
-                            },
-                        },
+                        }),
+                        Some(TreeValue::File {
+                            id: right_file_id,
+                            executable: false,
+                        }),
                     ],
-                };
+                );
                 let conflict_id = store.write_conflict(path, &conflict).unwrap();
                 TreeValue::Conflict(conflict_id)
             }
