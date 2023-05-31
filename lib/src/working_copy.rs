@@ -34,7 +34,7 @@ use thiserror::Error;
 use crate::backend::{
     BackendError, ConflictId, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
 };
-use crate::conflicts::{materialize_conflict, update_conflict_from_content};
+use crate::conflicts::{materialize_conflict, update_conflict_from_content, Conflict};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::{DifferenceMatcher, Matcher, PrefixMatcher};
@@ -777,6 +777,7 @@ impl TreeState {
     ) -> Result<FileState, CheckoutError> {
         create_parent_dirs(&self.working_copy_path, path)?;
         let conflict = self.store.read_conflict(path, id)?;
+        let conflict = Conflict::from_backend_conflict(&conflict);
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true) // Don't overwrite un-ignored file. Don't follow symlink.

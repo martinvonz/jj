@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::backend::{Conflict, ConflictTerm, FileId, TreeValue};
-use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict, update_conflict_from_content};
+use jujutsu_lib::backend::{FileId, TreeValue};
+use jujutsu_lib::conflicts::{
+    materialize_conflict, parse_conflict, update_conflict_from_content, Conflict,
+};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::Store;
 use testutils::TestRepo;
 
-fn file_conflict_term(file_id: &FileId) -> ConflictTerm {
-    ConflictTerm {
-        value: TreeValue::File {
-            id: file_id.clone(),
-            executable: false,
-        },
+fn file_value(file_id: &FileId) -> TreeValue {
+    TreeValue::File {
+        id: file_id.clone(),
+        executable: false,
     }
 }
 
@@ -69,10 +69,10 @@ line 5
 
     // The left side should come first. The diff should be use the smaller (right)
     // side, and the left side should be a snapshot.
-    let mut conflict = Conflict {
-        removes: vec![file_conflict_term(&base_id)],
-        adds: vec![file_conflict_term(&left_id), file_conflict_term(&right_id)],
-    };
+    let conflict = Conflict::new(
+        vec![Some(file_value(&base_id))],
+        vec![Some(file_value(&left_id)), Some(file_value(&right_id))],
+    );
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
         @r###"
@@ -93,7 +93,10 @@ line 5
     );
     // Swap the positive terms in the conflict. The diff should still use the right
     // side, but now the right side should come first.
-    conflict.adds.reverse();
+    let conflict = Conflict::new(
+        vec![Some(file_value(&base_id))],
+        vec![Some(file_value(&right_id)), Some(file_value(&left_id))],
+    );
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
         @r###"
@@ -159,14 +162,14 @@ line 3
 
     // The order of (a, b, c) should be preserved. For all cases, the "a" side
     // should be a snapshot.
-    let conflict = Conflict {
-        removes: vec![file_conflict_term(&base_id), file_conflict_term(&base_id)],
-        adds: vec![
-            file_conflict_term(&a_id),
-            file_conflict_term(&b_id),
-            file_conflict_term(&c_id),
+    let conflict = Conflict::new(
+        vec![Some(file_value(&base_id)), Some(file_value(&base_id))],
+        vec![
+            Some(file_value(&a_id)),
+            Some(file_value(&b_id)),
+            Some(file_value(&c_id)),
         ],
-    };
+    );
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
         @r###"
@@ -187,14 +190,14 @@ line 3
     line 3
     "###
     );
-    let conflict = Conflict {
-        removes: vec![file_conflict_term(&base_id), file_conflict_term(&base_id)],
-        adds: vec![
-            file_conflict_term(&c_id),
-            file_conflict_term(&b_id),
-            file_conflict_term(&a_id),
+    let conflict = Conflict::new(
+        vec![Some(file_value(&base_id)), Some(file_value(&base_id))],
+        vec![
+            Some(file_value(&c_id)),
+            Some(file_value(&b_id)),
+            Some(file_value(&a_id)),
         ],
-    };
+    );
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
         @r###"
@@ -215,14 +218,14 @@ line 3
     line 3
     "###
     );
-    let conflict = Conflict {
-        removes: vec![file_conflict_term(&base_id), file_conflict_term(&base_id)],
-        adds: vec![
-            file_conflict_term(&c_id),
-            file_conflict_term(&a_id),
-            file_conflict_term(&b_id),
+    let conflict = Conflict::new(
+        vec![Some(file_value(&base_id)), Some(file_value(&base_id))],
+        vec![
+            Some(file_value(&c_id)),
+            Some(file_value(&a_id)),
+            Some(file_value(&b_id)),
         ],
-    };
+    );
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
         @r###"
@@ -282,10 +285,10 @@ line 5 right
 ",
     );
 
-    let conflict = Conflict {
-        removes: vec![file_conflict_term(&base_id)],
-        adds: vec![file_conflict_term(&left_id), file_conflict_term(&right_id)],
-    };
+    let conflict = Conflict::new(
+        vec![Some(file_value(&base_id))],
+        vec![Some(file_value(&left_id)), Some(file_value(&right_id))],
+    );
     let mut result: Vec<u8> = vec![];
     materialize_conflict(store, &path, &conflict, &mut result).unwrap();
     insta::assert_snapshot!(
@@ -315,7 +318,7 @@ line 5 right
 
     // The first add should always be from the left side
     insta::assert_debug_snapshot!(
-        parse_conflict(&result, conflict.removes.len(), conflict.adds.len()),
+        parse_conflict(&result, conflict.removes().len(), conflict.adds().len()),
         @r###"
     Some(
         [
@@ -382,13 +385,13 @@ line 5
     );
 
     // left modifies a line, right deletes the same line.
-    let conflict = Conflict {
-        removes: vec![file_conflict_term(&base_id)],
-        adds: vec![
-            file_conflict_term(&modified_id),
-            file_conflict_term(&deleted_id),
+    let conflict = Conflict::new(
+        vec![Some(file_value(&base_id))],
+        vec![
+            Some(file_value(&modified_id)),
+            Some(file_value(&deleted_id)),
         ],
-    };
+    );
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     line 1
     line 2
@@ -404,13 +407,13 @@ line 5
     );
 
     // right modifies a line, left deletes the same line.
-    let conflict = Conflict {
-        removes: vec![file_conflict_term(&base_id)],
-        adds: vec![
-            file_conflict_term(&deleted_id),
-            file_conflict_term(&modified_id),
+    let conflict = Conflict::new(
+        vec![Some(file_value(&base_id))],
+        vec![
+            Some(file_value(&deleted_id)),
+            Some(file_value(&modified_id)),
         ],
-    };
+    );
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     line 1
     line 2
@@ -426,10 +429,10 @@ line 5
     );
 
     // modify/delete conflict at the file level
-    let conflict = Conflict {
-        removes: vec![file_conflict_term(&base_id)],
-        adds: vec![file_conflict_term(&modified_id)],
-    };
+    let conflict = Conflict::new(
+        vec![Some(file_value(&base_id))],
+        vec![Some(file_value(&modified_id)), None],
+    );
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     <<<<<<<
     %%%%%%%
@@ -634,14 +637,16 @@ fn test_update_conflict_from_content() {
     let base_file_id = testutils::write_file(store, &path, "line 1\nline 2\nline 3\n");
     let left_file_id = testutils::write_file(store, &path, "left 1\nline 2\nleft 3\n");
     let right_file_id = testutils::write_file(store, &path, "right 1\nline 2\nright 3\n");
-    let conflict = Conflict {
-        removes: vec![file_conflict_term(&base_file_id)],
-        adds: vec![
-            file_conflict_term(&left_file_id),
-            file_conflict_term(&right_file_id),
+    let conflict = Conflict::new(
+        vec![Some(file_value(&base_file_id))],
+        vec![
+            Some(file_value(&left_file_id)),
+            Some(file_value(&right_file_id)),
         ],
-    };
-    let conflict_id = store.write_conflict(&path, &conflict).unwrap();
+    );
+    let conflict_id = store
+        .write_conflict(&path, &conflict.to_backend_conflict())
+        .unwrap();
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
@@ -671,20 +676,21 @@ fn test_update_conflict_from_content() {
     assert_ne!(result, None);
     assert_ne!(result, Some(conflict_id));
     let new_conflict = store.read_conflict(&path, &result.unwrap()).unwrap();
+    let new_conflict = Conflict::from_backend_conflict(&new_conflict);
     // Calculate expected new FileIds
     let new_base_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nline 3\n");
     let new_left_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nleft 3\n");
     let new_right_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nright 3\n");
     assert_eq!(
         new_conflict,
-        Conflict {
-            removes: vec![file_conflict_term(&new_base_file_id)],
-            adds: vec![
-                file_conflict_term(&new_left_file_id),
-                file_conflict_term(&new_right_file_id)
+        Conflict::new(
+            vec![Some(file_value(&new_base_file_id))],
+            vec![
+                Some(file_value(&new_left_file_id)),
+                Some(file_value(&new_right_file_id))
             ]
-        }
-    )
+        )
+    );
 }
 
 #[test]
@@ -695,11 +701,13 @@ fn test_update_conflict_from_content_modify_delete() {
     let path = RepoPath::from_internal_string("dir/file");
     let before_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
     let after_file_id = testutils::write_file(store, &path, "line 1\nline 2 after\nline 3\n");
-    let conflict = Conflict {
-        removes: vec![file_conflict_term(&before_file_id)],
-        adds: vec![file_conflict_term(&after_file_id)],
-    };
-    let conflict_id = store.write_conflict(&path, &conflict).unwrap();
+    let conflict = Conflict::new(
+        vec![Some(file_value(&before_file_id))],
+        vec![Some(file_value(&after_file_id)), None],
+    );
+    let conflict_id = store
+        .write_conflict(&path, &conflict.to_backend_conflict())
+        .unwrap();
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
@@ -723,6 +731,7 @@ fn test_update_conflict_from_content_modify_delete() {
     assert_ne!(result, None);
     assert_ne!(result, Some(conflict_id));
     let new_conflict = store.read_conflict(&path, &result.unwrap()).unwrap();
+    let new_conflict = Conflict::from_backend_conflict(&new_conflict);
     // Calculate expected new FileIds
     let new_base_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
     let new_left_file_id =
@@ -730,14 +739,18 @@ fn test_update_conflict_from_content_modify_delete() {
 
     assert_eq!(
         new_conflict,
-        Conflict {
-            removes: vec![file_conflict_term(&new_base_file_id)],
-            adds: vec![file_conflict_term(&new_left_file_id)]
-        }
-    )
+        Conflict::new(
+            vec![Some(file_value(&new_base_file_id))],
+            vec![Some(file_value(&new_left_file_id)), None]
+        )
+    );
 }
 
-fn materialize_conflict_string(store: &Store, path: &RepoPath, conflict: &Conflict) -> String {
+fn materialize_conflict_string(
+    store: &Store,
+    path: &RepoPath,
+    conflict: &Conflict<Option<TreeValue>>,
+) -> String {
     let mut result: Vec<u8> = vec![];
     materialize_conflict(store, path, conflict, &mut result).unwrap();
     String::from_utf8(result).unwrap()
