@@ -17,7 +17,7 @@ use std::io::Write;
 
 use itertools::Itertools;
 
-use crate::backend::{BackendResult, ConflictId, ConflictTerm, ObjectId, TreeValue};
+use crate::backend::{BackendResult, ConflictId, ObjectId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files::{ConflictHunk, MergeHunk, MergeResult};
 use crate::repo_path::RepoPath;
@@ -70,8 +70,8 @@ impl Conflict<Option<TreeValue>> {
     }
 }
 
-fn describe_conflict_term(term: &ConflictTerm) -> String {
-    match &term.value {
+fn describe_conflict_term(value: &TreeValue) -> String {
+    match value {
         TreeValue::File {
             id,
             executable: false,
@@ -101,14 +101,14 @@ fn describe_conflict_term(term: &ConflictTerm) -> String {
 
 /// Give a summary description of a conflict's "removes" and "adds"
 pub fn describe_conflict(
-    conflict: &backend::Conflict,
+    conflict: &Conflict<Option<TreeValue>>,
     file: &mut dyn Write,
 ) -> std::io::Result<()> {
     file.write_all(b"Conflict:\n")?;
-    for term in &conflict.removes {
+    for term in conflict.removes().iter().flatten() {
         file.write_all(format!("  Removing {}\n", describe_conflict_term(term)).as_bytes())?;
     }
-    for term in &conflict.adds {
+    for term in conflict.adds().iter().flatten() {
         file.write_all(format!("  Adding {}\n", describe_conflict_term(term)).as_bytes())?;
     }
     Ok(())
@@ -180,11 +180,12 @@ pub fn materialize_conflict(
     conflict: &backend::Conflict,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
-    match extract_file_conflict_as_single_hunk(store, path, conflict) {
+    let conflict = Conflict::from_backend_conflict(conflict);
+    match extract_file_conflict_as_single_hunk(store, path, &conflict) {
         None => {
             // Unless all terms are regular files, we can't do much better than to try to
             // describe the conflict.
-            describe_conflict(conflict, output)
+            describe_conflict(&conflict, output)
         }
         Some(content) => materialize_merge_result(&content, output),
     }
@@ -194,9 +195,8 @@ pub fn materialize_conflict(
 pub fn extract_file_conflict_as_single_hunk(
     store: &Store,
     path: &RepoPath,
-    conflict: &backend::Conflict,
+    conflict: &Conflict<Option<TreeValue>>,
 ) -> Option<ConflictHunk> {
-    let conflict = Conflict::from_backend_conflict(conflict);
     let file_removes = file_terms(conflict.removes());
     let file_adds = file_terms(conflict.adds());
     if file_removes.len() != conflict.removes().len() || file_adds.len() != conflict.adds().len() {

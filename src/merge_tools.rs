@@ -24,7 +24,7 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{TreeId, TreeValue};
 use jujutsu_lib::conflicts::{
     describe_conflict, extract_file_conflict_as_single_hunk, materialize_merge_result,
-    update_conflict_from_content,
+    update_conflict_from_content, Conflict,
 };
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::EverythingMatcher;
@@ -168,6 +168,7 @@ pub fn run_mergetool(
         None => return Err(ConflictResolveError::PathNotFoundError(repo_path.clone())),
     };
     let conflict = tree.store().read_conflict(repo_path, &conflict_id)?;
+    let conflict = Conflict::from_backend_conflict(&conflict);
     let mut content = match extract_file_conflict_as_single_hunk(tree.store(), repo_path, &conflict)
     {
         Some(c) => c,
