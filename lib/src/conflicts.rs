@@ -47,6 +47,14 @@ impl<T> Conflict<T> {
     pub fn adds(&self) -> &[T] {
         &self.adds
     }
+
+    pub fn set_remove(&mut self, i: usize, value: T) {
+        self.removes[i] = value;
+    }
+
+    pub fn set_add(&mut self, i: usize, value: T) {
+        self.adds[i] = value;
+    }
 }
 
 impl Conflict<Option<TreeValue>> {
@@ -67,6 +75,29 @@ impl Conflict<Option<TreeValue>> {
         removes.resize(num_diffs, None);
         adds.resize(num_diffs + 1, None);
         Conflict { removes, adds }
+    }
+
+    /// Creates a `backend::Conflict` from a `Conflict` by dropping `None`
+    /// values. Note that the conflict is lossy: the order of `None` values is
+    /// not preserved when converting back to a `Conflict`.
+    pub fn to_backend_conflict(&self) -> backend::Conflict {
+        let removes = self
+            .removes
+            .iter()
+            .flatten()
+            .map(|value| backend::ConflictTerm {
+                value: value.clone(),
+            })
+            .collect_vec();
+        let adds = self
+            .adds
+            .iter()
+            .flatten()
+            .map(|value| backend::ConflictTerm {
+                value: value.clone(),
+            })
+            .collect_vec();
+        backend::Conflict { removes, adds }
     }
 }
 
@@ -202,18 +233,18 @@ pub fn extract_file_conflict_as_single_hunk(
     if file_removes.len() != conflict.removes().len() || file_adds.len() != conflict.adds().len() {
         return None;
     }
-    let removed_content = file_removes
+    let removes_content = file_removes
         .iter()
         .map(|term| get_file_contents(store, path, *term))
         .collect_vec();
-    let added_content = file_adds
+    let adds_content = file_adds
         .iter()
         .map(|term| get_file_contents(store, path, *term))
         .collect_vec();
 
     Some(ConflictHunk {
-        removes: removed_content,
-        adds: added_content,
+        removes: removes_content,
+        adds: adds_content,
     })
 }
 
@@ -414,7 +445,7 @@ pub fn update_conflict_from_content(
     conflict_id: &ConflictId,
     content: &[u8],
 ) -> BackendResult<Option<ConflictId>> {
-    let mut conflict = store.read_conflict(path, conflict_id)?;
+    let conflict = store.read_conflict(path, conflict_id)?;
 
     // First check if the new content is unchanged compared to the old content. If
     // it is, we don't need parse the content or write any new objects to the
@@ -427,9 +458,13 @@ pub fn update_conflict_from_content(
         return Ok(Some(conflict_id.clone()));
     }
 
-    let mut removed_content = vec![vec![]; conflict.removes.len()];
-    let mut added_content = vec![vec![]; conflict.adds.len()];
-    if let Some(hunks) = parse_conflict(content, conflict.removes.len(), conflict.adds.len()) {
+    let mut conflict = Conflict::from_backend_conflict(&conflict);
+    // TODO: Check that the conflict only involves files and convert it to a
+    // `Conflict<Option<FileId>>` so we can remove the wildcard pattern in the loops
+    // further down.
+    let mut removed_content = vec![vec![]; conflict.removes().len()];
+    let mut added_content = vec![vec![]; conflict.adds().len()];
+    if let Some(hunks) = parse_conflict(content, conflict.removes().len(), conflict.adds().len()) {
         for hunk in hunks {
             match hunk {
                 MergeHunk::Resolved(slice) => {
@@ -454,25 +489,48 @@ pub fn update_conflict_from_content(
         // with conflict markers. Update the Conflict object with the new
         // FileIds.
         for (i, buf) in removed_content.iter().enumerate() {
-            let file_id = store.write_file(path, &mut buf.as_slice())?;
-            if let TreeValue::File { id, executable: _ } = &mut conflict.removes[i].value {
-                *id = file_id;
-            } else {
-                // TODO: This can actually happen. We should check earlier
-                // that the we only attempt to parse the conflicts if it's a
-                // file-only conflict.
-                panic!("Found conflict markers in merge of non-files");
+            match &conflict.removes()[i] {
+                Some(TreeValue::File { id: _, executable }) => {
+                    let file_id = store.write_file(path, &mut buf.as_slice())?;
+                    let new_value = TreeValue::File {
+                        id: file_id,
+                        executable: *executable,
+                    };
+                    conflict.set_remove(i, Some(new_value));
+                }
+                None if buf.is_empty() => {
+                    // The missing side of a conflict is still represented by
+                    // the empty string we materialized it as => nothing to do
+                }
+                _ => {
+                    // The user edited a non-file side. This should never happen. We consider the
+                    // conflict resolved for now.
+                    return Ok(None);
+                }
             }
         }
         for (i, buf) in added_content.iter().enumerate() {
-            let file_id = store.write_file(path, &mut buf.as_slice())?;
-            if let TreeValue::File { id, executable: _ } = &mut conflict.adds[i].value {
-                *id = file_id;
-            } else {
-                panic!("Found conflict markers in merge of non-files");
+            match &conflict.adds()[i] {
+                Some(TreeValue::File { id: _, executable }) => {
+                    let file_id = store.write_file(path, &mut buf.as_slice())?;
+                    let new_value = TreeValue::File {
+                        id: file_id,
+                        executable: *executable,
+                    };
+                    conflict.set_add(i, Some(new_value));
+                }
+                None if buf.is_empty() => {
+                    // The missing side of a conflict is still represented by
+                    // the empty string we materialized it as => nothing to do
+                }
+                _ => {
+                    // The user edited a non-file side. This should never happen. We consider the
+                    // conflict resolved for now.
+                    return Ok(None);
+                }
             }
         }
-        let new_conflict_id = store.write_conflict(path, &conflict)?;
+        let new_conflict_id = store.write_conflict(path, &conflict.to_backend_conflict())?;
         Ok(Some(new_conflict_id))
     } else {
         Ok(None)
@@ -482,74 +540,93 @@ pub fn update_conflict_from_content(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::{ConflictTerm, FileId, ObjectId};
+    use crate::backend::{FileId, ObjectId};
 
     #[test]
-    fn test_from_backend_conflict() {
+    fn test_backend_conflict_conversion() {
         fn value(hex: &str) -> TreeValue {
             TreeValue::File {
                 id: FileId::from_hex(hex),
                 executable: false,
             }
         }
-        fn term(hex: &str) -> ConflictTerm {
-            ConflictTerm { value: value(hex) }
+        fn term(hex: &str) -> backend::ConflictTerm {
+            backend::ConflictTerm { value: value(hex) }
         }
 
+        let test_roundtrip = |backend_conflict: &backend::Conflict| {
+            let conflict = Conflict::from_backend_conflict(backend_conflict);
+            assert_eq!(conflict.to_backend_conflict(), *backend_conflict);
+            assert_eq!(
+                Conflict::from_backend_conflict(&conflict.to_backend_conflict()),
+                conflict
+            );
+        };
+
         // Regular 3-way conflict
+        let backend_conflict = backend::Conflict {
+            removes: vec![term("11")],
+            adds: vec![term("22"), term("33")],
+        };
         assert_eq!(
-            Conflict::from_backend_conflict(&backend::Conflict {
-                removes: vec![term("11")],
-                adds: vec![term("22"), term("33")],
-            }),
+            Conflict::from_backend_conflict(&backend_conflict),
             Conflict {
                 removes: vec![Some(value("11"))],
                 adds: vec![Some(value("22")), Some(value("33"))],
             }
         );
+        test_roundtrip(&backend_conflict);
         // Modify/delete conflict
+        let backend_conflict = backend::Conflict {
+            removes: vec![term("11")],
+            adds: vec![term("22")],
+        };
         assert_eq!(
-            Conflict::from_backend_conflict(&backend::Conflict {
-                removes: vec![term("11")],
-                adds: vec![term("22")],
-            }),
+            Conflict::from_backend_conflict(&backend_conflict),
             Conflict {
                 removes: vec![Some(value("11"))],
                 adds: vec![Some(value("22")), None],
             }
         );
+        test_roundtrip(&backend_conflict);
         // Add/add conflict
+        let backend_conflict = backend::Conflict {
+            removes: vec![],
+            adds: vec![term("11"), term("22")],
+        };
         assert_eq!(
-            Conflict::from_backend_conflict(&backend::Conflict {
-                removes: vec![],
-                adds: vec![term("11"), term("22")],
-            }),
+            Conflict::from_backend_conflict(&backend_conflict),
             Conflict {
                 removes: vec![None],
                 adds: vec![Some(value("11")), Some(value("22"))],
             }
         );
+        test_roundtrip(&backend_conflict);
         // 5-way conflict
+        let backend_conflict = backend::Conflict {
+            removes: vec![term("11"), term("22")],
+            adds: vec![term("33"), term("44"), term("55")],
+        };
         assert_eq!(
-            Conflict::from_backend_conflict(&backend::Conflict {
-                removes: vec![term("11"), term("22")],
-                adds: vec![term("33"), term("44"), term("55")],
-            }),
+            Conflict::from_backend_conflict(&backend_conflict),
             Conflict {
                 removes: vec![Some(value("11")), Some(value("22"))],
                 adds: vec![Some(value("33")), Some(value("44")), Some(value("55"))],
             }
         );
+        test_roundtrip(&backend_conflict);
         // 5-way delete/delete conflict
+        let backend_conflict = backend::Conflict {
+            removes: vec![term("11"), term("22")],
+            adds: vec![],
+        };
         assert_eq!(
-            Conflict::from_backend_conflict(&backend::Conflict {
-                removes: vec![term("11"), term("22")],
-                adds: vec![],
-            }),
+            Conflict::from_backend_conflict(&backend_conflict),
             Conflict {
                 removes: vec![Some(value("11")), Some(value("22"))],
                 adds: vec![None, None, None],
             }
         );
+        test_roundtrip(&backend_conflict);
     }
 }

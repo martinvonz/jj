@@ -650,7 +650,7 @@ fn test_update_conflict_from_content() {
     let result = update_conflict_from_content(store, &path, &conflict_id, &materialized).unwrap();
     assert_eq!(result, Some(conflict_id.clone()));
 
-    // If the conflict is resolved, we None back to indicate that.
+    // If the conflict is resolved, we get None back to indicate that.
     let result = update_conflict_from_content(
         store,
         &path,
@@ -683,6 +683,56 @@ fn test_update_conflict_from_content() {
                 file_conflict_term(&new_left_file_id),
                 file_conflict_term(&new_right_file_id)
             ]
+        }
+    )
+}
+
+#[test]
+fn test_update_conflict_from_content_modify_delete() {
+    let test_repo = TestRepo::init(false);
+    let store = test_repo.repo.store();
+
+    let path = RepoPath::from_internal_string("dir/file");
+    let before_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
+    let after_file_id = testutils::write_file(store, &path, "line 1\nline 2 after\nline 3\n");
+    let conflict = Conflict {
+        removes: vec![file_conflict_term(&before_file_id)],
+        adds: vec![file_conflict_term(&after_file_id)],
+    };
+    let conflict_id = store.write_conflict(&path, &conflict).unwrap();
+
+    // If the content is unchanged compared to the materialized value, we get the
+    // old conflict id back.
+    let mut materialized = vec![];
+    materialize_conflict(store, &path, &conflict, &mut materialized).unwrap();
+    let result = update_conflict_from_content(store, &path, &conflict_id, &materialized).unwrap();
+    assert_eq!(result, Some(conflict_id.clone()));
+
+    // If the conflict is resolved, we get None back to indicate that.
+    let result = update_conflict_from_content(store, &path, &conflict_id, b"resolved\n").unwrap();
+    assert_eq!(result, None);
+
+    // If the conflict is modified, we get a new conflict back.
+    let result = update_conflict_from_content(
+        store,
+        &path,
+        &conflict_id,
+        b"<<<<<<<\n%%%%%%%\n line 1\n-line 2 before\n+line 2 modified after\n line 3\n+++++++\n>>>>>>>\n",
+    )
+    .unwrap();
+    assert_ne!(result, None);
+    assert_ne!(result, Some(conflict_id));
+    let new_conflict = store.read_conflict(&path, &result.unwrap()).unwrap();
+    // Calculate expected new FileIds
+    let new_base_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
+    let new_left_file_id =
+        testutils::write_file(store, &path, "line 1\nline 2 modified after\nline 3\n");
+
+    assert_eq!(
+        new_conflict,
+        Conflict {
+            removes: vec![file_conflict_term(&new_base_file_id)],
+            adds: vec![file_conflict_term(&new_left_file_id)]
         }
     )
 }
