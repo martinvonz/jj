@@ -62,7 +62,7 @@ impl TreeBuilder {
         self.overrides.insert(path, Override::Tombstone);
     }
 
-    pub fn write_tree(mut self) -> TreeId {
+    pub fn write_tree(self) -> TreeId {
         let mut trees_to_write = self.get_base_trees();
         if trees_to_write.is_empty() {
             return self.base_tree_id;
@@ -112,7 +112,7 @@ impl TreeBuilder {
         unreachable!("trees_to_write must contain the root tree");
     }
 
-    fn get_base_trees(&mut self) -> BTreeMap<RepoPath, backend::Tree> {
+    fn get_base_trees(&self) -> BTreeMap<RepoPath, backend::Tree> {
         let mut tree_cache = BTreeMap::new();
         let mut base_trees = BTreeMap::new();
         let store = self.store.clone();
