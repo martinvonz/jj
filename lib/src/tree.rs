@@ -23,9 +23,10 @@ use itertools::Itertools;
 use thiserror::Error;
 
 use crate::backend::{
-    BackendError, Conflict, ConflictId, ConflictTerm, FileId, ObjectId,
-    TreeEntriesNonRecursiveIterator, TreeEntry, TreeId, TreeValue,
+    BackendError, ConflictId, FileId, ObjectId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId,
+    TreeValue,
 };
+use crate::conflicts::Conflict;
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::trivial_merge;
@@ -622,31 +623,19 @@ fn merge_tree_value(
         _ => {
             // Start by creating a Conflict object. Conflicts can cleanly represent a single
             // resolved state, the absence of a state, or a conflicted state.
-            let mut conflict = Conflict::default();
-            if let Some(base) = maybe_base {
-                conflict.removes.push(ConflictTerm {
-                    value: base.clone(),
-                });
-            }
-            if let Some(side1) = maybe_side1 {
-                conflict.adds.push(ConflictTerm {
-                    value: side1.clone(),
-                });
-            }
-            if let Some(side2) = maybe_side2 {
-                conflict.adds.push(ConflictTerm {
-                    value: side2.clone(),
-                });
-            }
+            let conflict = Conflict::new(
+                vec![maybe_base.cloned()],
+                vec![maybe_side1.cloned(), maybe_side2.cloned()],
+            );
             let filename = dir.join(basename);
             let conflict = simplify_conflict(store, &filename, conflict)?;
-            if conflict.adds.is_empty() {
+            if conflict.adds().is_empty() {
                 // If there are no values to add, then the path doesn't exist
                 return Ok(None);
             }
-            if conflict.removes.is_empty() && conflict.adds.len() == 1 {
+            if conflict.removes().is_empty() && conflict.adds().len() == 1 {
                 // A single add means that the current state is that state.
-                return Ok(Some(conflict.adds[0].value.clone()));
+                return Ok(conflict.adds()[0].clone());
             }
             if let Some((merged_content, executable)) =
                 try_resolve_file_conflict(store, &filename, &conflict)?
@@ -654,7 +643,8 @@ fn merge_tree_value(
                 let id = store.write_file(&filename, &mut merged_content.as_slice())?;
                 Some(TreeValue::File { id, executable })
             } else {
-                let conflict_id = store.write_conflict(&filename, &conflict)?;
+                let conflict_id =
+                    store.write_conflict(&filename, &conflict.to_backend_conflict())?;
                 Some(TreeValue::Conflict(conflict_id))
             }
         }
@@ -664,25 +654,19 @@ fn merge_tree_value(
 fn try_resolve_file_conflict(
     store: &Store,
     filename: &RepoPath,
-    conflict: &Conflict,
+    conflict: &Conflict<Option<TreeValue>>,
 ) -> Result<Option<(Vec<u8>, bool)>, TreeMergeError> {
-    // If the file was missing from any side (typically a modify/delete conflict),
-    // we can't automatically merge it.
-    if conflict.adds.len() != conflict.removes.len() + 1 {
-        return Ok(None);
-    }
-
-    // If there are any non-file parts in the conflict, we can't merge it. We check
-    // early so we don't waste time reading file contents if we can't merge them
-    // anyway. At the same time we determine whether the resulting file should
-    // be executable.
+    // If there are any non-file or any missing parts in the conflict, we can't
+    // merge it. We check early so we don't waste time reading file contents if
+    // we can't merge them anyway. At the same time we determine whether the
+    // resulting file should be executable.
     let mut executable_removes = vec![];
     let mut executable_adds = vec![];
     let mut removed_file_ids = vec![];
     let mut added_file_ids = vec![];
-    for term in conflict.removes.iter() {
-        match &term.value {
-            TreeValue::File { id, executable } => {
+    for term in conflict.removes() {
+        match term {
+            Some(TreeValue::File { id, executable }) => {
                 executable_removes.push(*executable);
                 removed_file_ids.push(id.clone());
             }
@@ -691,9 +675,9 @@ fn try_resolve_file_conflict(
             }
         }
     }
-    for term in conflict.adds.iter() {
-        match &term.value {
-            TreeValue::File { id, executable } => {
+    for term in conflict.adds() {
+        match term {
+            Some(TreeValue::File { id, executable }) => {
                 executable_adds.push(*executable);
                 added_file_ids.push(id.clone());
             }
@@ -746,25 +730,22 @@ fn try_resolve_file_conflict(
 fn tree_value_to_conflict(
     store: &Store,
     path: &RepoPath,
-    value: TreeValue,
-) -> Result<Conflict, BackendError> {
+    value: &TreeValue,
+) -> Result<Conflict<Option<TreeValue>>, BackendError> {
     match value {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(path, &id)?;
-            Ok(conflict)
+            let conflict = store.read_conflict(path, id)?;
+            Ok(Conflict::from_backend_conflict(&conflict))
         }
-        other => Ok(Conflict {
-            removes: vec![],
-            adds: vec![ConflictTerm { value: other }],
-        }),
+        value => Ok(Conflict::new(vec![], vec![Some(value.clone())])),
     }
 }
 
 fn simplify_conflict(
     store: &Store,
     path: &RepoPath,
-    conflict: Conflict,
-) -> Result<Conflict, BackendError> {
+    conflict: Conflict<Option<TreeValue>>,
+) -> Result<Conflict<Option<TreeValue>>, BackendError> {
     // Important cases to simplify:
     //
     // D
@@ -799,27 +780,27 @@ fn simplify_conflict(
     // First expand any diffs with nested conflicts.
     let mut new_removes = vec![];
     let mut new_adds = vec![];
-    for term in conflict.adds {
-        match term.value {
-            TreeValue::Conflict(_) => {
-                let conflict = tree_value_to_conflict(store, path, term.value)?;
-                new_removes.extend_from_slice(&conflict.removes);
-                new_adds.extend_from_slice(&conflict.adds);
+    for term in conflict.adds() {
+        match term {
+            Some(value @ TreeValue::Conflict(_)) => {
+                let conflict = tree_value_to_conflict(store, path, value)?;
+                new_removes.extend_from_slice(conflict.removes());
+                new_adds.extend_from_slice(conflict.adds());
             }
             _ => {
-                new_adds.push(term);
+                new_adds.push(term.clone());
             }
         }
     }
-    for term in conflict.removes {
-        match term.value {
-            TreeValue::Conflict(_) => {
-                let conflict = tree_value_to_conflict(store, path, term.value)?;
-                new_removes.extend_from_slice(&conflict.adds);
-                new_adds.extend_from_slice(&conflict.removes);
+    for term in conflict.removes() {
+        match term {
+            Some(value @ TreeValue::Conflict(_)) => {
+                let conflict = tree_value_to_conflict(store, path, value)?;
+                new_removes.extend_from_slice(conflict.adds());
+                new_adds.extend_from_slice(conflict.removes());
             }
             _ => {
-                new_removes.push(term);
+                new_removes.push(term.clone());
             }
         }
     }
@@ -830,7 +811,7 @@ fn simplify_conflict(
         let add = &new_adds[add_index];
         add_index += 1;
         for (remove_index, remove) in new_removes.iter().enumerate() {
-            if remove.value == add.value {
+            if remove == add {
                 new_removes.remove(remove_index);
                 add_index -= 1;
                 new_adds.remove(add_index);
@@ -843,8 +824,5 @@ fn simplify_conflict(
     // {+A+A}, that would become just {+A}. Similarly {+B-A+B} would be just
     // {+B-A}.
 
-    Ok(Conflict {
-        adds: new_adds,
-        removes: new_removes,
-    })
+    Ok(Conflict::new(new_removes, new_adds))
 }
