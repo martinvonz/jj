@@ -271,7 +271,7 @@ pub fn run_mergetool(
     let new_tree_value = new_tree_value.unwrap_or({
         let new_file_id = tree
             .store()
-            .write_file(repo_path, &mut File::open(paths.get("output").unwrap())?)?;
+            .write_file(repo_path, &mut output_file_contents.as_slice())?;
         TreeValue::File {
             id: new_file_id,
             executable: false,
