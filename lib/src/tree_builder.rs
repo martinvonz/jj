@@ -93,7 +93,11 @@ impl TreeBuilder {
             if let Some((parent, basename)) = dir.split() {
                 let parent_tree = trees_to_write.get_mut(&parent).unwrap();
                 if tree.is_empty() {
-                    parent_tree.remove(basename);
+                    if let Some(TreeValue::Tree(_)) = parent_tree.value(basename) {
+                        parent_tree.remove(basename);
+                    } else {
+                        // Entry would have been replaced with file (see above)
+                    }
                 } else {
                     let tree_id = store.write_tree(&dir, &tree).unwrap();
                     parent_tree.set(basename.clone(), TreeValue::Tree(tree_id));

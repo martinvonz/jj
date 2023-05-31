@@ -315,7 +315,7 @@ fn test_tree_builder_file_directory_transition(use_git: bool) {
     testutils::write_normal_file(&mut tree_builder, &parent_path, "");
     let tree_id = tree_builder.write_tree();
     check_out_tree(&tree_id);
-    // TODO: assert!(parent_path.to_fs_path(&workspace_root).is_file());
+    assert!(parent_path.to_fs_path(&workspace_root).is_file());
     assert!(!child_path.to_fs_path(&workspace_root).exists());
 }
 
