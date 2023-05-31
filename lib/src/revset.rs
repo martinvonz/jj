@@ -43,8 +43,12 @@ use crate::store::Store;
 pub enum RevsetResolutionError {
     #[error("Revision \"{0}\" doesn't exist")]
     NoSuchRevision(String),
-    #[error("Commit or change id prefix \"{0}\" is ambiguous")]
-    AmbiguousIdPrefix(String),
+    #[error("An empty string is not a valid revision")]
+    EmptyString,
+    #[error("Commit ID prefix \"{0}\" is ambiguous")]
+    AmbiguousCommitIdPrefix(String),
+    #[error("Change ID prefix \"{0}\" is ambiguous")]
+    AmbiguousChangeIdPrefix(String),
     #[error("Unexpected error from store: {0}")]
     StoreError(#[source] BackendError),
 }
@@ -1719,6 +1723,8 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             }
         } else if symbol == "root" {
             Ok(vec![self.repo.store().root_commit_id().clone()])
+        } else if symbol.is_empty() {
+            Err(RevsetResolutionError::EmptyString)
         } else {
             // Try to resolve as a tag
             if let Some(target) = self.repo.view().tags().get(symbol) {
@@ -1744,7 +1750,9 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             if let Some(prefix) = HexPrefix::new(symbol) {
                 match (self.commit_id_resolver)(self.repo, &prefix) {
                     PrefixResolution::AmbiguousMatch => {
-                        return Err(RevsetResolutionError::AmbiguousIdPrefix(symbol.to_owned()));
+                        return Err(RevsetResolutionError::AmbiguousCommitIdPrefix(
+                            symbol.to_owned(),
+                        ));
                     }
                     PrefixResolution::SingleMatch(id) => {
                         return Ok(vec![id]);
@@ -1759,7 +1767,9 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
                 match (self.change_id_resolver)(self.repo, &prefix) {
                     PrefixResolution::AmbiguousMatch => {
-                        return Err(RevsetResolutionError::AmbiguousIdPrefix(symbol.to_owned()));
+                        return Err(RevsetResolutionError::AmbiguousChangeIdPrefix(
+                            symbol.to_owned(),
+                        ));
                     }
                     PrefixResolution::SingleMatch(ids) => {
                         return Ok(ids);
@@ -1849,7 +1859,9 @@ fn resolve_symbols(
                 resolve_symbols(repo, candidates.clone(), symbol_resolver)
                     .or_else(|err| match err {
                         RevsetResolutionError::NoSuchRevision(_) => Ok(RevsetExpression::none()),
-                        RevsetResolutionError::AmbiguousIdPrefix(_)
+                        RevsetResolutionError::EmptyString
+                        | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
+                        | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
                         | RevsetResolutionError::StoreError(_) => Err(err),
                     })
                     .map(Some) // Always rewrite subtree
