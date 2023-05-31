@@ -22,7 +22,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io;
-use std::io::{Cursor, Read, Write};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -337,8 +337,7 @@ impl MutableTable {
         file.write_all(&buf)?;
         persist_content_addressed_temp_file(temp_file, file_path)?;
 
-        let mut cursor = Cursor::new(&buf);
-        ReadonlyTable::load_from(&mut cursor, store, file_id_hex, store.key_size)
+        ReadonlyTable::load_from(&mut buf.as_slice(), store, file_id_hex, store.key_size)
     }
 }
 
