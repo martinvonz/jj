@@ -235,30 +235,36 @@ fn test_git_push_undo_colocated() {
 
     // Undo the push
     test_env.jj_cmd_success(&repo_path, &["op", "restore", &pre_push_opid]);
-    //       === Before auto-import ====
+    //       === Before auto-export ====
     //                     | jj refs | jj's   | git
     //                     |         | git    | repo
     //                     |         |tracking|
     //   ------------------------------------------
     //    local `main`     | BB      |   BB   | BB
-    //    remote-tracking  | AA      |   AA   | BB
-    //       === After automatic `jj git import` ====
+    //    remote-tracking  | AA      |   BB   | BB
+    //       === After automatic `jj git export` ====
     //                     | jj refs | jj's   | git
     //                     |         | git    | repo
     //                     |         |tracking|
     //   ------------------------------------------
     //    local `main`     | BB      |   BB   | BB
-    //    remote-tracking  | BB      |   BB   | BB
+    //    remote-tracking  | AA      |   AA   | AA
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: 8c05de152218 BB
+      @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
     "###);
     test_env.advance_test_rng_seed_to_multiple_of(100_000);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "CC"]);
     test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
-    // This currently gives an identical result to `test_git_push_undo_import`
+    // We have the same conflict as `test_git_push_undo`. TODO: why did we get the
+    // same result in a seemingly different way?
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    main: 0a3e99f08a48 CC
-      @origin (ahead by 1 commits, behind by 1 commits): 8c05de152218 BB
+    main (conflicted):
+      - 0cffb6146141 AA
+      + 0a3e99f08a48 CC
+      + 8c05de152218 BB
+      @git (behind by 1 commits): 0a3e99f08a48 CC
+      @origin (behind by 1 commits): 8c05de152218 BB
     "###);
 }
 
