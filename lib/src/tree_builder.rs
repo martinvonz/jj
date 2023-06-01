@@ -115,17 +115,15 @@ impl TreeBuilder {
     }
 
     fn get_base_trees(&self) -> BTreeMap<RepoPath, backend::Tree> {
-        let mut tree_cache = BTreeMap::new();
         let store = self.store.clone();
+        let mut tree_cache = {
+            let dir = RepoPath::root();
+            let tree = store.get_tree(&dir, &self.base_tree_id).unwrap();
+            BTreeMap::from([(dir, tree)])
+        };
 
         let mut populate_trees = |dir: &RepoPath| {
             let mut current_dir = RepoPath::root();
-
-            if !tree_cache.contains_key(&current_dir) {
-                let tree = store.get_tree(&current_dir, &self.base_tree_id).unwrap();
-                tree_cache.insert(current_dir.clone(), tree);
-            }
-
             for component in dir.components() {
                 let next_dir = current_dir.join(component);
                 let current_tree = tree_cache.get(&current_dir).unwrap();
