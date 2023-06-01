@@ -114,7 +114,6 @@ impl TreeBuilder {
 
     fn get_base_trees(&self) -> BTreeMap<RepoPath, backend::Tree> {
         let mut tree_cache = BTreeMap::new();
-        let mut base_trees = BTreeMap::new();
         let store = self.store.clone();
 
         let mut populate_trees = |dir: &RepoPath| {
@@ -122,9 +121,7 @@ impl TreeBuilder {
 
             if !tree_cache.contains_key(&current_dir) {
                 let tree = store.get_tree(&current_dir, &self.base_tree_id).unwrap();
-                let store_tree = tree.data().clone();
                 tree_cache.insert(current_dir.clone(), tree);
-                base_trees.insert(current_dir.clone(), store_tree);
             }
 
             for component in dir.components() {
@@ -134,9 +131,7 @@ impl TreeBuilder {
                     let tree = current_tree
                         .sub_tree(component)
                         .unwrap_or_else(|| Tree::null(self.store.clone(), next_dir.clone()));
-                    let store_tree = tree.data().clone();
                     tree_cache.insert(next_dir.clone(), tree);
-                    base_trees.insert(next_dir.clone(), store_tree);
                 }
                 current_dir = next_dir;
             }
@@ -147,6 +142,9 @@ impl TreeBuilder {
             }
         }
 
-        base_trees
+        tree_cache
+            .into_iter()
+            .map(|(dir, tree)| (dir, tree.data().clone()))
+            .collect()
     }
 }
