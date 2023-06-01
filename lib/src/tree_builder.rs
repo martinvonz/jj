@@ -19,7 +19,7 @@ use itertools::Itertools as _;
 
 use crate::backend;
 use crate::backend::{TreeId, TreeValue};
-use crate::repo_path::{RepoPath, RepoPathJoin};
+use crate::repo_path::RepoPath;
 use crate::store::Store;
 use crate::tree::Tree;
 
@@ -115,30 +115,32 @@ impl TreeBuilder {
     }
 
     fn get_base_trees(&self) -> BTreeMap<RepoPath, backend::Tree> {
-        let store = self.store.clone();
+        let store = &self.store;
         let mut tree_cache = {
             let dir = RepoPath::root();
             let tree = store.get_tree(&dir, &self.base_tree_id).unwrap();
             BTreeMap::from([(dir, tree)])
         };
 
-        let mut populate_trees = |dir: &RepoPath| {
-            let mut current_dir = RepoPath::root();
-            for component in dir.components() {
-                let next_dir = current_dir.join(component);
-                let current_tree = tree_cache.get(&current_dir).unwrap();
-                if !tree_cache.contains_key(&next_dir) {
-                    let tree = current_tree
-                        .sub_tree(component)
-                        .unwrap_or_else(|| Tree::null(self.store.clone(), next_dir.clone()));
-                    tree_cache.insert(next_dir.clone(), tree);
-                }
-                current_dir = next_dir;
+        fn populate_trees<'a>(
+            tree_cache: &'a mut BTreeMap<RepoPath, Tree>,
+            store: &Arc<Store>,
+            dir: RepoPath,
+        ) -> &'a Tree {
+            // `if let Some(tree) = ...` doesn't pass lifetime check as of Rust 1.69.0
+            if tree_cache.contains_key(&dir) {
+                return tree_cache.get(&dir).unwrap();
             }
-        };
+            let (parent, basename) = dir.split().expect("root must be populated");
+            let tree = populate_trees(tree_cache, store, parent)
+                .sub_tree(basename)
+                .unwrap_or_else(|| Tree::null(store.clone(), dir.clone()));
+            tree_cache.entry(dir).or_insert(tree)
+        }
+
         for path in self.overrides.keys() {
             let parent = path.parent().unwrap();
-            populate_trees(&parent);
+            populate_trees(&mut tree_cache, store, parent);
         }
 
         tree_cache
