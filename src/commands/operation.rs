@@ -166,19 +166,22 @@ fn view_with_desired_portions_restored(
         current_view.git_refs.clone()
     };
 
+    if what.contains(&UndoWhatToRestore::RemoteTracking) == what.contains(&UndoWhatToRestore::Repo)
+    {
+        // new_view already contains the correct branches; we can short-curcuit
+        return new_view;
+    }
+
     let all_branch_names: BTreeSet<_> = itertools::chain(
         view_being_restored.branches.keys(),
         current_view.branches.keys(),
     )
     .collect();
-
     let branch_source_view = if what.contains(&UndoWhatToRestore::RemoteTracking) {
         view_being_restored
     } else {
         current_view
     };
-    // Short-term TODO: we will optimize this to avoid recreating branches if they
-    // are already correct in `new_view`
     let mut new_branches = BTreeMap::default();
     for branch_name in all_branch_names {
         let local_target = new_view
