@@ -168,6 +168,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [#697](https://github.com/martinvonz/jj/issues/697),
   [#1608](https://github.com/martinvonz/jj/issues/1608)
 
+* In colocated repos, a bug causing conflicts when undoing branch moves (#922)
+  has been fixed. Some surprising behaviors related to undoing `jj git push` or
+  `jj git fetch` remain.
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes
