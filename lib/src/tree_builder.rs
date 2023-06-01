@@ -55,30 +55,32 @@ impl TreeBuilder {
     }
 
     pub fn set(&mut self, path: RepoPath, value: TreeValue) {
+        assert!(!path.is_root());
         self.overrides.insert(path, Override::Replace(value));
     }
 
     pub fn remove(&mut self, path: RepoPath) {
+        assert!(!path.is_root());
         self.overrides.insert(path, Override::Tombstone);
     }
 
     pub fn write_tree(self) -> TreeId {
-        let mut trees_to_write = self.get_base_trees();
-        if trees_to_write.is_empty() {
+        if self.overrides.is_empty() {
             return self.base_tree_id;
         }
 
+        let mut trees_to_write = self.get_base_trees();
+
         // Update entries in parent trees for file overrides
         for (path, file_override) in self.overrides {
-            if let Some((dir, basename)) = path.split() {
-                let tree = trees_to_write.get_mut(&dir).unwrap();
-                match file_override {
-                    Override::Replace(value) => {
-                        tree.set(basename.clone(), value);
-                    }
-                    Override::Tombstone => {
-                        tree.remove(basename);
-                    }
+            let (dir, basename) = path.split().unwrap();
+            let tree = trees_to_write.get_mut(&dir).unwrap();
+            match file_override {
+                Override::Replace(value) => {
+                    tree.set(basename.clone(), value);
+                }
+                Override::Tombstone => {
+                    tree.remove(basename);
                 }
             }
         }
@@ -137,9 +139,8 @@ impl TreeBuilder {
             }
         };
         for path in self.overrides.keys() {
-            if let Some(parent) = path.parent() {
-                populate_trees(&parent);
-            }
+            let parent = path.parent().unwrap();
+            populate_trees(&parent);
         }
 
         tree_cache
