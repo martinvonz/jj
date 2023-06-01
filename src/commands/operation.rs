@@ -1,5 +1,9 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use clap::Subcommand;
+use jujutsu_lib::op_store::BranchTarget;
 use jujutsu_lib::operation;
+use jujutsu_lib::repo::Repo;
 
 use crate::cli_util::{user_error, CommandError, CommandHelper, LogContentFormat};
 use crate::graphlog::{get_graphlog, Edge};
@@ -40,6 +44,17 @@ pub struct OperationRestoreArgs {
     /// --at-op=<operation ID> log` before restoring to an operation to see the
     /// state of the repo at that operation.
     operation: String,
+
+    /// What portions of the local state to restore (can be repeated)
+    ///
+    /// Defaults to everything for non-colocated repos.
+    ///
+    /// Defaults to `repo` and `remote-tracking` for colocated repos. This
+    /// ensures that the automatic `jj git export` succeeds.
+    ///
+    /// This option is EXPERIMENTAL.
+    #[arg(long)]
+    what: Vec<UndoWhatToRestore>,
 }
 
 /// Create a new operation that undoes an earlier operation
@@ -53,6 +68,28 @@ pub struct OperationUndoArgs {
     /// Use `jj op log` to find an operation to undo.
     #[arg(default_value = "@")]
     operation: String,
+
+    /// What portions of the local state to restore (can be repeated)
+    ///
+    /// Defaults to everything for non-colocated repos.
+    ///
+    /// Defaults to `repo` and `remote-tracking` for colocated repos. This
+    /// ensures that the automatic `jj git export` succeeds.
+    ///
+    /// This option is EXPERIMENTAL.
+    #[arg(long)]
+    what: Vec<UndoWhatToRestore>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
+enum UndoWhatToRestore {
+    /// The jj repo state and local branches
+    Repo,
+    /// The remote-tracking branches. Do not restore these if you'd like to push
+    /// after the undo
+    RemoteTracking,
+    /// Remembered git repo state from the last `jj git import`
+    GitTracking,
 }
 
 fn cmd_op_log(
@@ -112,6 +149,73 @@ fn cmd_op_log(
     Ok(())
 }
 
+/// Restore only the portions of the view specified by the `what` argument
+fn view_with_desired_portions_restored(
+    view_being_restored: &jujutsu_lib::op_store::View,
+    current_view: &jujutsu_lib::op_store::View,
+    what: &[UndoWhatToRestore],
+) -> jujutsu_lib::op_store::View {
+    let mut new_view = if what.contains(&UndoWhatToRestore::Repo) {
+        view_being_restored.clone()
+    } else {
+        current_view.clone()
+    };
+    new_view.git_refs = if what.contains(&UndoWhatToRestore::GitTracking) {
+        view_being_restored.git_refs.clone()
+    } else {
+        current_view.git_refs.clone()
+    };
+
+    let all_branch_names: BTreeSet<_> = itertools::chain(
+        view_being_restored.branches.keys(),
+        current_view.branches.keys(),
+    )
+    .collect();
+
+    let branch_source_view = if what.contains(&UndoWhatToRestore::RemoteTracking) {
+        view_being_restored
+    } else {
+        current_view
+    };
+    // Short-term TODO: we will optimize this to avoid recreating branches if they
+    // are already correct in `new_view`
+    let mut new_branches = BTreeMap::default();
+    for branch_name in all_branch_names {
+        let local_target = new_view
+            .branches
+            .get(branch_name)
+            .and_then(|br| br.local_target.clone());
+        let remote_targets = branch_source_view
+            .branches
+            .get(branch_name)
+            .map(|br| br.remote_targets.clone())
+            .unwrap_or_default();
+        if local_target.is_some() || !remote_targets.is_empty() {
+            new_branches.insert(
+                branch_name.to_string(),
+                BranchTarget {
+                    local_target,
+                    remote_targets,
+                },
+            );
+        }
+    }
+    new_view.branches = new_branches;
+    new_view
+}
+
+fn process_what_arg(what_arg: &[UndoWhatToRestore]) -> Vec<UndoWhatToRestore> {
+    if !what_arg.is_empty() {
+        what_arg.to_vec()
+    } else {
+        vec![
+            UndoWhatToRestore::Repo,
+            UndoWhatToRestore::RemoteTracking,
+            UndoWhatToRestore::GitTracking,
+        ]
+    }
+}
+
 pub fn cmd_op_undo(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -133,6 +237,12 @@ pub fn cmd_op_undo(
     let bad_repo = repo_loader.load_at(&bad_op);
     let parent_repo = repo_loader.load_at(&parent_ops[0]);
     tx.mut_repo().merge(&bad_repo, &parent_repo);
+    let new_view = view_with_desired_portions_restored(
+        tx.repo().view().store_view(),
+        tx.base_repo().view().store_view(),
+        &process_what_arg(&args.what),
+    );
+    tx.mut_repo().set_view(new_view);
     tx.finish(ui)?;
 
     Ok(())
@@ -147,7 +257,12 @@ fn cmd_op_restore(
     let target_op = workspace_command.resolve_single_op(&args.operation)?;
     let mut tx = workspace_command
         .start_transaction(&format!("restore to operation {}", target_op.id().hex()));
-    tx.mut_repo().set_view(target_op.view().take_store_view());
+    let new_view = view_with_desired_portions_restored(
+        target_op.view().store_view(),
+        tx.base_repo().view().store_view(),
+        &process_what_arg(&args.what),
+    );
+    tx.mut_repo().set_view(new_view);
     tx.finish(ui)?;
 
     Ok(())

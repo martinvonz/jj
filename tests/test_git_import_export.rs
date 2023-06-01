@@ -142,7 +142,7 @@ fn test_git_import_undo() {
     a: 230dd059e1b0 (no description set)
     "###);
 
-    // "git import" can be undone.
+    // "git import" can be undone by default in non-colocated repositories.
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
     insta::assert_snapshot!(stdout, @r###"
     "###);
@@ -152,10 +152,55 @@ fn test_git_import_undo() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: 230dd059e1b0 (no description set)
     "###);
+
+    // If we don't restore the git_refs, undoing the import removes the local branch
+    // but makes a following import a no-op.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "op",
+            "restore",
+            &base_operation_id,
+            "--what=repo",
+            "--what=remote-tracking",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    a (forgotten)
+      @git: 230dd059e1b0 (no description set)
+      (this branch will be deleted from the underlying Git repo on the next `jj git export`)
+    "###);
+    // Try "git import" again, which should *not* re-import the branch "a" and be a
+    // no-op.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @r###"
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    a (forgotten)
+      @git: 230dd059e1b0 (no description set)
+      (this branch will be deleted from the underlying Git repo on the next `jj git export`)
+    "###);
+
+    // We can restore *only* the git refs to make an import re-import the branch
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["op", "restore", &base_operation_id, "--what=git-tracking"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    "###);
+    // The git-tracking branch disappears.
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+    // Try "git import" again, which should again re-import the branch "a".
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    a: 230dd059e1b0 (no description set)
+    "###);
 }
 
 #[test]
-fn test_git_import_move_export_undo() {
+fn test_git_import_move_export_with_default_undo() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");

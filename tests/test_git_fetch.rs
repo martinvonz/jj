@@ -50,6 +50,13 @@ fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["branch", "list"])
 }
 
+fn current_operation_id(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    let mut id = test_env.jj_cmd_success(repo_path, &["debug", "operation", "--display=id"]);
+    let len_trimmed = id.trim_end().len();
+    id.truncate(len_trimmed);
+    id
+}
+
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
     let descr = format!("descr_for_{name}");
     if parents.is_empty() {
@@ -608,6 +615,8 @@ fn test_git_fetch_some_of_many_branches() {
     "###);
 }
 
+// See `test_undo_restore_commands.rs` for fetch-undo-push and fetch-undo-fetch
+// of the same branches for various kinds of undo.
 #[test]
 fn test_git_fetch_undo() {
     let test_env = TestEnvironment::default();
@@ -666,6 +675,96 @@ fn test_git_fetch_undo() {
     │ @  230dd059e1b0
     ├─╯
     ◉  000000000000
+    "###);
+}
+
+// Compare to `test_git_import_undo` in test_git_import_export
+// TODO: Explain why these behaviors are useful
+#[test]
+fn test_fetch_undo_what() {
+    let test_env = TestEnvironment::default();
+    let source_git_repo_path = test_env.env_root().join("source");
+    let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
+
+    // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
+    let stdout =
+        test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "target"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Fetching into new repo in "$TEST_ENV/target"
+    Nothing changed.
+    "###);
+    let repo_path = test_env.env_root().join("target");
+
+    let source_log =
+        create_colocated_repo_and_branches_from_trunk1(&test_env, &source_git_repo_path);
+    insta::assert_snapshot!(source_log, @r###"
+       ===== Source git repo contents =====
+    @  c7d4bdcbc215 descr_for_b b
+    │ ◉  decaa3966c83 descr_for_a2 a2
+    ├─╯
+    │ ◉  359a9a02457d descr_for_a1 a1
+    ├─╯
+    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  000000000000
+    "###);
+
+    // Initial state we will try to return to after `op restore`. There are no
+    // branches.
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+    let base_operation_id = current_operation_id(&test_env, &repo_path);
+
+    // Fetch a branch
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--branch", "b"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  c7d4bdcbc215 descr_for_b b
+    ◉  ff36dc55760e descr_for_trunk1
+    │ @  230dd059e1b0
+    ├─╯
+    ◉  000000000000
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    b: c7d4bdcbc215 descr_for_b
+    "###);
+
+    // We can undo the change in the repo without moving the remote-tracking branch
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["op", "restore", "--what", "repo", &base_operation_id],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    b (deleted)
+      @origin: c7d4bdcbc215 descr_for_b
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    "###);
+
+    // Now, let's demo restoring just the remote-tracking branch. First, let's
+    // change our local repo state...
+    test_env.jj_cmd_success(&repo_path, &["branch", "c", "newbranch"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    b (deleted)
+      @origin: c7d4bdcbc215 descr_for_b
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    newbranch: 230dd059e1b0 (no description set)
+    "###);
+    // Restoring just the remote-tracking state will not affect `newbranch`, but
+    // will eliminate `b@origin`.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "op",
+            "restore",
+            "--what",
+            "remote-tracking",
+            &base_operation_id,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    newbranch: 230dd059e1b0 (no description set)
     "###);
 }
 
