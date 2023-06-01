@@ -148,6 +148,9 @@ fn test_git_import_undo() {
         .unwrap();
     git_repo.branch("a", &commit, true).unwrap();
 
+    // Initial state we will return to after `undo`
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: 230dd059e1b0 (no description set)
@@ -180,6 +183,10 @@ fn test_git_import_move_export_undo() {
         .unwrap();
     git_repo.branch("a", &commit, true).unwrap();
 
+    // Initial state we will try to return to after `op restore`
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+    let base_operation_id = current_operation_id(&test_env, &repo_path);
+
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: 230dd059e1b0 (no description set)
@@ -189,12 +196,12 @@ fn test_git_import_move_export_undo() {
     test_env.jj_cmd_success(&repo_path, &["new"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "set", "a"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: 167f90e7600a (no description set)
+    a: 096dc80da670 (no description set)
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
 
     // "git import" can be undone, but "git export" can't.
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "restore", "@----"]), @r###"
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]), @r###"
     Working copy now at: 230dd059e1b0 (no description set)
     Parent commit      : 000000000000 (no description set)
     "###);
@@ -204,7 +211,7 @@ fn test_git_import_move_export_undo() {
         (
             "refs/heads/a",
             CommitId(
-                "167f90e7600a50f85c4f909b53eaf546faa82879",
+                "096dc80da67094fbaa6683e2a205dddffa31f9a8",
             ),
         ),
     ]
@@ -214,12 +221,19 @@ fn test_git_import_move_export_undo() {
     // intuitive result here.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: 167f90e7600a (no description set)
+    a: 096dc80da670 (no description set)
     "###);
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["branch", "list"])
+}
+
+fn current_operation_id(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    let mut id = test_env.jj_cmd_success(repo_path, &["debug", "operation", "--display=id"]);
+    let len_trimmed = id.trim_end().len();
+    id.truncate(len_trimmed);
+    id
 }
 
 fn get_git_refs(git_repo: &git2::Repository) -> Vec<(String, CommitId)> {
