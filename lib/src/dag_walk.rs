@@ -88,8 +88,8 @@ where
 
 pub fn leaves<T, ID, II, NI>(
     start: II,
-    mut neighbors_fn: impl FnMut(&T) -> NI,
     id_fn: impl Fn(&T) -> ID,
+    mut neighbors_fn: impl FnMut(&T) -> NI,
 ) -> HashSet<T>
 where
     T: Hash + Eq + Clone,
@@ -125,8 +125,8 @@ where
 /// start set.
 pub fn heads<T, ID, II, NI>(
     start: II,
-    neighbors_fn: impl Fn(&T) -> NI,
     id_fn: impl Fn(&T) -> ID,
+    mut neighbors_fn: impl FnMut(&T) -> NI,
 ) -> HashSet<T>
 where
     T: Hash + Eq + Clone,
@@ -149,8 +149,8 @@ where
 pub fn closest_common_node<T, ID, II1, II2, NI>(
     set1: II1,
     set2: II2,
-    neighbors_fn: impl Fn(&T) -> NI,
     id_fn: impl Fn(&T) -> ID,
+    mut neighbors_fn: impl FnMut(&T) -> NI,
 ) -> Option<T>
 where
     T: Hash + Eq + Clone,
@@ -309,8 +309,8 @@ mod tests {
         let common = closest_common_node(
             vec!['E'],
             vec!['H'],
-            |node| neighbors[node].clone(),
             |node| *node,
+            |node| neighbors[node].clone(),
         );
 
         // TODO: fix the implementation to return B
@@ -340,16 +340,16 @@ mod tests {
 
         let actual = heads(
             vec!['A', 'C', 'D', 'F'],
-            |node| neighbors[node].clone(),
             |node| *node,
+            |node| neighbors[node].clone(),
         );
         assert_eq!(actual, hashset!['D', 'F']);
 
         // Check with a different order in the start set
         let actual = heads(
             vec!['F', 'D', 'C', 'A'],
-            |node| neighbors[node].clone(),
             |node| *node,
+            |node| neighbors[node].clone(),
         );
         assert_eq!(actual, hashset!['D', 'F']);
     }
