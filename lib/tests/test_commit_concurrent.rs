@@ -26,7 +26,7 @@ fn count_non_merge_operations(repo: &Arc<ReadonlyRepo>) -> usize {
     let op_id = repo.op_id().clone();
     let mut num_ops = 0;
 
-    for op_id in dag_walk::bfs(
+    for op_id in dag_walk::dfs(
         vec![op_id],
         |op_id| op_id.clone(),
         |op_id| op_store.read_operation(op_id).unwrap().parents,

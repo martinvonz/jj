@@ -16,7 +16,7 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::iter;
 
-pub fn bfs<T, ID, II, NI>(
+pub fn dfs<T, ID, II, NI>(
     start: II,
     id_fn: impl Fn(&T) -> ID,
     mut neighbors_fn: impl FnMut(&T) -> NI,
@@ -136,7 +136,7 @@ where
 {
     let start: Vec<T> = start.into_iter().collect();
     let mut reachable: HashSet<T> = start.iter().cloned().collect();
-    for _node in bfs(start.into_iter(), id_fn, |node| {
+    for _node in dfs(start.into_iter(), id_fn, |node| {
         let neighbors: Vec<T> = neighbors_fn(node).into_iter().collect();
         for neighbor in &neighbors {
             reachable.remove(neighbor);
