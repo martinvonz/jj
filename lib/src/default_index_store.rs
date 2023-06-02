@@ -109,7 +109,7 @@ impl DefaultIndexStore {
         let change_id_length = store.change_id_length();
         let mut new_heads = view.heads().clone();
         let mut parent_op_id: Option<OperationId> = None;
-        for op in dag_walk::bfs(
+        for op in dag_walk::dfs(
             vec![operation.clone()],
             |op: &Operation| op.id().clone(),
             |op: &Operation| op.parents(),
