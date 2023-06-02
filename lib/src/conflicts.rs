@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cmp::max;
 use std::io::Write;
 
 use itertools::Itertools;
@@ -43,6 +42,20 @@ impl<T> Conflict<T> {
     pub fn new(removes: Vec<T>, adds: Vec<T>) -> Self {
         assert_eq!(adds.len(), removes.len() + 1);
         Conflict { removes, adds }
+    }
+
+    /// Create a `Conflict` from a `removes` and `adds`, padding with `None` to
+    /// make sure that there is exactly one more `adds` than `removes`.
+    pub fn from_legacy_form(removes: Vec<T>, adds: Vec<T>) -> Conflict<Option<T>> {
+        let mut removes = removes.into_iter().map(Some).collect_vec();
+        let mut adds = adds.into_iter().map(Some).collect_vec();
+        while removes.len() + 1 < adds.len() {
+            removes.push(None);
+        }
+        while adds.len() < removes.len() + 1 {
+            adds.push(None);
+        }
+        Conflict::new(removes, adds)
     }
 
     pub fn removes(&self) -> &[T] {
@@ -83,46 +96,44 @@ impl<T> Conflict<T> {
     }
 }
 
+impl<T> Conflict<Option<T>> {
+    /// Creates lists of `removes` and `adds` from a `Conflict` by dropping
+    /// `None` values. Note that the conversion is lossy: the order of `None`
+    /// values is not preserved when converting back to a `Conflict`.
+    pub fn into_legacy_form(self) -> (Vec<T>, Vec<T>) {
+        (
+            self.removes.into_iter().flatten().collect(),
+            self.adds.into_iter().flatten().collect(),
+        )
+    }
+}
+
 impl Conflict<Option<TreeValue>> {
     /// Create a `Conflict` from a `backend::Conflict`, padding with `None` to
     /// make sure that there is exactly one more `adds()` than `removes()`.
-    pub fn from_backend_conflict(conflict: &backend::Conflict) -> Self {
-        let mut removes = conflict
+    pub fn from_backend_conflict(conflict: backend::Conflict) -> Self {
+        let removes = conflict
             .removes
-            .iter()
-            .map(|term| Some(term.value.clone()))
-            .collect_vec();
-        let mut adds = conflict
-            .adds
-            .iter()
-            .map(|term| Some(term.value.clone()))
-            .collect_vec();
-        let num_diffs = max(removes.len() + 1, adds.len()) - 1;
-        removes.resize(num_diffs, None);
-        adds.resize(num_diffs + 1, None);
-        Conflict { removes, adds }
+            .into_iter()
+            .map(|term| term.value)
+            .collect();
+        let adds = conflict.adds.into_iter().map(|term| term.value).collect();
+        Conflict::from_legacy_form(removes, adds)
     }
 
     /// Creates a `backend::Conflict` from a `Conflict` by dropping `None`
     /// values. Note that the conversion is lossy: the order of `None` values is
     /// not preserved when converting back to a `Conflict`.
-    pub fn to_backend_conflict(&self) -> backend::Conflict {
-        let removes = self
-            .removes
-            .iter()
-            .flatten()
-            .map(|value| backend::ConflictTerm {
-                value: value.clone(),
-            })
-            .collect_vec();
-        let adds = self
-            .adds
-            .iter()
-            .flatten()
-            .map(|value| backend::ConflictTerm {
-                value: value.clone(),
-            })
-            .collect_vec();
+    pub fn into_backend_conflict(self) -> backend::Conflict {
+        let (removes, adds) = self.into_legacy_form();
+        let removes = removes
+            .into_iter()
+            .map(|value| backend::ConflictTerm { value })
+            .collect();
+        let adds = adds
+            .into_iter()
+            .map(|value| backend::ConflictTerm { value })
+            .collect();
         backend::Conflict { removes, adds }
     }
 }
@@ -576,94 +587,46 @@ pub fn update_conflict_from_content(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::{FileId, ObjectId};
 
     #[test]
-    fn test_backend_conflict_conversion() {
-        fn value(hex: &str) -> TreeValue {
-            TreeValue::File {
-                id: FileId::from_hex(hex),
-                executable: false,
-            }
-        }
-        fn term(hex: &str) -> backend::ConflictTerm {
-            backend::ConflictTerm { value: value(hex) }
-        }
-
-        let test_roundtrip = |backend_conflict: &backend::Conflict| {
-            let conflict = Conflict::from_backend_conflict(backend_conflict);
-            assert_eq!(conflict.to_backend_conflict(), *backend_conflict);
+    fn test_legacy_form_conversion() {
+        fn test_equivalent<T>(legacy_form: (Vec<T>, Vec<T>), conflict: Conflict<Option<T>>)
+        where
+            T: Clone + PartialEq + std::fmt::Debug,
+        {
+            assert_eq!(conflict.clone().into_legacy_form(), legacy_form);
             assert_eq!(
-                Conflict::from_backend_conflict(&conflict.to_backend_conflict()),
+                Conflict::from_legacy_form(legacy_form.0, legacy_form.1),
                 conflict
             );
-        };
-
+        }
+        // Non-conflict
+        test_equivalent((vec![], vec![0]), Conflict::new(vec![], vec![Some(0)]));
         // Regular 3-way conflict
-        let backend_conflict = backend::Conflict {
-            removes: vec![term("11")],
-            adds: vec![term("22"), term("33")],
-        };
-        assert_eq!(
-            Conflict::from_backend_conflict(&backend_conflict),
-            Conflict {
-                removes: vec![Some(value("11"))],
-                adds: vec![Some(value("22")), Some(value("33"))],
-            }
+        test_equivalent(
+            (vec![0], vec![1, 2]),
+            Conflict::new(vec![Some(0)], vec![Some(1), Some(2)]),
         );
-        test_roundtrip(&backend_conflict);
         // Modify/delete conflict
-        let backend_conflict = backend::Conflict {
-            removes: vec![term("11")],
-            adds: vec![term("22")],
-        };
-        assert_eq!(
-            Conflict::from_backend_conflict(&backend_conflict),
-            Conflict {
-                removes: vec![Some(value("11"))],
-                adds: vec![Some(value("22")), None],
-            }
+        test_equivalent(
+            (vec![0], vec![1]),
+            Conflict::new(vec![Some(0)], vec![Some(1), None]),
         );
-        test_roundtrip(&backend_conflict);
         // Add/add conflict
-        let backend_conflict = backend::Conflict {
-            removes: vec![],
-            adds: vec![term("11"), term("22")],
-        };
-        assert_eq!(
-            Conflict::from_backend_conflict(&backend_conflict),
-            Conflict {
-                removes: vec![None],
-                adds: vec![Some(value("11")), Some(value("22"))],
-            }
+        test_equivalent(
+            (vec![], vec![0, 1]),
+            Conflict::new(vec![None], vec![Some(0), Some(1)]),
         );
-        test_roundtrip(&backend_conflict);
         // 5-way conflict
-        let backend_conflict = backend::Conflict {
-            removes: vec![term("11"), term("22")],
-            adds: vec![term("33"), term("44"), term("55")],
-        };
-        assert_eq!(
-            Conflict::from_backend_conflict(&backend_conflict),
-            Conflict {
-                removes: vec![Some(value("11")), Some(value("22"))],
-                adds: vec![Some(value("33")), Some(value("44")), Some(value("55"))],
-            }
+        test_equivalent(
+            (vec![0, 1], vec![2, 3, 4]),
+            Conflict::new(vec![Some(0), Some(1)], vec![Some(2), Some(3), Some(4)]),
         );
-        test_roundtrip(&backend_conflict);
         // 5-way delete/delete conflict
-        let backend_conflict = backend::Conflict {
-            removes: vec![term("11"), term("22")],
-            adds: vec![],
-        };
-        assert_eq!(
-            Conflict::from_backend_conflict(&backend_conflict),
-            Conflict {
-                removes: vec![Some(value("11")), Some(value("22"))],
-                adds: vec![None, None, None],
-            }
+        test_equivalent(
+            (vec![0, 1], vec![]),
+            Conflict::new(vec![Some(0), Some(1)], vec![None, None, None]),
         );
-        test_roundtrip(&backend_conflict);
     }
 
     #[test]
