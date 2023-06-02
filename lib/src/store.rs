@@ -149,9 +149,7 @@ impl Store {
         id: &ConflictId,
     ) -> BackendResult<conflicts::Conflict<Option<TreeValue>>> {
         let backend_conflict = self.backend.read_conflict(path, id)?;
-        Ok(conflicts::Conflict::from_backend_conflict(
-            &backend_conflict,
-        ))
+        Ok(conflicts::Conflict::from_backend_conflict(backend_conflict))
     }
 
     pub fn write_conflict(
@@ -160,7 +158,7 @@ impl Store {
         contents: &conflicts::Conflict<Option<TreeValue>>,
     ) -> BackendResult<ConflictId> {
         self.backend
-            .write_conflict(path, &contents.to_backend_conflict())
+            .write_conflict(path, &contents.clone().into_backend_conflict())
     }
 
     pub fn tree_builder(self: &Arc<Self>, base_tree_id: TreeId) -> TreeBuilder {
