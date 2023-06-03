@@ -280,6 +280,27 @@ fn test_git_push_changes() {
 }
 
 #[test]
+fn test_git_push_mixed() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "my-branch"]);
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &["git", "push", "--change=@-", "--branch=my-branch"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Creating branch push-yqosqzytrlsw for revision @-
+    Branch changes to push to origin:
+      Add branch my-branch to 7decc7932d9c
+      Add branch push-yqosqzytrlsw to fa16a14170fb
+    "###);
+}
+
+#[test]
 fn test_git_push_existing_long_branch() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
