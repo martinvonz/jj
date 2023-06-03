@@ -119,7 +119,8 @@ pub struct GitCloneArgs {
 /// all branches. Use `--change` to generate branch names based on the change
 /// IDs of specific commits.
 #[derive(clap::Args, Clone, Debug)]
-#[command(group(ArgGroup::new("what").args(&["branch", "all", "change", "deleted"])))]
+#[command(group(ArgGroup::new("specific").args(&["branch", "change"]).multiple(true)))]
+#[command(group(ArgGroup::new("what").args(&["all", "deleted"]).conflicts_with("specific")))]
 pub struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
     #[arg(long)]
@@ -658,7 +659,7 @@ fn cmd_git_push(
             if args.deleted { "deleted " } else { "" },
             &remote
         );
-    } else if !args.branch.is_empty() {
+    } else if !args.branch.is_empty() || !args.change.is_empty() {
         for branch_name in &args.branch {
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
@@ -673,26 +674,7 @@ fn cmd_git_push(
                 )?;
             }
         }
-        tx_description = format!(
-            "push {} to git remote {}",
-            make_branch_term(&args.branch),
-            &remote
-        );
-    } else if !args.change.is_empty() {
-        // TODO: Allow specifying --branch and --change at the same time
-        tx_description = format!(
-            "push {} {} to git remote {}",
-            if change_commits.len() > 1 {
-                "changes"
-            } else {
-                "change"
-            },
-            change_commits
-                .iter()
-                .map(|c| c.change_id().hex())
-                .join(", "),
-            &remote
-        );
+
         for (change_str, commit) in std::iter::zip(args.change.iter(), change_commits) {
             let mut branch_name = format!(
                 "{}{}",
@@ -740,6 +722,16 @@ fn cmd_git_push(
                 )?;
             }
         }
+        tx_description = format!(
+            "push {} to git remote {}",
+            make_branch_term(
+                &branch_updates
+                    .iter()
+                    .map(|(branch, _)| branch.as_str())
+                    .collect_vec()
+            ),
+            &remote
+        );
     } else {
         match wc_commit_id {
             None => {
