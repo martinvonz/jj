@@ -85,7 +85,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git fetch` and `jj git push` will now use the single defined remote even
   if it is not named "origin".
 
-* `jj git push` now accepts `--branch` and `--change` arguments together. 
+* `jj git push` now accepts `--branch` and `--change` arguments together.
+
+* `jj git push` now accepts a `-r/--revisions` flag to specify revisions to
+  push. All branches pointing to any of the specified revisions will be pushed.
+  The flag can be used together with `--branch` and `--change`.
 
 * `jj` with no subcommand now defaults to `jj log` instead of showing help. This
   command can be overridden by setting `ui.default-command`.

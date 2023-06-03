@@ -280,23 +280,89 @@ fn test_git_push_changes() {
 }
 
 #[test]
+fn test_git_push_revisions() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-1"]);
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "baz"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-2a"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-2b"]);
+    std::fs::write(workspace_root.join("file"), "modified again").unwrap();
+
+    // Push an empty set
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "-r=none()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Empty revision set
+    "###);
+    // Push a revision with no branches
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "-r=@--"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No branches point to the specified revisions.
+    "###);
+    // Push a revision with a single branch
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "-r=@-", "--dry-run"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Add branch branch-1 to 7decc7932d9c
+    Dry-run requested, not pushing.
+    "###);
+    // Push multiple revisions of which some have branches
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &["git", "push", "-r=@--", "-r=@-", "--dry-run"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Add branch branch-1 to 7decc7932d9c
+    Dry-run requested, not pushing.
+    "###);
+    // Push a revision with a multiple branches
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "-r=@", "--dry-run"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Add branch branch-2a to 1b45449e18d0
+      Add branch branch-2b to 1b45449e18d0
+    Dry-run requested, not pushing.
+    "###);
+    // Repeating a commit doesn't result in repeated messages about the branch
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &["git", "push", "-r=@-", "-r=@-", "--dry-run"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Add branch branch-1 to 7decc7932d9c
+    Dry-run requested, not pushing.
+    "###);
+}
+
+#[test]
 fn test_git_push_mixed() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
     std::fs::write(workspace_root.join("file"), "contents").unwrap();
     test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "my-branch"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-1"]);
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "baz"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-2a"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-2b"]);
+    std::fs::write(workspace_root.join("file"), "modified again").unwrap();
 
     let stdout = test_env.jj_cmd_success(
         &workspace_root,
-        &["git", "push", "--change=@-", "--branch=my-branch"],
+        &["git", "push", "--change=@--", "--branch=branch-1", "-r=@"],
     );
     insta::assert_snapshot!(stdout, @r###"
-    Creating branch push-yqosqzytrlsw for revision @-
+    Creating branch push-yqosqzytrlsw for revision @--
     Branch changes to push to origin:
-      Add branch my-branch to 7decc7932d9c
+      Add branch branch-1 to 7decc7932d9c
       Add branch push-yqosqzytrlsw to fa16a14170fb
+      Add branch branch-2a to 1b45449e18d0
+      Add branch branch-2b to 1b45449e18d0
     "###);
 }
 

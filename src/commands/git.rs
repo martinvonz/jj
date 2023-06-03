@@ -22,8 +22,9 @@ use jujutsu_lib::workspace::Workspace;
 use maplit::hashset;
 
 use crate::cli_util::{
-    print_failed_git_export, short_change_hash, short_commit_hash, user_error,
-    user_error_with_hint, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    print_failed_git_export, resolve_multiple_nonempty_revsets, short_change_hash,
+    short_commit_hash, user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg,
+    WorkspaceCommandHelper,
 };
 use crate::commands::make_branch_term;
 use crate::progress::Progress;
@@ -119,7 +120,7 @@ pub struct GitCloneArgs {
 /// all branches. Use `--change` to generate branch names based on the change
 /// IDs of specific commits.
 #[derive(clap::Args, Clone, Debug)]
-#[command(group(ArgGroup::new("specific").args(&["branch", "change"]).multiple(true)))]
+#[command(group(ArgGroup::new("specific").args(&["branch", "change", "revisions"]).multiple(true)))]
 #[command(group(ArgGroup::new("what").args(&["all", "deleted"]).conflicts_with("specific")))]
 pub struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
@@ -134,6 +135,9 @@ pub struct GitPushArgs {
     /// Push all deleted branches
     #[arg(long)]
     deleted: bool,
+    /// Push branches pointing to these commits
+    #[arg(long, short)]
+    revisions: Vec<RevisionArg>,
     /// Push this commit by creating a branch based on its change ID (can be
     /// repeated)
     #[arg(long)]
@@ -632,6 +636,17 @@ fn cmd_git_push(
         .iter()
         .map(|change_str| workspace_command.resolve_single_rev(change_str))
         .try_collect()?;
+    let revision_commits = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
+    fn find_branches_targeting<'a>(
+        view: &'a View,
+        target: &RefTarget,
+    ) -> Vec<(&'a String, &'a BranchTarget)> {
+        view.branches()
+            .iter()
+            .filter(|(_, branch_target)| branch_target.local_target.as_ref() == Some(target))
+            .collect()
+    }
+
     let mut tx = workspace_command.start_transaction("");
     let tx_description;
     let mut branch_updates = vec![];
@@ -659,7 +674,7 @@ fn cmd_git_push(
             if args.deleted { "deleted " } else { "" },
             &remote
         );
-    } else if !args.branch.is_empty() || !args.change.is_empty() {
+    } else if !args.branch.is_empty() || !args.change.is_empty() || !args.revisions.is_empty() {
         for branch_name in &args.branch {
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
@@ -722,6 +737,31 @@ fn cmd_git_push(
                 )?;
             }
         }
+
+        let mut any_revisions_targeted = false;
+        for commit in revision_commits {
+            for (branch_name, branch_target) in
+                find_branches_targeting(repo.view(), &RefTarget::Normal(commit.id().clone()))
+            {
+                any_revisions_targeted = true;
+                if !seen_branches.insert(branch_name.clone()) {
+                    continue;
+                }
+                let push_action = classify_branch_push_action(branch_target, &remote);
+                match push_action {
+                    BranchPushAction::AlreadyMatches
+                    | BranchPushAction::LocalConflicted
+                    | BranchPushAction::RemoteConflicted => {}
+                    BranchPushAction::Update(update) => {
+                        branch_updates.push((branch_name.clone(), update));
+                    }
+                }
+            }
+        }
+        if !args.revisions.is_empty() && !any_revisions_targeted {
+            return Err(user_error("No branches point to the specified revisions."));
+        }
+
         tx_description = format!(
             "push {} to git remote {}",
             make_branch_term(
@@ -738,18 +778,6 @@ fn cmd_git_push(
                 return Err(user_error("Nothing checked out in this workspace"));
             }
             Some(wc_commit) => {
-                fn find_branches_targeting<'a>(
-                    view: &'a View,
-                    target: &RefTarget,
-                ) -> Vec<(&'a String, &'a BranchTarget)> {
-                    view.branches()
-                        .iter()
-                        .filter(|(_, branch_target)| {
-                            branch_target.local_target.as_ref() == Some(target)
-                        })
-                        .collect()
-                }
-
                 // Search for branches targeting @
                 let mut branches =
                     find_branches_targeting(repo.view(), &RefTarget::Normal(wc_commit.clone()));
