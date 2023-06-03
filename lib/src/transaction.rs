@@ -52,6 +52,10 @@ impl Transaction {
         self.mut_repo.base_repo()
     }
 
+    pub fn set_description(&mut self, description: &str) {
+        self.op_metadata.description = description.to_string();
+    }
+
     pub fn set_tag(&mut self, key: String, value: String) {
         self.op_metadata.tags.insert(key, value);
     }

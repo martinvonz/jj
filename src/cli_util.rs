@@ -1221,6 +1221,10 @@ impl WorkspaceCommandTransaction<'_> {
         self.tx.mut_repo()
     }
 
+    pub fn set_description(&mut self, description: &str) {
+        self.tx.set_description(description)
+    }
+
     pub fn check_out(&mut self, commit: &Commit) -> Result<Commit, CheckOutCommitError> {
         let workspace_id = self.helper.workspace_id().to_owned();
         let settings = &self.helper.settings;

@@ -624,12 +624,20 @@ fn cmd_git_push(
         get_default_push_remote(ui, command, &git_repo)?
     };
 
-    let mut tx;
+    let repo = workspace_command.repo().clone();
+    let wc_commit_id = workspace_command.get_wc_commit_id().cloned();
+    let change_commits: Vec<_> = args
+        .change
+        .iter()
+        .map(|change_str| workspace_command.resolve_single_rev(change_str))
+        .try_collect()?;
+    let mut tx = workspace_command.start_transaction("");
+    let tx_description;
     let mut branch_updates = vec![];
     let mut seen_branches = hashset! {};
     if args.all || args.deleted {
         // TODO: Is it useful to warn about conflicted branches?
-        for (branch_name, branch_target) in workspace_command.repo().view().branches() {
+        for (branch_name, branch_target) in repo.view().branches() {
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
             }
@@ -645,19 +653,17 @@ fn cmd_git_push(
                 }
             }
         }
-        tx = workspace_command.start_transaction(&format!(
+        tx_description = format!(
             "push all {}branches to git remote {}",
             if args.deleted { "deleted " } else { "" },
             &remote
-        ));
+        );
     } else if !args.branch.is_empty() {
         for branch_name in &args.branch {
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
             }
-            if let Some(update) =
-                branch_updates_for_push(workspace_command.repo().as_ref(), &remote, branch_name)?
-            {
+            if let Some(update) = branch_updates_for_push(repo.as_ref(), &remote, branch_name)? {
                 branch_updates.push((branch_name.clone(), update));
             } else {
                 writeln!(
@@ -667,29 +673,27 @@ fn cmd_git_push(
                 )?;
             }
         }
-        tx = workspace_command.start_transaction(&format!(
+        tx_description = format!(
             "push {} to git remote {}",
             make_branch_term(&args.branch),
             &remote
-        ));
+        );
     } else if !args.change.is_empty() {
         // TODO: Allow specifying --branch and --change at the same time
-        let commits: Vec<_> = args
-            .change
-            .iter()
-            .map(|change_str| workspace_command.resolve_single_rev(change_str))
-            .try_collect()?;
-        tx = workspace_command.start_transaction(&format!(
+        tx_description = format!(
             "push {} {} to git remote {}",
-            if commits.len() > 1 {
+            if change_commits.len() > 1 {
                 "changes"
             } else {
                 "change"
             },
-            commits.iter().map(|c| c.change_id().hex()).join(", "),
+            change_commits
+                .iter()
+                .map(|c| c.change_id().hex())
+                .join(", "),
             &remote
-        ));
-        for (change_str, commit) in std::iter::zip(args.change.iter(), commits) {
+        );
+        for (change_str, commit) in std::iter::zip(args.change.iter(), change_commits) {
             let mut branch_name = format!(
                 "{}{}",
                 command.settings().push_branch_prefix(),
@@ -737,7 +741,7 @@ fn cmd_git_push(
             }
         }
     } else {
-        match workspace_command.get_wc_commit_id() {
+        match wc_commit_id {
             None => {
                 return Err(user_error("Nothing checked out in this workspace"));
             }
@@ -755,17 +759,15 @@ fn cmd_git_push(
                 }
 
                 // Search for branches targeting @
-                let mut branches = find_branches_targeting(
-                    workspace_command.repo().view(),
-                    &RefTarget::Normal(wc_commit.clone()),
-                );
+                let mut branches =
+                    find_branches_targeting(repo.view(), &RefTarget::Normal(wc_commit.clone()));
                 if branches.is_empty() {
                     // Try @- instead if @ is discardable
-                    let commit = workspace_command.repo().store().get_commit(wc_commit)?;
+                    let commit = repo.store().get_commit(&wc_commit)?;
                     if commit.is_discardable() {
                         if let [parent_commit_id] = commit.parent_ids() {
                             branches = find_branches_targeting(
-                                workspace_command.repo().view(),
+                                repo.view(),
                                 &RefTarget::Normal(parent_commit_id.clone()),
                             );
                         }
@@ -790,10 +792,7 @@ fn cmd_git_push(
                 }
             }
         }
-        tx = workspace_command.start_transaction(&format!(
-            "push current branch(es) to git remote {}",
-            &remote
-        ));
+        tx_description = format!("push current branch(es) to git remote {}", &remote);
     }
     drop(seen_branches);
 
@@ -802,7 +801,7 @@ fn cmd_git_push(
         return Ok(());
     }
 
-    let repo = tx.base_repo();
+    tx.set_description(&tx_description);
 
     let mut ref_updates = vec![];
     let mut new_heads = vec![];
