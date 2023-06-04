@@ -644,9 +644,9 @@ fn cmd_git_push(
             }
             let push_action = classify_branch_push_action(branch_target, &remote);
             match push_action {
-                BranchPushAction::AlreadyMatches => {}
-                BranchPushAction::LocalConflicted => {}
-                BranchPushAction::RemoteConflicted => {}
+                BranchPushAction::AlreadyMatches
+                | BranchPushAction::LocalConflicted
+                | BranchPushAction::RemoteConflicted => {}
                 BranchPushAction::Update(update) => {
                     if args.all || branch_target.local_target.is_none() {
                         branch_updates.push((branch_name.clone(), update));
@@ -774,9 +774,9 @@ fn cmd_git_push(
                     }
                     let push_action = classify_branch_push_action(branch_target, &remote);
                     match push_action {
-                        BranchPushAction::AlreadyMatches => {}
-                        BranchPushAction::LocalConflicted => {}
-                        BranchPushAction::RemoteConflicted => {}
+                        BranchPushAction::AlreadyMatches
+                        | BranchPushAction::LocalConflicted
+                        | BranchPushAction::RemoteConflicted => {}
                         BranchPushAction::Update(update) => {
                             branch_updates.push((branch_name.clone(), update));
                         }
