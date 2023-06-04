@@ -464,77 +464,82 @@ pub fn update_conflict_from_content(
     // further down.
     let mut removed_content = vec![vec![]; conflict.removes().len()];
     let mut added_content = vec![vec![]; conflict.adds().len()];
-    if let Some(hunks) = parse_conflict(content, conflict.removes().len(), conflict.adds().len()) {
-        for hunk in hunks {
-            match hunk {
-                MergeHunk::Resolved(slice) => {
-                    for buf in &mut removed_content {
-                        buf.extend_from_slice(&slice);
-                    }
-                    for buf in &mut added_content {
-                        buf.extend_from_slice(&slice);
-                    }
-                }
-                MergeHunk::Conflict(ConflictHunk { removes, adds }) => {
-                    for (i, buf) in removes.iter().enumerate() {
-                        removed_content[i].extend_from_slice(buf);
-                    }
-                    for (i, buf) in adds.iter().enumerate() {
-                        added_content[i].extend_from_slice(buf);
-                    }
-                }
-            }
-        }
-        // Now write the new files contents we found by parsing the file
-        // with conflict markers. Update the Conflict object with the new
-        // FileIds.
-        for (i, buf) in removed_content.iter().enumerate() {
-            match &conflict.removes()[i] {
-                Some(TreeValue::File { id: _, executable }) => {
-                    let file_id = store.write_file(path, &mut buf.as_slice())?;
-                    let new_value = TreeValue::File {
-                        id: file_id,
-                        executable: *executable,
-                    };
-                    conflict.set_remove(i, Some(new_value));
-                }
-                None if buf.is_empty() => {
-                    // The missing side of a conflict is still represented by
-                    // the empty string we materialized it as => nothing to do
-                }
-                _ => {
-                    // The user edited a non-file side. This should never happen. We consider the
-                    // conflict resolved for now.
-                    return Ok(None);
-                }
-            }
-        }
-        for (i, buf) in added_content.iter().enumerate() {
-            match &conflict.adds()[i] {
-                Some(TreeValue::File { id: _, executable }) => {
-                    let file_id = store.write_file(path, &mut buf.as_slice())?;
-                    let new_value = TreeValue::File {
-                        id: file_id,
-                        executable: *executable,
-                    };
-                    conflict.set_add(i, Some(new_value));
-                }
-                None if buf.is_empty() => {
-                    // The missing side of a conflict is still represented by
-                    // the empty string we materialized it as => nothing to do
-                }
-                _ => {
-                    // The user edited a non-file side. This should never happen. We consider the
-                    // conflict resolved for now.
-                    return Ok(None);
-                }
-            }
-        }
-        let new_conflict_id = store.write_conflict(path, &conflict.to_backend_conflict())?;
-        Ok(Some(new_conflict_id))
+    // TODO: Change to let-else once our MSRV is above 1.65
+    let hunks = if let Some(hunks) =
+        parse_conflict(content, conflict.removes().len(), conflict.adds().len())
+    {
+        hunks
     } else {
-        Ok(None)
+        // Either there are no conflict markers of they don't have the expected arity
+        return Ok(None);
+    };
+    for hunk in hunks {
+        match hunk {
+            MergeHunk::Resolved(slice) => {
+                for buf in &mut removed_content {
+                    buf.extend_from_slice(&slice);
+                }
+                for buf in &mut added_content {
+                    buf.extend_from_slice(&slice);
+                }
+            }
+            MergeHunk::Conflict(ConflictHunk { removes, adds }) => {
+                for (i, buf) in removes.iter().enumerate() {
+                    removed_content[i].extend_from_slice(buf);
+                }
+                for (i, buf) in adds.iter().enumerate() {
+                    added_content[i].extend_from_slice(buf);
+                }
+            }
+        }
     }
+    // Now write the new files contents we found by parsing the file
+    // with conflict markers. Update the Conflict object with the new
+    // FileIds.
+    for (i, buf) in removed_content.iter().enumerate() {
+        match &conflict.removes()[i] {
+            Some(TreeValue::File { id: _, executable }) => {
+                let file_id = store.write_file(path, &mut buf.as_slice())?;
+                let new_value = TreeValue::File {
+                    id: file_id,
+                    executable: *executable,
+                };
+                conflict.set_remove(i, Some(new_value));
+            }
+            None if buf.is_empty() => {
+                // The missing side of a conflict is still represented by
+                // the empty string we materialized it as => nothing to do
+            }
+            _ => {
+                // The user edited a non-file side. This should never happen. We consider the
+                // conflict resolved for now.
+                return Ok(None);
+            }
+        }
+    }
+    for (i, buf) in added_content.iter().enumerate() {
+        match &conflict.adds()[i] {
+            Some(TreeValue::File { id: _, executable }) => {
+                let file_id = store.write_file(path, &mut buf.as_slice())?;
+                let new_value = TreeValue::File {
+                    id: file_id,
+                    executable: *executable,
+                };
+                conflict.set_add(i, Some(new_value));
+            }
+            None if buf.is_empty() => {
+                // The missing side of a conflict is still represented by
+                // the empty string we materialized it as => nothing to do
+            }
+            _ => {
+                // The user edited a non-file side. This should never happen. We consider the
+                // conflict resolved for now.
+                return Ok(None);
+            }
+        }
+    }
+    let new_conflict_id = store.write_conflict(path, &conflict.to_backend_conflict())?;
+    Ok(Some(new_conflict_id))
 }
 
 #[cfg(test)]
