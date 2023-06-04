@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj hide` (alias for `jj abandon`) is no longer available. Use `jj abandon`
   instead.
 
+* `jj debug completion`, `jj debug mangen` and `jj debug config-schema` have
+  been moved from `jj debug` to `jj util`.
+
 ### New features
 
 * `jj git push --deleted` will remove all locally deleted branches from the remote.
@@ -60,9 +63,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Commands that accept a diff format (`jj diff`, `jj interdiff`, `jj show`,
   `jj log`, and `jj obslog`) now accept `--types` to show only the type of file
   before and after.
-
-* `jj debug completion`, `jj debug mangen` and `jj debug config-schema` have
-  been moved from `jj debug` to `jj util`.
 
 * `jj describe` now supports `--reset-author` for resetting a commit's author
   to the configured user. `jj describe` also gained a `--no-edit` option to
