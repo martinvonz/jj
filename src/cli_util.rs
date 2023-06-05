@@ -279,7 +279,21 @@ impl From<RevsetParseError> for CommandError {
 
 impl From<RevsetResolutionError> for CommandError {
     fn from(err: RevsetResolutionError) -> Self {
-        user_error(format!("{err}"))
+        let hint = match &err {
+            RevsetResolutionError::NoSuchRevision {
+                name: _,
+                candidates,
+            } => format_similarity_hint(candidates),
+            RevsetResolutionError::EmptyString
+            | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
+            | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
+            | RevsetResolutionError::StoreError(_) => None,
+        };
+
+        CommandError::UserError {
+            message: format!("{err}"),
+            hint,
+        }
     }
 }
 
