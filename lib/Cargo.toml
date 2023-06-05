@@ -38,7 +38,7 @@ pest_derive = "2.6.0"
 prost = "0.11.9"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
-regex = "1.8.3"
+regex = "1.8.4"
 serde_json = "1.0.96"
 smallvec = { version = "1.10.0", features = ["const_generics", "const_new", "union"] }
 tempfile = "3.5.0"
