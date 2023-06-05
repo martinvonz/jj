@@ -392,7 +392,7 @@ fn test_log_prefix_highlight_styled() {
               branches,
             )
             "###,
-            len.map(|l| l.to_string()).unwrap_or(String::default())
+            len.map(|l| l.to_string()).unwrap_or_default()
         )
     }
 
