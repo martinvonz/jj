@@ -836,7 +836,7 @@ fn parse_function_expression(
         Err(RevsetParseError::with_span(
             RevsetParseErrorKind::NoSuchFunction {
                 name: name.to_owned(),
-                candidates: collect_function_names(state.aliases_map),
+                candidates: collect_similar(name, &collect_function_names(state.aliases_map)),
             },
             name_pair.as_span(),
         ))
@@ -852,6 +852,17 @@ fn collect_function_names(aliases_map: &RevsetAliasesMap) -> Vec<String> {
     names.sort_unstable();
     names.dedup();
     names
+}
+
+fn collect_similar(name: &str, candidates: &[impl AsRef<str>]) -> Vec<String> {
+    candidates
+        .iter()
+        .filter_map(|cand| {
+            // The parameter is borrowed from clap f5540d26
+            (strsim::jaro(name, cand.as_ref()) > 0.7).then_some(cand)
+        })
+        .map(|s| s.as_ref().to_owned())
+        .collect_vec()
 }
 
 type RevsetFunction =
