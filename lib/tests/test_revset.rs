@@ -21,7 +21,7 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git;
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::index::{HexPrefix, PrefixResolution};
-use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
+use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
@@ -174,13 +174,13 @@ fn test_resolve_symbol_commit_id() {
     );
     assert_matches!(
         resolve_symbol(repo.as_ref(), "040", None),
-        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "040"
+        Err(RevsetResolutionError::NoSuchRevision{name, candidates}) if name == "040" && candidates.is_empty()
     );
 
     // Test non-hex string
     assert_matches!(
         resolve_symbol(repo.as_ref(), "foo", None),
-        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "foo"
+        Err(RevsetResolutionError::NoSuchRevision{name, candidates}) if name == "foo" && candidates.is_empty()
     );
 
     // Test present() suppresses only NoSuchRevision error
@@ -313,7 +313,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     );
     assert_matches!(
         resolve_symbol(repo, "zvlyw", None),
-        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "zvlyw"
+        Err(RevsetResolutionError::NoSuchRevision{name, candidates}) if name == "zvlyw" && candidates.is_empty()
     );
 
     // Test that commit and changed id don't conflict ("040" and "zvz" are the
@@ -334,7 +334,10 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     // Test non-hex string
     assert_matches!(
         resolve_symbol(repo, "foo", None),
-        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "foo"
+        Err(RevsetResolutionError::NoSuchRevision{
+            name,
+            candidates
+        }) if name == "foo" && candidates.is_empty()
     );
 }
 
@@ -357,15 +360,24 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     // With no workspaces, no variation can be resolved
     assert_matches!(
         resolve_symbol(mut_repo, "@", None),
-        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "@"
+        Err(RevsetResolutionError::NoSuchRevision{
+            name,
+            candidates,
+        }) if name == "@" && candidates.is_empty()
     );
     assert_matches!(
         resolve_symbol(mut_repo, "@", Some(&ws1)),
-        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "@"
+        Err(RevsetResolutionError::NoSuchRevision{
+            name,
+            candidates,
+        }) if name == "@" && candidates.is_empty()
     );
     assert_matches!(
         resolve_symbol(mut_repo, "ws1@", Some(&ws1)),
-        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "ws1@"
+        Err(RevsetResolutionError::NoSuchRevision{
+            name,
+            candidates,
+        }) if name == "ws1@" && candidates.is_empty()
     );
 
     // Add some workspaces
@@ -376,7 +388,10 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     // @ cannot be resolved without a default workspace ID
     assert_matches!(
         resolve_symbol(mut_repo, "@", None),
-        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "@"
+        Err(RevsetResolutionError::NoSuchRevision{
+            name,
+            candidates,
+        }) if name == "@" && candidates.is_empty()
     );
     // Can resolve "@" shorthand with a default workspace ID
     assert_eq!(
@@ -432,7 +447,7 @@ fn test_resolve_symbol_git_refs() {
     // Nonexistent ref
     assert_matches!(
         resolve_symbol(mut_repo, "nonexistent", None),
-        Err(RevsetResolutionError::NoSuchRevision(s)) if s == "nonexistent"
+        Err(RevsetResolutionError::NoSuchRevision{name, candidates}) if name == "nonexistent" && candidates.is_empty()
     );
 
     // Full ref
@@ -2483,4 +2498,32 @@ fn test_change_id_index() {
         PrefixResolution::SingleMatch(vec![commit_3.id().clone()])
     );
     assert_eq!(resolve_prefix("a"), PrefixResolution::AmbiguousMatch);
+}
+
+#[test]
+fn test_no_such_revision_suggestion() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let mut_repo = tx.mut_repo();
+    let commit = write_random_commit(mut_repo, &settings);
+
+    for branch_name in ["foo", "bar", "baz"] {
+        mut_repo.set_branch(
+            branch_name.to_string(),
+            BranchTarget {
+                local_target: Some(RefTarget::Normal(commit.id().clone())),
+                remote_targets: Default::default(),
+            },
+        );
+    }
+
+    assert_matches!(resolve_symbol(mut_repo, "bar", None), Ok(_));
+    assert_matches!(
+        resolve_symbol(mut_repo, "bax", None),
+        Err(RevsetResolutionError::NoSuchRevision { name, candidates })
+        if name == "bax" && candidates == vec!["bar".to_string(), "baz".to_string()]
+    );
 }
