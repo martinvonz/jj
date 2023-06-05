@@ -101,16 +101,6 @@ pub fn user_error_with_hint(message: impl Into<String>, hint: impl Into<String>)
     }
 }
 
-fn collect_similar<'a, S: AsRef<str>>(name: &str, candidates: &'a [S]) -> Vec<&'a S> {
-    candidates
-        .iter()
-        .filter_map(|cand| {
-            // The parameter is borrowed from clap f5540d26
-            (strsim::jaro(name, cand.as_ref()) > 0.7).then_some(cand)
-        })
-        .collect_vec()
-}
-
 fn format_similarity_hint<S: AsRef<str>>(candidates: &[S]) -> Option<String> {
     match candidates {
         [] => None,
@@ -274,9 +264,10 @@ impl From<RevsetParseError> for CommandError {
                 similar_op,
                 description,
             } => Some(format!("Did you mean '{similar_op}' for {description}?")),
-            RevsetParseErrorKind::NoSuchFunction { name, candidates } => {
-                format_similarity_hint(&collect_similar(name, candidates))
-            }
+            RevsetParseErrorKind::NoSuchFunction {
+                name: _,
+                candidates,
+            } => format_similarity_hint(candidates),
             _ => None,
         };
         CommandError::UserError {
