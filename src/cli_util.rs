@@ -2184,7 +2184,7 @@ fn resolve_default_command(
             }
             let default_command = config
                 .get_string("ui.default-command")
-                .unwrap_or("log".to_string());
+                .unwrap_or_else(|_| "log".to_string());
             // Insert the default command directly after the path to the binary.
             string_args.insert(1, default_command);
         }
