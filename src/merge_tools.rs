@@ -95,15 +95,8 @@ pub enum ConflictResolveError {
          supported. Conflict summary for {0:?}:\n{1}"
     )]
     NotNormalFilesError(RepoPath, String),
-    #[error(
-        "The conflict at {path:?} has {removes} removes and {adds} adds.\nAt most 1 remove and 2 \
-         adds are supported."
-    )]
-    ConflictTooComplicatedError {
-        path: RepoPath,
-        removes: usize,
-        adds: usize,
-    },
+    #[error("The conflict at {path:?} has {sides} sides. At most 2 sides are supported.")]
+    ConflictTooComplicatedError { path: RepoPath, sides: usize },
     #[error(
         "The output file is either unchanged or empty after the editor quit (run with --verbose \
          to see the exact invocation)."
@@ -181,14 +174,11 @@ pub fn run_mergetool(
             ));
         }
     };
-    // The usual case is 1 `removes` and 2 `adds`. 0 `removes` means the file did
-    // not exist in the conflict base. Only 1 `adds` may exist for an
-    // edit-delete conflict.
-    if content.removes.len() > 1 || content.adds.len() > 2 {
+    // We only support conflicts with 2 sides (3-way conflicts)
+    if content.adds.len() > 2 {
         return Err(ConflictResolveError::ConflictTooComplicatedError {
             path: repo_path.clone(),
-            removes: content.removes.len(),
-            adds: content.adds.len(),
+            sides: content.adds.len(),
         });
     };
 
