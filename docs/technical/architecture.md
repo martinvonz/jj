@@ -78,7 +78,7 @@ graph TD;
 
 The [`Backend`](../../lib/src/backend.rs) trait defines the interface each
 commit backend needs to implement. The current in-tree commit backends
-are [`GitBackend`]((../../lib/src/git_backend.rs))
+are [`GitBackend`](../../lib/src/git_backend.rs)
 and [`LocalBackend`](../../lib/src/local_backend.rs).
 
 Since there are non-commit backends, the `Backend` trait should probably be
