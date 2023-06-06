@@ -21,8 +21,8 @@ mod operation;
 
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
-use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::PathBuf;
+use std::io::{BufRead, Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io};
 
@@ -953,6 +953,9 @@ struct SparseSetArgs {
     /// Include no files in the working copy (combine with --add)
     #[arg(long)]
     clear: bool,
+    /// Edit patterns with $EDITOR
+    #[arg(long)]
+    edit: bool,
     /// Include all files in the working copy
     #[arg(long, conflicts_with_all = &["add", "remove", "clear"])]
     reset: bool,
@@ -1874,6 +1877,73 @@ fn edit_description(
         .join("\n");
     description.truncate(description.trim_end_matches('\n').len());
     Ok(text_util::complete_newline(description))
+}
+
+fn edit_sparse(
+    workspace_root: &Path,
+    repo_path: &Path,
+    sparse: &[RepoPath],
+    settings: &UserSettings,
+) -> Result<Vec<RepoPath>, CommandError> {
+    let file = (|| -> Result<_, io::Error> {
+        let mut file = tempfile::Builder::new()
+            .prefix("editor-")
+            .suffix(".jjsparse")
+            .tempfile_in(repo_path)?;
+        for sparse_path in sparse {
+            let workspace_relative_sparse_path =
+                file_util::relative_path(workspace_root, &sparse_path.to_fs_path(workspace_root));
+            file.write_all(
+                workspace_relative_sparse_path
+                    .to_str()
+                    .ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!(
+                                "stored sparse path is not valid utf-8: {}",
+                                workspace_relative_sparse_path.display()
+                            ),
+                        )
+                    })?
+                    .as_bytes(),
+            )?;
+            file.write_all(b"\n")?;
+        }
+        file.seek(SeekFrom::Start(0))?;
+        Ok(file)
+    })()
+    .map_err(|e| {
+        user_error(format!(
+            r#"Failed to create sparse patterns file in "{path}": {e}"#,
+            path = repo_path.display()
+        ))
+    })?;
+    let file_path = file.path().to_owned();
+
+    run_ui_editor(settings, &file_path)?;
+
+    // Read and parse patterns.
+    io::BufReader::new(file)
+        .lines()
+        .filter(|line| {
+            line.as_ref()
+                .map(|line| !line.starts_with("JJ: ") && !line.trim().is_empty())
+                .unwrap_or(true)
+        })
+        .map(|line| {
+            let line = line.map_err(|e| {
+                user_error(format!(
+                    r#"Failed to read sparse patterns file "{path}": {e}"#,
+                    path = file_path.display()
+                ))
+            })?;
+            Ok::<_, CommandError>(RepoPath::parse_fs_path(
+                workspace_root,
+                workspace_root,
+                line.trim(),
+            )?)
+        })
+        .try_collect()
 }
 
 fn cmd_describe(
@@ -3507,6 +3577,14 @@ fn cmd_sparse_set(
         .iter()
         .map(|v| workspace_command.parse_file_path(v))
         .try_collect()?;
+    // Determine inputs of `edit` operation now, since `workspace_command` is
+    // inaccessible while the working copy is locked.
+    let edit_inputs = args.edit.then(|| {
+        (
+            workspace_command.repo().clone(),
+            workspace_command.workspace_root().clone(),
+        )
+    });
     let (mut locked_wc, _wc_commit) = workspace_command.start_working_copy_mutation()?;
     let mut new_patterns = HashSet::new();
     if args.reset {
@@ -3522,7 +3600,17 @@ fn cmd_sparse_set(
             new_patterns.insert(path);
         }
     }
-    let new_patterns = new_patterns.into_iter().sorted().collect();
+    let mut new_patterns = new_patterns.into_iter().collect_vec();
+    new_patterns.sort();
+    if let Some((repo, workspace_root)) = edit_inputs {
+        new_patterns = edit_sparse(
+            &workspace_root,
+            repo.repo_path(),
+            &new_patterns,
+            command.settings(),
+        )?;
+        new_patterns.sort();
+    }
     let stats = locked_wc.set_sparse_patterns(new_patterns).map_err(|err| {
         CommandError::InternalError(format!("Failed to update working copy paths: {err}"))
     })?;
