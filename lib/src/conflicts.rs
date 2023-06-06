@@ -17,7 +17,7 @@ use std::io::Write;
 
 use itertools::Itertools;
 
-use crate::backend::{BackendResult, ConflictId, ObjectId, TreeValue};
+use crate::backend::{BackendResult, ConflictId, FileId, ObjectId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files::{ConflictHunk, MergeHunk, MergeResult};
 use crate::repo_path::RepoPath;
@@ -150,27 +150,35 @@ pub fn describe_conflict(
     Ok(())
 }
 
-fn file_terms(terms: &[Option<TreeValue>]) -> Vec<Option<&TreeValue>> {
-    terms
-        .iter()
-        .filter_map(|term| match term {
-            Some(
-                value @ TreeValue::File {
-                    executable: false, ..
-                },
-            ) => Some(Some(value)),
-            None => Some(None),
-            _ => None,
-        })
-        .collect_vec()
+fn to_file_conflict(conflict: &Conflict<Option<TreeValue>>) -> Option<Conflict<Option<FileId>>> {
+    fn collect_file_terms(terms: &[Option<TreeValue>]) -> Option<Vec<Option<FileId>>> {
+        let mut file_terms = vec![];
+        for term in terms {
+            match term {
+                None => {
+                    file_terms.push(None);
+                }
+                Some(TreeValue::File {
+                    id,
+                    executable: false,
+                }) => {
+                    file_terms.push(Some(id.clone()));
+                }
+                _ => {
+                    return None;
+                }
+            }
+        }
+        Some(file_terms)
+    }
+    let file_removes = collect_file_terms(conflict.removes())?;
+    let file_adds = collect_file_terms(conflict.adds())?;
+    Some(Conflict::new(file_removes, file_adds))
 }
 
-fn get_file_contents(store: &Store, path: &RepoPath, term: Option<&TreeValue>) -> Vec<u8> {
+fn get_file_contents(store: &Store, path: &RepoPath, term: &Option<FileId>) -> Vec<u8> {
     match term {
-        Some(TreeValue::File {
-            id,
-            executable: false,
-        }) => {
+        Some(id) => {
             let mut content = vec![];
             store
                 .read_file(path, id)
@@ -182,7 +190,6 @@ fn get_file_contents(store: &Store, path: &RepoPath, term: Option<&TreeValue>) -
         // If the conflict had removed the file on one side, we pretend that the file
         // was empty there.
         None => vec![],
-        _ => panic!("unexpectedly got a non-file conflict term"),
     }
 }
 
@@ -232,18 +239,16 @@ pub fn extract_file_conflict_as_single_hunk(
     path: &RepoPath,
     conflict: &Conflict<Option<TreeValue>>,
 ) -> Option<ConflictHunk> {
-    let file_removes = file_terms(conflict.removes());
-    let file_adds = file_terms(conflict.adds());
-    if file_removes.len() != conflict.removes().len() || file_adds.len() != conflict.adds().len() {
-        return None;
-    }
-    let removes_content = file_removes
+    let file_conflict = to_file_conflict(conflict)?;
+    let removes_content = file_conflict
+        .removes()
         .iter()
-        .map(|term| get_file_contents(store, path, *term))
+        .map(|term| get_file_contents(store, path, term))
         .collect_vec();
-    let adds_content = file_adds
+    let adds_content = file_conflict
+        .adds()
         .iter()
-        .map(|term| get_file_contents(store, path, *term))
+        .map(|term| get_file_contents(store, path, term))
         .collect_vec();
 
     Some(ConflictHunk {
