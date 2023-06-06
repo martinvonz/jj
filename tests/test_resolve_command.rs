@@ -397,8 +397,7 @@ fn test_too_many_parents() {
 
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
-    Error: Failed to use external tool to resolve: The conflict at "file" has 2 removes and 3 adds.
-    At most 1 remove and 2 adds are supported.
+    Error: Failed to use external tool to resolve: The conflict at "file" has 3 sides. At most 2 sides are supported.
     "###);
 }
 
