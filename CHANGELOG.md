@@ -116,6 +116,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on arbitrary revisions. Bits other than the executable bit are not planned to
   be supported.
 
+* `jj sparse set` now accepts an `--edit` flag which brings up the `$EDITOR` to
+  edit sparse patterns.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines
