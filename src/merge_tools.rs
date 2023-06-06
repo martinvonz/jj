@@ -161,18 +161,15 @@ pub fn run_mergetool(
         None => return Err(ConflictResolveError::PathNotFoundError(repo_path.clone())),
     };
     let conflict = tree.store().read_conflict(repo_path, &conflict_id)?;
-    let file_conflict = match to_file_conflict(&conflict) {
-        Some(c) => c,
-        _ => {
-            let mut summary_bytes: Vec<u8> = vec![];
-            describe_conflict(&conflict, &mut summary_bytes)
-                .expect("Writing to an in-memory buffer should never fail");
-            return Err(ConflictResolveError::NotNormalFilesError(
-                repo_path.clone(),
-                String::from_utf8_lossy(summary_bytes.as_slice()).to_string(),
-            ));
-        }
-    };
+    let file_conflict = to_file_conflict(&conflict).ok_or_else(|| {
+        let mut summary_bytes: Vec<u8> = vec![];
+        describe_conflict(&conflict, &mut summary_bytes)
+            .expect("Writing to an in-memory buffer should never fail");
+        ConflictResolveError::NotNormalFilesError(
+            repo_path.clone(),
+            String::from_utf8_lossy(summary_bytes.as_slice()).to_string(),
+        )
+    })?;
     // We only support conflicts with 2 sides (3-way conflicts)
     if file_conflict.adds().len() > 2 {
         return Err(ConflictResolveError::ConflictTooComplicatedError {
