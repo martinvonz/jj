@@ -792,14 +792,14 @@ struct RebaseArgs {
     /// Each specified revision will become a direct child of the destination
     /// revision(s), even if some of the source revisions are descendants
     /// of others.
-    #[arg(long, short)]
+    #[arg(long, short, default_value = "@-")]
     source: Vec<RevisionArg>,
     /// Rebase only this revision, rebasing descendants onto this revision's
     /// parent(s)
     #[arg(long, short)]
     revision: Option<RevisionArg>,
     /// The revision(s) to rebase onto (can be repeated)
-    #[arg(long, short, required = true)]
+    #[arg(long, short, default_value = "@-")]
     destination: Vec<RevisionArg>,
     /// Allow revsets expanding to multiple commits in a single argument (for
     /// those options that can be repeated)
