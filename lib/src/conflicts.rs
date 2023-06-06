@@ -150,7 +150,9 @@ pub fn describe_conflict(
     Ok(())
 }
 
-fn to_file_conflict(conflict: &Conflict<Option<TreeValue>>) -> Option<Conflict<Option<FileId>>> {
+pub fn to_file_conflict(
+    conflict: &Conflict<Option<TreeValue>>,
+) -> Option<Conflict<Option<FileId>>> {
     fn collect_file_terms(terms: &[Option<TreeValue>]) -> Option<Vec<Option<FileId>>> {
         let mut file_terms = vec![];
         for term in terms {
@@ -223,38 +225,36 @@ pub fn materialize_conflict(
     conflict: &Conflict<Option<TreeValue>>,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
-    match extract_file_conflict_as_single_hunk(store, path, conflict) {
-        None => {
-            // Unless all terms are regular files, we can't do much better than to try to
-            // describe the conflict.
-            describe_conflict(conflict, output)
-        }
-        Some(content) => materialize_merge_result(&content, output),
+    if let Some(file_conflict) = to_file_conflict(conflict) {
+        let content = extract_file_conflict_as_single_hunk(store, path, &file_conflict);
+        materialize_merge_result(&content, output)
+    } else {
+        // Unless all terms are regular files, we can't do much better than to try to
+        // describe the conflict.
+        describe_conflict(conflict, output)
     }
 }
 
-/// Only works if all terms of the conflict are regular, non-executable files
 pub fn extract_file_conflict_as_single_hunk(
     store: &Store,
     path: &RepoPath,
-    conflict: &Conflict<Option<TreeValue>>,
-) -> Option<ConflictHunk> {
-    let file_conflict = to_file_conflict(conflict)?;
-    let removes_content = file_conflict
+    conflict: &Conflict<Option<FileId>>,
+) -> ConflictHunk {
+    let removes_content = conflict
         .removes()
         .iter()
         .map(|term| get_file_contents(store, path, term))
         .collect_vec();
-    let adds_content = file_conflict
+    let adds_content = conflict
         .adds()
         .iter()
         .map(|term| get_file_contents(store, path, term))
         .collect_vec();
 
-    Some(ConflictHunk {
+    ConflictHunk {
         removes: removes_content,
         adds: adds_content,
-    })
+    }
 }
 
 pub fn materialize_merge_result(
