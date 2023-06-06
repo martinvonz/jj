@@ -2540,8 +2540,8 @@ fn print_conflicted_paths(
         std::iter::zip(conflicts.iter(), formatted_paths)
     {
         let conflict = tree.store().read_conflict(repo_path, conflict_id)?;
+        let sides = conflict.adds().len();
         let n_adds = conflict.adds().iter().flatten().count();
-        let sides = n_adds.max(conflict.removes().iter().flatten().count() + 1);
         let deletions = sides - n_adds;
 
         let mut seen_objects = BTreeMap::new(); // Sort for consistency and easier testing
