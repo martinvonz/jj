@@ -1,6 +1,5 @@
 use clap::Subcommand;
-use jujutsu_lib::dag_walk::topo_order_reverse;
-use jujutsu_lib::operation::Operation;
+use jujutsu_lib::operation;
 
 use crate::cli_util::{user_error, CommandError, CommandHelper, LogContentFormat};
 use crate::graphlog::{get_graphlog, Edge};
@@ -82,11 +81,7 @@ fn cmd_op_log(
     let formatter = formatter.as_mut();
     let mut graph = get_graphlog(command.settings(), formatter.raw());
     let default_node_symbol = graph.default_node_symbol().to_owned();
-    for op in topo_order_reverse(
-        vec![head_op],
-        |op: &Operation| op.id().clone(),
-        |op: &Operation| op.parents(),
-    ) {
+    for op in operation::walk_ancestors(&head_op) {
         let mut edges = vec![];
         for parent in op.parents() {
             edges.push(Edge::direct(parent.id().clone()));

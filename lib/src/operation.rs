@@ -19,8 +19,8 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::backend::CommitId;
-use crate::op_store;
 use crate::op_store::{OpStore, OperationId, ViewId};
+use crate::{dag_walk, op_store};
 
 #[derive(Clone)]
 pub struct Operation {
@@ -164,4 +164,35 @@ impl View {
     pub fn heads(&self) -> &HashSet<CommitId> {
         &self.data.head_ids
     }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct OperationByEndTime(Operation);
+
+impl Ord for OperationByEndTime {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_end_time = &self.0.store_operation().metadata.end_time;
+        let other_end_time = &other.0.store_operation().metadata.end_time;
+        self_end_time
+            .cmp(other_end_time)
+            .then_with(|| self.0.cmp(&other.0)) // to comply with Eq
+    }
+}
+
+impl PartialOrd for OperationByEndTime {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Walks `head_op` and its ancestors in reverse topological order.
+pub fn walk_ancestors(head_op: &Operation) -> impl Iterator<Item = Operation> {
+    // Lazily load operations based on timestamp-based heuristic. This works so long
+    // as the operation history is mostly linear.
+    dag_walk::topo_order_reverse_lazy(
+        vec![OperationByEndTime(head_op.clone())],
+        |OperationByEndTime(op)| op.id().clone(),
+        |OperationByEndTime(op)| op.parents().into_iter().map(OperationByEndTime),
+    )
+    .map(|OperationByEndTime(op)| op)
 }
