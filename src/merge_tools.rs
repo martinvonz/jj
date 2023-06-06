@@ -24,7 +24,7 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{TreeId, TreeValue};
 use jujutsu_lib::conflicts::{
     describe_conflict, extract_file_conflict_as_single_hunk, materialize_merge_result,
-    update_conflict_from_content,
+    to_file_conflict, update_conflict_from_content,
 };
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::EverythingMatcher;
@@ -161,8 +161,7 @@ pub fn run_mergetool(
         None => return Err(ConflictResolveError::PathNotFoundError(repo_path.clone())),
     };
     let conflict = tree.store().read_conflict(repo_path, &conflict_id)?;
-    let mut content = match extract_file_conflict_as_single_hunk(tree.store(), repo_path, &conflict)
-    {
+    let file_conflict = match to_file_conflict(&conflict) {
         Some(c) => c,
         _ => {
             let mut summary_bytes: Vec<u8> = vec![];
@@ -174,6 +173,7 @@ pub fn run_mergetool(
             ));
         }
     };
+    let mut content = extract_file_conflict_as_single_hunk(tree.store(), repo_path, &file_conflict);
     // We only support conflicts with 2 sides (3-way conflicts)
     if content.adds.len() > 2 {
         return Err(ConflictResolveError::ConflictTooComplicatedError {
