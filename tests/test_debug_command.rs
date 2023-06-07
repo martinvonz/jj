@@ -118,6 +118,19 @@ fn test_debug_reindex() {
     );
 }
 
+#[test]
+fn test_debug_operation_id() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let workspace_path = test_env.env_root().join("repo");
+    let stdout =
+        test_env.jj_cmd_success(&workspace_path, &["debug", "operation", "--display", "id"]);
+    assert_snapshot!(filter_index_stats(&stdout), @r###"
+    a99a3fd5c51e8f7ccb9ae2f9fb749612a23f0a7cf25d8c644f36c35c077449ce3c66f49d098a5a704ca5e47089a7f019563a5b8cbc7d451619e0f90c82241ceb
+    "###
+    );
+}
+
 fn filter_index_stats(text: &str) -> String {
     let regex = Regex::new(r"    Name: [0-9a-z]+").unwrap();
     regex.replace_all(text, "    Name: [hash]").to_string()
