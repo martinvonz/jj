@@ -15,6 +15,7 @@
 #[cfg(feature = "bench")]
 mod bench;
 mod branch;
+mod debug;
 mod git;
 mod operation;
 
@@ -33,7 +34,6 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
-use jujutsu_lib::default_index_store::{DefaultIndexStore, ReadonlyIndexWrapper};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
@@ -61,8 +61,8 @@ use crate::config::{AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{get_graphlog, Edge};
+use crate::text_util;
 use crate::ui::Ui;
-use crate::{template_parser, text_util};
 
 #[derive(clap::Parser, Clone, Debug)]
 enum Commands {
@@ -80,7 +80,7 @@ enum Commands {
     #[command(subcommand)]
     Config(ConfigSubcommand),
     #[command(subcommand)]
-    Debug(DebugCommands),
+    Debug(debug::DebugCommands),
     Describe(DescribeArgs),
     Diff(DiffArgs),
     Diffedit(DiffeditArgs),
@@ -949,64 +949,6 @@ struct UtilMangenArgs {}
 /// Print the JSON schema for the jj TOML config format.
 #[derive(clap::Args, Clone, Debug)]
 struct UtilConfigSchemaArgs {}
-
-/// Low-level commands not intended for users
-#[derive(Subcommand, Clone, Debug)]
-#[command(hide = true)]
-enum DebugCommands {
-    Revset(DebugRevsetArgs),
-    #[command(name = "workingcopy")]
-    WorkingCopy(DebugWorkingCopyArgs),
-    Template(DebugTemplateArgs),
-    Index(DebugIndexArgs),
-    #[command(name = "reindex")]
-    ReIndex(DebugReIndexArgs),
-    #[command(visible_alias = "view")]
-    Operation(DebugOperationArgs),
-}
-
-/// Evaluate revset to full commit IDs
-#[derive(clap::Args, Clone, Debug)]
-struct DebugRevsetArgs {
-    revision: String,
-}
-
-/// Show information about the working copy state
-#[derive(clap::Args, Clone, Debug)]
-struct DebugWorkingCopyArgs {}
-
-/// Parse a template
-#[derive(clap::Args, Clone, Debug)]
-struct DebugTemplateArgs {
-    template: String,
-}
-
-/// Show commit index stats
-#[derive(clap::Args, Clone, Debug)]
-struct DebugIndexArgs {}
-
-/// Rebuild commit index
-#[derive(clap::Args, Clone, Debug)]
-struct DebugReIndexArgs {}
-
-/// Show information about an operation and its view
-#[derive(clap::Args, Clone, Debug)]
-struct DebugOperationArgs {
-    #[arg(default_value = "@")]
-    operation: String,
-    #[arg(long, value_enum, default_value = "all")]
-    display: DebugOperationDisplay,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
-enum DebugOperationDisplay {
-    /// Show only the operation details.
-    Operation,
-    /// Show only the view details
-    View,
-    /// Show both the view and the operation
-    All,
-}
 
 fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), CommandError> {
     let exclude_file_path = git_repo.path().join("info").join("exclude");
@@ -3153,135 +3095,6 @@ fn cmd_util(
     Ok(())
 }
 
-fn cmd_debug(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    subcommand: &DebugCommands,
-) -> Result<(), CommandError> {
-    match subcommand {
-        DebugCommands::Revset(args) => cmd_debug_revset(ui, command, args)?,
-        DebugCommands::WorkingCopy(_wc_matches) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let wc = workspace_command.working_copy();
-            writeln!(ui, "Current operation: {:?}", wc.operation_id())?;
-            writeln!(ui, "Current tree: {:?}", wc.current_tree_id())?;
-            for (file, state) in wc.file_states() {
-                writeln!(
-                    ui,
-                    "{:?} {:13?} {:10?} {:?}",
-                    state.file_type, state.size, state.mtime.0, file
-                )?;
-            }
-        }
-        DebugCommands::Template(template_matches) => {
-            let node = template_parser::parse_template(&template_matches.template)?;
-            writeln!(ui, "{node:#?}")?;
-        }
-        DebugCommands::Index(_index_matches) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let repo = workspace_command.repo();
-            let index_impl: Option<&ReadonlyIndexWrapper> =
-                repo.readonly_index().as_any().downcast_ref();
-            if let Some(index_impl) = index_impl {
-                let stats = index_impl.as_composite().stats();
-                writeln!(ui, "Number of commits: {}", stats.num_commits)?;
-                writeln!(ui, "Number of merges: {}", stats.num_merges)?;
-                writeln!(ui, "Max generation number: {}", stats.max_generation_number)?;
-                writeln!(ui, "Number of heads: {}", stats.num_heads)?;
-                writeln!(ui, "Number of changes: {}", stats.num_changes)?;
-                writeln!(ui, "Stats per level:")?;
-                for (i, level) in stats.levels.iter().enumerate() {
-                    writeln!(ui, "  Level {i}:")?;
-                    writeln!(ui, "    Number of commits: {}", level.num_commits)?;
-                    writeln!(ui, "    Name: {}", level.name.as_ref().unwrap())?;
-                }
-            } else {
-                return Err(user_error(format!(
-                    "Cannot get stats for indexes of type '{}'",
-                    repo.index_store().name()
-                )));
-            }
-        }
-        DebugCommands::ReIndex(_reindex_matches) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let repo = workspace_command.repo();
-            let default_index_store: Option<&DefaultIndexStore> =
-                repo.index_store().as_any().downcast_ref();
-            if let Some(default_index_store) = default_index_store {
-                default_index_store.reinit();
-                let repo = repo.reload_at(repo.operation());
-                let index_impl: &ReadonlyIndexWrapper = repo
-                    .readonly_index()
-                    .as_any()
-                    .downcast_ref()
-                    .expect("Default index should be a ReadonlyIndexWrapper");
-                writeln!(
-                    ui,
-                    "Finished indexing {:?} commits.",
-                    index_impl.as_composite().stats().num_commits
-                )?;
-            } else {
-                return Err(user_error(format!(
-                    "Cannot reindex indexes of type '{}'",
-                    repo.index_store().name()
-                )));
-            }
-        }
-        DebugCommands::Operation(operation_args) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let op = workspace_command.resolve_single_op(&operation_args.operation)?;
-            if operation_args.display != DebugOperationDisplay::View {
-                writeln!(ui, "{:#?}", op.store_operation())?;
-            }
-            if operation_args.display != DebugOperationDisplay::Operation {
-                writeln!(ui, "{:#?}", op.view().store_view())?;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn cmd_debug_revset(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &DebugRevsetArgs,
-) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let workspace_ctx = workspace_command.revset_context();
-    let repo = workspace_command.repo().as_ref();
-
-    let expression = revset::parse(
-        &args.revision,
-        workspace_command.revset_aliases_map(),
-        Some(&workspace_ctx),
-    )?;
-    writeln!(ui, "-- Parsed:")?;
-    writeln!(ui, "{expression:#?}")?;
-    writeln!(ui)?;
-
-    let expression = revset::optimize(expression);
-    writeln!(ui, "-- Optimized:")?;
-    writeln!(ui, "{expression:#?}")?;
-    writeln!(ui)?;
-
-    let expression =
-        expression.resolve_user_expression(repo, &workspace_command.revset_symbol_resolver())?;
-    writeln!(ui, "-- Resolved:")?;
-    writeln!(ui, "{expression:#?}")?;
-    writeln!(ui)?;
-
-    let revset = expression.evaluate(repo)?;
-    writeln!(ui, "-- Evaluated:")?;
-    writeln!(ui, "{revset:#?}")?;
-    writeln!(ui)?;
-
-    writeln!(ui, "-- Commit IDs:")?;
-    for commit_id in revset.iter() {
-        writeln!(ui, "{}", commit_id.hex())?;
-    }
-    Ok(())
-}
-
 fn cmd_workspace(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3584,7 +3397,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Util(sub_args) => cmd_util(ui, command_helper, sub_args),
         #[cfg(feature = "bench")]
         Commands::Bench(sub_args) => bench::cmd_bench(ui, command_helper, sub_args),
-        Commands::Debug(sub_args) => cmd_debug(ui, command_helper, sub_args),
+        Commands::Debug(sub_args) => debug::cmd_debug(ui, command_helper, sub_args),
     }
 }
 
