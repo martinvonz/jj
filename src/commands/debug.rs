@@ -75,6 +75,8 @@ pub struct DebugOperationArgs {
 pub enum DebugOperationDisplay {
     /// Show only the operation details.
     Operation,
+    /// Show the operation id only
+    Id,
     /// Show only the view details
     View,
     /// Show both the view and the operation
@@ -158,6 +160,10 @@ pub fn cmd_debug(
         DebugCommands::Operation(operation_args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let op = workspace_command.resolve_single_op(&operation_args.operation)?;
+            if operation_args.display == DebugOperationDisplay::Id {
+                writeln!(ui, "{}", op.id().hex())?;
+                return Ok(());
+            }
             if operation_args.display != DebugOperationDisplay::View {
                 writeln!(ui, "{:#?}", op.store_operation())?;
             }
