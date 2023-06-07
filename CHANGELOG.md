@@ -291,6 +291,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configured by `template-aliases.<name> = <expression>`. Be aware that
   the template syntax isn't documented yet and is likely to change.
 
+* The `ui.diff-instructions` config setting can be set to `false` to inhibit the
+  creation of the `JJ-INSTRUCTIONS` file as part of diff editing.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export

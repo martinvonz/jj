@@ -345,7 +345,8 @@ pub fn edit_diff(
     let instructions_path = right_wc_dir.join("JJ-INSTRUCTIONS");
     // In the unlikely event that the file already exists, then the user will simply
     // not get any instructions.
-    let add_instructions = !instructions.is_empty() && !instructions_path.exists();
+    let add_instructions =
+        settings.diff_instructions() && !instructions.is_empty() && !instructions_path.exists();
     if add_instructions {
         // TODO: This can be replaced with std::fs::write. Is this used in other places
         // as well?

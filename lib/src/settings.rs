@@ -162,6 +162,10 @@ impl UserSettings {
             .unwrap_or(false)
     }
 
+    pub fn diff_instructions(&self) -> bool {
+        self.config.get_bool("ui.diff-instructions").unwrap_or(true)
+    }
+
     pub fn config(&self) -> &config::Config {
         &self.config
     }
