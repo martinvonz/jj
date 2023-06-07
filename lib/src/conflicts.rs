@@ -114,6 +114,14 @@ impl<T> Conflict<T> {
     {
         trivial_merge(&self.removes, &self.adds)
     }
+
+    /// Creates a new conflict by applying `f` to each remove and add, returning
+    /// `None if `f` returns `None` for any of them.
+    pub fn try_map<'a, U>(&'a self, mut f: impl FnMut(&'a T) -> Option<U>) -> Option<Conflict<U>> {
+        let removes = self.removes.iter().map(&mut f).collect::<Option<_>>()?;
+        let adds = self.adds.iter().map(&mut f).collect::<Option<_>>()?;
+        Some(Conflict { removes, adds })
+    }
 }
 
 impl<T> Conflict<Option<T>> {
@@ -174,29 +182,14 @@ impl Conflict<Option<TreeValue>> {
     }
 
     pub fn to_file_conflict(&self) -> Option<Conflict<Option<FileId>>> {
-        fn collect_file_terms(terms: &[Option<TreeValue>]) -> Option<Vec<Option<FileId>>> {
-            let mut file_terms = vec![];
-            for term in terms {
-                match term {
-                    None => {
-                        file_terms.push(None);
-                    }
-                    Some(TreeValue::File {
-                        id,
-                        executable: false,
-                    }) => {
-                        file_terms.push(Some(id.clone()));
-                    }
-                    _ => {
-                        return None;
-                    }
-                }
-            }
-            Some(file_terms)
-        }
-        let file_removes = collect_file_terms(self.removes())?;
-        let file_adds = collect_file_terms(self.adds())?;
-        Some(Conflict::new(file_removes, file_adds))
+        self.try_map(|term| match term {
+            None => Some(None),
+            Some(TreeValue::File {
+                id,
+                executable: false,
+            }) => Some(Some(id.clone())),
+            _ => None,
+        })
     }
 
     /// Give a summary description of the conflict's "removes" and "adds"
@@ -751,5 +744,26 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_try_map() {
+        fn sqrt(i: &i32) -> Option<i32> {
+            if *i >= 0 {
+                Some((*i as f64).sqrt() as i32)
+            } else {
+                None
+            }
+        }
+        fn c(removes: &[i32], adds: &[i32]) -> Conflict<i32> {
+            Conflict::new(removes.to_vec(), adds.to_vec())
+        }
+        // 1-way conflict
+        assert_eq!(c(&[], &[1]).try_map(sqrt), Some(c(&[], &[1])));
+        assert_eq!(c(&[], &[-1]).try_map(sqrt), None);
+        // 3-way conflict
+        assert_eq!(c(&[1], &[4, 9]).try_map(sqrt), Some(c(&[1], &[2, 3])));
+        assert_eq!(c(&[-1], &[4, 9]).try_map(sqrt), None);
+        assert_eq!(c(&[1], &[-4, 9]).try_map(sqrt), None);
     }
 }
