@@ -327,6 +327,13 @@ merge-tools.kdiff3.edit-args = [
     "--merge", "--cs", "CreateBakFiles=0", "$left", "$right"]
 ```
 
+### `JJ-INSTRUCTIONS`
+
+When editing a diff, jj will include a synthetic file called `JJ-INSTRUCTIONS`
+in the diff with instructions on how to edit the diff. Any changes you make to
+this file will be ignored. To suppress the creation of this file, set
+`ui.diff-instructions = false`.
+
 ### Using Vim as a diff editor
 
 Using `ui.diff-editor = "vimdiff"` is possible but not recommended. For a better
