@@ -102,7 +102,7 @@ fn test_git_export_undo() {
     // "git export" can't be undone.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "undo"]), @r###"
     "###);
-    insta::assert_debug_snapshot!(get_git_refs(&git_repo), @r###"
+    insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
     [
         (
             "refs/heads/a",
@@ -133,8 +133,9 @@ fn test_git_import_undo() {
         .unwrap();
     git_repo.branch("a", &commit, true).unwrap();
 
-    // Initial state we will return to after `undo`
+    // Initial state we will return to after `undo`. There are no branches.
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+    let base_operation_id = current_operation_id(&test_env, &repo_path);
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
@@ -142,10 +143,10 @@ fn test_git_import_undo() {
     "###);
 
     // "git import" can be undone.
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "undo"]), @r###"
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
+    insta::assert_snapshot!(stdout, @r###"
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
-
     // Try "git import" again, which should re-import the branch "a".
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
@@ -168,7 +169,8 @@ fn test_git_import_move_export_undo() {
         .unwrap();
     git_repo.branch("a", &commit, true).unwrap();
 
-    // Initial state we will try to return to after `op restore`
+    // Initial state we will try to return to after `op restore`. There are no
+    // branches.
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     let base_operation_id = current_operation_id(&test_env, &repo_path);
 
@@ -185,14 +187,19 @@ fn test_git_import_move_export_undo() {
       @git (behind by 1 commits): 230dd059e1b0 (no description set)
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+     a: 096dc80da670 (no description set)
+     "###);
 
-    // "git import" can be undone, but "git export" can't.
+    // "git import" can be undone with the default `restore` behavior, as shown in
+    // the previous test. However, "git export" can't: the branches in the git
+    // repo stay where they were.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]), @r###"
     Working copy now at: 230dd059e1b0 (no description set)
     Parent commit      : 000000000000 (no description set)
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
-    insta::assert_debug_snapshot!(get_git_refs(&git_repo), @r###"
+    insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
     [
         (
             "refs/heads/a",
@@ -222,7 +229,7 @@ fn current_operation_id(test_env: &TestEnvironment, repo_path: &Path) -> String 
     id
 }
 
-fn get_git_refs(git_repo: &git2::Repository) -> Vec<(String, CommitId)> {
+fn get_git_repo_refs(git_repo: &git2::Repository) -> Vec<(String, CommitId)> {
     let mut refs: Vec<_> = git_repo
         .references()
         .unwrap()
