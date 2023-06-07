@@ -637,40 +637,31 @@ fn try_resolve_file_conflict(
     // merge it. We check early so we don't waste time reading file contents if
     // we can't merge them anyway. At the same time we determine whether the
     // resulting file should be executable.
-    let mut executable_removes = vec![];
-    let mut executable_adds = vec![];
-    let mut removed_file_ids = vec![];
-    let mut added_file_ids = vec![];
-    for term in conflict.removes() {
-        match term {
-            Some(TreeValue::File { id, executable }) => {
-                executable_removes.push(*executable);
-                removed_file_ids.push(id.clone());
-            }
-            _ => {
-                return Ok(None);
-            }
-        }
-    }
-    for term in conflict.adds() {
-        match term {
-            Some(TreeValue::File { id, executable }) => {
-                executable_adds.push(*executable);
-                added_file_ids.push(id.clone());
-            }
-            _ => {
-                return Ok(None);
-            }
-        }
-    }
-    let executable = if let Some(executable) = trivial_merge(&executable_removes, &executable_adds)
-    {
+    // TODO: Change to let-else once our MSRV is above 1.65
+    let file_id_conflict = if let Some(conflict) = conflict.try_map(|term| match term {
+        Some(TreeValue::File { id, executable: _ }) => Some(id),
+        _ => None,
+    }) {
+        conflict
+    } else {
+        return Ok(None);
+    };
+    // TODO: Change to let-else once our MSRV is above 1.65
+    let executable_conflict = if let Some(conflict) = conflict.try_map(|term| match term {
+        Some(TreeValue::File { id: _, executable }) => Some(executable),
+        _ => None,
+    }) {
+        conflict
+    } else {
+        return Ok(None);
+    };
+    let executable = if let Some(&executable) = executable_conflict.resolve_trivial() {
         *executable
     } else {
         // We're unable to determine whether the result should be executable
         return Ok(None);
     };
-    if let Some(resolved_file_id) = trivial_merge(&removed_file_ids, &added_file_ids) {
+    if let Some(&resolved_file_id) = file_id_conflict.resolve_trivial() {
         // Don't bother reading the file contents if the conflict can be trivially
         // resolved.
         return Ok(Some(TreeValue::File {
@@ -680,25 +671,25 @@ fn try_resolve_file_conflict(
     }
     let mut removed_contents = vec![];
     let mut added_contents = vec![];
-    for file_id in removed_file_ids {
+    for &file_id in file_id_conflict.removes() {
         let mut content = vec![];
         store
-            .read_file(filename, &file_id)?
+            .read_file(filename, file_id)?
             .read_to_end(&mut content)
             .map_err(|err| TreeMergeError::ReadError {
                 source: err,
-                file_id,
+                file_id: file_id.clone(),
             })?;
         removed_contents.push(content);
     }
-    for file_id in added_file_ids {
+    for &file_id in file_id_conflict.adds() {
         let mut content = vec![];
         store
-            .read_file(filename, &file_id)?
+            .read_file(filename, file_id)?
             .read_to_end(&mut content)
             .map_err(|err| TreeMergeError::ReadError {
                 source: err,
-                file_id,
+                file_id: file_id.clone(),
             })?;
         added_contents.push(content);
     }
