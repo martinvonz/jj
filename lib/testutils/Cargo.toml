@@ -20,4 +20,4 @@ git2 = "0.17.2"
 itertools = "0.10.5"
 jujutsu-lib = { path = ".." }
 rand = "0.8.5"
-tempfile = "3.5.0"
+tempfile = "3.6.0"
