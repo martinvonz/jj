@@ -62,6 +62,11 @@ impl<T> Conflict<T> {
         Conflict::new(removes, adds)
     }
 
+    /// Returns the removes and adds as a pair.
+    pub fn take(self) -> (Vec<T>, Vec<T>) {
+        (self.removes, self.adds)
+    }
+
     pub fn removes(&self) -> &[T] {
         &self.removes
     }
