@@ -749,8 +749,9 @@ fn simplify_conflict(
         match term {
             Some(TreeValue::Conflict(id)) => {
                 let conflict = store.read_conflict(path, id)?;
-                new_removes.extend_from_slice(conflict.removes());
-                new_adds.extend_from_slice(conflict.adds());
+                let (removes, adds) = conflict.take();
+                new_removes.extend(removes);
+                new_adds.extend(adds);
             }
             _ => {
                 new_adds.push(term.clone());
@@ -761,8 +762,9 @@ fn simplify_conflict(
         match term {
             Some(TreeValue::Conflict(id)) => {
                 let conflict = store.read_conflict(path, id)?;
-                new_removes.extend_from_slice(conflict.adds());
-                new_adds.extend_from_slice(conflict.removes());
+                let (removes, adds) = conflict.take();
+                new_removes.extend(adds);
+                new_adds.extend(removes);
             }
             _ => {
                 new_removes.push(term.clone());
