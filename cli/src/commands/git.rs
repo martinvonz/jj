@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::fs;
 use std::io::{Read, Write};
@@ -10,7 +11,10 @@ use std::time::Instant;
 use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId, TreeValue};
-use jj_lib::git::{self, parse_gitmodules, GitFetchError, GitPushError, GitRefUpdate};
+use jj_lib::commit::Commit;
+use jj_lib::git::{
+    self, parse_gitmodules, GitFetchError, GitPushError, GitRefUpdate, SubmoduleConfig,
+};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
@@ -165,6 +169,8 @@ pub struct GitExportArgs {}
 /// FOR INTERNAL USE ONLY Interact with git submodules
 #[derive(Subcommand, Clone, Debug)]
 pub enum GitSubmoduleCommands {
+    /// Clone the named submodule
+    Clone(GitSubmoduleCloneArgs),
     /// Print the relevant contents from .gitmodules. For debugging purposes
     /// only.
     PrintGitmodules(GitSubmodulePrintGitmodulesArgs),
@@ -177,6 +183,18 @@ pub struct GitSubmodulePrintGitmodulesArgs {
     /// Read .gitmodules from the given revision.
     #[arg(long, short = 'r', default_value = "@")]
     revisions: RevisionArg,
+}
+
+/// Clone a single submodule
+#[derive(clap::Args, Clone, Debug)]
+#[command(hide = true)]
+pub struct GitSubmoduleCloneArgs {
+    /// Read .gitmodules from the given revision.
+    #[arg(long, short = 'r', default_value = "@")]
+    revisions: RevisionArg,
+    /// Name of the submodule
+    #[arg()]
+    name: String,
 }
 
 fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
@@ -987,27 +1005,34 @@ fn cmd_git_export(
     Ok(())
 }
 
-fn cmd_git_submodule_print_gitmodules(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &GitSubmodulePrintGitmodulesArgs,
-) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
+fn parse_commit_gitmodules(
+    workspace_command: &WorkspaceCommandHelper,
+    commit: &Commit,
+) -> Result<BTreeMap<String, SubmoduleConfig>, CommandError> {
     let repo = workspace_command.repo();
-    let commit = workspace_command.resolve_single_rev(&args.revisions, ui)?;
     let gitmodules_path = RepoPath::from_internal_string(".gitmodules");
     let mut gitmodules_file = match commit.tree().path_value(&gitmodules_path) {
         None => {
-            writeln!(ui, "No submodules!")?;
-            return Ok(());
+            return Err(user_error(
+                "The repository has no submodules (.gitmodules is missing).",
+            ));
         }
         Some(TreeValue::File { id, .. }) => repo.store().read_file(&gitmodules_path, &id)?,
         _ => {
             return Err(user_error(".gitmodules is not a file."));
         }
     };
+    Ok(parse_gitmodules(&mut gitmodules_file)?)
+}
 
-    let submodules = parse_gitmodules(&mut gitmodules_file)?;
+fn cmd_git_submodule_print_gitmodules(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &GitSubmodulePrintGitmodulesArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revisions, ui)?;
+    let submodules = parse_commit_gitmodules(&workspace_command, &commit)?;
     for (name, submodule) in submodules {
         writeln!(
             ui,
@@ -1015,6 +1040,104 @@ fn cmd_git_submodule_print_gitmodules(
             name, submodule.url, submodule.path
         )?;
     }
+    Ok(())
+}
+
+fn cmd_git_submodule_clone(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &GitSubmoduleCloneArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revisions, ui)?;
+    let submodules = parse_commit_gitmodules(&workspace_command, &commit)?;
+    let submodule = match submodules.get(&args.name) {
+        Some(submodule) => submodule,
+        None => return Err(user_error(format!("{} is not a submodule", args.name))),
+    };
+
+    let mut tx = workspace_command.start_transaction(&format!("clone submodule {}", args.name));
+    let submodule_path = tx
+        .mut_repo()
+        .submodule_store()
+        .get_submodule_path(&args.name);
+    let submodule_path_existed = submodule_path.exists();
+    if submodule_path_existed {
+        if !is_empty_dir(&submodule_path) {
+            return Err(user_error(format!(
+                "Could not clone submodule: {} exists",
+                submodule_path.display()
+            )));
+        }
+    } else {
+        fs::create_dir(&submodule_path).unwrap();
+    }
+
+    let clone_result = do_submodule_clone(ui, command, &submodule_path, &submodule.url);
+    if clone_result.is_err() {
+        // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
+        // `/some/path/.`
+        let canonical_submodule_path = submodule_path.canonicalize().unwrap();
+        if let Err(err) = fs::remove_dir_all(canonical_submodule_path.join(".jj")).and_then(|_| {
+            if !submodule_path_existed {
+                fs::remove_dir(&canonical_submodule_path)
+            } else {
+                Ok(())
+            }
+        }) {
+            writeln!(
+                ui,
+                "Failed to clean up {}: {}",
+                canonical_submodule_path.display(),
+                err
+            )
+            .ok();
+        }
+    }
+    writeln!(ui, "Cloned submodule \"{}\"", submodule.name)?;
+    // Unlike cmd_git_clone(), don't update the submodule's working copy.
+    // TODO do we need this transaction? We aren't changing branches
+    tx.finish(ui)?;
+    Ok(())
+}
+
+// This is mostly copied from do_git_clone(). We might want to dedup them in the
+// future.
+fn do_submodule_clone(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    submodule_path: &Path,
+    submodule_url: &str,
+) -> Result<(), CommandError> {
+    // TODO The submodule shouldn't have a workspace, but we don't have a good
+    // way to init a repo without one.
+    let (workspace, repo) = Workspace::init_internal_git(command.settings(), submodule_path)?;
+    let git_repo = get_git_repo(repo.store())?;
+    let mut submodule_command = command.for_loaded_repo(ui, workspace, repo)?;
+    let remote_name = "origin";
+    git_repo.remote(remote_name, submodule_url).unwrap();
+    let mut fetch_tx = submodule_command.start_transaction("fetch from git remote into empty repo");
+
+    with_remote_callbacks(ui, |cb| {
+        git::fetch(
+            fetch_tx.mut_repo(),
+            &git_repo,
+            remote_name,
+            None,
+            cb,
+            &command.settings().git_settings(),
+        )
+    })
+    .map_err(|err| match err {
+        GitFetchError::NoSuchRemote(_) => {
+            panic!("shouldn't happen as we just created the git remote")
+        }
+        GitFetchError::InternalGitError(err) => map_git_error(err),
+        GitFetchError::InvalidGlob => {
+            unreachable!("we didn't provide any globs")
+        }
+    })?;
+    fetch_tx.finish(ui)?;
     Ok(())
 }
 
@@ -1043,6 +1166,9 @@ pub fn cmd_git(
         GitCommands::Export(command_matches) => cmd_git_export(ui, command, command_matches),
         GitCommands::Submodule(GitSubmoduleCommands::PrintGitmodules(command_matches)) => {
             cmd_git_submodule_print_gitmodules(ui, command, command_matches)
+        }
+        GitCommands::Submodule(GitSubmoduleCommands::Clone(command_matches)) => {
+            cmd_git_submodule_clone(ui, command, command_matches)
         }
     }
 }

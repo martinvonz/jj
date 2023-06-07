@@ -47,4 +47,13 @@ impl SubmoduleStore for DefaultSubmoduleStore {
     fn name(&self) -> &str {
         DefaultSubmoduleStore::name()
     }
+
+    fn get_submodule_path(&self, submodule: &str) -> PathBuf {
+        PathBuf::new()
+            .join(self.path.clone())
+            // FIXME hackily sanitze "/" in the path. It's likely that we'll
+            // need to do reverse lookups (e.g. from 'sanitized' to the 'real'
+            // name), so this probably won't do in the long run.
+            .join(submodule.to_string().replace("/", "__"))
+    }
 }
