@@ -29,7 +29,6 @@ use self::dirty_cell::DirtyCell;
 use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, ObjectId, TreeId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
-use crate::dag_walk::topo_order_reverse;
 use crate::default_index_store::DefaultIndexStore;
 use crate::git_backend::GitBackend;
 use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
@@ -46,7 +45,7 @@ use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
 use crate::transaction::Transaction;
 use crate::view::{RefName, View};
-use crate::{backend, op_store};
+use crate::{backend, dag_walk, op_store};
 
 pub trait Repo {
     fn store(&self) -> &Arc<Store>;
@@ -849,7 +848,7 @@ impl MutableRepo {
                 self.view.get_mut().remove_head(parent_id);
             }
         } else {
-            let missing_commits = topo_order_reverse(
+            let missing_commits = dag_walk::topo_order_forward(
                 vec![head.clone()],
                 |commit: &Commit| commit.id().clone(),
                 |commit: &Commit| -> Vec<Commit> {
@@ -860,7 +859,7 @@ impl MutableRepo {
                         .collect()
                 },
             );
-            for missing_commit in missing_commits.iter().rev() {
+            for missing_commit in &missing_commits {
                 self.index.add_commit(missing_commit);
             }
             self.view.get_mut().add_head(head.id());

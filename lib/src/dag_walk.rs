@@ -44,8 +44,7 @@ where
     })
 }
 
-/// Returns neighbors before the node itself.
-pub fn topo_order_reverse<T, ID, II, NI>(
+pub fn topo_order_forward<T, ID, II, NI>(
     start: II,
     id_fn: impl Fn(&T) -> ID,
     mut neighbors_fn: impl FnMut(&T) -> NI,
@@ -75,6 +74,21 @@ where
             result.push(node);
         }
     }
+    result
+}
+
+/// Returns neighbors before the node itself.
+pub fn topo_order_reverse<T, ID, II, NI>(
+    start: II,
+    id_fn: impl Fn(&T) -> ID,
+    neighbors_fn: impl FnMut(&T) -> NI,
+) -> Vec<T>
+where
+    ID: Hash + Eq + Clone,
+    II: IntoIterator<Item = T>,
+    NI: IntoIterator<Item = T>,
+{
+    let mut result = topo_order_forward(start, id_fn, neighbors_fn);
     result.reverse();
     result
 }
