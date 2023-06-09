@@ -196,6 +196,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::panic;
+
     use maplit::{hashmap, hashset};
 
     use super::*;
@@ -212,10 +214,14 @@ mod tests {
             'B' => vec!['A'],
             'C' => vec!['B'],
         };
+        let id_fn = |node: &char| *node;
+        let neighbors_fn = |node: &char| neighbors[node].clone();
 
-        let common =
-            topo_order_reverse(vec!['C'], |node| *node, move |node| neighbors[node].clone());
-
+        let common = topo_order_reverse(vec!['C'], id_fn, neighbors_fn);
+        assert_eq!(common, vec!['C', 'B', 'A']);
+        let common = topo_order_reverse(vec!['C', 'B'], id_fn, neighbors_fn);
+        assert_eq!(common, vec!['C', 'B', 'A']);
+        let common = topo_order_reverse(vec!['B', 'C'], id_fn, neighbors_fn);
         assert_eq!(common, vec!['C', 'B', 'A']);
     }
 
@@ -239,11 +245,49 @@ mod tests {
             'E' => vec!['A'],
             'F' => vec!['E', 'D'],
         };
+        let id_fn = |node: &char| *node;
+        let neighbors_fn = |node: &char| neighbors[node].clone();
 
-        let common =
-            topo_order_reverse(vec!['F'], |node| *node, move |node| neighbors[node].clone());
-
+        let common = topo_order_reverse(vec!['F'], id_fn, neighbors_fn);
         assert_eq!(common, vec!['F', 'E', 'D', 'C', 'B', 'A']);
+        let common = topo_order_reverse(vec!['F', 'E', 'C'], id_fn, neighbors_fn);
+        assert_eq!(common, vec!['F', 'D', 'E', 'C', 'B', 'A']);
+        let common = topo_order_reverse(vec!['F', 'D', 'E'], id_fn, neighbors_fn);
+        assert_eq!(common, vec!['F', 'D', 'C', 'B', 'E', 'A']);
+    }
+
+    #[test]
+    fn test_topo_order_reverse_nested_merges() {
+        // This graph:
+        //  o I
+        //  |\
+        //  | o H
+        //  | |\
+        //  | | o G
+        //  | o | F
+        //  | | o E
+        //  o |/ D
+        //  | o C
+        //  o | B
+        //  |/
+        //  o A
+
+        let neighbors = hashmap! {
+            'A' => vec![],
+            'B' => vec!['A'],
+            'C' => vec!['A'],
+            'D' => vec!['B'],
+            'E' => vec!['C'],
+            'F' => vec!['C'],
+            'G' => vec!['E'],
+            'H' => vec!['F', 'G'],
+            'I' => vec!['D', 'H'],
+        };
+        let id_fn = |node: &char| *node;
+        let neighbors_fn = |node: &char| neighbors[node].clone();
+
+        let common = topo_order_reverse(vec!['I'], id_fn, neighbors_fn);
+        assert_eq!(common, vec!['I', 'D', 'B', 'H', 'F', 'G', 'E', 'C', 'A']);
     }
 
     #[test]
@@ -268,14 +312,52 @@ mod tests {
             'E' => vec!['A'],
             'F' => vec!['E', 'D'],
         };
+        let id_fn = |node: &char| *node;
+        let neighbors_fn = |node: &char| neighbors[node].clone();
 
-        let common = topo_order_reverse(
-            vec!['F', 'C'],
-            |node| *node,
-            move |node| neighbors[node].clone(),
-        );
-
+        let common = topo_order_reverse(vec!['F', 'C'], id_fn, neighbors_fn);
         assert_eq!(common, vec!['F', 'E', 'D', 'C', 'B', 'A']);
+    }
+
+    #[test]
+    fn test_topo_order_reverse_multiple_roots() {
+        // This graph:
+        //  o D
+        //  | \
+        //  o | C
+        //    o B
+        //    o A
+
+        let neighbors = hashmap! {
+            'A' => vec![],
+            'B' => vec!['A'],
+            'C' => vec![],
+            'D' => vec!['C', 'B'],
+        };
+        let id_fn = |node: &char| *node;
+        let neighbors_fn = |node: &char| neighbors[node].clone();
+
+        let common = topo_order_reverse(vec!['D'], id_fn, neighbors_fn);
+        assert_eq!(common, vec!['D', 'C', 'B', 'A']);
+    }
+
+    #[test]
+    fn test_topo_order_reverse_cycle_linear() {
+        // This graph:
+        //  o C
+        //  o B
+        //  o A (to C)
+
+        let neighbors = hashmap! {
+            'A' => vec!['C'],
+            'B' => vec!['A'],
+            'C' => vec!['B'],
+        };
+        let id_fn = |node: &char| *node;
+        let neighbors_fn = |node: &char| neighbors[node].clone();
+
+        let result = panic::catch_unwind(|| topo_order_reverse(vec!['C'], id_fn, neighbors_fn));
+        assert!(result.is_err());
     }
 
     #[test]
