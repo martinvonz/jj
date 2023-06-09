@@ -49,7 +49,6 @@ pub fn topo_order_reverse<T, ID, II, NI>(
     mut neighbors_fn: impl FnMut(&T) -> NI,
 ) -> Vec<T>
 where
-    T: Hash + Eq + Clone,
     ID: Hash + Eq + Clone,
     II: IntoIterator<Item = T>,
     NI: IntoIterator<Item = T>,
@@ -153,7 +152,6 @@ pub fn closest_common_node<T, ID, II1, II2, NI>(
     mut neighbors_fn: impl FnMut(&T) -> NI,
 ) -> Option<T>
 where
-    T: Hash + Eq + Clone,
     ID: Hash + Eq,
     II1: IntoIterator<Item = T>,
     II2: IntoIterator<Item = T>,
