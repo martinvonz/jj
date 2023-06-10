@@ -115,7 +115,7 @@ fn test_init_git_external() {
 }
 
 #[test]
-fn test_init_git_external_bad_path() {
+fn test_init_git_external_non_existent_directory() {
     let test_env = TestEnvironment::default();
     let stderr = test_env.jj_cmd_failure(
         test_env.env_root(),
@@ -124,6 +124,24 @@ fn test_init_git_external_bad_path() {
     insta::assert_snapshot!(stderr, @r###"
     Error: $TEST_ENV/non-existent doesn't exist
     "###);
+}
+
+#[test]
+fn test_init_git_external_non_existent_git_directory() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    let stderr =
+        test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo", "--git-repo", "repo"]);
+
+    insta::with_settings!({filters => vec![
+        (r"(Error: Failed to open git repository:)(?s).*", "Error: Failed to open git repository:"),
+    ]}, {
+        insta::assert_snapshot!(&stderr, @r###"
+        Error: Failed to access the repository: Error: Failed to open git repository:
+        "###);
+    });
+    let jj_path = workspace_root.join(".jj");
+    assert!(!jj_path.exists());
 }
 
 #[test]

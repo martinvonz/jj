@@ -100,6 +100,14 @@ impl Debug for ReadonlyRepo {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum RepoInitError {
+    #[error(transparent)]
+    Backend(#[from] BackendError),
+    #[error(transparent)]
+    Path(#[from] PathError),
+}
+
 impl ReadonlyRepo {
     pub fn default_op_store_factory() -> impl FnOnce(&Path) -> Box<dyn OpStore> {
         |store_path| Box::new(SimpleOpStore::init(store_path))
@@ -123,17 +131,17 @@ impl ReadonlyRepo {
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
-        backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
+        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendError>,
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
         op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
         index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
         submodule_store_factory: impl FnOnce(&Path) -> Box<dyn SubmoduleStore>,
-    ) -> Result<Arc<ReadonlyRepo>, PathError> {
+    ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
         let repo_path = repo_path.canonicalize().context(repo_path)?;
 
         let store_path = repo_path.join("store");
         fs::create_dir(&store_path).context(&store_path)?;
-        let backend = backend_factory(&store_path);
+        let backend = backend_factory(&store_path)?;
         let backend_path = store_path.join("type");
         fs::write(&backend_path, backend.name()).context(&backend_path)?;
         let store = Store::new(backend);

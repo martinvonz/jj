@@ -54,7 +54,7 @@ fn run_custom_command(
             let wc_path = command_helper.cwd();
             // Initialize a workspace with the custom backend
             Workspace::init_with_backend(command_helper.settings(), wc_path, |store_path| {
-                Box::new(JitBackend::init(store_path))
+                Ok(Box::new(JitBackend::init(store_path)))
             })?;
             Ok(())
         }

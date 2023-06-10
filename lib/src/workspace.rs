@@ -19,15 +19,15 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::Backend;
+use crate::backend::{Backend, BackendError};
 use crate::git_backend::GitBackend;
 use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OpStore, WorkspaceId};
 use crate::repo::{
-    CheckOutCommitError, IoResultExt, PathError, ReadonlyRepo, Repo, RepoLoader, StoreFactories,
-    StoreLoadError,
+    CheckOutCommitError, IoResultExt, PathError, ReadonlyRepo, Repo, RepoInitError, RepoLoader,
+    StoreFactories, StoreLoadError,
 };
 use crate::settings::UserSettings;
 use crate::submodule_store::SubmoduleStore;
@@ -43,6 +43,8 @@ pub enum WorkspaceInitError {
     CheckOutCommit(#[from] CheckOutCommitError),
     #[error(transparent)]
     Path(#[from] PathError),
+    #[error(transparent)]
+    Backend(#[from] BackendError),
 }
 
 #[derive(Error, Debug)]
@@ -130,7 +132,7 @@ impl Workspace {
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_backend(user_settings, workspace_root, |store_path| {
-            Box::new(LocalBackend::init(store_path))
+            Ok(Box::new(LocalBackend::init(store_path)))
         })
     }
 
@@ -141,7 +143,7 @@ impl Workspace {
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_backend(user_settings, workspace_root, |store_path| {
-            Box::new(GitBackend::init_internal(store_path))
+            Ok(Box::new(GitBackend::init_internal(store_path)))
         })
     }
 
@@ -153,47 +155,60 @@ impl Workspace {
         git_repo_path: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_backend(user_settings, workspace_root, |store_path| {
-            Box::new(GitBackend::init_external(store_path, git_repo_path))
+            Ok(Box::new(GitBackend::init_external(
+                store_path,
+                git_repo_path,
+            )?))
         })
     }
 
     pub fn init_with_factories(
         user_settings: &UserSettings,
         workspace_root: &Path,
-        backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
+        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendError>,
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
         op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
         index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
         submodule_store_factory: impl FnOnce(&Path) -> Box<dyn SubmoduleStore>,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
-        let repo_dir = jj_dir.join("repo");
-        std::fs::create_dir(&repo_dir).context(&repo_dir)?;
-        let repo = ReadonlyRepo::init(
-            user_settings,
-            &repo_dir,
-            backend_factory,
-            op_store_factory,
-            op_heads_store_factory,
-            index_store_factory,
-            submodule_store_factory,
-        )?;
-        let (working_copy, repo) = init_working_copy(
-            user_settings,
-            &repo,
-            workspace_root,
-            &jj_dir,
-            WorkspaceId::default(),
-        )?;
-        let repo_loader = repo.loader();
-        let workspace = Workspace::new(workspace_root, working_copy, repo_loader)?;
-        Ok((workspace, repo))
+        (|| {
+            let repo_dir = jj_dir.join("repo");
+            std::fs::create_dir(&repo_dir).context(&repo_dir)?;
+            let repo = ReadonlyRepo::init(
+                user_settings,
+                &repo_dir,
+                backend_factory,
+                op_store_factory,
+                op_heads_store_factory,
+                index_store_factory,
+                submodule_store_factory,
+            )
+            .map_err(|repo_init_err| match repo_init_err {
+                RepoInitError::Backend(err) => WorkspaceInitError::Backend(err),
+                RepoInitError::Path(err) => WorkspaceInitError::Path(err),
+            })?;
+            let (working_copy, repo) = init_working_copy(
+                user_settings,
+                &repo,
+                workspace_root,
+                &jj_dir,
+                WorkspaceId::default(),
+            )?;
+            let repo_loader = repo.loader();
+            let workspace = Workspace::new(workspace_root, working_copy, repo_loader)?;
+            Ok((workspace, repo))
+        })()
+        .map_err(|err| {
+            let _ = std::fs::remove_dir_all(jj_dir);
+            err
+        })
     }
 
     pub fn init_with_backend(
         user_settings: &UserSettings,
         workspace_root: &Path,
-        backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
+        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendError>,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_factories(
             user_settings,

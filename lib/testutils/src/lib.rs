@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{FileId, TreeId, TreeValue};
+use jujutsu_lib::backend::{Backend, BackendError, FileId, TreeId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::git_backend::GitBackend;
@@ -95,7 +95,9 @@ impl TestRepo {
             ReadonlyRepo::init(
                 &settings,
                 &repo_dir,
-                |store_path| Box::new(GitBackend::init_external(store_path, &git_path)),
+                |store_path| -> Result<Box<dyn Backend>, BackendError> {
+                    Ok(Box::new(GitBackend::init_external(store_path, &git_path)?))
+                },
                 ReadonlyRepo::default_op_store_factory(),
                 ReadonlyRepo::default_op_heads_store_factory(),
                 ReadonlyRepo::default_index_store_factory(),
@@ -106,7 +108,9 @@ impl TestRepo {
             ReadonlyRepo::init(
                 &settings,
                 &repo_dir,
-                |store_path| Box::new(LocalBackend::init(store_path)),
+                |store_path| -> Result<Box<dyn Backend>, BackendError> {
+                    Ok(Box::new(LocalBackend::init(store_path)))
+                },
                 ReadonlyRepo::default_op_store_factory(),
                 ReadonlyRepo::default_op_heads_store_factory(),
                 ReadonlyRepo::default_index_store_factory(),

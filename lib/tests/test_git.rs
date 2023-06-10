@@ -850,7 +850,12 @@ impl GitRepoData {
         let repo = ReadonlyRepo::init(
             &settings,
             &jj_repo_dir,
-            |store_path| Box::new(GitBackend::init_external(store_path, &git_repo_dir)),
+            |store_path| {
+                Ok(Box::new(GitBackend::init_external(
+                    store_path,
+                    &git_repo_dir,
+                )?))
+            },
             ReadonlyRepo::default_op_store_factory(),
             ReadonlyRepo::default_op_heads_store_factory(),
             ReadonlyRepo::default_index_store_factory(),
@@ -1417,7 +1422,12 @@ fn test_init() {
     let repo = ReadonlyRepo::init(
         &settings,
         &jj_repo_dir,
-        |store_path| Box::new(GitBackend::init_external(store_path, &git_repo_dir)),
+        |store_path| {
+            Ok(Box::new(GitBackend::init_external(
+                store_path,
+                &git_repo_dir,
+            )?))
+        },
         ReadonlyRepo::default_op_store_factory(),
         ReadonlyRepo::default_op_heads_store_factory(),
         ReadonlyRepo::default_index_store_factory(),
@@ -1677,7 +1687,12 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let jj_repo = ReadonlyRepo::init(
         settings,
         &jj_repo_dir,
-        |store_path| Box::new(GitBackend::init_external(store_path, &clone_repo_dir)),
+        |store_path| {
+            Ok(Box::new(GitBackend::init_external(
+                store_path,
+                &clone_repo_dir,
+            )?))
+        },
         ReadonlyRepo::default_op_store_factory(),
         ReadonlyRepo::default_op_heads_store_factory(),
         ReadonlyRepo::default_index_store_factory(),

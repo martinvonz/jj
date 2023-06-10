@@ -73,16 +73,17 @@ impl GitBackend {
         GitBackend::new(git_repo, extra_metadata_store)
     }
 
-    pub fn init_external(store_path: &Path, git_repo_path: &Path) -> Self {
+    pub fn init_external(store_path: &Path, git_repo_path: &Path) -> Result<Self, BackendError> {
         let extra_path = store_path.join("extra");
         std::fs::create_dir(&extra_path).unwrap();
         let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
         git_target_file
             .write_all(git_repo_path.to_str().unwrap().as_bytes())
             .unwrap();
-        let repo = git2::Repository::open(store_path.join(git_repo_path)).unwrap();
+        let repo = git2::Repository::open(store_path.join(git_repo_path))
+            .map_err(|err| BackendError::Other(format!("Failed to open git repository: {err}")))?;
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
-        GitBackend::new(repo, extra_metadata_store)
+        Ok(GitBackend::new(repo, extra_metadata_store))
     }
 
     pub fn load(store_path: &Path) -> Self {
@@ -769,7 +770,7 @@ mod tests {
         // Check that the git commit above got the hash we expect
         assert_eq!(git_commit_id.as_bytes(), commit_id.as_bytes());
 
-        let store = GitBackend::init_external(store_path, &git_repo_path);
+        let store = GitBackend::init_external(store_path, &git_repo_path).unwrap();
         let commit = store.read_commit(&commit_id).unwrap();
         assert_eq!(&commit.change_id, &change_id);
         assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
@@ -839,7 +840,7 @@ mod tests {
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(&git_repo_path).unwrap();
 
-        let backend = GitBackend::init_external(store_path, &git_repo_path);
+        let backend = GitBackend::init_external(store_path, &git_repo_path).unwrap();
         let mut commit = Commit {
             parents: vec![],
             predecessors: vec![],
