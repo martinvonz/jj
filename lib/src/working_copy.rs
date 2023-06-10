@@ -658,17 +658,23 @@ impl TreeState {
                             let mut file = File::open(&disk_path).unwrap();
                             let mut content = vec![];
                             file.read_to_end(&mut content).unwrap();
-                            if let Some(new_conflict_id) = update_conflict_from_content(
+                            let conflict = self.store.read_conflict(&repo_path, conflict_id)?;
+                            if let Some(new_conflict) = update_conflict_from_content(
                                 self.store.as_ref(),
                                 &repo_path,
-                                conflict_id,
+                                &conflict,
                                 &content,
                             )
                             .unwrap()
                             {
                                 new_file_state.file_type = FileType::Conflict;
                                 *current_file_state = new_file_state;
-                                tree_builder.set(repo_path, TreeValue::Conflict(new_conflict_id));
+                                if new_conflict != conflict {
+                                    let new_conflict_id =
+                                        self.store.write_conflict(&repo_path, &new_conflict)?;
+                                    tree_builder
+                                        .set(repo_path, TreeValue::Conflict(new_conflict_id));
+                                };
                                 return Ok(());
                             }
                         }
