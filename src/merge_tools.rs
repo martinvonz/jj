@@ -246,12 +246,13 @@ pub fn run_mergetool(
 
     let mut new_tree_value: Option<TreeValue> = None;
     if editor.merge_tool_edits_conflict_markers {
-        if let Some(new_conflict_id) = update_conflict_from_content(
+        if let Some(new_conflict) = update_conflict_from_content(
             tree.store(),
             repo_path,
-            &conflict_id,
+            &conflict,
             output_file_contents.as_slice(),
         )? {
+            let new_conflict_id = tree.store().write_conflict(repo_path, &new_conflict)?;
             new_tree_value = Some(TreeValue::Conflict(new_conflict_id));
         }
     }

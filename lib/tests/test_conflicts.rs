@@ -644,36 +644,30 @@ fn test_update_conflict_from_content() {
             Some(file_value(&right_file_id)),
         ],
     );
-    let conflict_id = store.write_conflict(&path, &conflict).unwrap();
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
     let mut materialized = vec![];
     materialize_conflict(store, &path, &conflict, &mut materialized).unwrap();
-    let result = update_conflict_from_content(store, &path, &conflict_id, &materialized).unwrap();
-    assert_eq!(result, Some(conflict_id.clone()));
+    let result = update_conflict_from_content(store, &path, &conflict, &materialized).unwrap();
+    assert_eq!(result, Some(conflict.clone()));
 
     // If the conflict is resolved, we get None back to indicate that.
-    let result = update_conflict_from_content(
-        store,
-        &path,
-        &conflict_id,
-        b"resolved 1\nline 2\nresolved 3\n",
-    )
-    .unwrap();
+    let result =
+        update_conflict_from_content(store, &path, &conflict, b"resolved 1\nline 2\nresolved 3\n")
+            .unwrap();
     assert_eq!(result, None);
 
     // If the conflict is partially resolved, we get a new conflict back.
     let result = update_conflict_from_content(
         store,
         &path,
-        &conflict_id,
+        &conflict,
         b"resolved 1\nline 2\n<<<<<<<\n%%%%%%%\n-line 3\n+left 3\n+++++++\nright 3\n>>>>>>>\n",
     )
     .unwrap();
-    assert_ne!(result, None);
-    assert_ne!(result, Some(conflict_id));
-    let new_conflict = store.read_conflict(&path, &result.unwrap()).unwrap();
+    let new_conflict = result.unwrap();
+    assert_ne!(new_conflict, conflict);
     // Calculate expected new FileIds
     let new_base_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nline 3\n");
     let new_left_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nleft 3\n");
@@ -702,30 +696,27 @@ fn test_update_conflict_from_content_modify_delete() {
         vec![Some(file_value(&before_file_id))],
         vec![Some(file_value(&after_file_id)), None],
     );
-    let conflict_id = store.write_conflict(&path, &conflict).unwrap();
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
     let mut materialized = vec![];
     materialize_conflict(store, &path, &conflict, &mut materialized).unwrap();
-    let result = update_conflict_from_content(store, &path, &conflict_id, &materialized).unwrap();
-    assert_eq!(result, Some(conflict_id.clone()));
+    let result = update_conflict_from_content(store, &path, &conflict, &materialized).unwrap();
+    assert_eq!(result, Some(conflict.clone()));
 
     // If the conflict is resolved, we get None back to indicate that.
-    let result = update_conflict_from_content(store, &path, &conflict_id, b"resolved\n").unwrap();
+    let result = update_conflict_from_content(store, &path, &conflict, b"resolved\n").unwrap();
     assert_eq!(result, None);
 
     // If the conflict is modified, we get a new conflict back.
     let result = update_conflict_from_content(
         store,
         &path,
-        &conflict_id,
+        &conflict,
         b"<<<<<<<\n%%%%%%%\n line 1\n-line 2 before\n+line 2 modified after\n line 3\n+++++++\n>>>>>>>\n",
     )
     .unwrap();
-    assert_ne!(result, None);
-    assert_ne!(result, Some(conflict_id));
-    let new_conflict = store.read_conflict(&path, &result.unwrap()).unwrap();
+    let new_conflict = result.unwrap();
     // Calculate expected new FileIds
     let new_base_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
     let new_left_file_id =

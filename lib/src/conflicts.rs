@@ -17,7 +17,7 @@ use std::io::Write;
 
 use itertools::Itertools;
 
-use crate::backend::{BackendResult, ConflictId, FileId, ObjectId, TreeValue};
+use crate::backend::{BackendResult, FileId, ObjectId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files::{ConflictHunk, MergeHunk, MergeResult};
 use crate::repo_path::RepoPath;
@@ -451,10 +451,9 @@ fn parse_conflict_hunk(input: &[u8]) -> MergeHunk {
 pub fn update_conflict_from_content(
     store: &Store,
     path: &RepoPath,
-    conflict_id: &ConflictId,
+    conflict: &Conflict<Option<TreeValue>>,
     content: &[u8],
-) -> BackendResult<Option<ConflictId>> {
-    let mut conflict = store.read_conflict(path, conflict_id)?;
+) -> BackendResult<Option<Conflict<Option<TreeValue>>>> {
     // TODO: Check that the conflict only involves files and convert it to a
     // `Conflict<Option<FileId>>` so we can remove the wildcard pattern in the loops
     // further down.
@@ -465,9 +464,9 @@ pub fn update_conflict_from_content(
     // conflicts (for example) are not converted to regular files in the working
     // copy.
     let mut old_content = Vec::with_capacity(content.len());
-    materialize_conflict(store, path, &conflict, &mut old_content).unwrap();
+    materialize_conflict(store, path, conflict, &mut old_content).unwrap();
     if content == old_content {
-        return Ok(Some(conflict_id.clone()));
+        return Ok(Some(conflict.clone()));
     }
 
     let mut removed_content = vec![vec![]; conflict.removes().len()];
@@ -504,6 +503,7 @@ pub fn update_conflict_from_content(
     // Now write the new files contents we found by parsing the file
     // with conflict markers. Update the Conflict object with the new
     // FileIds.
+    let mut new_removes = vec![];
     for (i, buf) in removed_content.iter().enumerate() {
         match &conflict.removes()[i] {
             Some(TreeValue::File { id: _, executable }) => {
@@ -512,11 +512,12 @@ pub fn update_conflict_from_content(
                     id: file_id,
                     executable: *executable,
                 };
-                conflict.set_remove(i, Some(new_value));
+                new_removes.push(Some(new_value));
             }
             None if buf.is_empty() => {
                 // The missing side of a conflict is still represented by
-                // the empty string we materialized it as => nothing to do
+                // the empty string we materialized it as
+                new_removes.push(None);
             }
             _ => {
                 // The user edited a non-file side. This should never happen. We consider the
@@ -525,6 +526,7 @@ pub fn update_conflict_from_content(
             }
         }
     }
+    let mut new_adds = vec![];
     for (i, buf) in added_content.iter().enumerate() {
         match &conflict.adds()[i] {
             Some(TreeValue::File { id: _, executable }) => {
@@ -533,11 +535,12 @@ pub fn update_conflict_from_content(
                     id: file_id,
                     executable: *executable,
                 };
-                conflict.set_add(i, Some(new_value));
+                new_adds.push(Some(new_value));
             }
             None if buf.is_empty() => {
                 // The missing side of a conflict is still represented by
                 // the empty string we materialized it as => nothing to do
+                new_adds.push(None);
             }
             _ => {
                 // The user edited a non-file side. This should never happen. We consider the
@@ -546,8 +549,7 @@ pub fn update_conflict_from_content(
             }
         }
     }
-    let new_conflict_id = store.write_conflict(path, &conflict)?;
-    Ok(Some(new_conflict_id))
+    Ok(Some(Conflict::new(new_removes, new_adds)))
 }
 
 #[cfg(test)]
