@@ -176,6 +176,9 @@ impl From<WorkspaceInitError> for CommandError {
             WorkspaceInitError::Path(err) => {
                 CommandError::InternalError(format!("Failed to access the repository: {err}"))
             }
+            WorkspaceInitError::Backend(err) => {
+                user_error(format!("Failed to access the repository: {err}"))
+            }
         }
     }
 }
