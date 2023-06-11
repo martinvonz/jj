@@ -272,6 +272,7 @@ fn test_git_fetch_conflicting_branches_colocated() {
     rem1 (conflicted):
       + f652c32197cf (no description set)
       + 6a21102783e8 message
+      @git (behind by 1 commits): f652c32197cf (no description set)
       @rem1 (behind by 1 commits): 6a21102783e8 message
     "###);
 }

@@ -197,6 +197,7 @@ fn test_git_import_move_export_undo() {
     test_env.jj_cmd_success(&repo_path, &["branch", "set", "a"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: 096dc80da670 (no description set)
+      @git (behind by 1 commits): 230dd059e1b0 (no description set)
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
 
