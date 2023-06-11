@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// TODO: Remove after https://github.com/frondeus/test-case/issues/122 is resolved
+#![allow(unknown_lints)] // Needed for clippy <1.70
+#![allow(clippy::items_after_test_module)]
+#![deny(unknown_lints)]
+
 use std::path::Path;
 
 use assert_matches::assert_matches;
