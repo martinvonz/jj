@@ -27,7 +27,7 @@ use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
 use crate::revset;
 use crate::settings::GitSettings;
-use crate::view::RefName;
+use crate::view::{RefName, View};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitImportError {
@@ -58,6 +58,16 @@ fn ref_name_to_local_branch_name(ref_name: &str) -> Option<&str> {
 
 fn local_branch_name_to_ref_name(branch: &str) -> String {
     format!("refs/heads/{branch}")
+}
+
+// TODO: Eventually, git-tracking branches should no longer be stored in
+// git_refs but with the other remote-tracking branches in BranchTarget. Note
+// that there are important but subtle differences in behavior for, e.g. `jj
+// branch forget`.
+pub fn git_tracking_branches(view: &View) -> impl Iterator<Item = (&str, &RefTarget)> {
+    view.git_refs().iter().filter_map(|(ref_name, target)| {
+        ref_name_to_local_branch_name(ref_name).map(|branch_name| (branch_name, target))
+    })
 }
 
 fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) -> Result<(), git2::Error> {

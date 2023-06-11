@@ -113,6 +113,8 @@ fn test_branch_forget_glob() {
     "###);
 }
 
+// TODO: Test `jj branch list` with a remote named `git`
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"branches ++ " " ++ commit_id.short()"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
