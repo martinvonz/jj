@@ -70,6 +70,10 @@ pub fn git_tracking_branches(view: &View) -> impl Iterator<Item = (&str, &RefTar
     })
 }
 
+pub fn get_git_tracking_branch<'a>(view: &'a View, branch: &str) -> Option<&'a RefTarget> {
+    view.git_refs().get(&local_branch_name_to_ref_name(branch))
+}
+
 fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) -> Result<(), git2::Error> {
     // If multiple processes do git::import_refs() in parallel, this can fail to
     // acquire a lock file even with force=true.

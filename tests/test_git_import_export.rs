@@ -21,6 +21,53 @@ use crate::common::{get_stderr_string, TestEnvironment};
 pub mod common;
 
 #[test]
+fn test_resolution_of_git_tracking_branches() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-r", "main", "-m", "old_message"]);
+
+    // Create local-git tracking branch
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+    insta::assert_snapshot!(stdout, @"");
+    // Move the local branch somewhere else
+    test_env.jj_cmd_success(&repo_path, &["describe", "-r", "main", "-m", "new_message"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 3af370264cdc new_message
+      @git (ahead by 1 commits, behind by 1 commits): 16d541ca40f4 old_message
+    "###);
+
+    // Test that we can address both revisions
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-r=main",
+            "-T",
+            r#"commit_id ++ " " ++ description"#,
+            "--no-graph",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    3af370264cdcbba791762f8ef6bc79b456dcbf3b new_message
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-r=main@git",
+            "-T",
+            r#"commit_id ++ " " ++ description"#,
+            "--no-graph",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    16d541ca40f42baf2dea41aa61a0b5f1cbf1f91b old_message
+    "###);
+}
+
+#[test]
 fn test_git_export_conflicting_git_refs() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

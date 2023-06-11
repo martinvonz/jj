@@ -31,6 +31,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
+use crate::git::get_git_tracking_branch;
 use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
@@ -1637,6 +1638,12 @@ fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     if let Some((name, remote_name)) = symbol.split_once('@') {
         if let Some(branch_target) = repo.view().branches().get(name) {
             if let Some(target) = branch_target.remote_targets.get(remote_name) {
+                return Some(target.adds());
+            }
+        }
+        // A remote with name "git" will shadow local-git tracking branches
+        if remote_name == "git" {
+            if let Some(target) = get_git_tracking_branch(repo.view(), name) {
                 return Some(target.adds());
             }
         }
