@@ -8,7 +8,7 @@ use jujutsu_lib::git;
 use jujutsu_lib::repo_path::RepoPath;
 
 use crate::cleanup_guard::CleanupGuard;
-use crate::ui::{OutputGuard, Ui};
+use crate::ui::{OutputGuard, ProgressOutput, Ui};
 
 pub struct Progress {
     next_print: Instant,
@@ -31,13 +31,13 @@ impl Progress {
         &mut self,
         now: Instant,
         progress: &git::Progress,
-        ui: &mut Ui,
+        output: &mut ProgressOutput,
     ) -> io::Result<()> {
         use std::fmt::Write as _;
 
         if progress.overall == 1.0 {
-            write!(ui, "\r{}", Clear(ClearType::CurrentLine))?;
-            ui.flush()?;
+            write!(output, "\r{}", Clear(ClearType::CurrentLine))?;
+            output.flush()?;
             return Ok(());
         }
 
@@ -48,11 +48,11 @@ impl Progress {
             return Ok(());
         }
         if self.guard.is_none() {
-            let guard = ui.output_guard(crossterm::cursor::Show.to_string());
+            let guard = output.output_guard(crossterm::cursor::Show.to_string());
             let guard = CleanupGuard::new(move || {
                 drop(guard);
             });
-            _ = write!(ui, "{}", crossterm::cursor::Hide);
+            _ = write!(output, "{}", crossterm::cursor::Hide);
             self.guard = Some(guard);
         }
         self.next_print = now.min(self.next_print + Duration::from_secs(1) / UPDATE_HZ);
@@ -70,7 +70,7 @@ impl Progress {
             write!(self.buffer, "at {scaled: >5.1} {prefix}B/s ").unwrap();
         }
 
-        let bar_width = ui
+        let bar_width = output
             .term_width()
             .map(usize::from)
             .unwrap_or(0)
@@ -79,8 +79,8 @@ impl Progress {
         draw_progress(progress.overall, &mut self.buffer, bar_width);
         self.buffer.push(']');
 
-        write!(ui, "{}", self.buffer)?;
-        ui.flush()?;
+        write!(output, "{}", self.buffer)?;
+        output.flush()?;
         Ok(())
     }
 }
@@ -170,22 +170,20 @@ impl RateEstimateState {
     }
 }
 
-pub fn snapshot_progress(ui: &mut Ui) -> Option<impl Fn(&RepoPath) + '_> {
-    struct State<'a> {
+pub fn snapshot_progress(ui: &Ui) -> Option<impl Fn(&RepoPath) + '_> {
+    struct State {
         guard: Option<OutputGuard>,
-        ui: &'a mut Ui,
+        output: ProgressOutput,
         next_display_time: Instant,
     }
 
-    if !ui.use_progress_indicator() {
-        return None;
-    }
+    let output = ui.progress_output()?;
 
     // Don't clutter the output during fast operations.
     let next_display_time = Instant::now() + INITIAL_DELAY;
     let state = Mutex::new(State {
         guard: None,
-        ui,
+        output,
         next_display_time,
     });
 
@@ -202,22 +200,22 @@ pub fn snapshot_progress(ui: &mut Ui) -> Option<impl Fn(&RepoPath) + '_> {
         if state.guard.is_none() {
             state.guard = Some(
                 state
-                    .ui
+                    .output
                     .output_guard(format!("\r{}", Clear(ClearType::CurrentLine))),
             );
         }
 
-        let line_width = state.ui.term_width().map(usize::from).unwrap_or(80);
+        let line_width = state.output.term_width().map(usize::from).unwrap_or(80);
         let path_width = line_width.saturating_sub(13); // Account for "Snapshotting "
 
         _ = write!(
-            state.ui,
+            state.output,
             "\r{}Snapshotting {:.*}",
             Clear(ClearType::CurrentLine),
             path_width,
             path.to_fs_path(Path::new("")).display()
         );
-        _ = state.ui.flush();
+        _ = state.output.flush();
     })
 }
 

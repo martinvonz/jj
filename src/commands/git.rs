@@ -510,11 +510,10 @@ fn do_git_clone(
 fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>) -> T) -> T {
     let mut ui = Mutex::new(ui);
     let mut callback = None;
-    if ui.get_mut().unwrap().use_progress_indicator() {
+    if let Some(mut output) = ui.get_mut().unwrap().progress_output() {
         let mut progress = Progress::new(Instant::now());
-        let ui = &ui;
         callback = Some(move |x: &git::Progress| {
-            _ = progress.update(Instant::now(), x, *ui.lock().unwrap());
+            _ = progress.update(Instant::now(), x, &mut output);
         });
     }
     let mut callbacks = git::RemoteCallbacks::default();
