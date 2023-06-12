@@ -49,7 +49,7 @@ whoami = "1.4.0"
 zstd = "0.12.3"
 
 [target.'cfg(unix)'.dependencies]
-rustix = { version = "0.37.19", features = ["fs"] }
+rustix = { version = "0.37.20", features = ["fs"] }
 
 [dev-dependencies]
 assert_matches = "1.5.0"
