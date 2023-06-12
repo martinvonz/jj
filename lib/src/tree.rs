@@ -680,11 +680,19 @@ fn try_resolve_file_conflict(
     }
     let executable = if let Some(executable) = trivial_merge(&executable_removes, &executable_adds)
     {
-        executable
+        *executable
     } else {
         // We're unable to determine whether the result should be executable
         return Ok(None);
     };
+    if let Some(resolved_file_id) = trivial_merge(&removed_file_ids, &added_file_ids) {
+        // Don't bother reading the file contents if the conflict can be trivially
+        // resolved.
+        return Ok(Some(TreeValue::File {
+            id: resolved_file_id.clone(),
+            executable,
+        }));
+    }
     let mut removed_contents = vec![];
     let mut added_contents = vec![];
     for file_id in removed_file_ids {
@@ -716,10 +724,7 @@ fn try_resolve_file_conflict(
     match merge_result {
         MergeResult::Resolved(merged_content) => {
             let id = store.write_file(filename, &mut merged_content.as_slice())?;
-            Ok(Some(TreeValue::File {
-                id,
-                executable: *executable,
-            }))
+            Ok(Some(TreeValue::File { id, executable }))
         }
         MergeResult::Conflict(_) => Ok(None),
     }
