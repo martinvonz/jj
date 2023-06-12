@@ -70,6 +70,7 @@ fn test_branch_empty_name() {
     For more information, try '--help'.
     "###);
 }
+
 #[test]
 fn test_branch_forget_glob() {
     let test_env = TestEnvironment::default();
@@ -111,6 +112,63 @@ fn test_branch_forget_glob() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to compile glob: Pattern syntax error near position 4: invalid range pattern
     "###);
+}
+
+#[test]
+fn test_branch_forget_export() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    foo: 65b6b74e0897 (no description set)
+    "###);
+
+    // Exporting the branch to git creates a local-git tracking branch
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "foo"]);
+    insta::assert_snapshot!(stdout, @"");
+    // Forgetting a branch does not delete its local-git tracking branch. This is
+    // the opposite of what happens to remote-tracking branches.
+    // TODO: Consider allowing forgetting local-git tracking branches as an option
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    foo (deleted)
+      @git: 65b6b74e0897 (no description set)
+    "###);
+
+    // Aside: the way we currently resolve git refs means that `foo`
+    // resolves to `foo@git` when actual `foo` doesn't exist.
+    // Short-term TODO: This behavior will be changed in a subsequent commit.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r=foo", "--no-graph"]);
+    insta::assert_snapshot!(stdout, @r###"
+    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 65b6b74e0897
+    (empty) (no description set)
+    "###);
+
+    // The presence of the @git branch means that a `jj git import` is a no-op...
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "import"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+    // ... and a `jj git export` will delete the branch from git and will delete the
+    // git-tracking branch. In a colocated repo, this will happen automatically
+    // immediately after a `jj branch forget`. This is demonstrated in
+    // `test_git_colocated_branch_forget` in test_git_colocated.rs
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @"");
+
+    // Note that if `jj branch forget` *did* delete foo@git, a subsequent `jj
+    // git export` would be a no-op and a `jj git import` would resurrect
+    // the branch. In a normal repo, that might be OK. In a colocated repo,
+    // this would automatically happen before the next command, making `jj
+    // branch forget` useless.
 }
 
 // TODO: Test `jj branch list` with a remote named `git`
