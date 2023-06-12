@@ -783,6 +783,8 @@ struct RebaseArgs {
     ///
     /// `jj rebase -b=br -d=dst` is equivalent to `jj rebase '-s=roots(dst..br)'
     /// -d=dst`.
+    ///
+    /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
     #[arg(long, short)]
     branch: Vec<RevisionArg>,
 
@@ -792,13 +794,18 @@ struct RebaseArgs {
     /// Each specified revision will become a direct child of the destination
     /// revision(s), even if some of the source revisions are descendants
     /// of others.
+    ///
+    /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
     #[arg(long, short)]
     source: Vec<RevisionArg>,
     /// Rebase only this revision, rebasing descendants onto this revision's
     /// parent(s)
+    ///
+    /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
     #[arg(long, short)]
     revision: Option<RevisionArg>,
-    /// The revision(s) to rebase onto (can be repeated)
+    /// The revision(s) to rebase onto (can be repeated to create a merge
+    /// commit)
     #[arg(long, short, required = true)]
     destination: Vec<RevisionArg>,
     /// Allow revsets expanding to multiple commits in a single argument (for
