@@ -194,6 +194,12 @@ impl Ui {
         }
     }
 
+    pub fn progress_output(&self) -> Option<ProgressOutput> {
+        self.use_progress_indicator().then(|| ProgressOutput {
+            output: io::stdout(),
+        })
+    }
+
     pub fn write(&mut self, text: &str) -> io::Result<()> {
         let data = text.as_bytes();
         match &mut self.output {
@@ -280,20 +286,6 @@ impl Ui {
     pub fn term_width(&self) -> Option<u16> {
         term_width()
     }
-
-    /// Construct a guard object which writes `data` when dropped. Useful for
-    /// restoring terminal state.
-    pub fn output_guard(&self, text: String) -> OutputGuard {
-        OutputGuard {
-            text,
-            output: match self.output {
-                UiOutput::Terminal { .. } => io::stdout(),
-                // TODO we don't actually need to write in this case, so it
-                // might be better to no-op
-                UiOutput::Paged { .. } => io::stdout(),
-            },
-        }
-    }
 }
 
 enum UiOutput {
@@ -319,6 +311,35 @@ impl UiOutput {
         let mut child = pager_cmd.to_command().stdin(Stdio::piped()).spawn()?;
         let child_stdin = child.stdin.take().unwrap();
         Ok(UiOutput::Paged { child, child_stdin })
+    }
+}
+
+#[derive(Debug)]
+pub struct ProgressOutput {
+    output: Stdout,
+}
+
+impl ProgressOutput {
+    pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
+        self.output.write_fmt(fmt)
+    }
+
+    pub fn flush(&mut self) -> io::Result<()> {
+        self.output.flush()
+    }
+
+    pub fn term_width(&self) -> Option<u16> {
+        // Terminal can be resized while progress is displayed, so don't cache it.
+        term_width()
+    }
+
+    /// Construct a guard object which writes `text` when dropped. Useful for
+    /// restoring terminal state.
+    pub fn output_guard(&self, text: String) -> OutputGuard {
+        OutputGuard {
+            text,
+            output: io::stdout(),
+        }
     }
 }
 
