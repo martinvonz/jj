@@ -111,6 +111,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   referenced in revsets. Such branches exist in colocated repos or if you use
   `jj git export`.
 
+* The new `jj chmod` command allows setting or removing the executable bit on
+  paths. Unlike the POSIX `chmod`, it works on Windows, on conflicted files, and
+  on arbitrary revisions. Bits other than the executable bit are not planned to
+  be supported.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines
