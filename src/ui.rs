@@ -331,5 +331,6 @@ pub struct OutputGuard {
 impl Drop for OutputGuard {
     fn drop(&mut self) {
         _ = self.output.write_all(self.text.as_bytes());
+        _ = self.output.flush();
     }
 }

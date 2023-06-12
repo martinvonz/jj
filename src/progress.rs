@@ -37,6 +37,7 @@ impl Progress {
 
         if progress.overall == 1.0 {
             write!(ui, "\r{}", Clear(ClearType::CurrentLine))?;
+            ui.flush()?;
             return Ok(());
         }
 
