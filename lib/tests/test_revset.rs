@@ -452,7 +452,8 @@ fn test_resolve_symbol_git_refs() {
     // Nonexistent ref
     assert_matches!(
         resolve_symbol(mut_repo, "nonexistent", None),
-        Err(RevsetResolutionError::NoSuchRevision{name, candidates}) if name == "nonexistent" && candidates.is_empty()
+        Err(RevsetResolutionError::NoSuchRevision{name, candidates})
+            if name == "nonexistent" && candidates.is_empty()
     );
 
     // Full ref
@@ -470,27 +471,25 @@ fn test_resolve_symbol_git_refs() {
         "refs/heads/branch".to_string(),
         RefTarget::Normal(commit5.id().clone()),
     );
+    // branch alone is not recognized
+    assert_matches!(
+        resolve_symbol(mut_repo, "branch", None),
+        Err(RevsetResolutionError::NoSuchRevision{name, candidates})
+            if name == "branch" && candidates.is_empty()
+    );
     mut_repo.set_git_ref(
         "refs/tags/branch".to_string(),
         RefTarget::Normal(commit4.id().clone()),
     );
+    // The *tag* branch is recognized
+    assert_eq!(
+        resolve_symbol(mut_repo, "branch", None).unwrap(),
+        vec![commit4.id().clone()]
+    );
+    // heads/branch does get resolved to the git ref refs/heads/branch
     assert_eq!(
         resolve_symbol(mut_repo, "heads/branch", None).unwrap(),
         vec![commit5.id().clone()]
-    );
-
-    // Unqualified branch name
-    mut_repo.set_git_ref(
-        "refs/heads/branch".to_string(),
-        RefTarget::Normal(commit3.id().clone()),
-    );
-    mut_repo.set_git_ref(
-        "refs/tags/branch".to_string(),
-        RefTarget::Normal(commit4.id().clone()),
-    );
-    assert_eq!(
-        resolve_symbol(mut_repo, "branch", None).unwrap(),
-        vec![commit3.id().clone()]
     );
 
     // Unqualified tag name
