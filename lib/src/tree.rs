@@ -629,10 +629,6 @@ fn merge_tree_value(
             );
             let filename = dir.join(basename);
             let conflict = simplify_conflict(store, &filename, conflict)?;
-            if conflict.adds().is_empty() {
-                // If there are no values to add, then the path doesn't exist
-                return Ok(None);
-            }
             if conflict.removes().is_empty() && conflict.adds().len() == 1 {
                 // A single add means that the current state is that state.
                 return Ok(conflict.adds()[0].clone());
