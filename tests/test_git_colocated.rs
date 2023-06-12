@@ -217,6 +217,35 @@ fn test_git_colocated_branches() {
 }
 
 #[test]
+fn test_git_colocated_branch_forget() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    let _git_repo = git2::Repository::init(&workspace_root).unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "foo"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  65b6b74e08973b88d38404430f119c8c79465250 foo
+    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 master HEAD@git
+    ◉  0000000000000000000000000000000000000000
+    "###);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    foo: 65b6b74e0897 (no description set)
+    master: 230dd059e1b0 (no description set)
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "forget", "foo"]);
+    insta::assert_snapshot!(stdout, @"");
+    // A forgotten branch is deleted in the git repo. For a detailed demo explaining
+    // this, see `test_branch_forget_export` in `test_branch_command.rs`.
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    master: 230dd059e1b0 (no description set)
+    "###);
+}
+
+#[test]
 fn test_git_colocated_conflicting_git_refs() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
