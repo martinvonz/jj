@@ -33,6 +33,7 @@ use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
+use jujutsu_lib::conflicts::Conflict;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::matchers::EverythingMatcher;
@@ -76,6 +77,7 @@ enum Commands {
     #[command(alias = "print")]
     Cat(CatArgs),
     Checkout(CheckoutArgs),
+    Chmod(ChmodArgs),
     Commit(CommitArgs),
     #[command(subcommand)]
     Config(ConfigSubcommand),
@@ -608,6 +610,32 @@ struct UnsquashArgs {
     // the default.
     #[arg(long, short)]
     interactive: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
+enum ChmodMode {
+    /// Make a path non-executable (alias: normal)
+    // We use short names for enum values so that errors say that the possible values are `n, x`.
+    #[value(name = "n", alias("normal"))]
+    Normal,
+    /// Make a path executable (alias: executable)
+    #[value(name = "x", alias("executable"))]
+    Executable,
+}
+
+/// Sets or removes the executable bit for paths in the repo
+///
+/// Unlike the POSIX `chmod`, `jj chmod` also works on Windows, on conflicted
+/// files, and on arbitrary revisions.
+#[derive(clap::Args, Clone, Debug)]
+struct ChmodArgs {
+    mode: ChmodMode,
+    /// The revision to update
+    #[arg(long, short, default_value = "@")]
+    revision: RevisionArg,
+    /// Paths to change the executable bit for
+    #[arg(required = true, value_hint = clap::ValueHint::AnyPath)]
+    paths: Vec<String>,
 }
 
 /// Resolve a conflicted file with an external merge tool
@@ -2469,6 +2497,95 @@ aborted.
     Ok(())
 }
 
+fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(), CommandError> {
+    let executable_bit = match args.mode {
+        ChmodMode::Executable => true,
+        ChmodMode::Normal => false,
+    };
+
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo_paths: Vec<_> = args
+        .paths
+        .iter()
+        .map(|path| workspace_command.parse_file_path(path))
+        .try_collect()?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    workspace_command.check_rewritable(&commit)?;
+
+    let mut tx = workspace_command.start_transaction(&format!(
+        "make paths {} in commit {}",
+        if executable_bit {
+            "executable"
+        } else {
+            "non-executable"
+        },
+        commit.id().hex(),
+    ));
+    let tree = commit.tree();
+    let store = tree.store();
+    let mut tree_builder = store.tree_builder(tree.id().clone());
+    for repo_path in repo_paths {
+        let user_error_with_path = |msg: &str| {
+            user_error(format!(
+                "{msg} at '{}'.",
+                tx.base_workspace_helper().format_file_path(&repo_path)
+            ))
+        };
+        let new_tree_value = match tree.path_value(&repo_path) {
+            None => return Err(user_error_with_path("No such path")),
+            Some(TreeValue::File { id, executable: _ }) => TreeValue::File {
+                id,
+                executable: executable_bit,
+            },
+            Some(TreeValue::Conflict(id)) => {
+                let conflict = tree.store().read_conflict(&repo_path, &id)?;
+                let (new_removes, _) = chmod_conflict_sides(conflict.removes(), executable_bit);
+                let (new_adds, all_files) = chmod_conflict_sides(conflict.adds(), executable_bit);
+                if !all_files {
+                    return Err(user_error_with_path(
+                        "None of the sides of the conflict are files",
+                    ));
+                }
+                let new_conflict_id =
+                    store.write_conflict(&repo_path, &Conflict::new(new_removes, new_adds))?;
+                TreeValue::Conflict(new_conflict_id)
+            }
+            Some(_) => return Err(user_error_with_path("Found neither a file nor a conflict")),
+        };
+        tree_builder.set(repo_path, new_tree_value);
+    }
+
+    tx.mut_repo()
+        .rewrite_commit(command.settings(), &commit)
+        .set_tree(tree_builder.write_tree())
+        .write()?;
+    tx.finish(ui)
+}
+
+fn chmod_conflict_sides(
+    sides: &[Option<TreeValue>],
+    executable_bit: bool,
+) -> (Vec<Option<TreeValue>>, bool) {
+    let mut all_files = true;
+    let result = sides
+        .iter()
+        .map(|side| {
+            side.as_ref().map(|value| match value {
+                TreeValue::File { id, executable: _ } => TreeValue::File {
+                    id: id.clone(),
+                    executable: executable_bit,
+                },
+                TreeValue::Conflict(_) => panic!("Conflict sides must not themselves be conflicts"),
+                value => {
+                    all_files = false;
+                    value.clone()
+                }
+            })
+        })
+        .collect();
+    (result, all_files)
+}
+
 fn cmd_resolve(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3458,6 +3575,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Operation(sub_args) => operation::cmd_operation(ui, command_helper, sub_args),
         Commands::Workspace(sub_args) => cmd_workspace(ui, command_helper, sub_args),
         Commands::Sparse(sub_args) => cmd_sparse(ui, command_helper, sub_args),
+        Commands::Chmod(sub_args) => cmd_chmod(ui, command_helper, sub_args),
         Commands::Git(sub_args) => git::cmd_git(ui, command_helper, sub_args),
         Commands::Util(sub_args) => cmd_util(ui, command_helper, sub_args),
         #[cfg(feature = "bench")]
