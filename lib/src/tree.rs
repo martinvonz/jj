@@ -722,17 +722,6 @@ fn try_resolve_file_conflict(
     }
 }
 
-fn tree_value_to_conflict(
-    store: &Store,
-    path: &RepoPath,
-    value: &TreeValue,
-) -> Result<Conflict<Option<TreeValue>>, BackendError> {
-    match value {
-        TreeValue::Conflict(id) => store.read_conflict(path, id),
-        value => Ok(Conflict::new(vec![], vec![Some(value.clone())])),
-    }
-}
-
 fn simplify_conflict(
     store: &Store,
     path: &RepoPath,
@@ -774,8 +763,8 @@ fn simplify_conflict(
     let mut new_adds = vec![];
     for term in conflict.adds() {
         match term {
-            Some(value @ TreeValue::Conflict(_)) => {
-                let conflict = tree_value_to_conflict(store, path, value)?;
+            Some(TreeValue::Conflict(id)) => {
+                let conflict = store.read_conflict(path, id)?;
                 new_removes.extend_from_slice(conflict.removes());
                 new_adds.extend_from_slice(conflict.adds());
             }
@@ -786,8 +775,8 @@ fn simplify_conflict(
     }
     for term in conflict.removes() {
         match term {
-            Some(value @ TreeValue::Conflict(_)) => {
-                let conflict = tree_value_to_conflict(store, path, value)?;
+            Some(TreeValue::Conflict(id)) => {
+                let conflict = store.read_conflict(path, id)?;
                 new_removes.extend_from_slice(conflict.adds());
                 new_adds.extend_from_slice(conflict.removes());
             }
