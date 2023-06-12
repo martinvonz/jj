@@ -140,11 +140,11 @@ fn test_branch_forget_export() {
     foo (deleted)
       @git: 65b6b74e0897 (no description set)
     "###);
-
-    // Aside: the way we currently resolve git refs means that `foo`
-    // resolves to `foo@git` when actual `foo` doesn't exist.
-    // Short-term TODO: This behavior will be changed in a subsequent commit.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r=foo", "--no-graph"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r=foo", "--no-graph"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revision "foo" doesn't exist
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r=foo@git", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
     rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 65b6b74e0897
     (empty) (no description set)

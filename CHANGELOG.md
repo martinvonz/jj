@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj debug completion`, `jj debug mangen` and `jj debug config-schema` have
   been moved from `jj debug` to `jj util`.
 
+* `jj` will no longer parse `br` as a git_ref `refs/heads/br` when a branch `br`
+  does not exist but the git_ref does (this is rare). Use `br@git` instead.
+
 ### New features
 
 * `jj git push --deleted` will remove all locally deleted branches from the remote.
