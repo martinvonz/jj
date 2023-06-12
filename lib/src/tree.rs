@@ -581,7 +581,7 @@ fn merge_tree_value(
     })
 }
 
-fn try_resolve_file_conflict(
+pub fn try_resolve_file_conflict(
     store: &Store,
     filename: &RepoPath,
     conflict: &Conflict<Option<TreeValue>>,
