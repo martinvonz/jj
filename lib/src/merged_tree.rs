@@ -15,14 +15,16 @@
 //! A lazily merged view of a set of trees.
 
 use std::cmp::max;
+use std::sync::Arc;
 
 use itertools::Itertools;
 
+use crate::backend;
 use crate::backend::TreeValue;
 use crate::conflicts::Conflict;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::store::Store;
-use crate::tree::Tree;
+use crate::tree::{try_resolve_file_conflict, Tree, TreeMergeError};
 use crate::tree_builder::TreeBuilder;
 
 /// Presents a view of a merged set of trees.
@@ -152,6 +154,106 @@ impl MergedTree {
 
                 MergedTreeValue::Conflict(value.map(|x| x.cloned()))
             }
+        }
+    }
+
+    /// Tries to resolve any conflicts, resolving any conflicts that can be
+    /// automatically resolved and leaving the rest unresolved. The returned
+    /// conflict will either be resolved or have the same number of sides as
+    /// the input.
+    pub fn resolve(&self) -> Result<Conflict<Tree>, TreeMergeError> {
+        match self {
+            MergedTree::Legacy(tree) => Ok(Conflict::resolved(tree.clone())),
+            MergedTree::Merge(conflict) => merge_trees(conflict),
+        }
+    }
+}
+
+fn merge_trees(conflict: &Conflict<Tree>) -> Result<Conflict<Tree>, TreeMergeError> {
+    if let Some(tree) = conflict.resolve_trivial() {
+        return Ok(Conflict::resolved(tree.clone()));
+    }
+
+    let base_names = itertools::chain(conflict.removes(), conflict.adds())
+        .map(|tree| tree.data().names())
+        .kmerge()
+        .dedup();
+
+    let base_tree = &conflict.adds()[0];
+    let store = base_tree.store();
+    let dir = base_tree.dir();
+    // Keep resolved entries in `new_tree` and conflicted entries in `conflicts` to
+    // start with. Then we'll create the full trees later, and only if there are
+    // any conflicts.
+    let mut new_tree = backend::Tree::default();
+    let mut conflicts = vec![];
+    for basename in base_names {
+        let path_conflict = conflict.map(|tree| tree.value(basename).cloned());
+        let path_conflict = merge_tree_values(store, dir, path_conflict)?;
+        if let Some(value) = path_conflict.as_resolved() {
+            new_tree.set_or_remove(basename, value.clone());
+        } else {
+            conflicts.push((basename, path_conflict));
+        };
+    }
+    if conflicts.is_empty() {
+        let new_tree_id = store.write_tree(dir, new_tree)?;
+        Ok(Conflict::resolved(new_tree_id))
+    } else {
+        // For each side of the conflict, overwrite the entries in `new_tree` with the
+        // values from  `conflicts`. Entries that are not in `conflicts` will remain
+        // unchanged and will be reused for each side.
+        let mut tree_removes = vec![];
+        for i in 0..conflict.removes().len() {
+            for (basename, path_conflict) in &conflicts {
+                new_tree.set_or_remove(basename, path_conflict.removes()[i].clone());
+            }
+            let tree = store.write_tree(dir, new_tree.clone())?;
+            tree_removes.push(tree);
+        }
+        let mut tree_adds = vec![];
+        for i in 0..conflict.adds().len() {
+            for (basename, path_conflict) in &conflicts {
+                new_tree.set_or_remove(basename, path_conflict.adds()[i].clone());
+            }
+            let tree = store.write_tree(dir, new_tree.clone())?;
+            tree_adds.push(tree);
+        }
+
+        Ok(Conflict::new(tree_removes, tree_adds))
+    }
+}
+
+/// Tries to resolve a conflict between tree values. Returns
+/// Ok(Conflict::resolved(Some(value))) if the conflict was resolved, and
+/// Ok(Conflict::resolved(None)) if the path should be removed. Returns the
+/// conflict unmodified if it cannot be resolved automatically.
+fn merge_tree_values(
+    store: &Arc<Store>,
+    path: &RepoPath,
+    conflict: Conflict<Option<TreeValue>>,
+) -> Result<Conflict<Option<TreeValue>>, TreeMergeError> {
+    if let Some(resolved) = conflict.resolve_trivial() {
+        return Ok(Conflict::resolved(resolved.clone()));
+    }
+
+    if let Some(tree_conflict) = conflict.to_tree_conflict(store, path)? {
+        // If all sides are trees or missing, merge the trees recursively, treating
+        // missing trees as empty.
+        let merged_tree = merge_trees(&tree_conflict)?;
+        if merged_tree.as_resolved().map(|tree| tree.id()) == Some(store.empty_tree_id()) {
+            Ok(Conflict::resolved(None))
+        } else {
+            Ok(merged_tree.map(|tree| Some(TreeValue::Tree(tree.id().clone()))))
+        }
+    } else {
+        // Try to resolve file conflicts by merging the file contents. Treats missing
+        // files as empty.
+        if let Some(resolved) = try_resolve_file_conflict(store, path, &conflict)? {
+            Ok(Conflict::resolved(Some(resolved)))
+        } else {
+            // Failed to merge the files, or the paths are not files
+            Ok(conflict)
         }
     }
 }

@@ -14,17 +14,20 @@
 
 #![allow(missing_docs)]
 
+use std::borrow::Borrow;
 use std::hash::Hash;
 use std::io::Write;
+use std::sync::Arc;
 
 use itertools::Itertools;
 
-use crate::backend::{BackendResult, FileId, ObjectId, TreeValue};
+use crate::backend::{BackendError, BackendResult, FileId, ObjectId, TreeId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files::{ContentHunk, MergeResult};
 use crate::merge::trivial_merge;
 use crate::repo_path::RepoPath;
 use crate::store::Store;
+use crate::tree::Tree;
 use crate::{backend, files};
 
 const CONFLICT_START_LINE: &[u8] = b"<<<<<<<\n";
@@ -363,6 +366,44 @@ impl Conflict<Option<TreeValue>> {
 impl Conflict<Option<FileId>> {
     pub fn extract_as_single_hunk(&self, store: &Store, path: &RepoPath) -> Conflict<ContentHunk> {
         self.map(|term| get_file_contents(store, path, term))
+    }
+}
+
+impl<T> Conflict<Option<T>>
+where
+    T: Borrow<TreeValue>,
+{
+    /// If every non-`None` term of a `Conflict<Option<TreeValue>>`
+    /// is a `TreeValue::Tree`, this converts it to
+    /// a `Conflict<Tree>`, with empty trees instead of
+    /// any `None` terms. Otherwise, returns `None`.
+    pub fn to_tree_conflict(
+        &self,
+        store: &Arc<Store>,
+        dir: &RepoPath,
+    ) -> Result<Option<Conflict<Tree>>, BackendError> {
+        let tree_id_conflict = self.maybe_map(|term| match term {
+            None => Some(None),
+            Some(value) => {
+                if let TreeValue::Tree(id) = value.borrow() {
+                    Some(Some(id))
+                } else {
+                    None
+                }
+            }
+        });
+        if let Some(tree_id_conflict) = tree_id_conflict {
+            let get_tree = |id: &Option<&TreeId>| -> Result<Tree, BackendError> {
+                if let Some(id) = id {
+                    store.get_tree(dir, id)
+                } else {
+                    Ok(Tree::null(store.clone(), dir.clone()))
+                }
+            };
+            Ok(Some(tree_id_conflict.try_map(get_tree)?))
+        } else {
+            Ok(None)
+        }
     }
 }
 

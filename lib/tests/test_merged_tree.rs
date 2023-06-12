@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
 use jj_lib::backend::{FileId, TreeValue};
 use jj_lib::conflicts::Conflict;
 use jj_lib::merged_tree::{MergedTree, MergedTreeValue};
@@ -177,4 +178,118 @@ fn test_from_legacy_tree() {
         merged_tree.value(&dir1_basename),
         MergedTreeValue::Resolved(tree.value(&dir1_basename))
     );
+}
+
+#[test]
+fn test_resolve_success() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    let unchanged_path = RepoPath::from_internal_string("unchanged");
+    let trivial_file_path = RepoPath::from_internal_string("trivial-file");
+    let trivial_hunk_path = RepoPath::from_internal_string("trivial-hunk");
+    let both_added_dir_path = RepoPath::from_internal_string("added-dir");
+    let both_added_dir_file1_path = both_added_dir_path.join(&RepoPathComponent::from("file1"));
+    let both_added_dir_file2_path = both_added_dir_path.join(&RepoPathComponent::from("file2"));
+    let emptied_dir_path = RepoPath::from_internal_string("to-become-empty");
+    let emptied_dir_file1_path = emptied_dir_path.join(&RepoPathComponent::from("file1"));
+    let emptied_dir_file2_path = emptied_dir_path.join(&RepoPathComponent::from("file2"));
+    let base1 = testutils::create_tree(
+        repo,
+        &[
+            (&unchanged_path, "unchanged"),
+            (&trivial_file_path, "base1"),
+            (&trivial_hunk_path, "line1\nline2\nline3\n"),
+            (&emptied_dir_file1_path, "base1"),
+            (&emptied_dir_file2_path, "base1"),
+        ],
+    );
+    let side1 = testutils::create_tree(
+        repo,
+        &[
+            (&unchanged_path, "unchanged"),
+            (&trivial_file_path, "base1"),
+            (&trivial_hunk_path, "line1 side1\nline2\nline3\n"),
+            (&both_added_dir_file1_path, "side1"),
+            (&emptied_dir_file2_path, "base1"),
+        ],
+    );
+    let side2 = testutils::create_tree(
+        repo,
+        &[
+            (&unchanged_path, "unchanged"),
+            (&trivial_file_path, "side2"),
+            (&trivial_hunk_path, "line1\nline2\nline3 side2\n"),
+            (&both_added_dir_file2_path, "side2"),
+            (&emptied_dir_file1_path, "base1"),
+        ],
+    );
+    let expected = testutils::create_tree(
+        repo,
+        &[
+            (&unchanged_path, "unchanged"),
+            (&trivial_file_path, "side2"),
+            (&trivial_hunk_path, "line1 side1\nline2\nline3 side2\n"),
+            (&both_added_dir_file1_path, "side1"),
+            (&both_added_dir_file2_path, "side2"),
+        ],
+    );
+
+    let tree = MergedTree::new(Conflict::new(vec![base1], vec![side1, side2]));
+    let resolved = tree.resolve().unwrap();
+    let resolved_tree = resolved.as_resolved().unwrap().clone();
+    assert_eq!(
+        resolved_tree,
+        expected,
+        "actual entries: {:#?}, expected entries {:#?}",
+        resolved_tree.entries().collect_vec(),
+        expected.entries().collect_vec()
+    );
+}
+
+#[test]
+fn test_resolve_root_becomes_empty() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+    let store = repo.store();
+
+    let path1 = RepoPath::from_internal_string("dir1/file");
+    let path2 = RepoPath::from_internal_string("dir2/file");
+    let base1 = testutils::create_tree(repo, &[(&path1, "base1"), (&path2, "base1")]);
+    let side1 = testutils::create_tree(repo, &[(&path2, "base1")]);
+    let side2 = testutils::create_tree(repo, &[(&path1, "base1")]);
+
+    let tree = MergedTree::new(Conflict::new(vec![base1], vec![side1, side2]));
+    let resolved = tree.resolve().unwrap();
+    assert_eq!(resolved.as_resolved().unwrap().id(), store.empty_tree_id());
+}
+
+#[test]
+fn test_resolve_with_conflict() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    // The trivial conflict should be resolved but the non-trivial should not (and
+    // cannot)
+    let trivial_path = RepoPath::from_internal_string("dir1/trivial");
+    let conflict_path = RepoPath::from_internal_string("dir2/file_conflict");
+    let base1 =
+        testutils::create_tree(repo, &[(&trivial_path, "base1"), (&conflict_path, "base1")]);
+    let side1 =
+        testutils::create_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side1")]);
+    let side2 =
+        testutils::create_tree(repo, &[(&trivial_path, "base1"), (&conflict_path, "side2")]);
+    let expected_base1 =
+        testutils::create_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "base1")]);
+    let expected_side1 =
+        testutils::create_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side1")]);
+    let expected_side2 =
+        testutils::create_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side2")]);
+
+    let tree = MergedTree::new(Conflict::new(vec![base1], vec![side1, side2]));
+    let resolved_tree = tree.resolve().unwrap();
+    assert_eq!(
+        resolved_tree,
+        Conflict::new(vec![expected_base1], vec![expected_side1, expected_side2])
+    )
 }
