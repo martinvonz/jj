@@ -786,24 +786,9 @@ fn simplify_conflict(
         }
     }
 
-    // Remove pairs of entries that match in the removes and adds.
-    let mut add_index = 0;
-    while add_index < new_adds.len() {
-        let add = &new_adds[add_index];
-        add_index += 1;
-        for (remove_index, remove) in new_removes.iter().enumerate() {
-            if remove == add {
-                new_removes.remove(remove_index);
-                add_index -= 1;
-                new_adds.remove(add_index);
-                break;
-            }
-        }
-    }
-
     // TODO: We should probably remove duplicate entries here too. So if we have
     // {+A+A}, that would become just {+A}. Similarly {+B-A+B} would be just
     // {+B-A}.
 
-    Ok(Conflict::new(new_removes, new_adds))
+    Ok(Conflict::new(new_removes, new_adds).simplify())
 }
