@@ -633,11 +633,8 @@ fn merge_tree_value(
                 // A single add means that the current state is that state.
                 return Ok(conflict.adds()[0].clone());
             }
-            if let Some((merged_content, executable)) =
-                try_resolve_file_conflict(store, &filename, &conflict)?
-            {
-                let id = store.write_file(&filename, &mut merged_content.as_slice())?;
-                Some(TreeValue::File { id, executable })
+            if let Some(tree_value) = try_resolve_file_conflict(store, &filename, &conflict)? {
+                Some(tree_value)
             } else {
                 let conflict_id = store.write_conflict(&filename, &conflict)?;
                 Some(TreeValue::Conflict(conflict_id))
@@ -650,7 +647,7 @@ fn try_resolve_file_conflict(
     store: &Store,
     filename: &RepoPath,
     conflict: &Conflict<Option<TreeValue>>,
-) -> Result<Option<(Vec<u8>, bool)>, TreeMergeError> {
+) -> Result<Option<TreeValue>, TreeMergeError> {
     // If there are any non-file or any missing parts in the conflict, we can't
     // merge it. We check early so we don't waste time reading file contents if
     // we can't merge them anyway. At the same time we determine whether the
@@ -717,7 +714,13 @@ fn try_resolve_file_conflict(
         &added_contents.iter().map(Vec::as_slice).collect_vec(),
     );
     match merge_result {
-        MergeResult::Resolved(merged_content) => Ok(Some((merged_content, *executable))),
+        MergeResult::Resolved(merged_content) => {
+            let id = store.write_file(filename, &mut merged_content.as_slice())?;
+            Ok(Some(TreeValue::File {
+                id,
+                executable: *executable,
+            }))
+        }
         MergeResult::Conflict(_) => Ok(None),
     }
 }
