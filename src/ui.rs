@@ -188,7 +188,10 @@ impl Ui {
     /// Whether continuous feedback should be displayed for long-running
     /// operations
     pub fn use_progress_indicator(&self) -> bool {
-        self.progress_indicator && io::stdout().is_tty()
+        match &self.output {
+            UiOutput::Terminal { stdout, .. } => self.progress_indicator && stdout.is_tty(),
+            UiOutput::Paged { .. } => false,
+        }
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
