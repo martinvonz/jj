@@ -189,14 +189,14 @@ impl Ui {
     /// operations
     pub fn use_progress_indicator(&self) -> bool {
         match &self.output {
-            UiOutput::Terminal { stdout, .. } => self.progress_indicator && stdout.is_tty(),
+            UiOutput::Terminal { stderr, .. } => self.progress_indicator && stderr.is_tty(),
             UiOutput::Paged { .. } => false,
         }
     }
 
     pub fn progress_output(&self) -> Option<ProgressOutput> {
         self.use_progress_indicator().then(|| ProgressOutput {
-            output: io::stdout(),
+            output: io::stderr(),
         })
     }
 
@@ -316,7 +316,7 @@ impl UiOutput {
 
 #[derive(Debug)]
 pub struct ProgressOutput {
-    output: Stdout,
+    output: Stderr,
 }
 
 impl ProgressOutput {
@@ -338,14 +338,14 @@ impl ProgressOutput {
     pub fn output_guard(&self, text: String) -> OutputGuard {
         OutputGuard {
             text,
-            output: io::stdout(),
+            output: io::stderr(),
         }
     }
 }
 
 pub struct OutputGuard {
     text: String,
-    output: Stdout,
+    output: Stderr,
 }
 
 impl Drop for OutputGuard {
