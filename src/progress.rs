@@ -182,7 +182,7 @@ pub fn snapshot_progress(ui: &mut Ui) -> Option<impl Fn(&RepoPath) + '_> {
     }
 
     // Don't clutter the output during fast operations.
-    let next_display_time = Instant::now() + Duration::from_millis(250);
+    let next_display_time = Instant::now() + INITIAL_DELAY;
     let state = Mutex::new(State {
         guard: None,
         ui,
@@ -197,7 +197,7 @@ pub fn snapshot_progress(ui: &mut Ui) -> Option<impl Fn(&RepoPath) + '_> {
             // better handle large single files
             return;
         }
-        state.next_display_time = now + Duration::from_millis(10);
+        state.next_display_time = now + Duration::from_secs(1) / UPDATE_HZ;
 
         if state.guard.is_none() {
             state.guard = Some(
