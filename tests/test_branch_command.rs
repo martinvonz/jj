@@ -171,9 +171,109 @@ fn test_branch_forget_export() {
     // branch forget` useless.
 }
 
+#[test]
+fn test_branch_forget_fetched_branch() {
+    // Much of this test is borrowed from `test_git_fetch_remote_only_branch` in
+    // test_git_fetch.rs
+
+    // Set up a git repo with a branch and a jj repo that has it as a remote.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo_path = test_env.env_root().join("git-repo");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    let signature =
+        git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
+    let mut tree_builder = git_repo.treebuilder(None).unwrap();
+    let file_oid = git_repo.blob(b"content").unwrap();
+    tree_builder
+        .insert("file", file_oid, git2::FileMode::Blob.into())
+        .unwrap();
+    let tree_oid = tree_builder.write().unwrap();
+    let tree = git_repo.find_tree(tree_oid).unwrap();
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["git", "remote", "add", "origin", "../git-repo"],
+    );
+    // Create a commit and a branch in the git repo
+    let first_git_repo_commit = git_repo
+        .commit(
+            Some("refs/heads/feature1"),
+            &signature,
+            &signature,
+            "message",
+            &tree,
+            &[],
+        )
+        .unwrap();
+
+    // Fetch normally
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: 9f01a0e04879 message
+    "###);
+
+    // Forget the branch
+    test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+
+    // At this point `jj git export && jj git import` does *not* recreate the
+    // branch. This behavior is important in colocated repos, as otherwise a
+    // forgotten branch would be immediately resurrected.
+    //
+    // Technically, this is because `jj branch forget` preserved
+    // the ref in jj view's `git_refs` tracking the local git repo's remote-tracking
+    // branch.
+    // TODO: Show that jj git push is also a no-op
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @r###"
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @r###"
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+
+    // Short-term TODO: Fix this BUG. It should be possible to fetch `feature1`
+    // again.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+
+    // Move the branch in the git repo.
+    git_repo
+        .commit(
+            Some("refs/heads/feature1"),
+            &signature,
+            &signature,
+            "another message",
+            &tree,
+            &[&git_repo.find_commit(first_git_repo_commit).unwrap()],
+        )
+        .unwrap();
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "forget", "feature1"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No such branch: feature1
+    "###);
+
+    // BUG: fetching a moved branch creates a move-deletion conflict
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1 (conflicted):
+      - 9f01a0e04879 message
+      + 38aefb173976 another message
+    "###);
+}
+
 // TODO: Test `jj branch list` with a remote named `git`
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"branches ++ " " ++ commit_id.short()"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
+}
+
+fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(repo_path, &["branch", "list"])
 }
