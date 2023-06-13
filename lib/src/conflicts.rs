@@ -104,7 +104,7 @@ impl Conflict<Option<TreeValue>> {
     }
 
     /// Creates a `backend::Conflict` from a `Conflict` by dropping `None`
-    /// values. Note that the conflict is lossy: the order of `None` values is
+    /// values. Note that the conversion is lossy: the order of `None` values is
     /// not preserved when converting back to a `Conflict`.
     pub fn to_backend_conflict(&self) -> backend::Conflict {
         let removes = self
