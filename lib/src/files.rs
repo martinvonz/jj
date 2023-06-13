@@ -362,10 +362,7 @@ mod tests {
         // One side unchanged, two other sides make the same change
         assert_eq!(
             merge(&[b"a", b"a"], &[b"b", b"a", b"b"]),
-            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
-                removes: vec![b"a".to_vec(), b"a".to_vec()],
-                adds: vec![b"b".to_vec(), b"a".to_vec(), b"b".to_vec()]
-            })])
+            MergeResult::Resolved(b"b".to_vec())
         );
         // One side unchanged, two other sides make the different change
         assert_eq!(
