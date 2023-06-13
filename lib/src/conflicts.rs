@@ -70,6 +70,16 @@ impl<T> Conflict<T> {
         &self.adds
     }
 
+    /// Returns the resolved value, if this conflict is resolved. Does not
+    /// resolve trivial conflicts.
+    pub fn as_resolved(&self) -> Option<&T> {
+        if let [value] = &self.adds[..] {
+            Some(value)
+        } else {
+            None
+        }
+    }
+
     /// Simplify the conflict by joining diffs like A->B and B->C into A->C.
     /// Also drops trivial diffs like A->A.
     pub fn simplify(mut self) -> Self
@@ -629,6 +639,13 @@ mod tests {
             (vec![0, 1], vec![]),
             Conflict::new(vec![Some(0), Some(1)], vec![None, None, None]),
         );
+    }
+
+    #[test]
+    fn test_as_resolved() {
+        assert_eq!(Conflict::new(vec![], vec![0]).as_resolved(), Some(&0));
+        // Even a trivially resolvable conflict is not resolved
+        assert_eq!(Conflict::new(vec![0], vec![0, 1]).as_resolved(), None);
     }
 
     #[test]

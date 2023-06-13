@@ -615,9 +615,8 @@ fn merge_tree_value(
             );
             let filename = dir.join(basename);
             let conflict = simplify_conflict(store, &filename, conflict)?;
-            if conflict.removes().is_empty() && conflict.adds().len() == 1 {
-                // A single add means that the current state is that state.
-                return Ok(conflict.adds()[0].clone());
+            if let Some(value) = conflict.as_resolved() {
+                return Ok(value.clone());
             }
             if let Some(tree_value) = try_resolve_file_conflict(store, &filename, &conflict)? {
                 Some(tree_value)
