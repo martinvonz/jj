@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::hash::Hash;
 use std::io::Write;
 
 use itertools::Itertools;
@@ -19,6 +20,7 @@ use itertools::Itertools;
 use crate::backend::{BackendResult, FileId, ObjectId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files::{ConflictHunk, MergeHunk, MergeResult};
+use crate::merge::trivial_merge;
 use crate::repo_path::RepoPath;
 use crate::store::Store;
 use crate::{backend, files};
@@ -85,6 +87,13 @@ impl<T> Conflict<T> {
             }
         }
         self
+    }
+
+    pub fn resolve_trivial(&self) -> Option<&T>
+    where
+        T: Eq + Hash,
+    {
+        trivial_merge(&self.removes, &self.adds)
     }
 }
 
@@ -679,5 +688,38 @@ mod tests {
         assert_eq!(c(&[0, 1], &[2, 3, 2]).simplify(), c(&[0, 1], &[2, 3, 2]));
         assert_eq!(c(&[0, 1], &[2, 3, 3]).simplify(), c(&[0, 1], &[2, 3, 3]));
         assert_eq!(c(&[0, 1], &[2, 3, 4]).simplify(), c(&[0, 1], &[2, 3, 4]));
+    }
+
+    #[test]
+    fn test_conflict_invariants() {
+        fn check_invariants(removes: &[u32], adds: &[u32]) {
+            let conflict = Conflict::new(removes.to_vec(), adds.to_vec());
+            // `simplify()` is idempotent
+            assert_eq!(
+                conflict.clone().simplify().simplify(),
+                conflict.clone().simplify(),
+                "simplify() not idempotent for {conflict:?}"
+            );
+            // `resolve_trivial()` is unaffected by `simplify()`
+            assert_eq!(
+                conflict.clone().simplify().resolve_trivial(),
+                conflict.resolve_trivial(),
+                "simplify() changed result of resolve_trivial() for {conflict:?}"
+            );
+        }
+        // 1-way "conflict"
+        check_invariants(&[], &[0]);
+        for i in 0..=1 {
+            for j in 0..=i + 1 {
+                // 3-way conflict
+                check_invariants(&[0], &[i, j]);
+                for k in 0..=j + 1 {
+                    for l in 0..=k + 1 {
+                        // 5-way conflict
+                        check_invariants(&[0, i], &[j, k, l]);
+                    }
+                }
+            }
+        }
     }
 }
