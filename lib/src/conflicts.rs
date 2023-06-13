@@ -66,14 +66,6 @@ impl<T> Conflict<T> {
         &self.adds
     }
 
-    pub fn set_remove(&mut self, i: usize, value: T) {
-        self.removes[i] = value;
-    }
-
-    pub fn set_add(&mut self, i: usize, value: T) {
-        self.adds[i] = value;
-    }
-
     /// Remove pairs of entries that match in the removes and adds.
     pub fn simplify(mut self) -> Self
     where
