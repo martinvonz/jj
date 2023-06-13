@@ -278,11 +278,7 @@ impl Ui {
     }
 
     pub fn term_width(&self) -> Option<u16> {
-        if let Some(cols) = env::var("COLUMNS").ok().and_then(|s| s.parse().ok()) {
-            Some(cols)
-        } else {
-            crossterm::terminal::size().ok().map(|(cols, _)| cols)
-        }
+        term_width()
     }
 
     /// Construct a guard object which writes `data` when dropped. Useful for
@@ -335,5 +331,13 @@ impl Drop for OutputGuard {
     fn drop(&mut self) {
         _ = self.output.write_all(self.text.as_bytes());
         _ = self.output.flush();
+    }
+}
+
+fn term_width() -> Option<u16> {
+    if let Some(cols) = env::var("COLUMNS").ok().and_then(|s| s.parse().ok()) {
+        Some(cols)
+    } else {
+        crossterm::terminal::size().ok().map(|(cols, _)| cols)
     }
 }
