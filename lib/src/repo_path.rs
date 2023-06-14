@@ -179,8 +179,7 @@ impl RepoPathJoin<RepoPathComponent> for RepoPath {
     type Result = RepoPath;
 
     fn join(&self, entry: &RepoPathComponent) -> RepoPath {
-        let mut components: Vec<RepoPathComponent> = self.components.clone();
-        components.push(entry.clone());
+        let components = self.components.iter().chain([entry]).cloned().collect();
         RepoPath { components }
     }
 }
