@@ -159,27 +159,14 @@ impl Tree {
     }
 
     fn sub_tree_recursive(&self, components: &[RepoPathComponent]) -> Option<Tree> {
-        if components.is_empty() {
+        if let Some((first, tail)) = components.split_first() {
+            tail.iter()
+                .try_fold(self.sub_tree(first)?, |tree, name| tree.sub_tree(name))
+        } else {
             // TODO: It would be nice to be able to return a reference here, but
             // then we would have to figure out how to share Tree instances
             // across threads.
-            Some(Tree {
-                store: self.store.clone(),
-                dir: self.dir.clone(),
-                id: self.id.clone(),
-                data: self.data.clone(),
-            })
-        } else {
-            match self.data.entry(&components[0]) {
-                None => None,
-                Some(entry) => match entry.value() {
-                    TreeValue::Tree(sub_tree_id) => {
-                        let sub_tree = self.known_sub_tree(entry.name(), sub_tree_id);
-                        sub_tree.sub_tree_recursive(&components[1..])
-                    }
-                    _ => None,
-                },
-            }
+            Some(self.clone())
         }
     }
 
