@@ -65,7 +65,7 @@ only symbols.
 * `x..y`: Ancestors of `y` that are not also ancestors of `x`. Equivalent to
   `:y ~ :x`. This is what `git log` calls `x..y` (i.e. the same as we call it).
 * `..x`: Ancestors of `x`, including the commits in `x` itself. Equivalent to
-   `:x` and provided for consistency.
+  `:x` and provided for consistency.
 * `x..`: Revisions that are not ancestors of `x`.
 
 You can use parentheses to control evaluation order, such as `(x & y) | z` or
@@ -105,7 +105,13 @@ revsets (expressions) as arguments.
 * `git_head()`: The Git `HEAD` target as of the last import.
 * `visible_heads()`: All visible heads (same as `heads(all())`).
 * `heads(x)`: Commits in `x` that are not ancestors of other commits in `x`.
+  Note that this is different from
+  [Mercurial's](https://repo.mercurial-scm.org/hg/help/revsets) `heads(x)`
+  function, which is equivalent to `x ~ x-`.
 * `roots(x)`: Commits in `x` that are not descendants of other commits in `x`.
+  Note that this is different from
+  [Mercurial's](https://repo.mercurial-scm.org/hg/help/revsets) `roots(x)`
+  function, which is equivalent to `x ~ x+`.
 * `latest(x[, count])`: Latest `count` commits in `x`, based on committer
   timestamp. The default `count` is 1.
 * `merges()`: Merge commits.
