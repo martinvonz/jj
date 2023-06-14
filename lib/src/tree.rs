@@ -153,9 +153,8 @@ impl Tree {
         })
     }
 
-    pub fn known_sub_tree(&self, name: &RepoPathComponent, id: &TreeId) -> Tree {
-        let subdir = self.dir.join(name);
-        self.store.get_tree(&subdir, id).unwrap()
+    fn known_sub_tree(&self, subdir: &RepoPath, id: &TreeId) -> Tree {
+        self.store.get_tree(subdir, id).unwrap()
     }
 
     fn sub_tree_recursive(&self, components: &[RepoPathComponent]) -> Option<Tree> {
@@ -265,7 +264,7 @@ impl Iterator for TreeEntriesIterator<'_> {
                         if self.matcher.visit(&path).is_nothing() {
                             continue;
                         }
-                        let subtree = top.tree.known_sub_tree(entry.name(), id);
+                        let subtree = top.tree.known_sub_tree(&path, id);
                         self.stack.push(TreeEntriesDirItem::new(subtree));
                     }
                     value => {
@@ -439,11 +438,11 @@ impl TreeDiffDirItem {
     ) -> Self {
         let subdir_path = self.path.join(name);
         let before_tree = match before {
-            Some(TreeValue::Tree(id_before)) => self.tree1.known_sub_tree(name, id_before),
+            Some(TreeValue::Tree(id_before)) => self.tree1.known_sub_tree(&subdir_path, id_before),
             _ => Tree::null(self.tree1.store().clone(), subdir_path.clone()),
         };
         let after_tree = match after {
-            Some(TreeValue::Tree(id_after)) => self.tree2.known_sub_tree(name, id_after),
+            Some(TreeValue::Tree(id_after)) => self.tree2.known_sub_tree(&subdir_path, id_after),
             _ => Tree::null(self.tree2.store().clone(), subdir_path.clone()),
         };
         Self::new(subdir_path, before_tree, after_tree)
