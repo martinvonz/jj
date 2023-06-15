@@ -130,11 +130,13 @@ pub fn import_some_refs(
         // to `old_git_heads` because HEAD move doesn't automatically mean the old
         // HEAD branch has been rewritten.
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
-        let head_commit = store.get_commit(&head_commit_id).unwrap();
         new_git_heads.insert("HEAD".to_string(), vec![head_commit_id.clone()]);
-        prevent_gc(git_repo, &head_commit_id)?;
-        mut_repo.add_head(&head_commit);
-        mut_repo.set_git_head(RefTarget::Normal(head_commit_id));
+        if !matches!(mut_repo.git_head(), Some(RefTarget::Normal(id)) if id == head_commit_id) {
+            let head_commit = store.get_commit(&head_commit_id).unwrap();
+            prevent_gc(git_repo, &head_commit_id)?;
+            mut_repo.add_head(&head_commit);
+            mut_repo.set_git_head(RefTarget::Normal(head_commit_id));
+        }
     } else {
         mut_repo.clear_git_head();
     }
