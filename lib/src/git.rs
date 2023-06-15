@@ -216,6 +216,9 @@ pub fn import_some_refs(
         .filter_map(|(old_git_target, _)| old_git_target.as_ref().map(|target| target.adds()))
         .flatten()
         .collect_vec();
+    if hidable_git_heads.is_empty() {
+        return Ok(());
+    }
     // We must remove non-existing commits from pinned_git_heads, as they could have
     // come from branches which were never fetched.
     let mut pinned_git_heads_set = HashSet::new();
