@@ -947,6 +947,10 @@ impl MutableRepo {
         self.view_mut().remove_git_ref(name);
     }
 
+    pub fn git_head(&self) -> Option<RefTarget> {
+        self.view.with_ref(|v| v.git_head().cloned())
+    }
+
     pub fn set_git_head(&mut self, target: RefTarget) {
         self.view_mut().set_git_head(target);
     }
