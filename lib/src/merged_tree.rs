@@ -16,18 +16,20 @@
 
 use std::cmp::max;
 use std::sync::Arc;
+use std::{iter, vec};
 
 use itertools::Itertools;
 
 use crate::backend;
-use crate::backend::TreeValue;
+use crate::backend::{ConflictId, TreeValue};
 use crate::conflicts::Conflict;
-use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{try_resolve_file_conflict, Tree, TreeMergeError};
 use crate::tree_builder::TreeBuilder;
 
 /// Presents a view of a merged set of trees.
+#[derive(Clone, Debug)]
 pub enum MergedTree {
     /// A single tree, possibly with path-level conflicts.
     Legacy(Tree),
@@ -130,6 +132,22 @@ impl MergedTree {
         ))
     }
 
+    /// This tree's directory
+    pub fn dir(&self) -> &RepoPath {
+        match self {
+            MergedTree::Legacy(tree) => tree.dir(),
+            MergedTree::Merge(conflict) => conflict.adds()[0].dir(),
+        }
+    }
+
+    /// The `Store` associated with this tree.
+    pub fn store(&self) -> &Arc<Store> {
+        match self {
+            MergedTree::Legacy(tree) => tree.store(),
+            MergedTree::Merge(conflict) => conflict.adds()[0].store(),
+        }
+    }
+
     /// The value at the given basename. The value can be `Resolved` even if
     /// `self` is a `Conflict`, which happens if the value at the path can be
     /// trivially merged. Does not recurse, so if `basename` refers to a Tree,
@@ -167,17 +185,28 @@ impl MergedTree {
             MergedTree::Merge(conflict) => merge_trees(conflict),
         }
     }
+
+    /// An iterator over the conflicts in this tree, including subtrees.
+    /// Recurses into subtrees and yields conflicts in those, but only if
+    /// all sides are trees, so tree/file conflicts will be reported as a single
+    /// conflict, not one for each path in the tree.
+    // TODO: Restrict this by a matcher (or add a separate method for that).
+    pub fn conflicts(&self) -> impl Iterator<Item = (RepoPath, Conflict<Option<TreeValue>>)> {
+        ConflictIterator::new(self.clone())
+    }
+}
+
+fn all_tree_conflict_names(conflict: &Conflict<Tree>) -> impl Iterator<Item = &RepoPathComponent> {
+    itertools::chain(conflict.removes(), conflict.adds())
+        .map(|tree| tree.data().names())
+        .kmerge()
+        .dedup()
 }
 
 fn merge_trees(conflict: &Conflict<Tree>) -> Result<Conflict<Tree>, TreeMergeError> {
     if let Some(tree) = conflict.resolve_trivial() {
         return Ok(Conflict::resolved(tree.clone()));
     }
-
-    let base_names = itertools::chain(conflict.removes(), conflict.adds())
-        .map(|tree| tree.data().names())
-        .kmerge()
-        .dedup();
 
     let base_tree = &conflict.adds()[0];
     let store = base_tree.store();
@@ -187,7 +216,7 @@ fn merge_trees(conflict: &Conflict<Tree>) -> Result<Conflict<Tree>, TreeMergeErr
     // any conflicts.
     let mut new_tree = backend::Tree::default();
     let mut conflicts = vec![];
-    for basename in base_names {
+    for basename in all_tree_conflict_names(conflict) {
         let path_conflict = conflict.map(|tree| tree.value(basename).cloned());
         let path_conflict = merge_tree_values(store, dir, path_conflict)?;
         if let Some(value) = path_conflict.as_resolved() {
@@ -254,6 +283,140 @@ fn merge_tree_values(
         } else {
             // Failed to merge the files, or the paths are not files
             Ok(conflict)
+        }
+    }
+}
+
+struct ConflictEntriesNonRecursiveIterator<'a> {
+    merged_tree: &'a MergedTree,
+    basename_iter: Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a>,
+}
+
+impl<'a> ConflictEntriesNonRecursiveIterator<'a> {
+    fn new(merged_tree: &'a MergedTree) -> Self {
+        let basename_iter: Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> = match merged_tree
+        {
+            MergedTree::Legacy(tree) => Box::new(
+                tree.entries_non_recursive()
+                    .filter(|entry| matches!(entry.value(), &TreeValue::Conflict(_)))
+                    .map(|entry| entry.name()),
+            ),
+            MergedTree::Merge(conflict) => {
+                if conflict.is_resolved() {
+                    Box::new(iter::empty())
+                } else {
+                    Box::new(all_tree_conflict_names(conflict))
+                }
+            }
+        };
+        ConflictEntriesNonRecursiveIterator {
+            merged_tree,
+            basename_iter,
+        }
+    }
+}
+
+impl<'a> Iterator for ConflictEntriesNonRecursiveIterator<'a> {
+    type Item = (&'a RepoPathComponent, Conflict<Option<TreeValue>>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for basename in self.basename_iter.by_ref() {
+            match self.merged_tree.value(basename) {
+                MergedTreeValue::Resolved(_) => {}
+                MergedTreeValue::Conflict(conflict) => {
+                    return Some((basename, conflict));
+                }
+            }
+        }
+        None
+    }
+}
+
+/// The state for the non-recursive iteration over the conflicted entries in a
+/// single directory.
+struct ConflictsDirItem {
+    entry_iterator: ConflictEntriesNonRecursiveIterator<'static>,
+    // On drop, tree must outlive entry_iterator
+    tree: Box<MergedTree>,
+}
+
+impl ConflictsDirItem {
+    fn new(tree: MergedTree) -> Self {
+        // Put the tree in a box so it doesn't move if `ConflictsDirItem` moves.
+        let tree = Box::new(tree);
+        let entry_iterator = ConflictEntriesNonRecursiveIterator::new(&tree);
+        let entry_iterator: ConflictEntriesNonRecursiveIterator<'static> =
+            unsafe { std::mem::transmute(entry_iterator) };
+        Self {
+            entry_iterator,
+            tree,
+        }
+    }
+}
+
+enum ConflictIterator {
+    Legacy {
+        store: Arc<Store>,
+        conflicts_iter: vec::IntoIter<(RepoPath, ConflictId)>,
+    },
+    Merge {
+        stack: Vec<ConflictsDirItem>,
+    },
+}
+
+impl ConflictIterator {
+    fn new(tree: MergedTree) -> Self {
+        match tree {
+            MergedTree::Legacy(tree) => ConflictIterator::Legacy {
+                store: tree.store().clone(),
+                conflicts_iter: tree.conflicts().into_iter(),
+            },
+            MergedTree::Merge(_) => ConflictIterator::Merge {
+                stack: vec![ConflictsDirItem::new(tree)],
+            },
+        }
+    }
+}
+
+impl Iterator for ConflictIterator {
+    type Item = (RepoPath, Conflict<Option<TreeValue>>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ConflictIterator::Legacy {
+                store,
+                conflicts_iter,
+            } => {
+                if let Some((path, conflict_id)) = conflicts_iter.next() {
+                    // TODO: propagate errors
+                    let conflict = store.read_conflict(&path, &conflict_id).unwrap();
+                    Some((path, conflict))
+                } else {
+                    None
+                }
+            }
+            ConflictIterator::Merge { stack } => {
+                while let Some(top) = stack.last_mut() {
+                    if let Some((basename, conflict)) = top.entry_iterator.next() {
+                        let path = top.tree.dir().join(basename);
+                        // TODO: propagate errors
+                        if let Some(tree_conflict) =
+                            conflict.to_tree_conflict(top.tree.store(), &path).unwrap()
+                        {
+                            // If all sides are trees or missing, descend into the merged tree
+                            stack.push(ConflictsDirItem::new(MergedTree::Merge(tree_conflict)));
+                        } else {
+                            // Otherwise this is a conflict between files, trees, etc. If they could
+                            // be automatically resolved, they should have been when the top-level
+                            // tree conflict was written, so we assume that they can't be.
+                            return Some((path, conflict));
+                        }
+                    } else {
+                        stack.pop();
+                    }
+                }
+                None
+            }
         }
     }
 }

@@ -87,6 +87,11 @@ impl<T> Conflict<T> {
         &self.adds
     }
 
+    /// Whether this conflict is resolved. Does not resolve trivial conflicts.
+    pub fn is_resolved(&self) -> bool {
+        self.removes.is_empty()
+    }
+
     /// Returns the resolved value, if this conflict is resolved. Does not
     /// resolve trivial conflicts.
     pub fn as_resolved(&self) -> Option<&T> {

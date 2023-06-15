@@ -18,6 +18,7 @@ use jj_lib::conflicts::Conflict;
 use jj_lib::merged_tree::{MergedTree, MergedTreeValue};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
+use jj_lib::tree::merge_trees;
 use testutils::{write_file, write_normal_file, TestRepo};
 
 fn file_value(file_id: &FileId) -> TreeValue {
@@ -292,4 +293,196 @@ fn test_resolve_with_conflict() {
         resolved_tree,
         Conflict::new(vec![expected_base1], vec![expected_side1, expected_side2])
     )
+}
+
+#[test]
+fn test_conflict_iterator() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    let unchanged_path = RepoPath::from_internal_string("dir/subdir/unchanged");
+    let trivial_path = RepoPath::from_internal_string("dir/subdir/trivial");
+    let trivial_hunk_path = RepoPath::from_internal_string("dir/non_trivial");
+    let file_conflict_path = RepoPath::from_internal_string("dir/subdir/file_conflict");
+    let modify_delete_path = RepoPath::from_internal_string("dir/subdir/modify_delete");
+    let same_add_path = RepoPath::from_internal_string("dir/subdir/same_add");
+    let different_add_path = RepoPath::from_internal_string("dir/subdir/different_add");
+    let dir_file_path = RepoPath::from_internal_string("dir/subdir/dir_file");
+    let added_dir_path = RepoPath::from_internal_string("dir/new_dir");
+    let modify_delete_dir_path = RepoPath::from_internal_string("dir/modify_delete_dir");
+    let base1 = testutils::create_tree(
+        repo,
+        &[
+            (&unchanged_path, "unchanged"),
+            (&trivial_path, "base"),
+            (&trivial_hunk_path, "line1\nline2\nline3\n"),
+            (&file_conflict_path, "base"),
+            (&modify_delete_path, "base"),
+            // no same_add_path
+            // no different_add_path
+            (&dir_file_path, "base"),
+            // no added_dir_path
+            (
+                &modify_delete_dir_path.join(&RepoPathComponent::from("base")),
+                "base",
+            ),
+        ],
+    );
+    let side1 = testutils::create_tree(
+        repo,
+        &[
+            (&unchanged_path, "unchanged"),
+            (&trivial_path, "base"),
+            (&file_conflict_path, "side1"),
+            (&trivial_hunk_path, "line1 side1\nline2\nline3\n"),
+            (&modify_delete_path, "modified"),
+            (&same_add_path, "same"),
+            (&different_add_path, "side1"),
+            (&dir_file_path, "side1"),
+            (
+                &added_dir_path.join(&RepoPathComponent::from("side1")),
+                "side1",
+            ),
+            (
+                &modify_delete_dir_path.join(&RepoPathComponent::from("side1")),
+                "side1",
+            ),
+        ],
+    );
+    let side2 = testutils::create_tree(
+        repo,
+        &[
+            (&unchanged_path, "unchanged"),
+            (&trivial_path, "side2"),
+            (&file_conflict_path, "side2"),
+            (&trivial_hunk_path, "line1\nline2\nline3 side2\n"),
+            // no modify_delete_path
+            (&same_add_path, "same"),
+            (&different_add_path, "side2"),
+            (&dir_file_path.join(&RepoPathComponent::from("dir")), "new"),
+            (
+                &added_dir_path.join(&RepoPathComponent::from("side2")),
+                "side2",
+            ),
+            // no modify_delete_dir_path
+        ],
+    );
+
+    let tree = MergedTree::new(Conflict::new(
+        vec![base1.clone()],
+        vec![side1.clone(), side2.clone()],
+    ));
+    let conflicts = tree.conflicts().collect_vec();
+    let conflict_at = |path: &RepoPath| {
+        Conflict::new(
+            vec![base1.path_value(path)],
+            vec![side1.path_value(path), side2.path_value(path)],
+        )
+    };
+    // We initially also get a conflict in trivial_hunk_path because we had
+    // forgotten to resolve conflicts
+    assert_eq!(
+        conflicts,
+        vec![
+            (trivial_hunk_path.clone(), conflict_at(&trivial_hunk_path)),
+            (different_add_path.clone(), conflict_at(&different_add_path)),
+            (dir_file_path.clone(), conflict_at(&dir_file_path)),
+            (file_conflict_path.clone(), conflict_at(&file_conflict_path)),
+            (modify_delete_path.clone(), conflict_at(&modify_delete_path)),
+        ]
+    );
+
+    // After we resolve conflicts, there are only non-trivial conflicts left
+    let tree = MergedTree::Merge(tree.resolve().unwrap());
+    let conflicts = tree.conflicts().collect_vec();
+    assert_eq!(
+        conflicts,
+        vec![
+            (different_add_path.clone(), conflict_at(&different_add_path)),
+            (dir_file_path.clone(), conflict_at(&dir_file_path)),
+            (file_conflict_path.clone(), conflict_at(&file_conflict_path)),
+            (modify_delete_path.clone(), conflict_at(&modify_delete_path)),
+        ]
+    );
+
+    let merged_legacy_tree = merge_trees(&side1, &base1, &side2).unwrap();
+    let legacy_conflicts = MergedTree::legacy(merged_legacy_tree)
+        .conflicts()
+        .collect_vec();
+    assert_eq!(legacy_conflicts, conflicts);
+}
+#[test]
+fn test_conflict_iterator_higher_arity() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    let two_sided_path = RepoPath::from_internal_string("dir/2-sided");
+    let three_sided_path = RepoPath::from_internal_string("dir/3-sided");
+    let base1 = testutils::create_tree(
+        repo,
+        &[(&two_sided_path, "base1"), (&three_sided_path, "base1")],
+    );
+    let base2 = testutils::create_tree(
+        repo,
+        &[(&two_sided_path, "base2"), (&three_sided_path, "base2")],
+    );
+    let side1 = testutils::create_tree(
+        repo,
+        &[(&two_sided_path, "side1"), (&three_sided_path, "side1")],
+    );
+    let side2 = testutils::create_tree(
+        repo,
+        &[(&two_sided_path, "base1"), (&three_sided_path, "side2")],
+    );
+    let side3 = testutils::create_tree(
+        repo,
+        &[(&two_sided_path, "side3"), (&three_sided_path, "side3")],
+    );
+
+    let tree = MergedTree::new(Conflict::new(
+        vec![base1.clone(), base2.clone()],
+        vec![side1.clone(), side2.clone(), side3.clone()],
+    ));
+    let conflicts = tree.conflicts().collect_vec();
+    let conflict_at = |path: &RepoPath| {
+        Conflict::new(
+            vec![base1.path_value(path), base2.path_value(path)],
+            vec![
+                side1.path_value(path),
+                side2.path_value(path),
+                side3.path_value(path),
+            ],
+        )
+    };
+    // Both paths have the full, unsimplified conflict (3-sided)
+    assert_eq!(
+        conflicts,
+        vec![
+            (two_sided_path.clone(), conflict_at(&two_sided_path)),
+            (three_sided_path.clone(), conflict_at(&three_sided_path))
+        ]
+    );
+    // Iterating over conflicts in a legacy tree yields the simplified conflict at
+    // each path
+    let merged_legacy_tree = merge_trees(&side1, &base1, &side2).unwrap();
+    let merged_legacy_tree = merge_trees(&merged_legacy_tree, &base2, &side3).unwrap();
+    let legacy_conflicts = MergedTree::legacy(merged_legacy_tree)
+        .conflicts()
+        .collect_vec();
+    assert_eq!(
+        legacy_conflicts,
+        vec![
+            (
+                two_sided_path.clone(),
+                Conflict::new(
+                    vec![base2.path_value(&two_sided_path)],
+                    vec![
+                        side1.path_value(&two_sided_path),
+                        side3.path_value(&two_sided_path),
+                    ],
+                )
+            ),
+            (three_sided_path.clone(), conflict_at(&three_sided_path))
+        ]
+    );
 }
