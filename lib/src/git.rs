@@ -110,12 +110,9 @@ pub fn import_some_refs(
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
     let mut jj_view_git_refs = mut_repo.view().git_refs().clone();
-    let mut old_git_heads = vec![];
     let mut new_git_heads = HashMap::new();
     for (ref_name, old_target) in &jj_view_git_refs {
-        if git_ref_filter(ref_name) {
-            old_git_heads.extend(old_target.adds());
-        } else {
+        if !git_ref_filter(ref_name) {
             new_git_heads.insert(ref_name.to_string(), old_target.adds().clone());
         }
     }
@@ -127,7 +124,7 @@ pub fn import_some_refs(
         .and_then(|head_ref| head_ref.peel_to_commit())
     {
         // Add the current HEAD to `new_git_heads` to pin the branch. It's not added
-        // to `old_git_heads` because HEAD move doesn't automatically mean the old
+        // to `hidable_git_heads` because HEAD move doesn't automatically mean the old
         // HEAD branch has been rewritten.
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
         new_git_heads.insert("HEAD".to_string(), vec![head_commit_id.clone()]);
@@ -188,8 +185,8 @@ pub fn import_some_refs(
             changed_git_refs.insert(full_name, (Some(target), None));
         }
     }
-    for (full_name, (old_git_target, new_git_target)) in changed_git_refs {
-        if let Some(ref_name) = parse_git_ref(&full_name) {
+    for (full_name, (old_git_target, new_git_target)) in &changed_git_refs {
+        if let Some(ref_name) = parse_git_ref(full_name) {
             // Apply the change that happened in git since last time we imported refs
             mut_repo.merge_single_ref(&ref_name, old_git_target.as_ref(), new_git_target.as_ref());
             // If a git remote-tracking branch changed, apply the change to the local branch
@@ -215,8 +212,14 @@ pub fn import_some_refs(
     }
 
     // Find commits that are no longer referenced in the git repo and abandon them
-    // in jj as well. We must remove non-existing commits from new_git_heads, as
-    // they could have come from branches which were never fetched.
+    // in jj as well.
+    let hidable_git_heads = changed_git_refs
+        .values()
+        .filter_map(|(old_git_target, _)| old_git_target.as_ref().map(|target| target.adds()))
+        .flatten()
+        .collect_vec();
+    // We must remove non-existing commits from new_git_heads, as they could have
+    // come from branches which were never fetched.
     let mut new_git_heads_set = HashSet::new();
     for heads_for_ref in new_git_heads.into_values() {
         new_git_heads_set.extend(heads_for_ref.into_iter());
@@ -228,7 +231,7 @@ pub fn import_some_refs(
     // putting them in the commit message).
     let abandoned_commits = revset::walk_revs(
         mut_repo,
-        &old_git_heads,
+        &hidable_git_heads,
         &new_git_heads_set.into_iter().collect_vec(),
     )
     .unwrap()
