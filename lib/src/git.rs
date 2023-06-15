@@ -111,11 +111,6 @@ pub fn import_some_refs(
     let store = mut_repo.store().clone();
     let mut jj_view_git_refs = mut_repo.view().git_refs().clone();
     let mut pinned_git_heads = HashMap::new();
-    for (ref_name, old_target) in &jj_view_git_refs {
-        if !git_ref_filter(ref_name) {
-            pinned_git_heads.insert(ref_name.to_string(), old_target.adds().clone());
-        }
-    }
 
     // TODO: Should this be a separate function? We may not always want to import
     // the Git HEAD (and add it to our set of heads).
@@ -183,6 +178,8 @@ pub fn import_some_refs(
         if git_ref_filter(&full_name) {
             mut_repo.remove_git_ref(&full_name);
             changed_git_refs.insert(full_name, (Some(target), None));
+        } else {
+            pinned_git_heads.insert(full_name, target.adds());
         }
     }
     for (full_name, (old_git_target, new_git_target)) in &changed_git_refs {
