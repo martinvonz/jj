@@ -34,7 +34,6 @@ use thiserror::Error;
 use crate::backend::{
     BackendError, ConflictId, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
 };
-use crate::conflicts::{materialize_conflict, update_conflict_from_content};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::{DifferenceMatcher, Matcher, PrefixMatcher};
@@ -659,13 +658,9 @@ impl TreeState {
                             let mut content = vec![];
                             file.read_to_end(&mut content).unwrap();
                             let conflict = self.store.read_conflict(&repo_path, conflict_id)?;
-                            if let Some(new_conflict) = update_conflict_from_content(
-                                self.store.as_ref(),
-                                &repo_path,
-                                &conflict,
-                                &content,
-                            )
-                            .unwrap()
+                            if let Some(new_conflict) = conflict
+                                .update_from_content(self.store.as_ref(), &repo_path, &content)
+                                .unwrap()
                             {
                                 new_file_state.file_type = FileType::Conflict;
                                 *current_file_state = new_file_state;
@@ -792,7 +787,8 @@ impl TreeState {
                 err,
             })?;
         let mut conflict_data = vec![];
-        materialize_conflict(self.store.as_ref(), path, &conflict, &mut conflict_data)
+        conflict
+            .materialize(self.store.as_ref(), path, &mut conflict_data)
             .expect("Failed to materialize conflict to in-memory buffer");
         file.write_all(&conflict_data)
             .map_err(|err| CheckoutError::IoError {

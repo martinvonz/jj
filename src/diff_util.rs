@@ -27,7 +27,7 @@ use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree::{Tree, TreeDiffIterator};
-use jujutsu_lib::{conflicts, diff, files, rewrite, tree};
+use jujutsu_lib::{diff, files, rewrite, tree};
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
 use crate::formatter::Formatter;
@@ -307,7 +307,9 @@ fn diff_content(
         TreeValue::Conflict(id) => {
             let conflict = repo.store().read_conflict(path, id).unwrap();
             let mut content = vec![];
-            conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content).unwrap();
+            conflict
+                .materialize(repo.store(), path, &mut content)
+                .unwrap();
             Ok(content)
         }
     }
@@ -456,7 +458,9 @@ fn git_diff_part(
             mode = "100644".to_string();
             hash = id.hex();
             let conflict = repo.store().read_conflict(path, id).unwrap();
-            conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content).unwrap();
+            conflict
+                .materialize(repo.store(), path, &mut content)
+                .unwrap();
         }
     }
     let hash = hash[0..10].to_string();

@@ -47,7 +47,7 @@ use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, D
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree::{merge_trees, Tree};
 use jujutsu_lib::workspace::Workspace;
-use jujutsu_lib::{conflicts, file_util, revset};
+use jujutsu_lib::{file_util, revset};
 use maplit::{hashmap, hashset};
 
 use crate::cli_util::{
@@ -1290,7 +1290,9 @@ fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), C
         Some(TreeValue::Conflict(id)) => {
             let conflict = repo.store().read_conflict(&path, &id)?;
             let mut contents = vec![];
-            conflicts::materialize_conflict(repo.store(), &path, &conflict, &mut contents).unwrap();
+            conflict
+                .materialize(repo.store(), &path, &mut contents)
+                .unwrap();
             ui.request_pager();
             ui.stdout_formatter().write_all(&contents)?;
         }
