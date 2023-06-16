@@ -22,10 +22,7 @@ use std::sync::Arc;
 use config::ConfigError;
 use itertools::Itertools;
 use jujutsu_lib::backend::{TreeId, TreeValue};
-use jujutsu_lib::conflicts::{
-    describe_conflict, extract_file_conflict_as_single_hunk, materialize_merge_result,
-    to_file_conflict, update_conflict_from_content,
-};
+use jujutsu_lib::conflicts::materialize_merge_result;
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
@@ -161,9 +158,10 @@ pub fn run_mergetool(
         None => return Err(ConflictResolveError::PathNotFoundError(repo_path.clone())),
     };
     let conflict = tree.store().read_conflict(repo_path, &conflict_id)?;
-    let file_conflict = to_file_conflict(&conflict).ok_or_else(|| {
+    let file_conflict = conflict.to_file_conflict().ok_or_else(|| {
         let mut summary_bytes: Vec<u8> = vec![];
-        describe_conflict(&conflict, &mut summary_bytes)
+        conflict
+            .describe(&mut summary_bytes)
             .expect("Writing to an in-memory buffer should never fail");
         ConflictResolveError::NotNormalFilesError(
             repo_path.clone(),
@@ -177,7 +175,7 @@ pub fn run_mergetool(
             sides: file_conflict.adds().len(),
         });
     };
-    let mut content = extract_file_conflict_as_single_hunk(tree.store(), repo_path, &file_conflict);
+    let mut content = file_conflict.extract_as_single_hunk(tree.store(), repo_path);
 
     let editor = get_merge_tool_from_settings(ui, settings)?;
     let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {
@@ -246,10 +244,9 @@ pub fn run_mergetool(
 
     let mut new_tree_value: Option<TreeValue> = None;
     if editor.merge_tool_edits_conflict_markers {
-        if let Some(new_conflict) = update_conflict_from_content(
+        if let Some(new_conflict) = conflict.update_from_content(
             tree.store(),
             repo_path,
-            &conflict,
             output_file_contents.as_slice(),
         )? {
             let new_conflict_id = tree.store().write_conflict(repo_path, &new_conflict)?;
