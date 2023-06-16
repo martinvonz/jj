@@ -60,6 +60,44 @@ fn local_branch_name_to_ref_name(branch: &str) -> String {
     format!("refs/heads/{branch}")
 }
 
+/// Checks if `git_ref` points to a Git commit object, and returns its id.
+///
+/// If the ref points to the previously `known_target` (i.e. unchanged), this
+/// should be faster than `git_ref.peel_to_commit()`.
+fn resolve_git_ref_to_commit_id(
+    git_ref: &git2::Reference<'_>,
+    known_target: Option<&RefTarget>,
+) -> Option<CommitId> {
+    // Try fast path if we have a candidate id which is known to be a commit object.
+    if let Some(RefTarget::Normal(id)) = known_target {
+        if matches!(git_ref.target(), Some(oid) if oid.as_bytes() == id.as_bytes()) {
+            return Some(id.clone());
+        }
+        if matches!(git_ref.target_peel(), Some(oid) if oid.as_bytes() == id.as_bytes()) {
+            // Perhaps an annotated tag stored in packed-refs file, and pointing to the
+            // already known target commit.
+            return Some(id.clone());
+        }
+        // A tag (according to ref name.) Try to peel one more level. This is slightly
+        // faster than recurse into peel_to_commit(). If we recorded a tag oid, we
+        // could skip this at all.
+        if let Some(Ok(tag)) = git_ref.is_tag().then(|| git_ref.peel_to_tag()) {
+            if tag.target_id().as_bytes() == id.as_bytes() {
+                // An annotated tag pointing to the already known target commit.
+                return Some(id.clone());
+            } else {
+                // Unknown id. Recurse from the current state as git_object_peel() of
+                // libgit2 would do. A tag may point to non-commit object.
+                let git_commit = tag.into_object().peel_to_commit().ok()?;
+                return Some(CommitId::from_bytes(git_commit.id().as_bytes()));
+            }
+        }
+    }
+
+    let git_commit = git_ref.peel_to_commit().ok()?;
+    Some(CommitId::from_bytes(git_commit.id().as_bytes()))
+}
+
 // TODO: Eventually, git-tracking branches should no longer be stored in
 // git_refs but with the other remote-tracking branches in BranchTarget. Note
 // that there are important but subtle differences in behavior for, e.g. `jj
@@ -150,14 +188,14 @@ pub fn import_some_refs(
                 continue;
             }
         }
-        let git_commit = match git_repo_ref.peel_to_commit() {
-            Ok(git_commit) => git_commit,
-            Err(_) => {
-                // Perhaps a tag pointing to a GPG key or similar. Just skip it.
-                continue;
-            }
+        let id = if let Some(id) =
+            resolve_git_ref_to_commit_id(&git_repo_ref, jj_view_git_refs.get(&full_name))
+        {
+            id
+        } else {
+            // Skip invalid refs.
+            continue;
         };
-        let id = CommitId::from_bytes(git_commit.id().as_bytes());
         pinned_git_heads.insert(full_name.to_string(), vec![id.clone()]);
         if !git_ref_filter(&full_name) {
             continue;
