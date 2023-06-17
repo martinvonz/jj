@@ -26,7 +26,7 @@ use crate::default_index_store::{
     CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition, RevWalk,
 };
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
-use crate::id_prefix::IdIndex;
+use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
 use crate::index::{HexPrefix, Index, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use crate::repo_path::RepoPath;
@@ -109,7 +109,7 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
         // TODO: Create a persistent lookup from change id to commit ids.
         let mut pos_by_change = IdIndex::builder();
         for entry in self.inner.iter() {
-            pos_by_change.insert(entry.change_id(), entry.position());
+            pos_by_change.insert(&entry.change_id(), entry.position());
         }
         Box::new(ChangeIdIndexImpl {
             index: self.index,
@@ -128,18 +128,33 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
 
 struct ChangeIdIndexImpl<'index> {
     index: CompositeIndex<'index>,
-    pos_by_change: IdIndex<ChangeId, IndexPosition>,
+    pos_by_change: IdIndex<ChangeId, IndexPosition, 4>,
 }
 
 impl ChangeIdIndex for ChangeIdIndexImpl<'_> {
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
         self.pos_by_change
-            .resolve_prefix_with(prefix, |pos| self.index.entry_by_pos(*pos).commit_id())
+            .resolve_prefix_with(self.index, prefix, |entry| entry.commit_id())
             .map(|(_, commit_ids)| commit_ids)
     }
 
     fn shortest_unique_prefix_len(&self, change_id: &ChangeId) -> usize {
-        self.pos_by_change.shortest_unique_prefix_len(change_id)
+        self.pos_by_change
+            .shortest_unique_prefix_len(self.index, change_id)
+    }
+}
+
+impl<'index> IdIndexSource<IndexPosition> for CompositeIndex<'index> {
+    type Entry = IndexEntry<'index>;
+
+    fn entry_at(&self, pointer: &IndexPosition) -> Self::Entry {
+        self.entry_by_pos(*pointer)
+    }
+}
+
+impl IdIndexSourceEntry<ChangeId> for IndexEntry<'_> {
+    fn to_key(&self) -> ChangeId {
+        self.change_id()
     }
 }
 
