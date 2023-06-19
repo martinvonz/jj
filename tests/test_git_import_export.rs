@@ -90,7 +90,7 @@ fn test_git_export_conflicting_git_refs() {
 }
 
 #[test]
-fn test_git_import_remote_only_branch() {
+fn test_git_fetch_remote_only_branch() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -111,8 +111,7 @@ fn test_git_import_remote_only_branch() {
         &repo_path,
         &["git", "remote", "add", "origin", "../git-repo"],
     );
-
-    // Import using default config
+    // Create a commit and a branch in the git repo
     git_repo
         .commit(
             Some("refs/heads/feature1"),
@@ -123,12 +122,13 @@ fn test_git_import_remote_only_branch() {
             &[],
         )
         .unwrap();
+
+    // Fetch normally
     test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: 9f01a0e04879 message
     "###);
 
-    // Import using git.auto_local_branch = false
     git_repo
         .commit(
             Some("refs/heads/feature2"),
@@ -139,6 +139,8 @@ fn test_git_import_remote_only_branch() {
             &[],
         )
         .unwrap();
+
+    // Fetch using git.auto_local_branch = false
     test_env.add_config("git.auto-local-branch = false");
     test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
