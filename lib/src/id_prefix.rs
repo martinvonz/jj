@@ -14,6 +14,7 @@
 
 use std::rc::Rc;
 
+use itertools::Itertools as _;
 use once_cell::unsync::OnceCell;
 
 use crate::backend::{self, ChangeId, CommitId, ObjectId};
@@ -31,8 +32,9 @@ struct DisambiguationData {
 }
 
 struct Indexes {
-    commit_index: IdIndex<CommitId, ()>,
-    change_index: IdIndex<ChangeId, CommitId>,
+    commit_change_ids: Vec<(CommitId, ChangeId)>,
+    commit_index: IdIndex<CommitId, u32>,
+    change_index: IdIndex<ChangeId, u32>,
 }
 
 impl DisambiguationData {
@@ -48,13 +50,16 @@ impl DisambiguationData {
                 .evaluate(repo)
                 .map_err(|_| PrefixDisambiguationError)?;
 
-            let mut commit_index = IdIndex::builder();
-            let mut change_index = IdIndex::builder();
-            for (commit_id, change_id) in revset.commit_change_ids() {
-                commit_index.insert(commit_id.clone(), ());
-                change_index.insert(change_id, commit_id);
+            let commit_change_ids = revset.commit_change_ids().collect_vec();
+            let mut commit_index = IdIndex::with_capacity(commit_change_ids.len());
+            let mut change_index = IdIndex::with_capacity(commit_change_ids.len());
+            for (i, (commit_id, change_id)) in commit_change_ids.iter().enumerate() {
+                let i: u32 = i.try_into().unwrap();
+                commit_index.insert(commit_id.clone(), i);
+                change_index.insert(change_id.clone(), i);
             }
             Ok(Indexes {
+                commit_change_ids,
                 commit_index: commit_index.build(),
                 change_index: change_index.build(),
             })
@@ -121,8 +126,10 @@ impl IdPrefixContext {
         prefix: &HexPrefix,
     ) -> PrefixResolution<Vec<CommitId>> {
         if let Some(indexes) = self.disambiguation_indexes(repo) {
-            let resolution = indexes.change_index.resolve_prefix_to_values(prefix);
-            if let PrefixResolution::SingleMatch(ids) = resolution {
+            let resolution = indexes
+                .change_index
+                .resolve_prefix_with(prefix, |&i| indexes.commit_change_ids[i as usize].0.clone());
+            if let PrefixResolution::SingleMatch((_, ids)) = resolution {
                 return PrefixResolution::SingleMatch(ids);
             }
         }
@@ -214,16 +221,6 @@ where
     pub fn resolve_prefix_to_key<'a>(&'a self, prefix: &HexPrefix) -> PrefixResolution<&'a K> {
         self.resolve_prefix_with(prefix, |_| ())
             .map(|(key, ())| key)
-    }
-
-    /// Looks up entries with the given prefix, and collects values if matched
-    /// entries have unambiguous keys.
-    pub fn resolve_prefix_to_values(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<V>>
-    where
-        V: Clone,
-    {
-        self.resolve_prefix_with(prefix, |v: &V| v.clone())
-            .map(|(_, values)| values)
     }
 
     /// Iterates over entries with the given prefix.
