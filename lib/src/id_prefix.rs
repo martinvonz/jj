@@ -107,9 +107,8 @@ impl IdPrefixContext {
     /// can still be resolved by `resolve_commit_prefix()`.
     pub fn shortest_commit_prefix_len(&self, repo: &dyn Repo, commit_id: &CommitId) -> usize {
         if let Some(indexes) = self.disambiguation_indexes(repo) {
-            // TODO: Avoid the double lookup here (has_key() + shortest_unique_prefix_len())
-            if indexes.commit_index.has_key(commit_id) {
-                return indexes.commit_index.shortest_unique_prefix_len(commit_id);
+            if let Some(lookup) = indexes.commit_index.lookup_exact(commit_id) {
+                return lookup.shortest_unique_prefix_len();
             }
         }
         repo.index().shortest_unique_commit_id_prefix_len(commit_id)
@@ -134,8 +133,8 @@ impl IdPrefixContext {
     /// can still be resolved by `resolve_change_prefix()`.
     pub fn shortest_change_prefix_len(&self, repo: &dyn Repo, change_id: &ChangeId) -> usize {
         if let Some(indexes) = self.disambiguation_indexes(repo) {
-            if indexes.change_index.has_key(change_id) {
-                return indexes.change_index.shortest_unique_prefix_len(change_id);
+            if let Some(lookup) = indexes.change_index.lookup_exact(change_id) {
+                return lookup.shortest_unique_prefix_len();
             }
         }
         repo.shortest_unique_change_id_prefix_len(change_id)
@@ -214,8 +213,16 @@ where
             .map(|(k, v)| (k, v))
     }
 
-    pub fn has_key(&self, key: &K) -> bool {
-        self.0.binary_search_by(|(k, _)| k.cmp(key)).is_ok()
+    /// Looks up entry for the key. Returns accessor to neighbors.
+    pub fn lookup_exact<'i, 'q>(&'i self, key: &'q K) -> Option<IdIndexLookup<'i, 'q, K, V>> {
+        let lookup = self.lookup_some(key);
+        lookup.has_key().then_some(lookup)
+    }
+
+    fn lookup_some<'i, 'q>(&'i self, key: &'q K) -> IdIndexLookup<'i, 'q, K, V> {
+        let index = &self.0;
+        let pos = index.partition_point(|(k, _)| k < key);
+        IdIndexLookup { index, key, pos }
     }
 
     /// This function returns the shortest length of a prefix of `key` that
@@ -233,12 +240,35 @@ where
     ///   additional fact that it's the entire key). This case is extremely
     ///   unlikely for hashes with 12+ hexadecimal characters.
     pub fn shortest_unique_prefix_len(&self, key: &K) -> usize {
-        let pos = self.0.partition_point(|(k, _)| k < key);
-        let left = pos.checked_sub(1).map(|p| &self.0[p]);
-        let right = self.0[pos..].iter().find(|(k, _)| k != key);
+        self.lookup_some(key).shortest_unique_prefix_len()
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct IdIndexLookup<'i, 'q, K, V> {
+    index: &'i Vec<(K, V)>,
+    key: &'q K,
+    pos: usize, // may be index.len()
+}
+
+impl<'i, 'q, K, V> IdIndexLookup<'i, 'q, K, V>
+where
+    K: ObjectId + Eq,
+{
+    fn has_key(&self) -> bool {
+        self.index[self.pos..]
+            .iter()
+            .take_while(|(k, _)| k == self.key)
+            .next()
+            .is_some()
+    }
+
+    pub fn shortest_unique_prefix_len(&self) -> usize {
+        let left = self.pos.checked_sub(1).map(|p| &self.index[p]);
+        let right = self.index[self.pos..].iter().find(|(k, _)| k != self.key);
         itertools::chain(left, right)
             .map(|(neighbor, _value)| {
-                backend::common_hex_len(key.as_bytes(), neighbor.as_bytes()) + 1
+                backend::common_hex_len(self.key.as_bytes(), neighbor.as_bytes()) + 1
             })
             .max()
             // Even if the key is the only one in the index, we require at least one digit.
@@ -301,15 +331,15 @@ mod tests {
     }
 
     #[test]
-    fn test_has_key() {
+    fn test_lookup_exact() {
         // No crash if empty
         let id_index = IdIndex::from_vec(vec![] as Vec<(ChangeId, ())>);
-        assert!(!id_index.has_key(&ChangeId::from_hex("00")));
+        assert!(id_index.lookup_exact(&ChangeId::from_hex("00")).is_none());
 
         let id_index = IdIndex::from_vec(vec![(ChangeId::from_hex("ab"), ())]);
-        assert!(!id_index.has_key(&ChangeId::from_hex("aa")));
-        assert!(id_index.has_key(&ChangeId::from_hex("ab")));
-        assert!(!id_index.has_key(&ChangeId::from_hex("ac")));
+        assert!(id_index.lookup_exact(&ChangeId::from_hex("aa")).is_none());
+        assert!(id_index.lookup_exact(&ChangeId::from_hex("ab")).is_some());
+        assert!(id_index.lookup_exact(&ChangeId::from_hex("ac")).is_none());
     }
 
     #[test]
