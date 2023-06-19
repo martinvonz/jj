@@ -283,12 +283,6 @@ mod tests {
 
     #[test]
     fn test_id_index_resolve_prefix() {
-        fn sorted(resolution: PrefixResolution<Vec<i32>>) -> PrefixResolution<Vec<i32>> {
-            resolution.map(|mut xs| {
-                xs.sort(); // order of values might not be preserved by IdIndex
-                xs
-            })
-        }
         let id_index = IdIndex::from_vec(vec![
             (ChangeId::from_hex("0000"), 0),
             (ChangeId::from_hex("0099"), 1),
@@ -296,36 +290,44 @@ mod tests {
             (ChangeId::from_hex("0aaa"), 3),
             (ChangeId::from_hex("0aab"), 4),
         ]);
+        let resolve_prefix = |prefix: &HexPrefix| {
+            let resolution: PrefixResolution<(_, Vec<_>)> =
+                id_index.resolve_prefix_with(prefix, |&v| v);
+            resolution.map(|(key, mut values)| {
+                values.sort(); // order of values might not be preserved by IdIndex
+                (key, values)
+            })
+        };
         assert_eq!(
-            id_index.resolve_prefix_to_values(&HexPrefix::new("0").unwrap()),
+            resolve_prefix(&HexPrefix::new("0").unwrap()),
             PrefixResolution::AmbiguousMatch,
         );
         assert_eq!(
-            id_index.resolve_prefix_to_values(&HexPrefix::new("00").unwrap()),
+            resolve_prefix(&HexPrefix::new("00").unwrap()),
             PrefixResolution::AmbiguousMatch,
         );
         assert_eq!(
-            id_index.resolve_prefix_to_values(&HexPrefix::new("000").unwrap()),
-            PrefixResolution::SingleMatch(vec![0]),
+            resolve_prefix(&HexPrefix::new("000").unwrap()),
+            PrefixResolution::SingleMatch((&ChangeId::from_hex("0000"), vec![0])),
         );
         assert_eq!(
-            id_index.resolve_prefix_to_values(&HexPrefix::new("0001").unwrap()),
+            resolve_prefix(&HexPrefix::new("0001").unwrap()),
             PrefixResolution::NoMatch,
         );
         assert_eq!(
-            sorted(id_index.resolve_prefix_to_values(&HexPrefix::new("009").unwrap())),
-            PrefixResolution::SingleMatch(vec![1, 2]),
+            resolve_prefix(&HexPrefix::new("009").unwrap()),
+            PrefixResolution::SingleMatch((&ChangeId::from_hex("0099"), vec![1, 2])),
         );
         assert_eq!(
-            id_index.resolve_prefix_to_values(&HexPrefix::new("0aa").unwrap()),
+            resolve_prefix(&HexPrefix::new("0aa").unwrap()),
             PrefixResolution::AmbiguousMatch,
         );
         assert_eq!(
-            id_index.resolve_prefix_to_values(&HexPrefix::new("0aab").unwrap()),
-            PrefixResolution::SingleMatch(vec![4]),
+            resolve_prefix(&HexPrefix::new("0aab").unwrap()),
+            PrefixResolution::SingleMatch((&ChangeId::from_hex("0aab"), vec![4])),
         );
         assert_eq!(
-            id_index.resolve_prefix_to_values(&HexPrefix::new("f").unwrap()),
+            resolve_prefix(&HexPrefix::new("f").unwrap()),
             PrefixResolution::NoMatch,
         );
     }
