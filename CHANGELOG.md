@@ -150,6 +150,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * It is now possible to `jj branch forget` deleted branches.
   [#1537](https://github.com/martinvonz/jj/issues/1537)
 
+* `jj git fetch` can now restore branches forgotten by `jj branch forget`.
+  [#1714](https://github.com/martinvonz/jj/pull/1714)
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes

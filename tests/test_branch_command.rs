@@ -233,15 +233,18 @@ fn test_branch_forget_fetched_branch() {
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
-    // Short-term TODO: Fix this BUG. It should be possible to fetch `feature1`
-    // again.
+    // On the other hand, `jj git fetch` does resurrect the branch. This is
+    // important, as otherwise there wouldn't be a good way to resurrect it in
+    // non-colocated repos.
+    //
+    // See the docstring of `ImportMethod::MergeOrResurrect` for technical details.
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
-    insta::assert_snapshot!(stdout, @r###"
-    Nothing changed.
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: 9f01a0e04879 message
     "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
-    // Move the branch in the git repo.
+    // Move the branch in the git repo and forget it again in jj
     git_repo
         .commit(
             Some("refs/heads/feature1"),
@@ -252,18 +255,15 @@ fn test_branch_forget_fetched_branch() {
             &[&git_repo.find_commit(first_git_repo_commit).unwrap()],
         )
         .unwrap();
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "forget", "feature1"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: No such branch: feature1
-    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
-    // BUG: fetching a moved branch creates a move-deletion conflict
+    // We can fetch a forgotten branch even if it was moved on the remote.
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    feature1 (conflicted):
-      - 9f01a0e04879 message
-      + 38aefb173976 another message
+    feature1: 38aefb173976 another message
     "###);
 }
 

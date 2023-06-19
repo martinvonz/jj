@@ -24,8 +24,7 @@ use jujutsu_lib::backend::{
 };
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::git;
-use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate};
+use jujutsu_lib::git::{self, GitFetchError, GitPushError, GitRefUpdate, ImportMethod};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
@@ -69,6 +68,14 @@ fn get_git_repo(repo: &Arc<ReadonlyRepo>) -> git2::Repository {
         .downcast_ref::<GitBackend>()
         .unwrap()
         .git_repo_clone()
+}
+
+fn into_import_method(select: bool) -> ImportMethod {
+    if select {
+        ImportMethod::Merge
+    } else {
+        ImportMethod::Skip
+    }
 }
 
 #[test]
@@ -690,7 +697,7 @@ fn test_import_some_refs() {
     // Import branches feature1, feature2, and feature3.
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
-        ref_name.starts_with("refs/remotes/origin/feature")
+        into_import_method(ref_name.starts_with("refs/remotes/origin/feature"))
     })
     .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -755,7 +762,7 @@ fn test_import_some_refs() {
     delete_git_ref(&git_repo, "refs/remotes/origin/feature4");
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
-        ref_name == "refs/remotes/origin/feature2"
+        into_import_method(ref_name == "refs/remotes/origin/feature2")
     })
     .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -771,7 +778,7 @@ fn test_import_some_refs() {
     // corresponding commit should stay because it is reachable from feature2.
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
-        ref_name == "refs/remotes/origin/feature1"
+        into_import_method(ref_name == "refs/remotes/origin/feature1")
     })
     .unwrap();
     // No descendant should be rewritten.
@@ -788,7 +795,7 @@ fn test_import_some_refs() {
     // feature4 should be left alone even though it is no longer in git.
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
-        ref_name == "refs/remotes/origin/feature3"
+        into_import_method(ref_name == "refs/remotes/origin/feature3")
     })
     .unwrap();
     // No descendant should be rewritten
@@ -804,7 +811,7 @@ fn test_import_some_refs() {
     // Import feature4: both the head and the branch will disappear.
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
-        ref_name == "refs/remotes/origin/feature4"
+        into_import_method(ref_name == "refs/remotes/origin/feature4")
     })
     .unwrap();
     // No descendant should be rewritten
@@ -818,6 +825,42 @@ fn test_import_some_refs() {
             jj_id(&commit_feat2),
     };
     assert_eq!(*view.heads(), expected_heads);
+
+    // Now, let's forget feature2
+    let mut tx = repo.start_transaction(&settings, "test");
+    tx.mut_repo().remove_branch("feature2");
+    assert_eq!(tx.mut_repo().rebase_descendants(&settings).unwrap(), 0);
+    let repo = tx.commit();
+
+    assert_eq!(repo.view().branches().len(), 0);
+
+    // A normal import does not recreate it since the local git repo didn't change
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
+        if ref_name == "refs/remotes/origin/feature2" {
+            ImportMethod::Merge
+        } else {
+            ImportMethod::Skip
+        }
+    })
+    .unwrap();
+    let repo = tx.commit();
+
+    assert_eq!(repo.view().branches().len(), 0);
+
+    // A "resurrection" import does recreate it
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
+        if ref_name == "refs/remotes/origin/feature2" {
+            ImportMethod::MergeOrResurrect
+        } else {
+            ImportMethod::Skip
+        }
+    })
+    .unwrap();
+    let repo = tx.commit();
+
+    assert_eq!(repo.view().branches().len(), 1);
 }
 
 fn git_ref(git_repo: &git2::Repository, name: &str, target: Oid) {

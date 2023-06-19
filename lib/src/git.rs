@@ -124,6 +124,42 @@ fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) -> Result<(), git2::Er
     Ok(())
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum ImportMethod {
+    Skip,
+    Merge,
+    /// Used by `jj git fetch` so that it can resurrect forgotten branches, even
+    /// if they did not move on the remote.
+    ///
+    /// See `test_branch_forget_fetched_branch` in test_branch_command.rs for a
+    /// demonstration.
+    ///
+    /// This is needed because:
+    ///
+    /// - `jj branch forget` deletes the jj's remote-tracking branches, but not
+    /// the refs tracking the git repo's remote-tracking branches. This is
+    /// crucial in colocated repos, where deleting that ref would cause a
+    /// subsequent `jj git import` to immediately resurrect the branch.
+    ///
+    /// - `jj git fetch` needs to fetch such branches, otherwise it is very
+    /// difficult for the user to recover a forgotten branch that they know
+    /// exists on the remote.
+    //
+    // TODO: This is quite hacky. A better long-term solution is need.
+    //
+    // For example, `jj branch forget` could store the list of forgotten
+    // branches in the repo, which `jj git import` and `jj git fetch` would know
+    // to ignore. We'd then need a `jj branch remember` command.
+    //
+    // Another possible solution (less hacky, but without addressing the
+    // usability issues) would be for `jj git push/fetch` to neither rely on nor
+    // modify the local git repo's remote-tracking branches in a normal jj repo.
+    // Then, 'jj git fetch' would respond correctly when jj's remote-tracking
+    // branches are removed.  In a colocated repo, it would be `jj git export`'s
+    // job to update the git repo's remote-tracking branches.
+    MergeOrResurrect,
+}
+
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
 ///
 /// This function detects conflicts (if both Git and JJ modified a branch) and
@@ -133,7 +169,7 @@ pub fn import_refs(
     git_repo: &git2::Repository,
     git_settings: &GitSettings,
 ) -> Result<(), GitImportError> {
-    import_some_refs(mut_repo, git_repo, git_settings, |_| true)
+    import_some_refs(mut_repo, git_repo, git_settings, |_| ImportMethod::Merge)
 }
 
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
@@ -144,7 +180,7 @@ pub fn import_some_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     git_settings: &GitSettings,
-    git_ref_filter: impl Fn(&str) -> bool,
+    git_ref_filter: impl Fn(&str) -> ImportMethod,
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
     let mut jj_view_git_refs = mut_repo.view().git_refs().clone();
@@ -182,9 +218,10 @@ pub fn import_some_refs(
             continue;
         }
         let full_name = git_repo_ref.name().unwrap().to_string();
-        if let Some(RefName::RemoteBranch { branch, remote: _ }) = parse_git_ref(&full_name) {
+        let ref_name = parse_git_ref(&full_name);
+        if let Some(RefName::RemoteBranch { branch, remote: _ }) = &ref_name {
             // "refs/remotes/origin/HEAD" isn't a real remote-tracking branch
-            if &branch == "HEAD" {
+            if branch == "HEAD" {
                 continue;
             }
         }
@@ -197,13 +234,36 @@ pub fn import_some_refs(
             continue;
         };
         pinned_git_heads.insert(full_name.to_string(), vec![id.clone()]);
-        if !git_ref_filter(&full_name) {
-            continue;
-        }
+
+        let allow_resurrection = match git_ref_filter(&full_name) {
+            ImportMethod::Skip => continue,
+            ImportMethod::Merge => false,
+            ImportMethod::MergeOrResurrect => true,
+        };
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
-        let old_target = jj_view_git_refs.remove(&full_name);
         let new_target = Some(RefTarget::Normal(id.clone()));
+        let old_target = jj_view_git_refs.remove(&full_name);
+        let old_target = if allow_resurrection
+            && ref_name
+                .map(|ref_name| mut_repo.view().get_ref(&ref_name).is_none())
+                .unwrap_or(false)
+        {
+            // Normally, if the jj local ref is None and `new_target` isn't, the updated
+            // value of the branch will either still be None (if
+            // `new_target==old_target`, which is common) or become a conflict
+            // (if the branch moved on the remote).
+            //
+            // Changing the `old_target` to None will cause the jj local ref to get
+            // resurrected from `new_target`. Since we only do this when the local ref does
+            // not exist, this will never cause conflicts.
+            //
+            // This behavior will occur for remote-tracking branches during a `jj git
+            // fetch`. For motivation, see the docstring of ImportMethod::MergeOrResurrect.
+            None
+        } else {
+            old_target
+        };
         if new_target != old_target {
             prevent_gc(git_repo, &id)?;
             mut_repo.set_git_ref(full_name.clone(), RefTarget::Normal(id.clone()));
@@ -213,7 +273,7 @@ pub fn import_some_refs(
         }
     }
     for (full_name, target) in jj_view_git_refs {
-        if git_ref_filter(&full_name) {
+        if git_ref_filter(&full_name) != ImportMethod::Skip {
             mut_repo.remove_git_ref(&full_name);
             changed_git_refs.insert(full_name, (Some(target), None));
         } else {
@@ -526,10 +586,27 @@ pub fn fetch(
             mut_repo,
             git_repo,
             git_settings,
-            move |git_ref_name: &str| -> bool { regex.is_match(git_ref_name) },
+            move |git_ref_name: &str| -> ImportMethod {
+                if regex.is_match(git_ref_name) {
+                    ImportMethod::MergeOrResurrect
+                } else {
+                    ImportMethod::Skip
+                }
+            },
         )
     } else {
-        import_refs(mut_repo, git_repo, git_settings)
+        import_some_refs(
+            mut_repo,
+            git_repo,
+            git_settings,
+            move |git_ref_name: &str| -> ImportMethod {
+                if git_ref_name.starts_with(&format!("refs/remotes/{remote_name}")) {
+                    ImportMethod::MergeOrResurrect
+                } else {
+                    ImportMethod::Merge
+                }
+            },
+        )
     }
     .map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
