@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         with:
           fetch-depth: 0
-      - uses: cachix/install-nix-action@4b933aa7ebcc94a6174cf1364864e957b4910265
+      - uses: cachix/install-nix-action@6ed004b9ccb68dbc28e7c85bee15fa93dbd214ac
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
