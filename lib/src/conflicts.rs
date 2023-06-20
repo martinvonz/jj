@@ -33,7 +33,9 @@ const CONFLICT_PLUS_LINE: &[u8] = b"+++++++\n";
 
 /// A generic representation of conflicting values.
 ///
-/// There is exactly one more `adds()` than `removes()`.
+/// There is exactly one more `adds()` than `removes()`. When interpreted as a
+/// series of diffs, the conflict's (i+1)-st add is matched with the i-th
+/// remove. The zeroth add is considered a diff from the non-existent state.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct Conflict<T> {
     removes: Vec<T>,
@@ -68,7 +70,8 @@ impl<T> Conflict<T> {
         &self.adds
     }
 
-    /// Remove pairs of entries that match in the removes and adds.
+    /// Simplify the conflict by joining diffs like A->B and B->C into A->C.
+    /// Also drops trivial diffs like A->A.
     pub fn simplify(mut self) -> Self
     where
         T: PartialEq,
@@ -76,14 +79,20 @@ impl<T> Conflict<T> {
         let mut add_index = 0;
         while add_index < self.adds.len() {
             let add = &self.adds[add_index];
-            add_index += 1;
+            let mut modified = false;
             for (remove_index, remove) in self.removes.iter().enumerate() {
                 if remove == add {
+                    // Move the value to the `add_index-1`th diff, then delete the `remove_index`th
+                    // diff.
+                    self.adds.swap(remove_index + 1, add_index);
                     self.removes.remove(remove_index);
-                    add_index -= 1;
-                    self.adds.remove(add_index);
+                    self.adds.remove(remove_index + 1);
+                    modified = true;
                     break;
                 }
+            }
+            if !modified {
+                add_index += 1;
             }
         }
         self
@@ -666,11 +675,11 @@ mod tests {
         assert_eq!(c(&[0, 1], &[1, 0, 2]).simplify(), c(&[], &[2]));
         assert_eq!(c(&[0, 1], &[1, 1, 0]).simplify(), c(&[], &[1]));
         assert_eq!(c(&[0, 1], &[1, 1, 1]).simplify(), c(&[0], &[1, 1]));
-        assert_eq!(c(&[0, 1], &[1, 1, 2]).simplify(), c(&[0], &[1, 2]));
+        assert_eq!(c(&[0, 1], &[1, 1, 2]).simplify(), c(&[0], &[2, 1]));
         assert_eq!(c(&[0, 1], &[1, 2, 0]).simplify(), c(&[], &[2]));
-        assert_eq!(c(&[0, 1], &[1, 2, 1]).simplify(), c(&[0], &[2, 1]));
+        assert_eq!(c(&[0, 1], &[1, 2, 1]).simplify(), c(&[0], &[1, 2]));
         assert_eq!(c(&[0, 1], &[1, 2, 2]).simplify(), c(&[0], &[2, 2]));
-        assert_eq!(c(&[0, 1], &[1, 2, 3]).simplify(), c(&[0], &[2, 3]));
+        assert_eq!(c(&[0, 1], &[1, 2, 3]).simplify(), c(&[0], &[3, 2]));
         assert_eq!(c(&[0, 1], &[2, 0, 0]).simplify(), c(&[1], &[2, 0]));
         assert_eq!(c(&[0, 1], &[2, 0, 1]).simplify(), c(&[], &[2]));
         assert_eq!(c(&[0, 1], &[2, 0, 2]).simplify(), c(&[1], &[2, 2]));
@@ -688,11 +697,9 @@ mod tests {
         assert_eq!(c(&[0, 1], &[2, 3, 2]).simplify(), c(&[0, 1], &[2, 3, 2]));
         assert_eq!(c(&[0, 1], &[2, 3, 3]).simplify(), c(&[0, 1], &[2, 3, 3]));
         assert_eq!(c(&[0, 1], &[2, 3, 4]).simplify(), c(&[0, 1], &[2, 3, 4]));
-        // TODO: we should probably not change the diffs around like this (e.g. 1->5
-        // before and 1->4 after)
         assert_eq!(
             c(&[0, 1, 2], &[3, 4, 5, 0]).simplify(),
-            c(&[1, 2], &[3, 4, 5])
+            c(&[1, 2], &[3, 5, 4])
         );
     }
 
