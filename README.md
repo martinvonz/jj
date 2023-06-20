@@ -63,19 +63,26 @@ add functionality that cannot easily be added to the Git backend.
 
 ### The working copy is automatically committed
 
-Most Jujutsu commands automatically commit the working copy. This leads to a
-simpler and more powerful interface, since all commands work the same way on the
-working copy or any other commit. It also means that you can always check out a
-different commit without first explicitly committing the working copy changes
-(you can even check out a different commit while resolving merge conflicts).
+Almost all Jujutsu commands automatically commit the working copy. That means
+that commands never fail because the working copy is dirty (no "error: Your
+local changes to the following files..."), and there is no need for `git stash`.
+You also get an automatic backup of the working copy whenever you run a command.
+Also, because the working copy is a commit, commands work the same way on the
+working-copy commit as on any other commit, so you can set the commit message
+before you're done with the changes.
 
 <img src="demos/working_copy.png" />
 
-### Operations update the repo first, then possibly the working copy
+### The repo is the source of truth
 
-The working copy is only updated at the end of an operation, after all other
-changes have already been recorded. This means that you can run any command
-(such as `jj rebase`) even if the working copy is dirty.
+With Jujutsu, the working copy plays a smaller role than with Git. Commands
+snapshot the working copy before they start, then the update the repo, and then
+the working copy is updated (if the working-copy commit was modified). Almost
+all commands (even checkout!) operate on the commits in the repo, leaving the
+common functionality of snapshotting and updating of the working copy to
+centralized code. For example, `jj restore` (similar to `git restore`) can
+restore from any commit and into any commit, and `jj describe` can set the
+commit message of any commit (defaults to the working-copy commit).
 
 ### Entire repo is under version control
 
