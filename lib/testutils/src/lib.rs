@@ -176,15 +176,20 @@ pub fn write_file(store: &Store, path: &RepoPath, contents: &str) -> FileId {
     store.write_file(path, &mut contents.as_bytes()).unwrap()
 }
 
-pub fn write_normal_file(tree_builder: &mut TreeBuilder, path: &RepoPath, contents: &str) {
+pub fn write_normal_file(
+    tree_builder: &mut TreeBuilder,
+    path: &RepoPath,
+    contents: &str,
+) -> FileId {
     let id = write_file(tree_builder.store(), path, contents);
     tree_builder.set(
         path.clone(),
         TreeValue::File {
-            id,
+            id: id.clone(),
             executable: false,
         },
     );
+    id
 }
 
 pub fn write_executable_file(tree_builder: &mut TreeBuilder, path: &RepoPath, contents: &str) {
