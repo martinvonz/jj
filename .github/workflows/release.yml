@@ -35,7 +35,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool musl-tools
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@52e69531e6f69a396bc9d1226284493a5db969ff
+      uses: dtolnay/rust-toolchain@1f5cdb56c8779e3efa22473ce181ff83143b172c
       with:
         toolchain: stable
         target: ${{ matrix.target }}
