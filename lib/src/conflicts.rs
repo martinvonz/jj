@@ -688,6 +688,12 @@ mod tests {
         assert_eq!(c(&[0, 1], &[2, 3, 2]).simplify(), c(&[0, 1], &[2, 3, 2]));
         assert_eq!(c(&[0, 1], &[2, 3, 3]).simplify(), c(&[0, 1], &[2, 3, 3]));
         assert_eq!(c(&[0, 1], &[2, 3, 4]).simplify(), c(&[0, 1], &[2, 3, 4]));
+        // TODO: we should probably not change the diffs around like this (e.g. 1->5
+        // before and 1->4 after)
+        assert_eq!(
+            c(&[0, 1, 2], &[3, 4, 5, 0]).simplify(),
+            c(&[1, 2], &[3, 4, 5])
+        );
     }
 
     #[test]
