@@ -255,6 +255,10 @@ jj <= 0.7.0). Exactly how to source it depends on your shell.
 ```shell script
 source <(jj util completion)  # --bash is the default
 ```
+Or, with jj <= 0.7.0:
+```shell script
+source <(jj debug completion)  # --bash is the default
+```
 
 ### Zsh
 ```shell script
@@ -262,15 +266,29 @@ autoload -U compinit
 compinit
 source <(jj util completion --zsh)
 ```
+Or, with jj <= 0.7.0:
+```shell script
+autoload -U compinit
+compinit
+source <(jj debug completion --zsh)
+```
 
 ### Fish
 ```shell script
 jj util completion --fish | source
 ```
+Or, with jj <= 0.7.0:
+```shell script
+jj debug completion --fish | source
+```
 
 ### Xonsh
 ```shell script
 source-bash $(jj util completion)
+```
+Or, with jj <= 0.7.0:
+```shell script
+source-bash $(jj debug completion)
 ```
 
 
