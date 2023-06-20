@@ -890,3 +890,64 @@ fn test_git_fetch_removed_parent_branch() {
     ◉  000000000000
     "###);
 }
+
+#[test]
+fn test_git_fetch_remote_only_branch() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Create non-empty git repo to add as a remote
+    let git_repo_path = test_env.env_root().join("git-repo");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    let signature =
+        git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
+    let mut tree_builder = git_repo.treebuilder(None).unwrap();
+    let file_oid = git_repo.blob(b"content").unwrap();
+    tree_builder
+        .insert("file", file_oid, git2::FileMode::Blob.into())
+        .unwrap();
+    let tree_oid = tree_builder.write().unwrap();
+    let tree = git_repo.find_tree(tree_oid).unwrap();
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["git", "remote", "add", "origin", "../git-repo"],
+    );
+    // Create a commit and a branch in the git repo
+    git_repo
+        .commit(
+            Some("refs/heads/feature1"),
+            &signature,
+            &signature,
+            "message",
+            &tree,
+            &[],
+        )
+        .unwrap();
+
+    // Fetch normally
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: 9f01a0e04879 message
+    "###);
+
+    git_repo
+        .commit(
+            Some("refs/heads/feature2"),
+            &signature,
+            &signature,
+            "message",
+            &tree,
+            &[],
+        )
+        .unwrap();
+
+    // Fetch using git.auto_local_branch = false
+    test_env.add_config("git.auto-local-branch = false");
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: 9f01a0e04879 message
+    feature2 (deleted)
+      @origin: 9f01a0e04879 message
+    "###);
+}
