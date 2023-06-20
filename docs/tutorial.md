@@ -331,12 +331,9 @@ try `jj log --at-op=367400773f87` but use the hash from your own `jj op log`.
 
 You have already seen how `jj squash` can combine the changes from two commits
 into one. There are several other commands for changing the contents of existing
-commits. These commands assume that you have `meld` installed. If you prefer
-`vimdiff`, add this to your `~/.jjconfig.toml` file:
-```
-[ui]
-diff-editor = "vimdiff"
-```
+commits. These commands assume that you have `meld` installed. If you prefer a
+terminal-based diff editor, you
+can [configure `scm-diff-editor`](config.md#setting-up-scm-diff-editor) instead.
 
 We'll need some more complex content to test these commands, so let's create a
 few more commits:

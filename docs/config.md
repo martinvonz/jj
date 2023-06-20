@@ -327,6 +327,24 @@ merge-tools.kdiff3.edit-args = [
     "--merge", "--cs", "CreateBakFiles=0", "$left", "$right"]
 ```
 
+### Setting up `scm-diff-editor`
+
+`scm-diff-editor` is a terminal-based diff editor that is part of
+the [git-branchless](https://github.com/arxanas/git-branchless) suite of tools.
+It's a good alternative to Meld, especially if you don't have a graphical
+environment (e.g. when using SSH). To install it:
+
+```shell
+cargo install --git https://github.com/arxanas/git-branchless scm-record
+--features scm-diff-editor
+```
+
+Then config it as follows:
+
+```toml
+ui.diff-editor = ["scm-diff-editor", "--dir-diff", "$left", "$right"]
+```
+
 ### `JJ-INSTRUCTIONS`
 
 When editing a diff, jj will include a synthetic file called `JJ-INSTRUCTIONS`
