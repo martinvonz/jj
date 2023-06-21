@@ -496,12 +496,6 @@ impl TreeState {
         } = options;
 
         let sparse_matcher = self.sparse_matcher();
-        let mut work = vec![(
-            RepoPath::root(),
-            self.working_copy_path.clone(),
-            base_ignores,
-        )];
-
         let current_tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
         let mut deleted_files: HashSet<_> = self
@@ -511,7 +505,23 @@ impl TreeState {
                 (state.file_type != FileType::GitSubmodule).then(|| path.clone())
             })
             .collect();
-        while let Some((dir, disk_dir, git_ignore)) = work.pop() {
+
+        struct WorkItem {
+            dir: RepoPath,
+            disk_dir: PathBuf,
+            git_ignore: Arc<GitIgnoreFile>,
+        }
+        let mut work = vec![WorkItem {
+            dir: RepoPath::root(),
+            disk_dir: self.working_copy_path.clone(),
+            git_ignore: base_ignores,
+        }];
+        while let Some(WorkItem {
+            dir,
+            disk_dir,
+            git_ignore,
+        }) = work.pop()
+        {
             if sparse_matcher.visit(&dir).is_nothing() {
                 continue;
             }
@@ -544,7 +554,11 @@ impl TreeState {
                     {
                         continue;
                     }
-                    work.push((sub_path, entry.path(), git_ignore.clone()));
+                    work.push(WorkItem {
+                        dir: sub_path,
+                        disk_dir: entry.path(),
+                        git_ignore: git_ignore.clone(),
+                    });
                 } else {
                     deleted_files.remove(&sub_path);
                     if sparse_matcher.matches(&sub_path) {
