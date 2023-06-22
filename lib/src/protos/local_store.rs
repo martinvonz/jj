@@ -61,12 +61,6 @@ pub struct Commit {
     pub author: ::core::option::Option<commit::Signature>,
     #[prost(message, optional, tag = "7")]
     pub committer: ::core::option::Option<commit::Signature>,
-    #[deprecated]
-    #[prost(bool, tag = "8")]
-    pub is_open: bool,
-    #[deprecated]
-    #[prost(bool, tag = "9")]
-    pub is_pruned: bool,
 }
 /// Nested message and enum types in `Commit`.
 pub mod commit {
