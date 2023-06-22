@@ -22,6 +22,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use crate::backend::{BackendError, BackendResult, FileId, ObjectId, TreeId, TreeValue};
+use crate::content_hash::ContentHash;
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files::{ContentHunk, MergeResult};
 use crate::merge::trivial_merge;
@@ -53,6 +54,7 @@ impl<T> Conflict<T> {
         Conflict { removes, adds }
     }
 
+    /// Creates a `Conflict` with a single resolved value.
     pub fn resolved(value: T) -> Self {
         Conflict::new(vec![], vec![value])
     }
@@ -202,6 +204,32 @@ impl<T> Conflict<Conflict<T>> {
         }
         assert!(self.adds.is_empty());
         result
+    }
+}
+
+impl<T: ContentHash> ContentHash for Conflict<T> {
+    fn hash(&self, state: &mut impl digest::Update) {
+        self.removes().hash(state);
+        self.adds().hash(state);
+    }
+}
+
+impl Conflict<TreeId> {
+    // Creates a resolved conflict for a legacy tree id (same as
+    // `Conflict::resolved()`).
+    // TODO(#1624): delete when all callers have been updated to support tree-level
+    // conflicts
+    pub fn from_legacy_tree_id(value: TreeId) -> Self {
+        Conflict {
+            removes: vec![],
+            adds: vec![value],
+        }
+    }
+
+    // TODO(#1624): delete when all callers have been updated to support tree-level
+    // conflicts
+    pub fn as_legacy_tree_id(&self) -> &TreeId {
+        self.as_resolved().unwrap()
     }
 }
 

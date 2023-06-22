@@ -30,6 +30,7 @@ use crate::backend::{
     ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
     Tree, TreeId, TreeValue,
 };
+use crate::conflicts;
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::repo_path::{RepoPath, RepoPathComponent};
@@ -284,7 +285,21 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.to_bytes());
     }
-    proto.root_tree = commit.root_tree.to_bytes();
+    let conflict = crate::protos::local_store::TreeConflict {
+        removes: commit
+            .root_tree
+            .removes()
+            .iter()
+            .map(|id| id.to_bytes())
+            .collect(),
+        adds: commit
+            .root_tree
+            .adds()
+            .iter()
+            .map(|id| id.to_bytes())
+            .collect(),
+    };
+    proto.root_tree = Some(conflict);
     proto.change_id = commit.change_id.to_bytes();
     proto.description = commit.description.clone();
     proto.author = Some(signature_to_proto(&commit.author));
@@ -295,12 +310,17 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
 fn commit_from_proto(proto: crate::protos::local_store::Commit) -> Commit {
     let parents = proto.parents.into_iter().map(CommitId::new).collect();
     let predecessors = proto.predecessors.into_iter().map(CommitId::new).collect();
-    let root_tree = TreeId::new(proto.root_tree);
+    let conflict = proto.root_tree.unwrap();
+    let root_tree = conflicts::Conflict::new(
+        conflict.removes.into_iter().map(TreeId::new).collect(),
+        conflict.adds.into_iter().map(TreeId::new).collect(),
+    );
     let change_id = ChangeId::new(proto.change_id);
     Commit {
         parents,
         predecessors,
         root_tree,
+        uses_tree_conflict_format: true,
         change_id,
         description: proto.description,
         author: signature_from_proto(proto.author.unwrap_or_default()),

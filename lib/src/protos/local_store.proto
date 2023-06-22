@@ -39,10 +39,15 @@ message Tree {
   repeated Entry entries = 1;
 }
 
+message TreeConflict {
+  repeated bytes removes = 1;
+  repeated bytes adds = 2;
+}
+
 message Commit {
   repeated bytes parents = 1;
   repeated bytes predecessors = 2;
-  bytes root_tree = 3;
+  TreeConflict root_tree = 3;
   bytes change_id = 4;
   string description = 5;
 

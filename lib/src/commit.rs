@@ -103,12 +103,12 @@ impl Commit {
 
     pub fn tree(&self) -> Tree {
         self.store
-            .get_tree(&RepoPath::root(), &self.data.root_tree)
+            .get_tree(&RepoPath::root(), self.data.root_tree.as_legacy_tree_id())
             .unwrap()
     }
 
     pub fn tree_id(&self) -> &TreeId {
-        &self.data.root_tree
+        self.data.root_tree.as_legacy_tree_id()
     }
 
     pub fn change_id(&self) -> &ChangeId {

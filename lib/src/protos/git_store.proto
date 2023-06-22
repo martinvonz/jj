@@ -16,9 +16,21 @@ syntax = "proto3";
 
 package git_store;
 
+message TreeConflict {
+  repeated bytes removes = 1;
+  repeated bytes adds = 2;
+}
+
 message Commit {
   repeated bytes predecessors = 2;
   bytes change_id = 4;
+
+  oneof root_tree {
+    bytes resolved = 3;
+    TreeConflict conflict = 1;
+  }
+  // TODO(#1624): delete when we assume that all commits use this format
+  bool uses_tree_conflict_format = 10;
 
   bool is_open = 8 [deprecated = true];
   bool is_pruned = 9 [deprecated = true];
