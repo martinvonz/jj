@@ -17,7 +17,7 @@ publish = false
 [dependencies]
 config = { version = "0.13.2", default-features = false, features = ["toml"] }
 git2 = "0.17.2"
-itertools = "0.10.5"
+itertools = "0.11.0"
 jujutsu-lib = { path = ".." }
 rand = "0.8.5"
 tempfile = "3.6.0"
