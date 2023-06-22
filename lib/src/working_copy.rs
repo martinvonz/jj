@@ -620,17 +620,19 @@ impl TreeState {
                         if let Some(progress) = progress {
                             progress(&sub_path);
                         }
-                        let new_tree_value = self.update_file_state(
+                        let update = self.update_file_state(
                             sub_path.clone(),
                             &entry,
                             git_ignore.as_ref(),
                             &current_tree,
                         )?;
-                        match new_tree_value {
-                            Some(new_tree_value) => {
+                        match update {
+                            Some((new_tree_value, new_file_state)) => {
+                                self.file_states.insert(sub_path.clone(), new_file_state);
                                 tree_builder.set(sub_path, new_tree_value);
                             }
                             None => {
+                                self.file_states.remove(&sub_path);
                                 tree_builder.remove(sub_path);
                             }
                         }
@@ -723,21 +725,20 @@ impl TreeState {
     }
 
     fn update_file_state(
-        &mut self,
+        &self,
         repo_path: RepoPath,
         dir_entry: &DirEntry,
         git_ignore: &GitIgnoreFile,
         current_tree: &Tree,
-    ) -> Result<Option<TreeValue>, SnapshotError> {
+    ) -> Result<Option<(TreeValue, FileState)>, SnapshotError> {
         let current_tree_value = current_tree.path_value(&repo_path);
-        let new_tree_value = current_tree_value.clone();
-        let maybe_current_file_state = self.file_states.get_mut(&repo_path);
+        let maybe_current_file_state = self.file_states.get(&repo_path).cloned();
         if maybe_current_file_state.is_none()
             && git_ignore.matches_file(&repo_path.to_internal_file_string())
         {
             // If it wasn't already tracked and it matches the ignored paths, then
             // ignore it.
-            return Ok(new_tree_value);
+            return Ok(None);
         }
 
         let disk_path = dir_entry.path();
@@ -746,18 +747,16 @@ impl TreeState {
             err,
         })?;
         let maybe_new_file_state = file_state(&metadata);
-        let (current_file_state, mut new_file_state) =
+        let (mut current_file_state, mut new_file_state) =
             match (maybe_current_file_state, maybe_new_file_state) {
                 (_, None) => {
-                    self.file_states.remove(&repo_path);
                     return Ok(None);
                 }
                 (None, Some(new_file_state)) => {
                     // untracked
                     let file_type = new_file_state.file_type.clone();
-                    self.file_states.insert(repo_path.clone(), new_file_state);
                     let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
-                    return Ok(Some(file_value));
+                    return Ok(Some((file_value, new_file_state)));
                 }
                 (Some(current_file_state), Some(new_file_state)) => {
                     (current_file_state, new_file_state)
@@ -776,7 +775,7 @@ impl TreeState {
         if current_file_state.mtime >= self.own_mtime {
             current_file_state.mtime = MillisSinceEpoch(0);
         }
-        let mut clean = current_file_state == &new_file_state;
+        let mut clean = current_file_state == new_file_state;
         // Because the file system doesn't have a built-in way of indicating a conflict,
         // we look at the current state instead. If that indicates that the path has a
         // conflict and the contents are now a file, then we take interpret that as if
@@ -810,26 +809,22 @@ impl TreeState {
                         .unwrap()
                     {
                         new_file_state.file_type = FileType::Conflict;
-                        *current_file_state = new_file_state;
-                        let new_tree_value = if new_conflict == conflict {
-                            current_tree_value
+                        let new_conflict_id = if new_conflict == conflict {
+                            conflict_id.clone()
                         } else {
-                            let new_conflict_id =
-                                self.store.write_conflict(&repo_path, &new_conflict)?;
-                            Some(TreeValue::Conflict(new_conflict_id))
+                            self.store.write_conflict(&repo_path, &new_conflict)?
                         };
-                        return Ok(new_tree_value);
+                        return Ok(Some((TreeValue::Conflict(new_conflict_id), new_file_state)));
                     }
                 }
             }
         }
         if !clean {
             let file_type = new_file_state.file_type.clone();
-            *current_file_state = new_file_state;
             let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
-            return Ok(Some(file_value));
+            return Ok(Some((file_value, new_file_state)));
         }
-        Ok(current_tree_value)
+        Ok(current_tree_value.map(|current_tree_value| (current_tree_value, new_file_state)))
     }
 
     fn write_path_to_store(
