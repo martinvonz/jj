@@ -46,13 +46,21 @@ pub mod tree {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TreeConflict {
+    #[prost(bytes = "vec", repeated, tag = "1")]
+    pub removes: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
+    #[prost(bytes = "vec", repeated, tag = "2")]
+    pub adds: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Commit {
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub parents: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
     #[prost(bytes = "vec", repeated, tag = "2")]
     pub predecessors: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
-    #[prost(bytes = "vec", tag = "3")]
-    pub root_tree: ::prost::alloc::vec::Vec<u8>,
+    #[prost(message, optional, tag = "3")]
+    pub root_tree: ::core::option::Option<TreeConflict>,
     #[prost(bytes = "vec", tag = "4")]
     pub change_id: ::prost::alloc::vec::Vec<u8>,
     #[prost(string, tag = "5")]

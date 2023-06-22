@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use crate::backend::{self, BackendResult, ChangeId, CommitId, Signature, TreeId};
 use crate::commit::Commit;
+use crate::conflicts::Conflict;
 use crate::repo::{MutableRepo, Repo};
 use crate::settings::{JJRng, UserSettings};
 
@@ -43,7 +44,9 @@ impl CommitBuilder<'_> {
         let commit = backend::Commit {
             parents,
             predecessors: vec![],
-            root_tree: tree_id,
+            // TODO(#1624): set this when appropriate
+            root_tree: Conflict::from_legacy_tree_id(tree_id),
+            uses_tree_conflict_format: false,
             change_id,
             description: String::new(),
             author: signature.clone(),
@@ -101,11 +104,11 @@ impl CommitBuilder<'_> {
     }
 
     pub fn tree(&self) -> &TreeId {
-        &self.commit.root_tree
+        self.commit.root_tree.as_legacy_tree_id()
     }
 
     pub fn set_tree(mut self, tree_id: TreeId) -> Self {
-        self.commit.root_tree = tree_id;
+        self.commit.root_tree = Conflict::from_legacy_tree_id(tree_id);
         self
     }
 
