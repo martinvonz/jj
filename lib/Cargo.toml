@@ -30,7 +30,7 @@ config = { version = "0.13.3", default-features = false, features = ["toml"] }
 digest = "0.10.7"
 git2 = "0.17.2"
 hex = "0.4.3"
-itertools = "0.10.5"
+itertools = "0.11.0"
 maplit = "1.0.2"
 once_cell = "1.18.0"
 pest = "2.7.0"
