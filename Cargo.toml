@@ -70,7 +70,7 @@ libc = { version = "0.2.146" }
 [dev-dependencies]
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
-insta = { version = "1.29.0", features = ["filters"] }
+insta = { version = "1.30.0", features = ["filters"] }
 regex = "1.8.4"
 testutils = { path = "lib/testutils" }
 
