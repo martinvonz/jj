@@ -204,7 +204,7 @@ fn signature_to_git(signature: &Signature) -> git2::Signature<'static> {
 }
 
 fn serialize_extras(commit: &Commit) -> Vec<u8> {
-    let mut proto = crate::protos::store::Commit {
+    let mut proto = crate::protos::git_store::Commit {
         change_id: commit.change_id.to_bytes(),
         ..Default::default()
     };
@@ -215,7 +215,7 @@ fn serialize_extras(commit: &Commit) -> Vec<u8> {
 }
 
 fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
-    let proto = crate::protos::store::Commit::decode(bytes).unwrap();
+    let proto = crate::protos::git_store::Commit::decode(bytes).unwrap();
     commit.change_id = ChangeId::new(proto.change_id);
     for predecessor in &proto.predecessors {
         commit.predecessors.push(CommitId::from_bytes(predecessor));
