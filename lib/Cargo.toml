@@ -54,7 +54,7 @@ rustix = { version = "0.37.20", features = ["fs"] }
 [dev-dependencies]
 assert_matches = "1.5.0"
 criterion = "0.5.1"
-insta = "1.29.0"
+insta = "1.30.0"
 num_cpus = "1.15.0"
 test-case = "3.1.0"
 testutils = { path = "testutils" }
