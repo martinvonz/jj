@@ -29,8 +29,10 @@ where
         "trivial_merge() requires exactly one more adds than removes"
     );
 
-    // Optimize the common case of a 3-way merge
-    if adds.len() == 2 {
+    // Optimize the common cases of 3-way merge and 1-way (non-)merge
+    if adds.len() == 1 {
+        return Some(&adds[0]);
+    } else if adds.len() == 2 {
         return if adds[0] == adds[1] {
             Some(&adds[0])
         } else if adds[0] == removes[0] {
