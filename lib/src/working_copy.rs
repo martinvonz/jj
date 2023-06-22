@@ -49,7 +49,6 @@ use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{Diff, Tree};
-use crate::tree_builder::TreeBuilder;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FileType {
@@ -621,13 +620,20 @@ impl TreeState {
                         if let Some(progress) = progress {
                             progress(&sub_path);
                         }
-                        self.update_file_state(
-                            sub_path,
+                        let new_tree_value = self.update_file_state(
+                            sub_path.clone(),
                             &entry,
                             git_ignore.as_ref(),
                             &current_tree,
-                            &mut tree_builder,
                         )?;
+                        match new_tree_value {
+                            Some(new_tree_value) => {
+                                tree_builder.set(sub_path, new_tree_value);
+                            }
+                            None => {
+                                tree_builder.remove(sub_path);
+                            }
+                        }
                     }
                 }
             }
@@ -722,15 +728,16 @@ impl TreeState {
         dir_entry: &DirEntry,
         git_ignore: &GitIgnoreFile,
         current_tree: &Tree,
-        tree_builder: &mut TreeBuilder,
-    ) -> Result<(), SnapshotError> {
+    ) -> Result<Option<TreeValue>, SnapshotError> {
+        let current_tree_value = current_tree.path_value(&repo_path);
+        let new_tree_value = current_tree_value.clone();
         let maybe_current_file_state = self.file_states.get_mut(&repo_path);
         if maybe_current_file_state.is_none()
             && git_ignore.matches_file(&repo_path.to_internal_file_string())
         {
             // If it wasn't already tracked and it matches the ignored paths, then
             // ignore it.
-            return Ok(());
+            return Ok(new_tree_value);
         }
 
         let disk_path = dir_entry.path();
@@ -746,14 +753,14 @@ impl TreeState {
             (Some(_), None) => {
                 // Tracked file replaced by Unix socket or such
                 self.file_states.remove(&repo_path);
-                tree_builder.remove(repo_path);
+                return Ok(None);
             }
             (None, Some(new_file_state)) => {
                 // untracked
                 let file_type = new_file_state.file_type.clone();
                 self.file_states.insert(repo_path.clone(), new_file_state);
                 let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
-                tree_builder.set(repo_path, file_value);
+                return Ok(Some(file_value));
             }
             (Some(current_file_state), Some(mut new_file_state)) => {
                 #[cfg(windows)]
@@ -785,7 +792,6 @@ impl TreeState {
                     {
                         clean = true;
                     } else {
-                        let current_tree_value = current_tree.path_value(&repo_path);
                         // If the file contained a conflict before and is now a normal file on disk
                         // (new_file_state cannot be a Conflict at this point), we try to parse
                         // any conflict markers in the file into a conflict.
@@ -804,13 +810,14 @@ impl TreeState {
                             {
                                 new_file_state.file_type = FileType::Conflict;
                                 *current_file_state = new_file_state;
-                                if new_conflict != conflict {
+                                let new_tree_value = if new_conflict == conflict {
+                                    current_tree_value
+                                } else {
                                     let new_conflict_id =
                                         self.store.write_conflict(&repo_path, &new_conflict)?;
-                                    tree_builder
-                                        .set(repo_path, TreeValue::Conflict(new_conflict_id));
+                                    Some(TreeValue::Conflict(new_conflict_id))
                                 };
-                                return Ok(());
+                                return Ok(new_tree_value);
                             }
                         }
                     }
@@ -819,11 +826,11 @@ impl TreeState {
                     let file_type = new_file_state.file_type.clone();
                     *current_file_state = new_file_state;
                     let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
-                    tree_builder.set(repo_path, file_value);
+                    return Ok(Some(file_value));
                 }
             }
         };
-        Ok(())
+        Ok(current_tree_value)
     }
 
     fn write_path_to_store(
