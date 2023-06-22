@@ -746,90 +746,89 @@ impl TreeState {
             err,
         })?;
         let maybe_new_file_state = file_state(&metadata);
-        match (maybe_current_file_state, maybe_new_file_state) {
-            (None, None) => {
-                // Untracked Unix socket or such
-            }
-            (Some(_), None) => {
-                // Tracked file replaced by Unix socket or such
-                self.file_states.remove(&repo_path);
-                return Ok(None);
-            }
-            (None, Some(new_file_state)) => {
-                // untracked
-                let file_type = new_file_state.file_type.clone();
-                self.file_states.insert(repo_path.clone(), new_file_state);
-                let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
-                return Ok(Some(file_value));
-            }
-            (Some(current_file_state), Some(mut new_file_state)) => {
-                #[cfg(windows)]
-                {
-                    // On Windows, we preserve the state we had recorded
-                    // when we wrote the file.
-                    new_file_state.mark_executable(current_file_state.is_executable());
+        let (current_file_state, mut new_file_state) =
+            match (maybe_current_file_state, maybe_new_file_state) {
+                (_, None) => {
+                    self.file_states.remove(&repo_path);
+                    return Ok(None);
                 }
-                // If the file's mtime was set at the same time as this state file's own mtime,
-                // then we don't know if the file was modified before or after this state file.
-                // We set the file's mtime to 0 to simplify later code.
-                if current_file_state.mtime >= self.own_mtime {
-                    current_file_state.mtime = MillisSinceEpoch(0);
-                }
-                let mut clean = current_file_state == &new_file_state;
-                // Because the file system doesn't have a built-in way of indicating a conflict,
-                // we look at the current state instead. If that indicates that the path has a
-                // conflict and the contents are now a file, then we take interpret that as if
-                // it is still a conflict.
-                if !clean
-                    && current_file_state.file_type == FileType::Conflict
-                    && matches!(new_file_state.file_type, FileType::Normal { .. })
-                {
-                    // If the only change is that the type changed from conflict to regular file,
-                    // then we consider it clean (the same as a regular file being clean, it's
-                    // just that the file system doesn't have a conflict type).
-                    if new_file_state.mtime == current_file_state.mtime
-                        && new_file_state.size == current_file_state.size
-                    {
-                        clean = true;
-                    } else {
-                        // If the file contained a conflict before and is now a normal file on disk
-                        // (new_file_state cannot be a Conflict at this point), we try to parse
-                        // any conflict markers in the file into a conflict.
-                        if let (
-                            Some(TreeValue::Conflict(conflict_id)),
-                            FileType::Normal { executable: _ },
-                        ) = (&current_tree_value, &new_file_state.file_type)
-                        {
-                            let mut file = File::open(&disk_path).unwrap();
-                            let mut content = vec![];
-                            file.read_to_end(&mut content).unwrap();
-                            let conflict = self.store.read_conflict(&repo_path, conflict_id)?;
-                            if let Some(new_conflict) = conflict
-                                .update_from_content(self.store.as_ref(), &repo_path, &content)
-                                .unwrap()
-                            {
-                                new_file_state.file_type = FileType::Conflict;
-                                *current_file_state = new_file_state;
-                                let new_tree_value = if new_conflict == conflict {
-                                    current_tree_value
-                                } else {
-                                    let new_conflict_id =
-                                        self.store.write_conflict(&repo_path, &new_conflict)?;
-                                    Some(TreeValue::Conflict(new_conflict_id))
-                                };
-                                return Ok(new_tree_value);
-                            }
-                        }
-                    }
-                }
-                if !clean {
+                (None, Some(new_file_state)) => {
+                    // untracked
                     let file_type = new_file_state.file_type.clone();
-                    *current_file_state = new_file_state;
+                    self.file_states.insert(repo_path.clone(), new_file_state);
                     let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
                     return Ok(Some(file_value));
                 }
+                (Some(current_file_state), Some(new_file_state)) => {
+                    (current_file_state, new_file_state)
+                }
+            };
+
+        #[cfg(windows)]
+        {
+            // On Windows, we preserve the state we had recorded
+            // when we wrote the file.
+            new_file_state.mark_executable(current_file_state.is_executable());
+        }
+        // If the file's mtime was set at the same time as this state file's own mtime,
+        // then we don't know if the file was modified before or after this state file.
+        // We set the file's mtime to 0 to simplify later code.
+        if current_file_state.mtime >= self.own_mtime {
+            current_file_state.mtime = MillisSinceEpoch(0);
+        }
+        let mut clean = current_file_state == &new_file_state;
+        // Because the file system doesn't have a built-in way of indicating a conflict,
+        // we look at the current state instead. If that indicates that the path has a
+        // conflict and the contents are now a file, then we take interpret that as if
+        // it is still a conflict.
+        if !clean
+            && current_file_state.file_type == FileType::Conflict
+            && matches!(new_file_state.file_type, FileType::Normal { .. })
+        {
+            // If the only change is that the type changed from conflict to regular file,
+            // then we consider it clean (the same as a regular file being clean, it's
+            // just that the file system doesn't have a conflict type).
+            if new_file_state.mtime == current_file_state.mtime
+                && new_file_state.size == current_file_state.size
+            {
+                clean = true;
+            } else {
+                // If the file contained a conflict before and is now a normal file on disk
+                // (new_file_state cannot be a Conflict at this point), we try to parse
+                // any conflict markers in the file into a conflict.
+                if let (
+                    Some(TreeValue::Conflict(conflict_id)),
+                    FileType::Normal { executable: _ },
+                ) = (&current_tree_value, &new_file_state.file_type)
+                {
+                    let mut file = File::open(&disk_path).unwrap();
+                    let mut content = vec![];
+                    file.read_to_end(&mut content).unwrap();
+                    let conflict = self.store.read_conflict(&repo_path, conflict_id)?;
+                    if let Some(new_conflict) = conflict
+                        .update_from_content(self.store.as_ref(), &repo_path, &content)
+                        .unwrap()
+                    {
+                        new_file_state.file_type = FileType::Conflict;
+                        *current_file_state = new_file_state;
+                        let new_tree_value = if new_conflict == conflict {
+                            current_tree_value
+                        } else {
+                            let new_conflict_id =
+                                self.store.write_conflict(&repo_path, &new_conflict)?;
+                            Some(TreeValue::Conflict(new_conflict_id))
+                        };
+                        return Ok(new_tree_value);
+                    }
+                }
             }
-        };
+        }
+        if !clean {
+            let file_type = new_file_state.file_type.clone();
+            *current_file_state = new_file_state;
+            let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
+            return Ok(Some(file_value));
+        }
         Ok(current_tree_value)
     }
 
