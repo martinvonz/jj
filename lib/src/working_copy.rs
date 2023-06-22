@@ -824,59 +824,51 @@ impl TreeState {
             err,
         })?;
         let maybe_new_file_state = file_state(&metadata);
-        match (maybe_current_file_state, maybe_new_file_state) {
-            (None, None) => {
-                // Untracked Unix socket or such
-            }
-            (Some(_), None) => {
-                // Tracked file replaced by Unix socket or such
-                self.file_states.remove(repo_path);
-                return Ok(UpdatedFileState::Deleted);
-            }
-            (None, Some(new_file_state)) => {
-                // untracked
-                let file_type = new_file_state.file_type.clone();
-                self.file_states.insert(repo_path.clone(), new_file_state);
-                let file_value = self.write_path_to_store(repo_path, &disk_path, file_type)?;
-                return Ok(UpdatedFileState::Changed(file_value));
-            }
-            (Some(current_file_state), Some(new_file_state)) => {
-                #[cfg(windows)]
-                let mut new_file_state = new_file_state;
-                #[cfg(windows)]
-                {
-                    // On Windows, we preserve the state we had recorded
-                    // when we wrote the file.
-                    new_file_state.mark_executable(current_file_state.is_executable());
+        let (current_file_state, new_file_state) =
+            match (maybe_current_file_state, maybe_new_file_state) {
+                (_, None) => {
+                    // Tracked file replaced by Unix socket or such
+                    self.file_states.remove(repo_path);
+                    return Ok(UpdatedFileState::Deleted);
                 }
-                // If the file's mtime was set at the same time as this state file's own mtime,
-                // then we don't know if the file was modified before or after this state file.
-                if current_file_state != &new_file_state
-                    || current_file_state.mtime >= self.own_mtime
-                {
-                    let new_file_type = new_file_state.file_type.clone();
-                    *current_file_state = new_file_state;
-                    let current_tree_value = current_tree.path_value(repo_path);
-                    // If the file contained a conflict before and is now a normal file on disk, we
-                    // try to parse any conflict markers in the file into a conflict.
-                    let new_tree_value = if let (
-                        Some(TreeValue::Conflict(conflict_id)),
-                        FileType::Normal { executable },
-                    ) = (current_tree_value, &new_file_type)
-                    {
-                        self.write_conflict_to_store(
-                            repo_path,
-                            &disk_path,
-                            conflict_id,
-                            *executable,
-                        )?
-                    } else {
-                        self.write_path_to_store(repo_path, &disk_path, new_file_type)?
-                    };
-                    return Ok(UpdatedFileState::Changed(new_tree_value));
+                (None, Some(new_file_state)) => {
+                    // untracked
+                    let file_type = new_file_state.file_type.clone();
+                    self.file_states.insert(repo_path.clone(), new_file_state);
+                    let file_value = self.write_path_to_store(repo_path, &disk_path, file_type)?;
+                    return Ok(UpdatedFileState::Changed(file_value));
                 }
-            }
-        };
+                (Some(current_file_state), Some(new_file_state)) => {
+                    (current_file_state, new_file_state)
+                }
+            };
+
+        #[cfg(windows)]
+        let mut new_file_state = new_file_state;
+        #[cfg(windows)]
+        {
+            // On Windows, we preserve the state we had recorded
+            // when we wrote the file.
+            new_file_state.mark_executable(current_file_state.is_executable());
+        }
+        // If the file's mtime was set at the same time as this state file's own mtime,
+        // then we don't know if the file was modified before or after this state file.
+        if current_file_state != &new_file_state || current_file_state.mtime >= self.own_mtime {
+            let new_file_type = new_file_state.file_type.clone();
+            *current_file_state = new_file_state;
+            let current_tree_value = current_tree.path_value(repo_path);
+            // If the file contained a conflict before and is now a normal file on disk, we
+            // try to parse any conflict markers in the file into a conflict.
+            let new_tree_value =
+                if let (Some(TreeValue::Conflict(conflict_id)), FileType::Normal { executable }) =
+                    (current_tree_value, &new_file_type)
+                {
+                    self.write_conflict_to_store(repo_path, &disk_path, conflict_id, *executable)?
+                } else {
+                    self.write_path_to_store(repo_path, &disk_path, new_file_type)?
+                };
+            return Ok(UpdatedFileState::Changed(new_tree_value));
+        }
         Ok(UpdatedFileState::Unchanged)
     }
 
