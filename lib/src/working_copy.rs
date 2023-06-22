@@ -51,7 +51,6 @@ use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{Diff, Tree};
-use crate::tree_builder::TreeBuilder;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FileType {
@@ -396,6 +395,12 @@ pub enum TreeStateError {
     Fsmonitor(Box<dyn Error + Send + Sync>),
 }
 
+enum UpdatedFileState {
+    Unchanged,
+    Deleted,
+    Changed(TreeValue),
+}
+
 impl TreeState {
     pub fn current_tree_id(&self) -> &TreeId {
         &self.tree_id
@@ -687,13 +692,21 @@ impl TreeState {
                             if let Some(progress) = progress {
                                 progress(&sub_path);
                             }
-                            self.update_file_state(
-                                sub_path,
+                            let update = self.update_file_state(
+                                &sub_path,
                                 &entry,
                                 git_ignore.as_ref(),
                                 &current_tree,
-                                &mut tree_builder,
                             )?;
+                            match update {
+                                UpdatedFileState::Unchanged => {}
+                                UpdatedFileState::Deleted => {
+                                    tree_builder.remove(sub_path);
+                                }
+                                UpdatedFileState::Changed(tree_value) => {
+                                    tree_builder.set(sub_path, tree_value);
+                                }
+                            }
                         }
                     }
                 }
@@ -791,19 +804,18 @@ impl TreeState {
 
     fn update_file_state(
         &mut self,
-        repo_path: RepoPath,
+        repo_path: &RepoPath,
         dir_entry: &DirEntry,
         git_ignore: &GitIgnoreFile,
         current_tree: &Tree,
-        tree_builder: &mut TreeBuilder,
-    ) -> Result<(), SnapshotError> {
-        let maybe_current_file_state = self.file_states.get_mut(&repo_path);
+    ) -> Result<UpdatedFileState, SnapshotError> {
+        let maybe_current_file_state = self.file_states.get_mut(repo_path);
         if maybe_current_file_state.is_none()
             && git_ignore.matches_file(&repo_path.to_internal_file_string())
         {
             // If it wasn't already tracked and it matches the ignored paths, then
             // ignore it.
-            return Ok(());
+            return Ok(UpdatedFileState::Unchanged);
         }
 
         let disk_path = dir_entry.path();
@@ -818,15 +830,15 @@ impl TreeState {
             }
             (Some(_), None) => {
                 // Tracked file replaced by Unix socket or such
-                self.file_states.remove(&repo_path);
-                tree_builder.remove(repo_path);
+                self.file_states.remove(repo_path);
+                return Ok(UpdatedFileState::Deleted);
             }
             (None, Some(new_file_state)) => {
                 // untracked
                 let file_type = new_file_state.file_type.clone();
                 self.file_states.insert(repo_path.clone(), new_file_state);
-                let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
-                tree_builder.set(repo_path, file_value);
+                let file_value = self.write_path_to_store(repo_path, &disk_path, file_type)?;
+                return Ok(UpdatedFileState::Changed(file_value));
             }
             (Some(current_file_state), Some(new_file_state)) => {
                 #[cfg(windows)]
@@ -844,7 +856,7 @@ impl TreeState {
                 {
                     let new_file_type = new_file_state.file_type.clone();
                     *current_file_state = new_file_state;
-                    let current_tree_value = current_tree.path_value(&repo_path);
+                    let current_tree_value = current_tree.path_value(repo_path);
                     // If the file contained a conflict before and is now a normal file on disk, we
                     // try to parse any conflict markers in the file into a conflict.
                     let new_tree_value = if let (
@@ -853,20 +865,19 @@ impl TreeState {
                     ) = (current_tree_value, &new_file_type)
                     {
                         self.write_conflict_to_store(
-                            &repo_path,
+                            repo_path,
                             &disk_path,
                             conflict_id,
                             *executable,
                         )?
                     } else {
-                        self.write_path_to_store(&repo_path, &disk_path, new_file_type)?
+                        self.write_path_to_store(repo_path, &disk_path, new_file_type)?
                     };
-
-                    tree_builder.set(repo_path, new_tree_value);
+                    return Ok(UpdatedFileState::Changed(new_tree_value));
                 }
             }
         };
-        Ok(())
+        Ok(UpdatedFileState::Unchanged)
     }
 
     fn write_conflict_to_store(
