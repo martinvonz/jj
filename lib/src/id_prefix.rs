@@ -48,15 +48,15 @@ impl DisambiguationData {
                 .evaluate(repo)
                 .map_err(|_| PrefixDisambiguationError)?;
 
-            let mut commit_id_vec = vec![];
-            let mut change_id_vec = vec![];
+            let mut commit_index = IdIndex::builder();
+            let mut change_index = IdIndex::builder();
             for (commit_id, change_id) in revset.commit_change_ids() {
-                commit_id_vec.push((commit_id.clone(), ()));
-                change_id_vec.push((change_id, commit_id));
+                commit_index.insert(commit_id.clone(), ());
+                change_index.insert(change_id, commit_id);
             }
             Ok(Indexes {
-                commit_index: IdIndex::from_vec(commit_id_vec),
-                change_index: IdIndex::from_vec(change_id_vec),
+                commit_index: commit_index.build(),
+                change_index: change_index.build(),
             })
         })
     }
@@ -144,15 +144,41 @@ impl IdPrefixContext {
 #[derive(Debug, Clone)]
 pub struct IdIndex<K, V>(Vec<(K, V)>);
 
+#[derive(Clone, Debug)]
+pub struct IdIndexBuilder<K, V> {
+    unsorted_index: Vec<(K, V)>,
+}
+
+impl<K, V> IdIndexBuilder<K, V>
+where
+    K: ObjectId + Ord,
+{
+    /// Inserts new entry. Multiple values can be associated with a single key.
+    pub fn insert(&mut self, key: K, value: V) {
+        self.unsorted_index.push((key, value));
+    }
+
+    pub fn build(self) -> IdIndex<K, V> {
+        let mut index = self.unsorted_index;
+        index.sort_unstable_by(|(k0, _), (k1, _)| k0.cmp(k1));
+        IdIndex(index)
+    }
+}
+
 impl<K, V> IdIndex<K, V>
 where
     K: ObjectId + Ord,
 {
-    /// Creates new index from the given entries. Multiple values can be
-    /// associated with a single key.
-    pub fn from_vec(mut vec: Vec<(K, V)>) -> Self {
-        vec.sort_unstable_by(|(k0, _), (k1, _)| k0.cmp(k1));
-        IdIndex(vec)
+    pub fn builder() -> IdIndexBuilder<K, V> {
+        IdIndexBuilder {
+            unsorted_index: Vec::new(),
+        }
+    }
+
+    pub fn with_capacity(capacity: usize) -> IdIndexBuilder<K, V> {
+        IdIndexBuilder {
+            unsorted_index: Vec::with_capacity(capacity),
+        }
     }
 
     /// Looks up entries with the given prefix, and collects values if matched
@@ -281,9 +307,21 @@ mod tests {
     use super::*;
     use crate::backend::{ChangeId, ObjectId};
 
+    fn build_id_index<K, V>(entries: &[(K, V)]) -> IdIndex<K, V>
+    where
+        K: ObjectId + Ord + Clone,
+        V: Clone,
+    {
+        let mut builder = IdIndex::with_capacity(entries.len());
+        for (k, v) in entries {
+            builder.insert(k.clone(), v.clone());
+        }
+        builder.build()
+    }
+
     #[test]
     fn test_id_index_resolve_prefix() {
-        let id_index = IdIndex::from_vec(vec![
+        let id_index = build_id_index(&[
             (ChangeId::from_hex("0000"), 0),
             (ChangeId::from_hex("0099"), 1),
             (ChangeId::from_hex("0099"), 2),
@@ -335,10 +373,10 @@ mod tests {
     #[test]
     fn test_lookup_exact() {
         // No crash if empty
-        let id_index = IdIndex::from_vec(vec![] as Vec<(ChangeId, ())>);
+        let id_index = build_id_index::<ChangeId, ()>(&[]);
         assert!(id_index.lookup_exact(&ChangeId::from_hex("00")).is_none());
 
-        let id_index = IdIndex::from_vec(vec![(ChangeId::from_hex("ab"), ())]);
+        let id_index = build_id_index(&[(ChangeId::from_hex("ab"), ())]);
         assert!(id_index.lookup_exact(&ChangeId::from_hex("aa")).is_none());
         assert!(id_index.lookup_exact(&ChangeId::from_hex("ab")).is_some());
         assert!(id_index.lookup_exact(&ChangeId::from_hex("ac")).is_none());
@@ -347,13 +385,13 @@ mod tests {
     #[test]
     fn test_id_index_shortest_unique_prefix_len() {
         // No crash if empty
-        let id_index = IdIndex::from_vec(vec![] as Vec<(ChangeId, ())>);
+        let id_index = build_id_index::<ChangeId, ()>(&[]);
         assert_eq!(
             id_index.shortest_unique_prefix_len(&ChangeId::from_hex("00")),
             1
         );
 
-        let id_index = IdIndex::from_vec(vec![
+        let id_index = build_id_index(&[
             (ChangeId::from_hex("ab"), ()),
             (ChangeId::from_hex("acd0"), ()),
             (ChangeId::from_hex("acd0"), ()), // duplicated key is allowed
@@ -367,7 +405,7 @@ mod tests {
             3
         );
 
-        let id_index = IdIndex::from_vec(vec![
+        let id_index = build_id_index(&[
             (ChangeId::from_hex("ab"), ()),
             (ChangeId::from_hex("acd0"), ()),
             (ChangeId::from_hex("acf0"), ()),

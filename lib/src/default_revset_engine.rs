@@ -107,14 +107,13 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
 
     fn change_id_index(&self) -> Box<dyn ChangeIdIndex + 'index> {
         // TODO: Create a persistent lookup from change id to commit ids.
-        let mut pos_by_change = vec![];
+        let mut pos_by_change = IdIndex::builder();
         for entry in self.inner.iter() {
-            pos_by_change.push((entry.change_id(), entry.position()));
+            pos_by_change.insert(entry.change_id(), entry.position());
         }
-        let pos_by_change = IdIndex::from_vec(pos_by_change);
         Box::new(ChangeIdIndexImpl {
             index: self.index,
-            pos_by_change,
+            pos_by_change: pos_by_change.build(),
         })
     }
 
