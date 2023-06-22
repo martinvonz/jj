@@ -193,47 +193,53 @@ where
     pub fn resolve_prefix_with<'a, B, U>(
         &'a self,
         prefix: &HexPrefix,
-        mut value_mapper: impl FnMut(&'a V) -> U,
+        value_mapper: impl FnMut(&'a V) -> U,
     ) -> PrefixResolution<(&'a K, B)>
     where
         B: FromIterator<U>,
     {
-        if prefix.min_prefix_bytes().is_empty() {
+        fn collect<'a, B, K, V, U>(
+            range: impl Iterator<Item = (&'a K, &'a V)>,
+            mut value_mapper: impl FnMut(&'a V) -> U,
+        ) -> PrefixResolution<(&'a K, B)>
+        where
+            B: FromIterator<U>,
+            K: Eq + 'a,
+            V: 'a,
+        {
+            let mut range = range.peekable();
+            if let Some((first_key, _)) = range.peek().copied() {
+                let maybe_values: Option<B> = range
+                    .map(|(k, v)| (k == first_key).then(|| value_mapper(v)))
+                    .collect();
+                if let Some(values) = maybe_values {
+                    PrefixResolution::SingleMatch((first_key, values))
+                } else {
+                    PrefixResolution::AmbiguousMatch
+                }
+            } else {
+                PrefixResolution::NoMatch
+            }
+        }
+
+        let min_bytes = prefix.min_prefix_bytes();
+        if min_bytes.is_empty() {
             // We consider an empty prefix ambiguous even if the index has a single entry.
             return PrefixResolution::AmbiguousMatch;
         }
-        let mut range = self.resolve_prefix_range(prefix).peekable();
-        if let Some((first_key, _)) = range.peek().copied() {
-            let maybe_values: Option<B> = range
-                .map(|(k, v)| (k == first_key).then(|| value_mapper(v)))
-                .collect();
-            if let Some(values) = maybe_values {
-                PrefixResolution::SingleMatch((first_key, values))
-            } else {
-                PrefixResolution::AmbiguousMatch
-            }
-        } else {
-            PrefixResolution::NoMatch
-        }
+
+        let pos = self.0.partition_point(|(k, _)| k.as_bytes() < min_bytes);
+        let range = self.0[pos..]
+            .iter()
+            .take_while(|(k, _)| prefix.matches(k))
+            .map(|(k, v)| (k, v));
+        collect(range, value_mapper)
     }
 
     /// Looks up unambiguous key with the given prefix.
     pub fn resolve_prefix_to_key<'a>(&'a self, prefix: &HexPrefix) -> PrefixResolution<&'a K> {
         self.resolve_prefix_with(prefix, |_| ())
             .map(|(key, ())| key)
-    }
-
-    /// Iterates over entries with the given prefix.
-    pub fn resolve_prefix_range<'a: 'b, 'b>(
-        &'a self,
-        prefix: &'b HexPrefix,
-    ) -> impl Iterator<Item = (&'a K, &'a V)> + 'b {
-        let min_bytes = prefix.min_prefix_bytes();
-        let pos = self.0.partition_point(|(k, _)| k.as_bytes() < min_bytes);
-        self.0[pos..]
-            .iter()
-            .take_while(|(k, _)| prefix.matches(k))
-            .map(|(k, v)| (k, v))
     }
 
     /// Looks up entry for the key. Returns accessor to neighbors.
