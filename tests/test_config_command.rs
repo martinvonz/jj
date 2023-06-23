@@ -438,6 +438,58 @@ fn test_config_edit_repo_outside_repo() {
     "###);
 }
 
+#[test]
+fn test_config_get() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config(
+        r###"
+    [table]
+    string = "some value 1"
+    int = 123
+    list = ["list", "value"]
+    overridden = "foo"
+    "###,
+    );
+    test_env.add_config(
+        r###"
+    [table]
+    overridden = "bar"
+    "###,
+    );
+
+    let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "nonexistent"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Config error: configuration property "nonexistent" not found
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    "###);
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "table.string"]);
+    insta::assert_snapshot!(stdout, @r###"
+    some value 1
+    "###);
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "table.int"]);
+    insta::assert_snapshot!(stdout, @r###"
+    123
+    "###);
+
+    let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table.list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Config error: invalid type: sequence, expected a value convertible to a string
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    "###);
+
+    let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Config error: invalid type: map, expected a value convertible to a string
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    "###);
+
+    let stdout =
+        test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "table.overridden"]);
+    insta::assert_snapshot!(stdout, @"bar");
+}
+
 fn find_stdout_lines(keyname_pattern: &str, stdout: &str) -> String {
     let key_line_re = Regex::new(&format!(r"(?m)^{keyname_pattern}=.*$")).unwrap();
     key_line_re
