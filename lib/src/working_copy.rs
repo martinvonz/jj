@@ -20,7 +20,6 @@ use std::ffi::OsString;
 use std::fs;
 use std::fs::{DirEntry, File, Metadata, OpenOptions};
 use std::io::{Read, Write};
-use std::ops::Bound;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 #[cfg(unix)]
@@ -677,7 +676,7 @@ impl TreeState {
                         // If the whole directory is ignored, skip it unless we're already tracking
                         // some file in it.
                         if git_ignore.matches_all_files_in(&sub_path.to_internal_dir_string())
-                            && !self.has_files_under(&sub_path)
+                            && current_tree.path_value(&sub_path).is_none()
                         {
                             continue;
                         }
@@ -787,25 +786,6 @@ impl TreeState {
             matcher,
             watchman_clock,
         })
-    }
-
-    fn has_files_under(&self, dir: &RepoPath) -> bool {
-        // TODO: This is pretty ugly... Also, we should
-        // optimize it to check exactly the already-tracked files (we know that
-        // we won't have to consider new files in the directory).
-        let first_file_in_dir = dir.join(&RepoPathComponent::from("\0"));
-        match self
-            .file_states
-            .range((Bound::Included(&first_file_in_dir), Bound::Unbounded))
-            .next()
-        {
-            Some((subdir_file, _)) => dir.contains(subdir_file),
-            None => {
-                // There are no tracked paths at all after `dir/` in alphabetical order, so
-                // there are no paths under `dir/`.
-                false
-            }
-        }
     }
 
     fn get_updated_file_state(
