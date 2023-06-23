@@ -189,6 +189,8 @@ impl ConfigArgs {
 enum ConfigSubcommand {
     #[command(visible_alias("l"))]
     List(ConfigListArgs),
+    #[command(visible_alias("g"))]
+    Get(ConfigGetArgs),
     #[command(visible_alias("s"))]
     Set(ConfigSetArgs),
     #[command(visible_alias("e"))]
@@ -206,6 +208,22 @@ struct ConfigListArgs {
     pub include_defaults: bool,
     // TODO(#1047): Support --show-origin using LayeredConfigs.
     // TODO(#1047): Support ConfigArgs (--user or --repo).
+}
+
+/// Get the value of a given config option.
+///
+/// Unlike `jj config list`, the result of `jj config get` is printed without
+/// extra formatting and therefore is usable in scripting. For example:
+///
+/// $ jj config list user.name
+/// user.name="Martin von Zweigbergk"
+/// $ jj config get user.name
+/// Martin von Zweigbergk
+#[derive(clap::Args, Clone, Debug)]
+#[command(verbatim_doc_comment)]
+struct ConfigGetArgs {
+    #[arg(required = true)]
+    name: String,
 }
 
 /// Update config file to set the given option to a given value.
@@ -1096,6 +1114,7 @@ fn cmd_config(
 ) -> Result<(), CommandError> {
     match subcommand {
         ConfigSubcommand::List(sub_args) => cmd_config_list(ui, command, sub_args),
+        ConfigSubcommand::Get(sub_args) => cmd_config_get(ui, command, sub_args),
         ConfigSubcommand::Set(sub_args) => cmd_config_set(ui, command, sub_args),
         ConfigSubcommand::Edit(sub_args) => cmd_config_edit(ui, command, sub_args),
     }
@@ -1140,6 +1159,43 @@ fn cmd_config_list(
             writeln!(ui.warning(), "No config to list")?;
         }
     }
+    Ok(())
+}
+
+fn cmd_config_get(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ConfigGetArgs,
+) -> Result<(), CommandError> {
+    let value = command
+        .settings()
+        .config()
+        .get_string(&args.name)
+        .map_err(|err| match err {
+            config::ConfigError::Type {
+                origin,
+                unexpected,
+                expected,
+                key,
+            } => {
+                let expected = format!("a value convertible to {expected}");
+                // Copied from `impl fmt::Display for ConfigError`. We can't use
+                // the `Display` impl directly because `expected` is required to
+                // be a `'static str`.
+                let mut buf = String::new();
+                use std::fmt::Write;
+                write!(buf, "invalid type: {unexpected}, expected {expected}").unwrap();
+                if let Some(key) = key {
+                    write!(buf, " for key `{key}`").unwrap();
+                }
+                if let Some(origin) = origin {
+                    write!(buf, " in {origin}").unwrap();
+                }
+                CommandError::ConfigError(buf.to_string())
+            }
+            err => err.into(),
+        })?;
+    writeln!(ui, "{value}")?;
     Ok(())
 }
 
