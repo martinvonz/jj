@@ -18,7 +18,7 @@ use std::fs::File;
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
 use std::slice;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
 use git2::Oid;
 use itertools::Itertools;
@@ -26,8 +26,8 @@ use prost::Message;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
-    Tree, TreeId, TreeValue,
+    ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Sig, Signature, Signer,
+    SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use crate::lock::FileLock;
 use crate::repo_path::{RepoPath, RepoPathComponent};
@@ -46,6 +46,7 @@ pub struct GitBackend {
     empty_tree_id: TreeId,
     extra_metadata_store: TableStore,
     cached_extra_metadata: Mutex<Option<Arc<ReadonlyTable>>>,
+    signer: RwLock<Option<Arc<Signer>>>,
 }
 
 impl GitBackend {
@@ -60,6 +61,7 @@ impl GitBackend {
             empty_tree_id,
             extra_metadata_store,
             cached_extra_metadata: Mutex::new(None),
+            signer: RwLock::new(None),
         }
     }
 
@@ -173,6 +175,7 @@ fn commit_from_git_without_root_parent(commit: &git2::Commit) -> Commit {
         description,
         author,
         committer,
+        sig: None,
     }
 }
 
@@ -519,6 +522,20 @@ impl Backend for GitBackend {
             commit.parents.push(self.root_commit_id.clone());
         };
 
+        commit.sig = match locked_repo.extract_signature(&git_commit_id, None) {
+            Ok((sig, buf)) => Some(Sig {
+                buffer: buf.to_owned(),
+                signature: sig.to_owned(),
+            }),
+            Err(err) if err.code() == git2::ErrorCode::NotFound => None,
+            Err(err) => {
+                return Err(BackendError::ReadSignature {
+                    hash: id.hex(),
+                    source: Box::new(err),
+                })
+            }
+        };
+
         let table = self.cached_extra_metadata_table()?;
         if let Some(extras) = table.get_value(id.as_bytes()) {
             deserialize_extras(&mut commit, extras);
@@ -551,6 +568,12 @@ impl Backend for GitBackend {
     }
 
     fn write_commit(&self, mut contents: Commit) -> BackendResult<(CommitId, Commit)> {
+        if contents.parents.is_empty() {
+            return Err(BackendError::Other(
+                "Cannot write a commit with no parents".to_string(),
+            ));
+        }
+
         let locked_repo = self.repo.lock().unwrap();
         let git_tree_id = validate_git_object_id(&contents.root_tree)?;
         let git_tree = locked_repo
@@ -558,12 +581,6 @@ impl Backend for GitBackend {
             .map_err(|err| map_not_found_err(err, &contents.root_tree))?;
         let author = signature_to_git(&contents.author);
         let mut committer = signature_to_git(&contents.committer);
-        let message = &contents.description;
-        if contents.parents.is_empty() {
-            return Err(BackendError::Other(
-                "Cannot write a commit with no parents".to_string(),
-            ));
-        }
         let mut parents = vec![];
         for parent_id in &contents.parents {
             if *parent_id == self.root_commit_id {
@@ -596,19 +613,51 @@ impl Backend for GitBackend {
         // repository is rsync-ed.
         let (table, table_lock) = self.read_extra_metadata_table_locked()?;
         let id = loop {
-            let git_id = locked_repo
-                .commit(
-                    Some(&create_no_gc_ref()),
-                    &author,
-                    &committer,
-                    message,
-                    &git_tree,
-                    &parent_refs,
-                )
-                .map_err(|err| BackendError::WriteObject {
-                    object_type: "commit",
-                    source: Box::new(err),
-                })?;
+            // this clojure should be just a try {} block whenever those are stabilized
+            let create_jj_commit = || -> Result<Oid, Box<dyn std::error::Error + Send + Sync>> {
+                let oid = match &*self.signer.read().unwrap() {
+                    Some(signer) if signer.can_sign(contents.sig.as_ref())? => {
+                        let commit_buf = locked_repo.commit_create_buffer(
+                            &author,
+                            &committer,
+                            &contents.description,
+                            &git_tree,
+                            &parent_refs,
+                        )?;
+
+                        let signature = signer.sign(&commit_buf)?;
+                        let sig_str = std::str::from_utf8(&signature)
+                            .expect("libgit expects a utf8 signature");
+
+                        // commit_buf should be utf8
+                        let commit_str = std::str::from_utf8(&commit_buf).unwrap();
+                        let id = locked_repo.commit_signed(commit_str, sig_str, None)?;
+
+                        // commit_signed doesn't create a reference
+                        // "commit" is the same log message that repo.commit/git_commit_create
+                        // eventually uses
+                        locked_repo.reference(&create_no_gc_ref(), id, false, "commit")?;
+
+                        id
+                    }
+                    _ => locked_repo
+                        .commit(
+                            Some(&create_no_gc_ref()),
+                            &author,
+                            &committer,
+                            &contents.description,
+                            &git_tree,
+                            &parent_refs,
+                        )
+                        .map_err(Box::new)?,
+                };
+                Ok(oid)
+            };
+            let git_id = create_jj_commit().map_err(|source| BackendError::WriteObject {
+                object_type: "commit",
+                source,
+            })?;
+
             let id = CommitId::from_bytes(git_id.as_bytes());
             match table.get_value(id.as_bytes()) {
                 Some(existing_extras) if existing_extras != extras => {
@@ -639,6 +688,11 @@ impl Backend for GitBackend {
         mut_table.add_entry(id.to_bytes(), extras);
         self.save_extra_metadata_table(mut_table, &table_lock)?;
         Ok((id, contents))
+    }
+
+    fn install_signer(&self, signer: Arc<Signer>) -> BackendResult<()> {
+        *self.signer.write().unwrap() = Some(signer);
+        Ok(())
     }
 }
 
@@ -715,10 +769,13 @@ fn bytes_vec_from_json(value: &serde_json::Value) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
     use assert_matches::assert_matches;
 
     use super::*;
-    use crate::backend::{FileId, MillisSinceEpoch};
+    use crate::backend::{FileId, MillisSinceEpoch, SignCheck, SigningBackend, SignConfig};
 
     #[test]
     fn read_plain_git_commit() {
@@ -847,6 +904,7 @@ mod tests {
             description: "".to_string(),
             author: create_signature(),
             committer: create_signature(),
+            sig: None,
         };
 
         // No parents
@@ -914,6 +972,7 @@ mod tests {
             description: "initial".to_string(),
             author: signature.clone(),
             committer: signature,
+            sig: None,
         };
         let commit_id = store.write_commit(commit).unwrap().0;
         let git_refs = store
@@ -937,6 +996,7 @@ mod tests {
             description: "initial".to_string(),
             author: create_signature(),
             committer: create_signature(),
+            sig: None,
         };
         // libgit2 doesn't seem to preserve negative timestamps, so set it to at least 1
         // second after the epoch, so the timestamp adjustment can remove 1
@@ -959,6 +1019,87 @@ mod tests {
         actual_commit2.committer.timestamp.timestamp =
             commit2.committer.timestamp.timestamp.clone();
         assert_eq!(actual_commit2, commit2);
+    }
+
+    #[test]
+    fn commit_has_sig() {
+        let temp_dir = testutils::new_temp_dir();
+        let store = GitBackend::init_internal(temp_dir.path());
+
+        struct TestSignerBackend;
+
+        impl SigningBackend for TestSignerBackend {
+            fn is_own(
+                &self,
+                _signature: &[u8],
+            ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+                Ok(true)
+            }
+
+            fn sign(
+                &self,
+                data: &[u8],
+            ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+                let mut s = DefaultHasher::new();
+                data.hash(&mut s);
+                let hash = s.finish();
+                Ok(format!("hello there\n{}", hash).into_bytes())
+            }
+
+            fn verify(
+                &self,
+                data: &[u8],
+                signature: &[u8],
+            ) -> Result<SignCheck, Box<dyn std::error::Error + Send + Sync>> {
+                Ok(if signature == self.sign(data)? {
+                    SignCheck::Good
+                } else {
+                    SignCheck::Bad
+                })
+            }
+        }
+
+        let signer = Signer::new(TestSignerBackend);
+        signer.config(SignConfig::All);
+        store
+            .install_signer(signer)
+            .unwrap();
+
+        let signature = Signature {
+            name: "Someone".to_string(),
+            email: "someone@example.com".to_string(),
+            timestamp: Timestamp {
+                timestamp: MillisSinceEpoch(0),
+                tz_offset: 0,
+            },
+        };
+        let commit = Commit {
+            parents: vec![store.root_commit_id().clone()],
+            predecessors: vec![],
+            root_tree: store.empty_tree_id().clone(),
+            change_id: ChangeId::new(vec![]),
+            description: "initial".to_string(),
+            author: signature.clone(),
+            committer: signature,
+            sig: None,
+        };
+        let commit_id = store.write_commit(commit).unwrap().0;
+        let commit = store.read_commit(&commit_id).unwrap();
+
+        let sig = commit.sig.expect("there was no sig");
+        let signature = std::str::from_utf8(&sig.signature).unwrap(); // make assertion msg better for humans
+        let buffer = std::str::from_utf8(&sig.buffer).unwrap();
+
+        assert_eq!(signature, "hello there\n1060979794972714264");
+        assert_eq!(
+            buffer,
+            "tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904\nauthor Someone <someone@example.com> \
+             0 +0000\ncommitter Someone <someone@example.com> 0 +0000\n\ninitial"
+        );
+        assert_matches!(
+            TestSignerBackend.verify(&sig.buffer, &sig.signature),
+            Ok(SignCheck::Good)
+        );
     }
 
     fn git_id(commit_id: &CommitId) -> Oid {

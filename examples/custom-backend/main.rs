@@ -15,12 +15,13 @@
 use std::any::Any;
 use std::io::Read;
 use std::path::Path;
+use std::sync::Arc;
 
 use jujutsu::cli_util::{CliRunner, CommandError, CommandHelper};
 use jujutsu::ui::Ui;
 use jujutsu_lib::backend::{
-    Backend, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId, FileId, SymlinkId,
-    Tree, TreeId,
+    Backend, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId, FileId, Signer,
+    SymlinkId, Tree, TreeId,
 };
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::repo::StoreFactories;
@@ -155,5 +156,9 @@ impl Backend for JitBackend {
 
     fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)> {
         self.inner.write_commit(contents)
+    }
+
+    fn install_signer(&self, signer: Arc<Signer>) -> BackendResult<()> {
+        self.inner.install_signer(signer)
     }
 }

@@ -17,6 +17,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Read;
 use std::result::Result;
+use std::sync::{Arc, RwLock};
 use std::vec::Vec;
 
 use thiserror::Error;
@@ -140,6 +141,14 @@ content_hash! {
 
 content_hash! {
     #[derive(Debug, PartialEq, Eq, Clone)]
+    pub struct Sig {
+        pub buffer: Vec<u8>,
+        pub signature: Vec<u8>,
+    }
+}
+
+content_hash! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct Commit {
         pub parents: Vec<CommitId>,
         pub predecessors: Vec<CommitId>,
@@ -148,6 +157,7 @@ content_hash! {
         pub description: String,
         pub author: Signature,
         pub committer: Signature,
+        pub sig: Option<Sig>,
     }
 }
 
@@ -172,6 +182,8 @@ content_hash! {
     }
 }
 
+type AnyError = Box<dyn std::error::Error + Send + Sync>;
+
 #[derive(Debug, Error)]
 pub enum BackendError {
     #[error(
@@ -188,7 +200,7 @@ pub enum BackendError {
     InvalidHash {
         object_type: String,
         hash: String,
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: AnyError,
     },
     #[error("Invalid UTF-8 for object {hash} of type {object_type}: {source}")]
     InvalidUtf8 {
@@ -200,19 +212,23 @@ pub enum BackendError {
     ObjectNotFound {
         object_type: String,
         hash: String,
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: AnyError,
     },
     #[error("Error when reading object {hash} of type {object_type}: {source}")]
     ReadObject {
         object_type: String,
         hash: String,
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: AnyError,
     },
     #[error("Could not write object of type {object_type}: {source}")]
     WriteObject {
         object_type: &'static str,
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: AnyError,
     },
+    #[error("Signing is not supported by this backend")]
+    SigningNotSupported,
+    #[error("Failed to read signature for commit {hash}: {source}")]
+    ReadSignature { hash: String, source: AnyError },
     #[error("Error: {0}")]
     Other(String),
 }
@@ -377,6 +393,7 @@ pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Comm
         description: String::new(),
         author: signature.clone(),
         committer: signature,
+        sig: None,
     }
 }
 
@@ -424,4 +441,87 @@ pub trait Backend: Send + Sync + Debug {
     /// timestamps may have less precision than the millisecond precision in
     /// `Commit`.
     fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)>;
+
+    fn install_signer(&self, _signer: Arc<Signer>) -> BackendResult<()> {
+        Err(BackendError::SigningNotSupported)
+    }
+}
+
+#[derive(Debug)]
+pub enum SignCheck {
+    /// Signature is verified to be valid.
+    Good,
+    /// Cannot verify signature, e.g. because the key used to sign is not known
+    /// to the backend.
+    Unknown,
+    /// Signature is present and invalid.
+    Bad,
+}
+
+pub trait SigningBackend: Send + Sync {
+    /// Check if the signature was created by this backend.
+    ///
+    /// Should check if e.g. the key fingerprint of the signature matches the
+    /// one of the current signer.
+    fn is_own(&self, signature: &[u8]) -> Result<bool, AnyError>;
+
+    /// Create a signature for arbitrary data.
+    fn sign(&self, data: &[u8]) -> Result<Vec<u8>, AnyError>;
+
+    /// Verify a signature. Should be reflexive with `sign`:
+    /// ```rust,ignore
+    /// verify(data, sign(data)?) == Ok(SigVerification::Good)
+    /// ```
+    fn verify(&self, data: &[u8], signature: &[u8]) -> Result<SignCheck, AnyError>;
+}
+
+pub enum SignConfig {
+    /// Don't do any signing
+    None,
+    /// Only sign unsigned commits
+    New,
+    /// Sign unsigned commits and resign commits that are signed by the same
+    /// identity
+    Matching,
+    /// Sign all commits, even if they are already signed by another identity
+    All,
+}
+
+pub struct Signer {
+    backend: Box<dyn SigningBackend>,
+    config: RwLock<SignConfig>,
+}
+
+impl Signer {
+    pub fn new(backend: impl SigningBackend + 'static) -> Arc<Self> {
+        Arc::new(Self {
+            backend: Box::new(backend) as _,
+            config: RwLock::new(SignConfig::None),
+        })
+    }
+
+    pub fn config(&self, config: SignConfig) {
+        *self.config.write().unwrap() = config;
+    }
+
+    pub fn can_sign(self: &Arc<Self>, existing: Option<&Sig>) -> Result<bool, AnyError> {
+        let can = match (&*self.config.read().unwrap(), existing) {
+            (SignConfig::None, _) | (SignConfig::New, Some(_)) => false,
+            (SignConfig::All, _) | (_, None) => true,
+            (SignConfig::Matching, Some(sig)) => self.backend.is_own(&sig.signature)?,
+        };
+        Ok(can)
+    }
+
+    pub fn sign(self: &Arc<Self>, data: &[u8]) -> Result<Vec<u8>, AnyError> {
+        self.backend.sign(data)
+    }
+
+    pub fn verify(
+        self: &Arc<Self>,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<SignCheck, AnyError> {
+        self.backend.verify(data, signature)
+    }
 }
