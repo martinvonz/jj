@@ -142,6 +142,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remote, just like in a non-colocated repo.
   [#864](https://github.com/martinvonz/jj/issues/864)
 
+* It is now possible to `jj branch forget` deleted branches.
+  [#1537](https://github.com/martinvonz/jj/issues/1537)
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes
