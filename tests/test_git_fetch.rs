@@ -949,5 +949,7 @@ fn test_git_fetch_remote_only_branch() {
     feature1: 9f01a0e04879 message
     feature2 (deleted)
       @origin: 9f01a0e04879 message
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
 }

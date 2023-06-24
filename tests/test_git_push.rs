@@ -184,6 +184,8 @@ fn test_git_push_multiple() {
     insta::assert_snapshot!(stdout, @r###"
     branch1 (deleted)
       @origin: 45a3aa29e907 description 1
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
     branch2: 15dcdaa4f12f foo
       @origin (ahead by 1 commits, behind by 1 commits): 8476341eb395 description 2
     my-branch: 15dcdaa4f12f foo
