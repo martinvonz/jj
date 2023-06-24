@@ -201,6 +201,41 @@ fn cmd_branch_set(
     Ok(())
 }
 
+/// This function may return the same branch more than once
+fn find_globs(view: &View, globs: &[String]) -> Result<Vec<String>, CommandError> {
+    let mut matching_branches: Vec<String> = vec![];
+    let mut failed_globs = vec![];
+    for glob_str in globs {
+        let glob = glob::Pattern::new(glob_str)?;
+        let names = view
+            .branches()
+            .iter()
+            .map(|(branch_name, _branch_target)| branch_name)
+            .filter(|branch_name| glob.matches(branch_name))
+            .cloned()
+            .collect_vec();
+        if names.is_empty() {
+            failed_globs.push(glob);
+        }
+        matching_branches.extend(names.into_iter());
+    }
+    match &failed_globs[..] {
+        [] => { /* No problem */ }
+        [glob] => {
+            return Err(user_error(format!(
+                "The provided glob '{glob}' did not match any branches"
+            )))
+        }
+        globs => {
+            return Err(user_error(format!(
+                "The provided globs '{}' did not match any branches",
+                globs.iter().join("', '")
+            )))
+        }
+    };
+    Ok(matching_branches)
+}
+
 fn cmd_branch_delete(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -231,40 +266,6 @@ fn cmd_branch_forget(
     command: &CommandHelper,
     args: &BranchForgetArgs,
 ) -> Result<(), CommandError> {
-    fn find_globs(view: &View, globs: &[String]) -> Result<Vec<String>, CommandError> {
-        let mut matching_branches: Vec<String> = vec![];
-        let mut failed_globs = vec![];
-        for glob_str in globs {
-            let glob = glob::Pattern::new(glob_str)?;
-            let names = view
-                .branches()
-                .iter()
-                .map(|(branch_name, _branch_target)| branch_name)
-                .filter(|branch_name| glob.matches(branch_name))
-                .cloned()
-                .collect_vec();
-            if names.is_empty() {
-                failed_globs.push(glob);
-            }
-            matching_branches.extend(names.into_iter());
-        }
-        match &failed_globs[..] {
-            [] => { /* No problem */ }
-            [glob] => {
-                return Err(user_error(format!(
-                    "The provided glob '{glob}' did not match any branches"
-                )))
-            }
-            globs => {
-                return Err(user_error(format!(
-                    "The provided globs '{}' did not match any branches",
-                    globs.iter().join("', '")
-                )))
-            }
-        };
-        Ok(matching_branches)
-    }
-
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
     for branch_name in args.names.iter() {
