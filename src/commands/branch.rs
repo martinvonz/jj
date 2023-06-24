@@ -334,9 +334,13 @@ fn cmd_branch_list(
         write!(formatter.labeled("branch"), "{name}")?;
         print_branch_target(formatter, branch_target.local_target.as_ref())?;
 
+        let mut found_non_git_remote = false;
         for (remote, remote_target) in branch_target.remote_targets.iter() {
             if Some(remote_target) == branch_target.local_target.as_ref() {
                 continue;
+            }
+            if remote != "git" {
+                found_non_git_remote = true;
             }
             write!(formatter, "  ")?;
             write!(formatter.labeled("branch"), "@{remote}")?;
@@ -360,6 +364,13 @@ fn cmd_branch_list(
                 }
             }
             print_branch_target(formatter, Some(remote_target))?;
+        }
+        if found_non_git_remote && branch_target.local_target.is_none() {
+            writeln!(
+                formatter,
+                "  (this branch will be *deleted permanently* on the remote on the\n   next `jj \
+                 git push`. Use `jj branch forget` to prevent this)"
+            )?;
         }
     }
 

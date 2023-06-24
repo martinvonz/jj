@@ -310,6 +310,8 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1 (deleted)
       @origin: 9f01a0e04879 message
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
 
     // ============ End of test setup ============
