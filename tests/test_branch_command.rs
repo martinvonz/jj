@@ -288,7 +288,7 @@ fn test_branch_forget_fetched_branch() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo_path = test_env.env_root().join("git-repo");
-    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    let git_repo = git2::Repository::init_bare(git_repo_path).unwrap();
     let signature =
         git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
     let mut tree_builder = git_repo.treebuilder(None).unwrap();
@@ -385,7 +385,7 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo_path = test_env.env_root().join("git-repo");
-    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    let git_repo = git2::Repository::init_bare(git_repo_path).unwrap();
     let signature =
         git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
     let mut tree_builder = git_repo.treebuilder(None).unwrap();
