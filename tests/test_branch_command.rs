@@ -267,6 +267,70 @@ fn test_branch_forget_fetched_branch() {
     "###);
 }
 
+#[test]
+fn test_branch_forget_deleted_or_nonexistent_branch() {
+    // Much of this test is borrowed from `test_git_fetch_remote_only_branch` in
+    // test_git_fetch.rs
+
+    // ======== Beginning of test setup ========
+    // Set up a git repo with a branch and a jj repo that has it as a remote.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo_path = test_env.env_root().join("git-repo");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    let signature =
+        git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
+    let mut tree_builder = git_repo.treebuilder(None).unwrap();
+    let file_oid = git_repo.blob(b"content").unwrap();
+    tree_builder
+        .insert("file", file_oid, git2::FileMode::Blob.into())
+        .unwrap();
+    let tree_oid = tree_builder.write().unwrap();
+    let tree = git_repo.find_tree(tree_oid).unwrap();
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["git", "remote", "add", "origin", "../git-repo"],
+    );
+    // Create a commit and a branch in the git repo
+    git_repo
+        .commit(
+            Some("refs/heads/feature1"),
+            &signature,
+            &signature,
+            "message",
+            &tree,
+            &[],
+        )
+        .unwrap();
+
+    // Fetch and then delete the branch
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "delete", "feature1"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1 (deleted)
+      @origin: 9f01a0e04879 message
+    "###);
+
+    // ============ End of test setup ============
+
+    // BUG: Can't forget a deleted branch
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "forget", "feature1"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No such branch: feature1
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1 (deleted)
+      @origin: 9f01a0e04879 message
+    "###);
+
+    // Can't forget a non-existent branch
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "forget", "i_do_not_exist"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No such branch: i_do_not_exist
+    "###);
+}
+
 // TODO: Test `jj branch list` with a remote named `git`
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
