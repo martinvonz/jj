@@ -41,6 +41,8 @@
           version = "unstable-${self.shortRev or "dirty"}";
           buildNoDefaultFeatures = true;
           buildFeatures = [];
+          cargoBuildFlags = ["--bin" "jj"]; # don't build and install the fake editors
+          useNextest = true;
           src = filterSrc ./. [
             ".*\\.nix$"
             "^.jj/"
@@ -64,6 +66,7 @@
             ];
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
+          NIX_JJ_GIT_HASH = self.rev or "";
           postInstall = ''
             $out/bin/jj util mangen > ./jj.1
             installManPage ./jj.1
@@ -105,6 +108,9 @@
           # Foreign dependencies
           openssl zstd libgit2 libssh2
           pkg-config
+
+          # Make sure rust-analyzer is present
+          rust-analyzer
 
           # Additional tools recommended by contributing.md
           cargo-deny
