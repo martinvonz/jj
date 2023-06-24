@@ -130,6 +130,91 @@ fn test_branch_forget_glob() {
 }
 
 #[test]
+fn test_branch_delete_glob() {
+    // Set up a git repo with a branch and a jj repo that has it as a remote.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo_path = test_env.env_root().join("git-repo");
+    let git_repo = git2::Repository::init_bare(git_repo_path).unwrap();
+    let mut tree_builder = git_repo.treebuilder(None).unwrap();
+    let file_oid = git_repo.blob(b"content").unwrap();
+    tree_builder
+        .insert("file", file_oid, git2::FileMode::Blob.into())
+        .unwrap();
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["git", "remote", "add", "origin", "../git-repo"],
+    );
+
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m=commit"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-1"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "bar-2"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-3"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-4"]);
+    // Push to create remote-tracking branches
+    test_env.jj_cmd_success(&repo_path, &["git", "push", "--all"]);
+
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  bar-2 foo-1 foo-3 foo-4 6fbf398c2d59
+    │
+    ~
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "delete", "--glob", "foo-[1-3]"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  bar-2 foo-1@origin foo-3@origin foo-4 6fbf398c2d59
+    │
+    ~
+    "###);
+
+    // We get an error if none of the globs match live branches. Unlike `jj branch
+    // forget`, it's not allowed to delete already deleted branches.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "delete", "--glob=foo-[1-3]"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The provided glob 'foo-[1-3]' did not match any branches
+    "###);
+
+    // Deleting a branch via both explicit name and glob pattern, or with
+    // multiple glob patterns, shouldn't produce an error.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "branch", "delete", "foo-4", "--glob", "foo-*", "--glob", "foo-*",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  bar-2 foo-1@origin foo-3@origin foo-4@origin 6fbf398c2d59
+    │
+    ~
+    "###);
+
+    // The deleted branches are still there
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    bar-2: 6fbf398c2d59 commit
+    foo-1 (deleted)
+      @origin: 6fbf398c2d59 commit
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    foo-3 (deleted)
+      @origin: 6fbf398c2d59 commit
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    foo-4 (deleted)
+      @origin: 6fbf398c2d59 commit
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    "###);
+
+    // Malformed glob
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "delete", "--glob", "foo-[1-3"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to compile glob: Pattern syntax error near position 4: invalid range pattern
+    "###);
+}
+
+#[test]
 fn test_branch_forget_export() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
