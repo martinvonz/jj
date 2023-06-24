@@ -232,17 +232,36 @@ fn cmd_branch_forget(
     args: &BranchForgetArgs,
 ) -> Result<(), CommandError> {
     fn find_globs(view: &View, globs: &[String]) -> Result<Vec<String>, CommandError> {
-        let globs: Vec<glob::Pattern> = globs
-            .iter()
-            .map(|glob| glob::Pattern::new(glob))
-            .try_collect()?;
-        let matching_branches = view
-            .branches()
-            .iter()
-            .map(|(branch_name, _branch_target)| branch_name)
-            .filter(|branch_name| globs.iter().any(|glob| glob.matches(branch_name)))
-            .cloned()
-            .collect();
+        let mut matching_branches: Vec<String> = vec![];
+        let mut failed_globs = vec![];
+        for glob_str in globs {
+            let glob = glob::Pattern::new(glob_str)?;
+            let names = view
+                .branches()
+                .iter()
+                .map(|(branch_name, _branch_target)| branch_name)
+                .filter(|branch_name| glob.matches(branch_name))
+                .cloned()
+                .collect_vec();
+            if names.is_empty() {
+                failed_globs.push(glob);
+            }
+            matching_branches.extend(names.into_iter());
+        }
+        match &failed_globs[..] {
+            [] => { /* No problem */ }
+            [glob] => {
+                return Err(user_error(format!(
+                    "The provided glob '{glob}' did not match any branches"
+                )))
+            }
+            globs => {
+                return Err(user_error(format!(
+                    "The provided globs '{}' did not match any branches",
+                    globs.iter().join("', '")
+                )))
+            }
+        };
         Ok(matching_branches)
     }
 

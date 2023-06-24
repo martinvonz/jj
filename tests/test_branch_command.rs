@@ -112,6 +112,21 @@ fn test_branch_forget_glob() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to compile glob: Pattern syntax error near position 4: invalid range pattern
     "###);
+
+    // We get an error if none of the globs match anything
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &[
+            "branch",
+            "forget",
+            "--glob=bar*",
+            "--glob=baz*",
+            "--glob=boom*",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The provided globs 'baz*', 'boom*' did not match any branches
+    "###);
 }
 
 #[test]
