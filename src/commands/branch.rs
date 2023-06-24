@@ -324,6 +324,7 @@ fn cmd_branch_list(
             Ok(())
         };
 
+    ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
 
