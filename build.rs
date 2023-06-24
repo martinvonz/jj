@@ -37,6 +37,12 @@ fn main() -> std::io::Result<()> {
 }
 
 fn get_git_hash() -> Option<String> {
+    if let Some(nix_hash) = std::env::var("NIX_JJ_GIT_HASH")
+        .ok()
+        .filter(|s| !s.is_empty())
+    {
+        return Some(nix_hash);
+    }
     if let Ok(output) = Command::new("jj")
         .args([
             "--ignore-working-copy",
