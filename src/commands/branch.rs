@@ -207,7 +207,16 @@ fn cmd_branch_delete(
     args: &BranchDeleteArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    validate_branch_names_exist(workspace_command.repo().view(), &args.names)?;
+    for branch_name in &args.names {
+        if workspace_command
+            .repo()
+            .view()
+            .get_local_branch(branch_name)
+            .is_none()
+        {
+            return Err(user_error(format!("No such branch: {branch_name}")));
+        }
+    }
     let mut tx =
         workspace_command.start_transaction(&format!("delete {}", make_branch_term(&args.names)));
     for branch_name in &args.names {
@@ -239,7 +248,11 @@ fn cmd_branch_forget(
 
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
-    validate_branch_names_exist(view, &args.names)?;
+    for branch_name in args.names.iter() {
+        if view.get_branch(branch_name).is_none() {
+            return Err(user_error(format!("No such branch: {branch_name}")));
+        }
+    }
     let globbed_names = find_globs(view, &args.glob)?;
     let names: BTreeSet<String> = args.names.iter().cloned().chain(globbed_names).collect();
     let branch_term = make_branch_term(names.iter().collect_vec().as_slice());
@@ -350,15 +363,6 @@ fn cmd_branch_list(
         }
     }
 
-    Ok(())
-}
-
-fn validate_branch_names_exist(view: &View, names: &[String]) -> Result<(), CommandError> {
-    for branch_name in names {
-        if view.get_local_branch(branch_name).is_none() {
-            return Err(user_error(format!("No such branch: {branch_name}")));
-        }
-    }
     Ok(())
 }
 

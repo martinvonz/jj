@@ -314,15 +314,9 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
 
     // ============ End of test setup ============
 
-    // BUG: Can't forget a deleted branch
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "forget", "feature1"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: No such branch: feature1
-    "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    feature1 (deleted)
-      @origin: 9f01a0e04879 message
-    "###);
+    // We can forget a deleted branch
+    test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
     // Can't forget a non-existent branch
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "forget", "i_do_not_exist"]);
