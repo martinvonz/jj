@@ -49,8 +49,12 @@ pub struct BranchCreateArgs {
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchDeleteArgs {
     /// The branches to delete.
-    #[arg(required = true)]
+    #[arg(required_unless_present_any(& ["glob"]))]
     names: Vec<String>,
+
+    /// A glob pattern indicating branches to delete.
+    #[arg(long)]
+    pub glob: Vec<String>,
 }
 
 /// List branches and their targets
@@ -202,7 +206,11 @@ fn cmd_branch_set(
 }
 
 /// This function may return the same branch more than once
-fn find_globs(view: &View, globs: &[String]) -> Result<Vec<String>, CommandError> {
+fn find_globs(
+    view: &View,
+    globs: &[String],
+    allow_deleted: bool,
+) -> Result<Vec<String>, CommandError> {
     let mut matching_branches: Vec<String> = vec![];
     let mut failed_globs = vec![];
     for glob_str in globs {
@@ -210,8 +218,15 @@ fn find_globs(view: &View, globs: &[String]) -> Result<Vec<String>, CommandError
         let names = view
             .branches()
             .iter()
-            .map(|(branch_name, _branch_target)| branch_name)
-            .filter(|branch_name| glob.matches(branch_name))
+            .filter_map(|(branch_name, branch_target)| {
+                if glob.matches(branch_name)
+                    && (allow_deleted || branch_target.local_target.is_some())
+                {
+                    Some(branch_name)
+                } else {
+                    None
+                }
+            })
             .cloned()
             .collect_vec();
         if names.is_empty() {
@@ -242,6 +257,7 @@ fn cmd_branch_delete(
     args: &BranchDeleteArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    let view = workspace_command.repo().view();
     for branch_name in &args.names {
         if workspace_command
             .repo()
@@ -252,10 +268,12 @@ fn cmd_branch_delete(
             return Err(user_error(format!("No such branch: {branch_name}")));
         }
     }
-    let mut tx =
-        workspace_command.start_transaction(&format!("delete {}", make_branch_term(&args.names)));
-    for branch_name in &args.names {
-        tx.mut_repo().remove_local_branch(branch_name);
+    let globbed_names = find_globs(view, &args.glob, false)?;
+    let names: BTreeSet<String> = args.names.iter().cloned().chain(globbed_names).collect();
+    let branch_term = make_branch_term(names.iter().collect_vec().as_slice());
+    let mut tx = workspace_command.start_transaction(&format!("delete {branch_term}"));
+    for branch_name in names {
+        tx.mut_repo().remove_local_branch(&branch_name);
     }
     tx.finish(ui)?;
     Ok(())
@@ -273,7 +291,7 @@ fn cmd_branch_forget(
             return Err(user_error(format!("No such branch: {branch_name}")));
         }
     }
-    let globbed_names = find_globs(view, &args.glob)?;
+    let globbed_names = find_globs(view, &args.glob, true)?;
     let names: BTreeSet<String> = args.names.iter().cloned().chain(globbed_names).collect();
     let branch_term = make_branch_term(names.iter().collect_vec().as_slice());
     let mut tx = workspace_command.start_transaction(&format!("forget {branch_term}"));
