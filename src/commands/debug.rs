@@ -36,6 +36,8 @@ pub enum DebugCommands {
     ReIndex(DebugReIndexArgs),
     #[command(visible_alias = "view")]
     Operation(DebugOperationArgs),
+    #[command(subcommand)]
+    Watchman(DebugWatchmanSubcommand),
 }
 
 /// Evaluate revset to full commit IDs
@@ -81,6 +83,13 @@ pub enum DebugOperationDisplay {
     View,
     /// Show both the view and the operation
     All,
+}
+
+#[derive(Subcommand, Clone, Debug)]
+pub enum DebugWatchmanSubcommand {
+    QueryClock,
+    QueryChangedFiles,
+    ResetClock,
 }
 
 pub fn cmd_debug(
@@ -171,6 +180,9 @@ pub fn cmd_debug(
                 writeln!(ui, "{:#?}", op.view().store_view())?;
             }
         }
+        DebugCommands::Watchman(watchman_subcommand) => {
+            cmd_debug_watchman(ui, command, watchman_subcommand)?;
+        }
     }
     Ok(())
 }
@@ -214,4 +226,44 @@ fn cmd_debug_revset(
         writeln!(ui, "{}", commit_id.hex())?;
     }
     Ok(())
+}
+
+#[cfg(feature = "watchman")]
+fn cmd_debug_watchman(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    subcommand: &DebugWatchmanSubcommand,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo().clone();
+    match subcommand {
+        DebugWatchmanSubcommand::QueryClock => {
+            let (clock, _changed_files) =
+                workspace_command.working_copy().query_watchman().unwrap();
+            ui.write(&format!("Clock: {clock:?}"))?;
+        }
+        DebugWatchmanSubcommand::QueryChangedFiles => {
+            let (_clock, changed_files) =
+                workspace_command.working_copy().query_watchman().unwrap();
+            ui.write(&format!("Changed files: {changed_files:?}"))?;
+        }
+        DebugWatchmanSubcommand::ResetClock => {
+            let (mut locked_wc, _commit) = workspace_command.start_working_copy_mutation()?;
+            locked_wc.reset_watchman()?;
+            locked_wc.finish(repo.op_id().clone());
+            ui.write("Reset Watchman clock")?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "watchman"))]
+fn cmd_debug_watchman(
+    _ui: &mut Ui,
+    _command: &CommandHelper,
+    _subcommand: &DebugWatchmanSubcommand,
+) -> Result<(), CommandError> {
+    Err(user_error(
+        "Cannot query Watchman because jj was not compiled with the `watchman` feature",
+    ))
 }

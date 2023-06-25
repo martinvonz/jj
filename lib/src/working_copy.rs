@@ -512,9 +512,13 @@ impl TreeState {
         Ok(self.store.write_symlink(path, str_target)?)
     }
 
+    fn reset_watchman(&mut self) {
+        self.watchman_clock.take();
+    }
+
     #[cfg(feature = "watchman")]
     #[tokio::main]
-    async fn query_watchman(
+    pub async fn query_watchman(
         &self,
     ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), watchman::Error> {
         let fsmonitor = watchman::Fsmonitor::init(&self.working_copy_path).await?;
@@ -1320,6 +1324,13 @@ impl WorkingCopy {
         locked_wc.finish(operation_id);
         Ok(stats)
     }
+
+    #[cfg(feature = "watchman")]
+    pub fn query_watchman(
+        &self,
+    ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), watchman::Error> {
+        self.tree_state().query_watchman()
+    }
 }
 
 /// A working copy that's locked on disk. The lock is held until you call
@@ -1343,6 +1354,12 @@ impl LockedWorkingCopy<'_> {
     /// The tree at the time the lock was taken
     pub fn old_tree_id(&self) -> &TreeId {
         &self.old_tree_id
+    }
+
+    pub fn reset_watchman(&mut self) -> Result<(), SnapshotError> {
+        self.wc.tree_state_mut().reset_watchman();
+        self.tree_state_dirty = true;
+        Ok(())
     }
 
     // The base_ignores are passed in here rather than being set on the TreeState
