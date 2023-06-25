@@ -175,7 +175,7 @@ pub fn run_mergetool(
             sides: file_conflict.adds().len(),
         });
     };
-    let mut content = file_conflict.extract_as_single_hunk(tree.store(), repo_path);
+    let content = file_conflict.extract_as_single_hunk(tree.store(), repo_path);
 
     let editor = get_merge_tool_from_settings(ui, settings)?;
     let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {
@@ -186,10 +186,11 @@ pub fn run_mergetool(
     } else {
         vec![]
     };
+    let (mut removes, mut adds) = content.take();
     let files: HashMap<&str, _> = maplit::hashmap! {
-        "base" => content.removes.pop().unwrap().0,
-        "right" => content.adds.pop().unwrap().0,
-        "left" => content.adds.pop().unwrap().0,
+        "base" => removes.pop().unwrap().0,
+        "right" => adds.pop().unwrap().0,
+        "left" => adds.pop().unwrap().0,
         "output" => initial_output_content.clone(),
     };
 

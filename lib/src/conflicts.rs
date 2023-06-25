@@ -19,7 +19,7 @@ use itertools::Itertools;
 
 use crate::backend::{BackendResult, FileId, ObjectId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
-use crate::files::{ConflictHunk, ContentHunk, MergeHunk, MergeResult};
+use crate::files::{ContentHunk, MergeHunk, MergeResult};
 use crate::merge::trivial_merge;
 use crate::repo_path::RepoPath;
 use crate::store::Store;
@@ -251,7 +251,8 @@ impl Conflict<Option<TreeValue>> {
                         buf.extend_from_slice(&slice.0);
                     }
                 }
-                MergeHunk::Conflict(ConflictHunk { removes, adds }) => {
+                MergeHunk::Conflict(conflict) => {
+                    let (removes, adds) = conflict.take();
                     for (i, buf) in removes.into_iter().enumerate() {
                         removed_content[i].extend(buf.0);
                     }
@@ -315,7 +316,7 @@ impl Conflict<Option<TreeValue>> {
 }
 
 impl Conflict<Option<FileId>> {
-    pub fn extract_as_single_hunk(&self, store: &Store, path: &RepoPath) -> ConflictHunk {
+    pub fn extract_as_single_hunk(&self, store: &Store, path: &RepoPath) -> Conflict<ContentHunk> {
         let removes_content = self
             .removes()
             .iter()
@@ -327,10 +328,7 @@ impl Conflict<Option<FileId>> {
             .map(|term| get_file_contents(store, path, term))
             .collect_vec();
 
-        ConflictHunk {
-            removes: removes_content,
-            adds: adds_content,
-        }
+        Conflict::new(removes_content, adds_content)
     }
 }
 
@@ -405,7 +403,7 @@ fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result
 }
 
 pub fn materialize_merge_result(
-    single_hunk: &ConflictHunk,
+    single_hunk: &Conflict<ContentHunk>,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
     let removed_slices = single_hunk
@@ -429,11 +427,11 @@ pub fn materialize_merge_result(
                     MergeHunk::Resolved(content) => {
                         output.write_all(&content.0)?;
                     }
-                    MergeHunk::Conflict(ConflictHunk { removes, adds }) => {
+                    MergeHunk::Conflict(conflict) => {
                         output.write_all(CONFLICT_START_LINE)?;
                         let mut add_index = 0;
-                        for left in &removes {
-                            let right1 = if let Some(right1) = adds.get(add_index) {
+                        for left in conflict.removes() {
+                            let right1 = if let Some(right1) = conflict.adds().get(add_index) {
                                 right1
                             } else {
                                 // If we have no more positive terms, emit the remaining negative
@@ -449,7 +447,7 @@ pub fn materialize_merge_result(
                             // Check if the diff against the next positive term is better. Since
                             // we want to preserve the order of the terms, we don't match against
                             // any later positive terms.
-                            if let Some(right2) = adds.get(add_index + 1) {
+                            if let Some(right2) = conflict.adds().get(add_index + 1) {
                                 let diff2 =
                                     Diff::for_tokenizer(&[&left.0, &right2.0], &find_line_ranges)
                                         .hunks()
@@ -473,7 +471,7 @@ pub fn materialize_merge_result(
                         }
 
                         //  Emit the remaining positive terms as snapshots.
-                        for slice in &adds[add_index..] {
+                        for slice in &conflict.adds()[add_index..] {
                             output.write_all(CONFLICT_PLUS_LINE)?;
                             output.write_all(&slice.0)?;
                         }
@@ -517,8 +515,9 @@ pub fn parse_conflict(input: &[u8], num_removes: usize, num_adds: usize) -> Opti
             let conflict_body = &input[conflict_start.unwrap() + CONFLICT_START_LINE.len()..pos];
             let hunk = parse_conflict_hunk(conflict_body);
             match &hunk {
-                MergeHunk::Conflict(ConflictHunk { removes, adds })
-                    if removes.len() == num_removes && adds.len() == num_adds =>
+                MergeHunk::Conflict(conflict)
+                    if conflict.removes().len() == num_removes
+                        && conflict.adds().len() == num_adds =>
                 {
                     let resolved_slice = &input[resolved_start..conflict_start.unwrap()];
                     if !resolved_slice.is_empty() {
@@ -603,7 +602,7 @@ fn parse_conflict_hunk(input: &[u8]) -> MergeHunk {
         }
     }
 
-    MergeHunk::Conflict(ConflictHunk { removes, adds })
+    MergeHunk::Conflict(Conflict::new(removes, adds))
 }
 
 #[cfg(test)]
