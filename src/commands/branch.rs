@@ -369,12 +369,21 @@ fn cmd_branch_list(
             }
             print_branch_target(formatter, remote_target)?;
         }
-        if found_non_git_remote && branch_target.local_target.is_none() {
-            writeln!(
-                formatter,
-                "  (this branch will be *deleted permanently* on the remote on the\n   next `jj \
-                 git push`. Use `jj branch forget` to prevent this)"
-            )?;
+
+        if branch_target.local_target.is_none() {
+            if found_non_git_remote {
+                writeln!(
+                    formatter,
+                    "  (this branch will be *deleted permanently* on the remote on the\n   next \
+                     `jj git push`. Use `jj branch forget` to prevent this)"
+                )?;
+            } else {
+                writeln!(
+                    formatter,
+                    "  (this branch will be deleted from the underlying Git repo on the next `jj \
+                     git export`)"
+                )?;
+            }
         }
     }
 
