@@ -137,7 +137,7 @@ fn test_branch_forget_export() {
     // TODO: Consider allowing forgetting local-git tracking branches as an option
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    foo (deleted)
+    foo (forgotten)
       @git: 65b6b74e0897 (no description set)
     "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r=foo", "--no-graph"]);
