@@ -321,7 +321,7 @@ line 5 right
     Some(
         [
             Conflict(
-                ConflictHunk {
+                Conflict {
                     removes: [
                         "line 1\nline 2\n",
                     ],
@@ -335,7 +335,7 @@ line 5 right
                 "line 3\n",
             ),
             Conflict(
-                ConflictHunk {
+                Conflict {
                     removes: [
                         "line 4\nline 5\n",
                     ],
@@ -493,7 +493,7 @@ line 5
                 "line 1\n",
             ),
             Conflict(
-                ConflictHunk {
+                Conflict {
                     removes: [
                         "line 2\nline 3\nline 4\n",
                     ],
@@ -543,7 +543,7 @@ line 5
                 "line 1\n",
             ),
             Conflict(
-                ConflictHunk {
+                Conflict {
                     removes: [
                         "line 2\nline 3\nline 4\n",
                         "line 2\nline 3\nline 4\n",
