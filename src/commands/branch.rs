@@ -295,15 +295,15 @@ fn cmd_branch_list(
     }
 
     let print_branch_target =
-        |formatter: &mut dyn Formatter, target: Option<&RefTarget>| -> Result<(), CommandError> {
+        |formatter: &mut dyn Formatter, target: &RefTarget| -> Result<(), CommandError> {
             match target {
-                Some(RefTarget::Normal(id)) => {
+                RefTarget::Normal(id) => {
                     write!(formatter, ": ")?;
                     let commit = repo.store().get_commit(id)?;
                     workspace_command.write_commit_summary(formatter, &commit)?;
                     writeln!(formatter)?;
                 }
-                Some(RefTarget::Conflict { removes, adds }) => {
+                RefTarget::Conflict { removes, adds } => {
                     write!(formatter, " ")?;
                     write!(formatter.labeled("conflict"), "(conflicted)")?;
                     writeln!(formatter, ":")?;
@@ -320,9 +320,6 @@ fn cmd_branch_list(
                         writeln!(formatter)?;
                     }
                 }
-                None => {
-                    writeln!(formatter, " (deleted)")?;
-                }
             }
             Ok(())
         };
@@ -332,7 +329,11 @@ fn cmd_branch_list(
 
     for (name, branch_target) in all_branches {
         write!(formatter.labeled("branch"), "{name}")?;
-        print_branch_target(formatter, branch_target.local_target.as_ref())?;
+        if let Some(target) = branch_target.local_target.as_ref() {
+            print_branch_target(formatter, target)?;
+        } else {
+            writeln!(formatter, " (deleted)")?;
+        }
 
         let mut found_non_git_remote = false;
         for (remote, remote_target) in branch_target.remote_targets.iter() {
@@ -363,7 +364,7 @@ fn cmd_branch_list(
                     )?;
                 }
             }
-            print_branch_target(formatter, Some(remote_target))?;
+            print_branch_target(formatter, remote_target)?;
         }
         if found_non_git_remote && branch_target.local_target.is_none() {
             writeln!(
