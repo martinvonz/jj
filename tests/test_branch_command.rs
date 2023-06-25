@@ -139,6 +139,7 @@ fn test_branch_forget_export() {
     insta::assert_snapshot!(stdout, @r###"
     foo (forgotten)
       @git: 65b6b74e0897 (no description set)
+      (this branch will be deleted from the underlying Git repo on the next `jj git export`)
     "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r=foo", "--no-graph"]);
     insta::assert_snapshot!(stderr, @r###"
