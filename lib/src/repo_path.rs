@@ -163,6 +163,10 @@ impl RepoPath {
         }
     }
 
+    pub fn file_name(&self) -> Option<&str> {
+        self.components.last().map(|name| name.as_str())
+    }
+
     pub fn split(&self) -> Option<(RepoPath, &RepoPathComponent)> {
         if self.is_root() {
             None

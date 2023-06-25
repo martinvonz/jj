@@ -560,81 +560,78 @@ impl TreeState {
             },
         );
         struct WorkItem {
-            dir: RepoPath,
-            disk_dir: PathBuf,
+            path: RepoPath,
+            disk_path: PathBuf,
             git_ignore: Arc<GitIgnoreFile>,
         }
         let mut work = vec![WorkItem {
-            dir: RepoPath::root(),
-            disk_dir: self.working_copy_path.clone(),
+            path: RepoPath::root(),
+            disk_path: self.working_copy_path.clone(),
             git_ignore: base_ignores,
         }];
         while let Some(WorkItem {
-            dir,
-            disk_dir,
+            path,
+            disk_path,
             git_ignore,
         }) = work.pop()
         {
-            if matcher.visit(&dir).is_nothing() {
+            if matcher.visit(&path).is_nothing() {
                 continue;
             }
-            let git_ignore = git_ignore
-                .chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
-            for maybe_entry in disk_dir.read_dir().unwrap() {
-                let entry = maybe_entry.unwrap();
-                let file_type = entry.file_type().unwrap();
-                let file_name = entry.file_name();
-                let name = file_name
-                    .to_str()
-                    .ok_or_else(|| SnapshotError::InvalidUtf8Path {
-                        path: file_name.clone(),
-                    })?;
-                if name == ".jj" || name == ".git" {
+            if path.file_name() == Some(".jj") || path.file_name() == Some(".git") {
+                continue;
+            }
+            if let Some(file_state) = self.file_states.get(&path) {
+                if file_state.file_type == FileType::GitSubmodule {
                     continue;
                 }
-                let sub_path = dir.join(&RepoPathComponent::from(name));
-                if let Some(file_state) = self.file_states.get(&sub_path) {
-                    if file_state.file_type == FileType::GitSubmodule {
-                        continue;
-                    }
+            }
+
+            deleted_files.remove(&path);
+            if disk_path.is_dir() && !disk_path.is_symlink() {
+                // If the whole directory is ignored, skip it unless we're already tracking
+                // some file in it.
+                if git_ignore.matches_all_files_in(&path.to_internal_dir_string())
+                    && current_tree.path_value(&path).is_none()
+                {
+                    continue;
                 }
 
-                if file_type.is_dir() {
-                    // If the whole directory is ignored, skip it unless we're already tracking
-                    // some file in it.
-                    if git_ignore.matches_all_files_in(&sub_path.to_internal_dir_string())
-                        && current_tree.path_value(&sub_path).is_none()
-                    {
-                        continue;
-                    }
-
+                let git_ignore = git_ignore
+                    .chain_with_file(&path.to_internal_dir_string(), disk_path.join(".gitignore"));
+                for maybe_entry in disk_path.read_dir().unwrap() {
+                    let entry = maybe_entry.unwrap();
+                    let file_name = entry.file_name();
+                    let name =
+                        file_name
+                            .to_str()
+                            .ok_or_else(|| SnapshotError::InvalidUtf8Path {
+                                path: file_name.clone(),
+                            })?;
                     work.push(WorkItem {
-                        dir: sub_path,
-                        disk_dir: entry.path(),
+                        path: path.join(&RepoPathComponent::from(name)),
+                        disk_path: disk_path.join(name),
                         git_ignore: git_ignore.clone(),
-                    });
-                } else {
-                    deleted_files.remove(&sub_path);
-                    if matcher.matches(&sub_path) {
-                        if let Some(progress) = progress {
-                            progress(&sub_path);
-                        }
-                        let update = self.update_file_state(
-                            sub_path.clone(),
-                            &entry.path(),
-                            git_ignore.as_ref(),
-                            &current_tree,
-                        )?;
-                        match update {
-                            Some((new_tree_value, new_file_state)) => {
-                                self.file_states.insert(sub_path.clone(), new_file_state);
-                                tree_builder.set(sub_path, new_tree_value);
-                            }
-                            None => {
-                                self.file_states.remove(&sub_path);
-                                tree_builder.remove(sub_path);
-                            }
-                        }
+                    })
+                }
+            } else if matcher.matches(&path) {
+                if let Some(progress) = progress {
+                    progress(&path);
+                }
+                let update = self.update_file_state(
+                    path.clone(),
+                    &disk_path,
+                    git_ignore.as_ref(),
+                    &current_tree,
+                )?;
+                match update {
+                    Some((new_tree_value, new_file_state)) => {
+                        self.file_states.insert(path.clone(), new_file_state);
+                        tree_builder.set(path, new_tree_value);
+                    }
+                    None => {
+                        self.file_states.remove(&path);
+                        tree_builder.remove(path);
                     }
                 }
             }
