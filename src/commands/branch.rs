@@ -328,20 +328,23 @@ fn cmd_branch_list(
     let formatter = formatter.as_mut();
 
     for (name, branch_target) in all_branches {
+        let found_non_git_remote = {
+            let pseudo_remote_count = branch_target.remote_targets.contains_key("git") as usize;
+            branch_target.remote_targets.len() - pseudo_remote_count > 0
+        };
+
         write!(formatter.labeled("branch"), "{name}")?;
         if let Some(target) = branch_target.local_target.as_ref() {
             print_branch_target(formatter, target)?;
-        } else {
+        } else if found_non_git_remote {
             writeln!(formatter, " (deleted)")?;
+        } else {
+            writeln!(formatter, " (forgotten)")?;
         }
 
-        let mut found_non_git_remote = false;
         for (remote, remote_target) in branch_target.remote_targets.iter() {
             if Some(remote_target) == branch_target.local_target.as_ref() {
                 continue;
-            }
-            if remote != "git" {
-                found_non_git_remote = true;
             }
             write!(formatter, "  ")?;
             write!(formatter.labeled("branch"), "@{remote}")?;
