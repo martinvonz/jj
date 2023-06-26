@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::any::Any;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Read;
 use std::result::Result;
@@ -447,18 +447,19 @@ pub trait Backend: Send + Sync + Debug {
     }
 }
 
-#[derive(Debug)]
-pub enum SignCheck {
-    /// Signature is verified to be valid.
+#[derive(Debug, Clone)]
+pub enum SigCheck {
+    /// Valid signature that matches the data.
     Good,
-    /// Cannot verify signature, e.g. because the key used to sign is not known
-    /// to the backend.
+    /// Valid signature that could not be verified (e.g. due to an unknown key).
     Unknown,
-    /// Signature is present and invalid.
+    /// Valid signature that does not match the signed data.
     Bad,
+    /// Invalid signature.
+    Invalid,
 }
 
-pub trait SigningBackend: Send + Sync {
+pub trait SigningBackend: Debug + Send + Sync {
     /// Check if the signature was created by this backend.
     ///
     /// Should check if e.g. the key fingerprint of the signature matches the
@@ -470,33 +471,36 @@ pub trait SigningBackend: Send + Sync {
 
     /// Verify a signature. Should be reflexive with `sign`:
     /// ```rust,ignore
-    /// verify(data, sign(data)?) == Ok(SigVerification::Good)
+    /// verify(data, sign(data)?) == Ok(SigCheck::Good)
     /// ```
-    fn verify(&self, data: &[u8], signature: &[u8]) -> Result<SignCheck, AnyError>;
+    fn verify(&self, data: &[u8], signature: &[u8]) -> Result<SigCheck, AnyError>;
 }
 
+#[derive(Debug, Default)]
 pub enum SignConfig {
     /// Don't do any signing
+    #[default]
     None,
-    /// Only sign unsigned commits
-    New,
-    /// Sign unsigned commits and resign commits that are signed by the same
+    /// Sign unsigned commits and re-sign commits that are signed by the same
     /// identity
-    Matching,
+    Own,
     /// Sign all commits, even if they are already signed by another identity
     All,
 }
 
+#[derive(Debug)]
 pub struct Signer {
     backend: Box<dyn SigningBackend>,
     config: RwLock<SignConfig>,
+    verification_cache: RwLock<HashMap<CommitId, SigCheck>>,
 }
 
 impl Signer {
     pub fn new(backend: impl SigningBackend + 'static) -> Arc<Self> {
         Arc::new(Self {
             backend: Box::new(backend) as _,
-            config: RwLock::new(SignConfig::None),
+            config: Default::default(),
+            verification_cache: Default::default(),
         })
     }
 
@@ -506,9 +510,9 @@ impl Signer {
 
     pub fn can_sign(self: &Arc<Self>, existing: Option<&Sig>) -> Result<bool, AnyError> {
         let can = match (&*self.config.read().unwrap(), existing) {
-            (SignConfig::None, _) | (SignConfig::New, Some(_)) => false,
-            (SignConfig::All, _) | (_, None) => true,
-            (SignConfig::Matching, Some(sig)) => self.backend.is_own(&sig.signature)?,
+            (SignConfig::None, _) => false,
+            (SignConfig::Own, Some(sig)) => self.backend.is_own(&sig.signature)?,
+            _ => true,
         };
         Ok(can)
     }
@@ -519,9 +523,26 @@ impl Signer {
 
     pub fn verify(
         self: &Arc<Self>,
+        commit_id: &CommitId,
         data: &[u8],
         signature: &[u8],
-    ) -> Result<SignCheck, AnyError> {
-        self.backend.verify(data, signature)
+    ) -> Result<SigCheck, AnyError> {
+        let cached = self
+            .verification_cache
+            .read()
+            .unwrap()
+            .get(commit_id)
+            .cloned();
+        match cached {
+            None | Some(SigCheck::Unknown) => {
+                let check = self.backend.verify(data, signature)?;
+                self.verification_cache
+                    .write()
+                    .unwrap()
+                    .insert(commit_id.clone(), check.clone());
+                Ok(check)
+            }
+            Some(check) => Ok(check),
+        }
     }
 }

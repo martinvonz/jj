@@ -304,6 +304,45 @@
                     "type": "string"
                 }
             }
+        },
+        "sign": {
+            "type": "object",
+            "description": "Commit signing settings",
+            "properties": {
+                "enable": {
+                    "type": "boolean",
+                    "description": "Whether to sign commits by default",
+                    "default": false
+                },
+                "backend": {
+                    "description": "The signing backend to use",
+                    "enum": [
+                        "gpg"
+                    ],
+                    "default": "gpg"
+                },
+                "key": {
+                    "type": "string",
+                    "description": "The key to use for signing, exact meaning depends on the backend"
+                },
+                "backends": {
+                    "type": "object",
+                    "description": "Settings for individual signing backends",
+                    "properties": {
+                        "gpg": {
+                            "type": "object",
+                            "description": "Settings for the gpg signing backend",
+                            "properties": {
+                                "program": {
+                                    "type": "string",
+                                    "description": "The path to gpg executable to use",
+                                    "default": "gpg"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -775,7 +775,7 @@ mod tests {
     use assert_matches::assert_matches;
 
     use super::*;
-    use crate::backend::{FileId, MillisSinceEpoch, SignCheck, SigningBackend, SignConfig};
+    use crate::backend::{FileId, MillisSinceEpoch, SigCheck, SignConfig, SigningBackend};
 
     #[test]
     fn read_plain_git_commit() {
@@ -1026,6 +1026,7 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let store = GitBackend::init_internal(temp_dir.path());
 
+        #[derive(Debug)]
         struct TestSignerBackend;
 
         impl SigningBackend for TestSignerBackend {
@@ -1050,20 +1051,18 @@ mod tests {
                 &self,
                 data: &[u8],
                 signature: &[u8],
-            ) -> Result<SignCheck, Box<dyn std::error::Error + Send + Sync>> {
+            ) -> Result<SigCheck, Box<dyn std::error::Error + Send + Sync>> {
                 Ok(if signature == self.sign(data)? {
-                    SignCheck::Good
+                    SigCheck::Good
                 } else {
-                    SignCheck::Bad
+                    SigCheck::Bad
                 })
             }
         }
 
         let signer = Signer::new(TestSignerBackend);
         signer.config(SignConfig::All);
-        store
-            .install_signer(signer)
-            .unwrap();
+        store.install_signer(signer.clone()).unwrap();
 
         let signature = Signature {
             name: "Someone".to_string(),
@@ -1097,8 +1096,12 @@ mod tests {
              0 +0000\ncommitter Someone <someone@example.com> 0 +0000\n\ninitial"
         );
         assert_matches!(
-            TestSignerBackend.verify(&sig.buffer, &sig.signature),
-            Ok(SignCheck::Good)
+            signer.verify(&commit_id, &sig.buffer, &sig.signature),
+            Ok(SigCheck::Good)
+        );
+        assert_matches!(
+            signer.verify(&commit_id, &sig.buffer, &sig.signature),
+            Ok(SigCheck::Good)
         );
     }
 

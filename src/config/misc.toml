@@ -7,3 +7,11 @@
 [ui]
 pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
 log-word-wrap = false
+
+[sign]
+enable = false
+backend = "gpg"
+# key = "anything that gpg -u accepts"
+
+[sign.backends.gpg]
+program = "gpg"
