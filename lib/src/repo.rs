@@ -26,7 +26,9 @@ use once_cell::sync::OnceCell;
 use thiserror::Error;
 
 use self::dirty_cell::DirtyCell;
-use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, ObjectId, TreeId};
+use crate::backend::{
+    Backend, BackendError, BackendResult, ChangeId, CommitId, ObjectId, SigningNotSupported, TreeId,
+};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::default_index_store::DefaultIndexStore;
@@ -41,6 +43,7 @@ use crate::refs::merge_ref_targets;
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
+use crate::signing::SignConfig;
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
 use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
@@ -145,7 +148,14 @@ impl ReadonlyRepo {
         let backend = backend_factory(&store_path)?;
         let backend_path = store_path.join("type");
         fs::write(&backend_path, backend.name()).context(&backend_path)?;
-        let store = Store::new(backend);
+
+        if user_settings.signer().is_enabled() {
+            backend
+                .install_signer(user_settings.signer())
+                .map_err(|_| BackendError::SigningNotSupported(SigningNotSupported))?;
+        }
+
+        let store = Store::new(backend, user_settings.signer());
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
 
         let op_store_path = repo_path.join("op_store");
@@ -399,6 +409,14 @@ pub enum StoreLoadError {
         store: &'static str,
         source: io::Error,
     },
+    #[error("Signing is not supported by this commit backend type")]
+    SigningNotSupported,
+}
+
+impl From<SigningNotSupported> for StoreLoadError {
+    fn from(_: SigningNotSupported) -> Self {
+        StoreLoadError::SigningNotSupported
+    }
 }
 
 impl StoreFactories {
@@ -601,7 +619,13 @@ impl RepoLoader {
         repo_path: &Path,
         store_factories: &StoreFactories,
     ) -> Result<Self, StoreLoadError> {
-        let store = Store::new(store_factories.load_backend(&repo_path.join("store"))?);
+        let backend = store_factories.load_backend(&repo_path.join("store"))?;
+
+        if user_settings.signer().is_enabled() {
+            backend.install_signer(user_settings.signer())?;
+        }
+
+        let store = Store::new(backend, user_settings.signer());
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
         let op_store = Arc::from(store_factories.load_op_store(&repo_path.join("op_store"))?);
         let op_heads_store =
@@ -778,8 +802,12 @@ impl MutableRepo {
         CommitBuilder::for_rewrite_from(self, settings, predecessor)
     }
 
-    pub fn write_commit(&mut self, commit: backend::Commit) -> BackendResult<Commit> {
-        let commit = self.store().write_commit(commit)?;
+    pub fn write_commit(
+        &mut self,
+        commit: backend::Commit,
+        sign_config: SignConfig,
+    ) -> BackendResult<Commit> {
+        let commit = self.store().write_commit(commit, sign_config)?;
         self.add_head(&commit);
         Ok(commit)
     }

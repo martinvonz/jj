@@ -26,11 +26,12 @@ use prost::Message;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Sig, Signature, Signer,
-    SymlinkId, Timestamp, Tree, TreeId, TreeValue,
+    ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Sig, Signature,
+    SigningNotSupported, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use crate::lock::FileLock;
 use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::signing::Signer;
 use crate::stacked_table::{MutableTable, ReadonlyTable, TableSegment, TableStore};
 
 const HASH_LENGTH: usize = 20;
@@ -616,7 +617,7 @@ impl Backend for GitBackend {
             // this clojure should be just a try {} block whenever those are stabilized
             let create_jj_commit = || -> Result<Oid, Box<dyn std::error::Error + Send + Sync>> {
                 let oid = match &*self.signer.read().unwrap() {
-                    Some(signer) if signer.can_sign(contents.sig.as_ref())? => {
+                    Some(signer) if signer.will_sign(contents.sig.as_ref())? => {
                         let commit_buf = locked_repo.commit_create_buffer(
                             &author,
                             &committer,
@@ -690,7 +691,7 @@ impl Backend for GitBackend {
         Ok((id, contents))
     }
 
-    fn install_signer(&self, signer: Arc<Signer>) -> BackendResult<()> {
+    fn install_signer(&self, signer: Arc<Signer>) -> Result<(), SigningNotSupported> {
         *self.signer.write().unwrap() = Some(signer);
         Ok(())
     }
@@ -775,7 +776,8 @@ mod tests {
     use assert_matches::assert_matches;
 
     use super::*;
-    use crate::backend::{FileId, MillisSinceEpoch, SigCheck, SignConfig, SigningBackend};
+    use crate::backend::{FileId, MillisSinceEpoch};
+    use crate::signing::{SignConfig, SignError, SigningBackend, Verification, VerificationStatus};
 
     #[test]
     fn read_plain_git_commit() {
@@ -1030,38 +1032,45 @@ mod tests {
         struct TestSignerBackend;
 
         impl SigningBackend for TestSignerBackend {
-            fn is_own(
-                &self,
-                _signature: &[u8],
-            ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+            fn update_key(&self, _key: Option<String>) {}
+
+            fn is_of_this_type(&self, signature: &[u8]) -> bool {
+                signature.starts_with(b"hello there\n")
+            }
+
+            fn is_own(&self, _signature: &[u8]) -> Result<bool, SignError> {
                 Ok(true)
             }
 
-            fn sign(
-                &self,
-                data: &[u8],
-            ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+            fn sign(&self, data: &[u8]) -> Result<Vec<u8>, SignError> {
                 let mut s = DefaultHasher::new();
                 data.hash(&mut s);
                 let hash = s.finish();
                 Ok(format!("hello there\n{}", hash).into_bytes())
             }
 
-            fn verify(
-                &self,
-                data: &[u8],
-                signature: &[u8],
-            ) -> Result<SigCheck, Box<dyn std::error::Error + Send + Sync>> {
+            fn verify(&self, data: &[u8], signature: &[u8]) -> Result<Verification, SignError> {
                 Ok(if signature == self.sign(data)? {
-                    SigCheck::Good
+                    Verification {
+                        status: VerificationStatus::Good,
+                        key: None,
+                        display: Some("test signer identity".into()),
+                    }
                 } else {
-                    SigCheck::Bad
+                    Verification {
+                        status: VerificationStatus::Bad,
+                        key: None,
+                        display: Some("test signer identity".into()),
+                    }
                 })
             }
         }
 
-        let signer = Signer::new(TestSignerBackend);
-        signer.config(SignConfig::All);
+        let signer = Signer::new(
+            Box::new(TestSignerBackend),
+            vec![Box::new(TestSignerBackend)],
+        );
+        signer.config(SignConfig::New);
         store.install_signer(signer.clone()).unwrap();
 
         let signature = Signature {
@@ -1095,13 +1104,19 @@ mod tests {
             "tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904\nauthor Someone <someone@example.com> \
              0 +0000\ncommitter Someone <someone@example.com> 0 +0000\n\ninitial"
         );
-        assert_matches!(
-            signer.verify(&commit_id, &sig.buffer, &sig.signature),
-            Ok(SigCheck::Good)
+        assert_eq!(
+            signer
+                .verify(&commit_id, &sig.buffer, &sig.signature)
+                .unwrap()
+                .status,
+            VerificationStatus::Good
         );
-        assert_matches!(
-            signer.verify(&commit_id, &sig.buffer, &sig.signature),
-            Ok(SigCheck::Good)
+        assert_eq!(
+            signer
+                .verify(&commit_id, &sig.buffer, &sig.signature)
+                .unwrap()
+                .status,
+            VerificationStatus::Good
         );
     }
 

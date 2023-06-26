@@ -46,6 +46,7 @@ use jujutsu_lib::revset::{
 };
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::signing::SignConfig;
 use jujutsu_lib::tree::{merge_trees, Tree};
 use jujutsu_lib::workspace::Workspace;
 use jujutsu_lib::{file_util, revset};
@@ -114,6 +115,7 @@ enum Commands {
     Resolve(ResolveArgs),
     Restore(RestoreArgs),
     Show(ShowArgs),
+    Sign(SignArgs),
     #[command(subcommand)]
     Sparse(SparseArgs),
     Split(SplitArgs),
@@ -333,6 +335,28 @@ struct ShowArgs {
     unused_revision: bool,
     #[command(flatten)]
     format: DiffFormatArgs,
+}
+
+/// Cryptographically sign a revision
+#[derive(clap::Args, Clone, Debug)]
+struct SignArgs {
+    /// What key to use, depends on the configured signing backend.
+    /// In case of GPG, the first key with matching description is used, similar
+    /// to the `gpg` command.
+    #[arg()]
+    key: Option<String>,
+    /// What revision(s) to sign
+    #[arg(short = 'r', default_value = "@")]
+    revisions: Vec<RevisionArg>,
+    /// Allow revsets expanding to multiple commits in a single argument
+    #[arg(long, short = 'L')]
+    allow_large_revsets: bool,
+    /// Sign the commit even if it is already signed.
+    #[arg(long, short = 'f', long)]
+    pub re_sign: bool,
+    /// Drop the signature, "un-signing" the commit.
+    #[arg(long, short = 'D', conflicts_with = "re_sign")]
+    pub drop: bool,
 }
 
 /// Show high-level repo status
@@ -3625,6 +3649,75 @@ fn cmd_sparse_set(
     Ok(())
 }
 
+fn cmd_sign(ui: &mut Ui, command: &CommandHelper, args: &SignArgs) -> Result<(), CommandError> {
+    // enable the signer before workspace_helper call so that
+    // it gets installed into the backend
+    let key = args.key.clone().or_else(|| command.settings().sign_key());
+    command.settings().signer().enable(key);
+
+    let mut workspace_command = command.workspace_helper(ui)?;
+    assert!(
+        !args.revisions.is_empty(),
+        "expected a non-empty list from clap"
+    );
+
+    let target_commits = resolve_destination_revs(
+        &workspace_command,
+        &args.revisions,
+        args.allow_large_revsets,
+    )?;
+
+    for commit in target_commits.into_iter().rev() {
+        workspace_command.check_rewritable(&commit)?;
+
+        let config = if commit.is_signed() {
+            if args.re_sign {
+                SignConfig::ReSign
+            } else if args.drop {
+                SignConfig::Drop
+            } else {
+                writeln!(
+                    ui,
+                    "Commit was already signed: {}",
+                    workspace_command.format_commit_summary(&commit)
+                )?;
+                continue;
+            }
+        } else if args.drop {
+            writeln!(
+                ui,
+                "Commit already had no signature: {}",
+                workspace_command.format_commit_summary(&commit)
+            )?;
+            continue;
+        } else {
+            SignConfig::New
+        };
+
+        let mut tx =
+            workspace_command.start_transaction(&format!("sign commit {}", commit.id().hex()));
+
+        let rewritten = tx
+            .mut_repo()
+            .rewrite_commit(command.settings(), &commit)
+            .set_sign_config(config)
+            .write()?;
+
+        tx.finish(ui)?;
+
+        let summary = workspace_command.format_commit_summary(&rewritten);
+        if args.re_sign {
+            writeln!(ui, "Commit was re-signed: {summary}")?;
+        } else if args.drop {
+            writeln!(ui, "Signature was dropped: {summary}")?;
+        } else {
+            writeln!(ui, "Commit was signed: {summary}")?;
+        }
+    }
+
+    Ok(())
+}
+
 pub fn default_app() -> Command {
     Commands::augment_subcommands(Args::command())
 }
@@ -3673,6 +3766,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         #[cfg(feature = "bench")]
         Commands::Bench(sub_args) => bench::cmd_bench(ui, command_helper, sub_args),
         Commands::Debug(sub_args) => debug::cmd_debug(ui, command_helper, sub_args),
+        Commands::Sign(sign_args) => cmd_sign(ui, command_helper, sign_args),
     }
 }
 

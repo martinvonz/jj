@@ -18,6 +18,7 @@ use crate::backend::{self, BackendResult, ChangeId, CommitId, Signature, TreeId}
 use crate::commit::Commit;
 use crate::repo::{MutableRepo, Repo};
 use crate::settings::{JJRng, UserSettings};
+use crate::signing::SignConfig;
 
 #[must_use]
 pub struct CommitBuilder<'repo> {
@@ -25,6 +26,7 @@ pub struct CommitBuilder<'repo> {
     rng: Arc<JJRng>,
     commit: backend::Commit,
     rewrite_source: Option<Commit>,
+    sign_config: SignConfig,
 }
 
 impl CommitBuilder<'_> {
@@ -53,6 +55,7 @@ impl CommitBuilder<'_> {
             rng,
             commit,
             rewrite_source: None,
+            sign_config: SignConfig::setting(settings.signer().is_enabled()),
         }
     }
 
@@ -77,6 +80,7 @@ impl CommitBuilder<'_> {
             commit,
             rng: settings.get_rng(),
             rewrite_source: Some(predecessor.clone()),
+            sign_config: SignConfig::setting(settings.signer().is_enabled()),
         }
     }
 
@@ -151,6 +155,11 @@ impl CommitBuilder<'_> {
         self
     }
 
+    pub fn set_sign_config(mut self, sign_config: SignConfig) -> Self {
+        self.sign_config = sign_config;
+        self
+    }
+
     pub fn write(self) -> BackendResult<Commit> {
         let mut rewrite_source_id = None;
         if let Some(rewrite_source) = self.rewrite_source {
@@ -158,7 +167,7 @@ impl CommitBuilder<'_> {
                 rewrite_source_id.replace(rewrite_source.id().clone());
             }
         }
-        let commit = self.mut_repo.write_commit(self.commit)?;
+        let commit = self.mut_repo.write_commit(self.commit, self.sign_config)?;
         if let Some(rewrite_source_id) = rewrite_source_id {
             self.mut_repo
                 .record_rewritten_commit(rewrite_source_id, commit.id().clone())

@@ -51,6 +51,7 @@ pub mod repo_path;
 pub mod revset;
 pub mod rewrite;
 pub mod settings;
+pub mod signing;
 pub mod simple_op_heads_store;
 pub mod simple_op_store;
 pub mod stacked_table;

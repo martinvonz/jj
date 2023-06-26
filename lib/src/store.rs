@@ -22,6 +22,7 @@ use crate::backend::{
 };
 use crate::commit::Commit;
 use crate::repo_path::RepoPath;
+use crate::signing::{SignConfig, Signer};
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 use crate::{backend, conflicts};
@@ -31,14 +32,16 @@ use crate::{backend, conflicts};
 #[derive(Debug)]
 pub struct Store {
     backend: Box<dyn Backend>,
+    signer: Arc<Signer>,
     commit_cache: RwLock<HashMap<CommitId, Arc<backend::Commit>>>,
     tree_cache: RwLock<HashMap<(RepoPath, TreeId), Arc<backend::Tree>>>,
 }
 
 impl Store {
-    pub fn new(backend: Box<dyn Backend>) -> Arc<Self> {
+    pub fn new(backend: Box<dyn Backend>, signer: Arc<Signer>) -> Arc<Self> {
         Arc::new(Store {
             backend,
+            signer,
             commit_cache: Default::default(),
             tree_cache: Default::default(),
         })
@@ -46,6 +49,10 @@ impl Store {
 
     pub fn backend_impl(&self) -> &dyn Any {
         self.backend.as_any()
+    }
+
+    pub fn signer(&self) -> &Arc<Signer> {
+        &self.signer
     }
 
     pub fn commit_id_length(&self) -> usize {
@@ -91,8 +98,13 @@ impl Store {
         Ok(data)
     }
 
-    pub fn write_commit(self: &Arc<Self>, commit: backend::Commit) -> BackendResult<Commit> {
+    pub fn write_commit(
+        self: &Arc<Self>,
+        commit: backend::Commit,
+        sign_config: SignConfig,
+    ) -> BackendResult<Commit> {
         assert!(!commit.parents.is_empty());
+        self.signer.config(sign_config);
         let (commit_id, commit) = self.backend.write_commit(commit)?;
         let data = Arc::new(commit);
         {

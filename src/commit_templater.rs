@@ -23,6 +23,7 @@ use jujutsu_lib::id_prefix::IdPrefixContext;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::rewrite;
+use jujutsu_lib::signing::{Verification, VerificationStatus};
 
 use crate::formatter::Formatter;
 use crate::template_builder::{
@@ -81,6 +82,9 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
                 build_shortest_id_prefix_method(self, build_ctx, property, function)
             }
+            CommitTemplatePropertyKind::CommitSignature(property) => {
+                build_commit_signature_method(self, build_ctx, property, function)
+            }
         }
     }
 }
@@ -115,6 +119,13 @@ impl<'repo> CommitTemplateLanguage<'repo, '_> {
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::ShortestIdPrefix(Box::new(property))
     }
+
+    fn wrap_commit_signature(
+        &self,
+        property: impl TemplateProperty<Commit, Output = Option<Verification>> + 'repo,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::CommitSignature(Box::new(property))
+    }
 }
 
 enum CommitTemplatePropertyKind<'repo> {
@@ -123,6 +134,7 @@ enum CommitTemplatePropertyKind<'repo> {
     CommitList(Box<dyn TemplateProperty<Commit, Output = Vec<Commit>> + 'repo>),
     CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo>),
     ShortestIdPrefix(Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>),
+    CommitSignature(Box<dyn TemplateProperty<Commit, Output = Option<Verification>> + 'repo>),
 }
 
 impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'repo> {
@@ -164,6 +176,7 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
                 Some(property.into_template())
             }
+            CommitTemplatePropertyKind::CommitSignature(property) => Some(property.into_template()),
         }
     }
 }
@@ -232,6 +245,9 @@ fn build_commit_keyword_opt<'repo>(
         "committer" => {
             language.wrap_signature(wrap_fn(property, |commit| commit.committer().clone()))
         }
+        "signature" => language.wrap_commit_signature(wrap_fn(property, |commit| {
+            commit.signature().ok().flatten()
+        })),
         "working_copies" => {
             language.wrap_string(wrap_repo_fn(repo, property, extract_working_copies))
         }
@@ -508,6 +524,84 @@ fn build_shortest_id_prefix_method<'repo>(
         _ => {
             return Err(TemplateParseError::no_such_method(
                 "ShortestIdPrefix",
+                function,
+            ))
+        }
+    };
+    Ok(property)
+}
+
+// todo this should be a config/template (also same applies to @/◉ btw)
+fn verification_str(status: VerificationStatus) -> &'static str {
+    match status {
+        VerificationStatus::Good => "[\u{2713}\u{FE0E}]", // a checkmark
+        VerificationStatus::Unknown => "[?]",
+        VerificationStatus::Bad => "[\u{274C}\u{FE0E}]", // an x mark
+        VerificationStatus::Invalid => "[?!]",
+    }
+}
+
+impl Template<()> for Option<Verification> {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        if let Some(s) = &self {
+            formatter.with_label("status_char", |fmt| {
+                fmt.write_str(verification_str(s.status))
+            })?;
+        }
+        Ok(())
+    }
+}
+
+fn build_commit_signature_method<'repo>(
+    language: &CommitTemplateLanguage<'repo, '_>,
+    _build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
+    self_property: impl TemplateProperty<Commit, Output = Option<Verification>> + 'repo,
+    function: &FunctionCallNode,
+) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
+    let property = match function.name {
+        "present" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_boolean(TemplateFunction::new(self_property, |v| v.is_some()))
+        }
+        "good" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_boolean(TemplateFunction::new(self_property, |v| {
+                v.map(|v| v.status) == Some(VerificationStatus::Good)
+            }))
+        }
+        "unknown" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_boolean(TemplateFunction::new(self_property, |v| {
+                v.map(|v| v.status) == Some(VerificationStatus::Unknown)
+            }))
+        }
+        "bad" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_boolean(TemplateFunction::new(self_property, |v| {
+                v.map(|v| v.status) == Some(VerificationStatus::Bad)
+            }))
+        }
+        "invalid" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_boolean(TemplateFunction::new(self_property, |v| {
+                v.map(|v| v.status) == Some(VerificationStatus::Invalid)
+            }))
+        }
+        "key" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_string(TemplateFunction::new(self_property, |v| {
+                v.and_then(|v| v.key).unwrap_or_default()
+            }))
+        }
+        "display" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_string(TemplateFunction::new(self_property, |v| {
+                v.and_then(|v| v.display).unwrap_or_default()
+            }))
+        }
+        _ => {
+            return Err(TemplateParseError::no_such_method(
+                "CommitSignature",
                 function,
             ))
         }

@@ -20,18 +20,12 @@ use std::sync::RwLock;
 
 use thiserror::Error;
 
-use crate::backend::{SigCheck, SigningBackend};
+use crate::signing::{SignError, SigningBackend, Verification, VerificationStatus};
 
 #[derive(Debug)]
 pub struct GpgSigner {
     key: RwLock<Key>,
     program: OsString,
-}
-
-#[derive(Debug)]
-pub struct GpgSettings {
-    program: OsString,
-    key: Option<String>,
 }
 
 #[derive(Debug, Error)]
@@ -45,6 +39,12 @@ pub enum GpgError {
     ParseFail(&'static str),
     #[error("Failed to run GPG: {0}")]
     Io(#[from] std::io::Error),
+}
+
+impl From<GpgError> for SignError {
+    fn from(e: GpgError) -> Self {
+        SignError::Other(Box::new(e))
+    }
 }
 
 // since it's hex-encoded we could've condensed this down to a u64
@@ -77,18 +77,27 @@ impl Debug for KeyId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Key {
     Named(Option<String>),
     Resolved(KeyId),
 }
 
 impl GpgSigner {
-    pub fn new(settings: GpgSettings) -> Self {
+    pub fn new(program: OsString) -> Self {
         Self {
-            program: settings.program,
-            key: RwLock::new(Key::Named(settings.key)),
+            program,
+            key: RwLock::new(Key::Named(None)),
         }
+    }
+
+    pub fn from_config(config: &config::Config) -> Self {
+        Self::new(
+            config
+                .get_string("sign.backengs.gpg.program")
+                .unwrap_or_else(|_| "gpg".into())
+                .into(),
+        )
     }
 
     fn _run<const CHECK_RES: bool>(
@@ -156,7 +165,15 @@ impl GpgSigner {
 }
 
 impl SigningBackend for GpgSigner {
-    fn is_own(&self, signature: &[u8]) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    fn update_key(&self, key: Option<String>) {
+        *self.key.write().unwrap() = Key::Named(key);
+    }
+
+    fn is_of_this_type(&self, signature: &[u8]) -> bool {
+        signature.starts_with(b"-----BEGIN PGP SIGNATURE-----")
+    }
+
+    fn is_own(&self, signature: &[u8]) -> Result<bool, SignError> {
         // output of verify also contains both the fingerprint and even the full user id
         // but calling it with some dummy data feels more hacky, and this works anyway
         let output = self.run(
@@ -175,21 +192,18 @@ impl SigningBackend for GpgSigner {
         Ok(KeyId::try_from(key_id)? == self.get_key_id()?)
     }
 
-    fn sign(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    fn sign(&self, data: &[u8]) -> Result<Vec<u8>, SignError> {
         let key_id = self.get_key_id()?;
         Ok(self.run(data, &["-abu".as_ref(), key_id.as_ref().as_ref()])?)
     }
 
-    fn verify(
-        &self,
-        data: &[u8],
-        signature: &[u8],
-    ) -> Result<SigCheck, Box<dyn std::error::Error + Send + Sync>> {
+    fn verify(&self, data: &[u8], signature: &[u8]) -> Result<Verification, SignError> {
         let mut signature_file = tempfile::Builder::new()
             .prefix(".jj-gpg-sig-tmp-")
-            .tempfile()?;
-        signature_file.write_all(signature)?;
-        signature_file.flush()?;
+            .tempfile()
+            .map_err(GpgError::Io)?;
+        signature_file.write_all(signature).map_err(GpgError::Io)?;
+        signature_file.flush().map_err(GpgError::Io)?;
 
         let output = self.run_ignoring(
             data,
@@ -202,18 +216,44 @@ impl SigningBackend for GpgSigner {
             ],
         )?;
 
-        fn contains(output: &[u8], needle: &[u8]) -> bool {
-            output.windows(needle.len()).any(|window| window == needle)
+        // find the line "<prefix> [key] [display with spaces]" and return them as
+        // strings
+        fn find_stuff(output: &[u8], prefix: &[u8]) -> Option<(Option<String>, Option<String>)> {
+            output
+                .split(|b| *b == b'\n')
+                .find(|line| line.starts_with(prefix))
+                .map(|line| {
+                    let mut iter = line[prefix.len()..].splitn(2, |b| *b == b' ');
+                    let a = iter
+                        .next()
+                        .and_then(|bs| String::from_utf8(bs.to_owned()).ok());
+                    let b = iter
+                        .next()
+                        .and_then(|bs| String::from_utf8(bs.to_owned()).ok());
+                    (a, b)
+                })
         }
 
-        if contains(&output, b"VALIDSIG") {
-            Ok(SigCheck::Good)
-        } else if contains(&output, b"NO_PUBKEY") {
-            Ok(SigCheck::Unknown)
-        } else if contains(&output, b"BADSIG") {
-            Ok(SigCheck::Bad)
+        if let Some((key, display)) = find_stuff(&output, b"[GNUPG:] GOODSIG ") {
+            Ok(Verification {
+                status: VerificationStatus::Good,
+                key,
+                display,
+            })
+        } else if let Some((key, display)) = find_stuff(&output, b"[GNUPG:] NO_PUBKEY ") {
+            Ok(Verification {
+                status: VerificationStatus::Unknown,
+                key,
+                display, // display is always None here
+            })
+        } else if let Some((key, display)) = find_stuff(&output, b"[GNUPG:] BADSIG ") {
+            Ok(Verification {
+                status: VerificationStatus::Bad,
+                key,
+                display,
+            })
         } else {
-            Ok(SigCheck::Invalid)
+            Ok(Verification::invalid())
         }
     }
 }
@@ -225,10 +265,7 @@ mod tests {
     #[test]
     #[ignore = "requires having gpg in path, just a temp manual test with printouts"]
     fn test_gpg_signer() {
-        let signer = GpgSigner::new(GpgSettings {
-            program: "gpg".into(),
-            key: None,
-        });
+        let signer = GpgSigner::new("gpg".into());
 
         println!("identity before: {:x?}", signer.key.read().unwrap());
 

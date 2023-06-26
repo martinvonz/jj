@@ -20,6 +20,7 @@ use std::sync::Arc;
 use crate::backend;
 use crate::backend::{ChangeId, CommitId, Signature, TreeId};
 use crate::repo_path::RepoPath;
+use crate::signing::{SignError, Verification};
 use crate::store::Store;
 use crate::tree::Tree;
 
@@ -60,6 +61,17 @@ impl Hash for Commit {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id.hash(state)
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SignStatus {
+    /// Commit is not signed
+    None,
+    /// Commit is signed by self (if the signing principal is configured in
+    /// settings)
+    Own,
+    /// Commit is signed by someone else
+    Foreign,
 }
 
 impl Commit {
@@ -138,5 +150,36 @@ impl Commit {
             }
         }
         false
+    }
+
+    pub fn is_signed(&self) -> bool {
+        self.data.sig.is_some()
+    }
+
+    pub fn sign_status(&self) -> SignStatus {
+        self.data.sig.as_ref().map_or(SignStatus::None, |sig| {
+            let own = self
+                .store
+                .signer()
+                .is_own(&self.id, &sig.signature)
+                .unwrap_or(false);
+            if own {
+                SignStatus::Own
+            } else {
+                SignStatus::Foreign
+            }
+        })
+    }
+
+    pub fn signature(&self) -> Result<Option<Verification>, SignError> {
+        self.data
+            .sig
+            .as_ref()
+            .map(|sig| {
+                self.store
+                    .signer()
+                    .verify(&self.id, &sig.buffer, &sig.signature)
+            })
+            .transpose()
     }
 }

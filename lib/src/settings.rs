@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -20,12 +22,15 @@ use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
 use crate::backend::{ChangeId, ObjectId, Signature, Timestamp};
+use crate::gpg_signer::GpgSigner;
+use crate::signing::Signer;
 
 #[derive(Debug, Clone)]
 pub struct UserSettings {
     config: config::Config,
     timestamp: Option<Timestamp>,
     rng: Arc<JJRng>,
+    signer: Arc<Signer>,
 }
 
 #[derive(Debug, Clone)]
@@ -55,13 +60,11 @@ impl Default for GitSettings {
 }
 
 fn get_timestamp_config(config: &config::Config, key: &str) -> Option<Timestamp> {
-    match config.get_string(key) {
-        Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
-            Ok(datetime) => Some(Timestamp::from_datetime(datetime)),
-            Err(_) => None,
-        },
-        Err(_) => None,
-    }
+    config
+        .get_string(key)
+        .ok()
+        .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
+        .map(Timestamp::from_datetime)
 }
 
 fn get_rng_seed_config(config: &config::Config) -> Option<u64> {
@@ -71,14 +74,43 @@ fn get_rng_seed_config(config: &config::Config) -> Option<u64> {
         .and_then(|str| str.parse().ok())
 }
 
+fn get_signer(config: &config::Config) -> Arc<Signer> {
+    let enabled = config.get_bool("sign.enabled").unwrap_or_default();
+
+    // a little overkill but eh
+    let mut backends = HashMap::from([
+        ("gpg", Box::new(GpgSigner::from_config(config)) as _),
+        // (
+        //     "ssh",
+        //     Box::new(SshSigner::new(key, SshSignerSettings::from_config(config))) as _,
+        // ),
+    ]);
+
+    let selected = config
+        .get_string("sign.backend")
+        .map_or(Cow::Borrowed("gpg"), Cow::Owned); // heh
+
+    let backend = backends
+        .remove(&*selected)
+        .unwrap_or_else(|| backends.remove("gpg").unwrap());
+    let signer = Signer::new(backend, backends.into_values().collect());
+    if enabled {
+        signer.enable(config.get_string("sign.key").ok());
+    }
+    signer
+}
+
 impl UserSettings {
     pub fn from_config(config: config::Config) -> Self {
         let timestamp = get_timestamp_config(&config, "debug.commit-timestamp");
         let rng_seed = get_rng_seed_config(&config);
+        let signer = get_signer(&config);
+
         UserSettings {
             config,
             timestamp,
             rng: Arc::new(JJRng::new(rng_seed)),
+            signer,
         }
     }
 
@@ -178,6 +210,14 @@ impl UserSettings {
         self.config
             .get_string("ui.graph.style")
             .unwrap_or_else(|_| "curved".to_string())
+    }
+
+    pub fn signer(&self) -> Arc<Signer> {
+        self.signer.clone()
+    }
+
+    pub fn sign_key(&self) -> Option<String> {
+        self.config.get_string("sign.key").ok()
     }
 }
 

@@ -14,6 +14,7 @@ show = 'builtin_log_detailed'
 'builtin_log_oneline' = '''label(if(current_working_copy, "working_copy"),
   concat(
     separate(" ",
+      signature,
       label(
         separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
         separate(" ",
@@ -36,6 +37,7 @@ show = 'builtin_log_detailed'
 'builtin_log_compact' = '''label(if(current_working_copy, "working_copy"),
   concat(
     separate(" ",
+      signature,
       label(
         separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
         separate(" ",

@@ -20,12 +20,13 @@ use std::sync::Arc;
 use jujutsu::cli_util::{CliRunner, CommandError, CommandHelper};
 use jujutsu::ui::Ui;
 use jujutsu_lib::backend::{
-    Backend, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId, FileId, Signer,
-    SymlinkId, Tree, TreeId,
+    Backend, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId, FileId,
+    SigningNotSupported, SymlinkId, Tree, TreeId,
 };
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::repo::StoreFactories;
 use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::signing::Signer;
 use jujutsu_lib::workspace::Workspace;
 
 #[derive(clap::Parser, Clone, Debug)]
@@ -158,7 +159,7 @@ impl Backend for JitBackend {
         self.inner.write_commit(contents)
     }
 
-    fn install_signer(&self, signer: Arc<Signer>) -> BackendResult<()> {
+    fn install_signer(&self, signer: Arc<Signer>) -> Result<(), SigningNotSupported> {
         self.inner.install_signer(signer)
     }
 }

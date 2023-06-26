@@ -30,7 +30,7 @@ use git2::{Oid, Repository};
 use indexmap::IndexSet;
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
-use jujutsu_lib::commit::Commit;
+use jujutsu_lib::commit::{Commit, SignStatus};
 use jujutsu_lib::git::{GitConfigParseError, GitExportError, GitImportError};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::gitignore::GitIgnoreFile;
@@ -1114,6 +1114,15 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                     "Rebased {num_rebased} descendant commits onto updated working copy"
                 )?;
             }
+            if wc_commit.sign_status() != SignStatus::None
+                && commit.sign_status() == SignStatus::None
+            {
+                writeln!(
+                    ui,
+                    "Dropped the signature from the working copy commit.\nYou may want to sign it \
+                     with `jj sign` or configure automatic signing."
+                )?;
+            }
 
             if self.working_copy_shared_with_git {
                 let failed_branches =
@@ -1402,6 +1411,9 @@ jj init --git-repo=.",
             CommandError::InternalError(format!(
                 "The repository appears broken or inaccessible: {err}"
             ))
+        }
+        WorkspaceLoadError::StoreLoadError(StoreLoadError::SigningNotSupported) => {
+            user_error("Repository backend does not support signing commits")
         }
     }
 }

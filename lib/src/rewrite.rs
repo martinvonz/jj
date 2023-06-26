@@ -26,6 +26,7 @@ use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
 use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
+use crate::signing::SignConfig;
 use crate::store::Store;
 use crate::tree::{merge_trees, Tree, TreeMergeError};
 use crate::view::RefName;
@@ -66,6 +67,8 @@ pub fn rebase_commit(
     old_commit: &Commit,
     new_parents: &[Commit],
 ) -> Result<Commit, TreeMergeError> {
+    let sign_config = SignConfig::rebase(settings.signer().is_enabled());
+
     let old_parents = old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
@@ -93,6 +96,7 @@ pub fn rebase_commit(
         .rewrite_commit(settings, old_commit)
         .set_parents(new_parent_ids)
         .set_tree(new_tree_id)
+        .set_sign_config(sign_config)
         .write()?)
 }
 

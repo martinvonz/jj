@@ -13,17 +13,18 @@
 // limitations under the License.
 
 use std::any::Any;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Read;
 use std::result::Result;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::vec::Vec;
 
 use thiserror::Error;
 
 use crate::content_hash::ContentHash;
 use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::signing::Signer;
 
 pub trait ObjectId {
     fn new(value: Vec<u8>) -> Self;
@@ -225,13 +226,17 @@ pub enum BackendError {
         object_type: &'static str,
         source: AnyError,
     },
-    #[error("Signing is not supported by this backend")]
-    SigningNotSupported,
+    #[error(transparent)]
+    SigningNotSupported(SigningNotSupported),
     #[error("Failed to read signature for commit {hash}: {source}")]
     ReadSignature { hash: String, source: AnyError },
     #[error("Error: {0}")]
     Other(String),
 }
+
+#[derive(Debug, Error)]
+#[error("Signing is not supported by this backend")]
+pub struct SigningNotSupported;
 
 pub type BackendResult<T> = Result<T, BackendError>;
 
@@ -442,107 +447,7 @@ pub trait Backend: Send + Sync + Debug {
     /// `Commit`.
     fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)>;
 
-    fn install_signer(&self, _signer: Arc<Signer>) -> BackendResult<()> {
-        Err(BackendError::SigningNotSupported)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum SigCheck {
-    /// Valid signature that matches the data.
-    Good,
-    /// Valid signature that could not be verified (e.g. due to an unknown key).
-    Unknown,
-    /// Valid signature that does not match the signed data.
-    Bad,
-    /// Invalid signature.
-    Invalid,
-}
-
-pub trait SigningBackend: Debug + Send + Sync {
-    /// Check if the signature was created by this backend.
-    ///
-    /// Should check if e.g. the key fingerprint of the signature matches the
-    /// one of the current signer.
-    fn is_own(&self, signature: &[u8]) -> Result<bool, AnyError>;
-
-    /// Create a signature for arbitrary data.
-    fn sign(&self, data: &[u8]) -> Result<Vec<u8>, AnyError>;
-
-    /// Verify a signature. Should be reflexive with `sign`:
-    /// ```rust,ignore
-    /// verify(data, sign(data)?) == Ok(SigCheck::Good)
-    /// ```
-    fn verify(&self, data: &[u8], signature: &[u8]) -> Result<SigCheck, AnyError>;
-}
-
-#[derive(Debug, Default)]
-pub enum SignConfig {
-    /// Don't do any signing
-    #[default]
-    None,
-    /// Sign unsigned commits and re-sign commits that are signed by the same
-    /// identity
-    Own,
-    /// Sign all commits, even if they are already signed by another identity
-    All,
-}
-
-#[derive(Debug)]
-pub struct Signer {
-    backend: Box<dyn SigningBackend>,
-    config: RwLock<SignConfig>,
-    verification_cache: RwLock<HashMap<CommitId, SigCheck>>,
-}
-
-impl Signer {
-    pub fn new(backend: impl SigningBackend + 'static) -> Arc<Self> {
-        Arc::new(Self {
-            backend: Box::new(backend) as _,
-            config: Default::default(),
-            verification_cache: Default::default(),
-        })
-    }
-
-    pub fn config(&self, config: SignConfig) {
-        *self.config.write().unwrap() = config;
-    }
-
-    pub fn can_sign(self: &Arc<Self>, existing: Option<&Sig>) -> Result<bool, AnyError> {
-        let can = match (&*self.config.read().unwrap(), existing) {
-            (SignConfig::None, _) => false,
-            (SignConfig::Own, Some(sig)) => self.backend.is_own(&sig.signature)?,
-            _ => true,
-        };
-        Ok(can)
-    }
-
-    pub fn sign(self: &Arc<Self>, data: &[u8]) -> Result<Vec<u8>, AnyError> {
-        self.backend.sign(data)
-    }
-
-    pub fn verify(
-        self: &Arc<Self>,
-        commit_id: &CommitId,
-        data: &[u8],
-        signature: &[u8],
-    ) -> Result<SigCheck, AnyError> {
-        let cached = self
-            .verification_cache
-            .read()
-            .unwrap()
-            .get(commit_id)
-            .cloned();
-        match cached {
-            None | Some(SigCheck::Unknown) => {
-                let check = self.backend.verify(data, signature)?;
-                self.verification_cache
-                    .write()
-                    .unwrap()
-                    .insert(commit_id.clone(), check.clone());
-                Ok(check)
-            }
-            Some(check) => Ok(check),
-        }
+    fn install_signer(&self, _signer: Arc<Signer>) -> Result<(), SigningNotSupported> {
+        Err(SigningNotSupported)
     }
 }
