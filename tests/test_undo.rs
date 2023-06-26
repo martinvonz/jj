@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::path::Path;
 
 use crate::common::TestEnvironment;
 
@@ -45,4 +46,231 @@ fn test_undo_rewrite_with_child() {
     ◉  initial
     ◉
     "###);
+}
+
+#[test]
+fn test_git_push_undo() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    git2::Repository::init_bare(git_repo_path).unwrap();
+    test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "git-repo", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.advance_test_rng_seed_to_multiple_of(100_000);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "AA"]);
+    test_env.jj_cmd_success(&repo_path, &["git", "push"]);
+    test_env.advance_test_rng_seed_to_multiple_of(100_000);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "BB"]);
+    //   Refs at this point look as follows (-- means no ref)
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local `main`     | BB      |   --   | --
+    //    remote-tracking  | AA      |   AA   | AA
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+      @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
+    "###);
+    let pre_push_opid = current_operation_id(&test_env, &repo_path);
+    test_env.jj_cmd_success(&repo_path, &["git", "push"]);
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local  `main`    | BB      |   --   | --
+    //    remote-tracking  | BB      |   BB   | BB
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+    "###);
+
+    // Undo the push
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &pre_push_opid]);
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local  `main`    | BB      |   --   | --
+    //    remote-tracking  | AA      |   AA   | BB
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+      @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
+    "###);
+    test_env.advance_test_rng_seed_to_multiple_of(100_000);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "CC"]);
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    // TODO: The user would probably not expect a conflict here. It currently is
+    // because the undo made us forget that the remote was at v2, so the fetch
+    // made us think it updated from v1 to v2 (instead of the no-op it could
+    // have been).
+    //
+    // One option to solve this would be to have undo not restore remote-tracking
+    // branches, but that also has undersired consequences: the second fetch in `jj
+    // git fetch && jj undo && jj git fetch` would become a no-op.
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main (conflicted):
+      - 0cffb6146141 AA
+      + 0a3e99f08a48 CC
+      + 8c05de152218 BB
+      @origin (behind by 1 commits): 8c05de152218 BB
+    "###);
+}
+
+/// This test is identical to the previous one, except for one additional
+/// import. It demonstrates that this changes the outcome.
+#[test]
+fn test_git_push_undo_with_import() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    git2::Repository::init_bare(git_repo_path).unwrap();
+    test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "git-repo", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.advance_test_rng_seed_to_multiple_of(100_000);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "AA"]);
+    test_env.jj_cmd_success(&repo_path, &["git", "push"]);
+    test_env.advance_test_rng_seed_to_multiple_of(100_000);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "BB"]);
+    //   Refs at this point look as follows (-- means no ref)
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local `main`     | BB      |   --   | --
+    //    remote-tracking  | AA      |   AA   | AA
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+      @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
+    "###);
+    let pre_push_opid = current_operation_id(&test_env, &repo_path);
+    test_env.jj_cmd_success(&repo_path, &["git", "push"]);
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local  `main`    | BB      |   --   | --
+    //    remote-tracking  | BB      |   BB   | BB
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+    "###);
+
+    // Undo the push
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &pre_push_opid]);
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local  `main`    | BB      |   --   | --
+    //    remote-tracking  | AA      |   AA   | BB
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+      @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
+    "###);
+
+    // PROBLEM: inserting this import changes the outcome compared to previous test
+    // TODO: decide if this is the better behavior, and whether import of
+    // remote-tracking branches should happen on every operation.
+    test_env.jj_cmd_success(&repo_path, &["git", "import"]);
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local  `main`    | BB      |   --   | --
+    //    remote-tracking  | BB      |   BB   | BB
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+    "###);
+    test_env.advance_test_rng_seed_to_multiple_of(100_000);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "CC"]);
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    // There is not a conflict. This seems like a good outcome; undoing `git push`
+    // was essentially a no-op.
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 0a3e99f08a48 CC
+      @origin (ahead by 1 commits, behind by 1 commits): 8c05de152218 BB
+    "###);
+}
+
+// This test is currently *identical* to `test_git_push_undo` except the repo
+// it's operating it is colocated.
+#[test]
+fn test_git_push_undo_colocated() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    git2::Repository::init_bare(git_repo_path.clone()).unwrap();
+    let repo_path = test_env.env_root().join("clone");
+    git2::Repository::clone(git_repo_path.to_str().unwrap(), &repo_path).unwrap();
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+
+    test_env.advance_test_rng_seed_to_multiple_of(100_000);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "AA"]);
+    test_env.jj_cmd_success(&repo_path, &["git", "push"]);
+    test_env.advance_test_rng_seed_to_multiple_of(100_000);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "BB"]);
+    //   Refs at this point look as follows (-- means no ref)
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local `main`     | BB      |   BB   | BB
+    //    remote-tracking  | AA      |   AA   | AA
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+      @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
+    "###);
+    let pre_push_opid = current_operation_id(&test_env, &repo_path);
+    test_env.jj_cmd_success(&repo_path, &["git", "push"]);
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local `main`     | BB      |   BB   | BB
+    //    remote-tracking  | BB      |   BB   | BB
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+    "###);
+
+    // Undo the push
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &pre_push_opid]);
+    //       === Before auto-import ====
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local `main`     | BB      |   BB   | BB
+    //    remote-tracking  | AA      |   AA   | BB
+    //       === After automatic `jj git import` ====
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local `main`     | BB      |   BB   | BB
+    //    remote-tracking  | BB      |   BB   | BB
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+    "###);
+    test_env.advance_test_rng_seed_to_multiple_of(100_000);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "CC"]);
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    // This currently gives an identical result to `test_git_push_undo_import` (NOT
+    // `test_git_push_undo` because of the automatic import). However, a
+    // follow-up commit will make the two tests behave differently.
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 0a3e99f08a48 CC
+      @origin (ahead by 1 commits, behind by 1 commits): 8c05de152218 BB
+    "###);
+}
+
+fn current_operation_id(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    let mut id = test_env.jj_cmd_success(repo_path, &["debug", "operation", "--display=id"]);
+    let len_trimmed = id.trim_end().len();
+    id.truncate(len_trimmed);
+    id
+}
+
+fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(repo_path, &["branch", "list"])
 }
