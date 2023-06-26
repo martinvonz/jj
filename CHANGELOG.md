@@ -150,6 +150,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * It is now possible to `jj branch forget` deleted branches.
   [#1537](https://github.com/martinvonz/jj/issues/1537)
 
+* Fixed race condition when assigning change id to Git commit. If you've
+  already had unreachable change ids, run `jj debug reindex`.
+  [#924](https://github.com/martinvonz/jj/issues/924)
+
+* Fixed false divergence on racy working-copy snapshots.
+  [#697](https://github.com/martinvonz/jj/issues/697),
+  [#1608](https://github.com/martinvonz/jj/issues/1608)
+
 ## [0.7.0] - 2023-02-16
 
 ### Breaking changes
