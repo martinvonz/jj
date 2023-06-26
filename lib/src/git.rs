@@ -21,7 +21,6 @@ use itertools::Itertools;
 use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
-use crate::commit::Commit;
 use crate::git_backend::NO_GC_REF_NAMESPACE;
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
@@ -549,29 +548,6 @@ pub enum GitPushError {
     // and errors caused by the remote rejecting the push.
     #[error("Unexpected git error when pushing: {0}")]
     InternalGitError(#[from] git2::Error),
-}
-
-pub fn push_commit(
-    git_repo: &git2::Repository,
-    target: &Commit,
-    remote_name: &str,
-    remote_branch: &str,
-    // TODO: We want this to be an Option<CommitId> for the expected current commit on the remote.
-    // It's a blunt "force" option instead until git2-rs supports the "push negotiation" callback
-    // (https://github.com/rust-lang/git2-rs/issues/733).
-    force: bool,
-    callbacks: RemoteCallbacks<'_>,
-) -> Result<(), GitPushError> {
-    push_updates(
-        git_repo,
-        remote_name,
-        &[GitRefUpdate {
-            qualified_name: format!("refs/heads/{remote_branch}"),
-            force,
-            new_target: Some(target.id().clone()),
-        }],
-        callbacks,
-    )
 }
 
 pub struct GitRefUpdate {
