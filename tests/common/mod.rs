@@ -275,6 +275,18 @@ impl TestEnvironment {
             })
             .to_string()
     }
+
+    /// Used before mutating operations to create more predictable commit ids
+    /// and change ids in tests
+    ///
+    /// `test_env.advance_test_rng_seed_to_multiple_of(200_000)` can be inserted
+    /// wherever convenient throughout your test. If desired, you can have
+    /// "subheadings" with steps of (e.g.) 10_000, 500, 25.
+    pub fn advance_test_rng_seed_to_multiple_of(&self, step: i64) {
+        assert!(step > 0, "step must be >0, got {step}");
+        let mut command_number = self.command_number.borrow_mut();
+        *command_number = step * (*command_number / step) + step;
+    }
 }
 
 pub fn get_stdout_string(assert: &assert_cmd::assert::Assert) -> String {
