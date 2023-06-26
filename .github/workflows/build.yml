@@ -28,7 +28,7 @@ jobs:
     steps:
     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
     - name: Install Rust (${{ matrix.rust_version }})
-      uses: dtolnay/rust-toolchain@1f5cdb56c8779e3efa22473ce181ff83143b172c
+      uses: dtolnay/rust-toolchain@0e66bd3e6b38ec0ad5312288c83e47c143e6b09e
       with:
         toolchain:  ${{ matrix.rust_version }}
     - name: Build
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-      - uses: dtolnay/rust-toolchain@1f5cdb56c8779e3efa22473ce181ff83143b172c
+      - uses: dtolnay/rust-toolchain@0e66bd3e6b38ec0ad5312288c83e47c143e6b09e
         with:
           toolchain: stable
       - run: sudo apt update && sudo apt-get -y install protobuf-compiler
@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-      - uses: dtolnay/rust-toolchain@1f5cdb56c8779e3efa22473ce181ff83143b172c
+      - uses: dtolnay/rust-toolchain@0e66bd3e6b38ec0ad5312288c83e47c143e6b09e
         with:
           toolchain: nightly
           components: rustfmt
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-      - uses: dtolnay/rust-toolchain@1f5cdb56c8779e3efa22473ce181ff83143b172c
+      - uses: dtolnay/rust-toolchain@0e66bd3e6b38ec0ad5312288c83e47c143e6b09e
         with:
           toolchain: stable
           components: clippy
