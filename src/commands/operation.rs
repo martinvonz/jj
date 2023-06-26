@@ -207,35 +207,34 @@ fn view_with_desired_portions_restored(
     new_view
 }
 
-fn process_what_arg(what_arg: &[UndoWhatToRestore], colocated: bool) -> Vec<UndoWhatToRestore> {
+fn process_what_arg(what_arg: &[UndoWhatToRestore], _colocated: bool) -> Vec<UndoWhatToRestore> {
     if !what_arg.is_empty() {
         what_arg.to_vec()
     } else {
-        let mut default_what = vec![UndoWhatToRestore::Repo, UndoWhatToRestore::RemoteTracking];
-        if !colocated {
-            // In a colocated repo, restoring the git-tracking refs is harmful
-            // (https://github.com/martinvonz/jj/issues/922).
-            //
-            // The issue is that `jj undo` does not directly change the local
-            // git repo's branches. Keeping those up to date the job of the
-            // automatic `jj git import` and `jj git export`, and they rely on the
-            // git-tracking refs matching the git repo's branches.
-            //
-            // Consider, for example, undoing a `jj branch set` command. If the
-            // git-tracking refs were restored by `undo`, they would no longer
-            // match the actual positions of branches in the git repo. So, the
-            // automatic `jj git export` would fail and the automatic `jj git
-            // import` would create a conflict, as demonstrated by the bug
-            // linked above.
-            //
-            // So, we have `undo` *not* move the git-tracking branches. After
-            // the undo, git-tracking refs will still match the actual positions
-            // of the git repo's branches (in the normal case where they matched
-            // before the undo). The automatic `jj git export` that happens
-            // immediately after the undo will successfully export whatever
-            // changes to branches `undo` caused.
-            default_what.push(UndoWhatToRestore::GitTracking);
-        }
+        let default_what = vec![UndoWhatToRestore::Repo, UndoWhatToRestore::RemoteTracking];
+        // In a colocated repo, restoring the git-tracking refs is harmful
+        // (https://github.com/martinvonz/jj/issues/922).
+        //
+        // The issue is that `jj undo` does not directly change the local
+        // git repo's branches. Keeping those up to date the job of the
+        // automatic `jj git import` and `jj git export`, and they rely on the
+        // git-tracking refs matching the git repo's branches.
+        //
+        // Consider, for example, undoing a `jj branch set` command. If the
+        // git-tracking refs were restored by `undo`, they would no longer
+        // match the actual positions of branches in the git repo. So, the
+        // automatic `jj git export` would fail and the automatic `jj git
+        // import` would create a conflict, as demonstrated by the bug
+        // linked above.
+        //
+        // So, we have `undo` *not* move the git-tracking branches. After
+        // the undo, git-tracking refs will still match the actual positions
+        // of the git repo's branches (in the normal case where they matched
+        // before the undo). The automatic `jj git export` that happens
+        // immediately after the undo will successfully export whatever
+        // changes to branches `undo` caused.
+        //
+        // In a normal repo, it's less clear which behavior is best.
         default_what
     }
 }

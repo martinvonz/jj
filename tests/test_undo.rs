@@ -92,7 +92,7 @@ fn test_git_push_undo() {
     //                     |         |tracking|
     //   ------------------------------------------
     //    local  `main`    | BB      |   --   | --
-    //    remote-tracking  | AA      |   AA   | BB
+    //    remote-tracking  | AA      |   BB   | BB
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: 8c05de152218 BB
       @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
@@ -100,20 +100,14 @@ fn test_git_push_undo() {
     test_env.advance_test_rng_seed_to_multiple_of(100_000);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "CC"]);
     test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
-    // TODO: The user would probably not expect a conflict here. It currently is
-    // because the undo made us forget that the remote was at v2, so the fetch
-    // made us think it updated from v1 to v2 (instead of the no-op it could
-    // have been).
+    // Conflict is gone, though the refs are in a strange state
     //
     // One option to solve this would be to have undo not restore remote-tracking
     // branches, but that also has undersired consequences: the second fetch in `jj
     // git fetch && jj undo && jj git fetch` would become a no-op.
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    main (conflicted):
-      - 0cffb6146141 AA
-      + 0a3e99f08a48 CC
-      + 8c05de152218 BB
-      @origin (behind by 1 commits): 8c05de152218 BB
+    main: 0a3e99f08a48 CC
+      @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
     "###);
 }
 
@@ -163,33 +157,51 @@ fn test_git_push_undo_with_import() {
     //                     |         |tracking|
     //   ------------------------------------------
     //    local  `main`    | BB      |   --   | --
-    //    remote-tracking  | AA      |   AA   | BB
+    //    remote-tracking  | AA      |   BB   | BB
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: 8c05de152218 BB
       @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
     "###);
 
-    // PROBLEM: inserting this import changes the outcome compared to previous test
-    // TODO: decide if this is the better behavior, and whether import of
-    // remote-tracking branches should happen on every operation.
+    // import becomes a no-op
     test_env.jj_cmd_success(&repo_path, &["git", "import"]);
     //                     | jj refs | jj's   | git
     //                     |         | git    | repo
     //                     |         |tracking|
     //   ------------------------------------------
     //    local  `main`    | BB      |   --   | --
-    //    remote-tracking  | BB      |   BB   | BB
+    //    remote-tracking  | AA      |   BB   | BB
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: 8c05de152218 BB
+      @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
     "###);
+
+    // Export makes the git repo state more sane (though the test doesn't make it
+    // explicit)
+    test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+    //                     | jj refs | jj's   | git
+    //                     |         | git    | repo
+    //                     |         |tracking|
+    //   ------------------------------------------
+    //    local  `main`    | BB      |   --   | --
+    //    remote-tracking  | AA      |   AA   | AA
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    main: 8c05de152218 BB
+      @origin (ahead by 1 commits, behind by 1 commits): 0cffb6146141 AA
+    "###);
+
     test_env.advance_test_rng_seed_to_multiple_of(100_000);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "CC"]);
     test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
     // There is not a conflict. This seems like a good outcome; undoing `git push`
     // was essentially a no-op.
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    main: 0a3e99f08a48 CC
-      @origin (ahead by 1 commits, behind by 1 commits): 8c05de152218 BB
+    main (conflicted):
+      - 0cffb6146141 AA
+      + 0a3e99f08a48 CC
+      + 8c05de152218 BB
+      @git (behind by 1 commits): 8c05de152218 BB
+      @origin (behind by 1 commits): 8c05de152218 BB
     "###);
 }
 
