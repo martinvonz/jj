@@ -45,7 +45,7 @@ strsim = "0.10.0"
 tempfile = "3.6.0"
 thiserror = "1.0.40"
 tracing = "0.1.37"
-whoami = "1.4.0"
+whoami = "1.4.1"
 zstd = "0.12.3"
 
 [target.'cfg(unix)'.dependencies]
