@@ -45,7 +45,7 @@ esl01-renderdag = "0.3.0"
 git2 = "0.17.2"
 glob = "0.3.1"
 hex = "0.4.3"
-indexmap = "1.9.3"
+indexmap = "2.0.0"
 itertools = "0.11.0"
 jujutsu-lib = { version = "=0.7.0", path = "lib", default-features = false }
 maplit = "1.0.2"
