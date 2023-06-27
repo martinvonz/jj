@@ -699,7 +699,7 @@ fn try_resolve_file_conflict(
     );
     match merge_result {
         MergeResult::Resolved(merged_content) => {
-            let id = store.write_file(filename, &mut merged_content.as_slice())?;
+            let id = store.write_file(filename, &mut merged_content.0.as_slice())?;
             Ok(Some(TreeValue::File { id, executable }))
         }
         MergeResult::Conflict(_) => Ok(None),

@@ -187,9 +187,9 @@ pub fn run_mergetool(
         vec![]
     };
     let files: HashMap<&str, _> = maplit::hashmap! {
-        "base" => content.removes.pop().unwrap(),
-        "right" => content.adds.pop().unwrap(),
-        "left" => content.adds.pop().unwrap(),
+        "base" => content.removes.pop().unwrap().0,
+        "right" => content.adds.pop().unwrap().0,
+        "left" => content.adds.pop().unwrap().0,
         "output" => initial_output_content.clone(),
     };
 
