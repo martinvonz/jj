@@ -324,6 +324,20 @@ fn suppress_file_exists_error(orig_err: CheckoutError) -> Result<(), CheckoutErr
     }
 }
 
+pub struct SnapshotOptions<'a> {
+    pub base_ignores: Arc<GitIgnoreFile>,
+    pub progress: Option<&'a SnapshotProgress<'a>>,
+}
+
+impl<'a> SnapshotOptions<'a> {
+    pub fn empty_for_test() -> Self {
+        SnapshotOptions {
+            base_ignores: GitIgnoreFile::empty(),
+            progress: None,
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ResetError {
     // The current working-copy commit was deleted, maybe by an overly aggressive GC that happened
@@ -475,11 +489,12 @@ impl TreeState {
 
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it.
-    pub fn snapshot(
-        &mut self,
-        base_ignores: Arc<GitIgnoreFile>,
-        progress: Option<&SnapshotProgress<'_>>,
-    ) -> Result<bool, SnapshotError> {
+    pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<bool, SnapshotError> {
+        let SnapshotOptions {
+            base_ignores,
+            progress,
+        } = options;
+
         let sparse_matcher = self.sparse_matcher();
         let mut work = vec![(
             RepoPath::root(),
@@ -1214,13 +1229,9 @@ impl LockedWorkingCopy<'_> {
     // The base_ignores are passed in here rather than being set on the TreeState
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
-    pub fn snapshot(
-        &mut self,
-        base_ignores: Arc<GitIgnoreFile>,
-        progress: Option<&SnapshotProgress<'_>>,
-    ) -> Result<TreeId, SnapshotError> {
+    pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<TreeId, SnapshotError> {
         let tree_state = self.wc.tree_state_mut();
-        self.tree_state_dirty |= tree_state.snapshot(base_ignores, progress)?;
+        self.tree_state_dirty |= tree_state.snapshot(options)?;
         Ok(tree_state.current_tree_id().clone())
     }
 

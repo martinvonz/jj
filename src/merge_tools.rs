@@ -29,7 +29,7 @@ use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::{ConfigResultExt as _, UserSettings};
 use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::Tree;
-use jujutsu_lib::working_copy::{CheckoutError, SnapshotError, TreeState};
+use jujutsu_lib::working_copy::{CheckoutError, SnapshotError, SnapshotOptions, TreeState};
 use regex::{Captures, Regex};
 use thiserror::Error;
 
@@ -366,7 +366,10 @@ pub fn edit_diff(
         std::fs::remove_file(instructions_path).ok();
     }
 
-    right_tree_state.snapshot(base_ignores, None)?;
+    right_tree_state.snapshot(SnapshotOptions {
+        base_ignores,
+        progress: None,
+    })?;
     Ok(right_tree_state.current_tree_id().clone())
 }
 

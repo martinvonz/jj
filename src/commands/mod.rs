@@ -47,6 +47,7 @@ use jujutsu_lib::revset::{
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree::{merge_trees, Tree};
+use jujutsu_lib::working_copy::SnapshotOptions;
 use jujutsu_lib::workspace::Workspace;
 use jujutsu_lib::{file_util, revset};
 use maplit::{hashmap, hashset};
@@ -1308,7 +1309,10 @@ fn cmd_untrack(
     locked_working_copy.reset(&new_tree)?;
     // Commit the working copy again so we can inform the user if paths couldn't be
     // untracked because they're not ignored.
-    let wc_tree_id = locked_working_copy.snapshot(base_ignores, None)?;
+    let wc_tree_id = locked_working_copy.snapshot(SnapshotOptions {
+        base_ignores,
+        progress: None,
+    })?;
     if wc_tree_id != new_tree_id {
         let wc_tree = store.get_tree(&RepoPath::root(), &wc_tree_id)?;
         let added_back = wc_tree.entries_matching(matcher.as_ref()).collect_vec();
