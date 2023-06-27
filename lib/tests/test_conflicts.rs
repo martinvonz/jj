@@ -320,31 +320,30 @@ line 5 right
         @r###"
     Some(
         [
-            Conflict(
-                Conflict {
-                    removes: [
-                        "line 1\nline 2\n",
-                    ],
-                    adds: [
-                        "line 1 left\nline 2 left\n",
-                        "line 1 right\nline 2\n",
-                    ],
-                },
-            ),
-            Resolved(
-                "line 3\n",
-            ),
-            Conflict(
-                Conflict {
-                    removes: [
-                        "line 4\nline 5\n",
-                    ],
-                    adds: [
-                        "line 4\nline 5 left\n",
-                        "line 4 right\nline 5 right\n",
-                    ],
-                },
-            ),
+            Conflict {
+                removes: [
+                    "line 1\nline 2\n",
+                ],
+                adds: [
+                    "line 1 left\nline 2 left\n",
+                    "line 1 right\nline 2\n",
+                ],
+            },
+            Conflict {
+                removes: [],
+                adds: [
+                    "line 3\n",
+                ],
+            },
+            Conflict {
+                removes: [
+                    "line 4\nline 5\n",
+                ],
+                adds: [
+                    "line 4\nline 5 left\n",
+                    "line 4 right\nline 5 right\n",
+                ],
+            },
         ],
     )
     "###);
@@ -489,23 +488,27 @@ line 5
         @r###"
     Some(
         [
-            Resolved(
-                "line 1\n",
-            ),
-            Conflict(
-                Conflict {
-                    removes: [
-                        "line 2\nline 3\nline 4\n",
-                    ],
-                    adds: [
-                        "line 2\nleft\nline 4\n",
-                        "right\n",
-                    ],
-                },
-            ),
-            Resolved(
-                "line 5\n",
-            ),
+            Conflict {
+                removes: [],
+                adds: [
+                    "line 1\n",
+                ],
+            },
+            Conflict {
+                removes: [
+                    "line 2\nline 3\nline 4\n",
+                ],
+                adds: [
+                    "line 2\nleft\nline 4\n",
+                    "right\n",
+                ],
+            },
+            Conflict {
+                removes: [],
+                adds: [
+                    "line 5\n",
+                ],
+            },
         ],
     )
     "###
@@ -539,25 +542,29 @@ line 5
         @r###"
     Some(
         [
-            Resolved(
-                "line 1\n",
-            ),
-            Conflict(
-                Conflict {
-                    removes: [
-                        "line 2\nline 3\nline 4\n",
-                        "line 2\nline 3\nline 4\n",
-                    ],
-                    adds: [
-                        "line 2\nleft\nline 4\n",
-                        "right\n",
-                        "line 2\nforward\nline 3\nline 4\n",
-                    ],
-                },
-            ),
-            Resolved(
-                "line 5\n",
-            ),
+            Conflict {
+                removes: [],
+                adds: [
+                    "line 1\n",
+                ],
+            },
+            Conflict {
+                removes: [
+                    "line 2\nline 3\nline 4\n",
+                    "line 2\nline 3\nline 4\n",
+                ],
+                adds: [
+                    "line 2\nleft\nline 4\n",
+                    "right\n",
+                    "line 2\nforward\nline 3\nline 4\n",
+                ],
+            },
+            Conflict {
+                removes: [],
+                adds: [
+                    "line 5\n",
+                ],
+            },
         ],
     )
     "###
