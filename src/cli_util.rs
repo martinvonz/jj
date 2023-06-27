@@ -55,7 +55,7 @@ use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{Tree, TreeMergeError};
 use jujutsu_lib::view::RefName;
 use jujutsu_lib::working_copy::{
-    CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, WorkingCopy,
+    CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions, WorkingCopy,
 };
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader};
 use jujutsu_lib::{dag_walk, file_util, git, revset};
@@ -1091,7 +1091,10 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         };
         self.user_repo = ReadonlyUserRepo::new(repo);
         let progress = crate::progress::snapshot_progress(ui);
-        let new_tree_id = locked_wc.snapshot(base_ignores, progress.as_ref().map(|x| x as _))?;
+        let new_tree_id = locked_wc.snapshot(SnapshotOptions {
+            base_ignores,
+            progress: progress.as_ref().map(|x| x as _),
+        })?;
         drop(progress);
         if new_tree_id != *wc_commit.tree_id() {
             let mut tx = start_repo_transaction(
