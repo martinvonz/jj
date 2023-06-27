@@ -247,11 +247,11 @@ impl Conflict<Option<TreeValue>> {
                     }
                 }
                 MergeHunk::Conflict(ConflictHunk { removes, adds }) => {
-                    for (i, buf) in removes.iter().enumerate() {
-                        removed_content[i].extend_from_slice(buf);
+                    for (i, buf) in removes.into_iter().enumerate() {
+                        removed_content[i].extend(buf);
                     }
-                    for (i, buf) in adds.iter().enumerate() {
-                        added_content[i].extend_from_slice(buf);
+                    for (i, buf) in adds.into_iter().enumerate() {
+                        added_content[i].extend(buf);
                     }
                 }
             }
