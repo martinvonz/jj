@@ -55,6 +55,15 @@ fn parse_git_ref(ref_name: &str) -> Option<RefName> {
     }
 }
 
+pub fn to_git_ref_name(parsed_ref: &RefName) -> String {
+    match parsed_ref {
+        RefName::LocalBranch(branch) => format!("refs/heads/{branch}"),
+        RefName::RemoteBranch { branch, remote } => format!("refs/remotes/{remote}/{branch}"),
+        RefName::Tag(tag) => format!("refs/tags/{tag}"),
+        RefName::GitRef(name) => name.to_owned(),
+    }
+}
+
 fn ref_name_to_local_branch_name(ref_name: &str) -> Option<&str> {
     ref_name.strip_prefix("refs/heads/")
 }
@@ -304,7 +313,7 @@ pub enum GitExportError {
 
 /// Export changes to branches made in the Jujutsu repo compared to our last
 /// seen view of the Git repo in `mut_repo.view().git_refs()`. Returns a list of
-/// names of branches that failed to export.
+/// refs that failed to export.
 ///
 /// We ignore changed branches that are conflicted (were also changed in the Git
 /// repo compared to our last remembered view of the Git repo). These will be
@@ -317,21 +326,32 @@ pub enum GitExportError {
 pub fn export_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
-) -> Result<Vec<String>, GitExportError> {
+) -> Result<Vec<RefName>, GitExportError> {
     // First find the changes we want need to make without modifying mut_repo
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeMap::new();
     let mut failed_branches = vec![];
     let view = mut_repo.view();
-    let all_local_branch_names: HashSet<&str> = view
+    // This list includes refs known to jj, namely all git-tracking refs and refs
+    // for local jj branches.
+    // Short-term TODO: use the fact that git refs other than local branches are
+    // included.
+    let jj_known_refs: HashSet<_> = view
         .git_refs()
         .keys()
-        .filter_map(|r| ref_name_to_local_branch_name(r))
-        .chain(view.branches().keys().map(AsRef::as_ref))
+        .filter_map(|name| parse_git_ref(name))
+        .chain(
+            view.branches()
+                .keys()
+                .map(|branch| RefName::LocalBranch(branch.to_owned())),
+        )
         .collect();
-    for branch_name in all_local_branch_names {
-        let old_branch = view.get_git_ref(&local_branch_name_to_ref_name(branch_name));
-        let new_branch = view.get_local_branch(branch_name);
+    for jj_known_ref in jj_known_refs {
+        let new_branch = match &jj_known_ref {
+            RefName::LocalBranch(branch) => view.get_local_branch(branch),
+            _ => continue,
+        };
+        let old_branch = view.get_git_ref(&to_git_ref_name(&jj_known_ref));
         if new_branch == old_branch {
             continue;
         }
@@ -341,7 +361,7 @@ pub fn export_refs(
             Some(RefTarget::Conflict { .. }) => {
                 // The old git ref should only be a conflict if there were concurrent import
                 // operations while the value changed. Don't overwrite these values.
-                failed_branches.push(branch_name.to_owned());
+                failed_branches.push(jj_known_ref);
                 continue;
             }
         };
@@ -349,7 +369,7 @@ pub fn export_refs(
             match new_branch {
                 RefTarget::Normal(id) => {
                     let new_oid = Oid::from_bytes(id.as_bytes());
-                    branches_to_update.insert(branch_name.to_owned(), (old_oid, new_oid.unwrap()));
+                    branches_to_update.insert(jj_known_ref, (old_oid, new_oid.unwrap()));
                 }
                 RefTarget::Conflict { .. } => {
                     // Skip conflicts and leave the old value in git_refs
@@ -357,7 +377,7 @@ pub fn export_refs(
                 }
             }
         } else {
-            branches_to_delete.insert(branch_name.to_owned(), old_oid.unwrap());
+            branches_to_delete.insert(jj_known_ref, old_oid.unwrap());
         }
     }
     // TODO: Also check other worktrees' HEAD.
@@ -365,12 +385,12 @@ pub fn export_refs(
         if let (Some(head_git_ref), Ok(current_git_commit)) =
             (head_ref.symbolic_target(), head_ref.peel_to_commit())
         {
-            if let Some(branch_name) = ref_name_to_local_branch_name(head_git_ref) {
+            if let Some(parsed_ref) = parse_git_ref(head_git_ref) {
                 let detach_head =
-                    if let Some((_old_oid, new_oid)) = branches_to_update.get(branch_name) {
+                    if let Some((_old_oid, new_oid)) = branches_to_update.get(&parsed_ref) {
                         *new_oid != current_git_commit.id()
                     } else {
-                        branches_to_delete.contains_key(branch_name)
+                        branches_to_delete.contains_key(&parsed_ref)
                     };
                 if detach_head {
                     git_repo.set_head_detached(current_git_commit.id())?;
@@ -378,12 +398,12 @@ pub fn export_refs(
             }
         }
     }
-    for (branch_name, old_oid) in branches_to_delete {
-        let git_ref_name = local_branch_name_to_ref_name(&branch_name);
-        let success = if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
-            if git_ref.target() == Some(old_oid) {
+    for (parsed_ref_name, old_oid) in branches_to_delete {
+        let git_ref_name = to_git_ref_name(&parsed_ref_name);
+        let success = if let Ok(mut git_repo_ref) = git_repo.find_reference(&git_ref_name) {
+            if git_repo_ref.target() == Some(old_oid) {
                 // The branch has not been updated by git, so go ahead and delete it
-                git_ref.delete().is_ok()
+                git_repo_ref.delete().is_ok()
             } else {
                 // The branch was updated by git
                 false
@@ -395,17 +415,17 @@ pub fn export_refs(
         if success {
             mut_repo.remove_git_ref(&git_ref_name);
         } else {
-            failed_branches.push(branch_name);
+            failed_branches.push(parsed_ref_name);
         }
     }
-    for (branch_name, (old_oid, new_oid)) in branches_to_update {
-        let git_ref_name = local_branch_name_to_ref_name(&branch_name);
+    for (parsed_ref_name, (old_oid, new_oid)) in branches_to_update {
+        let git_ref_name = to_git_ref_name(&parsed_ref_name);
         let success = match old_oid {
             None => {
-                if let Ok(git_ref) = git_repo.find_reference(&git_ref_name) {
+                if let Ok(git_repo_ref) = git_repo.find_reference(&git_ref_name) {
                     // The branch was added in jj and in git. We're good if and only if git
                     // pointed it to our desired target.
-                    git_ref.target() == Some(new_oid)
+                    git_repo_ref.target() == Some(new_oid)
                 } else {
                     // The branch was added in jj but still doesn't exist in git, so add it
                     git_repo
@@ -424,9 +444,9 @@ pub fn export_refs(
                     true
                 } else {
                     // The reference was probably updated in git
-                    if let Ok(git_ref) = git_repo.find_reference(&git_ref_name) {
+                    if let Ok(git_repo_ref) = git_repo.find_reference(&git_ref_name) {
                         // We still consider this a success if it was updated to our desired target
-                        git_ref.target() == Some(new_oid)
+                        git_repo_ref.target() == Some(new_oid)
                     } else {
                         // The reference was deleted in git and moved in jj
                         false
@@ -440,7 +460,7 @@ pub fn export_refs(
                 RefTarget::Normal(CommitId::from_bytes(new_oid.as_bytes())),
             );
         } else {
-            failed_branches.push(branch_name);
+            failed_branches.push(parsed_ref_name);
         }
     }
     Ok(failed_branches)
