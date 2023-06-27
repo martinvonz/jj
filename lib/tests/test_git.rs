@@ -1249,7 +1249,10 @@ fn test_export_partial_failure() {
     mut_repo.set_local_branch("main/sub".to_string(), target);
     assert_eq!(
         git::export_refs(mut_repo, &git_repo),
-        Ok(vec!["".to_string(), "main/sub".to_string()])
+        Ok(vec![
+            RefName::LocalBranch("".to_string()),
+            RefName::LocalBranch("main/sub".to_string())
+        ])
     );
 
     // The `main` branch should have succeeded but the other should have failed
@@ -1269,7 +1272,7 @@ fn test_export_partial_failure() {
     mut_repo.remove_local_branch("main");
     assert_eq!(
         git::export_refs(mut_repo, &git_repo),
-        Ok(vec!["".to_string()])
+        Ok(vec![RefName::LocalBranch("".to_string())])
     );
     assert!(git_repo.find_reference("refs/heads/").is_err());
     assert!(git_repo.find_reference("refs/heads/main").is_err());
@@ -1364,7 +1367,7 @@ fn test_export_reexport_transitions() {
         git::export_refs(mut_repo, &git_repo),
         Ok(["AXB", "ABC", "ABX", "XAB"]
             .into_iter()
-            .map(String::from)
+            .map(|s| RefName::LocalBranch(s.to_string()))
             .collect_vec())
     );
     for branch in ["AAX", "ABX", "AXA", "AXX"] {

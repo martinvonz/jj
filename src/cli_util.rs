@@ -31,7 +31,7 @@ use indexmap::IndexSet;
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
 use jujutsu_lib::commit::Commit;
-use jujutsu_lib::git::{GitConfigParseError, GitExportError, GitImportError};
+use jujutsu_lib::git::{to_git_ref_name, GitConfigParseError, GitExportError, GitImportError};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::hex_util::to_reverse_hex;
@@ -53,6 +53,7 @@ use jujutsu_lib::revset::{
 use jujutsu_lib::settings::{ConfigResultExt as _, UserSettings};
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{Tree, TreeMergeError};
+use jujutsu_lib::view::RefName;
 use jujutsu_lib::working_copy::{
     CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, WorkingCopy,
 };
@@ -1509,14 +1510,22 @@ pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std
 
 pub fn print_failed_git_export(
     ui: &mut Ui,
-    failed_branches: &[String],
+    failed_branches: &[RefName],
 ) -> Result<(), std::io::Error> {
     if !failed_branches.is_empty() {
         writeln!(ui.warning(), "Failed to export some branches:")?;
         let mut formatter = ui.stderr_formatter();
-        for branch_name in failed_branches {
+        for branch_ref in failed_branches {
             formatter.write_str("  ")?;
-            write!(formatter.labeled("branch"), "{branch_name}")?;
+            write!(
+                formatter.labeled("branch"),
+                "{}",
+                match branch_ref {
+                    RefName::LocalBranch(name) => name.to_string(),
+                    // Should never happen, only local branches are exported
+                    branch_ref => to_git_ref_name(branch_ref),
+                }
+            )?;
             formatter.write_str("\n")?;
         }
         drop(formatter);
