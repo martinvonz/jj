@@ -318,6 +318,7 @@ fn test_branch_forget_fetched_branch() {
     feature1: 9f01a0e04879 message
     "###);
 
+    // TEST 1: with export-import
     // Forget the branch
     test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
@@ -330,14 +331,24 @@ fn test_branch_forget_fetched_branch() {
     // the ref in jj view's `git_refs` tracking the local git repo's remote-tracking
     // branch.
     // TODO: Show that jj git push is also a no-op
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @r###"
-    Nothing changed.
-    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @r###"
     Nothing changed.
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
+    // We can fetch feature1 again.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: 9f01a0e04879 message
+    "###);
+
+    // TEST 2: No export/import (otherwise the same as test 1)
+    // Short-term TODO: While it looks like the bug above is fixed, correct behavior
+    // now actually depends on export/import.
+    test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     // Short-term TODO: Fix this BUG. It should be possible to fetch `feature1`
     // again.
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
@@ -345,6 +356,8 @@ fn test_branch_forget_fetched_branch() {
     Nothing changed.
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+
+    // TEST 3: fetch branch that was moved & forgotten
 
     // Move the branch in the git repo.
     git_repo

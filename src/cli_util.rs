@@ -1522,7 +1522,8 @@ pub fn print_failed_git_export(
                 "{}",
                 match branch_ref {
                     RefName::LocalBranch(name) => name.to_string(),
-                    // Should never happen, only local branches are exported
+                    RefName::RemoteBranch { branch, remote } => format!("{branch}@{remote}"),
+                    // Should never happen, tags and git_refs should never be exported
                     branch_ref => to_git_ref_name(branch_ref),
                 }
             )?;

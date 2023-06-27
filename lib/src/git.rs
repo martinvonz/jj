@@ -332,23 +332,37 @@ pub fn export_refs(
     let mut branches_to_delete = BTreeMap::new();
     let mut failed_branches = vec![];
     let view = mut_repo.view();
-    // This list includes refs known to jj, namely all git-tracking refs and refs
-    // for local jj branches.
-    // Short-term TODO: use the fact that git refs other than local branches are
-    // included.
+    let jj_repo_iter_all_branches = view.branches().iter().flat_map(|(branch, target)| {
+        itertools::chain(
+            target
+                .local_target
+                .as_ref()
+                .map(|_| RefName::LocalBranch(branch.to_owned())),
+            target
+                .remote_targets
+                .keys()
+                .map(|remote| RefName::RemoteBranch {
+                    branch: branch.to_string(),
+                    remote: remote.to_string(),
+                }),
+        )
+    });
     let jj_known_refs: HashSet<_> = view
         .git_refs()
         .keys()
         .filter_map(|name| parse_git_ref(name))
-        .chain(
-            view.branches()
-                .keys()
-                .map(|branch| RefName::LocalBranch(branch.to_owned())),
-        )
+        .chain(jj_repo_iter_all_branches)
         .collect();
     for jj_known_ref in jj_known_refs {
         let new_branch = match &jj_known_ref {
             RefName::LocalBranch(branch) => view.get_local_branch(branch),
+            RefName::RemoteBranch { remote, branch } => {
+                // Currently, the only situation where this case occurs *and* new_branch !=
+                // old_branch is after a `jj branch forget`. So, in practice, for
+                // remote-tracking branches either `new_branch == old_branch` or
+                // `new_branch == None`.
+                view.get_remote_branch(branch, remote)
+            }
             _ => continue,
         };
         let old_branch = view.get_git_ref(&to_git_ref_name(&jj_known_ref));
