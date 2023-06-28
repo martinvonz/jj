@@ -558,10 +558,7 @@ pub fn merge_trees(
         let maybe_side1 = side1_tree.value(basename);
         if maybe_side1 == maybe_base {
             // side 1 is unchanged: use the value from side 2
-            match maybe_side2 {
-                None => new_tree.remove(basename),
-                Some(side2) => new_tree.set(basename.clone(), side2.clone()),
-            };
+            new_tree.set_or_remove(basename, maybe_side2.cloned());
         } else if maybe_side1 == maybe_side2 {
             // Both sides changed in the same way: new_tree already has the
             // value
@@ -569,10 +566,7 @@ pub fn merge_trees(
             // The two sides changed in different ways
             let new_value =
                 merge_tree_value(store, dir, basename, maybe_base, maybe_side1, maybe_side2)?;
-            match new_value {
-                None => new_tree.remove(basename),
-                Some(value) => new_tree.set(basename.clone(), value),
-            }
+            new_tree.set_or_remove(basename, new_value);
         }
     }
     Ok(store.write_tree(dir, new_tree)?)
