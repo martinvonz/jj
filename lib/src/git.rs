@@ -162,8 +162,9 @@ pub fn import_some_refs(
         // Add the current HEAD to `pinned_git_heads` to pin the branch. It's not added
         // to `hidable_git_heads` because HEAD move doesn't automatically mean the old
         // HEAD branch has been rewritten.
+        let head_ref_name = RefName::GitRef("HEAD".to_owned());
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
-        pinned_git_heads.insert("HEAD".to_string(), vec![head_commit_id.clone()]);
+        pinned_git_heads.insert(head_ref_name, vec![head_commit_id.clone()]);
         if !matches!(mut_repo.git_head(), Some(RefTarget::Normal(id)) if id == head_commit_id) {
             let head_commit = store.get_commit(&head_commit_id).unwrap();
             prevent_gc(git_repo, &head_commit_id)?;
@@ -184,7 +185,7 @@ pub fn import_some_refs(
             // Skip non-utf8 refs.
             continue;
         };
-        let _ref_name = if let Some(ref_name) = parse_git_ref(full_name) {
+        let ref_name = if let Some(ref_name) = parse_git_ref(full_name) {
             ref_name
         } else {
             // Skip other refs (such as notes) and symbolic refs.
@@ -198,7 +199,7 @@ pub fn import_some_refs(
             // Skip invalid refs.
             continue;
         };
-        pinned_git_heads.insert(full_name.to_string(), vec![id.clone()]);
+        pinned_git_heads.insert(ref_name.clone(), vec![id.clone()]);
         if !git_ref_filter(full_name) {
             continue;
         }
@@ -211,41 +212,41 @@ pub fn import_some_refs(
             mut_repo.set_git_ref(full_name.to_owned(), RefTarget::Normal(id.clone()));
             let commit = store.get_commit(&id).unwrap();
             mut_repo.add_head(&commit);
-            changed_git_refs.insert(full_name.to_owned(), (old_target, new_target));
+            changed_git_refs.insert(ref_name, (old_target, new_target));
         }
     }
     for (full_name, target) in jj_view_git_refs {
+        // TODO: or clean up invalid ref in case it was stored due to historical bug?
+        let ref_name = parse_git_ref(&full_name).expect("stored git ref should be parsable");
         if git_ref_filter(&full_name) {
             mut_repo.remove_git_ref(&full_name);
-            changed_git_refs.insert(full_name, (Some(target), None));
+            changed_git_refs.insert(ref_name, (Some(target), None));
         } else {
-            pinned_git_heads.insert(full_name, target.adds());
+            pinned_git_heads.insert(ref_name, target.adds());
         }
     }
-    for (full_name, (old_git_target, new_git_target)) in &changed_git_refs {
-        if let Some(ref_name) = parse_git_ref(full_name) {
-            // Apply the change that happened in git since last time we imported refs
-            mut_repo.merge_single_ref(&ref_name, old_git_target.as_ref(), new_git_target.as_ref());
-            // If a git remote-tracking branch changed, apply the change to the local branch
-            // as well
-            if !git_settings.auto_local_branch {
-                continue;
-            }
-            if let RefName::RemoteBranch { branch, remote: _ } = ref_name {
-                mut_repo.merge_single_ref(
-                    &RefName::LocalBranch(branch.clone()),
-                    old_git_target.as_ref(),
-                    new_git_target.as_ref(),
-                );
-                match mut_repo.get_local_branch(&branch) {
-                    None => pinned_git_heads.remove(&local_branch_name_to_ref_name(&branch)),
-                    Some(target) => {
-                        // Note that we are mostly *replacing*, not inserting
-                        pinned_git_heads
-                            .insert(local_branch_name_to_ref_name(&branch), target.adds())
-                    }
-                };
-            }
+    for (ref_name, (old_git_target, new_git_target)) in &changed_git_refs {
+        // Apply the change that happened in git since last time we imported refs
+        mut_repo.merge_single_ref(ref_name, old_git_target.as_ref(), new_git_target.as_ref());
+        // If a git remote-tracking branch changed, apply the change to the local branch
+        // as well
+        if !git_settings.auto_local_branch {
+            continue;
+        }
+        if let RefName::RemoteBranch { branch, remote: _ } = ref_name {
+            let local_ref_name = RefName::LocalBranch(branch.clone());
+            mut_repo.merge_single_ref(
+                &local_ref_name,
+                old_git_target.as_ref(),
+                new_git_target.as_ref(),
+            );
+            match mut_repo.get_local_branch(branch) {
+                None => pinned_git_heads.remove(&local_ref_name),
+                Some(target) => {
+                    // Note that we are mostly *replacing*, not inserting
+                    pinned_git_heads.insert(local_ref_name, target.adds())
+                }
+            };
         }
     }
 
