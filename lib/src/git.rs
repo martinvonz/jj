@@ -147,7 +147,7 @@ pub fn import_some_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     git_settings: &GitSettings,
-    git_ref_filter: impl Fn(&str) -> bool,
+    git_ref_filter: impl Fn(&RefName) -> bool,
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
     let mut jj_view_git_refs = mut_repo.view().git_refs().clone();
@@ -200,7 +200,7 @@ pub fn import_some_refs(
             continue;
         };
         pinned_git_heads.insert(ref_name.clone(), vec![id.clone()]);
-        if !git_ref_filter(full_name) {
+        if !git_ref_filter(&ref_name) {
             continue;
         }
         // TODO: Make it configurable which remotes are publishing and update public
@@ -218,7 +218,7 @@ pub fn import_some_refs(
     for (full_name, target) in jj_view_git_refs {
         // TODO: or clean up invalid ref in case it was stored due to historical bug?
         let ref_name = parse_git_ref(&full_name).expect("stored git ref should be parsable");
-        if git_ref_filter(&full_name) {
+        if git_ref_filter(&ref_name) {
             mut_repo.remove_git_ref(&full_name);
             changed_git_refs.insert(ref_name, (Some(target), None));
         } else {
@@ -520,16 +520,23 @@ pub fn fetch(
     tracing::debug!("import_refs");
     if let Some(globs) = branch_name_globs {
         let pattern = format!(
-            "^refs/remotes/{remote_name}/({})$",
+            "^({})$",
             globs.iter().map(|glob| glob.replace('*', ".*")).join("|")
         );
         tracing::debug!(?globs, ?pattern, "globs as regex");
-        let regex = regex::Regex::new(&pattern).map_err(|_| GitFetchError::InvalidGlob)?;
+        let branch_regex = regex::Regex::new(&pattern).map_err(|_| GitFetchError::InvalidGlob)?;
         import_some_refs(
             mut_repo,
             git_repo,
             git_settings,
-            move |git_ref_name: &str| -> bool { regex.is_match(git_ref_name) },
+            |ref_name: &RefName| -> bool {
+                match ref_name {
+                    RefName::RemoteBranch { branch, remote } => {
+                        remote == remote_name && branch_regex.is_match(branch)
+                    }
+                    RefName::LocalBranch(..) | RefName::Tag(..) | RefName::GitRef(..) => false,
+                }
+            },
         )
     } else {
         import_refs(mut_repo, git_repo, git_settings)
