@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
-use jujutsu_lib::repo::Repo;
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::rewrite::DescendantRebaser;
+use jj_lib::op_store::{RefTarget, WorkspaceId};
+use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::rewrite::DescendantRebaser;
 use maplit::{hashmap, hashset};
 use test_case::test_case;
 use testutils::{

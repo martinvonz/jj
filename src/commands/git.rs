@@ -9,18 +9,18 @@ use std::time::Instant;
 
 use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
-use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
-use jujutsu_lib::git::{self, parse_gitmodules, GitFetchError, GitPushError, GitRefUpdate};
-use jujutsu_lib::git_backend::GitBackend;
-use jujutsu_lib::op_store::{BranchTarget, RefTarget};
-use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
-use jujutsu_lib::repo::Repo;
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::revset::{self, RevsetIteratorExt as _};
-use jujutsu_lib::settings::{ConfigResultExt as _, UserSettings};
-use jujutsu_lib::store::Store;
-use jujutsu_lib::view::View;
-use jujutsu_lib::workspace::Workspace;
+use jj_lib::backend::{CommitId, ObjectId, TreeValue};
+use jj_lib::git::{self, parse_gitmodules, GitFetchError, GitPushError, GitRefUpdate};
+use jj_lib::git_backend::GitBackend;
+use jj_lib::op_store::{BranchTarget, RefTarget};
+use jj_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
+use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::revset::{self, RevsetIteratorExt as _};
+use jj_lib::settings::{ConfigResultExt as _, UserSettings};
+use jj_lib::store::Store;
+use jj_lib::view::View;
+use jj_lib::workspace::Workspace;
 use maplit::hashset;
 
 use crate::cli_util::{

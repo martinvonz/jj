@@ -15,9 +15,9 @@
 use std::io;
 
 use itertools::Itertools as _;
-use jujutsu_lib::op_store::{OperationId, OperationMetadata};
-use jujutsu_lib::operation::Operation;
-use jujutsu_lib::repo::ReadonlyRepo;
+use jj_lib::op_store::{OperationId, OperationMetadata};
+use jj_lib::operation::Operation;
+use jj_lib::repo::ReadonlyRepo;
 
 use crate::formatter::Formatter;
 use crate::template_builder::{

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::backend::{ChangeId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
-use jujutsu_lib::matchers::EverythingMatcher;
-use jujutsu_lib::repo::Repo;
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::tree::DiffSummary;
+use jj_lib::backend::{ChangeId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
+use jj_lib::matchers::EverythingMatcher;
+use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::settings::UserSettings;
+use jj_lib::tree::DiffSummary;
 use test_case::test_case;
 use testutils::{assert_rebased, CommitGraphBuilder, TestRepo};
 

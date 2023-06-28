@@ -4,8 +4,8 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crossterm::terminal::{Clear, ClearType};
-use jujutsu_lib::git;
-use jujutsu_lib::repo_path::RepoPath;
+use jj_lib::git;
+use jj_lib::repo_path::RepoPath;
 
 use crate::cleanup_guard::CleanupGuard;
 use crate::ui::{OutputGuard, ProgressOutput, Ui};

@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use clap::Subcommand;
-use jujutsu_lib::op_store::BranchTarget;
-use jujutsu_lib::operation;
-use jujutsu_lib::repo::Repo;
+use jj_lib::op_store::BranchTarget;
+use jj_lib::operation;
+use jj_lib::repo::Repo;
 
 use crate::cli_util::{user_error, CommandError, CommandHelper, LogContentFormat};
 use crate::graphlog::{get_graphlog, Edge};
@@ -151,10 +151,10 @@ fn cmd_op_log(
 
 /// Restore only the portions of the view specified by the `what` argument
 fn view_with_desired_portions_restored(
-    view_being_restored: &jujutsu_lib::op_store::View,
-    current_view: &jujutsu_lib::op_store::View,
+    view_being_restored: &jj_lib::op_store::View,
+    current_view: &jj_lib::op_store::View,
     what: &[UndoWhatToRestore],
-) -> jujutsu_lib::op_store::View {
+) -> jj_lib::op_store::View {
     let mut new_view = if what.contains(&UndoWhatToRestore::Repo) {
         view_being_restored.clone()
     } else {

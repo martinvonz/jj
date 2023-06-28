@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::repo::{RepoLoader, StoreFactories};
+use jj_lib::repo::{RepoLoader, StoreFactories};
 use test_case::test_case;
 use testutils::{write_random_commit, TestRepo};
 

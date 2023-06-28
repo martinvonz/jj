@@ -21,22 +21,22 @@ use std::path::Path;
 
 use assert_matches::assert_matches;
 use itertools::Itertools;
-use jujutsu_lib::backend::{ChangeId, CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
-use jujutsu_lib::commit::Commit;
-use jujutsu_lib::git;
-use jujutsu_lib::git_backend::GitBackend;
-use jujutsu_lib::index::{HexPrefix, PrefixResolution};
-use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
-use jujutsu_lib::repo::Repo;
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::revset::{
+use jj_lib::backend::{ChangeId, CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
+use jj_lib::commit::Commit;
+use jj_lib::git;
+use jj_lib::git_backend::GitBackend;
+use jj_lib::index::{HexPrefix, PrefixResolution};
+use jj_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
+use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::revset::{
     optimize, parse, DefaultSymbolResolver, ReverseRevsetGraphIterator, Revset, RevsetAliasesMap,
     RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge, RevsetResolutionError,
     RevsetWorkspaceContext, SymbolResolver as _,
 };
-use jujutsu_lib::settings::GitSettings;
-use jujutsu_lib::tree::merge_trees;
-use jujutsu_lib::workspace::Workspace;
+use jj_lib::settings::GitSettings;
+use jj_lib::tree::merge_trees;
+use jj_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::{
     create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo, TestWorkspace,

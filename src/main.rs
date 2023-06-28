@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::cli_util::CliRunner;
+use jj_cli::cli_util::CliRunner;
 
 fn main() -> std::process::ExitCode {
     CliRunner::init().version(env!("JJ_VERSION")).run()

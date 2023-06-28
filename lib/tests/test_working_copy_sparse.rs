@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jujutsu_lib::matchers::EverythingMatcher;
-use jujutsu_lib::repo::Repo;
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::working_copy::{CheckoutStats, SnapshotOptions, WorkingCopy};
+use jj_lib::matchers::EverythingMatcher;
+use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::working_copy::{CheckoutStats, SnapshotOptions, WorkingCopy};
 use testutils::TestWorkspace;
 
 #[test]

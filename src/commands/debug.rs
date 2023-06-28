@@ -15,9 +15,9 @@
 use std::fmt::Debug;
 
 use clap::Subcommand;
-use jujutsu_lib::backend::ObjectId;
-use jujutsu_lib::default_index_store::{DefaultIndexStore, ReadonlyIndexWrapper};
-use jujutsu_lib::revset;
+use jj_lib::backend::ObjectId;
+use jj_lib::default_index_store::{DefaultIndexStore, ReadonlyIndexWrapper};
+use jj_lib::revset;
 
 use crate::cli_util::{user_error, CommandError, CommandHelper};
 use crate::template_parser;

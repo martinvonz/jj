@@ -961,25 +961,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c8af84674fe1f223a982c933a0ee1086ac4d4052aa0fb8060c12c6ad838e754"
 
 [[package]]
-name = "jobserver"
-version = "0.1.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af25a77299a7f711a01975c35a6a424eb6862092cc2d6c72c4ed6cbc56dfc1fa"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "js-sys"
-version = "0.3.59"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "258451ab10b34f8af53416d1fdab72c22e805f0c92a1136d59470ec0b11138b2"
-dependencies = [
- "wasm-bindgen",
-]
-
-[[package]]
-name = "jujutsu"
+name = "jj-cli"
 version = "0.7.0"
 dependencies = [
  "assert_cmd",
@@ -1000,7 +982,7 @@ dependencies = [
  "indexmap 2.0.0",
  "insta",
  "itertools 0.11.0",
- "jujutsu-lib",
+ "jj-lib",
  "libc",
  "maplit",
  "once_cell",
@@ -1021,7 +1003,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "jujutsu-lib"
+name = "jj-lib"
 version = "0.7.0"
 dependencies = [
  "assert_matches",
@@ -1060,6 +1042,24 @@ dependencies = [
  "watchman_client",
  "whoami",
  "zstd",
+]
+
+[[package]]
+name = "jobserver"
+version = "0.1.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af25a77299a7f711a01975c35a6a424eb6862092cc2d6c72c4ed6cbc56dfc1fa"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "js-sys"
+version = "0.3.59"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "258451ab10b34f8af53416d1fdab72c22e805f0c92a1136d59470ec0b11138b2"
+dependencies = [
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -2024,7 +2024,7 @@ dependencies = [
  "config",
  "git2",
  "itertools 0.11.0",
- "jujutsu-lib",
+ "jj-lib",
  "rand",
  "tempfile",
 ]

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* The `jujutsu` and `jujutsu-lib` crates were renamed to `jj-cli` and `jj-lib`,
+  respectively.
+
 * The `ui.oplog-relative-timestamps` option has been removed. Use the
   `format_time_range()` template alias instead. For details, see
   [the documentation](docs/config.md).

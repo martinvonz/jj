@@ -16,10 +16,10 @@ use std::cmp::max;
 use std::thread;
 
 use assert_matches::assert_matches;
-use jujutsu_lib::repo::{Repo, StoreFactories};
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::working_copy::{CheckoutError, SnapshotOptions};
-use jujutsu_lib::workspace::Workspace;
+use jj_lib::repo::{Repo, StoreFactories};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
+use jj_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::TestWorkspace;
 

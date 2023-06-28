@@ -18,16 +18,16 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{ObjectId, TreeValue};
-use jujutsu_lib::commit::Commit;
-use jujutsu_lib::diff::{Diff, DiffHunk};
-use jujutsu_lib::files::DiffLine;
-use jujutsu_lib::matchers::Matcher;
-use jujutsu_lib::repo::{ReadonlyRepo, Repo};
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::tree::{Tree, TreeDiffIterator};
-use jujutsu_lib::{diff, files, rewrite, tree};
+use jj_lib::backend::{ObjectId, TreeValue};
+use jj_lib::commit::Commit;
+use jj_lib::diff::{Diff, DiffHunk};
+use jj_lib::files::DiffLine;
+use jj_lib::matchers::Matcher;
+use jj_lib::repo::{ReadonlyRepo, Repo};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::settings::UserSettings;
+use jj_lib::tree::{Tree, TreeDiffIterator};
+use jj_lib::{diff, files, rewrite, tree};
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
 use crate::formatter::Formatter;

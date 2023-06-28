@@ -449,5 +449,5 @@ fn test_verbose_logging_enabled() {
         .split_at(36);
     // The log format is currently Pretty so we include the terminal markup.
     // Luckily, insta will print this in colour when reviewing.
-    insta::assert_snapshot!(log_line, @"[32m INFO[0m [2mjujutsu::cli_util[0m[2m:[0m verbose logging enabled");
+    insta::assert_snapshot!(log_line, @"[32m INFO[0m [2mjj_cli::cli_util[0m[2m:[0m verbose logging enabled");
 }

@@ -14,11 +14,11 @@
 
 use std::path::{Path, PathBuf};
 
-use jujutsu_lib::git_backend::GitBackend;
-use jujutsu_lib::op_store::WorkspaceId;
-use jujutsu_lib::repo::Repo;
-use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::workspace::Workspace;
+use jj_lib::git_backend::GitBackend;
+use jj_lib::op_store::WorkspaceId;
+use jj_lib::repo::Repo;
+use jj_lib::settings::UserSettings;
+use jj_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::{write_random_commit, TestWorkspace};
 

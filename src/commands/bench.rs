@@ -19,8 +19,8 @@ use std::time::Instant;
 use clap::Subcommand;
 use criterion::measurement::Measurement;
 use criterion::{BatchSize, BenchmarkGroup, BenchmarkId, Criterion};
-use jujutsu_lib::index::HexPrefix;
-use jujutsu_lib::repo::Repo;
+use jj_lib::index::HexPrefix;
+use jj_lib::repo::Repo;
 
 use crate::cli_util::{CommandError, CommandHelper, WorkspaceCommandHelper};
 use crate::ui::Ui;

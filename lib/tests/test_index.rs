@@ -14,15 +14,15 @@
 
 use std::sync::Arc;
 
-use jujutsu_lib::backend::CommitId;
-use jujutsu_lib::commit::Commit;
-use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::default_index_store::{
+use jj_lib::backend::CommitId;
+use jj_lib::commit::Commit;
+use jj_lib::commit_builder::CommitBuilder;
+use jj_lib::default_index_store::{
     CompositeIndex, IndexPosition, MutableIndexImpl, ReadonlyIndexWrapper,
 };
-use jujutsu_lib::index::Index as _;
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
-use jujutsu_lib::settings::UserSettings;
+use jj_lib::index::Index as _;
+use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
+use jj_lib::settings::UserSettings;
 use test_case::test_case;
 use testutils::{
     create_random_commit, load_repo_at_head, write_random_commit, CommitGraphBuilder, TestRepo,

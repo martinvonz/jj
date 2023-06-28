@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::backend::{FileId, TreeValue};
-use jujutsu_lib::conflicts::{parse_conflict, Conflict};
-use jujutsu_lib::repo::Repo;
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::store::Store;
+use jj_lib::backend::{FileId, TreeValue};
+use jj_lib::conflicts::{parse_conflict, Conflict};
+use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::store::Store;
 use testutils::TestRepo;
 
 fn file_value(file_id: &FileId) -> TreeValue {

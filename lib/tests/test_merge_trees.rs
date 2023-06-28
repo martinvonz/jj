@@ -14,11 +14,11 @@
 
 use assert_matches::assert_matches;
 use itertools::Itertools;
-use jujutsu_lib::backend::TreeValue;
-use jujutsu_lib::repo::Repo;
-use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
-use jujutsu_lib::rewrite::rebase_commit;
-use jujutsu_lib::tree::{merge_trees, Tree};
+use jj_lib::backend::TreeValue;
+use jj_lib::repo::Repo;
+use jj_lib::repo_path::{RepoPath, RepoPathComponent};
+use jj_lib::rewrite::rebase_commit;
+use jj_lib::tree::{merge_trees, Tree};
 use test_case::test_case;
 use testutils::TestRepo;
 

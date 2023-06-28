@@ -5,10 +5,10 @@ authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
 edition = "2021"
 rust-version = "1.61"
 license = "Apache-2.0"
-description = "Integration test utils for the jujutsu-lib crate"
+description = "Integration test utils for the jj-lib crate"
 homepage = "https://github.com/martinvonz/jj"
 repository = "https://github.com/martinvonz/jj"
-documentation = "https://docs.rs/jujutsu"
+documentation = "https://docs.rs/jj-lib"
 readme = "../..//README.md"
 publish = false
 
@@ -18,6 +18,6 @@ publish = false
 config = { version = "0.13.2", default-features = false, features = ["toml"] }
 git2 = "0.17.2"
 itertools = "0.11.0"
-jujutsu-lib = { path = ".." }
+jj-lib = { path = ".." }
 rand = "0.8.5"
 tempfile = "3.6.0"

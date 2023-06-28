@@ -17,7 +17,7 @@ use std::io::Write;
 use std::{cmp, io};
 
 use itertools::Itertools;
-use jujutsu_lib::settings::UserSettings;
+use jj_lib::settings::UserSettings;
 use renderdag::{Ancestor, GraphRowRenderer, Renderer};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -20,7 +20,7 @@ use std::{env, fmt};
 
 use config::Source;
 use itertools::Itertools;
-use jujutsu_lib::settings::ConfigResultExt as _;
+use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

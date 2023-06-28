@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 
 use itertools::Itertools as _;
-use jujutsu_lib::backend::{Signature, Timestamp};
+use jj_lib::backend::{Signature, Timestamp};
 
 use crate::template_parser::{
     self, ExpressionKind, ExpressionNode, FunctionCallNode, MethodCallNode, TemplateParseError,
@@ -92,8 +92,8 @@ macro_rules! impl_core_wrap_property_fns {
                 wrap_string_list(Vec<String>) => StringList,
                 wrap_boolean(bool) => Boolean,
                 wrap_integer(i64) => Integer,
-                wrap_signature(jujutsu_lib::backend::Signature) => Signature,
-                wrap_timestamp(jujutsu_lib::backend::Timestamp) => Timestamp,
+                wrap_signature(jj_lib::backend::Signature) => Signature,
+                wrap_timestamp(jj_lib::backend::Timestamp) => Timestamp,
                 wrap_timestamp_range($crate::templater::TimestampRange) => TimestampRange,
             }
         );

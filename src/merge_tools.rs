@@ -21,15 +21,15 @@ use std::sync::Arc;
 
 use config::ConfigError;
 use itertools::Itertools;
-use jujutsu_lib::backend::{TreeId, TreeValue};
-use jujutsu_lib::conflicts::materialize_merge_result;
-use jujutsu_lib::gitignore::GitIgnoreFile;
-use jujutsu_lib::matchers::EverythingMatcher;
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::settings::{ConfigResultExt as _, UserSettings};
-use jujutsu_lib::store::Store;
-use jujutsu_lib::tree::Tree;
-use jujutsu_lib::working_copy::{CheckoutError, SnapshotError, SnapshotOptions, TreeState};
+use jj_lib::backend::{TreeId, TreeValue};
+use jj_lib::conflicts::materialize_merge_result;
+use jj_lib::gitignore::GitIgnoreFile;
+use jj_lib::matchers::EverythingMatcher;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::settings::{ConfigResultExt as _, UserSettings};
+use jj_lib::store::Store;
+use jj_lib::tree::Tree;
+use jj_lib::working_copy::{CheckoutError, SnapshotError, SnapshotOptions, TreeState};
 use regex::{Captures, Regex};
 use thiserror::Error;
 
@@ -102,7 +102,7 @@ pub enum ConflictResolveError {
     )]
     EmptyOrUnchanged,
     #[error("Backend error: {0:?}")]
-    BackendError(#[from] jujutsu_lib::backend::BackendError),
+    BackendError(#[from] jj_lib::backend::BackendError),
 }
 
 impl From<std::io::Error> for DiffEditError {

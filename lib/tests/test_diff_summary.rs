@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher};
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::tree::DiffSummary;
+use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::tree::DiffSummary;
 use test_case::test_case;
 use testutils::TestRepo;
 
