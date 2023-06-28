@@ -436,6 +436,97 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
 
 // TODO: Test `jj branch list` with a remote named `git`
 
+#[test]
+fn test_branch_list_filtered_by_revset() {
+    let test_env = TestEnvironment::default();
+
+    // Initialize remote refs
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "remote", "--git"]);
+    let remote_path = test_env.env_root().join("remote");
+    for branch in ["remote-keep", "remote-delete", "remote-rewrite"] {
+        test_env.jj_cmd_success(&remote_path, &["new", "root", "-m", branch]);
+        test_env.jj_cmd_success(&remote_path, &["branch", "set", branch]);
+    }
+    test_env.jj_cmd_success(&remote_path, &["new"]);
+    test_env.jj_cmd_success(&remote_path, &["git", "export"]);
+
+    // Initialize local refs
+    let mut remote_git_path = remote_path;
+    remote_git_path.extend([".jj", "repo", "store", "git"]);
+    test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["git", "clone", remote_git_path.to_str().unwrap(), "local"],
+    );
+    let local_path = test_env.env_root().join("local");
+    test_env.jj_cmd_success(&local_path, &["new", "root", "-m", "local-keep"]);
+    test_env.jj_cmd_success(&local_path, &["branch", "set", "local-keep"]);
+
+    // Mutate refs in local repository
+    test_env.jj_cmd_success(&local_path, &["branch", "delete", "remote-delete"]);
+    test_env.jj_cmd_success(&local_path, &["describe", "-mrewritten", "remote-rewrite"]);
+
+    let template = r#"separate(" ", commit_id.short(), branches, if(hidden, "(hidden)"))"#;
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(
+            &local_path,
+            &["log", "-r:(branches() | remote_branches())", "-T", template],
+        ),
+        @r###"
+    ◉  e31634b64294 remote-rewrite*
+    │ @  c7b4c09cd77c local-keep
+    ├─╯
+    │ ◉  3e9a5af6ef15 remote-rewrite@origin (hidden)
+    ├─╯
+    │ ◉  911e912015fb remote-keep
+    ├─╯
+    │ ◉  dad5f298ca57 remote-delete@origin
+    ├─╯
+    ◉  000000000000
+    "###);
+
+    // All branches are listed by default.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&local_path, &["branch", "list"]), @r###"
+    local-keep: c7b4c09cd77c local-keep
+    remote-delete (deleted)
+      @origin: dad5f298ca57 remote-delete
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    remote-keep: 911e912015fb remote-keep
+    remote-rewrite: e31634b64294 rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): 3e9a5af6ef15 remote-rewrite
+    "###);
+
+    let query = |revset| test_env.jj_cmd_success(&local_path, &["branch", "list", "-r", revset]);
+
+    // "all()" doesn't include deleted branches since they have no local targets.
+    // So "all()" is identical to "branches()".
+    insta::assert_snapshot!(query("all()"), @r###"
+    local-keep: c7b4c09cd77c local-keep
+    remote-keep: 911e912015fb remote-keep
+    remote-rewrite: e31634b64294 rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): 3e9a5af6ef15 remote-rewrite
+    "###);
+
+    // Exclude remote-only branches. "remote-rewrite@origin" is included since
+    // local "remote-rewrite" target matches.
+    insta::assert_snapshot!(query("branches()"), @r###"
+    local-keep: c7b4c09cd77c local-keep
+    remote-keep: 911e912015fb remote-keep
+    remote-rewrite: e31634b64294 rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): 3e9a5af6ef15 remote-rewrite
+    "###);
+
+    // Select branches by name.
+    insta::assert_snapshot!(query("branches(remote-rewrite)"), @r###"
+    remote-rewrite: e31634b64294 rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): 3e9a5af6ef15 remote-rewrite
+    "###);
+
+    // Can't select deleted branch.
+    insta::assert_snapshot!(query("remote-delete"), @r###"
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"branches ++ " " ++ commit_id.short()"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
