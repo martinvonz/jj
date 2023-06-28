@@ -124,6 +124,11 @@ impl<T> Conflict<T> {
         trivial_merge(&self.removes, &self.adds)
     }
 
+    /// Creates a new conflict by applying `f` to each remove and add.
+    pub fn map<'a, U>(&'a self, mut f: impl FnMut(&'a T) -> U) -> Conflict<U> {
+        self.try_map(|term| Some(f(term))).unwrap()
+    }
+
     /// Creates a new conflict by applying `f` to each remove and add, returning
     /// `None if `f` returns `None` for any of them.
     pub fn try_map<'a, U>(&'a self, mut f: impl FnMut(&'a T) -> Option<U>) -> Option<Conflict<U>> {
@@ -318,18 +323,7 @@ impl Conflict<Option<TreeValue>> {
 
 impl Conflict<Option<FileId>> {
     pub fn extract_as_single_hunk(&self, store: &Store, path: &RepoPath) -> Conflict<ContentHunk> {
-        let removes_content = self
-            .removes()
-            .iter()
-            .map(|term| get_file_contents(store, path, term))
-            .collect_vec();
-        let adds_content = self
-            .adds()
-            .iter()
-            .map(|term| get_file_contents(store, path, term))
-            .collect_vec();
-
-        Conflict::new(removes_content, adds_content)
+        self.map(|term| get_file_contents(store, path, term))
     }
 }
 
@@ -755,6 +749,20 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_map() {
+        fn increment(i: &i32) -> i32 {
+            i + 1
+        }
+        fn c(removes: &[i32], adds: &[i32]) -> Conflict<i32> {
+            Conflict::new(removes.to_vec(), adds.to_vec())
+        }
+        // 1-way conflict
+        assert_eq!(c(&[], &[1]).map(increment), c(&[], &[2]));
+        // 3-way conflict
+        assert_eq!(c(&[1], &[3, 5]).map(increment), c(&[2], &[4, 6]));
     }
 
     #[test]
