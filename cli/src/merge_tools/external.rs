@@ -414,6 +414,7 @@ pub fn edit_diff_external(
         base_ignores,
         fsmonitor_kind: settings.fsmonitor_kind()?,
         progress: None,
+        max_new_file_size: settings.max_new_file_size()?,
     })?;
     Ok(right_tree_state.current_tree_id().clone())
 }

@@ -1333,6 +1333,7 @@ fn cmd_untrack(
         base_ignores,
         fsmonitor_kind: command.settings().fsmonitor_kind()?,
         progress: None,
+        max_new_file_size: command.settings().max_new_file_size()?,
     })?;
     if wc_tree_id != new_tree_id {
         let wc_tree = store.get_tree(&RepoPath::root(), &wc_tree_id)?;

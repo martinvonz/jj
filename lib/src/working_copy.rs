@@ -308,6 +308,12 @@ pub enum SnapshotError {
     InternalBackendError(#[from] BackendError),
     #[error(transparent)]
     TreeStateError(#[from] TreeStateError),
+    #[error("New file {path} of size {size} exceeds snapshot.max-new-file-size ({max_size})")]
+    NewFileTooLarge {
+        path: PathBuf,
+        size: u64,
+        max_size: u64,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -356,6 +362,7 @@ pub struct SnapshotOptions<'a> {
     pub base_ignores: Arc<GitIgnoreFile>,
     pub fsmonitor_kind: Option<FsmonitorKind>,
     pub progress: Option<&'a SnapshotProgress<'a>>,
+    pub max_new_file_size: u64,
 }
 
 impl SnapshotOptions<'_> {
@@ -364,6 +371,7 @@ impl SnapshotOptions<'_> {
             base_ignores: GitIgnoreFile::empty(),
             fsmonitor_kind: None,
             progress: None,
+            max_new_file_size: u64::MAX,
         }
     }
 }
@@ -624,6 +632,7 @@ impl TreeState {
             base_ignores,
             fsmonitor_kind,
             progress,
+            max_new_file_size,
         } = options;
 
         let sparse_matcher = self.sparse_matcher();
@@ -658,6 +667,7 @@ impl TreeState {
                 present_files_tx,
                 directory_to_visit,
                 progress,
+                max_new_file_size,
             )
         })?;
 
@@ -724,6 +734,7 @@ impl TreeState {
         present_files_tx: Sender<RepoPath>,
         directory_to_visit: DirectoryToVisit,
         progress: Option<&SnapshotProgress>,
+        max_new_file_size: u64,
     ) -> Result<(), SnapshotError> {
         let DirectoryToVisit {
             dir,
@@ -829,6 +840,7 @@ impl TreeState {
                             present_files_tx.clone(),
                             directory_to_visit,
                             progress,
+                            max_new_file_size,
                         )?;
                     }
                 } else if matcher.matches(&path) {
@@ -847,6 +859,14 @@ impl TreeState {
                             message: format!("Failed to stat file {}", entry.path().display()),
                             err,
                         })?;
+                        if maybe_current_file_state.is_none() && metadata.len() > max_new_file_size
+                        {
+                            return Err(SnapshotError::NewFileTooLarge {
+                                path: entry.path().clone(),
+                                size: metadata.len(),
+                                max_size: max_new_file_size,
+                            });
+                        }
                         if let Some(new_file_state) = file_state(&metadata) {
                             present_files_tx.send(path.clone()).ok();
                             let update = self.get_updated_tree_value(

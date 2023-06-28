@@ -190,6 +190,16 @@ impl UserSettings {
             .get_string("ui.graph.style")
             .unwrap_or_else(|_| "curved".to_string())
     }
+
+    pub fn max_new_file_size(&self) -> Result<u64, config::ConfigError> {
+        let cfg = self.config.get::<u64>("snapshot.max-new-file-size");
+        match cfg {
+            Ok(0) => Ok(u64::MAX),
+            x @ Ok(_) => x,
+            Err(config::ConfigError::NotFound(_)) => Ok(1024 * 1024),
+            e @ Err(_) => e,
+        }
+    }
 }
 
 /// This Rng uses interior mutability to allow generating random values using an
