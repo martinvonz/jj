@@ -75,11 +75,9 @@ impl GitBackend {
 
     pub fn init_external(store_path: &Path, git_repo_path: &Path) -> Result<Self, BackendError> {
         let extra_path = store_path.join("extra");
-        std::fs::create_dir(&extra_path).unwrap();
-        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
-        git_target_file
-            .write_all(git_repo_path.to_str().unwrap().as_bytes())
-            .unwrap();
+        std::fs::create_dir(&extra_path)?;
+        let mut git_target_file = File::create(store_path.join("git_target"))?;
+        git_target_file.write_all(git_repo_path.to_str().unwrap().as_bytes())?;
         let repo = git2::Repository::open(store_path.join(git_repo_path))
             .map_err(|err| BackendError::Other(format!("Failed to open git repository: {err}")))?;
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
