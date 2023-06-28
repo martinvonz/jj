@@ -42,6 +42,8 @@ fn parse_git_ref(ref_name: &str) -> Option<RefName> {
     } else if let Some(remote_and_branch) = ref_name.strip_prefix("refs/remotes/") {
         remote_and_branch
             .split_once('/')
+            // "refs/remotes/origin/HEAD" isn't a real remote-tracking branch
+            .filter(|&(_, branch)| branch != "HEAD")
             .map(|(remote, branch)| RefName::RemoteBranch {
                 remote: remote.to_string(),
                 branch: branch.to_string(),
@@ -176,21 +178,20 @@ pub fn import_some_refs(
     let git_repo_refs = git_repo.references()?;
     for git_repo_ref in git_repo_refs {
         let git_repo_ref = git_repo_ref?;
-        if !(git_repo_ref.is_tag() || git_repo_ref.is_branch() || git_repo_ref.is_remote())
-            || git_repo_ref.name().is_none()
-        {
-            // Skip other refs (such as notes) and symbolic refs, as well as non-utf8 refs.
+        let full_name = if let Some(full_name) = git_repo_ref.name() {
+            full_name
+        } else {
+            // Skip non-utf8 refs.
             continue;
-        }
-        let full_name = git_repo_ref.name().unwrap().to_string();
-        if let Some(RefName::RemoteBranch { branch, remote: _ }) = parse_git_ref(&full_name) {
-            // "refs/remotes/origin/HEAD" isn't a real remote-tracking branch
-            if &branch == "HEAD" {
-                continue;
-            }
-        }
+        };
+        let _ref_name = if let Some(ref_name) = parse_git_ref(full_name) {
+            ref_name
+        } else {
+            // Skip other refs (such as notes) and symbolic refs.
+            continue;
+        };
         let id = if let Some(id) =
-            resolve_git_ref_to_commit_id(&git_repo_ref, jj_view_git_refs.get(&full_name))
+            resolve_git_ref_to_commit_id(&git_repo_ref, jj_view_git_refs.get(full_name))
         {
             id
         } else {
@@ -198,19 +199,19 @@ pub fn import_some_refs(
             continue;
         };
         pinned_git_heads.insert(full_name.to_string(), vec![id.clone()]);
-        if !git_ref_filter(&full_name) {
+        if !git_ref_filter(full_name) {
             continue;
         }
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
-        let old_target = jj_view_git_refs.remove(&full_name);
+        let old_target = jj_view_git_refs.remove(full_name);
         let new_target = Some(RefTarget::Normal(id.clone()));
         if new_target != old_target {
             prevent_gc(git_repo, &id)?;
-            mut_repo.set_git_ref(full_name.clone(), RefTarget::Normal(id.clone()));
+            mut_repo.set_git_ref(full_name.to_owned(), RefTarget::Normal(id.clone()));
             let commit = store.get_commit(&id).unwrap();
             mut_repo.add_head(&commit);
-            changed_git_refs.insert(full_name, (old_target, new_target));
+            changed_git_refs.insert(full_name.to_owned(), (old_target, new_target));
         }
     }
     for (full_name, target) in jj_view_git_refs {
