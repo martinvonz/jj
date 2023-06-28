@@ -30,6 +30,7 @@ use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jujutsu_lib::settings::{GitSettings, UserSettings};
+use jujutsu_lib::view::RefName;
 use maplit::{btreemap, hashset};
 use tempfile::TempDir;
 use testutils::{create_random_commit, load_repo_at_head, write_random_commit, TestRepo};
@@ -687,10 +688,19 @@ fn test_import_some_refs() {
         empty_git_commit(&git_repo, "refs/remotes/origin/feature4", &[&commit_feat3]);
     let commit_ign = empty_git_commit(&git_repo, "refs/remotes/origin/ignored", &[]);
 
+    fn get_remote_branch(ref_name: &RefName) -> Option<&str> {
+        match ref_name {
+            RefName::RemoteBranch { branch, remote } if remote == "origin" => Some(branch),
+            _ => None,
+        }
+    }
+
     // Import branches feature1, feature2, and feature3.
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
-        ref_name.starts_with("refs/remotes/origin/feature")
+        get_remote_branch(ref_name)
+            .map(|branch| branch.starts_with("feature"))
+            .unwrap_or(false)
     })
     .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -755,7 +765,7 @@ fn test_import_some_refs() {
     delete_git_ref(&git_repo, "refs/remotes/origin/feature4");
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
-        ref_name == "refs/remotes/origin/feature2"
+        get_remote_branch(ref_name) == Some("feature2")
     })
     .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -771,7 +781,7 @@ fn test_import_some_refs() {
     // corresponding commit should stay because it is reachable from feature2.
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
-        ref_name == "refs/remotes/origin/feature1"
+        get_remote_branch(ref_name) == Some("feature1")
     })
     .unwrap();
     // No descendant should be rewritten.
@@ -788,7 +798,7 @@ fn test_import_some_refs() {
     // feature4 should be left alone even though it is no longer in git.
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
-        ref_name == "refs/remotes/origin/feature3"
+        get_remote_branch(ref_name) == Some("feature3")
     })
     .unwrap();
     // No descendant should be rewritten
@@ -804,7 +814,7 @@ fn test_import_some_refs() {
     // Import feature4: both the head and the branch will disappear.
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_some_refs(tx.mut_repo(), &git_repo, &git_settings, |ref_name| {
-        ref_name == "refs/remotes/origin/feature4"
+        get_remote_branch(ref_name) == Some("feature4")
     })
     .unwrap();
     // No descendant should be rewritten
