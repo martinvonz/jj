@@ -2,12 +2,12 @@ use std::collections::{BTreeSet, HashSet};
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
-use jujutsu_lib::backend::{CommitId, ObjectId};
-use jujutsu_lib::git;
-use jujutsu_lib::op_store::{BranchTarget, RefTarget};
-use jujutsu_lib::repo::Repo;
-use jujutsu_lib::revset::{self, RevsetExpression};
-use jujutsu_lib::view::View;
+use jj_lib::backend::{CommitId, ObjectId};
+use jj_lib::git;
+use jj_lib::op_store::{BranchTarget, RefTarget};
+use jj_lib::repo::Repo;
+use jj_lib::revset::{self, RevsetExpression};
+use jj_lib::view::View;
 
 use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg};
 use crate::commands::make_branch_term;

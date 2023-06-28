@@ -14,7 +14,7 @@
 use std::path::Path;
 
 use itertools::Itertools as _;
-use jujutsu_lib::backend::{CommitId, ObjectId as _};
+use jj_lib::backend::{CommitId, ObjectId as _};
 
 use crate::common::TestEnvironment;
 

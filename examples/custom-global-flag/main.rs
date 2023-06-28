@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::cli_util::{CliRunner, CommandError};
-use jujutsu::ui::Ui;
+use jj_cli::cli_util::{CliRunner, CommandError};
+use jj_cli::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
 struct CustomGlobalArgs {

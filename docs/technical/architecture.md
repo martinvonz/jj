@@ -8,14 +8,14 @@ to [Git's object model](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects
 
 ## Separation of library from UI
 
-The `jj` binary consists of two Rust crates: the library crate
-(`jujutsu-lib`) and the CLI crate (`jujutsu`). The library crate is currently
-only used by the CLI crate, but it is meant to also be usable from a GUI or TUI,
-or in a server serving requests from multiple users. As a result, the library
-should avoid interacting directly with the user via the terminal or by other
-means; all input/output is handled by the CLI crate [^1]. Since the library
-crate is meant to usable in a server, it also cannot read configuration from the
-user's home directory, or from user-specific environment variables.
+The `jj` binary consists of two Rust crates: the library crate (`jj-lib`) and
+the CLI crate (`jj-cli`). The library crate is currently only used by the CLI
+crate, but it is meant to also be usable from a GUI or TUI, or in a server
+serving requests from multiple users. As a result, the library should avoid
+interacting directly with the user via the terminal or by other means; all
+input/output is handled by the CLI crate [^1]. Since the library crate is meant
+to usable in a server, it also cannot read configuration from the user's home
+directory, or from user-specific environment variables.
 
 [^1]: There are a few exceptions, such as for messages printed during automatic
 upgrades of the repo format
@@ -227,7 +227,6 @@ There's no garbage collection of unreachable tables yet.
 The tables are named by their hash. We keep a separate directory of pointers to
 the current leaf tables, in the same way as we
 do [for the operation log](concurrency.md#storage).
-
 
 ## Design of the CLI crate
 

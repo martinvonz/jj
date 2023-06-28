@@ -21,17 +21,17 @@ use std::os::unix::net::UnixListener;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{TreeId, TreeValue};
-use jujutsu_lib::conflicts::Conflict;
-use jujutsu_lib::fsmonitor::FsmonitorKind;
+use jj_lib::backend::{TreeId, TreeValue};
+use jj_lib::conflicts::Conflict;
+use jj_lib::fsmonitor::FsmonitorKind;
 #[cfg(unix)]
-use jujutsu_lib::op_store::OperationId;
-use jujutsu_lib::op_store::WorkspaceId;
-use jujutsu_lib::repo::{ReadonlyRepo, Repo};
-use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
-use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::tree_builder::TreeBuilder;
-use jujutsu_lib::working_copy::{LockedWorkingCopy, SnapshotOptions, WorkingCopy};
+use jj_lib::op_store::OperationId;
+use jj_lib::op_store::WorkspaceId;
+use jj_lib::repo::{ReadonlyRepo, Repo};
+use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
+use jj_lib::settings::UserSettings;
+use jj_lib::tree_builder::TreeBuilder;
+use jj_lib::working_copy::{LockedWorkingCopy, SnapshotOptions, WorkingCopy};
 use test_case::test_case;
 use testutils::{write_random_commit, TestWorkspace};
 

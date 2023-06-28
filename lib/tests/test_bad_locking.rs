@@ -14,8 +14,8 @@
 
 use std::path::Path;
 
-use jujutsu_lib::repo::{Repo, StoreFactories};
-use jujutsu_lib::workspace::Workspace;
+use jj_lib::repo::{Repo, StoreFactories};
+use jj_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::{create_random_commit, load_repo_at_head, TestWorkspace};
 

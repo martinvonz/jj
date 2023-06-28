@@ -13,12 +13,12 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
-use jujutsu_lib::id_prefix::IdPrefixContext;
-use jujutsu_lib::index::HexPrefix;
-use jujutsu_lib::index::PrefixResolution::{AmbiguousMatch, NoMatch, SingleMatch};
-use jujutsu_lib::repo::Repo;
-use jujutsu_lib::revset::RevsetExpression;
+use jj_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
+use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::index::HexPrefix;
+use jj_lib::index::PrefixResolution::{AmbiguousMatch, NoMatch, SingleMatch};
+use jj_lib::repo::Repo;
+use jj_lib::revset::RevsetExpression;
 use testutils::TestRepo;
 
 #[test]

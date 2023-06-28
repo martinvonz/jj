@@ -16,7 +16,7 @@ use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
 
-use jujutsu_lib::backend::{Signature, Timestamp};
+use jj_lib::backend::{Signature, Timestamp};
 
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::time_util;

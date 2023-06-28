@@ -1,6 +1,6 @@
 use chrono::format::StrftimeItems;
 use chrono::{DateTime, FixedOffset, LocalResult, TimeZone, Utc};
-use jujutsu_lib::backend::Timestamp;
+use jj_lib::backend::Timestamp;
 use once_cell::sync::Lazy;
 
 /// Parsed formatting items which should never contain an error.

@@ -14,10 +14,10 @@
 
 use std::sync::Arc;
 
-use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
-use jujutsu_lib::repo::{ReadonlyRepo, Repo};
-use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::transaction::Transaction;
+use jj_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
+use jj_lib::repo::{ReadonlyRepo, Repo};
+use jj_lib::settings::UserSettings;
+use jj_lib::transaction::Transaction;
 use maplit::{btreemap, hashset};
 use test_case::test_case;
 use testutils::{create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo};

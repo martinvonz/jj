@@ -18,19 +18,19 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{Backend, BackendInitError, FileId, ObjectId, TreeId, TreeValue};
-use jujutsu_lib::commit::Commit;
-use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::git_backend::GitBackend;
-use jujutsu_lib::local_backend::LocalBackend;
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::rewrite::RebasedDescendant;
-use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::store::Store;
-use jujutsu_lib::tree::Tree;
-use jujutsu_lib::tree_builder::TreeBuilder;
-use jujutsu_lib::workspace::Workspace;
+use jj_lib::backend::{Backend, BackendInitError, FileId, ObjectId, TreeId, TreeValue};
+use jj_lib::commit::Commit;
+use jj_lib::commit_builder::CommitBuilder;
+use jj_lib::git_backend::GitBackend;
+use jj_lib::local_backend::LocalBackend;
+use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::rewrite::RebasedDescendant;
+use jj_lib::settings::UserSettings;
+use jj_lib::store::Store;
+use jj_lib::tree::Tree;
+use jj_lib::tree_builder::TreeBuilder;
+use jj_lib::workspace::Workspace;
 use tempfile::TempDir;
 
 pub fn hermetic_libgit2() {

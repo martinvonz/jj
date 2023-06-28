@@ -16,16 +16,16 @@ use std::any::Any;
 use std::io::Read;
 use std::path::Path;
 
-use jujutsu::cli_util::{CliRunner, CommandError, CommandHelper};
-use jujutsu::ui::Ui;
-use jujutsu_lib::backend::{
+use jj_cli::cli_util::{CliRunner, CommandError, CommandHelper};
+use jj_cli::ui::Ui;
+use jj_lib::backend::{
     Backend, BackendInitError, BackendLoadError, BackendResult, ChangeId, Commit, CommitId,
     Conflict, ConflictId, FileId, SymlinkId, Tree, TreeId,
 };
-use jujutsu_lib::git_backend::GitBackend;
-use jujutsu_lib::repo::StoreFactories;
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::workspace::Workspace;
+use jj_lib::git_backend::GitBackend;
+use jj_lib::repo::StoreFactories;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::workspace::Workspace;
 
 #[derive(clap::Parser, Clone, Debug)]
 enum CustomCommands {

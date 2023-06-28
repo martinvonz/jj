@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use jujutsu_lib::diff;
+use jj_lib::diff;
 
 fn unchanged_lines(count: usize) -> (String, String) {
     let mut lines = vec![];

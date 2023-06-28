@@ -29,36 +29,36 @@ use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
 use git2::{Oid, Repository};
 use indexmap::IndexSet;
 use itertools::Itertools;
-use jujutsu_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
-use jujutsu_lib::commit::Commit;
-use jujutsu_lib::git::{GitConfigParseError, GitExportError, GitImportError};
-use jujutsu_lib::git_backend::GitBackend;
-use jujutsu_lib::gitignore::GitIgnoreFile;
-use jujutsu_lib::hex_util::to_reverse_hex;
-use jujutsu_lib::id_prefix::IdPrefixContext;
-use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
-use jujutsu_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
-use jujutsu_lib::operation::Operation;
-use jujutsu_lib::repo::{
+use jj_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
+use jj_lib::commit::Commit;
+use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError};
+use jj_lib::git_backend::GitBackend;
+use jj_lib::gitignore::GitIgnoreFile;
+use jj_lib::hex_util::to_reverse_hex;
+use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
+use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
+use jj_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
+use jj_lib::operation::Operation;
+use jj_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
     RewriteRootCommit, StoreFactories, StoreLoadError,
 };
-use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
-use jujutsu_lib::revset::{
+use jj_lib::repo_path::{FsPathParseError, RepoPath};
+use jj_lib::revset::{
     DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression,
     RevsetIteratorExt, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
     RevsetWorkspaceContext,
 };
-use jujutsu_lib::settings::{ConfigResultExt as _, UserSettings};
-use jujutsu_lib::transaction::Transaction;
-use jujutsu_lib::tree::{Tree, TreeMergeError};
-use jujutsu_lib::view::RefName;
-use jujutsu_lib::working_copy::{
+use jj_lib::settings::{ConfigResultExt as _, UserSettings};
+use jj_lib::transaction::Transaction;
+use jj_lib::tree::{Tree, TreeMergeError};
+use jj_lib::view::RefName;
+use jj_lib::working_copy::{
     CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions, WorkingCopy,
 };
-use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader};
-use jujutsu_lib::{dag_walk, file_util, git, revset};
+use jj_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader};
+use jj_lib::{dag_walk, file_util, git, revset};
 use once_cell::unsync::OnceCell;
 use thiserror::Error;
 use toml_edit;

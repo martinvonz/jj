@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use assert_matches::assert_matches;
-use jujutsu_lib::op_store::WorkspaceId;
-use jujutsu_lib::repo::{Repo, StoreFactories};
-use jujutsu_lib::workspace::{Workspace, WorkspaceLoadError};
+use jj_lib::op_store::WorkspaceId;
+use jj_lib::repo::{Repo, StoreFactories};
+use jj_lib::workspace::{Workspace, WorkspaceLoadError};
 use test_case::test_case;
 use testutils::TestWorkspace;
 

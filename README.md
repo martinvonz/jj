@@ -165,7 +165,7 @@ sudo apt-get install libssl-dev openssl pkg-config
 
 Now run:
 ```shell script
-cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jujutsu
+cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli
 ```
 
 
@@ -227,7 +227,7 @@ export PKG_CONFIG_PATH="$(brew --prefix)/opt/openssl@3/lib/pkgconfig"
 
 Now run:
 ```shell script
-cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jujutsu
+cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli
 ```
 
 
@@ -235,7 +235,7 @@ cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jujut
 
 Run:
 ```shell script
-cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jujutsu --features vendored-openssl
+cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli --features vendored-openssl
 ```
 
 

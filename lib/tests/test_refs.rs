@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::op_store::RefTarget;
-use jujutsu_lib::refs::merge_ref_targets;
-use jujutsu_lib::repo::Repo;
+use jj_lib::op_store::RefTarget;
+use jj_lib::refs::merge_ref_targets;
+use jj_lib::repo::Repo;
 use testutils::{CommitGraphBuilder, TestWorkspace};
 
 #[test]

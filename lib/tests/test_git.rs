@@ -19,18 +19,18 @@ use std::thread;
 
 use git2::Oid;
 use itertools::Itertools;
-use jujutsu_lib::backend::{
+use jj_lib::backend::{
     BackendError, ChangeId, CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp,
 };
-use jujutsu_lib::commit::Commit;
-use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::git;
-use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate, SubmoduleConfig};
-use jujutsu_lib::git_backend::GitBackend;
-use jujutsu_lib::op_store::{BranchTarget, RefTarget};
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
-use jujutsu_lib::settings::{GitSettings, UserSettings};
-use jujutsu_lib::view::RefName;
+use jj_lib::commit::Commit;
+use jj_lib::commit_builder::CommitBuilder;
+use jj_lib::git;
+use jj_lib::git::{GitFetchError, GitPushError, GitRefUpdate, SubmoduleConfig};
+use jj_lib::git_backend::GitBackend;
+use jj_lib::op_store::{BranchTarget, RefTarget};
+use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
+use jj_lib::settings::{GitSettings, UserSettings};
+use jj_lib::view::RefName;
 use maplit::{btreemap, hashset};
 use tempfile::TempDir;
 use testutils::{create_random_commit, load_repo_at_head, write_random_commit, TestRepo};

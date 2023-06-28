@@ -31,25 +31,25 @@ use clap::parser::ValueSource;
 use clap::{ArgGroup, Command, CommandFactory, FromArgMatches, Subcommand};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
-use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
-use jujutsu_lib::commit::Commit;
-use jujutsu_lib::conflicts::Conflict;
-use jujutsu_lib::dag_walk::topo_order_reverse;
-use jujutsu_lib::git_backend::GitBackend;
-use jujutsu_lib::matchers::EverythingMatcher;
-use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
-use jujutsu_lib::repo::{ReadonlyRepo, Repo};
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::revset::{
+use jj_lib::backend::{CommitId, ObjectId, TreeValue};
+use jj_lib::commit::Commit;
+use jj_lib::conflicts::Conflict;
+use jj_lib::dag_walk::topo_order_reverse;
+use jj_lib::git_backend::GitBackend;
+use jj_lib::matchers::EverythingMatcher;
+use jj_lib::op_store::{RefTarget, WorkspaceId};
+use jj_lib::repo::{ReadonlyRepo, Repo};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::revset::{
     ReverseRevsetGraphIterator, RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate,
     RevsetGraphEdge, RevsetGraphEdgeType, RevsetIteratorExt,
 };
-use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
-use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::tree::{merge_trees, Tree};
-use jujutsu_lib::working_copy::SnapshotOptions;
-use jujutsu_lib::workspace::Workspace;
-use jujutsu_lib::{file_util, revset};
+use jj_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
+use jj_lib::settings::UserSettings;
+use jj_lib::tree::{merge_trees, Tree};
+use jj_lib::working_copy::SnapshotOptions;
+use jj_lib::workspace::Workspace;
+use jj_lib::{file_util, revset};
 use maplit::{hashmap, hashset};
 
 use crate::cli_util::{
@@ -1099,11 +1099,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
             add_to_git_exclude(ui, &git_repo)?;
         } else {
             let mut tx = workspace_command.start_transaction("import git refs");
-            jujutsu_lib::git::import_refs(
-                tx.mut_repo(),
-                &git_repo,
-                &command.settings().git_settings(),
-            )?;
+            jj_lib::git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
             if let Some(RefTarget::Normal(git_head_id)) = tx.mut_repo().view().git_head().cloned() {
                 let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
                 tx.check_out(&git_head_commit)?;
@@ -2725,7 +2721,7 @@ fn cmd_resolve(
 }
 
 fn print_conflicted_paths(
-    conflicts: &[(RepoPath, jujutsu_lib::backend::ConflictId)],
+    conflicts: &[(RepoPath, jj_lib::backend::ConflictId)],
     tree: &Tree,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
