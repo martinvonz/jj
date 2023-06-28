@@ -119,6 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj sparse set` now accepts an `--edit` flag which brings up the `$EDITOR` to
   edit sparse patterns.
 
+* `jj branch list` can now be filtered by revset.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines

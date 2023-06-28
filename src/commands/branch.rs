@@ -1,12 +1,12 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId};
 use jujutsu_lib::git::git_tracking_branches;
-use jujutsu_lib::op_store::RefTarget;
+use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::Repo;
-use jujutsu_lib::revset;
+use jujutsu_lib::revset::{self, RevsetExpression};
 use jujutsu_lib::view::View;
 
 use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg};
@@ -65,7 +65,14 @@ pub struct BranchDeleteArgs {
 /// preceded by a "+". For information about branches, see
 /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
 #[derive(clap::Args, Clone, Debug)]
-pub struct BranchListArgs;
+pub struct BranchListArgs {
+    /// Show branches whose local targets are in the given revisions.
+    ///
+    /// Note that `-r deleted_branch` will not work since `deleted_branch`
+    /// wouldn't have a local target.
+    #[arg(long, short)]
+    revisions: Vec<RevisionArg>,
+}
 
 /// Forget everything about a branch, including its local and remote
 /// targets.
@@ -311,7 +318,7 @@ fn cmd_branch_forget(
 fn cmd_branch_list(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &BranchListArgs,
+    args: &BranchListArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
@@ -336,6 +343,45 @@ fn cmd_branch_list(
                 .remote_targets
                 .insert("git".to_string(), git_tracking_target.clone());
         }
+    }
+
+    if !args.revisions.is_empty() {
+        // Match against local targets only, which is consistent with "jj git push".
+        fn local_targets(branch_target: &BranchTarget) -> &[CommitId] {
+            if let Some(target) = branch_target.local_target.as_ref() {
+                target.adds()
+            } else {
+                &[]
+            }
+        }
+
+        let filter_expressions: Vec<_> = args
+            .revisions
+            .iter()
+            .map(|revision_str| workspace_command.parse_revset(revision_str))
+            .try_collect()?;
+        let filter_expression = RevsetExpression::union_all(&filter_expressions);
+        // Intersects with the set of all branch targets to minimize the lookup space.
+        let all_targets = all_branches
+            .values()
+            .flat_map(local_targets)
+            .cloned()
+            .collect();
+        let revset_expression =
+            RevsetExpression::commits(all_targets).intersection(&filter_expression);
+        let revset_expression = revset::optimize(revset_expression);
+        let revset = workspace_command.evaluate_revset(revset_expression)?;
+        let filtered_targets: HashSet<CommitId> = revset.iter().collect();
+        // TODO: If we add name-based filter like --glob, this might have to be
+        // rewritten as a positive list or predicate function. Should they
+        // be AND-ed or OR-ed? Maybe OR as "jj git push" would do. Perhaps, we
+        // can consider these options as producers of branch names, not filters
+        // of different kind (which are typically intersected.)
+        all_branches.retain(|_, branch_target| {
+            local_targets(branch_target)
+                .iter()
+                .any(|id| filtered_targets.contains(id))
+        });
     }
 
     let print_branch_target =
