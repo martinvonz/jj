@@ -187,13 +187,10 @@ impl ConfigArgs {
 /// Manage config options
 ///
 /// Operates on jj configuration, which comes from the config file and
-/// environment variables. Uses the config file at ~/.jjconfig.toml or
-/// $XDG_CONFIG_HOME/jj/config.toml, unless overridden with the JJ_CONFIG
-/// environment variable, combined with repo config at .jj/repo/config.toml
-/// if present.
+/// environment variables.
 ///
-/// For supported config options and more details about jj config, see
-/// https://github.com/martinvonz/jj/blob/main/docs/config.md.
+/// For file locations, supported config options, and other details about jj
+/// config, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
 #[derive(clap::Subcommand, Clone, Debug)]
 enum ConfigSubcommand {
     #[command(visible_alias("l"))]
