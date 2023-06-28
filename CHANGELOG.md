@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The default editor on Windows is now `Notepad` instead of `pico`.
 
+* `jj` will fail attempts to snapshot new files larger than 1MiB by default. This behavior
+  can be customized with the `snapshot.max-new-file-size` config option.
+
+
 ### New features
 
 * Default template for `jj log` now does not show irrelevant information

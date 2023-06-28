@@ -329,6 +329,17 @@
                     "type": "string"
                 }
             }
+        },
+        "snapshot": {
+            "type": "object",
+            "description": "Parameters governing automatic capture of files into the working copy commit",
+            "properties": {
+                "max-new-file-size": {
+                    "type": "integer",
+                    "description": "New files with a size in bytes above this threshold are not snapshotted, unless the threshold is 0",
+                    "default": "1048576"
+                }
+            }
         }
     }
 }

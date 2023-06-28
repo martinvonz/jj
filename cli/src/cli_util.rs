@@ -1289,6 +1289,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             base_ignores,
             fsmonitor_kind: self.settings.fsmonitor_kind()?,
             progress: progress.as_ref().map(|x| x as _),
+            max_new_file_size: self.settings.max_new_file_size()?,
         })?;
         drop(progress);
         if new_tree_id != *wc_commit.tree_id() {
