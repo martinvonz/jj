@@ -22,7 +22,7 @@ use crate::op_store;
 use crate::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use crate::refs::merge_ref_targets;
 
-#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum RefName {
     LocalBranch(String),
     RemoteBranch { branch: String, remote: String },
