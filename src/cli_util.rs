@@ -2279,8 +2279,14 @@ fn handle_early_args(
     args: &[String],
     layered_configs: &mut LayeredConfigs,
 ) -> Result<(), CommandError> {
-    // ignore_errors() bypasses errors like "--help" or missing subcommand
-    let early_matches = app.clone().ignore_errors(true).try_get_matches_from(args)?;
+    // ignore_errors() bypasses errors like missing subcommand
+    let early_matches = app
+        .clone()
+        .disable_version_flag(true)
+        .disable_help_flag(true)
+        .disable_help_subcommand(true)
+        .ignore_errors(true)
+        .try_get_matches_from(args)?;
     let mut args: EarlyArgs = EarlyArgs::from_arg_matches(&early_matches).unwrap();
 
     if let Some(choice) = args.color {
