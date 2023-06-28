@@ -8,11 +8,12 @@ These are the config settings available to jj/Jujutsu.
 The config settings are loaded from the following locations. Less common ways to
 specify `jj` config settings are discussed in a later section.
 
-* `~/.jjconfig.toml` (global)
+* [The user config file]
 * `.jj/repo/config.toml` (per-repository)
 
 See the [TOML site] and the [syntax guide] for a description of the syntax.
 
+[The user config file]: #configuration
 [TOML site]: https://toml.io/en/
 [syntax guide]: https://toml.io/en/v1.0.0
 
@@ -502,10 +503,13 @@ executable on your system](https://facebook.github.io/watchman/docs/install)).
 
 Debugging commands are available under `jj debug watchman`.
 
-# Alternative ways to specify configuration settings
+# Configuration
 
-Instead of `~/.jjconfig.toml`, the config settings can be located under
-a platform-specific directory. It is an error for both of these files to exist.
+On all platforms, the user's global `jj` configuration file is located at either
+`~/.jjconfig.toml` (where `~` represents `$HOME` on Unix-likes, or
+`%USERPROFILE%` on Windows) or in a platform-specific directory. The
+platform-specific location is recommended for better integration with platform
+services. It is an error for both of these files to exist.
 
 | Platform | Value                                              | Example                                                   |
 | :------- | :------------------------------------------------- | :-------------------------------------------------------- |
