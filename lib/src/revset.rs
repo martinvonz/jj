@@ -424,6 +424,19 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Union(self.clone(), other.clone()))
     }
 
+    /// Commits that are in any of the `expressions`.
+    pub fn union_all(expressions: &[Rc<RevsetExpression>]) -> Rc<RevsetExpression> {
+        match expressions {
+            [] => Self::none(),
+            [expression] => expression.clone(),
+            _ => {
+                // Build balanced tree to minimize the recursion depth.
+                let (left, right) = expressions.split_at(expressions.len() / 2);
+                Self::union(&Self::union_all(left), &Self::union_all(right))
+            }
+        }
+    }
+
     /// Commits that are in `self` and in `other`.
     pub fn intersection(
         self: &Rc<RevsetExpression>,
@@ -2285,9 +2298,12 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)] // allow symbol.clone()
     fn test_revset_expression_building() {
         let wc_symbol = RevsetExpression::symbol("@".to_string());
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
+        let bar_symbol = RevsetExpression::symbol("bar".to_string());
+        let baz_symbol = RevsetExpression::symbol("baz".to_string());
         assert_eq!(
             wc_symbol,
             Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Symbol(
@@ -2361,6 +2377,50 @@ mod tests {
             Rc::new(RevsetExpression::Union(
                 foo_symbol.clone(),
                 wc_symbol.clone()
+            ))
+        );
+        assert_eq!(
+            RevsetExpression::union_all(&[]),
+            Rc::new(RevsetExpression::None)
+        );
+        assert_eq!(RevsetExpression::union_all(&[wc_symbol.clone()]), wc_symbol);
+        assert_eq!(
+            RevsetExpression::union_all(&[wc_symbol.clone(), foo_symbol.clone()]),
+            Rc::new(RevsetExpression::Union(
+                wc_symbol.clone(),
+                foo_symbol.clone(),
+            ))
+        );
+        assert_eq!(
+            RevsetExpression::union_all(&[
+                wc_symbol.clone(),
+                foo_symbol.clone(),
+                bar_symbol.clone(),
+            ]),
+            Rc::new(RevsetExpression::Union(
+                wc_symbol.clone(),
+                Rc::new(RevsetExpression::Union(
+                    foo_symbol.clone(),
+                    bar_symbol.clone(),
+                ))
+            ))
+        );
+        assert_eq!(
+            RevsetExpression::union_all(&[
+                wc_symbol.clone(),
+                foo_symbol.clone(),
+                bar_symbol.clone(),
+                baz_symbol.clone(),
+            ]),
+            Rc::new(RevsetExpression::Union(
+                Rc::new(RevsetExpression::Union(
+                    wc_symbol.clone(),
+                    foo_symbol.clone(),
+                )),
+                Rc::new(RevsetExpression::Union(
+                    bar_symbol.clone(),
+                    baz_symbol.clone(),
+                ))
             ))
         );
         assert_eq!(
