@@ -354,7 +354,7 @@ struct LogArgs {
     /// or `@ | (remote_branches() | tags()).. | ((remote_branches() |
     /// tags())..)-` if it is not set.
     #[arg(long, short)]
-    revisions: Option<RevisionArg>,
+    revisions: Vec<RevisionArg>,
     /// Show commits modifying the given paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -1541,9 +1541,16 @@ fn cmd_status(
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
-    let default_revset = command.settings().default_revset();
-    let revset_expression =
-        workspace_command.parse_revset(args.revisions.as_deref().unwrap_or(&default_revset))?;
+    let revset_expression = if args.revisions.is_empty() {
+        workspace_command.parse_revset(&command.settings().default_revset())?
+    } else {
+        let expressions: Vec<_> = args
+            .revisions
+            .iter()
+            .map(|revision_str| workspace_command.parse_revset(revision_str))
+            .try_collect()?;
+        RevsetExpression::union_all(&expressions)
+    };
     let repo = workspace_command.repo();
     let wc_commit_id = workspace_command.get_wc_commit_id();
     let revset_expression = if !args.paths.is_empty() {
@@ -1668,7 +1675,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     // Check to see if the user might have specified a path when they intended
     // to specify a revset.
-    if let (None, [only_path]) = (&args.revisions, args.paths.as_slice()) {
+    if let ([], [only_path]) = (args.revisions.as_slice(), args.paths.as_slice()) {
         if only_path == "." && workspace_command.parse_file_path(only_path)?.is_root() {
             // For users of e.g. Mercurial, where `.` indicates the current commit.
             writeln!(

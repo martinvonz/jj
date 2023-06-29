@@ -867,6 +867,44 @@ fn test_default_revset_per_repo() {
 }
 
 #[test]
+fn test_multiple_revsets() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    for name in ["foo", "bar", "baz"] {
+        test_env.jj_cmd_success(&repo_path, &["new", "-m", name]);
+        test_env.jj_cmd_success(&repo_path, &["branch", "set", name]);
+    }
+
+    // Default revset should be overridden if one or more -r options are specified.
+    test_env.add_config(r#"revsets.log = "root""#);
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches", "-rfoo"]),
+        @r###"
+    ◉  foo
+    │
+    ~
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches", "-rfoo", "-rbar", "-rbaz"]),
+        @r###"
+    @  baz
+    ◉  bar
+    ◉  foo
+    │
+    ~
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches", "-rfoo", "-rfoo"]),
+        @r###"
+    ◉  foo
+    │
+    ~
+    "###);
+}
+
+#[test]
 fn test_graph_template_color() {
     // Test that color codes from a multi-line template don't span the graph lines.
     let test_env = TestEnvironment::default();
