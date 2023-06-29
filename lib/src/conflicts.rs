@@ -139,6 +139,17 @@ impl<T> Conflict<T> {
         let adds = self.adds.iter().map(&mut f).collect::<Option<_>>()?;
         Some(Conflict { removes, adds })
     }
+
+    /// Creates a new conflict by applying `f` to each remove and add, returning
+    /// `Err if `f` returns `Err` for any of them.
+    pub fn try_map<'a, U, E>(
+        &'a self,
+        mut f: impl FnMut(&'a T) -> Result<U, E>,
+    ) -> Result<Conflict<U>, E> {
+        let removes = self.removes.iter().map(&mut f).try_collect()?;
+        let adds = self.adds.iter().map(&mut f).try_collect()?;
+        Ok(Conflict { removes, adds })
+    }
 }
 
 impl<T> Conflict<Option<T>> {
@@ -787,5 +798,26 @@ mod tests {
         assert_eq!(c(&[1], &[4, 9]).maybe_map(sqrt), Some(c(&[1], &[2, 3])));
         assert_eq!(c(&[-1], &[4, 9]).maybe_map(sqrt), None);
         assert_eq!(c(&[1], &[-4, 9]).maybe_map(sqrt), None);
+    }
+
+    #[test]
+    fn test_try_map() {
+        fn sqrt(i: &i32) -> Result<i32, ()> {
+            if *i >= 0 {
+                Ok((*i as f64).sqrt() as i32)
+            } else {
+                Err(())
+            }
+        }
+        fn c(removes: &[i32], adds: &[i32]) -> Conflict<i32> {
+            Conflict::new(removes.to_vec(), adds.to_vec())
+        }
+        // 1-way conflict
+        assert_eq!(c(&[], &[1]).try_map(sqrt), Ok(c(&[], &[1])));
+        assert_eq!(c(&[], &[-1]).try_map(sqrt), Err(()));
+        // 3-way conflict
+        assert_eq!(c(&[1], &[4, 9]).try_map(sqrt), Ok(c(&[1], &[2, 3])));
+        assert_eq!(c(&[-1], &[4, 9]).try_map(sqrt), Err(()));
+        assert_eq!(c(&[1], &[-4, 9]).try_map(sqrt), Err(()));
     }
 }
