@@ -64,14 +64,6 @@ pub fn to_git_ref_name(parsed_ref: &RefName) -> String {
     }
 }
 
-fn ref_name_to_local_branch_name(ref_name: &str) -> Option<&str> {
-    ref_name.strip_prefix("refs/heads/")
-}
-
-fn local_branch_name_to_ref_name(branch: &str) -> String {
-    format!("refs/heads/{branch}")
-}
-
 /// Checks if `git_ref` points to a Git commit object, and returns its id.
 ///
 /// If the ref points to the previously `known_target` (i.e. unchanged), this
@@ -110,18 +102,16 @@ fn resolve_git_ref_to_commit_id(
     Some(CommitId::from_bytes(git_commit.id().as_bytes()))
 }
 
-// TODO: Eventually, git-tracking branches should no longer be stored in
-// git_refs but with the other remote-tracking branches in BranchTarget. Note
-// that there are important but subtle differences in behavior for, e.g. `jj
-// branch forget`.
-pub fn git_tracking_branches(view: &View) -> impl Iterator<Item = (&str, &RefTarget)> {
+pub fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &RefTarget)> {
     view.git_refs().iter().filter_map(|(ref_name, target)| {
-        ref_name_to_local_branch_name(ref_name).map(|branch_name| (branch_name, target))
+        ref_name
+            .strip_prefix("refs/heads/")
+            .map(|branch_name| (branch_name, target))
     })
 }
 
-pub fn get_git_tracking_branch<'a>(view: &'a View, branch: &str) -> Option<&'a RefTarget> {
-    view.git_refs().get(&local_branch_name_to_ref_name(branch))
+pub fn get_local_git_tracking_branch<'a>(view: &'a View, branch: &str) -> Option<&'a RefTarget> {
+    view.git_refs().get(&format!("refs/heads/{branch}"))
 }
 
 fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) -> Result<(), git2::Error> {

@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashSet};
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId};
-use jujutsu_lib::git::git_tracking_branches;
+use jujutsu_lib::git::local_branch_git_tracking_refs;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::revset::{self, RevsetExpression};
@@ -324,7 +324,7 @@ fn cmd_branch_list(
     let repo = workspace_command.repo();
 
     let mut all_branches = repo.view().branches().clone();
-    for (branch_name, git_tracking_target) in git_tracking_branches(repo.view()) {
+    for (branch_name, git_tracking_target) in local_branch_git_tracking_refs(repo.view()) {
         let branch_target = all_branches.entry(branch_name.to_owned()).or_default();
         if branch_target.remote_targets.contains_key("git") {
             // TODO(#1690): There should be a mechanism to prevent importing a
