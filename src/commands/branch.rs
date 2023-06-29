@@ -272,10 +272,13 @@ fn cmd_branch_delete(
     let names: BTreeSet<String> = args.names.iter().cloned().chain(globbed_names).collect();
     let branch_term = make_branch_term(names.iter().collect_vec().as_slice());
     let mut tx = workspace_command.start_transaction(&format!("delete {branch_term}"));
-    for branch_name in names {
-        tx.mut_repo().remove_local_branch(&branch_name);
+    for branch_name in names.iter() {
+        tx.mut_repo().remove_local_branch(branch_name);
     }
     tx.finish(ui)?;
+    if names.len() > 1 {
+        writeln!(ui, "Deleted {} branches.", names.len())?;
+    }
     Ok(())
 }
 
@@ -295,10 +298,13 @@ fn cmd_branch_forget(
     let names: BTreeSet<String> = args.names.iter().cloned().chain(globbed_names).collect();
     let branch_term = make_branch_term(names.iter().collect_vec().as_slice());
     let mut tx = workspace_command.start_transaction(&format!("forget {branch_term}"));
-    for branch_name in names {
-        tx.mut_repo().remove_branch(&branch_name);
+    for branch_name in names.iter() {
+        tx.mut_repo().remove_branch(branch_name);
     }
     tx.finish(ui)?;
+    if names.len() > 1 {
+        writeln!(ui, "Forgot {} branches.", names.len())?;
+    }
     Ok(())
 }
 

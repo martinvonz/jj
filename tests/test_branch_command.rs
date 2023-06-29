@@ -37,8 +37,10 @@ fn test_branch_multiple_names() {
     ◉   000000000000
     "###);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "delete", "foo", "bar"]);
-    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "delete", "foo", "bar", "foo"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Deleted 2 branches.
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @   230dd059e1b0
     ◉   000000000000
@@ -87,7 +89,9 @@ fn test_branch_forget_glob() {
     ◉   000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "--glob", "foo-[1-3]"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Forgot 2 branches.
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-4 230dd059e1b0
     ◉   000000000000
@@ -161,7 +165,9 @@ fn test_branch_delete_glob() {
     ~
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "delete", "--glob", "foo-[1-3]"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Deleted 2 branches.
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4 6fbf398c2d59
     │
