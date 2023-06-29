@@ -22,7 +22,6 @@ use std::{iter, vec};
 
 use itertools::Itertools;
 
-use crate::backend;
 use crate::backend::{BackendError, BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder};
@@ -30,9 +29,10 @@ use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{try_resolve_file_conflict, Tree, TreeMergeError};
 use crate::tree_builder::TreeBuilder;
+use crate::{backend, tree};
 
 /// Presents a view of a merged set of trees.
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum MergedTree {
     /// A single tree, possibly with path-level conflicts.
     Legacy(Tree),
@@ -321,6 +321,41 @@ impl MergedTree {
     ) -> TreeDiffIterator<'matcher> {
         TreeDiffIterator::new(self.clone(), other.clone(), matcher)
     }
+
+    /// Merges this tree with `other`, using `base` as base.
+    pub fn merge(
+        &self,
+        base: &MergedTree,
+        other: &MergedTree,
+    ) -> Result<MergedTree, TreeMergeError> {
+        if let (MergedTree::Legacy(this), MergedTree::Legacy(base), MergedTree::Legacy(other)) =
+            (self, base, other)
+        {
+            let merged_tree = tree::merge_trees(this, base, other)?;
+            Ok(MergedTree::legacy(merged_tree))
+        } else {
+            // Convert legacy trees to merged trees and unwrap to `Merge<Tree>`
+            let to_merge = |tree: &MergedTree| -> Merge<Tree> {
+                match tree {
+                    MergedTree::Legacy(tree) => {
+                        let MergedTree::Merge(tree) = MergedTree::from_legacy_tree(tree.clone())
+                        else {
+                            unreachable!();
+                        };
+                        tree
+                    }
+                    MergedTree::Merge(conflict) => conflict.clone(),
+                }
+            };
+            let nested = Merge::new(vec![to_merge(base)], vec![to_merge(self), to_merge(other)]);
+            let tree = merge_trees(&nested.flatten().simplify())?;
+            // If the result can be resolved, then `merge_trees()` above would have returned
+            // a resolved merge. However, that function will always preserve the arity of
+            // conflicts it cannot resolve. So we simplify the conflict again
+            // here to possibly reduce a complex conflict to a simpler one.
+            Ok(MergedTree::Merge(tree.simplify()))
+        }
+    }
 }
 
 fn all_tree_conflict_names(trees: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComponent> {
@@ -385,8 +420,8 @@ fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
 
 /// Tries to resolve a conflict between tree values. Returns
 /// Ok(Merge::normal(value)) if the conflict was resolved, and
-/// Ok(Merge::absent()) if the path should be removed. Returns the conflict
-/// unmodified if it cannot be resolved automatically.
+/// Ok(Merge::absent()) if the path should be removed. Returns the
+/// conflict unmodified if it cannot be resolved automatically.
 fn merge_tree_values(
     store: &Arc<Store>,
     path: &RepoPath,

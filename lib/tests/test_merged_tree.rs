@@ -1028,3 +1028,141 @@ fn test_diff_dir_file() {
     ];
     assert_eq!(actual_diff, expected_diff);
 }
+
+/// Merge 3 resolved trees that can be resolved
+#[test]
+fn test_merge_simple() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    let path1 = RepoPath::from_internal_string("dir1/file");
+    let path2 = RepoPath::from_internal_string("dir2/file");
+    let base1 = testutils::create_tree(repo, &[(&path1, "base"), (&path2, "base")]);
+    let side1 = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "base")]);
+    let side2 = testutils::create_tree(repo, &[(&path1, "base"), (&path2, "side2")]);
+    let expected = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "side2")]);
+    let base1_merged = MergedTree::new(Merge::resolved(base1));
+    let side1_merged = MergedTree::new(Merge::resolved(side1));
+    let side2_merged = MergedTree::new(Merge::resolved(side2));
+    let expected_merged = MergedTree::new(Merge::resolved(expected));
+
+    let merged = side1_merged.merge(&base1_merged, &side2_merged).unwrap();
+    assert_eq!(merged, expected_merged);
+}
+
+/// Merge 3 resolved trees that can be partially resolved
+#[test]
+fn test_merge_partial_resolution() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    // path1 can be resolved, path2 cannot
+    let path1 = RepoPath::from_internal_string("dir1/file");
+    let path2 = RepoPath::from_internal_string("dir2/file");
+    let base1 = testutils::create_tree(repo, &[(&path1, "base"), (&path2, "base")]);
+    let side1 = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "side1")]);
+    let side2 = testutils::create_tree(repo, &[(&path1, "base"), (&path2, "side2")]);
+    let expected_base1 = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "base")]);
+    let expected_side1 = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "side1")]);
+    let expected_side2 = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "side2")]);
+    let base1_merged = MergedTree::new(Merge::resolved(base1));
+    let side1_merged = MergedTree::new(Merge::resolved(side1));
+    let side2_merged = MergedTree::new(Merge::resolved(side2));
+    let expected_merged = MergedTree::new(Merge::new(
+        vec![expected_base1],
+        vec![expected_side1, expected_side2],
+    ));
+
+    let merged = side1_merged.merge(&base1_merged, &side2_merged).unwrap();
+    assert_eq!(merged, expected_merged);
+}
+
+/// Merge 3 resolved trees, including one empty legacy tree
+#[test]
+fn test_merge_with_empty_legacy_tree() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    let path1 = RepoPath::from_internal_string("dir1/file");
+    let path2 = RepoPath::from_internal_string("dir2/file");
+    let base1 = repo
+        .store()
+        .get_tree(&RepoPath::root(), repo.store().empty_tree_id())
+        .unwrap();
+    let side1 = testutils::create_tree(repo, &[(&path1, "side1")]);
+    let side2 = testutils::create_tree(repo, &[(&path2, "side2")]);
+    let expected = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "side2")]);
+    let base1_merged = MergedTree::legacy(base1);
+    let side1_merged = MergedTree::new(Merge::resolved(side1));
+    let side2_merged = MergedTree::new(Merge::resolved(side2));
+    let expected_merged = MergedTree::new(Merge::resolved(expected));
+
+    let merged = side1_merged.merge(&base1_merged, &side2_merged).unwrap();
+    assert_eq!(merged, expected_merged);
+}
+
+/// Merge 3 trees where each one is a 3-way conflict and the result is arrived
+/// at by only simplifying the conflict (no need to recurse)
+#[test]
+fn test_merge_simplify_only() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    let path = RepoPath::from_internal_string("dir1/file");
+    let tree1 = testutils::create_tree(repo, &[(&path, "1")]);
+    let tree2 = testutils::create_tree(repo, &[(&path, "2")]);
+    let tree3 = testutils::create_tree(repo, &[(&path, "3")]);
+    let tree4 = testutils::create_tree(repo, &[(&path, "4")]);
+    let tree5 = testutils::create_tree(repo, &[(&path, "5")]);
+    let expected = tree5.clone();
+    let base1_merged = MergedTree::new(Merge::new(
+        vec![tree1.clone()],
+        vec![tree2.clone(), tree3.clone()],
+    ));
+    let side1_merged = MergedTree::new(Merge::new(
+        vec![tree1.clone()],
+        vec![tree4.clone(), tree2.clone()],
+    ));
+    let side2_merged = MergedTree::new(Merge::new(
+        vec![tree4.clone()],
+        vec![tree5.clone(), tree3.clone()],
+    ));
+    let expected_merged = MergedTree::new(Merge::resolved(expected));
+
+    let merged = side1_merged.merge(&base1_merged, &side2_merged).unwrap();
+    assert_eq!(merged, expected_merged);
+}
+
+/// Merge 3 trees with 3+1+1 terms (i.e. a 5-way conflict) such that resolving
+/// the conflict between the trees leads to two trees being the same, so the
+/// result is a 3-way conflict.
+#[test]
+fn test_merge_simplify_result() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    // The conflict in path1 cannot be resolved, but the conflict in path2 can.
+    let path1 = RepoPath::from_internal_string("dir1/file");
+    let path2 = RepoPath::from_internal_string("dir2/file");
+    let tree1 = testutils::create_tree(repo, &[(&path1, "1"), (&path2, "1")]);
+    let tree2 = testutils::create_tree(repo, &[(&path1, "2"), (&path2, "2")]);
+    let tree3 = testutils::create_tree(repo, &[(&path1, "3"), (&path2, "3")]);
+    let tree4 = testutils::create_tree(repo, &[(&path1, "4"), (&path2, "2")]);
+    let tree5 = testutils::create_tree(repo, &[(&path1, "4"), (&path2, "1")]);
+    let expected_base1 = testutils::create_tree(repo, &[(&path1, "1"), (&path2, "3")]);
+    let expected_side1 = testutils::create_tree(repo, &[(&path1, "2"), (&path2, "3")]);
+    let expected_side2 = testutils::create_tree(repo, &[(&path1, "3"), (&path2, "3")]);
+    let side1_merged = MergedTree::new(Merge::new(
+        vec![tree1.clone()],
+        vec![tree2.clone(), tree3.clone()],
+    ));
+    let base1_merged = MergedTree::new(Merge::resolved(tree4.clone()));
+    let side2_merged = MergedTree::new(Merge::resolved(tree5.clone()));
+    let expected_merged = MergedTree::new(Merge::new(
+        vec![expected_base1],
+        vec![expected_side1, expected_side2],
+    ));
+
+    let merged = side1_merged.merge(&base1_merged, &side2_merged).unwrap();
+    assert_eq!(merged, expected_merged);
+}
