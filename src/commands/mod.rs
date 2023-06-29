@@ -1541,30 +1541,31 @@ fn cmd_status(
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
-    let revset_expression = if args.revisions.is_empty() {
-        workspace_command.parse_revset(&command.settings().default_revset())?
-    } else {
-        let expressions: Vec<_> = args
-            .revisions
-            .iter()
-            .map(|revision_str| workspace_command.parse_revset(revision_str))
-            .try_collect()?;
-        RevsetExpression::union_all(&expressions)
+    let revset_expression = {
+        let mut expression = if args.revisions.is_empty() {
+            workspace_command.parse_revset(&command.settings().default_revset())?
+        } else {
+            let expressions: Vec<_> = args
+                .revisions
+                .iter()
+                .map(|revision_str| workspace_command.parse_revset(revision_str))
+                .try_collect()?;
+            RevsetExpression::union_all(&expressions)
+        };
+        if !args.paths.is_empty() {
+            let repo_paths: Vec<_> = args
+                .paths
+                .iter()
+                .map(|path_arg| workspace_command.parse_file_path(path_arg))
+                .try_collect()?;
+            expression = expression.intersection(&RevsetExpression::filter(
+                RevsetFilterPredicate::File(Some(repo_paths)),
+            ));
+        }
+        revset::optimize(expression)
     };
     let repo = workspace_command.repo();
     let wc_commit_id = workspace_command.get_wc_commit_id();
-    let revset_expression = if !args.paths.is_empty() {
-        let repo_paths: Vec<_> = args
-            .paths
-            .iter()
-            .map(|path_arg| workspace_command.parse_file_path(path_arg))
-            .try_collect()?;
-        revset_expression.intersection(&RevsetExpression::filter(RevsetFilterPredicate::File(
-            Some(repo_paths),
-        )))
-    } else {
-        revset_expression
-    };
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let revset = workspace_command.evaluate_revset(revset_expression)?;
 
