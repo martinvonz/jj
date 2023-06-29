@@ -132,7 +132,7 @@ pub struct GitPushArgs {
     /// Push only this branch (can be repeated)
     #[arg(long, short)]
     branch: Vec<String>,
-    /// Push all branches
+    /// Push all branches (including deleted branches)
     #[arg(long)]
     all: bool,
     /// Push all deleted branches
