@@ -752,39 +752,9 @@ fn simplify_conflict(
     // Case 3 above:
     // TODO: describe this case
 
-    // First expand any diffs with nested conflicts.
-    let mut new_removes = vec![];
-    let mut new_adds = vec![];
-    for term in conflict.adds() {
-        match term {
-            Some(TreeValue::Conflict(id)) => {
-                let conflict = store.read_conflict(path, id)?;
-                let (removes, adds) = conflict.take();
-                new_removes.extend(removes);
-                new_adds.extend(adds);
-            }
-            _ => {
-                new_adds.push(term.clone());
-            }
-        }
-    }
-    for term in conflict.removes() {
-        match term {
-            Some(TreeValue::Conflict(id)) => {
-                let conflict = store.read_conflict(path, id)?;
-                let (removes, adds) = conflict.take();
-                new_removes.extend(adds);
-                new_adds.extend(removes);
-            }
-            _ => {
-                new_removes.push(term.clone());
-            }
-        }
-    }
-
-    // TODO: We should probably remove duplicate entries here too. So if we have
-    // {+A+A}, that would become just {+A}. Similarly {+B-A+B} would be just
-    // {+B-A}.
-
-    Ok(Conflict::new(new_removes, new_adds).simplify())
+    let expanded = conflict.try_map(|term| match term {
+        Some(TreeValue::Conflict(id)) => store.read_conflict(path, id),
+        _ => Ok(Conflict::resolved(term.clone())),
+    })?;
+    Ok(expanded.flatten().simplify())
 }
