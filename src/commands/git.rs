@@ -669,8 +669,8 @@ fn cmd_git_push(
     let mut tx = workspace_command.start_transaction("");
     let tx_description;
     let mut branch_updates = vec![];
-    let mut seen_branches = hashset! {};
     if args.all || args.deleted {
+        let mut seen_branches = hashset! {};
         // TODO: Is it useful to warn about conflicted branches?
         for (branch_name, branch_target) in repo.view().branches() {
             if !seen_branches.insert(branch_name.clone()) {
@@ -694,6 +694,7 @@ fn cmd_git_push(
             &remote
         );
     } else if !args.branch.is_empty() || !args.change.is_empty() || !args.revisions.is_empty() {
+        let mut seen_branches = hashset! {};
         for branch_name in &args.branch {
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
@@ -815,6 +816,7 @@ fn cmd_git_push(
                 if branches.is_empty() {
                     return Err(user_error("No current branch."));
                 }
+                let mut seen_branches = hashset! {};
                 for (branch_name, branch_target) in branches {
                     if !seen_branches.insert(branch_name.clone()) {
                         continue;
@@ -833,7 +835,6 @@ fn cmd_git_push(
         }
         tx_description = format!("push current branch(es) to git remote {}", &remote);
     }
-    drop(seen_branches);
 
     if branch_updates.is_empty() {
         writeln!(ui, "Nothing changed.")?;
