@@ -164,6 +164,40 @@ impl<T> Conflict<Option<T>> {
     }
 }
 
+impl<T> Conflict<Conflict<T>> {
+    /// Flattens a nested conflict into a regular conflict.
+    ///
+    /// Let's say we have a 3-way merge of 3-way merges like this:
+    ///
+    /// 4 5   7 8
+    ///  3     6
+    ///    1 2
+    ///     0
+    ///
+    /// Flattening that results in this 9-way conflict:
+    ///
+    /// 4 5 0 7 8
+    ///  3 2 1 6
+    pub fn flatten(mut self) -> Conflict<T> {
+        self.removes.reverse();
+        self.adds.reverse();
+        let mut result = self.adds.pop().unwrap();
+        while let Some(mut remove) = self.removes.pop() {
+            // Add removes reversed, and with the first element moved last, so we preserve
+            // the diffs
+            let first_add = remove.adds.remove(0);
+            result.removes.extend(remove.adds);
+            result.removes.push(first_add);
+            result.adds.extend(remove.removes);
+            let add = self.adds.pop().unwrap();
+            result.removes.extend(add.removes);
+            result.adds.extend(add.adds);
+        }
+        assert!(self.adds.is_empty());
+        result
+    }
+}
+
 impl Conflict<Option<TreeValue>> {
     /// Create a `Conflict` from a `backend::Conflict`, padding with `None` to
     /// make sure that there is exactly one more `adds()` than `removes()`.
@@ -819,5 +853,26 @@ mod tests {
         assert_eq!(c(&[1], &[4, 9]).try_map(sqrt), Ok(c(&[1], &[2, 3])));
         assert_eq!(c(&[-1], &[4, 9]).try_map(sqrt), Err(()));
         assert_eq!(c(&[1], &[-4, 9]).try_map(sqrt), Err(()));
+    }
+
+    #[test]
+    fn test_flatten() {
+        fn c<T: Clone>(removes: &[T], adds: &[T]) -> Conflict<T> {
+            Conflict::new(removes.to_vec(), adds.to_vec())
+        }
+        // 1-way conflict of 1-way conflict
+        assert_eq!(c(&[], &[c(&[], &[0])]).flatten(), c(&[], &[0]));
+        // 1-way conflict of 3-way conflict
+        assert_eq!(c(&[], &[c(&[0], &[1, 2])]).flatten(), c(&[0], &[1, 2]));
+        // 3-way conflict of 1-way conflicts
+        assert_eq!(
+            c(&[c(&[], &[0])], &[c(&[], &[1]), c(&[], &[2])]).flatten(),
+            c(&[0], &[1, 2])
+        );
+        // 3-way conflict of 3-way conflicts
+        assert_eq!(
+            c(&[c(&[0], &[1, 2])], &[c(&[3], &[4, 5]), c(&[6], &[7, 8])]).flatten(),
+            c(&[3, 2, 1, 6], &[4, 5, 0, 7, 8])
+        );
     }
 }
