@@ -670,12 +670,8 @@ fn cmd_git_push(
     let tx_description;
     let mut branch_updates = vec![];
     if args.all || args.deleted {
-        let mut seen_branches = hashset! {};
         // TODO: Is it useful to warn about conflicted branches?
         for (branch_name, branch_target) in repo.view().branches() {
-            if !seen_branches.insert(branch_name.clone()) {
-                continue;
-            }
             let push_action = classify_branch_push_action(branch_target, &remote);
             match push_action {
                 BranchPushAction::AlreadyMatches
@@ -816,11 +812,7 @@ fn cmd_git_push(
                 if branches.is_empty() {
                     return Err(user_error("No current branch."));
                 }
-                let mut seen_branches = hashset! {};
                 for (branch_name, branch_target) in branches {
-                    if !seen_branches.insert(branch_name.clone()) {
-                        continue;
-                    }
                     let push_action = classify_branch_push_action(branch_target, &remote);
                     match push_action {
                         BranchPushAction::AlreadyMatches
