@@ -126,12 +126,15 @@ impl<T> Conflict<T> {
 
     /// Creates a new conflict by applying `f` to each remove and add.
     pub fn map<'a, U>(&'a self, mut f: impl FnMut(&'a T) -> U) -> Conflict<U> {
-        self.try_map(|term| Some(f(term))).unwrap()
+        self.maybe_map(|term| Some(f(term))).unwrap()
     }
 
     /// Creates a new conflict by applying `f` to each remove and add, returning
     /// `None if `f` returns `None` for any of them.
-    pub fn try_map<'a, U>(&'a self, mut f: impl FnMut(&'a T) -> Option<U>) -> Option<Conflict<U>> {
+    pub fn maybe_map<'a, U>(
+        &'a self,
+        mut f: impl FnMut(&'a T) -> Option<U>,
+    ) -> Option<Conflict<U>> {
         let removes = self.removes.iter().map(&mut f).collect::<Option<_>>()?;
         let adds = self.adds.iter().map(&mut f).collect::<Option<_>>()?;
         Some(Conflict { removes, adds })
@@ -196,7 +199,7 @@ impl Conflict<Option<TreeValue>> {
     }
 
     pub fn to_file_conflict(&self) -> Option<Conflict<Option<FileId>>> {
-        self.try_map(|term| match term {
+        self.maybe_map(|term| match term {
             None => Some(None),
             Some(TreeValue::File {
                 id,
@@ -766,7 +769,7 @@ mod tests {
     }
 
     #[test]
-    fn test_try_map() {
+    fn test_maybe_map() {
         fn sqrt(i: &i32) -> Option<i32> {
             if *i >= 0 {
                 Some((*i as f64).sqrt() as i32)
@@ -778,11 +781,11 @@ mod tests {
             Conflict::new(removes.to_vec(), adds.to_vec())
         }
         // 1-way conflict
-        assert_eq!(c(&[], &[1]).try_map(sqrt), Some(c(&[], &[1])));
-        assert_eq!(c(&[], &[-1]).try_map(sqrt), None);
+        assert_eq!(c(&[], &[1]).maybe_map(sqrt), Some(c(&[], &[1])));
+        assert_eq!(c(&[], &[-1]).maybe_map(sqrt), None);
         // 3-way conflict
-        assert_eq!(c(&[1], &[4, 9]).try_map(sqrt), Some(c(&[1], &[2, 3])));
-        assert_eq!(c(&[-1], &[4, 9]).try_map(sqrt), None);
-        assert_eq!(c(&[1], &[-4, 9]).try_map(sqrt), None);
+        assert_eq!(c(&[1], &[4, 9]).maybe_map(sqrt), Some(c(&[1], &[2, 3])));
+        assert_eq!(c(&[-1], &[4, 9]).maybe_map(sqrt), None);
+        assert_eq!(c(&[1], &[-4, 9]).maybe_map(sqrt), None);
     }
 }
