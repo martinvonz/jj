@@ -929,7 +929,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "regex",
- "rustix 0.38.0",
+ "rustix 0.38.1",
  "serde_json",
  "smallvec",
  "strsim",
@@ -1610,9 +1610,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.0"
+version = "0.38.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8865954e9c990b996e5b366fad94b8d467ae530daf5f8496edd7cf75e76987d"
+checksum = "fbc6396159432b5c8490d4e301d8c705f61860b8b6c863bf79942ce5401968f3"
 dependencies = [
  "bitflags 2.3.3",
  "errno",
