@@ -87,7 +87,7 @@ impl TreeBuilder {
 
         // Write trees in reverse lexicographical order, starting with trees without
         // children.
-        let store = self.store.as_ref();
+        let store = &self.store;
         // TODO: trees_to_write.pop_last() can be used, but requires Rust 1.66.0
         let mut dirs_to_write = trees_to_write.keys().cloned().collect_vec();
         while let Some(dir) = dirs_to_write.pop() {
@@ -101,13 +101,13 @@ impl TreeBuilder {
                         // Entry would have been replaced with file (see above)
                     }
                 } else {
-                    let tree_id = store.write_tree(&dir, &tree).unwrap();
-                    parent_tree.set(basename.clone(), TreeValue::Tree(tree_id));
+                    let tree = store.write_tree(&dir, tree).unwrap();
+                    parent_tree.set(basename.clone(), TreeValue::Tree(tree.id().clone()));
                 }
             } else {
                 // We're writing the root tree. Write it even if empty. Return its id.
                 assert!(dirs_to_write.is_empty());
-                return store.write_tree(&dir, &tree).unwrap();
+                return store.write_tree(&dir, tree).unwrap().id().clone();
             }
         }
 

@@ -18,8 +18,7 @@ use jujutsu_lib::backend::TreeValue;
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::rewrite::rebase_commit;
-use jujutsu_lib::tree;
-use jujutsu_lib::tree::Tree;
+use jujutsu_lib::tree::{merge_trees, Tree};
 use test_case::test_case;
 use testutils::TestRepo;
 
@@ -73,8 +72,7 @@ fn test_same_type(use_git: bool) {
     let side2_tree = write_tree(2);
 
     // Create the merged tree
-    let merged_tree_id = tree::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
-    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
+    let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
 
     // Check that we have exactly the paths we expect in the merged tree
     let names = merged_tree
@@ -227,8 +225,7 @@ fn test_executable(use_git: bool) {
     let side2_tree = write_tree(&contents_in_tree(&files, 2));
 
     // Create the merged tree
-    let merged_tree_id = tree::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
-    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
+    let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
 
     // Check that the merged tree has the correct executable bits
     let norm = base_tree.value(&RepoPathComponent::from("nnn"));
@@ -282,8 +279,7 @@ fn test_subtrees(use_git: bool) {
         "d1/d1/d1/f2",
     ]);
 
-    let merged_tree_id = tree::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
-    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
+    let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
     let entries = merged_tree.entries().collect_vec();
 
     let expected_tree = write_tree(vec![
@@ -325,8 +321,7 @@ fn test_subtree_becomes_empty(use_git: bool) {
     let side1_tree = write_tree(vec!["f1", "d1/f1", "d1/d1/d1/f1"]);
     let side2_tree = write_tree(vec!["d1/d1/d1/f2"]);
 
-    let merged_tree_id = tree::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
-    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
+    let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
     assert_eq!(merged_tree.id(), store.empty_tree_id());
 }
 
@@ -357,22 +352,20 @@ fn test_subtree_one_missing(use_git: bool) {
     let tree3 = write_tree(vec!["d1/f1", "d1/f2"]);
 
     // The two sides add different trees
-    let merged_tree_id = tree::merge_trees(&tree2, &tree1, &tree3).unwrap();
-    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
+    let merged_tree = merge_trees(&tree2, &tree1, &tree3).unwrap();
     let expected_entries = write_tree(vec!["d1/f1", "d1/f2"]).entries().collect_vec();
     assert_eq!(merged_tree.entries().collect_vec(), expected_entries);
     // Same tree other way
-    let merged_tree_id = tree::merge_trees(&tree3, &tree1, &tree2).unwrap();
-    assert_eq!(merged_tree_id, *merged_tree.id());
+    let reverse_merged_tree = merge_trees(&tree3, &tree1, &tree2).unwrap();
+    assert_eq!(reverse_merged_tree.id(), merged_tree.id());
 
     // One side removes, the other side modifies
-    let merged_tree_id = tree::merge_trees(&tree1, &tree2, &tree3).unwrap();
-    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
+    let merged_tree = merge_trees(&tree1, &tree2, &tree3).unwrap();
     let expected_entries = write_tree(vec!["d1/f2"]).entries().collect_vec();
     assert_eq!(merged_tree.entries().collect_vec(), expected_entries);
     // Same tree other way
-    let merged_tree_id = tree::merge_trees(&tree3, &tree2, &tree1).unwrap();
-    assert_eq!(merged_tree_id, *merged_tree.id());
+    let reverse_merged_tree = merge_trees(&tree3, &tree2, &tree1).unwrap();
+    assert_eq!(reverse_merged_tree.id(), merged_tree.id());
 }
 
 #[test_case(false ; "local backend")]
@@ -426,8 +419,7 @@ fn test_types(use_git: bool) {
     let side2_tree = store.get_tree(&RepoPath::root(), &side2_tree_id).unwrap();
 
     // Created the merged tree
-    let merged_tree_id = tree::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
-    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
+    let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
 
     // Check the conflicting cases
     let component = RepoPathComponent::from("normal_executable_symlink");
@@ -492,13 +484,8 @@ fn test_simplify_conflict(use_git: bool) {
     let upstream1_tree = write_tree("upstream1 contents");
     let upstream2_tree = write_tree("upstream2 contents");
 
-    let merge_trees = |side1: &Tree, base: &Tree, side2: &Tree| -> Tree {
-        let tree_id = tree::merge_trees(side1, base, side2).unwrap();
-        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
-    };
-
     // Rebase the branch tree to the first upstream tree
-    let rebased1_tree = merge_trees(&branch_tree, &base_tree, &upstream1_tree);
+    let rebased1_tree = merge_trees(&branch_tree, &base_tree, &upstream1_tree).unwrap();
     // Make sure we have a conflict (testing the test setup)
     match rebased1_tree.value(&component).unwrap() {
         TreeValue::Conflict(_) => {
@@ -509,12 +496,12 @@ fn test_simplify_conflict(use_git: bool) {
 
     // Rebase the rebased tree back to the base. The conflict should be gone. Try
     // both directions.
-    let rebased_back_tree = merge_trees(&rebased1_tree, &upstream1_tree, &base_tree);
+    let rebased_back_tree = merge_trees(&rebased1_tree, &upstream1_tree, &base_tree).unwrap();
     assert_eq!(
         rebased_back_tree.value(&component),
         branch_tree.value(&component)
     );
-    let rebased_back_tree = merge_trees(&base_tree, &upstream1_tree, &rebased1_tree);
+    let rebased_back_tree = merge_trees(&base_tree, &upstream1_tree, &rebased1_tree).unwrap();
     assert_eq!(
         rebased_back_tree.value(&component),
         branch_tree.value(&component)
@@ -522,7 +509,8 @@ fn test_simplify_conflict(use_git: bool) {
 
     // Rebase the rebased tree further upstream. The conflict should be simplified
     // to not mention the contents from the first rebase.
-    let further_rebased_tree = merge_trees(&rebased1_tree, &upstream1_tree, &upstream2_tree);
+    let further_rebased_tree =
+        merge_trees(&rebased1_tree, &upstream1_tree, &upstream2_tree).unwrap();
     match further_rebased_tree.value(&component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
@@ -542,7 +530,8 @@ fn test_simplify_conflict(use_git: bool) {
         }
         _ => panic!("unexpected value"),
     };
-    let further_rebased_tree = merge_trees(&upstream2_tree, &upstream1_tree, &rebased1_tree);
+    let further_rebased_tree =
+        merge_trees(&upstream2_tree, &upstream1_tree, &rebased1_tree).unwrap();
     match further_rebased_tree.value(&component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(&path, id).unwrap();

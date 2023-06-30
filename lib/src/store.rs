@@ -122,9 +122,19 @@ impl Store {
         Ok(data)
     }
 
-    pub fn write_tree(&self, path: &RepoPath, contents: &backend::Tree) -> BackendResult<TreeId> {
-        // TODO: This should also do caching like write_commit does.
-        self.backend.write_tree(path, contents)
+    pub fn write_tree(
+        self: &Arc<Self>,
+        path: &RepoPath,
+        tree: backend::Tree,
+    ) -> BackendResult<Tree> {
+        let tree_id = self.backend.write_tree(path, &tree)?;
+        let data = Arc::new(tree);
+        {
+            let mut write_locked_cache = self.tree_cache.write().unwrap();
+            write_locked_cache.insert((path.clone(), tree_id.clone()), data.clone());
+        }
+
+        Ok(Tree::new(self.clone(), path.clone(), tree_id, data))
     }
 
     pub fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {

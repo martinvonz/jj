@@ -54,8 +54,7 @@ pub fn merge_commit_trees_without_repo(
                 .map(|id| store.get_commit(id))
                 .try_collect()?;
             let ancestor_tree = merge_commit_trees_without_repo(store, index, &ancestors)?;
-            let new_tree_id = merge_trees(&new_tree, &ancestor_tree, &other_commit.tree())?;
-            new_tree = store.get_tree(&RepoPath::root(), &new_tree_id)?;
+            new_tree = merge_trees(&new_tree, &ancestor_tree, &other_commit.tree())?;
         }
         Ok(new_tree)
     }
@@ -83,7 +82,8 @@ pub fn rebase_commit(
         let old_base_tree = merge_commit_trees(mut_repo, &old_parents)?;
         let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
         // TODO: pass in labels for the merge parts
-        merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree())?
+        let merged_tree = merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree())?;
+        merged_tree.id().clone()
     };
     let new_parent_ids = new_parents
         .iter()
@@ -105,14 +105,14 @@ pub fn back_out_commit(
     let old_base_tree = merge_commit_trees(mut_repo, &old_commit.parents())?;
     let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
     // TODO: pass in labels for the merge parts
-    let new_tree_id = merge_trees(&new_base_tree, &old_commit.tree(), &old_base_tree).unwrap();
+    let new_tree = merge_trees(&new_base_tree, &old_commit.tree(), &old_base_tree).unwrap();
     let new_parent_ids = new_parents
         .iter()
         .map(|commit| commit.id().clone())
         .collect();
     // TODO: i18n the description based on repo language
     Ok(mut_repo
-        .new_commit(settings, new_parent_ids, new_tree_id)
+        .new_commit(settings, new_parent_ids, new_tree.id().clone())
         .set_description(format!("backout of commit {}", &old_commit.id().hex()))
         .write()?)
 }
