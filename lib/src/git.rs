@@ -499,6 +499,31 @@ pub fn fetch(
     callbacks: RemoteCallbacks<'_>,
     git_settings: &GitSettings,
 ) -> Result<Option<String>, GitFetchError> {
+    let branch_regex = if let Some(globs) = branch_name_globs {
+        let result = regex::RegexSet::new(
+            globs
+                .iter()
+                .map(|glob| format!("^{}$", glob.replace('*', ".*"))),
+        )
+        .map_err(|_| GitFetchError::InvalidGlob)?;
+        tracing::debug!(?globs, ?result, "globs as regex");
+        Some(result)
+    } else {
+        None
+    };
+    let git_ref_filter = |ref_name: &RefName| -> bool {
+        if let Some(branch_regex) = &branch_regex {
+            match ref_name {
+                RefName::RemoteBranch { branch, remote } => {
+                    remote == remote_name && branch_regex.is_match(branch)
+                }
+                RefName::LocalBranch(..) | RefName::Tag(..) | RefName::GitRef(..) => false,
+            }
+        } else {
+            true
+        }
+    };
+
     // In non-colocated repositories, it's possible that `jj branch forget` was run
     // at some point and no `jj git export` happened since.
     //
@@ -532,14 +557,16 @@ pub fn fetch(
     // TODO: Inform the user if the export failed? In most cases, export is not
     // essential for fetch to work.
     let _ = export_some_refs(mut_repo, git_repo, |ref_name| {
-        // Short-term TODO: filter this by the glob filter
-        matches!(
-            ref_name,
-            RefName::RemoteBranch { branch, remote:_ }
-               if !nonempty_branches.contains(branch)
-        )
+        git_ref_filter(ref_name)
+            && matches!(
+                ref_name,
+                RefName::RemoteBranch { branch, remote:_ }
+                   if !nonempty_branches.contains(branch)
+            )
     });
 
+    // Perform a `git fetch` on the local git repo, updating the remote-tracking
+    // branches in the git repo.
     let mut remote =
         git_repo
             .find_remote(remote_name)
@@ -592,34 +619,15 @@ pub fn fetch(
     }
     tracing::debug!("remote.disconnect");
     remote.disconnect()?;
+
+    // `import_some_refs` will import the remote-tracking branches into the jj repo
+    // and update jj's local branches.
     tracing::debug!("import_refs");
-    if let Some(globs) = branch_name_globs {
-        let branch_regex = regex::RegexSet::new(
-            globs
-                .iter()
-                .map(|glob| format!("^{}$", glob.replace('*', ".*"))),
-        )
-        .map_err(|_| GitFetchError::InvalidGlob)?;
-        tracing::debug!(?globs, ?branch_regex, "globs as regex");
-        import_some_refs(
-            mut_repo,
-            git_repo,
-            git_settings,
-            |ref_name: &RefName| -> bool {
-                match ref_name {
-                    RefName::RemoteBranch { branch, remote } => {
-                        remote == remote_name && branch_regex.is_match(branch)
-                    }
-                    RefName::LocalBranch(..) | RefName::Tag(..) | RefName::GitRef(..) => false,
-                }
-            },
-        )
-    } else {
-        import_refs(mut_repo, git_repo, git_settings)
-    }
-    .map_err(|err| match err {
-        GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
-    })?;
+    import_some_refs(mut_repo, git_repo, git_settings, git_ref_filter).map_err(
+        |err| match err {
+            GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
+        },
+    )?;
     Ok(default_branch)
 }
 
