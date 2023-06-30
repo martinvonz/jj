@@ -790,7 +790,7 @@ struct PartialSubmoduleConfig {
 
 /// Represents configuration from a submodule, e.g. in .gitmodules
 /// This doesn't include all possible fields, only the ones we care about
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SubmoduleConfig {
     pub name: String,
     pub path: String,
