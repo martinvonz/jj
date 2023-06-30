@@ -492,13 +492,13 @@ fn test_simplify_conflict(use_git: bool) {
     let upstream1_tree = write_tree("upstream1 contents");
     let upstream2_tree = write_tree("upstream2 contents");
 
-    let merge_trees = |base: &Tree, side1: &Tree, side2: &Tree| -> Tree {
+    let merge_trees = |side1: &Tree, base: &Tree, side2: &Tree| -> Tree {
         let tree_id = tree::merge_trees(side1, base, side2).unwrap();
         store.get_tree(&RepoPath::root(), &tree_id).unwrap()
     };
 
     // Rebase the branch tree to the first upstream tree
-    let rebased1_tree = merge_trees(&base_tree, &branch_tree, &upstream1_tree);
+    let rebased1_tree = merge_trees(&branch_tree, &base_tree, &upstream1_tree);
     // Make sure we have a conflict (testing the test setup)
     match rebased1_tree.value(&component).unwrap() {
         TreeValue::Conflict(_) => {
@@ -509,12 +509,12 @@ fn test_simplify_conflict(use_git: bool) {
 
     // Rebase the rebased tree back to the base. The conflict should be gone. Try
     // both directions.
-    let rebased_back_tree = merge_trees(&upstream1_tree, &rebased1_tree, &base_tree);
+    let rebased_back_tree = merge_trees(&rebased1_tree, &upstream1_tree, &base_tree);
     assert_eq!(
         rebased_back_tree.value(&component),
         branch_tree.value(&component)
     );
-    let rebased_back_tree = merge_trees(&upstream1_tree, &base_tree, &rebased1_tree);
+    let rebased_back_tree = merge_trees(&base_tree, &upstream1_tree, &rebased1_tree);
     assert_eq!(
         rebased_back_tree.value(&component),
         branch_tree.value(&component)
@@ -522,7 +522,7 @@ fn test_simplify_conflict(use_git: bool) {
 
     // Rebase the rebased tree further upstream. The conflict should be simplified
     // to not mention the contents from the first rebase.
-    let further_rebased_tree = merge_trees(&upstream1_tree, &rebased1_tree, &upstream2_tree);
+    let further_rebased_tree = merge_trees(&rebased1_tree, &upstream1_tree, &upstream2_tree);
     match further_rebased_tree.value(&component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
@@ -542,7 +542,7 @@ fn test_simplify_conflict(use_git: bool) {
         }
         _ => panic!("unexpected value"),
     };
-    let further_rebased_tree = merge_trees(&upstream1_tree, &upstream2_tree, &rebased1_tree);
+    let further_rebased_tree = merge_trees(&upstream2_tree, &upstream1_tree, &rebased1_tree);
     match further_rebased_tree.value(&component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(&path, id).unwrap();
