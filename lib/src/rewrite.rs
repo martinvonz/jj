@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use itertools::{process_results, Itertools};
 
-use crate::backend::{BackendError, BackendResult, CommitId, ObjectId};
+use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::index::Index;
@@ -27,10 +27,10 @@ use crate::repo_path::RepoPath;
 use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
 use crate::store::Store;
-use crate::tree::{merge_trees, Tree};
+use crate::tree::{merge_trees, Tree, TreeMergeError};
 use crate::view::RefName;
 
-pub fn merge_commit_trees(repo: &dyn Repo, commits: &[Commit]) -> Tree {
+pub fn merge_commit_trees(repo: &dyn Repo, commits: &[Commit]) -> Result<Tree, TreeMergeError> {
     merge_commit_trees_without_repo(repo.store(), repo.index(), commits)
 }
 
@@ -38,11 +38,9 @@ pub fn merge_commit_trees_without_repo(
     store: &Arc<Store>,
     index: &dyn Index,
     commits: &[Commit],
-) -> Tree {
+) -> Result<Tree, TreeMergeError> {
     if commits.is_empty() {
-        store
-            .get_tree(&RepoPath::root(), store.empty_tree_id())
-            .unwrap()
+        Ok(store.get_tree(&RepoPath::root(), store.empty_tree_id())?)
     } else {
         let mut new_tree = commits[0].tree();
         let commit_ids = commits
@@ -51,15 +49,15 @@ pub fn merge_commit_trees_without_repo(
             .collect_vec();
         for (i, other_commit) in commits.iter().enumerate().skip(1) {
             let ancestor_ids = index.common_ancestors(&commit_ids[0..i], &[commit_ids[i].clone()]);
-            let ancestors = ancestor_ids
+            let ancestors: Vec<_> = ancestor_ids
                 .iter()
-                .map(|id| store.get_commit(id).unwrap())
-                .collect_vec();
-            let ancestor_tree = merge_commit_trees_without_repo(store, index, &ancestors);
-            let new_tree_id = merge_trees(&new_tree, &ancestor_tree, &other_commit.tree()).unwrap();
-            new_tree = store.get_tree(&RepoPath::root(), &new_tree_id).unwrap();
+                .map(|id| store.get_commit(id))
+                .try_collect()?;
+            let ancestor_tree = merge_commit_trees_without_repo(store, index, &ancestors)?;
+            let new_tree_id = merge_trees(&new_tree, &ancestor_tree, &other_commit.tree())?;
+            new_tree = store.get_tree(&RepoPath::root(), &new_tree_id)?;
         }
-        new_tree
+        Ok(new_tree)
     }
 }
 
@@ -68,7 +66,7 @@ pub fn rebase_commit(
     mut_repo: &mut MutableRepo,
     old_commit: &Commit,
     new_parents: &[Commit],
-) -> BackendResult<Commit> {
+) -> Result<Commit, TreeMergeError> {
     let old_parents = old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
@@ -82,20 +80,20 @@ pub fn rebase_commit(
         // Optimization
         old_commit.tree_id().clone()
     } else {
-        let old_base_tree = merge_commit_trees(mut_repo, &old_parents);
-        let new_base_tree = merge_commit_trees(mut_repo, new_parents);
+        let old_base_tree = merge_commit_trees(mut_repo, &old_parents)?;
+        let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
         // TODO: pass in labels for the merge parts
-        merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree()).unwrap()
+        merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree())?
     };
     let new_parent_ids = new_parents
         .iter()
         .map(|commit| commit.id().clone())
         .collect();
-    mut_repo
+    Ok(mut_repo
         .rewrite_commit(settings, old_commit)
         .set_parents(new_parent_ids)
         .set_tree(new_tree_id)
-        .write()
+        .write()?)
 }
 
 pub fn back_out_commit(
@@ -103,9 +101,9 @@ pub fn back_out_commit(
     mut_repo: &mut MutableRepo,
     old_commit: &Commit,
     new_parents: &[Commit],
-) -> BackendResult<Commit> {
-    let old_base_tree = merge_commit_trees(mut_repo, &old_commit.parents());
-    let new_base_tree = merge_commit_trees(mut_repo, new_parents);
+) -> Result<Commit, TreeMergeError> {
+    let old_base_tree = merge_commit_trees(mut_repo, &old_commit.parents())?;
+    let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
     // TODO: pass in labels for the merge parts
     let new_tree_id = merge_trees(&new_base_tree, &old_commit.tree(), &old_base_tree).unwrap();
     let new_parent_ids = new_parents
@@ -113,10 +111,10 @@ pub fn back_out_commit(
         .map(|commit| commit.id().clone())
         .collect();
     // TODO: i18n the description based on repo language
-    mut_repo
+    Ok(mut_repo
         .new_commit(settings, new_parent_ids, new_tree_id)
         .set_description(format!("backout of commit {}", &old_commit.id().hex()))
-        .write()
+        .write()?)
 }
 
 /// Rebases descendants of a commit onto a new commit (or several).
@@ -377,7 +375,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
     // TODO: Perhaps change the interface since it's not just about rebasing
     // commits.
-    pub fn rebase_next(&mut self) -> Result<Option<RebasedDescendant>, BackendError> {
+    pub fn rebase_next(&mut self) -> Result<Option<RebasedDescendant>, TreeMergeError> {
         while let Some(old_commit) = self.to_visit.pop() {
             let old_commit_id = old_commit.id().clone();
             if let Some(new_parent_ids) = self.new_parents.get(&old_commit_id).cloned() {
@@ -450,7 +448,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         Ok(None)
     }
 
-    pub fn rebase_all(&mut self) -> Result<(), BackendError> {
+    pub fn rebase_all(&mut self) -> Result<(), TreeMergeError> {
         while self.rebase_next()?.is_some() {}
         Ok(())
     }

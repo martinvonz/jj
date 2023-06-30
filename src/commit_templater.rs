@@ -258,7 +258,8 @@ fn build_commit_keyword_opt<'repo>(
             language.wrap_boolean(wrap_fn(property, |commit| commit.tree().has_conflict()))
         }
         "empty" => language.wrap_boolean(wrap_fn(property, |commit| {
-            commit.tree().id() == rewrite::merge_commit_trees(repo, &commit.parents()).id()
+            let parent_tree = rewrite::merge_commit_trees(repo, &commit.parents()).unwrap();
+            commit.tree().id() == parent_tree.id()
         })),
         _ => return None,
     };
