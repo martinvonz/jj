@@ -317,6 +317,14 @@ pub fn export_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
 ) -> Result<Vec<RefName>, GitExportError> {
+    export_some_refs(mut_repo, git_repo, |_| true)
+}
+
+pub fn export_some_refs(
+    mut_repo: &mut MutableRepo,
+    git_repo: &git2::Repository,
+    git_ref_filter: impl Fn(&RefName) -> bool,
+) -> Result<Vec<RefName>, GitExportError> {
     // First find the changes we want need to make without modifying mut_repo
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeMap::new();
@@ -337,13 +345,14 @@ pub fn export_refs(
                 }),
         )
     });
-    let jj_known_refs: HashSet<_> = view
+    let jj_known_refs_passing_filter: HashSet<_> = view
         .git_refs()
         .keys()
         .filter_map(|name| parse_git_ref(name))
         .chain(jj_repo_iter_all_branches)
+        .filter(git_ref_filter)
         .collect();
-    for jj_known_ref in jj_known_refs {
+    for jj_known_ref in jj_known_refs_passing_filter {
         let new_branch = match &jj_known_ref {
             RefName::LocalBranch(branch) => view.get_local_branch(branch),
             RefName::RemoteBranch { remote, branch } => {
