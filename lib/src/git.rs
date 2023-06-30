@@ -499,6 +499,47 @@ pub fn fetch(
     callbacks: RemoteCallbacks<'_>,
     git_settings: &GitSettings,
 ) -> Result<Option<String>, GitFetchError> {
+    // In non-colocated repositories, it's possible that `jj branch forget` was run
+    // at some point and no `jj git export` happened since.
+    //
+    // This would mean that remote-tracking branches, forgotten in the jj repo,
+    // still exist in the git repo. If the branches didn't move on the remote, and
+    // we fetched them, jj would think that they are unmodified and wouldn't
+    // resurrect them.
+    //
+    // Export will delete the remote-tracking branches in the git repo, so it's
+    // possible to fetch them again.
+    //
+    // For more details, see the `test_branch_forget_fetched_branch` test, and PRs
+    // #1714 and #1771
+    //
+    // Apart from `jj branch forget`, jj doesn't provide commands to manipulate
+    // remote-tracking branches, and local git branches don't affect fetch
+    // behaviors. So, it's unnecessary to export anything else.
+    //
+    // TODO: Create a command the user can use to reset jj's
+    // branch state to the git repo's state. In this case, `jj branch forget`
+    // doesn't work as it tries to delete the latter. One possible name is `jj
+    // git import --reset BRANCH`.
+    // TODO: Once the command described above exists, it should be mentioned in `jj
+    // help branch forget`.
+    let nonempty_branches = mut_repo
+        .view()
+        .branches()
+        .iter()
+        .filter_map(|(branch, target)| target.local_target.as_ref().map(|_| branch.to_owned()))
+        .collect_vec();
+    // TODO: Inform the user if the export failed? In most cases, export is not
+    // essential for fetch to work.
+    let _ = export_some_refs(mut_repo, git_repo, |ref_name| {
+        // Short-term TODO: filter this by the glob filter
+        matches!(
+            ref_name,
+            RefName::RemoteBranch { branch, remote:_ }
+               if !nonempty_branches.contains(branch)
+        )
+    });
+
     let mut remote =
         git_repo
             .find_remote(remote_name)

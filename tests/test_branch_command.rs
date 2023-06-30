@@ -236,9 +236,8 @@ fn test_branch_forget_export() {
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "foo"]);
     insta::assert_snapshot!(stdout, @"");
-    // Forgetting a branch does not delete its local-git tracking branch. This is
-    // the opposite of what happens to remote-tracking branches.
-    // TODO: Consider allowing forgetting local-git tracking branches as an option
+    // Forgetting a branch does not delete its local-git tracking branch. The
+    // git-tracking branch is kept.
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     foo (forgotten)
@@ -345,17 +344,14 @@ fn test_branch_forget_fetched_branch() {
     "###);
 
     // TEST 2: No export/import (otherwise the same as test 1)
-    // Short-term TODO: While it looks like the bug above is fixed, correct behavior
-    // now actually depends on export/import.
     test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
-    // Short-term TODO: Fix this BUG. It should be possible to fetch `feature1`
-    // again.
+    // Fetch works even without the export-import
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
-    insta::assert_snapshot!(stdout, @r###"
-    Nothing changed.
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: 9f01a0e04879 message
     "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
     // TEST 3: fetch branch that was moved & forgotten
 
@@ -370,18 +366,14 @@ fn test_branch_forget_fetched_branch() {
             &[&git_repo.find_commit(first_git_repo_commit).unwrap()],
         )
         .unwrap();
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "forget", "feature1"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: No such branch: feature1
-    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
+    insta::assert_snapshot!(stdout, @"");
 
-    // BUG: fetching a moved branch creates a move-deletion conflict
+    // Fetching a moved branch does not create a conflict
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    feature1 (conflicted):
-      - 9f01a0e04879 message
-      + 38aefb173976 another message
+    feature1: 38aefb173976 another message
     "###);
 }
 

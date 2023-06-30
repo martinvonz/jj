@@ -152,6 +152,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remote, just like in a non-colocated repo.
   [#864](https://github.com/martinvonz/jj/issues/864)
 
+* `jj git fetch` can now fetch forgotten branches even if they didn't move on
+  the remote.
+  [#1714](https://github.com/martinvonz/jj/pull/1714)
+  [#1771](https://github.com/martinvonz/jj/pull/1771)
+
 * It is now possible to `jj branch forget` deleted branches.
   [#1537](https://github.com/martinvonz/jj/issues/1537)
 
