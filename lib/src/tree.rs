@@ -17,7 +17,6 @@ use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::io::Read;
 use std::iter::Peekable;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -241,12 +240,12 @@ pub struct TreeEntriesIterator<'matcher> {
 struct TreeEntriesDirItem {
     entry_iterator: TreeEntriesNonRecursiveIterator<'static>,
     // On drop, tree must outlive entry_iterator
-    tree: Pin<Box<Tree>>,
+    tree: Box<Tree>,
 }
 
 impl TreeEntriesDirItem {
     fn new(tree: Tree) -> Self {
-        let tree = Box::pin(tree);
+        let tree = Box::new(tree);
         let entry_iterator = tree.entries_non_recursive();
         let entry_iterator: TreeEntriesNonRecursiveIterator<'static> =
             unsafe { std::mem::transmute(entry_iterator) };
@@ -410,8 +409,8 @@ struct TreeDiffDirItem {
     // Iterator over the diffs between tree1 and tree2
     entry_iterator: TreeEntryDiffIterator<'static>,
     // On drop, tree1 and tree2 must outlive entry_iterator
-    tree1: Pin<Box<Tree>>,
-    tree2: Pin<Box<Tree>>,
+    tree1: Box<Tree>,
+    tree2: Box<Tree>,
 }
 
 enum TreeDiffItem {
@@ -434,8 +433,8 @@ impl<'matcher> TreeDiffIterator<'matcher> {
 
 impl TreeDiffDirItem {
     fn new(path: RepoPath, tree1: Tree, tree2: Tree) -> Self {
-        let tree1 = Box::pin(tree1);
-        let tree2 = Box::pin(tree2);
+        let tree1 = Box::new(tree1);
+        let tree2 = Box::new(tree2);
         let iter: TreeEntryDiffIterator = diff_entries(&tree1, &tree2);
         let iter: TreeEntryDiffIterator<'static> = unsafe { std::mem::transmute(iter) };
         Self {
