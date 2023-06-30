@@ -46,6 +46,7 @@ use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
 use crate::submodule_store::SubmoduleStore;
 use crate::transaction::Transaction;
+use crate::tree::TreeMergeError;
 use crate::view::{RefName, View};
 use crate::{backend, dag_walk, op_store};
 
@@ -291,7 +292,7 @@ impl ReadonlyRepo {
     pub fn reload_at_head(
         &self,
         user_settings: &UserSettings,
-    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<BackendError>> {
+    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<TreeMergeError>> {
         self.loader().load_at_head(user_settings)
     }
 
@@ -642,7 +643,7 @@ impl RepoLoader {
     pub fn load_at_head(
         &self,
         user_settings: &UserSettings,
-    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<BackendError>> {
+    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<TreeMergeError>> {
         let op = op_heads_store::resolve_op_heads(
             self.op_heads_store.as_ref(),
             &self.op_store,
@@ -683,7 +684,7 @@ impl RepoLoader {
         &self,
         op_heads: Vec<Operation>,
         user_settings: &UserSettings,
-    ) -> Result<Operation, BackendError> {
+    ) -> Result<Operation, TreeMergeError> {
         let base_repo = self.load_at(&op_heads[0]);
         let mut tx = base_repo.start_transaction(user_settings, "resolve concurrent operations");
         for other_op_head in op_heads.into_iter().skip(1) {
@@ -834,7 +835,7 @@ impl MutableRepo {
         )
     }
 
-    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, BackendError> {
+    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
         if !self.has_rewrites() {
             // Optimization
             return Ok(0);
