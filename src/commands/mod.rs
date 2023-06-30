@@ -1832,16 +1832,12 @@ fn rebase_to_dest_parent(
             merge_commit_trees(workspace_command.repo().as_ref(), &destination.parents())?;
         let source_parent_tree =
             merge_commit_trees(workspace_command.repo().as_ref(), &source.parents())?;
-        let rebased_tree_id = merge_trees(
+        let rebased_tree = merge_trees(
             &destination_parent_tree,
             &source_parent_tree,
             &source.tree(),
         )?;
-        let tree = workspace_command
-            .repo()
-            .store()
-            .get_tree(&RepoPath::root(), &rebased_tree_id)?;
-        Ok(tree)
+        Ok(rebased_tree)
     }
 }
 
@@ -2378,14 +2374,14 @@ from the source will be moved into the destination.
         .store()
         .get_tree(&RepoPath::root(), &new_parent_tree_id)?;
     // Apply the reverse of the selected changes onto the source
-    let new_source_tree_id = merge_trees(&source_tree, &new_parent_tree, &parent_tree)?;
-    let abandon_source = new_source_tree_id == *parent_tree.id();
+    let new_source_tree = merge_trees(&source_tree, &new_parent_tree, &parent_tree)?;
+    let abandon_source = new_source_tree.id() == parent_tree.id();
     if abandon_source {
         tx.mut_repo().record_abandoned_commit(source.id().clone());
     } else {
         tx.mut_repo()
             .rewrite_commit(command.settings(), &source)
-            .set_tree(new_source_tree_id)
+            .set_tree(new_source_tree.id().clone())
             .write()?;
     }
     if tx.repo().index().is_ancestor(source.id(), destination.id()) {
@@ -2399,7 +2395,7 @@ from the source will be moved into the destination.
         destination = tx.mut_repo().store().get_commit(&rebased_destination_id)?;
     }
     // Apply the selected changes onto the destination
-    let new_destination_tree_id = merge_trees(&destination.tree(), &parent_tree, &new_parent_tree)?;
+    let new_destination_tree = merge_trees(&destination.tree(), &parent_tree, &new_parent_tree)?;
     let description = combine_messages(
         tx.base_repo(),
         &source,
@@ -2409,7 +2405,7 @@ from the source will be moved into the destination.
     )?;
     tx.mut_repo()
         .rewrite_commit(command.settings(), &destination)
-        .set_tree(new_destination_tree_id)
+        .set_tree(new_destination_tree.id().clone())
         .set_description(description)
         .write()?;
     tx.finish(ui)?;

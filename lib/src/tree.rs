@@ -14,6 +14,7 @@
 
 use std::cmp::Ordering;
 use std::fmt::{Debug, Error, Formatter};
+use std::hash::{Hash, Hasher};
 use std::io::Read;
 use std::iter::Peekable;
 use std::pin::Pin;
@@ -59,6 +60,21 @@ impl Debug for Tree {
             .field("dir", &self.dir)
             .field("id", &self.id)
             .finish()
+    }
+}
+
+impl PartialEq for Tree {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.dir == other.dir
+    }
+}
+
+impl Eq for Tree {}
+
+impl Hash for Tree {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.dir.hash(state);
+        self.id.hash(state);
     }
 }
 
@@ -525,13 +541,13 @@ pub fn merge_trees(
     side1_tree: &Tree,
     base_tree: &Tree,
     side2_tree: &Tree,
-) -> Result<TreeId, TreeMergeError> {
+) -> Result<Tree, TreeMergeError> {
     let store = base_tree.store();
     let dir = base_tree.dir();
     assert_eq!(side1_tree.dir(), dir);
     assert_eq!(side2_tree.dir(), dir);
 
-    if let Some(resolved) = trivial_merge(&[&base_tree.id], &[&side1_tree.id, &side2_tree.id]) {
+    if let Some(resolved) = trivial_merge(&[base_tree], &[side1_tree, side2_tree]) {
         return Ok((*resolved).clone());
     }
 
@@ -559,7 +575,7 @@ pub fn merge_trees(
             }
         }
     }
-    Ok(store.write_tree(dir, &new_tree)?)
+    Ok(store.write_tree(dir, new_tree)?)
 }
 
 /// Returns `Some(TreeId)` if this is a directory or missing. If it's missing,
@@ -599,11 +615,11 @@ fn merge_tree_value(
             let base_tree = store.get_tree(&subdir, base_id)?;
             let side1_tree = store.get_tree(&subdir, side1_id)?;
             let side2_tree = store.get_tree(&subdir, side2_id)?;
-            let merged_tree_id = merge_trees(&side1_tree, &base_tree, &side2_tree)?;
-            if merged_tree_id == *empty_tree_id {
+            let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree)?;
+            if merged_tree.id() == empty_tree_id {
                 None
             } else {
-                Some(TreeValue::Tree(merged_tree_id))
+                Some(TreeValue::Tree(merged_tree.id().clone()))
             }
         }
         _ => {

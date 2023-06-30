@@ -2306,11 +2306,7 @@ fn test_evaluate_expression_conflict(use_git: bool) {
     let tree1 = testutils::create_tree(repo, &[(&file_path1, "1"), (&file_path2, "1")]);
     let tree2 = testutils::create_tree(repo, &[(&file_path1, "2"), (&file_path2, "2")]);
     let tree3 = testutils::create_tree(repo, &[(&file_path1, "3"), (&file_path2, "1")]);
-    let tree_id4 = merge_trees(&tree2, &tree1, &tree3).unwrap();
-    let tree4 = mut_repo
-        .store()
-        .get_tree(&RepoPath::root(), &tree_id4)
-        .unwrap();
+    let tree4 = merge_trees(&tree2, &tree1, &tree3).unwrap();
 
     let mut create_commit = |parent_ids, tree_id| {
         mut_repo
