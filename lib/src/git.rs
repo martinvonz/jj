@@ -519,12 +519,13 @@ pub fn fetch(
     remote.disconnect()?;
     tracing::debug!("import_refs");
     if let Some(globs) = branch_name_globs {
-        let pattern = format!(
-            "^({})$",
-            globs.iter().map(|glob| glob.replace('*', ".*")).join("|")
-        );
-        tracing::debug!(?globs, ?pattern, "globs as regex");
-        let branch_regex = regex::Regex::new(&pattern).map_err(|_| GitFetchError::InvalidGlob)?;
+        let branch_regex = regex::RegexSet::new(
+            globs
+                .iter()
+                .map(|glob| format!("^{}$", glob.replace('*', ".*"))),
+        )
+        .map_err(|_| GitFetchError::InvalidGlob)?;
+        tracing::debug!(?globs, ?branch_regex, "globs as regex");
         import_some_refs(
             mut_repo,
             git_repo,
