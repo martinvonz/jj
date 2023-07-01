@@ -222,7 +222,7 @@ pub fn import_some_refs(
             mut_repo.remove_git_ref(&full_name);
             changed_git_refs.insert(ref_name, (Some(target), None));
         } else {
-            pinned_git_heads.insert(ref_name, target.adds());
+            pinned_git_heads.insert(ref_name, target.adds().to_vec());
         }
     }
     for (ref_name, (old_git_target, new_git_target)) in &changed_git_refs {
@@ -244,7 +244,7 @@ pub fn import_some_refs(
                 None => pinned_git_heads.remove(&local_ref_name),
                 Some(target) => {
                     // Note that we are mostly *replacing*, not inserting
-                    pinned_git_heads.insert(local_ref_name, target.adds())
+                    pinned_git_heads.insert(local_ref_name, target.adds().to_vec())
                 }
             };
         }
@@ -256,6 +256,7 @@ pub fn import_some_refs(
         .values()
         .filter_map(|(old_git_target, _)| old_git_target.as_ref().map(|target| target.adds()))
         .flatten()
+        .cloned()
         .collect_vec();
     if hidable_git_heads.is_empty() {
         return Ok(());

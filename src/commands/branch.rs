@@ -395,10 +395,10 @@ fn cmd_branch_list(
             write!(formatter.labeled("branch"), "@{remote}")?;
             if let Some(local_target) = branch_target.local_target.as_ref() {
                 let remote_ahead_count =
-                    revset::walk_revs(repo.as_ref(), &remote_target.adds(), &local_target.adds())?
+                    revset::walk_revs(repo.as_ref(), remote_target.adds(), local_target.adds())?
                         .count();
                 let local_ahead_count =
-                    revset::walk_revs(repo.as_ref(), &local_target.adds(), &remote_target.adds())?
+                    revset::walk_revs(repo.as_ref(), local_target.adds(), remote_target.adds())?
                         .count();
                 if remote_ahead_count != 0 && local_ahead_count == 0 {
                     write!(formatter, " (ahead by {remote_ahead_count} commits)")?;
