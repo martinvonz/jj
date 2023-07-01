@@ -14,6 +14,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
+use std::slice;
 
 use thiserror::Error;
 
@@ -144,21 +145,17 @@ impl RefTarget {
         matches!(self, RefTarget::Conflict { .. })
     }
 
-    pub fn removes(&self) -> Vec<CommitId> {
+    pub fn removes(&self) -> &[CommitId] {
         match self {
-            RefTarget::Normal(_) => {
-                vec![]
-            }
-            RefTarget::Conflict { removes, adds: _ } => removes.clone(),
+            RefTarget::Normal(_) => &[],
+            RefTarget::Conflict { removes, adds: _ } => removes,
         }
     }
 
-    pub fn adds(&self) -> Vec<CommitId> {
+    pub fn adds(&self) -> &[CommitId] {
         match self {
-            RefTarget::Normal(id) => {
-                vec![id.clone()]
-            }
-            RefTarget::Conflict { removes: _, adds } => adds.clone(),
+            RefTarget::Normal(id) => slice::from_ref(id),
+            RefTarget::Conflict { removes: _, adds } => adds,
         }
     }
 

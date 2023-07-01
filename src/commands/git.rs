@@ -868,7 +868,7 @@ fn cmd_git_push(
     let mut old_heads = vec![];
     for branch_target in repo.view().branches().values() {
         if let Some(old_head) = branch_target.remote_targets.get(&remote) {
-            old_heads.extend(old_head.adds());
+            old_heads.extend_from_slice(old_head.adds());
         }
     }
     if old_heads.is_empty() {

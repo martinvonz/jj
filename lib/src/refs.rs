@@ -30,17 +30,17 @@ pub fn merge_ref_targets(
     let mut removes = vec![];
     let mut adds = vec![];
     if let Some(left) = left {
-        removes.extend(left.removes());
-        adds.extend(left.adds());
+        removes.extend_from_slice(left.removes());
+        adds.extend_from_slice(left.adds());
     }
     if let Some(base) = base {
         // Note that these are backwards (because the base is subtracted).
-        removes.extend(base.adds());
-        adds.extend(base.removes());
+        removes.extend_from_slice(base.adds());
+        adds.extend_from_slice(base.removes());
     }
     if let Some(right) = right {
-        removes.extend(right.removes());
-        adds.extend(right.adds());
+        removes.extend_from_slice(right.removes());
+        adds.extend_from_slice(right.adds());
     }
 
     while let Some((maybe_remove_index, add_index)) = find_pair_to_remove(index, &removes, &adds) {

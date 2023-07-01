@@ -228,13 +228,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             if let Some(local_target) = &branch_target.local_target {
                 for commit in local_target.removes() {
                     branches
-                        .entry(commit)
+                        .entry(commit.clone())
                         .or_default()
                         .insert(branch_name.clone());
                 }
                 for commit in local_target.adds() {
                     branches
-                        .entry(commit)
+                        .entry(commit.clone())
                         .or_default()
                         .insert(branch_name.clone());
                 }
@@ -318,7 +318,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 }
                 let local_target = self.mut_repo.get_local_branch(branch_name).unwrap();
                 for old_add in local_target.adds() {
-                    if old_add == old_commit_id {
+                    if *old_add == old_commit_id {
                         branch_updates.push(branch_name.clone());
                     }
                 }
