@@ -1659,6 +1659,24 @@ fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     None
 }
 
+fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<String> {
+    // TODO: include "@git" branches
+    repo.view()
+        .branches()
+        .iter()
+        .flat_map(|(name, branch_target)| {
+            let local_target = branch_target.local_target.as_ref();
+            let local_symbol = local_target.is_some().then(|| name.to_owned());
+            let remote_symbols = branch_target
+                .remote_targets
+                .iter()
+                .filter(move |&(_, target)| include_synced_remotes || Some(target) != local_target)
+                .map(move |(remote_name, _)| format!("{name}@{remote_name}"));
+            local_symbol.into_iter().chain(remote_symbols)
+        })
+        .collect()
+}
+
 fn resolve_full_commit_id(
     repo: &dyn Repo,
     symbol: &str,
@@ -1821,7 +1839,9 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             Err(RevsetResolutionError::NoSuchRevision {
                 name: symbol.to_owned(),
                 candidates: {
-                    let branch_names = self.repo.view().branches().keys().collect_vec();
+                    // TODO: include tags?
+                    let mut branch_names = collect_branch_symbols(self.repo, symbol.contains('@'));
+                    branch_names.sort_unstable();
                     collect_similar(symbol, &branch_names)
                 },
             })
