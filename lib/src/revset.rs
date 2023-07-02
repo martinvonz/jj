@@ -1641,24 +1641,17 @@ fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
 }
 
 fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
-    if let Some(branch_target) = repo.view().branches().get(symbol) {
-        return Some(
-            branch_target
-                .local_target
-                .as_ref()
-                .map(|target| target.adds().to_vec())
-                .unwrap_or_default(),
-        );
+    let view = repo.view();
+    if let Some(target) = view.get_local_branch(symbol) {
+        return Some(target.adds().to_vec());
     }
     if let Some((name, remote_name)) = symbol.split_once('@') {
-        if let Some(branch_target) = repo.view().branches().get(name) {
-            if let Some(target) = branch_target.remote_targets.get(remote_name) {
-                return Some(target.adds().to_vec());
-            }
+        if let Some(target) = view.get_remote_branch(name, remote_name) {
+            return Some(target.adds().to_vec());
         }
         // A remote with name "git" will shadow local-git tracking branches
         if remote_name == "git" {
-            if let Some(target) = get_local_git_tracking_branch(repo.view(), name) {
+            if let Some(target) = get_local_git_tracking_branch(view, name) {
                 return Some(target.adds().to_vec());
             }
         }
