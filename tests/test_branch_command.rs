@@ -500,6 +500,8 @@ fn test_branch_list_filtered_by_revset() {
     "###);
 
     let query = |revset| test_env.jj_cmd_success(&local_path, &["branch", "list", "-r", revset]);
+    let query_error =
+        |revset| test_env.jj_cmd_failure(&local_path, &["branch", "list", "-r", revset]);
 
     // "all()" doesn't include deleted branches since they have no local targets.
     // So "all()" is identical to "branches()".
@@ -526,7 +528,11 @@ fn test_branch_list_filtered_by_revset() {
     "###);
 
     // Can't select deleted branch.
-    insta::assert_snapshot!(query("remote-delete"), @r###"
+    insta::assert_snapshot!(query("branches(remote-delete)"), @r###"
+    "###);
+    insta::assert_snapshot!(query_error("remote-delete"), @r###"
+    Error: Revision "remote-delete" doesn't exist
+    Hint: Did you mean "remote-delete", "remote-keep", "remote-rewrite"?
     "###);
 }
 

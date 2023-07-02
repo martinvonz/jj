@@ -478,10 +478,17 @@ fn test_resolve_symbol_branches() {
     "###);
 
     // Remote only (or locally deleted)
-    assert_eq!(
-        resolve_symbol(mut_repo, "remote", None).unwrap(),
-        vec![], // TODO: NoSuchRevision
-    );
+    // TODO: shouldn't suggest deleted local branch
+    insta::assert_debug_snapshot!(
+        resolve_symbol(mut_repo, "remote", None).unwrap_err(), @r###"
+    NoSuchRevision {
+        name: "remote",
+        candidates: [
+            "remote",
+            "remote-conflicted",
+        ],
+    }
+    "###);
     assert_eq!(
         resolve_symbol(mut_repo, "remote@origin", None).unwrap(),
         vec![commit2.id().clone()],
