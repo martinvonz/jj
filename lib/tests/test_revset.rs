@@ -411,6 +411,176 @@ fn test_resolve_symbol_checkout(use_git: bool) {
 }
 
 #[test]
+fn test_resolve_symbol_branches() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let mut_repo = tx.mut_repo();
+
+    let commit1 = write_random_commit(mut_repo, &settings);
+    let commit2 = write_random_commit(mut_repo, &settings);
+    let commit3 = write_random_commit(mut_repo, &settings);
+    let commit4 = write_random_commit(mut_repo, &settings);
+    let commit5 = write_random_commit(mut_repo, &settings);
+
+    mut_repo.set_local_branch("local".to_owned(), RefTarget::Normal(commit1.id().clone()));
+    mut_repo.set_remote_branch(
+        "remote".to_owned(),
+        "origin".to_owned(),
+        RefTarget::Normal(commit2.id().clone()),
+    );
+    mut_repo.set_local_branch(
+        "local-remote".to_owned(),
+        RefTarget::Normal(commit3.id().clone()),
+    );
+    mut_repo.set_remote_branch(
+        "local-remote".to_owned(),
+        "origin".to_owned(),
+        RefTarget::Normal(commit4.id().clone()),
+    );
+    mut_repo.set_remote_branch(
+        "local-remote".to_owned(),
+        "mirror".to_owned(),
+        mut_repo.get_local_branch("local-remote").unwrap(),
+    );
+
+    mut_repo.set_local_branch(
+        "local-conflicted".to_owned(),
+        RefTarget::Conflict {
+            removes: vec![commit1.id().clone()],
+            adds: vec![commit3.id().clone(), commit2.id().clone()],
+        },
+    );
+    mut_repo.set_remote_branch(
+        "remote-conflicted".to_owned(),
+        "origin".to_owned(),
+        RefTarget::Conflict {
+            removes: vec![commit3.id().clone()],
+            adds: vec![commit5.id().clone(), commit4.id().clone()],
+        },
+    );
+
+    // Local only
+    assert_eq!(
+        resolve_symbol(mut_repo, "local", None).unwrap(),
+        vec![commit1.id().clone()],
+    );
+    insta::assert_debug_snapshot!(
+        resolve_symbol(mut_repo, "local@origin", None).unwrap_err(), @r###"
+    NoSuchRevision {
+        name: "local@origin",
+        candidates: [
+            "local",
+        ],
+    }
+    "###);
+
+    // Remote only (or locally deleted)
+    assert_eq!(
+        resolve_symbol(mut_repo, "remote", None).unwrap(),
+        vec![], // TODO: NoSuchRevision
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo, "remote@origin", None).unwrap(),
+        vec![commit2.id().clone()],
+    );
+
+    // Local/remote
+    assert_eq!(
+        resolve_symbol(mut_repo, "local-remote", None).unwrap(),
+        vec![commit3.id().clone()],
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo, "local-remote@origin", None).unwrap(),
+        vec![commit4.id().clone()],
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo, "local-remote@mirror", None).unwrap(),
+        vec![commit3.id().clone()],
+    );
+
+    // Conflicted
+    assert_eq!(
+        resolve_symbol(mut_repo, "local-conflicted", None).unwrap(),
+        vec![commit3.id().clone(), commit2.id().clone()],
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo, "remote-conflicted@origin", None).unwrap(),
+        vec![commit5.id().clone(), commit4.id().clone()],
+    );
+
+    // Typo of local/remote branch name
+    insta::assert_debug_snapshot!(
+        resolve_symbol(mut_repo, "local-emote", None).unwrap_err(), @r###"
+    NoSuchRevision {
+        name: "local-emote",
+        candidates: [
+            "local",
+            "local-conflicted",
+            "local-remote",
+        ],
+    }
+    "###);
+    insta::assert_debug_snapshot!(
+        resolve_symbol(mut_repo, "local-emote@origin", None).unwrap_err(), @r###"
+    NoSuchRevision {
+        name: "local-emote@origin",
+        candidates: [
+            "local",
+            "local-remote",
+        ],
+    }
+    "###);
+    // TODO: shouldn't suggest deleted local branch
+    insta::assert_debug_snapshot!(
+        resolve_symbol(mut_repo, "local-remote@origine", None).unwrap_err(), @r###"
+    NoSuchRevision {
+        name: "local-remote@origine",
+        candidates: [
+            "local",
+            "local-remote",
+            "remote",
+            "remote-conflicted",
+        ],
+    }
+    "###);
+
+    // Typo of remote-only branch name
+    // TODO: shouldn't suggest deleted local branch
+    insta::assert_debug_snapshot!(
+        resolve_symbol(mut_repo, "emote", None).unwrap_err(), @r###"
+    NoSuchRevision {
+        name: "emote",
+        candidates: [
+            "remote",
+            "remote-conflicted",
+        ],
+    }
+    "###);
+    insta::assert_debug_snapshot!(
+        resolve_symbol(mut_repo, "emote@origin", None).unwrap_err(), @r###"
+    NoSuchRevision {
+        name: "emote@origin",
+        candidates: [
+            "remote",
+        ],
+    }
+    "###);
+    insta::assert_debug_snapshot!(
+        resolve_symbol(mut_repo, "remote@origine", None).unwrap_err(), @r###"
+    NoSuchRevision {
+        name: "remote@origine",
+        candidates: [
+            "remote",
+            "remote-conflicted",
+        ],
+    }
+    "###);
+}
+
+#[test]
 fn test_resolve_symbol_git_refs() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(true);
