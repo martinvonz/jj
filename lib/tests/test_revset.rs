@@ -473,19 +473,21 @@ fn test_resolve_symbol_branches() {
         name: "local@origin",
         candidates: [
             "local",
+            "local-remote@origin",
+            "remote@origin",
         ],
     }
     "###);
 
     // Remote only (or locally deleted)
-    // TODO: shouldn't suggest deleted local branch
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "remote", None).unwrap_err(), @r###"
     NoSuchRevision {
         name: "remote",
         candidates: [
-            "remote",
-            "remote-conflicted",
+            "local-remote@origin",
+            "remote-conflicted@origin",
+            "remote@origin",
         ],
     }
     "###);
@@ -518,7 +520,9 @@ fn test_resolve_symbol_branches() {
         vec![commit5.id().clone(), commit4.id().clone()],
     );
 
-    // Typo of local/remote branch name
+    // Typo of local/remote branch name:
+    // For "local-emote" (without @remote part), "local-remote@mirror" isn't
+    // suggested since it points to the same target as "local-remote".
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "local-emote", None).unwrap_err(), @r###"
     NoSuchRevision {
@@ -527,6 +531,7 @@ fn test_resolve_symbol_branches() {
             "local",
             "local-conflicted",
             "local-remote",
+            "local-remote@origin",
         ],
     }
     "###);
@@ -537,10 +542,13 @@ fn test_resolve_symbol_branches() {
         candidates: [
             "local",
             "local-remote",
+            "local-remote@mirror",
+            "local-remote@origin",
+            "remote-conflicted@origin",
+            "remote@origin",
         ],
     }
     "###);
-    // TODO: shouldn't suggest deleted local branch
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "local-remote@origine", None).unwrap_err(), @r###"
     NoSuchRevision {
@@ -548,21 +556,34 @@ fn test_resolve_symbol_branches() {
         candidates: [
             "local",
             "local-remote",
-            "remote",
-            "remote-conflicted",
+            "local-remote@mirror",
+            "local-remote@origin",
+            "remote-conflicted@origin",
+            "remote@origin",
+        ],
+    }
+    "###);
+    // "local-remote@mirror" shouldn't be omitted just because it points to the same
+    // target as "local-remote".
+    insta::assert_debug_snapshot!(
+        resolve_symbol(mut_repo, "remote@mirror", None).unwrap_err(), @r###"
+    NoSuchRevision {
+        name: "remote@mirror",
+        candidates: [
+            "local-remote@mirror",
+            "remote@origin",
         ],
     }
     "###);
 
     // Typo of remote-only branch name
-    // TODO: shouldn't suggest deleted local branch
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "emote", None).unwrap_err(), @r###"
     NoSuchRevision {
         name: "emote",
         candidates: [
-            "remote",
-            "remote-conflicted",
+            "remote-conflicted@origin",
+            "remote@origin",
         ],
     }
     "###);
@@ -571,7 +592,8 @@ fn test_resolve_symbol_branches() {
     NoSuchRevision {
         name: "emote@origin",
         candidates: [
-            "remote",
+            "local-remote@origin",
+            "remote@origin",
         ],
     }
     "###);
@@ -580,8 +602,9 @@ fn test_resolve_symbol_branches() {
     NoSuchRevision {
         name: "remote@origine",
         candidates: [
-            "remote",
-            "remote-conflicted",
+            "local-remote@origin",
+            "remote-conflicted@origin",
+            "remote@origin",
         ],
     }
     "###);

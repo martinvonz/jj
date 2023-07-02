@@ -532,7 +532,7 @@ fn test_branch_list_filtered_by_revset() {
     "###);
     insta::assert_snapshot!(query_error("remote-delete"), @r###"
     Error: Revision "remote-delete" doesn't exist
-    Hint: Did you mean "remote-delete", "remote-keep", "remote-rewrite"?
+    Hint: Did you mean "remote-delete@origin", "remote-keep", "remote-rewrite", "remote-rewrite@origin"?
     "###);
 }
 
