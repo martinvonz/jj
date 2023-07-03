@@ -538,10 +538,9 @@ fn test_git_push_conflicting_branches() {
     };
 
     // Conflicting branch at @
-    // TODO: fix error message
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: No current branch.
+    Error: Branch branch2 is conflicted
     "###);
 
     // --branch should be blocked by conflicting branch

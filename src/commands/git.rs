@@ -671,7 +671,11 @@ fn cmd_git_push(
         view.branches()
             .iter()
             .filter(|(_, branch_target)| {
-                matches!(&branch_target.local_target, Some(RefTarget::Normal(id)) if is_target(id))
+                if let Some(target) = &branch_target.local_target {
+                    target.adds().iter().any(&mut is_target)
+                } else {
+                    false
+                }
             })
             .collect()
     }
@@ -812,10 +816,10 @@ fn cmd_git_push(
                     return Err(user_error("No current branch."));
                 }
                 for (branch_name, branch_target) in branches {
-                    if let Ok(Some(update)) =
-                        classify_branch_update(branch_name, branch_target, &remote)
-                    {
-                        branch_updates.push((branch_name.clone(), update));
+                    match classify_branch_update(branch_name, branch_target, &remote) {
+                        Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+                        Ok(None) => {}
+                        Err(message) => return Err(user_error(message)),
                     }
                 }
             }
