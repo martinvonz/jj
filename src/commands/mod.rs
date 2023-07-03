@@ -1070,9 +1070,23 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
 
     if let Some(git_store_str) = &args.git_repo {
         let mut git_store_path = command.cwd().join(git_store_str);
-        git_store_path = git_store_path
-            .canonicalize()
-            .map_err(|_| user_error(format!("{} doesn't exist", git_store_path.display())))?;
+        git_store_path = match git_store_path.canonicalize() {
+            Ok(path) => Ok(path),
+            Err(_) => {
+                fs::remove_dir_all(&wc_path).map_err(|_| {
+                    CommandError::InternalError(format!(
+                        "{} doesn't exist. Failed to clean up working directory at {}",
+                        git_store_path.display(),
+                        wc_path.display()
+                    ))
+                })?;
+
+                Err(user_error(format!(
+                    "{} doesn't exist",
+                    git_store_path.display()
+                )))
+            }
+        }?;
         if !git_store_path.ends_with(".git") {
             git_store_path = git_store_path.join(".git");
         }
