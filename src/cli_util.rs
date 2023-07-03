@@ -391,14 +391,18 @@ impl TracingSubscription {
         let (filter, reload_log_filter) = tracing_subscriber::reload::Layer::new(filter);
 
         let (chrome_tracing_layer, chrome_tracing_flush_guard) = match std::env::var("JJ_TRACE") {
-            Ok(_) => {
-                let filename = format!(
-                    "jj-trace-{}.json",
-                    SystemTime::now()
-                        .duration_since(SystemTime::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs(),
-                );
+            Ok(filename) => {
+                let filename = if filename.is_empty() {
+                    format!(
+                        "jj-trace-{}.json",
+                        SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs(),
+                    )
+                } else {
+                    filename
+                };
                 let include_args = std::env::var("JJ_TRACE_INCLUDE_ARGS").is_ok();
                 let (layer, guard) = ChromeLayerBuilder::new()
                     .file(filename)
