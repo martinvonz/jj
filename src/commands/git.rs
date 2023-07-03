@@ -694,14 +694,17 @@ fn cmd_git_push(
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
             }
-            if let Some(update) = branch_updates_for_push(repo.as_ref(), &remote, branch_name)? {
-                branch_updates.push((branch_name.clone(), update));
-            } else {
-                writeln!(
+            let branch_target = repo
+                .view()
+                .get_branch(branch_name)
+                .ok_or_else(|| user_error(format!("Branch {branch_name} doesn't exist")))?;
+            match classify_branch_update(branch_name, branch_target, &remote) {
+                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+                Ok(None) => writeln!(
                     ui,
-                    "Branch {}@{} already matches {}",
-                    branch_name, &remote, branch_name
-                )?;
+                    "Branch {branch_name}@{remote} already matches {branch_name}",
+                )?,
+                Err(message) => return Err(user_error(message)),
             }
         }
 
@@ -742,14 +745,14 @@ fn cmd_git_push(
             }
             tx.mut_repo()
                 .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
-            if let Some(update) = branch_updates_for_push(tx.mut_repo(), &remote, &branch_name)? {
-                branch_updates.push((branch_name.clone(), update));
-            } else {
-                writeln!(
+            let branch_target = tx.repo().view().get_branch(&branch_name).unwrap();
+            match classify_branch_update(&branch_name, branch_target, &remote) {
+                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+                Ok(None) => writeln!(
                     ui,
-                    "Branch {}@{} already matches {}",
-                    branch_name, &remote, branch_name
-                )?;
+                    "Branch {branch_name}@{remote} already matches {branch_name}",
+                )?,
+                Err(message) => return Err(user_error(message)),
             }
         }
 
@@ -967,17 +970,6 @@ fn get_default_push_remote(
     } else {
         Ok(DEFAULT_REMOTE.to_owned())
     }
-}
-
-fn branch_updates_for_push(
-    repo: &dyn Repo,
-    remote_name: &str,
-    branch_name: &str,
-) -> Result<Option<BranchPushUpdate>, CommandError> {
-    let maybe_branch_target = repo.view().get_branch(branch_name);
-    let branch_target = maybe_branch_target
-        .ok_or_else(|| user_error(format!("Branch {branch_name} doesn't exist")))?;
-    classify_branch_update(branch_name, branch_target, remote_name).map_err(user_error)
 }
 
 fn classify_branch_update(
