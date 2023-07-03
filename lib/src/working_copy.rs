@@ -17,7 +17,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
-use std::fs::{DirEntry, File, Metadata, OpenOptions};
+use std::fs::{File, Metadata, OpenOptions};
 use std::io::{Read, Write};
 use std::ops::Bound;
 #[cfg(unix)]
@@ -622,7 +622,7 @@ impl TreeState {
                         }
                         let update = self.update_file_state(
                             sub_path.clone(),
-                            &entry,
+                            &entry.path(),
                             git_ignore.as_ref(),
                             &current_tree,
                         )?;
@@ -727,7 +727,7 @@ impl TreeState {
     fn update_file_state(
         &self,
         repo_path: RepoPath,
-        dir_entry: &DirEntry,
+        disk_path: &Path,
         git_ignore: &GitIgnoreFile,
         current_tree: &Tree,
     ) -> Result<Option<(TreeValue, FileState)>, SnapshotError> {
@@ -741,12 +741,18 @@ impl TreeState {
             return Ok(None);
         }
 
-        let disk_path = dir_entry.path();
-        let metadata = dir_entry.metadata().map_err(|err| SnapshotError::IoError {
-            message: format!("Failed to stat file {}", disk_path.display()),
-            err,
-        })?;
-        let maybe_new_file_state = file_state(&metadata);
+        let maybe_new_file_state = match std::fs::symlink_metadata(disk_path) {
+            Ok(metadata) => file_state(&metadata),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(None);
+            }
+            Err(err) => {
+                return Err(SnapshotError::IoError {
+                    message: format!("Failed to stat file {}", disk_path.display()),
+                    err,
+                });
+            }
+        };
         let (mut current_file_state, mut new_file_state) =
             match (maybe_current_file_state, maybe_new_file_state) {
                 (_, None) => {
@@ -755,7 +761,7 @@ impl TreeState {
                 (None, Some(new_file_state)) => {
                     // untracked
                     let file_type = new_file_state.file_type.clone();
-                    let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
+                    let file_value = self.write_path_to_store(&repo_path, disk_path, file_type)?;
                     return Ok(Some((file_value, new_file_state)));
                 }
                 (Some(current_file_state), Some(new_file_state)) => {
@@ -800,7 +806,7 @@ impl TreeState {
                     FileType::Normal { executable: _ },
                 ) = (&current_tree_value, &new_file_state.file_type)
                 {
-                    let mut file = File::open(&disk_path).unwrap();
+                    let mut file = File::open(disk_path).unwrap();
                     let mut content = vec![];
                     file.read_to_end(&mut content).unwrap();
                     let conflict = self.store.read_conflict(&repo_path, conflict_id)?;
@@ -821,7 +827,7 @@ impl TreeState {
         }
         if !clean {
             let file_type = new_file_state.file_type.clone();
-            let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
+            let file_value = self.write_path_to_store(&repo_path, disk_path, file_type)?;
             return Ok(Some((file_value, new_file_state)));
         }
         Ok(current_tree_value.map(|current_tree_value| (current_tree_value, new_file_state)))
