@@ -8,3 +8,5 @@ result
 
 # Editor specific ignores
 .idea
+.nova
+.vscode
