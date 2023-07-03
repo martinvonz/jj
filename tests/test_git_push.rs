@@ -551,17 +551,23 @@ fn test_git_push_conflicting_branches() {
 
     // --all shouldn't be blocked by conflicting branch
     bump_branch1();
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Move branch branch1 from 45a3aa29e907 to fd1d63e031ea
     "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Branch branch2 is conflicted
+    "###);
 
     // --revisions shouldn't be blocked by conflicting branch
     bump_branch1();
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "-rall()"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-rall()"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Move branch branch1 from fd1d63e031ea to 8263cf992d33
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Branch branch2 is conflicted
     "###);
 }
