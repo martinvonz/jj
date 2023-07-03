@@ -669,7 +669,7 @@ fn cmd_git_push(
     let mut tx = workspace_command.start_transaction("");
     let tx_description;
     let mut branch_updates = vec![];
-    if args.all || args.deleted {
+    if args.all {
         // TODO: Is it useful to warn about conflicted branches?
         for (branch_name, branch_target) in repo.view().branches() {
             let push_action = classify_branch_push_action(branch_target, &remote);
@@ -678,17 +678,28 @@ fn cmd_git_push(
                 | BranchPushAction::LocalConflicted
                 | BranchPushAction::RemoteConflicted => {}
                 BranchPushAction::Update(update) => {
-                    if args.all || branch_target.local_target.is_none() {
-                        branch_updates.push((branch_name.clone(), update));
-                    }
+                    branch_updates.push((branch_name.clone(), update));
                 }
             }
         }
-        tx_description = format!(
-            "push all {}branches to git remote {}",
-            if args.deleted { "deleted " } else { "" },
-            &remote
-        );
+        tx_description = format!("push all branches to git remote {remote}");
+    } else if args.deleted {
+        // TODO: Is it useful to warn about conflicted branches?
+        for (branch_name, branch_target) in repo.view().branches() {
+            if branch_target.local_target.is_some() {
+                continue;
+            }
+            let push_action = classify_branch_push_action(branch_target, &remote);
+            match push_action {
+                BranchPushAction::AlreadyMatches
+                | BranchPushAction::LocalConflicted
+                | BranchPushAction::RemoteConflicted => {}
+                BranchPushAction::Update(update) => {
+                    branch_updates.push((branch_name.clone(), update));
+                }
+            }
+        }
+        tx_description = format!("push all deleted branches to git remote {remote}");
     } else if !args.branch.is_empty() || !args.change.is_empty() || !args.revisions.is_empty() {
         let mut seen_branches = hashset! {};
         for branch_name in &args.branch {
