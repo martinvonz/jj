@@ -504,3 +504,65 @@ fn test_git_push_deleted() {
     Nothing changed.
     "###);
 }
+
+#[test]
+fn test_git_push_conflicting_branches() {
+    let (test_env, workspace_root) = set_up();
+    let git_repo = {
+        let mut git_repo_path = workspace_root.clone();
+        git_repo_path.extend([".jj", "repo", "store", "git"]);
+        git2::Repository::open(&git_repo_path).unwrap()
+    };
+
+    // Forget remote ref, move local ref, then fetch to create conflict.
+    git_repo
+        .find_reference("refs/remotes/origin/branch2")
+        .unwrap()
+        .delete()
+        .unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["git", "import"]);
+    test_env.jj_cmd_success(&workspace_root, &["new", "root", "-m=description 3"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch2"]);
+    test_env.jj_cmd_success(&workspace_root, &["git", "fetch"]);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["branch", "list"]), @r###"
+    branch1: 45a3aa29e907 description 1
+    branch2 (conflicted):
+      + 8e670e2d47e1 description 3
+      + 8476341eb395 description 2
+      @origin (behind by 1 commits): 8476341eb395 description 2
+    "###);
+
+    let bump_branch1 = || {
+        test_env.jj_cmd_success(&workspace_root, &["new", "branch1", "-m=bump"]);
+        test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch1"]);
+    };
+
+    // Conflicting branch at @
+    // TODO: fix error message
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No current branch.
+    "###);
+
+    // --branch should be blocked by conflicting branch
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch", "branch2"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Branch branch2 is conflicted
+    "###);
+
+    // --all shouldn't be blocked by conflicting branch
+    bump_branch1();
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Move branch branch1 from 45a3aa29e907 to fd1d63e031ea
+    "###);
+
+    // --revisions shouldn't be blocked by conflicting branch
+    bump_branch1();
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "-rall()"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Move branch branch1 from fd1d63e031ea to 8263cf992d33
+    "###);
+}
