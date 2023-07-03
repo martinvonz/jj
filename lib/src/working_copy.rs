@@ -34,7 +34,8 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{
-    BackendError, ConflictId, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
+    BackendError, CommitId, ConflictId, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId,
+    TreeValue,
 };
 #[cfg(feature = "watchman")]
 use crate::fsmonitor::watchman;
@@ -581,10 +582,12 @@ impl TreeState {
             if path.file_name() == Some(".jj") || path.file_name() == Some(".git") {
                 continue;
             }
-            if let Some(file_state) = self.file_states.get(&path) {
-                if file_state.file_type == FileType::GitSubmodule {
-                    continue;
-                }
+            let current_tree_value = current_tree.path_value(&path);
+            if let Some(current_tree_value @ TreeValue::GitSubmodule(_)) = current_tree_value {
+                self.file_states
+                    .insert(path.clone(), FileState::for_gitsubmodule());
+                tree_builder.set(path, current_tree_value);
+                continue;
             }
 
             deleted_files.remove(&path);
@@ -592,7 +595,7 @@ impl TreeState {
                 // If the whole directory is ignored, skip it unless we're already tracking
                 // some file in it.
                 if git_ignore.matches_all_files_in(&path.to_internal_dir_string())
-                    && current_tree.path_value(&path).is_none()
+                    && current_tree_value.is_none()
                 {
                     continue;
                 }
@@ -622,7 +625,7 @@ impl TreeState {
                     path.clone(),
                     &disk_path,
                     git_ignore.as_ref(),
-                    &current_tree,
+                    &current_tree_value,
                 )?;
                 match update {
                     Some((new_tree_value, new_file_state)) => {
@@ -706,18 +709,23 @@ impl TreeState {
         repo_path: RepoPath,
         disk_path: &Path,
         git_ignore: &GitIgnoreFile,
-        current_tree: &Tree,
+        current_tree_value: &Option<TreeValue>,
     ) -> Result<Option<(TreeValue, FileState)>, SnapshotError> {
-        let current_tree_value = current_tree.path_value(&repo_path);
-        let maybe_current_file_state = self.file_states.get(&repo_path).cloned();
-        if maybe_current_file_state.is_none()
+        if current_tree_value.is_none()
             && git_ignore.matches_file(&repo_path.to_internal_file_string())
         {
             // If it wasn't already tracked and it matches the ignored paths, then
             // ignore it.
             return Ok(None);
         }
+        if let Some(current_tree_value @ TreeValue::GitSubmodule(_)) = current_tree_value {
+            return Ok(Some((
+                current_tree_value.clone(),
+                FileState::for_gitsubmodule(),
+            )));
+        }
 
+        let maybe_current_file_state = self.file_states.get(&repo_path).cloned();
         let maybe_new_file_state = match std::fs::symlink_metadata(disk_path) {
             Ok(metadata) => file_state(&metadata),
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
@@ -807,7 +815,9 @@ impl TreeState {
             let file_value = self.write_path_to_store(&repo_path, disk_path, file_type)?;
             return Ok(Some((file_value, new_file_state)));
         }
-        Ok(current_tree_value.map(|current_tree_value| (current_tree_value, new_file_state)))
+        Ok(current_tree_value
+            .as_ref()
+            .map(|current_tree_value| (current_tree_value.clone(), new_file_state)))
     }
 
     fn write_path_to_store(
@@ -939,6 +949,35 @@ impl TreeState {
         Ok(())
     }
 
+    fn remove_git_submodule(&self, disk_path: &Path) -> Result<(), CheckoutError> {
+        std::fs::remove_dir_all(disk_path).map_err(|err| CheckoutError::IoError {
+            message: format!("Failed to remove directory {}", disk_path.display()),
+            err,
+        })
+    }
+
+    fn write_git_submodule(
+        &self,
+        disk_path: &Path,
+        _path: &RepoPath,
+        _id: &CommitId,
+    ) -> Result<FileState, CheckoutError> {
+        // TODO: Actually materialize Git submodule. We create an empty
+        // directory here to ensure that, from only looking at the filesystem,
+        // we think that the submodule/tree value is still present on disk.
+        match std::fs::create_dir_all(disk_path) {
+            Ok(()) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(err) => {
+                return Err(CheckoutError::IoError {
+                    message: format!("Failed to create directory {}", disk_path.display()),
+                    err,
+                });
+            }
+        }
+        Ok(FileState::for_gitsubmodule())
+    }
+
     pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
         let old_tree = self
             .store
@@ -1008,8 +1047,18 @@ impl TreeState {
 
             // TODO: Check that the file has not changed before overwriting/removing it.
             match diff {
-                Diff::Removed(_before) => {
-                    fs::remove_file(&disk_path).ok();
+                Diff::Removed(before) => {
+                    match before {
+                        TreeValue::GitSubmodule(_) => {
+                            self.remove_git_submodule(&disk_path)?;
+                        }
+                        TreeValue::File { .. } | TreeValue::Symlink(_) | TreeValue::Conflict(_) => {
+                            fs::remove_file(&disk_path).ok();
+                        }
+                        TreeValue::Tree(_) => {
+                            panic!("Unexpected tree value in diff")
+                        }
+                    };
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
                         if fs::remove_dir(parent_dir).is_err() {
@@ -1027,9 +1076,8 @@ impl TreeState {
                         }
                         TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id)?,
                         TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id)?,
-                        TreeValue::GitSubmodule(_id) => {
-                            println!("ignoring git submodule at {path:?}");
-                            FileState::for_gitsubmodule()
+                        TreeValue::GitSubmodule(id) => {
+                            self.write_git_submodule(&disk_path, &path, &id)?
                         }
                         TreeValue::Tree(_id) => {
                             panic!("unexpected tree entry in diff at {path:?}");
@@ -1052,17 +1100,26 @@ impl TreeState {
                     file_state.mark_executable(executable);
                     stats.updated_files += 1;
                 }
-                Diff::Modified(_before, after) => {
-                    fs::remove_file(&disk_path).ok();
+                Diff::Modified(before, after) => {
+                    match before {
+                        TreeValue::File { .. } | TreeValue::Symlink(_) | TreeValue::Conflict(_) => {
+                            fs::remove_file(&disk_path).ok();
+                        }
+                        TreeValue::GitSubmodule(_) => {
+                            self.remove_git_submodule(&disk_path)?;
+                        }
+                        TreeValue::Tree(_) => {
+                            panic!("unexpected tree entry in diff at {path:?}");
+                        }
+                    }
                     let file_state = match after {
                         TreeValue::File { id, executable } => {
                             self.write_file(&disk_path, &path, &id, executable)?
                         }
                         TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id)?,
                         TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id)?,
-                        TreeValue::GitSubmodule(_id) => {
-                            println!("ignoring git submodule at {path:?}");
-                            FileState::for_gitsubmodule()
+                        TreeValue::GitSubmodule(id) => {
+                            self.write_git_submodule(&disk_path, &path, &id)?
                         }
                         TreeValue::Tree(_id) => {
                             panic!("unexpected tree entry in diff at {path:?}");

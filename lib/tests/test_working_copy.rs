@@ -266,8 +266,9 @@ fn test_checkout_file_transitions(use_git: bool) {
                 assert!(metadata.is_dir(), "{path:?} should be a directory");
             }
             Kind::GitSubmodule => {
-                // Not supported for now
-                assert!(maybe_metadata.is_err(), "{path:?} should not exist");
+                assert!(maybe_metadata.is_ok(), "{path:?} should exist");
+                let metadata = maybe_metadata.unwrap();
+                assert!(metadata.is_dir(), "{path:?} should be a directory");
             }
         };
     }
@@ -757,17 +758,12 @@ fn test_gitsubmodule() {
     let submodule_id = write_random_commit(tx.mut_repo(), &settings).id().clone();
     tx.commit();
 
-    tree_builder.set(
-        submodule_path.clone(),
-        TreeValue::GitSubmodule(submodule_id),
-    );
+    tree_builder.set(submodule_path, TreeValue::GitSubmodule(submodule_id));
 
     let tree_id = tree_builder.write_tree();
     let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
     let wc = test_workspace.workspace.working_copy_mut();
     wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
-
-    std::fs::create_dir(submodule_path.to_fs_path(&workspace_root)).unwrap();
 
     testutils::write_working_copy_file(
         &workspace_root,
