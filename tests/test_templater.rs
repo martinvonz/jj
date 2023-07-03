@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
+use crate::common::TestEnvironment;
 
 pub mod common;
 
@@ -853,12 +853,10 @@ fn test_templater_bad_alias_decl() {
     );
 
     // Invalid declaration should be warned and ignored.
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "--no-graph", "-r@-", "-Tmy_commit_id"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"000000000000");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["log", "--no-graph", "-r@-", "-Tmy_commit_id"]);
+    insta::assert_snapshot!(stdout, @"000000000000");
+    insta::assert_snapshot!(stderr, @r###"
     Failed to load "template-aliases.badfn(a, a)":  --> 1:7
       |
     1 | badfn(a, a)

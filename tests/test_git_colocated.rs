@@ -16,7 +16,7 @@ use std::path::Path;
 
 use git2::Oid;
 
-use crate::common::{get_stderr_string, TestEnvironment};
+use crate::common::TestEnvironment;
 
 pub mod common;
 
@@ -252,12 +252,9 @@ fn test_git_colocated_conflicting_git_refs() {
     git2::Repository::init(&workspace_root).unwrap();
     test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "create", "main"]);
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["branch", "create", "main/sub"])
-        .assert()
-        .success()
-        .stdout("");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "main/sub"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Failed to export some branches:
       main/sub
     Hint: Git doesn't allow a branch name that looks like a parent directory of

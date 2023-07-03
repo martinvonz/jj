@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
+use crate::common::TestEnvironment;
 
 pub mod common;
 
@@ -249,14 +249,11 @@ fn test_squash_partial() {
 
     // We get a warning if we pass a positional argument that looks like a revset
     test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let assert = test_env
-        .jj_cmd(&repo_path, &["squash", "b"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "b"]);
+    insta::assert_snapshot!(stderr, @r###"
     warning: The argument "b" is being interpreted as a path. To specify a revset, pass -r "b" instead.
     "###);
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 1c4e5596a511 (no description set)
     Parent commit      : 16cc94b4efe9 (no description set)
     "###);

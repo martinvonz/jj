@@ -135,22 +135,30 @@ impl TestEnvironment {
         cmd
     }
 
+    /// Run a `jj` command, check that it was successful, and return its
+    /// `(stdout, stderr)`.
+    pub fn jj_cmd_ok(&self, current_dir: &Path, args: &[&str]) -> (String, String) {
+        let assert = self.jj_cmd(current_dir, args).assert().success();
+        let stdout = self.normalize_output(&get_stdout_string(&assert));
+        let stderr = self.normalize_output(&get_stderr_string(&assert));
+        (stdout, stderr)
+    }
+
     /// Run a `jj` command, check that it was successful, and return its stdout
     pub fn jj_cmd_success(&self, current_dir: &Path, args: &[&str]) -> String {
-        let assert = if self.debug_allow_stderr {
-            let a = self.jj_cmd(current_dir, args).assert().success();
-            let stderr = self.normalize_output(&get_stderr_string(&a));
+        if self.debug_allow_stderr {
+            let (stdout, stderr) = self.jj_cmd_ok(current_dir, args);
             if !stderr.is_empty() {
                 eprintln!(
                     "==== STDERR from running jj with {args:?} args in {current_dir:?} \
                      ====\n{stderr}==== END STDERR ===="
                 );
             }
-            a
+            stdout
         } else {
-            self.jj_cmd(current_dir, args).assert().success().stderr("")
-        };
-        self.normalize_output(&get_stdout_string(&assert))
+            let assert = self.jj_cmd(current_dir, args).assert().success().stderr("");
+            self.normalize_output(&get_stdout_string(&assert))
+        }
     }
 
     /// Run a `jj` command, check that it failed with code 1, and return its

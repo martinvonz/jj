@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
+use crate::common::TestEnvironment;
 
 pub mod common;
 
@@ -24,13 +24,11 @@ fn test_branch_multiple_names() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    let assert = test_env
-        .jj_cmd(&repo_path, &["branch", "set", "foo", "bar"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"");
-    insta::assert_snapshot!(get_stderr_string(&assert), @"warning: Updating multiple branches (2).
-");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo", "bar"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    warning: Updating multiple branches (2).
+    "###);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar foo 230dd059e1b0
