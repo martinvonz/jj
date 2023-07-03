@@ -335,8 +335,7 @@ It's a good alternative to Meld, especially if you don't have a graphical
 environment (e.g. when using SSH). To install it:
 
 ```shell
-cargo install --git https://github.com/arxanas/git-branchless scm-record
---features scm-diff-editor
+cargo install --git https://github.com/arxanas/git-branchless scm-record --features scm-diff-editor
 ```
 
 Then config it as follows:
