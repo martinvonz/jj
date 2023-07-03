@@ -684,21 +684,23 @@ fn cmd_git_push(
     let tx_description;
     let mut branch_updates = vec![];
     if args.all {
-        // TODO: Is it useful to warn about conflicted branches?
         for (branch_name, branch_target) in repo.view().branches() {
-            if let Ok(Some(update)) = classify_branch_update(branch_name, branch_target, &remote) {
-                branch_updates.push((branch_name.clone(), update));
+            match classify_branch_update(branch_name, branch_target, &remote) {
+                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+                Ok(None) => {}
+                Err(message) => writeln!(ui.warning(), "{message}")?,
             }
         }
         tx_description = format!("push all branches to git remote {remote}");
     } else if args.deleted {
-        // TODO: Is it useful to warn about conflicted branches?
         for (branch_name, branch_target) in repo.view().branches() {
             if branch_target.local_target.is_some() {
                 continue;
             }
-            if let Ok(Some(update)) = classify_branch_update(branch_name, branch_target, &remote) {
-                branch_updates.push((branch_name.clone(), update));
+            match classify_branch_update(branch_name, branch_target, &remote) {
+                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+                Ok(None) => {}
+                Err(message) => writeln!(ui.warning(), "{message}")?,
             }
         }
         tx_description = format!("push all deleted branches to git remote {remote}");
@@ -776,8 +778,10 @@ fn cmd_git_push(
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
             }
-            if let Ok(Some(update)) = classify_branch_update(branch_name, branch_target, &remote) {
-                branch_updates.push((branch_name.clone(), update));
+            match classify_branch_update(branch_name, branch_target, &remote) {
+                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+                Ok(None) => {}
+                Err(message) => writeln!(ui.warning(), "{message}")?,
             }
         }
         if !args.revisions.is_empty() && branches_targeted.is_empty() {
