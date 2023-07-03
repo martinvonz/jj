@@ -672,14 +672,8 @@ fn cmd_git_push(
     if args.all {
         // TODO: Is it useful to warn about conflicted branches?
         for (branch_name, branch_target) in repo.view().branches() {
-            let push_action = classify_branch_push_action(branch_target, &remote);
-            match push_action {
-                BranchPushAction::AlreadyMatches
-                | BranchPushAction::LocalConflicted
-                | BranchPushAction::RemoteConflicted => {}
-                BranchPushAction::Update(update) => {
-                    branch_updates.push((branch_name.clone(), update));
-                }
+            if let Ok(Some(update)) = classify_branch_update(branch_name, branch_target, &remote) {
+                branch_updates.push((branch_name.clone(), update));
             }
         }
         tx_description = format!("push all branches to git remote {remote}");
@@ -689,14 +683,8 @@ fn cmd_git_push(
             if branch_target.local_target.is_some() {
                 continue;
             }
-            let push_action = classify_branch_push_action(branch_target, &remote);
-            match push_action {
-                BranchPushAction::AlreadyMatches
-                | BranchPushAction::LocalConflicted
-                | BranchPushAction::RemoteConflicted => {}
-                BranchPushAction::Update(update) => {
-                    branch_updates.push((branch_name.clone(), update));
-                }
+            if let Ok(Some(update)) = classify_branch_update(branch_name, branch_target, &remote) {
+                branch_updates.push((branch_name.clone(), update));
             }
         }
         tx_description = format!("push all deleted branches to git remote {remote}");
@@ -774,14 +762,10 @@ fn cmd_git_push(
                 if !seen_branches.insert(branch_name.clone()) {
                     continue;
                 }
-                let push_action = classify_branch_push_action(branch_target, &remote);
-                match push_action {
-                    BranchPushAction::AlreadyMatches
-                    | BranchPushAction::LocalConflicted
-                    | BranchPushAction::RemoteConflicted => {}
-                    BranchPushAction::Update(update) => {
-                        branch_updates.push((branch_name.clone(), update));
-                    }
+                if let Ok(Some(update)) =
+                    classify_branch_update(branch_name, branch_target, &remote)
+                {
+                    branch_updates.push((branch_name.clone(), update));
                 }
             }
         }
@@ -824,14 +808,10 @@ fn cmd_git_push(
                     return Err(user_error("No current branch."));
                 }
                 for (branch_name, branch_target) in branches {
-                    let push_action = classify_branch_push_action(branch_target, &remote);
-                    match push_action {
-                        BranchPushAction::AlreadyMatches
-                        | BranchPushAction::LocalConflicted
-                        | BranchPushAction::RemoteConflicted => {}
-                        BranchPushAction::Update(update) => {
-                            branch_updates.push((branch_name.clone(), update));
-                        }
+                    if let Ok(Some(update)) =
+                        classify_branch_update(branch_name, branch_target, &remote)
+                    {
+                        branch_updates.push((branch_name.clone(), update));
                     }
                 }
             }
@@ -997,16 +977,21 @@ fn branch_updates_for_push(
     let maybe_branch_target = repo.view().get_branch(branch_name);
     let branch_target = maybe_branch_target
         .ok_or_else(|| user_error(format!("Branch {branch_name} doesn't exist")))?;
-    let push_action = classify_branch_push_action(branch_target, remote_name);
+    classify_branch_update(branch_name, branch_target, remote_name).map_err(user_error)
+}
 
+fn classify_branch_update(
+    branch_name: &str,
+    branch_target: &BranchTarget,
+    remote_name: &str,
+) -> Result<Option<BranchPushUpdate>, String> {
+    let push_action = classify_branch_push_action(branch_target, remote_name);
     match push_action {
         BranchPushAction::AlreadyMatches => Ok(None),
-        BranchPushAction::LocalConflicted => {
-            Err(user_error(format!("Branch {branch_name} is conflicted")))
+        BranchPushAction::LocalConflicted => Err(format!("Branch {branch_name} is conflicted")),
+        BranchPushAction::RemoteConflicted => {
+            Err(format!("Branch {branch_name}@{remote_name} is conflicted"))
         }
-        BranchPushAction::RemoteConflicted => Err(user_error(format!(
-            "Branch {branch_name}@{remote_name} is conflicted"
-        ))),
         BranchPushAction::Update(update) => Ok(Some(update)),
     }
 }
