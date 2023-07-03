@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::io::{Read, Write};
 use std::ops::Deref;
@@ -8,7 +9,7 @@ use std::time::Instant;
 
 use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
-use jujutsu_lib::backend::{ObjectId, TreeValue};
+use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::git::{self, parse_gitmodules, GitFetchError, GitPushError, GitRefUpdate};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
@@ -655,14 +656,23 @@ fn cmd_git_push(
         .iter()
         .map(|change_str| workspace_command.resolve_single_rev(change_str))
         .try_collect()?;
-    let revision_commits = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
+    // TODO: Narrow search space to local target commits.
+    // TODO: Remove redundant CommitId -> Commit -> CommitId round trip.
+    let revision_commit_ids: HashSet<_> =
+        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?
+            .iter()
+            .map(|commit| commit.id().clone())
+            .collect();
+
     fn find_branches_targeting<'a>(
         view: &'a View,
-        target: &RefTarget,
+        mut is_target: impl FnMut(&'a CommitId) -> bool,
     ) -> Vec<(&'a String, &'a BranchTarget)> {
         view.branches()
             .iter()
-            .filter(|(_, branch_target)| branch_target.local_target.as_ref() == Some(target))
+            .filter(|(_, branch_target)| {
+                matches!(&branch_target.local_target, Some(RefTarget::Normal(id)) if is_target(id))
+            })
             .collect()
     }
 
@@ -756,23 +766,17 @@ fn cmd_git_push(
             }
         }
 
-        let mut any_revisions_targeted = false;
-        for commit in revision_commits {
-            for (branch_name, branch_target) in
-                find_branches_targeting(repo.view(), &RefTarget::Normal(commit.id().clone()))
-            {
-                any_revisions_targeted = true;
-                if !seen_branches.insert(branch_name.clone()) {
-                    continue;
-                }
-                if let Ok(Some(update)) =
-                    classify_branch_update(branch_name, branch_target, &remote)
-                {
-                    branch_updates.push((branch_name.clone(), update));
-                }
+        let branches_targeted =
+            find_branches_targeting(repo.view(), |id| revision_commit_ids.contains(id));
+        for &(branch_name, branch_target) in &branches_targeted {
+            if !seen_branches.insert(branch_name.clone()) {
+                continue;
+            }
+            if let Ok(Some(update)) = classify_branch_update(branch_name, branch_target, &remote) {
+                branch_updates.push((branch_name.clone(), update));
             }
         }
-        if !args.revisions.is_empty() && !any_revisions_targeted {
+        if !args.revisions.is_empty() && branches_targeted.is_empty() {
             return Err(user_error("No branches point to the specified revisions."));
         }
 
@@ -793,17 +797,14 @@ fn cmd_git_push(
             }
             Some(wc_commit) => {
                 // Search for branches targeting @
-                let mut branches =
-                    find_branches_targeting(repo.view(), &RefTarget::Normal(wc_commit.clone()));
+                let mut branches = find_branches_targeting(repo.view(), |id| id == &wc_commit);
                 if branches.is_empty() {
                     // Try @- instead if @ is discardable
                     let commit = repo.store().get_commit(&wc_commit)?;
                     if commit.is_discardable() {
                         if let [parent_commit_id] = commit.parent_ids() {
-                            branches = find_branches_targeting(
-                                repo.view(),
-                                &RefTarget::Normal(parent_commit_id.clone()),
-                            );
+                            branches =
+                                find_branches_targeting(repo.view(), |id| id == parent_commit_id);
                         }
                     }
                 }
