@@ -16,7 +16,7 @@ use std::path::Path;
 use itertools::Itertools as _;
 use jujutsu_lib::backend::{CommitId, ObjectId as _};
 
-use crate::common::{get_stderr_string, TestEnvironment};
+use crate::common::TestEnvironment;
 
 pub mod common;
 
@@ -75,12 +75,9 @@ fn test_git_export_conflicting_git_refs() {
 
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "main/sub"]);
-    let assert = test_env
-        .jj_cmd(&repo_path, &["git", "export"])
-        .assert()
-        .success()
-        .stdout("");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Failed to export some branches:
       main/sub
     Hint: Git doesn't allow a branch name that looks like a parent directory of

@@ -428,12 +428,7 @@ fn test_verbose_logging_enabled() {
     // Test that the verbose flag enabled verbose logging
     let test_env = TestEnvironment::default();
 
-    let assert = test_env
-        .jj_cmd(test_env.env_root(), &["version", "-v"])
-        .assert()
-        .success();
-
-    let stderr = get_stderr_string(&assert);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["version", "-v"]);
     // Split the first log line into a timestamp and the rest.
     // The timestamp is constant sized so this is a robust operation.
     // Example timestamp: 2022-11-20T06:24:05.477703Z

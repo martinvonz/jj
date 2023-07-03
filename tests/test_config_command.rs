@@ -41,15 +41,12 @@ fn test_config_list_single() {
 #[test]
 fn test_config_list_nonexistent() {
     let test_env = TestEnvironment::default();
-    let assert = test_env
-        .jj_cmd(
-            test_env.env_root(),
-            &["config", "list", "nonexistent-test-key"],
-        )
-        .assert()
-        .success()
-        .stdout("");
-    insta::assert_snapshot!(common::get_stderr_string(&assert), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["config", "list", "nonexistent-test-key"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     No matching config key for nonexistent-test-key
     "###);
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common::{get_stderr_string, get_stdout_string, TestEnvironment};
+use common::TestEnvironment;
 
 pub mod common;
 
@@ -383,15 +383,12 @@ fn test_bad_alias_decl() {
     );
 
     // Invalid declaration should be warned and ignored.
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "-r", "my-root"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r", "my-root"]);
+    insta::assert_snapshot!(stdout, @r###"
     ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
        (empty) (no description set)
     "###);
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    insta::assert_snapshot!(stderr, @r###"
     Failed to load "revset-aliases."bad"":  --> 1:1
       |
     1 | "bad"

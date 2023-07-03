@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common::{get_stderr_string, get_stdout_string, TestEnvironment};
+use common::{get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -756,63 +756,51 @@ fn test_log_warn_path_might_be_revset() {
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
 
     // Don't warn if the file actually exists.
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "file1", "-T", "description"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "file1", "-T", "description"]);
+    insta::assert_snapshot!(stdout, @r###"
     @
     │
     ~
     "###);
-    insta::assert_snapshot!(get_stderr_string(&assert), @"");
+    insta::assert_snapshot!(stderr, @"");
 
     // Warn for `jj log .` specifically, for former Mercurial users.
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", ".", "-T", "description"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", ".", "-T", "description"]);
+    insta::assert_snapshot!(stdout, @r###"
     @
     │
     ~
     "###);
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"warning: The argument "." is being interpreted as a path, but this is often not useful because all non-empty commits touch '.'.  If you meant to show the working copy commit, pass -r '@' instead."###);
+    insta::assert_snapshot!(stderr, @r###"
+    warning: The argument "." is being interpreted as a path, but this is often not useful because all non-empty commits touch '.'.  If you meant to show the working copy commit, pass -r '@' instead.
+    "###);
 
     // ...but checking `jj log .` makes sense in a subdirectory.
     let subdir = repo_path.join("dir");
     std::fs::create_dir_all(&subdir).unwrap();
-    let assert = test_env.jj_cmd(&subdir, &["log", "."]).assert().success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"");
-    insta::assert_snapshot!(get_stderr_string(&assert), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&subdir, &["log", "."]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
 
     // Warn for `jj log @` instead of `jj log -r @`.
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "@", "-T", "description"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "@", "-T", "description"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     warning: The argument "@" is being interpreted as a path. To specify a revset, pass -r "@" instead.
     "###);
 
     // Warn when there's no path with the provided name.
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "file2", "-T", "description"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "file2", "-T", "description"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     warning: The argument "file2" is being interpreted as a path. To specify a revset, pass -r "file2" instead.
     "###);
 
     // If an explicit revision is provided, then suppress the warning.
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "@", "-r", "@", "-T", "description"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["log", "@", "-r", "@", "-T", "description"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     "###);
 }
 
