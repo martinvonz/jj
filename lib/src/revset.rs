@@ -1024,7 +1024,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                 .map(|arg| -> Result<_, RevsetParseError> {
                     let span = arg.as_span();
                     let needle = parse_function_argument_to_string(name, arg, state)?;
-                    let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)
+                    let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, needle)
                         .map_err(|e| {
                             RevsetParseError::with_span(
                                 RevsetParseErrorKind::FsPathParseError(e),

@@ -90,7 +90,12 @@ impl RepoPath {
     /// The `cwd` and `base` paths are supposed to be absolute and normalized in
     /// the same manner. The `input` path may be either relative to `cwd` or
     /// absolute.
-    pub fn parse_fs_path(cwd: &Path, base: &Path, input: &str) -> Result<Self, FsPathParseError> {
+    pub fn parse_fs_path(
+        cwd: &Path,
+        base: &Path,
+        input: impl AsRef<Path>,
+    ) -> Result<Self, FsPathParseError> {
+        let input = input.as_ref();
         let abs_input_path = file_util::normalize_path(&cwd.join(input));
         let repo_relative_path = file_util::relative_path(base, &abs_input_path);
         if repo_relative_path == Path::new(".") {
@@ -100,7 +105,7 @@ impl RepoPath {
             .components()
             .map(|c| match c {
                 Component::Normal(a) => Ok(RepoPathComponent::from(a.to_str().unwrap())),
-                _ => Err(FsPathParseError::InputNotInRepo(input.to_string())),
+                _ => Err(FsPathParseError::InputNotInRepo(input.to_owned())),
             })
             .try_collect()?;
         Ok(RepoPath::from_components(components))
@@ -186,8 +191,8 @@ impl RepoPathJoin<RepoPathComponent> for RepoPath {
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum FsPathParseError {
-    #[error(r#"Path "{0}" is not in the repo"#)]
-    InputNotInRepo(String),
+    #[error(r#"Path "{}" is not in the repo"#, .0.display())]
+    InputNotInRepo(PathBuf),
 }
 
 #[cfg(test)]
@@ -335,7 +340,7 @@ mod tests {
             RepoPath::parse_fs_path(
                 &cwd_path,
                 wc_path,
-                &format!("dir{}file", std::path::MAIN_SEPARATOR)
+                format!("dir{}file", std::path::MAIN_SEPARATOR)
             ),
             Ok(RepoPath::from_internal_string("dir/file"))
         );
@@ -345,7 +350,7 @@ mod tests {
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, wc_path, ".."),
-            Err(FsPathParseError::InputNotInRepo("..".to_string()))
+            Err(FsPathParseError::InputNotInRepo("..".into()))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &cwd_path, "../repo"),
@@ -394,7 +399,7 @@ mod tests {
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, "../.."),
-            Err(FsPathParseError::InputNotInRepo("../..".to_string()))
+            Err(FsPathParseError::InputNotInRepo("../..".into()))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, "../other-dir/file"),
@@ -410,11 +415,11 @@ mod tests {
 
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, ""),
-            Err(FsPathParseError::InputNotInRepo("".to_string()))
+            Err(FsPathParseError::InputNotInRepo("".into()))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, "not-repo"),
-            Err(FsPathParseError::InputNotInRepo("not-repo".to_string()))
+            Err(FsPathParseError::InputNotInRepo("not-repo".into()))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, "repo"),
