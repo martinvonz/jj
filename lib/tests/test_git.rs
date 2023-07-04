@@ -1584,7 +1584,7 @@ fn test_fetch_success() {
 fn test_fetch_prune_deleted_ref() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
-    empty_git_commit(&test_data.git_repo, "refs/heads/main", &[]);
+    empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data
         .repo
@@ -1602,7 +1602,7 @@ fn test_fetch_prune_deleted_ref() {
     assert!(tx.mut_repo().get_branch("main").is_some());
 
     test_data
-        .git_repo
+        .origin_repo
         .find_reference("refs/heads/main")
         .unwrap()
         .delete()
