@@ -64,6 +64,13 @@ pub fn to_git_ref_name(parsed_ref: &RefName) -> String {
     }
 }
 
+fn to_remote_branch<'a>(parsed_ref: &'a RefName, remote_name: &str) -> Option<&'a str> {
+    match parsed_ref {
+        RefName::RemoteBranch { branch, remote } => (remote == remote_name).then_some(branch),
+        RefName::LocalBranch(..) | RefName::Tag(..) | RefName::GitRef(..) => None,
+    }
+}
+
 /// Checks if `git_ref` points to a Git commit object, and returns its id.
 ///
 /// If the ref points to the previously `known_target` (i.e. unchanged), this
@@ -512,15 +519,13 @@ pub fn fetch(
         None
     };
     let git_ref_filter = |ref_name: &RefName| -> bool {
-        if let Some(branch_regex) = &branch_regex {
-            match ref_name {
-                RefName::RemoteBranch { branch, remote } => {
-                    remote == remote_name && branch_regex.is_match(branch)
-                }
-                RefName::LocalBranch(..) | RefName::Tag(..) | RefName::GitRef(..) => false,
-            }
+        if let Some(branch) = to_remote_branch(ref_name, remote_name) {
+            branch_regex
+                .as_ref()
+                .map(|r| r.is_match(branch))
+                .unwrap_or(true)
         } else {
-            true
+            false
         }
     };
 
