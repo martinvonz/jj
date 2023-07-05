@@ -52,7 +52,7 @@ pub enum GitBackendInitError {
 
 impl From<GitBackendInitError> for BackendError {
     fn from(err: GitBackendInitError) -> Self {
-        BackendError::Other(err.to_string())
+        BackendError::Other(err.into())
     }
 }
 
@@ -66,7 +66,7 @@ pub enum GitBackendLoadError {
 
 impl From<GitBackendLoadError> for BackendError {
     fn from(err: GitBackendLoadError) -> Self {
-        BackendError::Other(err.to_string())
+        BackendError::Other(err.into())
     }
 }
 
@@ -148,7 +148,7 @@ impl GitBackend {
             Some(head) => Ok(head.clone()),
             None => {
                 let table = self.extra_metadata_store.get_head().map_err(|err| {
-                    BackendError::Other(format!("Failed to read non-git metadata: {err}"))
+                    BackendError::Other(format!("Failed to read non-git metadata: {err}").into())
                 })?;
                 *locked_head = Some(table.clone());
                 Ok(table)
@@ -157,9 +157,9 @@ impl GitBackend {
     }
 
     fn read_extra_metadata_table_locked(&self) -> BackendResult<(Arc<ReadonlyTable>, FileLock)> {
-        self.extra_metadata_store
-            .get_head_locked()
-            .map_err(|err| BackendError::Other(format!("Failed to read non-git metadata: {err}")))
+        self.extra_metadata_store.get_head_locked().map_err(|err| {
+            BackendError::Other(format!("Failed to read non-git metadata: {err}").into())
+        })
     }
 
     fn save_extra_metadata_table(
@@ -171,7 +171,7 @@ impl GitBackend {
             .extra_metadata_store
             .save_table(mut_table)
             .map_err(|err| {
-                BackendError::Other(format!("Failed to write non-git metadata: {err}"))
+                BackendError::Other(format!("Failed to write non-git metadata: {err}").into())
             })?;
         // Since the parent table was the head, saved table are likely to be new head.
         // If it's not, cache will be reloaded when entry can't be found.
@@ -599,7 +599,7 @@ impl Backend for GitBackend {
         let message = &contents.description;
         if contents.parents.is_empty() {
             return Err(BackendError::Other(
-                "Cannot write a commit with no parents".to_string(),
+                "Cannot write a commit with no parents".into(),
             ));
         }
         let mut parents = vec![];
@@ -613,7 +613,7 @@ impl Backend for GitBackend {
                     return Err(BackendError::Other(
                         "The Git backend does not support creating merge commits with the root \
                          commit as one of the parents."
-                            .to_string(),
+                            .into(),
                     ));
                 }
             } else {
@@ -891,7 +891,7 @@ mod tests {
         commit.parents = vec![];
         assert_matches!(
             backend.write_commit(commit.clone()),
-            Err(BackendError::Other(message)) if message.contains("no parents")
+            Err(BackendError::Other(err)) if err.to_string().contains("no parents")
         );
 
         // Only root commit as parent
@@ -928,7 +928,7 @@ mod tests {
         commit.parents = vec![first_id, backend.root_commit_id().clone()];
         assert_matches!(
             backend.write_commit(commit),
-            Err(BackendError::Other(message)) if message.contains("root commit")
+            Err(BackendError::Other(err)) if err.to_string().contains("root commit")
         );
     }
 

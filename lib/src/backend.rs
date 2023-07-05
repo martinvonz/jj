@@ -212,7 +212,7 @@ pub enum BackendError {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error("Error: {0}")]
-    Other(String),
+    Other(Box<dyn std::error::Error + Send + Sync>),
 }
 
 pub type BackendResult<T> = Result<T, BackendError>;
