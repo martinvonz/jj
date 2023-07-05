@@ -40,7 +40,7 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 regex = "1.9.0"
 serde_json = "1.0.100"
-smallvec = { version = "1.10.0", features = ["const_generics", "const_new", "union"] }
+smallvec = { version = "1.11.0", features = ["const_generics", "const_new", "union"] }
 strsim = "0.10.0"
 tempfile = "3.6.0"
 thiserror = "1.0.41"
