@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 use jj_lib::backend::{FileId, TreeValue};
-use jj_lib::matchers::EverythingMatcher;
+use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeValue};
 use jj_lib::repo::Repo;
@@ -184,7 +184,7 @@ fn test_from_legacy_tree() {
 }
 
 #[test]
-fn test_path_value() {
+fn test_path_value_and_entries() {
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
 
@@ -276,6 +276,38 @@ fn test_path_value() {
         merged_tree.path_value(&file_dir_conflict_sub_path),
         Merge::resolved(tree3.path_value(&file_dir_conflict_sub_path)),
     );
+
+    // Test entries_matching()
+    let actual_entries = merged_tree
+        .entries_matching(&EverythingMatcher)
+        .collect_vec();
+    // missing_path, resolved_dir_path, and file_dir_conflict_sub_path should not
+    // appear
+    let expected_entries = [
+        &resolved_file_path,
+        &conflicted_file_path,
+        &modify_delete_path,
+        &file_dir_conflict_path,
+    ]
+    .iter()
+    .sorted()
+    .map(|path| ((*path).clone(), merged_tree.path_value(path)))
+    .collect_vec();
+    assert_eq!(actual_entries, expected_entries);
+
+    let actual_entries = merged_tree
+        .entries_matching(&FilesMatcher::new(&[
+            resolved_file_path.clone(),
+            modify_delete_path.clone(),
+            file_dir_conflict_sub_path.clone(),
+        ]))
+        .collect_vec();
+    let expected_entries = [&resolved_file_path, &modify_delete_path]
+        .iter()
+        .sorted()
+        .map(|path| ((*path).clone(), merged_tree.path_value(path)))
+        .collect_vec();
+    assert_eq!(actual_entries, expected_entries);
 }
 
 #[test]

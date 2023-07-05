@@ -152,6 +152,14 @@ impl MergedTree {
         }
     }
 
+    /// Base names of entries in this directory.
+    pub fn names<'a>(&'a self) -> Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> {
+        match self {
+            MergedTree::Legacy(tree) => Box::new(tree.data().names()),
+            MergedTree::Merge(conflict) => Box::new(all_tree_conflict_names(conflict)),
+        }
+    }
+
     /// The value at the given basename. The value can be `Resolved` even if
     /// `self` is a `Merge`, which happens if the value at the path can be
     /// trivially merged. Does not recurse, so if `basename` refers to a Tree,
@@ -272,6 +280,26 @@ impl MergedTree {
         }
     }
 
+    fn entries_non_recursive(&self) -> TreeEntriesNonRecursiveIterator {
+        TreeEntriesNonRecursiveIterator::new(self)
+    }
+
+    /// Iterator over the entries matching the given matcher. Subtrees are
+    /// visited recursively. Subtrees that differ between the current
+    /// `MergedTree`'s terms are merged on the fly. Missing terms are treated as
+    /// empty directories. Subtrees that conflict with non-trees are not
+    /// visited. For example, if current tree is a merge of 3 trees, and the
+    /// entry for 'foo' is a conflict between a change subtree and a symlink
+    /// (i.e. the subdirectory was replaced by symlink in one side of the
+    /// conflict), then the entry for `foo` itself will be emitted, but no
+    /// entries from inside `foo/` from either of the trees will be.
+    pub fn entries_matching<'matcher>(
+        &self,
+        matcher: &'matcher dyn Matcher,
+    ) -> TreeEntriesIterator<'matcher> {
+        TreeEntriesIterator::new(self.clone(), matcher)
+    }
+
     /// Iterate over the differences between this tree and another tree.
     ///
     /// The files in a removed tree will be returned before a file that replaces
@@ -376,6 +404,96 @@ fn merge_tree_values(
             // Failed to merge the files, or the paths are not files
             Ok(values)
         }
+    }
+}
+
+struct TreeEntriesNonRecursiveIterator<'a> {
+    merged_tree: &'a MergedTree,
+    basename_iter: Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a>,
+}
+
+impl<'a> TreeEntriesNonRecursiveIterator<'a> {
+    fn new(merged_tree: &'a MergedTree) -> Self {
+        TreeEntriesNonRecursiveIterator {
+            merged_tree,
+            basename_iter: merged_tree.names(),
+        }
+    }
+}
+
+impl<'a> Iterator for TreeEntriesNonRecursiveIterator<'a> {
+    type Item = (&'a RepoPathComponent, MergedTreeValue<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.basename_iter.next().map(|basename| {
+            let value = self.merged_tree.value(basename);
+            (basename, value)
+        })
+    }
+}
+
+/// Recursive iterator over the entries in a tree.
+pub struct TreeEntriesIterator<'matcher> {
+    stack: Vec<TreeEntriesDirItem>,
+    matcher: &'matcher dyn Matcher,
+}
+
+struct TreeEntriesDirItem {
+    entry_iterator: TreeEntriesNonRecursiveIterator<'static>,
+    // On drop, tree must outlive entry_iterator
+    tree: Box<MergedTree>,
+}
+
+impl TreeEntriesDirItem {
+    fn new(tree: MergedTree) -> Self {
+        let tree = Box::new(tree);
+        let entry_iterator = tree.entries_non_recursive();
+        let entry_iterator: TreeEntriesNonRecursiveIterator<'static> =
+            unsafe { std::mem::transmute(entry_iterator) };
+        Self {
+            entry_iterator,
+            tree,
+        }
+    }
+}
+
+impl<'matcher> TreeEntriesIterator<'matcher> {
+    fn new(tree: MergedTree, matcher: &'matcher dyn Matcher) -> Self {
+        // TODO: Restrict walk according to Matcher::visit()
+        Self {
+            stack: vec![TreeEntriesDirItem::new(tree)],
+            matcher,
+        }
+    }
+}
+
+impl Iterator for TreeEntriesIterator<'_> {
+    type Item = (RepoPath, Merge<Option<TreeValue>>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(top) = self.stack.last_mut() {
+            if let Some((name, value)) = top.entry_iterator.next() {
+                let path = top.tree.dir().join(name);
+                let value = value.to_merge();
+                if value.is_tree() {
+                    // TODO: Handle the other cases (specific files and trees)
+                    if self.matcher.visit(&path).is_nothing() {
+                        continue;
+                    }
+                    let tree_merge = value
+                        .to_tree_merge(top.tree.store(), &path)
+                        .unwrap()
+                        .unwrap();
+                    let merged_tree = MergedTree::Merge(tree_merge);
+                    self.stack.push(TreeEntriesDirItem::new(merged_tree));
+                } else if self.matcher.matches(&path) {
+                    return Some((path, value));
+                }
+            } else {
+                self.stack.pop();
+            }
+        }
+        None
     }
 }
 
