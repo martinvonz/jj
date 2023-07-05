@@ -39,7 +39,7 @@ fn create_store_factories() -> StoreFactories {
     // must match `Backend::name()`.
     store_factories.add_backend(
         "jit",
-        Box::new(|store_path| Box::new(JitBackend::load(store_path))),
+        Box::new(|store_path| Ok(Box::new(JitBackend::load(store_path)?))),
     );
     store_factories
 }
@@ -80,10 +80,9 @@ impl JitBackend {
         Ok(JitBackend { inner })
     }
 
-    fn load(store_path: &Path) -> Self {
-        JitBackend {
-            inner: GitBackend::load(store_path),
-        }
+    fn load(store_path: &Path) -> BackendResult<Self> {
+        let inner = GitBackend::load(store_path)?;
+        Ok(JitBackend { inner })
     }
 }
 

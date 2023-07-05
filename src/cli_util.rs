@@ -1399,11 +1399,11 @@ jj init --git-repo=.",
                 "This version of the jj binary doesn't support this type of repo: {err}"
             ))
         }
-        WorkspaceLoadError::StoreLoadError(err @ StoreLoadError::ReadError { .. }) => {
-            CommandError::InternalError(format!(
-                "The repository appears broken or inaccessible: {err}"
-            ))
-        }
+        WorkspaceLoadError::StoreLoadError(
+            err @ (StoreLoadError::ReadError { .. } | StoreLoadError::Backend(_)),
+        ) => CommandError::InternalError(format!(
+            "The repository appears broken or inaccessible: {err}"
+        )),
     }
 }
 
