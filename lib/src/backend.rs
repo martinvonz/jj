@@ -154,8 +154,6 @@ content_hash! {
 content_hash! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct ConflictTerm {
-        // TODO: Store e.g. CommitId here too? Labels (theirs/ours/base)? Would those still be
-        //       useful e.g. after rebasing this conflict?
         pub value: TreeValue,
     }
 }
