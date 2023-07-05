@@ -31,6 +31,7 @@ use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::default_index_store::DefaultIndexStore;
 use crate::default_submodule_store::DefaultSubmoduleStore;
+use crate::file_util::{IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
 use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
@@ -1304,27 +1305,6 @@ pub enum CheckOutCommitError {
     CreateCommit(#[from] BackendError),
     #[error("Failed to edit commit: {0}")]
     EditCommit(#[from] EditCommitError),
-}
-
-#[derive(Debug, Error)]
-#[error("Cannot access {path}")]
-pub struct PathError {
-    pub path: PathBuf,
-    #[source]
-    pub error: io::Error,
-}
-
-pub(crate) trait IoResultExt<T> {
-    fn context(self, path: impl AsRef<Path>) -> Result<T, PathError>;
-}
-
-impl<T> IoResultExt<T> for io::Result<T> {
-    fn context(self, path: impl AsRef<Path>) -> Result<T, PathError> {
-        self.map_err(|error| PathError {
-            path: path.as_ref().to_path_buf(),
-            error,
-        })
-    }
 }
 
 mod dirty_cell {

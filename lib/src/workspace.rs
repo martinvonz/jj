@@ -20,14 +20,15 @@ use std::sync::Arc;
 use thiserror::Error;
 
 use crate::backend::{Backend, BackendError};
+use crate::file_util::{IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
 use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OpStore, WorkspaceId};
 use crate::repo::{
-    CheckOutCommitError, IoResultExt, PathError, ReadonlyRepo, Repo, RepoInitError, RepoLoader,
-    StoreFactories, StoreLoadError,
+    CheckOutCommitError, ReadonlyRepo, Repo, RepoInitError, RepoLoader, StoreFactories,
+    StoreLoadError,
 };
 use crate::settings::UserSettings;
 use crate::submodule_store::SubmoduleStore;
