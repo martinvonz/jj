@@ -81,7 +81,6 @@ pub fn rebase_commit(
     } else {
         let old_base_tree = merge_commit_trees(mut_repo, &old_parents)?;
         let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
-        // TODO: pass in labels for the merge parts
         let merged_tree = merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree())?;
         merged_tree.id().clone()
     };
@@ -104,7 +103,6 @@ pub fn back_out_commit(
 ) -> Result<Commit, TreeMergeError> {
     let old_base_tree = merge_commit_trees(mut_repo, &old_commit.parents())?;
     let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
-    // TODO: pass in labels for the merge parts
     let new_tree = merge_trees(&new_base_tree, &old_commit.tree(), &old_base_tree).unwrap();
     let new_parent_ids = new_parents
         .iter()
