@@ -14,11 +14,10 @@
 
 use std::any::Any;
 use std::fmt::{Debug, Error, Formatter};
-use std::fs::File;
-use std::io::{Cursor, Read, Write};
+use std::io::{Cursor, Read};
 use std::path::Path;
-use std::slice;
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::{fs, slice};
 
 use git2::Oid;
 use itertools::Itertools;
@@ -66,18 +65,19 @@ impl GitBackend {
     pub fn init_internal(store_path: &Path) -> Self {
         let git_repo = git2::Repository::init_bare(store_path.join("git")).unwrap();
         let extra_path = store_path.join("extra");
-        std::fs::create_dir(&extra_path).unwrap();
-        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
-        git_target_file.write_all(b"git").unwrap();
+        fs::create_dir(&extra_path).unwrap();
+        fs::write(store_path.join("git_target"), b"git").unwrap();
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
         GitBackend::new(git_repo, extra_metadata_store)
     }
 
     pub fn init_external(store_path: &Path, git_repo_path: &Path) -> Result<Self, BackendError> {
         let extra_path = store_path.join("extra");
-        std::fs::create_dir(&extra_path)?;
-        let mut git_target_file = File::create(store_path.join("git_target"))?;
-        git_target_file.write_all(git_repo_path.to_str().unwrap().as_bytes())?;
+        fs::create_dir(&extra_path)?;
+        fs::write(
+            store_path.join("git_target"),
+            git_repo_path.to_str().unwrap().as_bytes(),
+        )?;
         let repo = git2::Repository::open(store_path.join(git_repo_path))
             .map_err(|err| BackendError::Other(format!("Failed to open git repository: {err}")))?;
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
@@ -85,10 +85,7 @@ impl GitBackend {
     }
 
     pub fn load(store_path: &Path) -> Self {
-        let mut git_target_file = File::open(store_path.join("git_target")).unwrap();
-        let mut buf = Vec::new();
-        git_target_file.read_to_end(&mut buf).unwrap();
-        let git_repo_path_str = String::from_utf8(buf).unwrap();
+        let git_repo_path_str = fs::read_to_string(store_path.join("git_target")).unwrap();
         let git_repo_path = store_path.join(git_repo_path_str).canonicalize().unwrap();
         let repo = git2::Repository::open(git_repo_path).unwrap();
         let extra_metadata_store = TableStore::load(store_path.join("extra"), HASH_LENGTH);
