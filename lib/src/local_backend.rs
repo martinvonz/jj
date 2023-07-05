@@ -37,19 +37,19 @@ const CHANGE_ID_LENGTH: usize = 16;
 
 impl From<std::io::Error> for BackendError {
     fn from(err: std::io::Error) -> Self {
-        BackendError::Other(err.to_string())
+        BackendError::Other(err.into())
     }
 }
 
 impl From<PersistError> for BackendError {
     fn from(err: PersistError) -> Self {
-        BackendError::Other(err.to_string())
+        BackendError::Other(err.into())
     }
 }
 
 impl From<prost::DecodeError> for BackendError {
     fn from(err: prost::DecodeError) -> Self {
-        BackendError::Other(err.to_string())
+        BackendError::Other(err.into())
     }
 }
 
