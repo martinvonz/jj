@@ -144,7 +144,7 @@ impl Workspace {
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_backend(user_settings, workspace_root, |store_path| {
-            Ok(Box::new(GitBackend::init_internal(store_path)))
+            Ok(Box::new(GitBackend::init_internal(store_path)?))
         })
     }
 
