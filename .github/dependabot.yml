@@ -14,3 +14,7 @@ updates:
   open-pull-requests-limit: 10
   commit-message:
     prefix: "github:"
+  groups:
+    all-dependencies:
+      patterns:
+      - "*"
