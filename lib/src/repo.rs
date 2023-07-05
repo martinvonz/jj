@@ -332,7 +332,7 @@ impl Repo for ReadonlyRepo {
     }
 }
 
-type BackendFactory = Box<dyn Fn(&Path) -> Box<dyn Backend>>;
+type BackendFactory = Box<dyn Fn(&Path) -> BackendResult<Box<dyn Backend>>>;
 type OpStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpStore>>;
 type OpHeadsStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpHeadsStore>>;
 type IndexStoreFactory = Box<dyn Fn(&Path) -> Box<dyn IndexStore>>;
@@ -353,11 +353,11 @@ impl Default for StoreFactories {
         // Backends
         factories.add_backend(
             "local",
-            Box::new(|store_path| Box::new(LocalBackend::load(store_path))),
+            Box::new(|store_path| Ok(Box::new(LocalBackend::load(store_path)))),
         );
         factories.add_backend(
             "git",
-            Box::new(|store_path| Box::new(GitBackend::load(store_path))),
+            Box::new(|store_path| Ok(Box::new(GitBackend::load(store_path)?))),
         );
 
         // OpStores
@@ -400,6 +400,9 @@ pub enum StoreLoadError {
         store: &'static str,
         source: io::Error,
     },
+    // TODO: might be better to introduce BackendLoadError type
+    #[error(transparent)]
+    Backend(#[from] BackendError),
 }
 
 impl StoreFactories {
@@ -448,7 +451,7 @@ impl StoreFactories {
                 store_type: backend_type.to_string(),
             }
         })?;
-        Ok(backend_factory(store_path))
+        Ok(backend_factory(store_path)?)
     }
 
     pub fn add_op_store(&mut self, name: &str, factory: OpStoreFactory) {

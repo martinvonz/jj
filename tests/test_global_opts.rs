@@ -215,12 +215,15 @@ fn test_broken_repo_structure() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    let store_path = repo_path.join(".jj").join("repo").join("store");
+    let store_type_path = store_path.join("type");
 
-    let store_type_path = repo_path
-        .join(".jj")
-        .join("repo")
-        .join("store")
-        .join("type");
+    // Test the error message when the git repository can't be located.
+    std::fs::remove_file(store_path.join("git_target")).unwrap();
+    let stderr = test_env.jj_cmd_internal_error(&repo_path, &["log"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Internal error: The repository appears broken or inaccessible: Error: Cannot access $TEST_ENV/repo/.jj/repo/store/git_target
+    "###);
 
     // Test the error message when the commit backend is of unknown type.
     std::fs::write(&store_type_path, "unknown").unwrap();

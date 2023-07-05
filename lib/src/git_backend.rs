@@ -56,6 +56,20 @@ impl From<GitBackendInitError> for BackendError {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum GitBackendLoadError {
+    #[error("Failed to open git repository: {0}")]
+    OpenRepository(#[source] git2::Error),
+    #[error(transparent)]
+    Path(#[from] PathError),
+}
+
+impl From<GitBackendLoadError> for BackendError {
+    fn from(err: GitBackendLoadError) -> Self {
+        BackendError::Other(err.to_string())
+    }
+}
+
 pub struct GitBackend {
     repo: Mutex<git2::Repository>,
     root_commit_id: CommitId,
@@ -106,12 +120,17 @@ impl GitBackend {
         Ok(GitBackend::new(repo, extra_metadata_store))
     }
 
-    pub fn load(store_path: &Path) -> Self {
-        let git_repo_path_str = fs::read_to_string(store_path.join("git_target")).unwrap();
-        let git_repo_path = store_path.join(git_repo_path_str).canonicalize().unwrap();
-        let repo = git2::Repository::open(git_repo_path).unwrap();
+    pub fn load(store_path: &Path) -> Result<Self, GitBackendLoadError> {
+        let git_repo_path = {
+            let target_path = store_path.join("git_target");
+            let git_repo_path_str = fs::read_to_string(&target_path).context(&target_path)?;
+            let git_repo_path = store_path.join(git_repo_path_str);
+            git_repo_path.canonicalize().context(&git_repo_path)?
+        };
+        let repo =
+            git2::Repository::open(git_repo_path).map_err(GitBackendLoadError::OpenRepository)?;
         let extra_metadata_store = TableStore::load(store_path.join("extra"), HASH_LENGTH);
-        GitBackend::new(repo, extra_metadata_store)
+        Ok(GitBackend::new(repo, extra_metadata_store))
     }
 
     pub fn git_repo(&self) -> MutexGuard<'_, git2::Repository> {
