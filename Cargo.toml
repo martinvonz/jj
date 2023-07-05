@@ -1,11 +1,13 @@
 [package]
 name = "jujutsu"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
 edition = "2021"
 rust-version = "1.61"  # Remember to update CI, contributing.md, and flake.nix
 license = "Apache-2.0"
-description = "Jujutsu (an experimental VCS)"
+description = """This crate has been replaced by the jj-cli crate.
+
+Please upgrade to jj-cli version 0.8+, or specify jujutsu of version "=0.7.0" if you need to compile an obsolete version."""
 homepage = "https://github.com/martinvonz/jj"
 repository = "https://github.com/martinvonz/jj"
 documentation = "https://docs.rs/jujutsu"
@@ -46,7 +48,7 @@ esl01-renderdag = "0.3.0"
 glob = "0.3.1"
 hex = "0.4.3"
 itertools = "0.10.5"
-jujutsu-lib = { version = "=0.7.0", path = "lib", default-features = false }
+jujutsu-lib = { version = "=0.7.1", path = "lib", default-features = false }
 maplit = "1.0.2"
 once_cell = "1.17.1"
 pest = "2.5.5"

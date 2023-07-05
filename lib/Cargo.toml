@@ -1,11 +1,13 @@
 [package]
 name = "jujutsu-lib"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
 edition = "2021"
 rust-version = "1.61"
 license = "Apache-2.0"
-description = "Library for Jujutsu (an experimental VCS)"
+description = """This crate has been replaced by the jj-lib crate.
+
+Please upgrade to jj-lib version 0.8+, or specify jujutsu-lib of version "=0.7.0" if you need to compile an obsolete version."""
 homepage = "https://github.com/martinvonz/jj"
 repository = "https://github.com/martinvonz/jj"
 documentation = "https://docs.rs/jujutsu"

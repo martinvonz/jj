@@ -1,3 +1,14 @@
+# Deprecated
+
+The `jujutsu` and `jujutsu-lib` crates have been replaced by the `jj-cli`
+and `jj-lib` crates, respectively.
+
+Please upgrade to `jj-cli`/`jj-lib` version 0.8+, or
+specify `jujutsu`/`jujutsu-lib` of version "=0.7.0" if you need to compile an
+obsolete version.
+
+---
+
 # Jujutsu VCS
 
 ![](https://img.shields.io/github/license/martinvonz/jj) ![](https://img.shields.io/github/v/release/martinvonz/jj) ![](https://img.shields.io/github/release-date/martinvonz/jj) ![](https://img.shields.io/crates/v/jujutsu)

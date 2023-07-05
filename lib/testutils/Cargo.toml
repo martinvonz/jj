@@ -1,6 +1,6 @@
 [package]
 name = "testutils"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
 edition = "2021"
 rust-version = "1.61"
