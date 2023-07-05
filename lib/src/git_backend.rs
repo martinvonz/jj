@@ -42,6 +42,8 @@ const CONFLICT_SUFFIX: &str = ".jjconflict";
 
 #[derive(Debug, Error)]
 pub enum GitBackendInitError {
+    #[error("Failed to initialize git repository: {0}")]
+    InitRepository(#[source] git2::Error),
     #[error("Failed to open git repository: {0}")]
     OpenRepository(#[source] git2::Error),
     #[error(transparent)]
@@ -78,13 +80,15 @@ impl GitBackend {
         }
     }
 
-    pub fn init_internal(store_path: &Path) -> Self {
-        let git_repo = git2::Repository::init_bare(store_path.join("git")).unwrap();
+    pub fn init_internal(store_path: &Path) -> Result<Self, GitBackendInitError> {
+        let git_repo = git2::Repository::init_bare(store_path.join("git"))
+            .map_err(GitBackendInitError::InitRepository)?;
         let extra_path = store_path.join("extra");
-        fs::create_dir(&extra_path).unwrap();
-        fs::write(store_path.join("git_target"), b"git").unwrap();
+        fs::create_dir(&extra_path).context(&extra_path)?;
+        let target_path = store_path.join("git_target");
+        fs::write(&target_path, b"git").context(&target_path)?;
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
-        GitBackend::new(git_repo, extra_metadata_store)
+        Ok(GitBackend::new(git_repo, extra_metadata_store))
     }
 
     pub fn init_external(
@@ -912,7 +916,7 @@ mod tests {
     #[test]
     fn commit_has_ref() {
         let temp_dir = testutils::new_temp_dir();
-        let store = GitBackend::init_internal(temp_dir.path());
+        let store = GitBackend::init_internal(temp_dir.path()).unwrap();
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),
@@ -943,7 +947,7 @@ mod tests {
     #[test]
     fn overlapping_git_commit_id() {
         let temp_dir = testutils::new_temp_dir();
-        let store = GitBackend::init_internal(temp_dir.path());
+        let store = GitBackend::init_internal(temp_dir.path()).unwrap();
         let mut commit1 = Commit {
             parents: vec![store.root_commit_id().clone()],
             predecessors: vec![],

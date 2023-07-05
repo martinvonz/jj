@@ -54,7 +54,7 @@ fn run_custom_command(
             let wc_path = command_helper.cwd();
             // Initialize a workspace with the custom backend
             Workspace::init_with_backend(command_helper.settings(), wc_path, |store_path| {
-                Ok(Box::new(JitBackend::init(store_path)))
+                Ok(Box::new(JitBackend::init(store_path)?))
             })?;
             Ok(())
         }
@@ -75,10 +75,9 @@ struct JitBackend {
 }
 
 impl JitBackend {
-    fn init(store_path: &Path) -> Self {
-        JitBackend {
-            inner: GitBackend::init_internal(store_path),
-        }
+    fn init(store_path: &Path) -> BackendResult<Self> {
+        let inner = GitBackend::init_internal(store_path)?;
+        Ok(JitBackend { inner })
     }
 
     fn load(store_path: &Path) -> Self {
