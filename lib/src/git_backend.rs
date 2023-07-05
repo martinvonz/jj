@@ -29,6 +29,7 @@ use crate::backend::{
     ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
     Tree, TreeId, TreeValue,
 };
+use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::stacked_table::{MutableTable, ReadonlyTable, TableSegment, TableStore};
@@ -44,7 +45,7 @@ pub enum GitBackendInitError {
     #[error("Failed to open git repository: {0}")]
     OpenRepository(#[source] git2::Error),
     #[error(transparent)]
-    Io(#[from] std::io::Error),
+    Path(#[from] PathError),
 }
 
 impl From<GitBackendInitError> for BackendError {
@@ -91,11 +92,10 @@ impl GitBackend {
         git_repo_path: &Path,
     ) -> Result<Self, GitBackendInitError> {
         let extra_path = store_path.join("extra");
-        fs::create_dir(&extra_path)?;
-        fs::write(
-            store_path.join("git_target"),
-            git_repo_path.to_str().unwrap().as_bytes(),
-        )?;
+        fs::create_dir(&extra_path).context(&extra_path)?;
+        let target_path = store_path.join("git_target");
+        fs::write(&target_path, git_repo_path.to_str().unwrap().as_bytes())
+            .context(&target_path)?;
         let repo = git2::Repository::open(store_path.join(git_repo_path))
             .map_err(GitBackendInitError::OpenRepository)?;
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
