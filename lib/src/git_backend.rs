@@ -22,6 +22,7 @@ use std::{fs, slice};
 use git2::Oid;
 use itertools::Itertools;
 use prost::Message;
+use thiserror::Error;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
@@ -37,6 +38,20 @@ const CHANGE_ID_LENGTH: usize = 16;
 /// Ref namespace used only for preventing GC.
 pub const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
+
+#[derive(Debug, Error)]
+pub enum GitBackendInitError {
+    #[error("Failed to open git repository: {0}")]
+    OpenRepository(#[source] git2::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
+
+impl From<GitBackendInitError> for BackendError {
+    fn from(err: GitBackendInitError) -> Self {
+        BackendError::Other(err.to_string())
+    }
+}
 
 pub struct GitBackend {
     repo: Mutex<git2::Repository>,
@@ -71,7 +86,10 @@ impl GitBackend {
         GitBackend::new(git_repo, extra_metadata_store)
     }
 
-    pub fn init_external(store_path: &Path, git_repo_path: &Path) -> Result<Self, BackendError> {
+    pub fn init_external(
+        store_path: &Path,
+        git_repo_path: &Path,
+    ) -> Result<Self, GitBackendInitError> {
         let extra_path = store_path.join("extra");
         fs::create_dir(&extra_path)?;
         fs::write(
@@ -79,7 +97,7 @@ impl GitBackend {
             git_repo_path.to_str().unwrap().as_bytes(),
         )?;
         let repo = git2::Repository::open(store_path.join(git_repo_path))
-            .map_err(|err| BackendError::Other(format!("Failed to open git repository: {err}")))?;
+            .map_err(GitBackendInitError::OpenRepository)?;
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
         Ok(GitBackend::new(repo, extra_metadata_store))
     }
