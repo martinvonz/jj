@@ -187,7 +187,7 @@ impl Tree {
         other: &Tree,
         matcher: &'matcher dyn Matcher,
     ) -> TreeDiffIterator<'matcher> {
-        recursive_tree_diff(self.clone(), other.clone(), matcher)
+        TreeDiffIterator::new(RepoPath::root(), self.clone(), other.clone(), matcher)
     }
 
     pub fn diff_summary(&self, other: &Tree, matcher: &dyn Matcher) -> DiffSummary {
@@ -356,14 +356,6 @@ impl<'trees> Iterator for TreeEntryDiffIterator<'trees> {
     }
 }
 
-fn diff_entries<'trees>(tree1: &'trees Tree, tree2: &'trees Tree) -> TreeEntryDiffIterator<'trees> {
-    TreeEntryDiffIterator::new(tree1, tree2)
-}
-
-pub fn recursive_tree_diff(root1: Tree, root2: Tree, matcher: &dyn Matcher) -> TreeDiffIterator {
-    TreeDiffIterator::new(RepoPath::root(), root1, root2, matcher)
-}
-
 pub struct TreeDiffIterator<'matcher> {
     stack: Vec<TreeDiffItem>,
     matcher: &'matcher dyn Matcher,
@@ -400,7 +392,7 @@ impl TreeDiffDirItem {
     fn new(path: RepoPath, tree1: Tree, tree2: Tree) -> Self {
         let tree1 = Box::new(tree1);
         let tree2 = Box::new(tree2);
-        let iter: TreeEntryDiffIterator = diff_entries(&tree1, &tree2);
+        let iter: TreeEntryDiffIterator = TreeEntryDiffIterator::new(&tree1, &tree2);
         let iter: TreeEntryDiffIterator<'static> = unsafe { std::mem::transmute(iter) };
         Self {
             path,
@@ -505,7 +497,7 @@ pub fn merge_trees(
     // Start with a tree identical to side 1 and modify based on changes from base
     // to side 2.
     let mut new_tree = side1_tree.data().clone();
-    for (basename, maybe_base, maybe_side2) in diff_entries(base_tree, side2_tree) {
+    for (basename, maybe_base, maybe_side2) in TreeEntryDiffIterator::new(base_tree, side2_tree) {
         let maybe_side1 = side1_tree.value(basename);
         if maybe_side1 == maybe_base {
             // side 1 is unchanged: use the value from side 2
