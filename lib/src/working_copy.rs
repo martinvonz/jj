@@ -928,23 +928,19 @@ impl TreeState {
                     file_state.mark_executable(executable);
                     stats.updated_files += 1;
                 }
-                Diff::Modified(before, after) => {
+                Diff::Modified(_before, after) => {
                     fs::remove_file(&disk_path).ok();
-                    let file_state = match (before, after) {
-                        (_, TreeValue::File { id, executable }) => {
+                    let file_state = match after {
+                        TreeValue::File { id, executable } => {
                             self.write_file(&disk_path, &path, &id, executable)?
                         }
-                        (_, TreeValue::Symlink(id)) => {
-                            self.write_symlink(&disk_path, &path, &id)?
-                        }
-                        (_, TreeValue::Conflict(id)) => {
-                            self.write_conflict(&disk_path, &path, &id)?
-                        }
-                        (_, TreeValue::GitSubmodule(_id)) => {
+                        TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id)?,
+                        TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id)?,
+                        TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {path:?}");
                             FileState::for_gitsubmodule()
                         }
-                        (_, TreeValue::Tree(_id)) => {
+                        TreeValue::Tree(_id) => {
                             panic!("unexpected tree entry in diff at {path:?}");
                         }
                     };
