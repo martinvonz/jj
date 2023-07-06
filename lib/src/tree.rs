@@ -187,7 +187,7 @@ impl Tree {
         other: &Tree,
         matcher: &'matcher dyn Matcher,
     ) -> TreeDiffIterator<'matcher> {
-        TreeDiffIterator::new(RepoPath::root(), self.clone(), other.clone(), matcher)
+        TreeDiffIterator::new(self.clone(), other.clone(), matcher)
     }
 
     pub fn diff_summary(&self, other: &Tree, matcher: &dyn Matcher) -> DiffSummary {
@@ -379,10 +379,13 @@ enum TreeDiffItem {
 }
 
 impl<'matcher> TreeDiffIterator<'matcher> {
-    fn new(dir: RepoPath, tree1: Tree, tree2: Tree, matcher: &'matcher dyn Matcher) -> Self {
+    fn new(tree1: Tree, tree2: Tree, matcher: &'matcher dyn Matcher) -> Self {
+        let root_dir = RepoPath::root();
         let mut stack = Vec::new();
-        if !matcher.visit(&dir).is_nothing() {
-            stack.push(TreeDiffItem::Dir(TreeDiffDirItem::new(dir, tree1, tree2)));
+        if !matcher.visit(&root_dir).is_nothing() {
+            stack.push(TreeDiffItem::Dir(TreeDiffDirItem::new(
+                root_dir, tree1, tree2,
+            )));
         };
         Self { stack, matcher }
     }
