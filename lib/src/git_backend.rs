@@ -32,7 +32,9 @@ use crate::backend::{
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
 use crate::repo_path::{RepoPath, RepoPathComponent};
-use crate::stacked_table::{MutableTable, ReadonlyTable, TableSegment, TableStore};
+use crate::stacked_table::{
+    MutableTable, ReadonlyTable, TableSegment, TableStore, TableStoreError,
+};
 
 const HASH_LENGTH: usize = 20;
 const CHANGE_ID_LENGTH: usize = 16;
@@ -67,6 +69,21 @@ pub enum GitBackendLoadError {
 impl From<GitBackendLoadError> for BackendLoadError {
     fn from(err: GitBackendLoadError) -> Self {
         BackendLoadError(err.into())
+    }
+}
+
+/// `GitBackend`-specific error that may occur after the backend is loaded.
+#[derive(Debug, Error)]
+pub enum GitBackendError {
+    #[error("Failed to read non-git metadata: {0}")]
+    ReadMetadata(#[source] TableStoreError),
+    #[error("Failed to write non-git metadata: {0}")]
+    WriteMetadata(#[source] TableStoreError),
+}
+
+impl From<GitBackendError> for BackendError {
+    fn from(err: GitBackendError) -> Self {
+        BackendError::Other(err.into())
     }
 }
 
@@ -147,9 +164,10 @@ impl GitBackend {
         match locked_head.as_ref() {
             Some(head) => Ok(head.clone()),
             None => {
-                let table = self.extra_metadata_store.get_head().map_err(|err| {
-                    BackendError::Other(format!("Failed to read non-git metadata: {err}").into())
-                })?;
+                let table = self
+                    .extra_metadata_store
+                    .get_head()
+                    .map_err(GitBackendError::ReadMetadata)?;
                 *locked_head = Some(table.clone());
                 Ok(table)
             }
@@ -157,9 +175,11 @@ impl GitBackend {
     }
 
     fn read_extra_metadata_table_locked(&self) -> BackendResult<(Arc<ReadonlyTable>, FileLock)> {
-        self.extra_metadata_store.get_head_locked().map_err(|err| {
-            BackendError::Other(format!("Failed to read non-git metadata: {err}").into())
-        })
+        let table = self
+            .extra_metadata_store
+            .get_head_locked()
+            .map_err(GitBackendError::ReadMetadata)?;
+        Ok(table)
     }
 
     fn save_extra_metadata_table(
@@ -170,9 +190,7 @@ impl GitBackend {
         let table = self
             .extra_metadata_store
             .save_table(mut_table)
-            .map_err(|err| {
-                BackendError::Other(format!("Failed to write non-git metadata: {err}").into())
-            })?;
+            .map_err(GitBackendError::WriteMetadata)?;
         // Since the parent table was the head, saved table are likely to be new head.
         // If it's not, cache will be reloaded when entry can't be found.
         *self.cached_extra_metadata.lock().unwrap() = Some(table);
