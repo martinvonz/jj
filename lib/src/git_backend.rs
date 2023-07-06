@@ -25,9 +25,9 @@ use prost::Message;
 use thiserror::Error;
 
 use crate::backend::{
-    make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
-    Tree, TreeId, TreeValue,
+    make_root_commit, Backend, BackendError, BackendInitError, BackendLoadError, BackendResult,
+    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, FileId, MillisSinceEpoch,
+    ObjectId, Signature, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
@@ -50,9 +50,9 @@ pub enum GitBackendInitError {
     Path(#[from] PathError),
 }
 
-impl From<GitBackendInitError> for BackendError {
+impl From<GitBackendInitError> for BackendInitError {
     fn from(err: GitBackendInitError) -> Self {
-        BackendError::Other(err.into())
+        BackendInitError(err.into())
     }
 }
 
@@ -64,9 +64,9 @@ pub enum GitBackendLoadError {
     Path(#[from] PathError),
 }
 
-impl From<GitBackendLoadError> for BackendError {
+impl From<GitBackendLoadError> for BackendLoadError {
     fn from(err: GitBackendLoadError) -> Self {
-        BackendError::Other(err.into())
+        BackendLoadError(err.into())
     }
 }
 

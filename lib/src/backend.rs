@@ -170,6 +170,17 @@ content_hash! {
     }
 }
 
+/// Error that may occur during backend initialization.
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub struct BackendInitError(pub Box<dyn std::error::Error + Send + Sync>);
+
+/// Error that may occur during backend loading.
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub struct BackendLoadError(pub Box<dyn std::error::Error + Send + Sync>);
+
+/// Commit-backend error that may occur after the backend is loaded.
 #[derive(Debug, Error)]
 pub enum BackendError {
     #[error(

@@ -134,11 +134,9 @@ fn test_init_git_external_non_existent_git_directory() {
         test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo", "--git-repo", "repo"]);
 
     insta::with_settings!({filters => vec![
-        (r"(Error: Failed to open git repository:)(?s).*", "Error: Failed to open git repository:"),
+        (r"(Failed to open git repository:)(?s).*", "Failed to open git repository:"),
     ]}, {
-        insta::assert_snapshot!(&stderr, @r###"
-        Error: Failed to access the repository: Error: Failed to open git repository:
-        "###);
+        insta::assert_snapshot!(&stderr, @"Error: Failed to access the repository: Failed to open git repository:");
     });
     let jj_path = workspace_root.join(".jj");
     assert!(!jj_path.exists());

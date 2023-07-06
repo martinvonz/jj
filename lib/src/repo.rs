@@ -26,7 +26,10 @@ use once_cell::sync::OnceCell;
 use thiserror::Error;
 
 use self::dirty_cell::DirtyCell;
-use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, ObjectId, TreeId};
+use crate::backend::{
+    Backend, BackendError, BackendInitError, BackendLoadError, BackendResult, ChangeId, CommitId,
+    ObjectId, TreeId,
+};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::default_index_store::DefaultIndexStore;
@@ -105,7 +108,7 @@ impl Debug for ReadonlyRepo {
 #[derive(Error, Debug)]
 pub enum RepoInitError {
     #[error(transparent)]
-    Backend(#[from] BackendError),
+    Backend(#[from] BackendInitError),
     #[error(transparent)]
     Path(#[from] PathError),
 }
@@ -133,7 +136,7 @@ impl ReadonlyRepo {
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
-        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendError>,
+        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendInitError>,
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
         op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
         index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
@@ -332,7 +335,7 @@ impl Repo for ReadonlyRepo {
     }
 }
 
-type BackendFactory = Box<dyn Fn(&Path) -> BackendResult<Box<dyn Backend>>>;
+type BackendFactory = Box<dyn Fn(&Path) -> Result<Box<dyn Backend>, BackendLoadError>>;
 type OpStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpStore>>;
 type OpHeadsStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpHeadsStore>>;
 type IndexStoreFactory = Box<dyn Fn(&Path) -> Box<dyn IndexStore>>;
@@ -400,9 +403,8 @@ pub enum StoreLoadError {
         store: &'static str,
         source: io::Error,
     },
-    // TODO: might be better to introduce BackendLoadError type
     #[error(transparent)]
-    Backend(#[from] BackendError),
+    Backend(#[from] BackendLoadError),
 }
 
 impl StoreFactories {
