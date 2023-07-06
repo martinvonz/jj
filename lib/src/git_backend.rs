@@ -531,7 +531,12 @@ impl Backend for GitBackend {
             &FileId::new(id.to_bytes()),
         )?;
         let mut data = String::new();
-        file.read_to_string(&mut data)?;
+        file.read_to_string(&mut data)
+            .map_err(|err| BackendError::ReadObject {
+                object_type: "conflict".to_owned(),
+                hash: id.hex(),
+                source: err.into(),
+            })?;
         let json: serde_json::Value = serde_json::from_str(&data).unwrap();
         Ok(Conflict {
             removes: conflict_term_list_from_json(json.get("removes").unwrap()),
