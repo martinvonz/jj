@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::{Backend, BackendError};
+use crate::backend::{Backend, BackendInitError};
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
 use crate::index::IndexStore;
@@ -45,7 +45,7 @@ pub enum WorkspaceInitError {
     #[error(transparent)]
     Path(#[from] PathError),
     #[error(transparent)]
-    Backend(#[from] BackendError),
+    Backend(#[from] BackendInitError),
 }
 
 #[derive(Error, Debug)]
@@ -166,7 +166,7 @@ impl Workspace {
     pub fn init_with_factories(
         user_settings: &UserSettings,
         workspace_root: &Path,
-        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendError>,
+        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendInitError>,
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
         op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
         index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
@@ -209,7 +209,7 @@ impl Workspace {
     pub fn init_with_backend(
         user_settings: &UserSettings,
         workspace_root: &Path,
-        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendError>,
+        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendInitError>,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_factories(
             user_settings,

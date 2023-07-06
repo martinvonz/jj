@@ -19,8 +19,8 @@ use std::path::Path;
 use jujutsu::cli_util::{CliRunner, CommandError, CommandHelper};
 use jujutsu::ui::Ui;
 use jujutsu_lib::backend::{
-    Backend, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId, FileId, SymlinkId,
-    Tree, TreeId,
+    Backend, BackendInitError, BackendLoadError, BackendResult, ChangeId, Commit, CommitId,
+    Conflict, ConflictId, FileId, SymlinkId, Tree, TreeId,
 };
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::repo::StoreFactories;
@@ -75,12 +75,12 @@ struct JitBackend {
 }
 
 impl JitBackend {
-    fn init(store_path: &Path) -> BackendResult<Self> {
+    fn init(store_path: &Path) -> Result<Self, BackendInitError> {
         let inner = GitBackend::init_internal(store_path)?;
         Ok(JitBackend { inner })
     }
 
-    fn load(store_path: &Path) -> BackendResult<Self> {
+    fn load(store_path: &Path) -> Result<Self, BackendLoadError> {
         let inner = GitBackend::load(store_path)?;
         Ok(JitBackend { inner })
     }

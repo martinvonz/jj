@@ -222,7 +222,7 @@ fn test_broken_repo_structure() {
     std::fs::remove_file(store_path.join("git_target")).unwrap();
     let stderr = test_env.jj_cmd_internal_error(&repo_path, &["log"]);
     insta::assert_snapshot!(stderr, @r###"
-    Internal error: The repository appears broken or inaccessible: Error: Cannot access $TEST_ENV/repo/.jj/repo/store/git_target
+    Internal error: The repository appears broken or inaccessible: Cannot access $TEST_ENV/repo/.jj/repo/store/git_target
     "###);
 
     // Test the error message when the commit backend is of unknown type.
