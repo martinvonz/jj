@@ -301,6 +301,10 @@ impl Tree {
         self.entries.is_empty()
     }
 
+    pub fn names(&self) -> impl Iterator<Item = &RepoPathComponent> {
+        self.entries.keys()
+    }
+
     pub fn entries(&self) -> TreeEntriesNonRecursiveIterator {
         TreeEntriesNonRecursiveIterator {
             iter: self.entries.iter(),

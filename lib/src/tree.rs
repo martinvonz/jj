@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cmp::Ordering;
 use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::io::Read;
-use std::iter::Peekable;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -322,15 +320,19 @@ impl<T> Diff<T> {
 }
 
 struct TreeEntryDiffIterator<'trees> {
-    it1: Peekable<TreeEntriesNonRecursiveIterator<'trees>>,
-    it2: Peekable<TreeEntriesNonRecursiveIterator<'trees>>,
+    tree1: &'trees Tree,
+    tree2: &'trees Tree,
+    basename_iter: Box<dyn Iterator<Item = &'trees RepoPathComponent> + 'trees>,
 }
 
 impl<'trees> TreeEntryDiffIterator<'trees> {
     fn new(tree1: &'trees Tree, tree2: &'trees Tree) -> Self {
-        let it1 = tree1.entries_non_recursive().peekable();
-        let it2 = tree2.entries_non_recursive().peekable();
-        TreeEntryDiffIterator { it1, it2 }
+        let basename_iter = Box::new(tree1.data.names().merge(tree2.data.names()).dedup());
+        TreeEntryDiffIterator {
+            tree1,
+            tree2,
+            basename_iter,
+        }
     }
 }
 
@@ -342,52 +344,14 @@ impl<'trees> Iterator for TreeEntryDiffIterator<'trees> {
     );
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let entry1 = self.it1.peek();
-            let entry2 = self.it2.peek();
-            match (&entry1, &entry2) {
-                (Some(before), Some(after)) => {
-                    match before.name().cmp(after.name()) {
-                        Ordering::Less => {
-                            // entry removed
-                            let before = self.it1.next().unwrap();
-                            return Some((before.name(), Some(before.value()), None));
-                        }
-                        Ordering::Greater => {
-                            // entry added
-                            let after = self.it2.next().unwrap();
-                            return Some((after.name(), None, Some(after.value())));
-                        }
-                        Ordering::Equal => {
-                            // entry modified or clean
-                            let before = self.it1.next().unwrap();
-                            let after = self.it2.next().unwrap();
-                            if before.value() != after.value() {
-                                return Some((
-                                    before.name(),
-                                    Some(before.value()),
-                                    Some(after.value()),
-                                ));
-                            }
-                        }
-                    }
-                }
-                (Some(_), None) => {
-                    // second iterator exhausted
-                    let before = self.it1.next().unwrap();
-                    return Some((before.name(), Some(before.value()), None));
-                }
-                (None, Some(_)) => {
-                    // first iterator exhausted
-                    let after = self.it2.next().unwrap();
-                    return Some((after.name(), None, Some(after.value())));
-                }
-                (None, None) => {
-                    // both iterators exhausted
-                    return None;
-                }
+        for basename in self.basename_iter.by_ref() {
+            let value1 = self.tree1.value(basename);
+            let value2 = self.tree2.value(basename);
+            if value1 != value2 {
+                return Some((basename, value1, value2));
             }
         }
+        None
     }
 }
 
