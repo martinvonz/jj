@@ -457,17 +457,16 @@ impl Iterator for TreeDiffIterator<'_> {
                 } else {
                     self.stack.len()
                 };
-            // Note: whenever we say "file" below, it may also be a symlink or a conflict.
             if self.matcher.matches(&path) {
                 if !tree_before && tree_after {
-                    if let Some(file_before) = before {
-                        return Some((path, Diff::Removed(file_before.clone())));
+                    if let Some(value_before) = before {
+                        return Some((path, Diff::Removed(value_before.clone())));
                     }
                 } else if tree_before && !tree_after {
-                    if let Some(file_after) = after {
+                    if let Some(value_after) = after {
                         self.stack.insert(
                             post_subdir,
-                            TreeDiffItem::File(path, Diff::Added(file_after.clone())),
+                            TreeDiffItem::File(path, Diff::Added(value_after.clone())),
                         );
                     }
                 } else if !tree_before && !tree_after {
