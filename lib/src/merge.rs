@@ -415,6 +415,14 @@ impl Merge<Option<TreeValue>> {
         backend::Conflict { removes, adds }
     }
 
+    /// Whether this merge should be recursed into when doing directory walks.
+    pub fn is_tree(&self) -> bool {
+        self.is_present()
+            && self
+                .iter()
+                .all(|value| matches!(value, Some(TreeValue::Tree(_)) | None))
+    }
+
     pub fn to_file_merge(&self) -> Option<Merge<Option<FileId>>> {
         self.maybe_map(|term| match term {
             None => Some(None),

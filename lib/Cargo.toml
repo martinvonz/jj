@@ -60,6 +60,7 @@ criterion = { workspace = true }
 esl01-renderdag = { workspace = true }
 insta = { workspace = true }
 num_cpus = { workspace = true }
+pretty_assertions = { workspace = true }
 test-case = { workspace = true }
 testutils = { workspace = true }
 
