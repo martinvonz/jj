@@ -444,6 +444,15 @@ impl RevsetExpression {
         })
     }
 
+    /// Ancestors of `self`, including `self` until `generation` back.
+    pub fn ancestors_at(self: &Rc<RevsetExpression>, generation: u64) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Ancestors {
+            heads: self.clone(),
+            generation: generation..(generation + 1),
+            is_legacy: false,
+        })
+    }
+
     /// Children of `self`.
     pub fn children(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Descendants {
@@ -466,6 +475,15 @@ impl RevsetExpression {
             roots: self.clone(),
             generation: GENERATION_RANGE_FULL,
             is_legacy: true,
+        })
+    }
+
+    /// Descendants of `self`, including `self` until `generation` ahead.
+    pub fn descendants_at(self: &Rc<RevsetExpression>, generation: u64) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Descendants {
+            roots: self.clone(),
+            generation: generation..(generation + 1),
+            is_legacy: false,
         })
     }
 
