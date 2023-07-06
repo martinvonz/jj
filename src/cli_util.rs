@@ -2219,7 +2219,7 @@ fn resolve_default_command(
 fn resolve_aliases(
     config: &config::Config,
     app: &Command,
-    string_args: &[String],
+    mut string_args: Vec<String>,
 ) -> Result<Vec<String>, CommandError> {
     let mut aliases_map = config.get_table("aliases")?;
     if let Ok(alias_map) = config.get_table("alias") {
@@ -2234,7 +2234,6 @@ fn resolve_aliases(
         }
     }
     let mut resolved_aliases = HashSet::new();
-    let mut string_args = string_args.to_vec();
     let mut real_commands = HashSet::new();
     for command in app.get_subcommands() {
         real_commands.insert(command.get_name().to_string());
@@ -2328,7 +2327,7 @@ pub fn expand_args(
     }
 
     resolve_default_command(ui, config, app, &mut string_args)?;
-    resolve_aliases(config, app, &string_args)
+    resolve_aliases(config, app, string_args)
 }
 
 pub fn parse_args(
