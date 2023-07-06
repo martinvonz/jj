@@ -2177,22 +2177,22 @@ fn resolve_default_command(
     ui: &mut Ui,
     config: &config::Config,
     app: &Command,
-    string_args: &mut Vec<String>,
-) -> Result<(), CommandError> {
+    mut string_args: Vec<String>,
+) -> Result<Vec<String>, CommandError> {
     const PRIORITY_FLAGS: &[&str] = &["help", "--help", "-h", "--version", "-V"];
 
     let has_priority_flag = string_args
         .iter()
         .any(|arg| PRIORITY_FLAGS.contains(&arg.as_str()));
     if has_priority_flag {
-        return Ok(());
+        return Ok(string_args);
     }
 
     let app_clone = app
         .clone()
         .allow_external_subcommands(true)
         .ignore_errors(true);
-    let matches = app_clone.try_get_matches_from(string_args.clone()).ok();
+    let matches = app_clone.try_get_matches_from(&string_args).ok();
 
     if let Some(matches) = matches {
         if matches.subcommand_name().is_none() {
@@ -2213,7 +2213,7 @@ fn resolve_default_command(
             string_args.insert(1, default_command);
         }
     }
-    Ok(())
+    Ok(string_args)
 }
 
 fn resolve_aliases(
@@ -2326,7 +2326,7 @@ pub fn expand_args(
         }
     }
 
-    resolve_default_command(ui, config, app, &mut string_args)?;
+    let string_args = resolve_default_command(ui, config, app, string_args)?;
     resolve_aliases(config, app, string_args)
 }
 
