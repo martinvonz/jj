@@ -407,20 +407,19 @@ impl TreeDiffDirItem {
 
     fn subdir(
         &self,
-        name: &RepoPathComponent,
+        subdir_path: &RepoPath,
         before: Option<&TreeValue>,
         after: Option<&TreeValue>,
     ) -> Self {
-        let subdir_path = self.path.join(name);
         let before_tree = match before {
-            Some(TreeValue::Tree(id_before)) => self.tree1.known_sub_tree(&subdir_path, id_before),
+            Some(TreeValue::Tree(id_before)) => self.tree1.known_sub_tree(subdir_path, id_before),
             _ => Tree::null(self.tree1.store().clone(), subdir_path.clone()),
         };
         let after_tree = match after {
-            Some(TreeValue::Tree(id_after)) => self.tree2.known_sub_tree(&subdir_path, id_after),
+            Some(TreeValue::Tree(id_after)) => self.tree2.known_sub_tree(subdir_path, id_after),
             _ => Tree::null(self.tree2.store().clone(), subdir_path.clone()),
         };
-        Self::new(subdir_path, before_tree, after_tree)
+        Self::new(subdir_path.clone(), before_tree, after_tree)
     }
 }
 
@@ -447,35 +446,32 @@ impl Iterator for TreeDiffIterator<'_> {
                 }
             };
 
-            // Note: whenever we say "file" below, it may also be a symlink or a conflict.
-            let file_path = dir.path.join(name);
+            let path = dir.path.join(name);
             let tree_before = matches!(before, Some(TreeValue::Tree(_)));
             let tree_after = matches!(after, Some(TreeValue::Tree(_)));
             let post_subdir =
-                if (tree_before || tree_after) && !self.matcher.visit(&file_path).is_nothing() {
-                    let subdir = dir.subdir(name, before, after);
+                if (tree_before || tree_after) && !self.matcher.visit(&path).is_nothing() {
+                    let subdir = dir.subdir(&path, before, after);
                     self.stack.push(TreeDiffItem::Dir(subdir));
                     self.stack.len() - 1
                 } else {
                     self.stack.len()
                 };
-            if self.matcher.matches(&file_path) {
+            // Note: whenever we say "file" below, it may also be a symlink or a conflict.
+            if self.matcher.matches(&path) {
                 if !tree_before && tree_after {
                     if let Some(file_before) = before {
-                        return Some((file_path, Diff::Removed(file_before.clone())));
+                        return Some((path, Diff::Removed(file_before.clone())));
                     }
                 } else if tree_before && !tree_after {
                     if let Some(file_after) = after {
                         self.stack.insert(
                             post_subdir,
-                            TreeDiffItem::File(file_path, Diff::Added(file_after.clone())),
+                            TreeDiffItem::File(path, Diff::Added(file_after.clone())),
                         );
                     }
                 } else if !tree_before && !tree_after {
-                    return Some((
-                        file_path,
-                        Diff::from_options(before.cloned(), after.cloned()),
-                    ));
+                    return Some((path, Diff::from_options(before.cloned(), after.cloned())));
                 }
             }
         }
