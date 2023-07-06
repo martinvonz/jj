@@ -713,12 +713,12 @@ pub fn show_types(
 ) -> io::Result<()> {
     formatter.with_label("diff", |formatter| {
         for (repo_path, diff) in tree_diff {
-            let (before, after) = diff.as_options();
+            let (before, after) = diff.into_options();
             writeln!(
                 formatter.labeled("modified"),
                 "{}{} {}",
-                diff_summary_char(before),
-                diff_summary_char(after),
+                diff_summary_char(before.as_ref()),
+                diff_summary_char(after.as_ref()),
                 workspace_command.format_file_path(&repo_path)
             )?;
         }
