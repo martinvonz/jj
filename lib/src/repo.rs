@@ -14,12 +14,12 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
+use std::fs;
 use std::io::ErrorKind;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
-use std::{fs, io};
 
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
@@ -401,7 +401,7 @@ pub enum StoreLoadError {
     #[error("Failed to read {store} backend type: {source}")]
     ReadError {
         store: &'static str,
-        source: io::Error,
+        source: PathError,
     },
     #[error(transparent)]
     Backend(#[from] BackendLoadError),
@@ -428,25 +428,14 @@ impl StoreFactories {
             fs::rename(store_path.join("backend"), store_path.join("type"))
                 .expect("Failed to rename 'backend' file to 'type'");
         }
-        let backend_type = match fs::read_to_string(store_path.join("type")) {
-            Ok(content) => content,
-            Err(err) if err.kind() == ErrorKind::NotFound => {
-                // For compatibility with existing repos. TODO: Delete in 0.8+.
-                let inferred_type = if store_path.join("git_target").is_file() {
-                    String::from("git")
-                } else {
-                    String::from("local")
-                };
-                fs::write(store_path.join("type"), &inferred_type).unwrap();
-                inferred_type
+        // For compatibility with existing repos. TODO: Delete default in 0.8+.
+        let backend_type = read_store_type_compat("commit", store_path.join("type"), || {
+            if store_path.join("git_target").is_file() {
+                "git"
+            } else {
+                "local"
             }
-            Err(err) => {
-                return Err(StoreLoadError::ReadError {
-                    store: "commit",
-                    source: err,
-                });
-            }
-        };
+        })?;
         let backend_factory = self.backend_factories.get(&backend_type).ok_or_else(|| {
             StoreLoadError::UnsupportedType {
                 store: "commit",
@@ -461,21 +450,9 @@ impl StoreFactories {
     }
 
     pub fn load_op_store(&self, store_path: &Path) -> Result<Box<dyn OpStore>, StoreLoadError> {
-        let op_store_type = match fs::read_to_string(store_path.join("type")) {
-            Ok(content) => content,
-            Err(err) if err.kind() == ErrorKind::NotFound => {
-                // For compatibility with existing repos. TODO: Delete in 0.8+
-                let default_type = String::from("simple_op_store");
-                fs::write(store_path.join("type"), &default_type).unwrap();
-                default_type
-            }
-            Err(err) => {
-                return Err(StoreLoadError::ReadError {
-                    store: "operation",
-                    source: err,
-                });
-            }
-        };
+        // For compatibility with existing repos. TODO: Delete default in 0.8+.
+        let op_store_type =
+            read_store_type_compat("operation", store_path.join("type"), || "simple_op_store")?;
         let op_store_factory = self.op_store_factories.get(&op_store_type).ok_or_else(|| {
             StoreLoadError::UnsupportedType {
                 store: "operation",
@@ -494,21 +471,11 @@ impl StoreFactories {
         &self,
         store_path: &Path,
     ) -> Result<Box<dyn OpHeadsStore>, StoreLoadError> {
-        let op_heads_store_type = match fs::read_to_string(store_path.join("type")) {
-            Ok(content) => content,
-            Err(err) if err.kind() == ErrorKind::NotFound => {
-                // For compatibility with existing repos. TODO: Delete in 0.8+
-                let default_type = String::from("simple_op_heads_store");
-                fs::write(store_path.join("type"), &default_type).unwrap();
-                default_type
-            }
-            Err(err) => {
-                return Err(StoreLoadError::ReadError {
-                    store: "operation heads",
-                    source: err,
-                });
-            }
-        };
+        // For compatibility with existing repos. TODO: Delete default in 0.8+.
+        let op_heads_store_type =
+            read_store_type_compat("operation heads", store_path.join("type"), || {
+                "simple_op_heads_store"
+            })?;
         let op_heads_store_factory = self
             .op_heads_store_factories
             .get(&op_heads_store_type)
@@ -527,21 +494,9 @@ impl StoreFactories {
         &self,
         store_path: &Path,
     ) -> Result<Box<dyn IndexStore>, StoreLoadError> {
-        let index_store_type = match fs::read_to_string(store_path.join("type")) {
-            Ok(content) => content,
-            Err(err) if err.kind() == ErrorKind::NotFound => {
-                // For compatibility with existing repos. TODO: Delete in 0.9+
-                let default_type = String::from("default");
-                fs::write(store_path.join("type"), &default_type).unwrap();
-                default_type
-            }
-            Err(err) => {
-                return Err(StoreLoadError::ReadError {
-                    store: "index",
-                    source: err,
-                });
-            }
-        };
+        // For compatibility with existing repos. TODO: Delete default in 0.9+
+        let index_store_type =
+            read_store_type_compat("index", store_path.join("type"), || "default")?;
         let index_store_factory = self
             .index_store_factories
             .get(&index_store_type)
@@ -561,23 +516,13 @@ impl StoreFactories {
         &self,
         store_path: &Path,
     ) -> Result<Box<dyn SubmoduleStore>, StoreLoadError> {
-        let submodule_store_type = match fs::read_to_string(store_path.join("type")) {
-            Ok(content) => content,
-            Err(err) if err.kind() == ErrorKind::NotFound => {
-                // For compatibility with repos without repo/submodule_store.
-                // TODO Delete in TBD version
-                let default_type = DefaultSubmoduleStore::name().to_string();
-                fs::create_dir(store_path).unwrap();
-                fs::write(store_path.join("type"), &default_type).unwrap();
-                default_type
-            }
-            Err(err) => {
-                return Err(StoreLoadError::ReadError {
-                    store: "submodule_store",
-                    source: err,
-                });
-            }
-        };
+        // For compatibility with repos without repo/submodule_store.
+        // TODO Delete default in TBD version
+        let submodule_store_type = read_store_type_compat(
+            "submodule_store",
+            store_path.join("type"),
+            DefaultSubmoduleStore::name,
+        )?;
         let submodule_store_factory = self
             .submodule_store_factories
             .get(&submodule_store_type)
@@ -588,6 +533,27 @@ impl StoreFactories {
 
         Ok(submodule_store_factory(store_path))
     }
+}
+
+fn read_store_type_compat(
+    store: &'static str,
+    path: impl AsRef<Path>,
+    default: impl FnOnce() -> &'static str,
+) -> Result<String, StoreLoadError> {
+    let path = path.as_ref();
+    let read_or_write_default = || match fs::read_to_string(path) {
+        Ok(content) => Ok(content),
+        Err(err) if err.kind() == ErrorKind::NotFound => {
+            let default_type = default();
+            fs::create_dir(path.parent().unwrap()).ok();
+            fs::write(path, default_type)?;
+            Ok(default_type.to_owned())
+        }
+        Err(err) => Err(err),
+    };
+    read_or_write_default()
+        .context(path)
+        .map_err(|source| StoreLoadError::ReadError { store, source })
 }
 
 #[derive(Clone)]

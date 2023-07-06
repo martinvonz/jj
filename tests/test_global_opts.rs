@@ -14,8 +14,6 @@
 
 use std::ffi::OsString;
 
-use itertools::Itertools;
-
 use crate::common::{get_stderr_string, TestEnvironment};
 
 pub mod common;
@@ -237,9 +235,18 @@ fn test_broken_repo_structure() {
     std::fs::remove_file(&store_type_path).unwrap();
     std::fs::create_dir(&store_type_path).unwrap();
     let stderr = test_env.jj_cmd_internal_error(&repo_path, &["log"]);
-    // Trim off the OS-specific error message.
-    let stderr = stderr.split(':').take(3).join(":");
-    insta::assert_snapshot!(stderr, @"Internal error: The repository appears broken or inaccessible: Failed to read commit backend type");
+    insta::assert_snapshot!(stderr, @r###"
+    Internal error: The repository appears broken or inaccessible: Failed to read commit backend type: Cannot access $TEST_ENV/repo/.jj/repo/store/type
+    "###);
+
+    // Test when the .jj directory is empty. The error message is identical to
+    // the previous one, but writing the default type file would also fail.
+    std::fs::remove_dir_all(repo_path.join(".jj")).unwrap();
+    std::fs::create_dir(repo_path.join(".jj")).unwrap();
+    let stderr = test_env.jj_cmd_internal_error(&repo_path, &["log"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Internal error: The repository appears broken or inaccessible: Failed to read commit backend type: Cannot access $TEST_ENV/repo/.jj/repo/store/type
+    "###);
 }
 
 #[test]
