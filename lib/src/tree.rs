@@ -302,6 +302,15 @@ pub enum Diff<T> {
 }
 
 impl<T> Diff<T> {
+    pub fn from_options(left: Option<T>, right: Option<T>) -> Self {
+        match (left, right) {
+            (Some(left), Some(right)) => Diff::Modified(left, right),
+            (None, Some(right)) => Diff::Added(right),
+            (Some(left), None) => Diff::Removed(left),
+            (None, None) => panic!("left and right cannot both be None"),
+        }
+    }
+
     pub fn into_options(self) -> (Option<T>, Option<T>) {
         match self {
             Diff::Modified(left, right) => (Some(left), Some(right)),
@@ -468,23 +477,10 @@ impl Iterator for TreeDiffIterator<'_> {
                         );
                     }
                 } else if !tree_before && !tree_after {
-                    match (before, after) {
-                        (Some(file_before), Some(file_after)) => {
-                            return Some((
-                                file_path,
-                                Diff::Modified(file_before.clone(), file_after.clone()),
-                            ));
-                        }
-                        (None, Some(file_after)) => {
-                            return Some((file_path, Diff::Added(file_after.clone())));
-                        }
-                        (Some(file_before), None) => {
-                            return Some((file_path, Diff::Removed(file_before.clone())));
-                        }
-                        (None, None) => {
-                            panic!("unexpected diff")
-                        }
-                    }
+                    return Some((
+                        file_path,
+                        Diff::from_options(before.cloned(), after.cloned()),
+                    ));
                 }
             }
         }
