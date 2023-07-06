@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 
 use blake2::{Blake2b512, Digest};
 use prost::Message;
-use tempfile::{NamedTempFile, PersistError};
+use tempfile::NamedTempFile;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
@@ -34,24 +34,6 @@ use crate::repo_path::{RepoPath, RepoPathComponent};
 
 const COMMIT_ID_LENGTH: usize = 64;
 const CHANGE_ID_LENGTH: usize = 16;
-
-impl From<std::io::Error> for BackendError {
-    fn from(err: std::io::Error) -> Self {
-        BackendError::Other(err.into())
-    }
-}
-
-impl From<PersistError> for BackendError {
-    fn from(err: PersistError) -> Self {
-        BackendError::Other(err.into())
-    }
-}
-
-impl From<prost::DecodeError> for BackendError {
-    fn from(err: prost::DecodeError) -> Self {
-        BackendError::Other(err.into())
-    }
-}
 
 fn map_not_found_err(err: std::io::Error, id: &impl ObjectId) -> BackendError {
     if err.kind() == std::io::ErrorKind::NotFound {
@@ -67,6 +49,10 @@ fn map_not_found_err(err: std::io::Error, id: &impl ObjectId) -> BackendError {
             source: Box::new(err),
         }
     }
+}
+
+fn to_other_err(err: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> BackendError {
+    BackendError::Other(err.into())
 }
 
 #[derive(Debug)]
@@ -145,31 +131,32 @@ impl Backend for LocalBackend {
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         let path = self.file_path(id);
         let file = File::open(path).map_err(|err| map_not_found_err(err, id))?;
-        Ok(Box::new(zstd::Decoder::new(file)?))
+        Ok(Box::new(zstd::Decoder::new(file).map_err(to_other_err)?))
     }
 
     fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
-        let temp_file = NamedTempFile::new_in(&self.path)?;
-        let mut encoder = zstd::Encoder::new(temp_file.as_file(), 0)?;
+        let temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
+        let mut encoder = zstd::Encoder::new(temp_file.as_file(), 0).map_err(to_other_err)?;
         let mut hasher = Blake2b512::new();
         loop {
             let mut buff: Vec<u8> = Vec::with_capacity(1 << 14);
             let bytes_read;
             unsafe {
                 buff.set_len(1 << 14);
-                bytes_read = contents.read(&mut buff)?;
+                bytes_read = contents.read(&mut buff).map_err(to_other_err)?;
                 buff.set_len(bytes_read);
             }
             if bytes_read == 0 {
                 break;
             }
-            encoder.write_all(&buff)?;
+            encoder.write_all(&buff).map_err(to_other_err)?;
             hasher.update(&buff);
         }
-        encoder.finish()?;
+        encoder.finish().map_err(to_other_err)?;
         let id = FileId::new(hasher.finalize().to_vec());
 
-        persist_content_addressed_temp_file(temp_file, self.file_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.file_path(&id))
+            .map_err(to_other_err)?;
         Ok(id)
     }
 
@@ -182,13 +169,16 @@ impl Backend for LocalBackend {
     }
 
     fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, BackendError> {
-        let mut temp_file = NamedTempFile::new_in(&self.path)?;
-        temp_file.write_all(target.as_bytes())?;
+        let mut temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
+        temp_file
+            .write_all(target.as_bytes())
+            .map_err(to_other_err)?;
         let mut hasher = Blake2b512::new();
         hasher.update(target.as_bytes());
         let id = SymlinkId::new(hasher.finalize().to_vec());
 
-        persist_content_addressed_temp_file(temp_file, self.symlink_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.symlink_path(&id))
+            .map_err(to_other_err)?;
         Ok(id)
     }
 
@@ -208,19 +198,23 @@ impl Backend for LocalBackend {
         let path = self.tree_path(id);
         let buf = fs::read(path).map_err(|err| map_not_found_err(err, id))?;
 
-        let proto = crate::protos::local_store::Tree::decode(&*buf)?;
+        let proto = crate::protos::local_store::Tree::decode(&*buf).map_err(to_other_err)?;
         Ok(tree_from_proto(proto))
     }
 
     fn write_tree(&self, _path: &RepoPath, tree: &Tree) -> BackendResult<TreeId> {
-        let temp_file = NamedTempFile::new_in(&self.path)?;
+        let temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
 
         let proto = tree_to_proto(tree);
-        temp_file.as_file().write_all(&proto.encode_to_vec())?;
+        temp_file
+            .as_file()
+            .write_all(&proto.encode_to_vec())
+            .map_err(to_other_err)?;
 
         let id = TreeId::new(blake2b_hash(tree).to_vec());
 
-        persist_content_addressed_temp_file(temp_file, self.tree_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.tree_path(&id))
+            .map_err(to_other_err)?;
         Ok(id)
     }
 
@@ -228,19 +222,23 @@ impl Backend for LocalBackend {
         let path = self.conflict_path(id);
         let buf = fs::read(path).map_err(|err| map_not_found_err(err, id))?;
 
-        let proto = crate::protos::local_store::Conflict::decode(&*buf)?;
+        let proto = crate::protos::local_store::Conflict::decode(&*buf).map_err(to_other_err)?;
         Ok(conflict_from_proto(proto))
     }
 
     fn write_conflict(&self, _path: &RepoPath, conflict: &Conflict) -> BackendResult<ConflictId> {
-        let temp_file = NamedTempFile::new_in(&self.path)?;
+        let temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
 
         let proto = conflict_to_proto(conflict);
-        temp_file.as_file().write_all(&proto.encode_to_vec())?;
+        temp_file
+            .as_file()
+            .write_all(&proto.encode_to_vec())
+            .map_err(to_other_err)?;
 
         let id = ConflictId::new(blake2b_hash(conflict).to_vec());
 
-        persist_content_addressed_temp_file(temp_file, self.conflict_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.conflict_path(&id))
+            .map_err(to_other_err)?;
         Ok(id)
     }
 
@@ -255,19 +253,23 @@ impl Backend for LocalBackend {
         let path = self.commit_path(id);
         let buf = fs::read(path).map_err(|err| map_not_found_err(err, id))?;
 
-        let proto = crate::protos::local_store::Commit::decode(&*buf)?;
+        let proto = crate::protos::local_store::Commit::decode(&*buf).map_err(to_other_err)?;
         Ok(commit_from_proto(proto))
     }
 
     fn write_commit(&self, commit: Commit) -> BackendResult<(CommitId, Commit)> {
-        let temp_file = NamedTempFile::new_in(&self.path)?;
+        let temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
 
         let proto = commit_to_proto(&commit);
-        temp_file.as_file().write_all(&proto.encode_to_vec())?;
+        temp_file
+            .as_file()
+            .write_all(&proto.encode_to_vec())
+            .map_err(to_other_err)?;
 
         let id = CommitId::new(blake2b_hash(&commit).to_vec());
 
-        persist_content_addressed_temp_file(temp_file, self.commit_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.commit_path(&id))
+            .map_err(to_other_err)?;
         Ok((id, commit))
     }
 }
