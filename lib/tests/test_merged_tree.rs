@@ -14,11 +14,13 @@
 
 use itertools::Itertools;
 use jj_lib::backend::{FileId, TreeValue};
+use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeValue};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::tree::merge_trees;
+use pretty_assertions::assert_eq;
 use testutils::{create_tree, write_file, write_normal_file, TestRepo};
 
 fn file_value(file_id: &FileId) -> TreeValue {
@@ -574,4 +576,400 @@ fn test_conflict_iterator_higher_arity() {
             (three_sided_path.clone(), conflict_at(&three_sided_path))
         ]
     );
+}
+
+/// Diff two resolved trees
+#[test]
+fn test_diff_resolved() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    let clean_path = RepoPath::from_internal_string("dir1/file");
+    let modified_path = RepoPath::from_internal_string("dir2/file");
+    let removed_path = RepoPath::from_internal_string("dir3/file");
+    let added_path = RepoPath::from_internal_string("dir4/file");
+    let before = create_tree(
+        repo,
+        &[
+            (&clean_path, "clean"),
+            (&modified_path, "before"),
+            (&removed_path, "before"),
+        ],
+    );
+    let after = create_tree(
+        repo,
+        &[
+            (&clean_path, "clean"),
+            (&modified_path, "after"),
+            (&added_path, "after"),
+        ],
+    );
+    let before_merged = MergedTree::new(Merge::resolved(before.clone()));
+    let after_merged = MergedTree::new(Merge::resolved(after.clone()));
+
+    let diff = before_merged
+        .diff(&after_merged, &EverythingMatcher)
+        .collect_vec();
+    assert_eq!(diff.len(), 3);
+    assert_eq!(
+        diff[0].clone(),
+        (
+            modified_path.clone(),
+            Merge::resolved(before.path_value(&modified_path)),
+            Merge::resolved(after.path_value(&modified_path)),
+        )
+    );
+    assert_eq!(
+        diff[1].clone(),
+        (
+            removed_path.clone(),
+            Merge::resolved(before.path_value(&removed_path)),
+            Merge::absent(),
+        )
+    );
+    assert_eq!(
+        diff[2].clone(),
+        (
+            added_path.clone(),
+            Merge::absent(),
+            Merge::resolved(after.path_value(&added_path)),
+        )
+    );
+}
+
+/// Diff two conflicted trees
+#[test]
+fn test_diff_conflicted() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    // path1 is a clean (unchanged) conflict
+    // path2 is a conflict before and different conflict after
+    // path3 is resolved before and a conflict after
+    // path4 is missing before and a conflict after
+    let path1 = RepoPath::from_internal_string("dir1/file");
+    let path2 = RepoPath::from_internal_string("dir2/file");
+    let path3 = RepoPath::from_internal_string("dir4/file");
+    let path4 = RepoPath::from_internal_string("dir6/file");
+    let left_base = create_tree(
+        repo,
+        &[
+            (&path1, "clean-base"),
+            (&path2, "left-base"),
+            (&path3, "left"),
+        ],
+    );
+    let left_side1 = create_tree(
+        repo,
+        &[
+            (&path1, "clean-side1"),
+            (&path2, "left-side1"),
+            (&path3, "left"),
+        ],
+    );
+    let left_side2 = create_tree(
+        repo,
+        &[
+            (&path1, "clean-side2"),
+            (&path2, "left-side2"),
+            (&path3, "left"),
+        ],
+    );
+    let right_base = create_tree(
+        repo,
+        &[
+            (&path1, "clean-base"),
+            (&path2, "right-base"),
+            (&path3, "right-base"),
+            (&path4, "right-base"),
+        ],
+    );
+    let right_side1 = create_tree(
+        repo,
+        &[
+            (&path1, "clean-side1"),
+            (&path2, "right-side1"),
+            (&path3, "right-side1"),
+            (&path4, "right-side1"),
+        ],
+    );
+    let right_side2 = create_tree(
+        repo,
+        &[
+            (&path1, "clean-side2"),
+            (&path2, "right-side2"),
+            (&path3, "right-side2"),
+            (&path4, "right-side2"),
+        ],
+    );
+    let left_merged = MergedTree::new(Merge::new(
+        vec![left_base.clone()],
+        vec![left_side1.clone(), left_side2.clone()],
+    ));
+    let right_merged = MergedTree::new(Merge::new(
+        vec![right_base.clone()],
+        vec![right_side1.clone(), right_side2.clone()],
+    ));
+
+    // Test the forwards diff
+    let actual_diff = left_merged
+        .diff(&right_merged, &EverythingMatcher)
+        .collect_vec();
+    let expected_diff = [&path2, &path3, &path4]
+        .iter()
+        .map(|path| {
+            (
+                (*path).clone(),
+                left_merged.path_value(path),
+                right_merged.path_value(path),
+            )
+        })
+        .collect_vec();
+    assert_eq!(actual_diff, expected_diff);
+    // Test the reverse diff
+    let actual_diff = right_merged
+        .diff(&left_merged, &EverythingMatcher)
+        .collect_vec();
+    let expected_diff = [&path2, &path3, &path4]
+        .iter()
+        .map(|path| {
+            (
+                (*path).clone(),
+                right_merged.path_value(path),
+                left_merged.path_value(path),
+            )
+        })
+        .collect_vec();
+    assert_eq!(actual_diff, expected_diff);
+}
+
+#[test]
+fn test_diff_dir_file() {
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    // path1: file1 -> directory1
+    // path2: file1 -> directory1+(directory2-absent)
+    // path3: file1 -> directory1+(file1-absent)
+    // path4: file1+(file2-file3) -> directory1+(directory2-directory3)
+    // path5: directory1 -> file1+(file2-absent)
+    // path6: directory1 -> file1+(directory1-absent)
+    let path1 = RepoPath::from_internal_string("path1");
+    let path2 = RepoPath::from_internal_string("path2");
+    let path3 = RepoPath::from_internal_string("path3");
+    let path4 = RepoPath::from_internal_string("path4");
+    let path5 = RepoPath::from_internal_string("path5");
+    let path6 = RepoPath::from_internal_string("path6");
+    let file = RepoPathComponent::from("file");
+    let left_base = create_tree(
+        repo,
+        &[
+            (&path1, "left"),
+            (&path2, "left"),
+            (&path3, "left"),
+            (&path4, "left-base"),
+            (&path5.join(&file), "left"),
+            (&path6.join(&file), "left"),
+        ],
+    );
+    let left_side1 = create_tree(
+        repo,
+        &[
+            (&path1, "left"),
+            (&path2, "left"),
+            (&path3, "left"),
+            (&path4, "left-side1"),
+            (&path5.join(&file), "left"),
+            (&path6.join(&file), "left"),
+        ],
+    );
+    let left_side2 = create_tree(
+        repo,
+        &[
+            (&path1, "left"),
+            (&path2, "left"),
+            (&path3, "left"),
+            (&path4, "left-side2"),
+            (&path5.join(&file), "left"),
+            (&path6.join(&file), "left"),
+        ],
+    );
+    let right_base = create_tree(
+        repo,
+        &[
+            (&path1.join(&file), "right"),
+            // path2 absent
+            // path3 absent
+            (&path4.join(&file), "right-base"),
+            // path5 is absent
+            // path6 is absent
+        ],
+    );
+    let right_side1 = create_tree(
+        repo,
+        &[
+            (&path1.join(&file), "right"),
+            (&path2.join(&file), "right"),
+            (&path3.join(&file), "right-side1"),
+            (&path4.join(&file), "right-side1"),
+            (&path5, "right-side1"),
+            (&path6, "right"),
+        ],
+    );
+    let right_side2 = create_tree(
+        repo,
+        &[
+            (&path1.join(&file), "right"),
+            (&path2.join(&file), "right"),
+            (&path3, "right-side2"),
+            (&path4.join(&file), "right-side2"),
+            (&path5, "right-side2"),
+            (&path6.join(&file), "right"),
+        ],
+    );
+    let left_merged = MergedTree::new(Merge::new(
+        vec![left_base.clone()],
+        vec![left_side1.clone(), left_side2.clone()],
+    ));
+    let right_merged = MergedTree::new(Merge::new(
+        vec![right_base.clone()],
+        vec![right_side1.clone(), right_side2.clone()],
+    ));
+
+    // Test the forwards diff
+    let actual_diff = left_merged
+        .diff(&right_merged, &EverythingMatcher)
+        .collect_vec();
+    let expected_diff = vec![
+        // path1: file1 -> directory1
+        (
+            path1.clone(),
+            left_merged.path_value(&path1),
+            Merge::absent(),
+        ),
+        (
+            path1.join(&file),
+            Merge::absent(),
+            right_merged.path_value(&path1.join(&file)),
+        ),
+        // path2: file1 -> directory1+(directory2-absent)
+        (
+            path2.clone(),
+            left_merged.path_value(&path2),
+            Merge::absent(),
+        ),
+        (
+            path2.join(&file),
+            Merge::absent(),
+            right_merged.path_value(&path2.join(&file)),
+        ),
+        // path3: file1 -> directory1+(file1-absent)
+        (
+            path3.clone(),
+            left_merged.path_value(&path3),
+            right_merged.path_value(&path3),
+        ),
+        // path4: file1+(file2-file3) -> directory1+(directory2-directory3)
+        (
+            path4.clone(),
+            left_merged.path_value(&path4),
+            Merge::absent(),
+        ),
+        (
+            path4.join(&file),
+            Merge::absent(),
+            right_merged.path_value(&path4.join(&file)),
+        ),
+        // path5: directory1 -> file1+(file2-absent)
+        (
+            path5.join(&file),
+            left_merged.path_value(&path5.join(&file)),
+            Merge::absent(),
+        ),
+        (
+            path5.clone(),
+            Merge::absent(),
+            right_merged.path_value(&path5),
+        ),
+        // path6: directory1 -> file1+(directory1-absent)
+        (
+            path6.join(&file),
+            left_merged.path_value(&path6.join(&file)),
+            Merge::absent(),
+        ),
+        (
+            path6.clone(),
+            Merge::absent(),
+            right_merged.path_value(&path6),
+        ),
+    ];
+    assert_eq!(actual_diff, expected_diff);
+    // Test the reverse diff
+    let actual_diff = right_merged
+        .diff(&left_merged, &EverythingMatcher)
+        .collect_vec();
+    let expected_diff = vec![
+        // path1: file1 -> directory1
+        (
+            path1.join(&file),
+            right_merged.path_value(&path1.join(&file)),
+            Merge::absent(),
+        ),
+        (
+            path1.clone(),
+            Merge::absent(),
+            left_merged.path_value(&path1),
+        ),
+        // path2: file1 -> directory1+(directory2-absent)
+        (
+            path2.join(&file),
+            right_merged.path_value(&path2.join(&file)),
+            Merge::absent(),
+        ),
+        (
+            path2.clone(),
+            Merge::absent(),
+            left_merged.path_value(&path2),
+        ),
+        // path3: file1 -> directory1+(file1-absent)
+        (
+            path3.clone(),
+            right_merged.path_value(&path3),
+            left_merged.path_value(&path3),
+        ),
+        // path4: file1+(file2-file3) -> directory1+(directory2-directory3)
+        (
+            path4.join(&file),
+            right_merged.path_value(&path4.join(&file)),
+            Merge::absent(),
+        ),
+        (
+            path4.clone(),
+            Merge::absent(),
+            left_merged.path_value(&path4),
+        ),
+        // path5: directory1 -> file1+(file2-absent)
+        (
+            path5.clone(),
+            right_merged.path_value(&path5),
+            Merge::absent(),
+        ),
+        (
+            path5.join(&file),
+            Merge::absent(),
+            left_merged.path_value(&path5.join(&file)),
+        ),
+        // path6: directory1 -> file1+(directory1-absent)
+        (
+            path6.clone(),
+            right_merged.path_value(&path6),
+            Merge::absent(),
+        ),
+        (
+            path6.join(&file),
+            Merge::absent(),
+            left_merged.path_value(&path6.join(&file)),
+        ),
+    ];
+    assert_eq!(actual_diff, expected_diff);
 }
