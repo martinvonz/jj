@@ -7,6 +7,10 @@ updates:
   open-pull-requests-limit: 10
   commit-message:
     prefix: "cargo:"
+  groups:
+    cargo-dependencies:
+      patterns:
+      - "*"
 - package-ecosystem: "github-actions"
   directory: "/"
   schedule:
@@ -15,6 +19,6 @@ updates:
   commit-message:
     prefix: "github:"
   groups:
-    all-dependencies:
+    github-dependencies:
       patterns:
       - "*"
