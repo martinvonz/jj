@@ -259,7 +259,7 @@ fn build_commit_keyword_opt<'repo>(
         }
         "empty" => language.wrap_boolean(wrap_fn(property, |commit| {
             let parent_tree = rewrite::merge_commit_trees(repo, &commit.parents()).unwrap();
-            commit.tree().id() == parent_tree.id()
+            commit.tree_id() == parent_tree.id()
         })),
         _ => return None,
     };
