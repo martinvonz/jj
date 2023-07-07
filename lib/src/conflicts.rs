@@ -646,6 +646,10 @@ fn parse_conflict_hunk(input: &[u8]) -> Conflict<ContentHunk> {
 mod tests {
     use super::*;
 
+    fn c<T: Clone>(removes: &[T], adds: &[T]) -> Conflict<T> {
+        Conflict::new(removes.to_vec(), adds.to_vec())
+    }
+
     #[test]
     fn test_legacy_form_conversion() {
         fn test_equivalent<T>(legacy_form: (Vec<T>, Vec<T>), conflict: Conflict<Option<T>>)
@@ -696,9 +700,6 @@ mod tests {
 
     #[test]
     fn test_simplify() {
-        fn c(removes: &[u32], adds: &[u32]) -> Conflict<u32> {
-            Conflict::new(removes.to_vec(), adds.to_vec())
-        }
         // 1-way "conflict"
         assert_eq!(c(&[], &[0]).simplify(), c(&[], &[0]));
         // 3-way conflict
@@ -707,7 +708,7 @@ mod tests {
         assert_eq!(c(&[0], &[1, 0]).simplify(), c(&[], &[1]));
         assert_eq!(c(&[0], &[1, 1]).simplify(), c(&[0], &[1, 1]));
         assert_eq!(c(&[0], &[1, 2]).simplify(), c(&[0], &[1, 2]));
-        // Irreducible 5-way conflict
+        // 5-way conflict
         assert_eq!(c(&[0, 0], &[0, 0, 0]).simplify(), c(&[], &[0]));
         assert_eq!(c(&[0, 0], &[0, 0, 1]).simplify(), c(&[], &[1]));
         assert_eq!(c(&[0, 0], &[0, 1, 0]).simplify(), c(&[], &[1]));
@@ -804,9 +805,6 @@ mod tests {
         fn increment(i: &i32) -> i32 {
             i + 1
         }
-        fn c(removes: &[i32], adds: &[i32]) -> Conflict<i32> {
-            Conflict::new(removes.to_vec(), adds.to_vec())
-        }
         // 1-way conflict
         assert_eq!(c(&[], &[1]).map(increment), c(&[], &[2]));
         // 3-way conflict
@@ -821,9 +819,6 @@ mod tests {
             } else {
                 None
             }
-        }
-        fn c(removes: &[i32], adds: &[i32]) -> Conflict<i32> {
-            Conflict::new(removes.to_vec(), adds.to_vec())
         }
         // 1-way conflict
         assert_eq!(c(&[], &[1]).maybe_map(sqrt), Some(c(&[], &[1])));
@@ -843,9 +838,6 @@ mod tests {
                 Err(())
             }
         }
-        fn c(removes: &[i32], adds: &[i32]) -> Conflict<i32> {
-            Conflict::new(removes.to_vec(), adds.to_vec())
-        }
         // 1-way conflict
         assert_eq!(c(&[], &[1]).try_map(sqrt), Ok(c(&[], &[1])));
         assert_eq!(c(&[], &[-1]).try_map(sqrt), Err(()));
@@ -857,9 +849,6 @@ mod tests {
 
     #[test]
     fn test_flatten() {
-        fn c<T: Clone>(removes: &[T], adds: &[T]) -> Conflict<T> {
-            Conflict::new(removes.to_vec(), adds.to_vec())
-        }
         // 1-way conflict of 1-way conflict
         assert_eq!(c(&[], &[c(&[], &[0])]).flatten(), c(&[], &[0]));
         // 1-way conflict of 3-way conflict
