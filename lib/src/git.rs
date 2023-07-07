@@ -55,7 +55,7 @@ fn parse_git_ref(ref_name: &str) -> Option<RefName> {
     }
 }
 
-pub fn to_git_ref_name(parsed_ref: &RefName) -> String {
+fn to_git_ref_name(parsed_ref: &RefName) -> String {
     match parsed_ref {
         RefName::LocalBranch(branch) => format!("refs/heads/{branch}"),
         RefName::RemoteBranch { branch, remote } => format!("refs/remotes/{remote}/{branch}"),
