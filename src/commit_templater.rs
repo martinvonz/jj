@@ -287,7 +287,7 @@ fn extract_branches(repo: &dyn Repo, commit: &Commit) -> String {
     for (branch_name, branch_target) in repo.view().branches() {
         let local_target = branch_target.local_target.as_ref();
         if let Some(local_target) = local_target {
-            if local_target.has_add(commit.id()) {
+            if local_target.adds().contains(commit.id()) {
                 if local_target.is_conflict() {
                     names.push(format!("{branch_name}??"));
                 } else if branch_target
@@ -302,7 +302,7 @@ fn extract_branches(repo: &dyn Repo, commit: &Commit) -> String {
             }
         }
         for (remote_name, remote_target) in &branch_target.remote_targets {
-            if Some(remote_target) != local_target && remote_target.has_add(commit.id()) {
+            if Some(remote_target) != local_target && remote_target.adds().contains(commit.id()) {
                 if remote_target.is_conflict() {
                     names.push(format!("{branch_name}@{remote_name}?"));
                 } else {
@@ -318,7 +318,7 @@ fn extract_branches(repo: &dyn Repo, commit: &Commit) -> String {
 fn extract_tags(repo: &dyn Repo, commit: &Commit) -> String {
     let mut names = vec![];
     for (tag_name, target) in repo.view().tags() {
-        if target.has_add(commit.id()) {
+        if target.adds().contains(commit.id()) {
             if target.is_conflict() {
                 names.push(format!("{tag_name}?"));
             } else {
@@ -335,7 +335,7 @@ fn extract_git_refs(repo: &dyn Repo, commit: &Commit) -> String {
     // all refs here.
     let mut names = vec![];
     for (name, target) in repo.view().git_refs() {
-        if target.has_add(commit.id()) {
+        if target.adds().contains(commit.id()) {
             if target.is_conflict() {
                 names.push(format!("{name}?"));
             } else {
@@ -349,7 +349,7 @@ fn extract_git_refs(repo: &dyn Repo, commit: &Commit) -> String {
 // TODO: return NameRef?
 fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> String {
     match repo.view().git_head() {
-        Some(ref_target) if ref_target.has_add(commit.id()) => {
+        Some(ref_target) if ref_target.adds().contains(commit.id()) => {
             if ref_target.is_conflict() {
                 "HEAD@git?".to_string()
             } else {

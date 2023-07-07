@@ -158,13 +158,6 @@ impl RefTarget {
             RefTarget::Conflict { removes: _, adds } => adds,
         }
     }
-
-    pub fn has_add(&self, needle: &CommitId) -> bool {
-        match self {
-            RefTarget::Normal(id) => id == needle,
-            RefTarget::Conflict { removes: _, adds } => adds.contains(needle),
-        }
-    }
 }
 
 content_hash! {
