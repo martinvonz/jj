@@ -13,16 +13,19 @@
 // limitations under the License.
 
 use std::cmp::max;
+use std::collections::HashMap;
 use std::io;
+use std::rc::Rc;
 
 use itertools::Itertools as _;
 use jujutsu_lib::backend::{ChangeId, CommitId, ObjectId as _};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::hex_util::to_reverse_hex;
 use jujutsu_lib::id_prefix::IdPrefixContext;
-use jujutsu_lib::op_store::WorkspaceId;
+use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::rewrite;
+use once_cell::unsync::OnceCell;
 
 use crate::formatter::Formatter;
 use crate::template_builder::{
@@ -41,6 +44,7 @@ struct CommitTemplateLanguage<'repo, 'b> {
     repo: &'repo dyn Repo,
     workspace_id: &'b WorkspaceId,
     id_prefix_context: &'repo IdPrefixContext,
+    keyword_cache: CommitKeywordCache,
 }
 
 impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
@@ -168,6 +172,31 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
     }
 }
 
+#[derive(Debug, Default)]
+struct CommitKeywordCache {
+    // Build index lazily, and Rc to get away from &self lifetime.
+    branches_index: OnceCell<Rc<RefNamesIndex>>,
+    tags_index: OnceCell<Rc<RefNamesIndex>>,
+    git_refs_index: OnceCell<Rc<RefNamesIndex>>,
+}
+
+impl CommitKeywordCache {
+    fn branches_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
+        self.branches_index
+            .get_or_init(|| Rc::new(build_branches_index(repo)))
+    }
+
+    fn tags_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
+        self.tags_index
+            .get_or_init(|| Rc::new(build_ref_names_index(repo.view().tags())))
+    }
+
+    fn git_refs_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
+        self.git_refs_index
+            .get_or_init(|| Rc::new(build_ref_names_index(repo.view().git_refs())))
+    }
+}
+
 fn build_commit_keyword<'repo>(
     language: &CommitTemplateLanguage<'repo, '_>,
     name: &str,
@@ -217,6 +246,7 @@ fn build_commit_keyword_opt<'repo>(
     }
 
     let repo = language.repo;
+    let cache = &language.keyword_cache;
     let property = match name {
         "description" => language.wrap_string(wrap_fn(property, |commit| {
             text_util::complete_newline(commit.description())
@@ -241,9 +271,24 @@ fn build_commit_keyword_opt<'repo>(
                 Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id)
             }))
         }
-        "branches" => language.wrap_string(wrap_repo_fn(repo, property, extract_branches)),
-        "tags" => language.wrap_string(wrap_repo_fn(repo, property, extract_tags)),
-        "git_refs" => language.wrap_string(wrap_repo_fn(repo, property, extract_git_refs)),
+        "branches" => {
+            let index = cache.branches_index(repo).clone();
+            language.wrap_string(wrap_fn(property, move |commit| {
+                index.get(commit.id()).join(" ") // TODO: return Vec<Branch>?
+            }))
+        }
+        "tags" => {
+            let index = cache.tags_index(repo).clone();
+            language.wrap_string(wrap_fn(property, move |commit| {
+                index.get(commit.id()).join(" ") // TODO: return Vec<NameRef>?
+            }))
+        }
+        "git_refs" => {
+            let index = cache.git_refs_index(repo).clone();
+            language.wrap_string(wrap_fn(property, move |commit| {
+                index.get(commit.id()).join(" ") // TODO: return Vec<NameRef>?
+            }))
+        }
         "git_head" => language.wrap_string(wrap_repo_fn(repo, property, extract_git_head)),
         "divergent" => language.wrap_boolean(wrap_fn(property, |commit| {
             // The given commit could be hidden in e.g. obslog.
@@ -281,69 +326,74 @@ fn extract_working_copies(repo: &dyn Repo, commit: &Commit) -> String {
     names.join(" ")
 }
 
-// TODO: return Vec<Branch>?
-fn extract_branches(repo: &dyn Repo, commit: &Commit) -> String {
-    let mut names = vec![];
+/// Cache for reverse lookup refs.
+#[derive(Clone, Debug, Default)]
+struct RefNamesIndex {
+    // TODO: store Branch/NameRef type in place of String?
+    index: HashMap<CommitId, Vec<String>>,
+}
+
+impl RefNamesIndex {
+    fn insert(&mut self, ids: &[CommitId], name: String) {
+        for id in ids {
+            let ref_names = self.index.entry(id.clone()).or_default();
+            ref_names.push(name.clone());
+        }
+    }
+
+    fn get(&self, id: &CommitId) -> &[String] {
+        if let Some(names) = self.index.get(id) {
+            names
+        } else {
+            &[]
+        }
+    }
+}
+
+fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
+    let mut index = RefNamesIndex::default();
     for (branch_name, branch_target) in repo.view().branches() {
         let local_target = branch_target.local_target.as_ref();
-        if let Some(local_target) = local_target {
-            if local_target.adds().contains(commit.id()) {
-                if local_target.is_conflict() {
-                    names.push(format!("{branch_name}??"));
-                } else if branch_target
-                    .remote_targets
-                    .values()
-                    .any(|remote_target| remote_target != local_target)
-                {
-                    names.push(format!("{branch_name}*"));
-                } else {
-                    names.push(branch_name.clone());
-                }
-            }
+        let mut unsynced_remote_targets = branch_target
+            .remote_targets
+            .iter()
+            .filter(|&(_, target)| Some(target) != local_target)
+            .peekable();
+        if let Some(target) = local_target {
+            let decorated_name = if target.is_conflict() {
+                format!("{branch_name}??")
+            } else if unsynced_remote_targets.peek().is_some() {
+                format!("{branch_name}*")
+            } else {
+                branch_name.clone()
+            };
+            index.insert(target.adds(), decorated_name);
         }
-        for (remote_name, remote_target) in &branch_target.remote_targets {
-            if Some(remote_target) != local_target && remote_target.adds().contains(commit.id()) {
-                if remote_target.is_conflict() {
-                    names.push(format!("{branch_name}@{remote_name}?"));
-                } else {
-                    names.push(format!("{branch_name}@{remote_name}"));
-                }
-            }
+        for (remote_name, target) in unsynced_remote_targets {
+            let decorated_name = if target.is_conflict() {
+                format!("{branch_name}@{remote_name}?")
+            } else {
+                format!("{branch_name}@{remote_name}")
+            };
+            index.insert(target.adds(), decorated_name);
         }
     }
-    names.join(" ")
+    index
 }
 
-// TODO: return Vec<NameRef>?
-fn extract_tags(repo: &dyn Repo, commit: &Commit) -> String {
-    let mut names = vec![];
-    for (tag_name, target) in repo.view().tags() {
-        if target.adds().contains(commit.id()) {
-            if target.is_conflict() {
-                names.push(format!("{tag_name}?"));
-            } else {
-                names.push(tag_name.clone());
-            }
-        }
+fn build_ref_names_index<'a>(
+    ref_pairs: impl IntoIterator<Item = (&'a String, &'a RefTarget)>,
+) -> RefNamesIndex {
+    let mut index = RefNamesIndex::default();
+    for (name, target) in ref_pairs {
+        let decorated_name = if target.is_conflict() {
+            format!("{name}?")
+        } else {
+            name.clone()
+        };
+        index.insert(target.adds(), decorated_name);
     }
-    names.join(" ")
-}
-
-// TODO: return Vec<NameRef>?
-fn extract_git_refs(repo: &dyn Repo, commit: &Commit) -> String {
-    // TODO: We should keep a map from commit to ref names so we don't have to walk
-    // all refs here.
-    let mut names = vec![];
-    for (name, target) in repo.view().git_refs() {
-        if target.adds().contains(commit.id()) {
-            if target.is_conflict() {
-                names.push(format!("{name}?"));
-            } else {
-                names.push(name.clone());
-            }
-        }
-    }
-    names.join(" ")
+    index
 }
 
 // TODO: return NameRef?
@@ -526,6 +576,7 @@ pub fn parse<'repo>(
         repo,
         workspace_id,
         id_prefix_context,
+        keyword_cache: CommitKeywordCache::default(),
     };
     let node = template_parser::parse(template_text, aliases_map)?;
     template_builder::build(&language, &node)
