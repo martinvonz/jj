@@ -15,6 +15,7 @@
 #![allow(missing_docs)]
 
 use crate::backend::CommitId;
+use crate::conflicts::Conflict;
 use crate::index::Index;
 use crate::merge::trivial_merge;
 use crate::op_store::{BranchTarget, RefTarget};
@@ -29,22 +30,42 @@ pub fn merge_ref_targets(
         return resolved.cloned();
     }
 
-    let mut removes = vec![];
-    let mut adds = vec![];
-    if let Some(left) = left {
-        removes.extend_from_slice(left.removes());
-        adds.extend_from_slice(left.adds());
-    }
-    if let Some(base) = base {
-        // Note that these are backwards (because the base is subtracted).
-        removes.extend_from_slice(base.adds());
-        adds.extend_from_slice(base.removes());
-    }
-    if let Some(right) = right {
-        removes.extend_from_slice(right.removes());
-        adds.extend_from_slice(right.adds());
-    }
+    let conflict = Conflict::new(
+        vec![ref_target_to_conflict(base)],
+        vec![ref_target_to_conflict(left), ref_target_to_conflict(right)],
+    )
+    .flatten()
+    .simplify();
 
+    match conflict.as_resolved() {
+        Some(Some(id)) => Some(RefTarget::Normal(id.clone())),
+        Some(None) => None, // Deleted ref
+        None => {
+            let (removes, adds) = conflict.into_legacy_form();
+            merge_ref_targets_non_trivial(index, removes, adds)
+        }
+    }
+}
+
+// TODO: Make RefTarget store or be aliased to Conflict<Option<CommitId>>.
+// Since new conflict type can represent a deleted/absent ref, we might have
+// to replace Option<RefTarget> with it. Map API might be a bit trickier.
+fn ref_target_to_conflict(maybe_target: Option<&RefTarget>) -> Conflict<Option<CommitId>> {
+    if let Some(target) = maybe_target {
+        Conflict::from_legacy_form(
+            target.removes().iter().cloned(),
+            target.adds().iter().cloned(),
+        )
+    } else {
+        Conflict::resolved(None) // Deleted or absent ref
+    }
+}
+
+fn merge_ref_targets_non_trivial(
+    index: &dyn Index,
+    mut removes: Vec<CommitId>,
+    mut adds: Vec<CommitId>,
+) -> Option<RefTarget> {
     while let Some((maybe_remove_index, add_index)) = find_pair_to_remove(index, &removes, &adds) {
         if let Some(remove_index) = maybe_remove_index {
             removes.remove(remove_index);
@@ -66,15 +87,6 @@ fn find_pair_to_remove(
     removes: &[CommitId],
     adds: &[CommitId],
 ) -> Option<(Option<usize>, usize)> {
-    // Removes pairs of matching adds and removes.
-    for (remove_index, remove) in removes.iter().enumerate() {
-        for (add_index, add) in adds.iter().enumerate() {
-            if add == remove {
-                return Some((Some(remove_index), add_index));
-            }
-        }
-    }
-
     // If a "remove" is an ancestor of two different "adds" and one of the
     // "adds" is an ancestor of the other, then pick the descendant.
     for (add_index1, add1) in adds.iter().enumerate() {

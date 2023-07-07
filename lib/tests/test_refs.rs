@@ -217,6 +217,13 @@ fn test_merge_ref_targets() {
     );
 
     // Existing conflict on left, right moves an "add" sideways
+    //
+    // Under the hood, the conflict is simplified as below:
+    // ```
+    // 3 4 5      3 4 5      5 4
+    //  2 /   =>   2 3   =>   2
+    //   3
+    // ```
     assert_eq!(
         merge_ref_targets(
             index,
@@ -229,11 +236,18 @@ fn test_merge_ref_targets() {
         ),
         Some(RefTarget::Conflict {
             removes: vec![commit2.id().clone()],
-            adds: vec![commit4.id().clone(), commit5.id().clone()]
+            adds: vec![commit5.id().clone(), commit4.id().clone()]
         })
     );
 
     // Existing conflict on right, left moves an "add" sideways
+    //
+    // Under the hood, the conflict is simplified as below:
+    // ```
+    // 5 3 4      5 3 4      5 4
+    //  \ 2   =>   3 2   =>   2
+    //   3
+    // ```
     assert_eq!(
         merge_ref_targets(
             index,
@@ -252,6 +266,13 @@ fn test_merge_ref_targets() {
 
     // Existing conflict on left, right moves an "add" backwards, past point of
     // divergence
+    //
+    // Under the hood, the conflict is simplified as below:
+    // ```
+    // 3 4 1      3 4 1      1 4
+    //  2 /   =>   2 3   =>   2
+    //   3
+    // ```
     assert_eq!(
         merge_ref_targets(
             index,
@@ -264,12 +285,19 @@ fn test_merge_ref_targets() {
         ),
         Some(RefTarget::Conflict {
             removes: vec![commit2.id().clone()],
-            adds: vec![commit4.id().clone(), commit1.id().clone()]
+            adds: vec![commit1.id().clone(), commit4.id().clone()]
         })
     );
 
     // Existing conflict on right, left moves an "add" backwards, past point of
     // divergence
+    //
+    // Under the hood, the conflict is simplified as below:
+    // ```
+    // 1 3 4      1 3 4      1 4
+    //  \ 2   =>   3 2   =>   2
+    //   3
+    // ```
     assert_eq!(
         merge_ref_targets(
             index,
