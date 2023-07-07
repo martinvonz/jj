@@ -37,12 +37,22 @@ pub fn merge_ref_targets(
     .flatten()
     .simplify();
 
+    // TODO: switch to conflict.is_resolved()
+    if conflict.as_resolved().is_some() {
+        conflict_to_ref_target(conflict)
+    } else {
+        let conflict = merge_ref_targets_non_trivial(index, conflict);
+        conflict_to_ref_target(conflict)
+    }
+}
+
+fn conflict_to_ref_target(conflict: Conflict<Option<CommitId>>) -> Option<RefTarget> {
     match conflict.as_resolved() {
         Some(Some(id)) => Some(RefTarget::Normal(id.clone())),
         Some(None) => None, // Deleted ref
         None => {
             let (removes, adds) = conflict.into_legacy_form();
-            merge_ref_targets_non_trivial(index, removes, adds)
+            Some(RefTarget::Conflict { removes, adds })
         }
     }
 }
@@ -63,49 +73,38 @@ fn ref_target_to_conflict(maybe_target: Option<&RefTarget>) -> Conflict<Option<C
 
 fn merge_ref_targets_non_trivial(
     index: &dyn Index,
-    mut removes: Vec<CommitId>,
-    mut adds: Vec<CommitId>,
-) -> Option<RefTarget> {
-    while let Some((maybe_remove_index, add_index)) = find_pair_to_remove(index, &removes, &adds) {
-        if let Some(remove_index) = maybe_remove_index {
-            removes.remove(remove_index);
-        }
+    conflict: Conflict<Option<CommitId>>,
+) -> Conflict<Option<CommitId>> {
+    let (mut removes, mut adds) = conflict.take();
+    while let Some((remove_index, add_index)) = find_pair_to_remove(index, &removes, &adds) {
+        removes.remove(remove_index);
         adds.remove(add_index);
     }
-
-    if adds.is_empty() {
-        None
-    } else if adds.len() == 1 && removes.is_empty() {
-        Some(RefTarget::Normal(adds[0].clone()))
-    } else {
-        Some(RefTarget::Conflict { removes, adds })
-    }
+    Conflict::new(removes, adds)
 }
 
 fn find_pair_to_remove(
     index: &dyn Index,
-    removes: &[CommitId],
-    adds: &[CommitId],
-) -> Option<(Option<usize>, usize)> {
+    removes: &[Option<CommitId>],
+    adds: &[Option<CommitId>],
+) -> Option<(usize, usize)> {
     // If a "remove" is an ancestor of two different "adds" and one of the
     // "adds" is an ancestor of the other, then pick the descendant.
     for (add_index1, add1) in adds.iter().enumerate() {
         for (add_index2, add2) in adds.iter().enumerate().skip(add_index1 + 1) {
-            let (add_index, add) = if add1 == add2 || index.is_ancestor(add1, add2) {
-                (add_index1, add1)
-            } else if index.is_ancestor(add2, add1) {
-                (add_index2, add2)
-            } else {
-                continue;
+            // TODO: Instead of relying on the list order, maybe ((add1, add2), remove)
+            // combination should be somehow weighted?
+            let (add_index, add_id) = match (add1, add2) {
+                (Some(id1), Some(id2)) if id1 == id2 => (add_index1, id1),
+                (Some(id1), Some(id2)) if index.is_ancestor(id1, id2) => (add_index1, id1),
+                (Some(id1), Some(id2)) if index.is_ancestor(id2, id1) => (add_index2, id2),
+                _ => continue,
             };
-            if removes.is_empty() {
-                return Some((None, add_index));
-            }
-            if let Some(remove_index) = removes
-                .iter()
-                .position(|remove| index.is_ancestor(remove, add))
-            {
-                return Some((Some(remove_index), add_index));
+            if let Some(remove_index) = removes.iter().position(|remove| match remove {
+                Some(id) => index.is_ancestor(id, add_id),
+                None => true, // Absent ref can be considered a root
+            }) {
+                return Some((remove_index, add_index));
             }
         }
     }
