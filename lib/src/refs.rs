@@ -77,26 +77,19 @@ fn find_pair_to_remove(
     // "adds" is an ancestor of the other, then pick the descendant.
     for (add_index1, add1) in adds.iter().enumerate() {
         for (add_index2, add2) in adds.iter().enumerate().skip(add_index1 + 1) {
-            let first_add_is_ancestor;
-            if add1 == add2 || index.is_ancestor(add1, add2) {
-                first_add_is_ancestor = true;
+            let (add_index, add) = if add1 == add2 || index.is_ancestor(add1, add2) {
+                (add_index1, add1)
             } else if index.is_ancestor(add2, add1) {
-                first_add_is_ancestor = false;
+                (add_index2, add2)
             } else {
                 continue;
-            }
+            };
             if removes.is_empty() {
-                if first_add_is_ancestor {
-                    return Some((None, add_index1));
-                } else {
-                    return Some((None, add_index2));
-                }
+                return Some((None, add_index));
             }
             for (remove_index, remove) in removes.iter().enumerate() {
-                if first_add_is_ancestor && index.is_ancestor(remove, add1) {
-                    return Some((Some(remove_index), add_index1));
-                } else if !first_add_is_ancestor && index.is_ancestor(remove, add2) {
-                    return Some((Some(remove_index), add_index2));
+                if index.is_ancestor(remove, add) {
+                    return Some((Some(remove_index), add_index));
                 }
             }
         }
