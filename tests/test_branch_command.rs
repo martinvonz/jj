@@ -250,7 +250,7 @@ fn test_branch_forget_export() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r=foo@git", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
-    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 65b6b74e0897
+    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:08.000 +07:00 foo@git 65b6b74e0897
     (empty) (no description set)
     "###);
 

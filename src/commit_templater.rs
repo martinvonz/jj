@@ -24,7 +24,7 @@ use jujutsu_lib::hex_util::to_reverse_hex;
 use jujutsu_lib::id_prefix::IdPrefixContext;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::Repo;
-use jujutsu_lib::rewrite;
+use jujutsu_lib::{git, rewrite};
 use once_cell::unsync::OnceCell;
 
 use crate::formatter::Formatter;
@@ -352,7 +352,8 @@ impl RefNamesIndex {
 
 fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
-    for (branch_name, branch_target) in repo.view().branches() {
+    let (all_branches, _) = git::build_unified_branches_map(repo.view());
+    for (branch_name, branch_target) in &all_branches {
         let local_target = branch_target.local_target.as_ref();
         let mut unsynced_remote_targets = branch_target
             .remote_targets
