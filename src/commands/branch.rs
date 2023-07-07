@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashSet};
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId};
-use jujutsu_lib::git::local_branch_git_tracking_refs;
+use jujutsu_lib::git;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::Repo;
 use jujutsu_lib::revset::{self, RevsetExpression};
@@ -322,27 +322,17 @@ fn cmd_branch_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-
-    let mut all_branches = repo.view().branches().clone();
-    for (branch_name, git_tracking_target) in local_branch_git_tracking_refs(repo.view()) {
-        let branch_target = all_branches.entry(branch_name.to_owned()).or_default();
-        if branch_target.remote_targets.contains_key("git") {
-            // TODO(#1690): There should be a mechanism to prevent importing a
-            // remote named "git" in `jj git import`.
-            // TODO: This is not currently tested
-            writeln!(
-                ui.warning(),
-                "WARNING: Branch {branch_name} has a remote-tracking branch for a remote named \
-                 `git`. Local-git tracking branches for it will not be shown.\nIt is recommended \
-                 to rename that remote, as jj normally reserves the `@git` suffix to denote \
-                 local-git tracking branches."
-            )?;
-        } else {
-            // TODO: `BTreeMap::try_insert` could be used here once that's stabilized.
-            branch_target
-                .remote_targets
-                .insert("git".to_string(), git_tracking_target.clone());
-        }
+    let (mut all_branches, bad_branch_names) = git::build_unified_branches_map(repo.view());
+    if !bad_branch_names.is_empty() {
+        // TODO: This is not currently tested
+        writeln!(
+            ui.warning(),
+            "WARNING: Branch {branch_name} has a remote-tracking branch for a remote named `git`. \
+             Local-git tracking branches for it will not be shown.\nIt is recommended to rename \
+             that remote, as jj normally reserves the `@git` suffix to denote local-git tracking \
+             branches.",
+            branch_name = bad_branch_names.join(", "),
+        )?;
     }
 
     if !args.revisions.is_empty() {

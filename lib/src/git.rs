@@ -24,7 +24,7 @@ use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
 use crate::git_backend::NO_GC_REF_NAMESPACE;
-use crate::op_store::RefTarget;
+use crate::op_store::{BranchTarget, RefTarget};
 use crate::repo::{MutableRepo, Repo};
 use crate::revset;
 use crate::settings::GitSettings;
@@ -102,7 +102,30 @@ fn resolve_git_ref_to_commit_id(
     Some(CommitId::from_bytes(git_commit.id().as_bytes()))
 }
 
-pub fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &RefTarget)> {
+/// Builds a map of branches which also includes pseudo `@git` remote.
+///
+/// If there's an existing remote named `git`, a list of conflicting branch
+/// names will be returned.
+pub fn build_unified_branches_map(view: &View) -> (BTreeMap<String, BranchTarget>, Vec<String>) {
+    let mut all_branches = view.branches().clone();
+    let mut bad_branch_names = Vec::new();
+    for (branch_name, git_tracking_target) in local_branch_git_tracking_refs(view) {
+        let branch_target = all_branches.entry(branch_name.to_owned()).or_default();
+        if branch_target.remote_targets.contains_key("git") {
+            // TODO(#1690): There should be a mechanism to prevent importing a
+            // remote named "git" in `jj git import`.
+            bad_branch_names.push(branch_name.to_owned());
+        } else {
+            // TODO: `BTreeMap::try_insert` could be used here once that's stabilized.
+            branch_target
+                .remote_targets
+                .insert("git".to_owned(), git_tracking_target.clone());
+        }
+    }
+    (all_branches, bad_branch_names)
+}
+
+fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &RefTarget)> {
     view.git_refs().iter().filter_map(|(ref_name, target)| {
         ref_name
             .strip_prefix("refs/heads/")
