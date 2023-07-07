@@ -54,7 +54,10 @@ impl<T> Conflict<T> {
 
     /// Create a `Conflict` from a `removes` and `adds`, padding with `None` to
     /// make sure that there is exactly one more `adds` than `removes`.
-    pub fn from_legacy_form(removes: Vec<T>, adds: Vec<T>) -> Conflict<Option<T>> {
+    pub fn from_legacy_form(
+        removes: impl IntoIterator<Item = T>,
+        adds: impl IntoIterator<Item = T>,
+    ) -> Conflict<Option<T>> {
         let mut removes = removes.into_iter().map(Some).collect_vec();
         let mut adds = adds.into_iter().map(Some).collect_vec();
         while removes.len() + 1 < adds.len() {
@@ -196,12 +199,8 @@ impl Conflict<Option<TreeValue>> {
     /// Create a `Conflict` from a `backend::Conflict`, padding with `None` to
     /// make sure that there is exactly one more `adds()` than `removes()`.
     pub fn from_backend_conflict(conflict: backend::Conflict) -> Self {
-        let removes = conflict
-            .removes
-            .into_iter()
-            .map(|term| term.value)
-            .collect();
-        let adds = conflict.adds.into_iter().map(|term| term.value).collect();
+        let removes = conflict.removes.into_iter().map(|term| term.value);
+        let adds = conflict.adds.into_iter().map(|term| term.value);
         Conflict::from_legacy_form(removes, adds)
     }
 
