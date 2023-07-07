@@ -110,9 +110,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   setting the `revsets.short-prefixes` config to a different revset.
 
 * The last seen state of branches in the underlying git repo is now presented by
-  `jj branch list` as a remote called `git` (e.g. `main@git`). They can also be
-  referenced in revsets. Such branches exist in colocated repos or if you use
-  `jj git export`.
+  `jj branch list`/`jj log` as a remote called `git` (e.g. `main@git`). They can
+  also be referenced in revsets. Such branches exist in colocated repos or if
+  you use `jj git export`.
 
 * The new `jj chmod` command allows setting or removing the executable bit on
   paths. Unlike the POSIX `chmod`, it works on Windows, on conflicted files, and
