@@ -29,6 +29,7 @@ fn main() -> Result<()> {
     prost_build::Config::new()
         .out_dir(&protos_dir)
         .include_file("mod.rs")
+        .protoc_arg("--experimental_allow_proto3_optional")
         .compile_protos(
             &input
                 .into_iter()
