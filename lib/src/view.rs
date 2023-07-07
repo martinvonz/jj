@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fmt;
 
 use itertools::Itertools;
 
@@ -28,6 +29,17 @@ pub enum RefName {
     RemoteBranch { branch: String, remote: String },
     Tag(String),
     GitRef(String),
+}
+
+impl fmt::Display for RefName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RefName::LocalBranch(name) => write!(f, "{name}"),
+            RefName::RemoteBranch { branch, remote } => write!(f, "{branch}@{remote}"),
+            RefName::Tag(name) => write!(f, "{name}"),
+            RefName::GitRef(name) => write!(f, "{name}"),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]

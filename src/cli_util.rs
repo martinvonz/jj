@@ -31,7 +31,7 @@ use indexmap::IndexSet;
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
 use jujutsu_lib::commit::Commit;
-use jujutsu_lib::git::{to_git_ref_name, GitConfigParseError, GitExportError, GitImportError};
+use jujutsu_lib::git::{GitConfigParseError, GitExportError, GitImportError};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::hex_util::to_reverse_hex;
@@ -1521,16 +1521,7 @@ pub fn print_failed_git_export(
         let mut formatter = ui.stderr_formatter();
         for branch_ref in failed_branches {
             formatter.write_str("  ")?;
-            write!(
-                formatter.labeled("branch"),
-                "{}",
-                match branch_ref {
-                    RefName::LocalBranch(name) => name.to_string(),
-                    RefName::RemoteBranch { branch, remote } => format!("{branch}@{remote}"),
-                    // Should never happen, tags and git_refs should never be exported
-                    branch_ref => to_git_ref_name(branch_ref),
-                }
-            )?;
+            write!(formatter.labeled("branch"), "{branch_ref}")?;
             formatter.write_str("\n")?;
         }
         drop(formatter);
