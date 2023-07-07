@@ -479,6 +479,64 @@ pub fn export_some_refs(
     Ok(failed_branches)
 }
 
+pub fn remove_remote(
+    mut_repo: &mut MutableRepo,
+    git_repo: &git2::Repository,
+    remote_name: &str,
+) -> Result<(), git2::Error> {
+    git_repo.remote_delete(remote_name)?;
+    let mut branches_to_delete = vec![];
+    for (branch, target) in mut_repo.view().branches() {
+        if target.remote_targets.contains_key(remote_name) {
+            branches_to_delete.push(branch.clone());
+        }
+    }
+    let prefix = format!("refs/remotes/{remote_name}/");
+    let git_refs_to_delete = mut_repo
+        .view()
+        .git_refs()
+        .keys()
+        .filter_map(|r| r.starts_with(&prefix).then(|| r.clone()))
+        .collect_vec();
+    for branch in branches_to_delete {
+        mut_repo.remove_remote_branch(&branch, remote_name);
+    }
+    for git_ref in git_refs_to_delete {
+        mut_repo.remove_git_ref(&git_ref);
+    }
+    Ok(())
+}
+
+pub fn rename_remote(
+    mut_repo: &mut MutableRepo,
+    git_repo: &git2::Repository,
+    old_remote_name: &str,
+    new_remote_name: &str,
+) -> Result<(), git2::Error> {
+    git_repo.remote_rename(old_remote_name, new_remote_name)?;
+    mut_repo.rename_remote(old_remote_name, new_remote_name);
+    let prefix = format!("refs/remotes/{old_remote_name}/");
+    let git_refs = mut_repo
+        .view()
+        .git_refs()
+        .iter()
+        .filter_map(|(r, target)| {
+            r.strip_prefix(&prefix).map(|p| {
+                (
+                    r.clone(),
+                    format!("refs/remotes/{new_remote_name}/{p}"),
+                    target.clone(),
+                )
+            })
+        })
+        .collect_vec();
+    for (old, new, target) in git_refs {
+        mut_repo.remove_git_ref(&old);
+        mut_repo.set_git_ref(new, target);
+    }
+    Ok(())
+}
+
 #[derive(Error, Debug, PartialEq)]
 pub enum GitFetchError {
     #[error("No git remote named '{0}'")]

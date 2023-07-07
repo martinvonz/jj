@@ -229,34 +229,15 @@ fn cmd_git_remote_remove(
     if git_repo.find_remote(&args.remote).is_err() {
         return Err(user_error("Remote doesn't exist"));
     }
-    git_repo
-        .remote_delete(&args.remote)
+    let mut tx =
+        workspace_command.start_transaction(&format!("remove git remote {}", &args.remote));
+    git::remove_remote(tx.mut_repo(), &git_repo, &args.remote)
         .map_err(|err| user_error(err.to_string()))?;
-    let mut branches_to_delete = vec![];
-    for (branch, target) in repo.view().branches() {
-        if target.remote_targets.contains_key(&args.remote) {
-            branches_to_delete.push(branch.clone());
-        }
+    if tx.mut_repo().has_changes() {
+        tx.finish(ui)
+    } else {
+        Ok(()) // Do not print "Nothing changed."
     }
-    let prefix = format!("refs/remotes/{}/", args.remote);
-    let git_refs_to_delete = repo
-        .view()
-        .git_refs()
-        .keys()
-        .filter_map(|r| r.starts_with(&prefix).then(|| r.clone()))
-        .collect_vec();
-    if !branches_to_delete.is_empty() || !git_refs_to_delete.is_empty() {
-        let mut tx =
-            workspace_command.start_transaction(&format!("remove git remote {}", &args.remote));
-        for branch in branches_to_delete {
-            tx.mut_repo().remove_remote_branch(&branch, &args.remote);
-        }
-        for git_ref in git_refs_to_delete {
-            tx.mut_repo().remove_git_ref(&git_ref);
-        }
-        tx.finish(ui)?;
-    }
-    Ok(())
 }
 
 fn cmd_git_remote_rename(
@@ -270,38 +251,15 @@ fn cmd_git_remote_rename(
     if git_repo.find_remote(&args.old).is_err() {
         return Err(user_error("Remote doesn't exist"));
     }
-    git_repo
-        .remote_rename(&args.old, &args.new)
-        .map_err(|err| user_error(err.to_string()))?;
     let mut tx = workspace_command
         .start_transaction(&format!("rename git remote {} to {}", &args.old, &args.new));
-    tx.mut_repo().rename_remote(&args.old, &args.new);
-
-    let prefix = format!("refs/remotes/{}/", args.old);
-    let git_refs = tx
-        .mut_repo()
-        .view()
-        .git_refs()
-        .iter()
-        .filter_map(|(r, target)| {
-            r.strip_prefix(&prefix).map(|p| {
-                (
-                    r.clone(),
-                    format!("refs/remotes/{}/{p}", args.new),
-                    target.clone(),
-                )
-            })
-        })
-        .collect_vec();
-    for (old, new, target) in git_refs {
-        tx.mut_repo().remove_git_ref(&old);
-        tx.mut_repo().set_git_ref(new, target);
-    }
-
+    git::rename_remote(tx.mut_repo(), &git_repo, &args.old, &args.new)
+        .map_err(|err| user_error(err.to_string()))?;
     if tx.mut_repo().has_changes() {
-        tx.finish(ui)?;
+        tx.finish(ui)
+    } else {
+        Ok(()) // Do not print "Nothing changed."
     }
-    Ok(())
 }
 
 fn cmd_git_remote_list(
