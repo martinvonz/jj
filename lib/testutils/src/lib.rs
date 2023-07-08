@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs;
-use std::fs::OpenOptions;
+use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{Backend, BackendInitError, FileId, TreeId, TreeValue};
+use jujutsu_lib::backend::{Backend, BackendInitError, FileId, ObjectId, TreeId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::git_backend::GitBackend;
@@ -240,16 +239,54 @@ pub fn create_random_commit<'repo>(
         .set_description(format!("random commit {number}"))
 }
 
+pub fn dump_tree(store: &Arc<Store>, tree_id: &TreeId) -> String {
+    use std::fmt::Write;
+    let mut buf = String::new();
+    writeln!(&mut buf, "tree {}", tree_id.hex()).unwrap();
+    let tree = store.get_tree(&RepoPath::root(), tree_id).unwrap();
+    for (path, value) in tree.entries() {
+        match value {
+            TreeValue::File { id, executable: _ } => {
+                let file_buf = read_file(store, &path, &id);
+                let file_contents = String::from_utf8_lossy(&file_buf);
+                writeln!(
+                    &mut buf,
+                    "  file {path:?} ({}): {file_contents:?}",
+                    id.hex()
+                )
+                .unwrap();
+            }
+            TreeValue::Symlink(id) => {
+                writeln!(&mut buf, "  symlink {path:?} ({})", id.hex()).unwrap();
+            }
+            TreeValue::Conflict(id) => {
+                writeln!(&mut buf, "  conflict {path:?} ({})", id.hex()).unwrap();
+            }
+            TreeValue::GitSubmodule(id) => {
+                writeln!(&mut buf, "  submodule {path:?} ({})", id.hex()).unwrap();
+            }
+            entry => {
+                unimplemented!("dumping tree entry {entry:?}");
+            }
+        }
+    }
+    buf
+}
+
 pub fn write_random_commit(mut_repo: &mut MutableRepo, settings: &UserSettings) -> Commit {
     create_random_commit(mut_repo, settings).write().unwrap()
 }
 
 pub fn write_working_copy_file(workspace_root: &Path, path: &RepoPath, contents: &str) {
+    let path = path.to_fs_path(workspace_root);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
-        .open(path.to_fs_path(workspace_root))
+        .open(path)
         .unwrap();
     file.write_all(contents.as_bytes()).unwrap();
 }

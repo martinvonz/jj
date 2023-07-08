@@ -77,6 +77,8 @@ pub enum DiffEditError {
     CheckoutError(#[from] CheckoutError),
     #[error("Failed to snapshot changes: {0:?}")]
     SnapshotError(#[from] SnapshotError),
+    #[error(transparent)]
+    ConfigError(#[from] config::ConfigError),
 }
 
 #[derive(Debug, Error)]
@@ -368,6 +370,7 @@ pub fn edit_diff(
 
     right_tree_state.snapshot(SnapshotOptions {
         base_ignores,
+        fsmonitor_kind: settings.fsmonitor_kind()?,
         progress: None,
     })?;
     Ok(right_tree_state.current_tree_id().clone())

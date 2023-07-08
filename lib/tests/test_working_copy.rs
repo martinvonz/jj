@@ -23,6 +23,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use jujutsu_lib::backend::{TreeId, TreeValue};
 use jujutsu_lib::conflicts::Conflict;
+use jujutsu_lib::fsmonitor::FsmonitorKind;
 #[cfg(unix)]
 use jujutsu_lib::op_store::OperationId;
 use jujutsu_lib::op_store::WorkspaceId;
@@ -30,7 +31,7 @@ use jujutsu_lib::repo::{ReadonlyRepo, Repo};
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree_builder::TreeBuilder;
-use jujutsu_lib::working_copy::{SnapshotOptions, WorkingCopy};
+use jujutsu_lib::working_copy::{LockedWorkingCopy, SnapshotOptions, WorkingCopy};
 use test_case::test_case;
 use testutils::{write_random_commit, TestWorkspace};
 
@@ -820,4 +821,100 @@ fn test_existing_directory_symlink(use_git: bool) {
 
     // Therefore, "../escaped" shouldn't be created.
     assert!(!workspace_root.parent().unwrap().join("escaped").exists());
+}
+
+#[test]
+fn test_fsmonitor() {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings, true);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
+
+    let wc = test_workspace.workspace.working_copy_mut();
+    assert_eq!(wc.sparse_patterns(), vec![RepoPath::root()]);
+
+    let foo_path = RepoPath::from_internal_string("foo");
+    let bar_path = RepoPath::from_internal_string("bar");
+    let nested_path = RepoPath::from_internal_string("path/to/nested");
+    testutils::write_working_copy_file(&workspace_root, &foo_path, "foo\n");
+    testutils::write_working_copy_file(&workspace_root, &bar_path, "bar\n");
+    testutils::write_working_copy_file(&workspace_root, &nested_path, "nested\n");
+
+    let ignored_path = RepoPath::from_internal_string("path/to/ignored");
+    let gitignore_path = RepoPath::from_internal_string("path/.gitignore");
+    testutils::write_working_copy_file(&workspace_root, &ignored_path, "ignored\n");
+    testutils::write_working_copy_file(&workspace_root, &gitignore_path, "to/ignored\n");
+
+    let snapshot = |locked_wc: &mut LockedWorkingCopy, paths: &[&RepoPath]| {
+        let fs_paths = paths
+            .iter()
+            .map(|p| p.to_fs_path(&workspace_root))
+            .collect();
+        locked_wc
+            .snapshot(SnapshotOptions {
+                fsmonitor_kind: Some(FsmonitorKind::Test {
+                    changed_files: fs_paths,
+                }),
+                ..SnapshotOptions::empty_for_test()
+            })
+            .unwrap()
+    };
+
+    {
+        let mut locked_wc = wc.start_mutation();
+        let tree_id = snapshot(&mut locked_wc, &[]);
+        assert_eq!(tree_id, *repo.store().empty_tree_id());
+        locked_wc.discard();
+    }
+
+    {
+        let mut locked_wc = wc.start_mutation();
+        let tree_id = snapshot(&mut locked_wc, &[&foo_path]);
+        insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
+        tree 205f6b799e7d5c2524468ca006a0131aa57ecce7
+          file "foo" (257cc5642cb1a054f08cc83f2d943e56fd3ebe99): "foo\n"
+        "###);
+        locked_wc.discard();
+    }
+
+    {
+        let mut locked_wc = wc.start_mutation();
+        let tree_id = snapshot(
+            &mut locked_wc,
+            &[&foo_path, &bar_path, &nested_path, &ignored_path],
+        );
+        insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
+        tree ab5a0465cc71725a723f28b685844a5bc0f5b599
+          file "bar" (5716ca5987cbf97d6bb54920bea6adde242d87e6): "bar\n"
+          file "foo" (257cc5642cb1a054f08cc83f2d943e56fd3ebe99): "foo\n"
+          file "path/to/nested" (79c53955ef856f16f2107446bc721c8879a1bd2e): "nested\n"
+        "###);
+        locked_wc.finish(repo.op_id().clone());
+    }
+
+    {
+        testutils::write_working_copy_file(&workspace_root, &foo_path, "updated foo\n");
+        testutils::write_working_copy_file(&workspace_root, &bar_path, "updated bar\n");
+        let mut locked_wc = wc.start_mutation();
+        let tree_id = snapshot(&mut locked_wc, &[&foo_path]);
+        insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
+        tree 2f57ab8f48ae62e3137079f2add9878dfa1d1bcc
+          file "bar" (5716ca5987cbf97d6bb54920bea6adde242d87e6): "bar\n"
+          file "foo" (9d053d7c8a18a286dce9b99a59bb058be173b463): "updated foo\n"
+          file "path/to/nested" (79c53955ef856f16f2107446bc721c8879a1bd2e): "nested\n"
+        "###);
+        locked_wc.discard();
+    }
+
+    {
+        std::fs::remove_file(foo_path.to_fs_path(&workspace_root)).unwrap();
+        let mut locked_wc = wc.start_mutation();
+        let tree_id = snapshot(&mut locked_wc, &[&foo_path]);
+        insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
+        tree 34b83765131477e1a7d72160079daec12c6144e3
+          file "bar" (5716ca5987cbf97d6bb54920bea6adde242d87e6): "bar\n"
+          file "path/to/nested" (79c53955ef856f16f2107446bc721c8879a1bd2e): "nested\n"
+        "###);
+        locked_wc.finish(repo.op_id().clone());
+    }
 }

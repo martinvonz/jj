@@ -77,3 +77,4 @@ testutils = { path = "lib/testutils" }
 default = []
 bench = ["criterion"]
 vendored-openssl = ["git2/vendored-openssl", "jujutsu-lib/vendored-openssl"]
+watchman = ["jujutsu-lib/watchman"]

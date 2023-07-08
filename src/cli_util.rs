@@ -1093,6 +1093,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         let progress = crate::progress::snapshot_progress(ui);
         let new_tree_id = locked_wc.snapshot(SnapshotOptions {
             base_ignores,
+            fsmonitor_kind: self.settings.fsmonitor_kind()?,
             progress: progress.as_ref().map(|x| x as _),
         })?;
         drop(progress);

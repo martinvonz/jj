@@ -26,6 +26,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
+use itertools::Itertools;
 use once_cell::unsync::OnceCell;
 use prost::Message;
 use tempfile::NamedTempFile;
@@ -34,11 +35,16 @@ use thiserror::Error;
 use crate::backend::{
     BackendError, ConflictId, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
 };
+#[cfg(feature = "watchman")]
+use crate::fsmonitor::watchman;
+use crate::fsmonitor::FsmonitorKind;
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
-use crate::matchers::{DifferenceMatcher, Matcher, PrefixMatcher};
+use crate::matchers::{
+    DifferenceMatcher, EverythingMatcher, IntersectionMatcher, Matcher, PrefixMatcher,
+};
 use crate::op_store::{OperationId, WorkspaceId};
-use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
+use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{Diff, Tree};
 use crate::tree_builder::TreeBuilder;
@@ -122,6 +128,11 @@ pub struct TreeState {
     // Currently only path prefixes
     sparse_patterns: Vec<RepoPath>,
     own_mtime: MillisSinceEpoch,
+
+    /// The most recent clock value returned by Watchman. Will only be set if
+    /// the repo is configured to use the Watchman filesystem monitor and
+    /// Watchman has been queried at least once.
+    watchman_clock: Option<crate::protos::working_copy::WatchmanClock>,
 }
 
 fn file_state_from_proto(proto: crate::protos::working_copy::FileState) -> FileState {
@@ -270,6 +281,10 @@ pub struct CheckoutStats {
 
 #[derive(Debug, Error)]
 pub enum SnapshotError {
+    #[error("Failed to open file {path}: {err:?}")]
+    FileOpenError { path: PathBuf, err: std::io::Error },
+    #[error("Failed to query the filesystem monitor: {0}")]
+    FsmonitorError(String),
     #[error("{message}: {err}")]
     IoError {
         message: String,
@@ -326,16 +341,23 @@ fn suppress_file_exists_error(orig_err: CheckoutError) -> Result<(), CheckoutErr
 
 pub struct SnapshotOptions<'a> {
     pub base_ignores: Arc<GitIgnoreFile>,
+    pub fsmonitor_kind: Option<FsmonitorKind>,
     pub progress: Option<&'a SnapshotProgress<'a>>,
 }
 
-impl<'a> SnapshotOptions<'a> {
+impl SnapshotOptions<'_> {
     pub fn empty_for_test() -> Self {
         SnapshotOptions {
             base_ignores: GitIgnoreFile::empty(),
+            fsmonitor_kind: None,
             progress: None,
         }
     }
+}
+
+struct FsmonitorMatcher {
+    matcher: Option<Box<dyn Matcher>>,
+    watchman_clock: Option<crate::protos::working_copy::WatchmanClock>,
 }
 
 #[derive(Debug, Error)]
@@ -385,6 +407,7 @@ impl TreeState {
             file_states: BTreeMap::new(),
             sparse_patterns: vec![RepoPath::root()],
             own_mtime: MillisSinceEpoch(0),
+            watchman_clock: None,
         }
     }
 
@@ -418,6 +441,7 @@ impl TreeState {
         self.tree_id = TreeId::new(proto.tree_id.clone());
         self.file_states = file_states_from_proto(&proto);
         self.sparse_patterns = sparse_patterns_from_proto(&proto);
+        self.watchman_clock = proto.watchman_clock;
     }
 
     fn save(&mut self) {
@@ -438,6 +462,7 @@ impl TreeState {
                 .push(path.to_internal_file_string());
         }
         proto.sparse_patterns = Some(sparse_patterns);
+        proto.watchman_clock = self.watchman_clock.clone();
 
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
         temp_file
@@ -487,11 +512,22 @@ impl TreeState {
         Ok(self.store.write_symlink(path, str_target)?)
     }
 
+    #[cfg(feature = "watchman")]
+    #[tokio::main]
+    async fn query_watchman(
+        &self,
+    ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), watchman::Error> {
+        let fsmonitor = watchman::Fsmonitor::init(&self.working_copy_path).await?;
+        let previous_clock = self.watchman_clock.clone().map(watchman::Clock::from);
+        fsmonitor.query_changed_files(previous_clock).await
+    }
+
     /// Look for changes to the working copy. If there are any changes, create
-    /// a new tree from it.
+    /// a new tree from it and return it, and also update the dirstate on disk.
     pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<bool, SnapshotError> {
         let SnapshotOptions {
             base_ignores,
+            fsmonitor_kind,
             progress,
         } = options;
 
@@ -506,6 +542,19 @@ impl TreeState {
             })
             .collect();
 
+        let fsmonitor_clock_needs_save = fsmonitor_kind.is_some();
+        let FsmonitorMatcher {
+            matcher: fsmonitor_matcher,
+            watchman_clock,
+        } = self.make_fsmonitor_matcher(fsmonitor_kind, &mut deleted_files)?;
+
+        let matcher = IntersectionMatcher::new(
+            sparse_matcher.as_ref(),
+            match fsmonitor_matcher.as_ref() {
+                None => &EverythingMatcher,
+                Some(fsmonitor_matcher) => fsmonitor_matcher.as_ref(),
+            },
+        );
         struct WorkItem {
             dir: RepoPath,
             disk_dir: PathBuf,
@@ -522,7 +571,7 @@ impl TreeState {
             git_ignore,
         }) = work.pop()
         {
-            if sparse_matcher.visit(&dir).is_nothing() {
+            if matcher.visit(&dir).is_nothing() {
                 continue;
             }
             let git_ignore = git_ignore
@@ -554,6 +603,7 @@ impl TreeState {
                     {
                         continue;
                     }
+
                     work.push(WorkItem {
                         dir: sub_path,
                         disk_dir: entry.path(),
@@ -561,7 +611,7 @@ impl TreeState {
                     });
                 } else {
                     deleted_files.remove(&sub_path);
-                    if sparse_matcher.matches(&sub_path) {
+                    if matcher.matches(&sub_path) {
                         if let Some(progress) = progress {
                             progress(&sub_path);
                         }
@@ -581,9 +631,64 @@ impl TreeState {
             self.file_states.remove(file);
             tree_builder.remove(file.clone());
         }
-        let changed = tree_builder.has_overrides();
+        let has_changes = tree_builder.has_overrides();
         self.tree_id = tree_builder.write_tree();
-        Ok(changed)
+        self.watchman_clock = watchman_clock;
+        Ok(has_changes || fsmonitor_clock_needs_save)
+    }
+
+    fn make_fsmonitor_matcher(
+        &mut self,
+        fsmonitor_kind: Option<FsmonitorKind>,
+        deleted_files: &mut HashSet<RepoPath>,
+    ) -> Result<FsmonitorMatcher, SnapshotError> {
+        let (watchman_clock, changed_files) = match fsmonitor_kind {
+            None => (None, None),
+            Some(FsmonitorKind::Test { changed_files }) => (None, Some(changed_files)),
+            #[cfg(feature = "watchman")]
+            Some(FsmonitorKind::Watchman) => match self.query_watchman() {
+                Ok((watchman_clock, changed_files)) => (Some(watchman_clock.into()), changed_files),
+                Err(err) => {
+                    tracing::warn!(?err, "Failed to query filesystem monitor");
+                    (None, None)
+                }
+            },
+            #[cfg(not(feature = "watchman"))]
+            Some(FsmonitorKind::Watchman) => {
+                return Err(SnapshotError::FsmonitorError(
+                    "Cannot query Watchman because jj was not compiled with the `watchman` \
+                     feature (consider disabling `core.fsmonitor`)"
+                        .to_string(),
+                ));
+            }
+        };
+        let matcher: Option<Box<dyn Matcher>> = match changed_files {
+            None => None,
+            Some(changed_files) => {
+                let repo_paths = changed_files
+                    .into_iter()
+                    .filter_map(|path| {
+                        match RepoPath::parse_fs_path(
+                            &self.working_copy_path,
+                            &self.working_copy_path,
+                            path,
+                        ) {
+                            Ok(repo_path) => Some(repo_path),
+                            Err(FsPathParseError::InputNotInRepo(_)) => None,
+                        }
+                    })
+                    .collect_vec();
+
+                let repo_path_set: HashSet<_> = repo_paths.iter().collect();
+                deleted_files.retain(|path| repo_path_set.contains(path));
+
+                Some(Box::new(PrefixMatcher::new(&repo_paths)))
+            }
+        };
+        Ok(FsmonitorMatcher {
+            matcher,
+            watchman_clock,
+        })
     }
 
     fn has_files_under(&self, dir: &RepoPath) -> bool {
