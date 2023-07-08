@@ -959,13 +959,6 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         Ok(())
     }
 
-    pub fn check_non_empty(&self, commits: &[Commit]) -> Result<(), CommandError> {
-        if commits.is_empty() {
-            return Err(user_error("Empty revision set"));
-        }
-        Ok(())
-    }
-
     #[instrument(skip_all)]
     fn snapshot_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let workspace_id = self.workspace_id().to_owned();
@@ -1617,7 +1610,9 @@ pub fn resolve_multiple_nonempty_revsets(
     let mut acc = IndexSet::new();
     for revset in revision_args {
         let revisions = workspace_command.resolve_revset(revset)?;
-        workspace_command.check_non_empty(&revisions)?;
+        if revisions.is_empty() {
+            return Err(user_error("Empty revision set"));
+        }
         acc.extend(revisions);
     }
     Ok(acc)
@@ -1630,7 +1625,9 @@ pub fn resolve_multiple_nonempty_revsets_default_single(
     let mut all_commits = IndexSet::new();
     for revision_str in revisions {
         let commits = workspace_command.resolve_revset_default_single(revision_str)?;
-        workspace_command.check_non_empty(&commits)?;
+        if commits.is_empty() {
+            return Err(user_error("Empty revision set"));
+        }
         for commit in commits {
             let commit_hash = short_commit_hash(commit.id());
             if !all_commits.insert(commit) {
