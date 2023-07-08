@@ -121,6 +121,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj branch list` can now be filtered by revset.
 
+* Initial support for the Watchman filesystem monitor. Set
+  `core.fsmonitor = "watchman"` in your repo to enable.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines

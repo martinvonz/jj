@@ -448,6 +448,28 @@ branches. Since the local branch isn't created, the remote branch will be
 deleted if you push the branch with `jj git push --branch` or `jj git push
 --all`.
 
+## Filesystem monitor
+
+In large repositories, it may be beneficial to use a "filesystem monitor" to
+track changes to the working copy. This allows `jj` to take working copy
+snapshots without having to rescan the entire working copy.
+
+### Watchman
+
+The [Watchman filesystem monitor](https://facebook.github.io/watchman/) is
+currently only enabled if you compile jj with the `watchman` feature, such as
+with the following invocation:
+
+```shell
+cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jujutsu --features watchman
+```
+
+To configure the Watchman filesystem monitor, set
+`core.fsmonitor = "watchman"`. Ensure that you have [installed the Watchman
+executable on your system](https://facebook.github.io/watchman/docs/install)).
+
+Debugging commands are available under `jj debug watchman`.
+
 # Alternative ways to specify configuration settings
 
 Instead of `~/.jjconfig.toml`, the config settings can be located under
