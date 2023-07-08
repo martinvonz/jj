@@ -23,6 +23,7 @@ use std::process::ExitCode;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
@@ -62,6 +63,7 @@ use jj_lib::{dag_walk, file_util, git, revset};
 use once_cell::unsync::OnceCell;
 use thiserror::Error;
 use toml_edit;
+use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
 
 use crate::config::{
@@ -332,6 +334,20 @@ impl From<GitConfigParseError> for CommandError {
     }
 }
 
+#[derive(Clone)]
+struct ChromeTracingFlushGuard {
+    _inner: Option<Rc<tracing_chrome::FlushGuard>>,
+}
+
+impl Debug for ChromeTracingFlushGuard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self { _inner } = self;
+        f.debug_struct("ChromeTracingFlushGuard")
+            .field("inner", &"not shown")
+            .finish()
+    }
+}
+
 /// Handle to initialize or change tracing subscription.
 #[derive(Clone, Debug)]
 pub struct TracingSubscription {
@@ -339,6 +355,7 @@ pub struct TracingSubscription {
         tracing_subscriber::EnvFilter,
         tracing_subscriber::Registry,
     >,
+    _chrome_tracing_flush_guard: ChromeTracingFlushGuard,
 }
 
 impl TracingSubscription {
@@ -349,11 +366,43 @@ impl TracingSubscription {
             .with_default_directive(tracing::metadata::LevelFilter::ERROR.into())
             .from_env_lossy();
         let (filter, reload_log_filter) = tracing_subscriber::reload::Layer::new(filter);
+
+        let (chrome_tracing_layer, chrome_tracing_flush_guard) = match std::env::var("JJ_TRACE") {
+            Ok(_) => {
+                let filename = format!(
+                    "jj-trace-{}.json",
+                    SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
+                );
+                let include_args = std::env::var("JJ_TRACE_INCLUDE_ARGS").is_ok();
+                let (layer, guard) = ChromeLayerBuilder::new()
+                    .file(filename)
+                    .include_args(include_args)
+                    .build();
+                (
+                    Some(layer),
+                    ChromeTracingFlushGuard {
+                        _inner: Some(Rc::new(guard)),
+                    },
+                )
+            }
+            Err(_) => (None, ChromeTracingFlushGuard { _inner: None }),
+        };
+
         tracing_subscriber::registry()
-            .with(filter)
-            .with(tracing_subscriber::fmt::Layer::default().with_writer(std::io::stderr))
+            .with(
+                tracing_subscriber::fmt::Layer::default()
+                    .with_writer(std::io::stderr)
+                    .with_filter(filter),
+            )
+            .with(chrome_tracing_layer)
             .init();
-        TracingSubscription { reload_log_filter }
+        TracingSubscription {
+            reload_log_filter,
+            _chrome_tracing_flush_guard: chrome_tracing_flush_guard,
+        }
     }
 
     pub fn enable_verbose_logging(&self) -> Result<(), CommandError> {
