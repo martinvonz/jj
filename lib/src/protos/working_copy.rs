@@ -30,6 +30,25 @@ pub struct TreeState {
     >,
     #[prost(message, optional, tag = "3")]
     pub sparse_patterns: ::core::option::Option<SparsePatterns>,
+    #[prost(message, optional, tag = "4")]
+    pub watchman_clock: ::core::option::Option<WatchmanClock>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct WatchmanClock {
+    #[prost(oneof = "watchman_clock::WatchmanClock", tags = "1, 2")]
+    pub watchman_clock: ::core::option::Option<watchman_clock::WatchmanClock>,
+}
+/// Nested message and enum types in `WatchmanClock`.
+pub mod watchman_clock {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum WatchmanClock {
+        #[prost(string, tag = "1")]
+        StringClock(::prost::alloc::string::String),
+        #[prost(int64, tag = "2")]
+        UnixTimestamp(i64),
+    }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -1311,6 +1311,7 @@ fn cmd_untrack(
     // untracked because they're not ignored.
     let wc_tree_id = locked_working_copy.snapshot(SnapshotOptions {
         base_ignores,
+        fsmonitor_kind: command.settings().fsmonitor_kind()?,
         progress: None,
     })?;
     if wc_tree_id != new_tree_id {

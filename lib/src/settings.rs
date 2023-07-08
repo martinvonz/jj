@@ -20,6 +20,7 @@ use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
 use crate::backend::{ChangeId, ObjectId, Signature, Timestamp};
+use crate::fsmonitor::FsmonitorKind;
 
 #[derive(Debug, Clone)]
 pub struct UserSettings {
@@ -107,6 +108,14 @@ impl UserSettings {
         self.config
             .get_string("user.email")
             .unwrap_or_else(|_| Self::user_email_placeholder().to_string())
+    }
+
+    pub fn fsmonitor_kind(&self) -> Result<Option<FsmonitorKind>, config::ConfigError> {
+        match self.config.get_string("core.fsmonitor") {
+            Ok(fsmonitor_kind) => Ok(Some(fsmonitor_kind.parse()?)),
+            Err(config::ConfigError::NotFound(_)) => Ok(None),
+            Err(err) => Err(err),
+        }
     }
 
     pub fn user_email_placeholder() -> &'static str {

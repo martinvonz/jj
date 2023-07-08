@@ -40,6 +40,14 @@ message TreeState {
   bytes tree_id = 1;
   map<string, FileState> file_states = 2;
   SparsePatterns sparse_patterns = 3;
+  WatchmanClock watchman_clock = 4;
+}
+
+message WatchmanClock {
+  oneof watchman_clock {
+    string string_clock = 1;
+    int64 unix_timestamp = 2;
+  }
 }
 
 message Checkout {
