@@ -62,6 +62,7 @@ thiserror = "1.0.43"
 timeago = { version = "0.4.1", default-features = false }
 toml_edit = { version = "0.19.12", features = ["serde"] }
 tracing = "0.1.37"
+tracing-chrome = "0.7.1"
 tracing-subscriber = { version = "0.3.17", default-features = false, features = ["std", "ansi", "env-filter", "fmt"] }
 
 [target.'cfg(unix)'.dependencies]
