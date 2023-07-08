@@ -21,7 +21,7 @@ use std::sync::Arc;
 
 use config::ConfigError;
 use itertools::Itertools;
-use jj_lib::backend::{TreeId, TreeValue};
+use jj_lib::backend::{BackendError, TreeId, TreeValue};
 use jj_lib::conflicts::materialize_merge_result;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::EverythingMatcher;
@@ -79,6 +79,8 @@ pub enum DiffEditError {
     SnapshotError(#[from] SnapshotError),
     #[error(transparent)]
     ConfigError(#[from] config::ConfigError),
+    #[error(transparent)]
+    BackendError(#[from] BackendError),
 }
 
 #[derive(Debug, Error)]
@@ -328,7 +330,7 @@ pub fn edit_diff(
         right_wc_dir.clone(),
         right_state_dir,
         right_tree,
-        changed_files,
+        changed_files.clone(),
     )?;
     let instructions_path = right_wc_dir.join("JJ-INSTRUCTIONS");
     // In the unlikely event that the file already exists, then the user will simply
@@ -368,12 +370,24 @@ pub fn edit_diff(
         std::fs::remove_file(instructions_path).ok();
     }
 
-    right_tree_state.snapshot(SnapshotOptions {
-        base_ignores,
-        fsmonitor_kind: settings.fsmonitor_kind()?,
-        progress: None,
-    })?;
-    Ok(right_tree_state.current_tree_id().clone())
+    let diff_tree = {
+        right_tree_state.snapshot(SnapshotOptions {
+            base_ignores,
+            fsmonitor_kind: settings.fsmonitor_kind()?,
+            progress: None,
+        })?;
+        right_tree
+            .store()
+            .get_tree(&RepoPath::root(), right_tree_state.current_tree_id())?
+    };
+    let mut tree_builder = diff_tree.store().tree_builder(left_tree.id().clone());
+    for path in changed_files {
+        match diff_tree.path_value(&path) {
+            Some(value) => tree_builder.set(path, value.clone()),
+            None => tree_builder.remove(path),
+        }
+    }
+    Ok(tree_builder.write_tree())
 }
 
 /// Merge/diff tool loaded from the settings.

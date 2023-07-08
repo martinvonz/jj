@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
 use std::fs::{File, Metadata, OpenOptions};
@@ -49,6 +49,7 @@ use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{Diff, Tree};
+use crate::tree_builder::TreeBuilder;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FileType {
@@ -538,20 +539,25 @@ impl TreeState {
 
         let sparse_matcher = self.sparse_matcher();
         let current_tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
-        let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
-        let mut deleted_files: HashSet<_> = self
-            .file_states
-            .iter()
-            .filter_map(|(path, state)| {
-                (state.file_type != FileType::GitSubmodule).then(|| path.clone())
-            })
-            .collect();
+        let mut tree_builder = self.store.tree_builder(self.store.empty_tree_id().clone());
+        fn set_tree_builder_path_value(
+            current_tree: &Tree,
+            tree_builder: &mut TreeBuilder,
+            path: RepoPath,
+            value: Option<TreeValue>,
+        ) {
+            if path.is_root() {
+                *tree_builder = current_tree.store().tree_builder(current_tree.id().clone());
+            } else if let Some(value) = value {
+                tree_builder.set(path, value);
+            }
+        }
 
         let fsmonitor_clock_needs_save = fsmonitor_kind.is_some();
         let FsmonitorMatcher {
             matcher: fsmonitor_matcher,
             watchman_clock,
-        } = self.make_fsmonitor_matcher(fsmonitor_kind, &mut deleted_files)?;
+        } = self.make_fsmonitor_matcher(fsmonitor_kind)?;
 
         let matcher = IntersectionMatcher::new(
             sparse_matcher.as_ref(),
@@ -576,13 +582,19 @@ impl TreeState {
             git_ignore,
         }) = work.pop()
         {
+            let current_tree_value = current_tree.path_value(&path);
             if matcher.visit(&path).is_nothing() {
+                set_tree_builder_path_value(
+                    &current_tree,
+                    &mut tree_builder,
+                    path,
+                    current_tree_value,
+                );
                 continue;
             }
             if path.file_name() == Some(".jj") || path.file_name() == Some(".git") {
                 continue;
             }
-            let current_tree_value = current_tree.path_value(&path);
             if let Some(current_tree_value @ TreeValue::GitSubmodule(_)) = current_tree_value {
                 self.file_states
                     .insert(path.clone(), FileState::for_gitsubmodule());
@@ -590,7 +602,6 @@ impl TreeState {
                 continue;
             }
 
-            deleted_files.remove(&path);
             if disk_path.is_dir() && !disk_path.is_symlink() {
                 // If the whole directory is ignored, skip it unless we're already tracking
                 // some file in it.
@@ -637,15 +648,19 @@ impl TreeState {
                         tree_builder.remove(path);
                     }
                 }
+            } else {
+                set_tree_builder_path_value(
+                    &current_tree,
+                    &mut tree_builder,
+                    path,
+                    current_tree_value,
+                );
             }
         }
 
-        for file in &deleted_files {
-            self.file_states.remove(file);
-            tree_builder.remove(file.clone());
-        }
-        let has_changes = tree_builder.has_overrides();
-        self.tree_id = tree_builder.write_tree();
+        let tree_id = tree_builder.write_tree();
+        let has_changes = &tree_id != current_tree.id();
+        self.tree_id = tree_id;
         self.watchman_clock = watchman_clock;
         Ok(has_changes || fsmonitor_clock_needs_save)
     }
@@ -653,7 +668,6 @@ impl TreeState {
     fn make_fsmonitor_matcher(
         &mut self,
         fsmonitor_kind: Option<FsmonitorKind>,
-        deleted_files: &mut HashSet<RepoPath>,
     ) -> Result<FsmonitorMatcher, SnapshotError> {
         let (watchman_clock, changed_files) = match fsmonitor_kind {
             None => (None, None),
@@ -691,9 +705,6 @@ impl TreeState {
                         }
                     })
                     .collect_vec();
-
-                let repo_path_set: HashSet<_> = repo_paths.iter().collect();
-                deleted_files.retain(|path| repo_path_set.contains(path));
 
                 Some(Box::new(PrefixMatcher::new(&repo_paths)))
             }

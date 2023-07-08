@@ -30,6 +30,7 @@ fn test_diffedit() {
     std::fs::remove_file(repo_path.join("file1")).unwrap();
     std::fs::write(repo_path.join("file2"), "b\n").unwrap();
 
+    // temp: @nocommit change
     let edit_script = test_env.set_up_fake_diff_editor();
 
     // Nothing happens if we make no changes
