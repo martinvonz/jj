@@ -98,19 +98,13 @@ impl<T> Conflict<T> {
         let mut add_index = 0;
         while add_index < self.adds.len() {
             let add = &self.adds[add_index];
-            let mut modified = false;
-            for (remove_index, remove) in self.removes.iter().enumerate() {
-                if remove == add {
-                    // Move the value to the `add_index-1`th diff, then delete the `remove_index`th
-                    // diff.
-                    self.adds.swap(remove_index + 1, add_index);
-                    self.removes.remove(remove_index);
-                    self.adds.remove(remove_index + 1);
-                    modified = true;
-                    break;
-                }
-            }
-            if !modified {
+            if let Some(remove_index) = self.removes.iter().position(|remove| remove == add) {
+                // Move the value to the `add_index-1`th diff, then delete the `remove_index`th
+                // diff.
+                self.adds.swap(remove_index + 1, add_index);
+                self.removes.remove(remove_index);
+                self.adds.remove(remove_index + 1);
+            } else {
                 add_index += 1;
             }
         }
