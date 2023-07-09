@@ -445,6 +445,10 @@ fn test_resolve_symbol_branches() {
         "mirror".to_owned(),
         mut_repo.get_local_branch("local-remote").unwrap(),
     );
+    mut_repo.set_git_ref(
+        "refs/heads/local-remote".to_owned(),
+        mut_repo.get_local_branch("local-remote").unwrap(),
+    );
 
     mut_repo.set_local_branch(
         "local-conflicted".to_owned(),
@@ -473,6 +477,7 @@ fn test_resolve_symbol_branches() {
         name: "local@origin",
         candidates: [
             "local",
+            "local-remote@git",
             "local-remote@origin",
             "remote@origin",
         ],
@@ -496,7 +501,7 @@ fn test_resolve_symbol_branches() {
         vec![commit2.id().clone()],
     );
 
-    // Local/remote
+    // Local/remote/git
     assert_eq!(
         resolve_symbol(mut_repo, "local-remote", None).unwrap(),
         vec![commit3.id().clone()],
@@ -507,6 +512,10 @@ fn test_resolve_symbol_branches() {
     );
     assert_eq!(
         resolve_symbol(mut_repo, "local-remote@mirror", None).unwrap(),
+        vec![commit3.id().clone()],
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo, "local-remote@git", None).unwrap(),
         vec![commit3.id().clone()],
     );
 
@@ -521,8 +530,8 @@ fn test_resolve_symbol_branches() {
     );
 
     // Typo of local/remote branch name:
-    // For "local-emote" (without @remote part), "local-remote@mirror" isn't
-    // suggested since it points to the same target as "local-remote".
+    // For "local-emote" (without @remote part), "local-remote@mirror"/"@git" aren't
+    // suggested since they point to the same target as "local-remote".
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "local-emote", None).unwrap_err(), @r###"
     NoSuchRevision {
@@ -542,6 +551,7 @@ fn test_resolve_symbol_branches() {
         candidates: [
             "local",
             "local-remote",
+            "local-remote@git",
             "local-remote@mirror",
             "local-remote@origin",
             "remote-conflicted@origin",
@@ -556,6 +566,7 @@ fn test_resolve_symbol_branches() {
         candidates: [
             "local",
             "local-remote",
+            "local-remote@git",
             "local-remote@mirror",
             "local-remote@origin",
             "remote-conflicted@origin",
@@ -672,11 +683,17 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit5.id().clone()),
     );
     // branch alone is not recognized
-    assert_matches!(
-        resolve_symbol(mut_repo, "branch", None),
-        Err(RevsetResolutionError::NoSuchRevision{name, candidates})
-            if name == "branch" && candidates.is_empty()
-    );
+    insta::assert_debug_snapshot!(
+        resolve_symbol(mut_repo, "branch", None).unwrap_err(), @r###"
+    NoSuchRevision {
+        name: "branch",
+        candidates: [
+            "branch1@git",
+            "branch2@git",
+            "branch@git",
+        ],
+    }
+    "###);
     mut_repo.set_git_ref(
         "refs/tags/branch".to_string(),
         RefTarget::Normal(commit4.id().clone()),

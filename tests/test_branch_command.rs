@@ -247,6 +247,7 @@ fn test_branch_forget_export() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r=foo", "--no-graph"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Revision "foo" doesn't exist
+    Hint: Did you mean "foo@git"?
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r=foo@git", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"

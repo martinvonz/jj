@@ -31,7 +31,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
-use crate::git::get_local_git_tracking_branch;
+use crate::git::{self, get_local_git_tracking_branch};
 use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
@@ -1660,9 +1660,8 @@ fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
 }
 
 fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<String> {
-    // TODO: include "@git" branches
-    repo.view()
-        .branches()
+    let (all_branches, _) = git::build_unified_branches_map(repo.view());
+    all_branches
         .iter()
         .flat_map(|(name, branch_target)| {
             let local_target = branch_target.local_target.as_ref();
