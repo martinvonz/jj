@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+### New features
+
+### Fixed bugs
+
+## [0.8.0] - 2023-07-09
+
+### Breaking changes
+
 * The `jujutsu` and `jujutsu-lib` crates were renamed to `jj-cli` and `jj-lib`,
   respectively.
 
@@ -180,6 +188,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * In colocated repos, a bug causing conflicts when undoing branch moves (#922)
   has been fixed. Some surprising behaviors related to undoing `jj git push` or
   `jj git fetch` remain.
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Aaron Bull Schaefer (@elasticdog)
+* Anton Bulakh (@necauqua)
+* Austin Seipp (@thoughtpolice)
+* Benjamin Saunders (@Ralith)
+* B Wilson (@xelxebar)
+* Christophe Poucet (@poucet)
+* David Barnett (@dbarnett)
+* Glen Choo (@chooglen)
+* Grégoire Geis (@71)
+* Ilya Grigoriev (@ilyagr)
+* Isabella Basso (@isinyaaa)
+* Kevin Liao (@kevincliao)
+* Martin von Zweigbergk (@martinvonz)
+* Samuel Tardieu (@samueltardieu)
+* Tal Pressman (@talpr)
+* Vamsi Avula (@avamsi)
+* Waleed Khan (@arxanas)
+* Yuya Nishihara (@yuja)
+
 
 ## [0.7.0] - 2023-02-16
 
