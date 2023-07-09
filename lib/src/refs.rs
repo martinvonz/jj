@@ -87,10 +87,11 @@ fn find_pair_to_remove(
             if removes.is_empty() {
                 return Some((None, add_index));
             }
-            for (remove_index, remove) in removes.iter().enumerate() {
-                if index.is_ancestor(remove, add) {
-                    return Some((Some(remove_index), add_index));
-                }
+            if let Some(remove_index) = removes
+                .iter()
+                .position(|remove| index.is_ancestor(remove, add))
+            {
+                return Some((Some(remove_index), add_index));
             }
         }
     }
