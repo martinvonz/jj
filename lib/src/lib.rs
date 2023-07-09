@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #![deny(unused_must_use)]
+//! Jujutsu version control system.
+
 
 #[macro_use]
 mod content_hash;
