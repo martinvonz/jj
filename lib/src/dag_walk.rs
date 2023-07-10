@@ -288,7 +288,7 @@ where
 {
     let start: Vec<T> = start.into_iter().collect();
     let mut reachable: HashSet<T> = start.iter().cloned().collect();
-    for _node in dfs(start.into_iter(), id_fn, |node| {
+    for _node in dfs(start, id_fn, |node| {
         let neighbors: Vec<T> = neighbors_fn(node).into_iter().collect();
         for neighbor in &neighbors {
             reachable.remove(neighbor);
