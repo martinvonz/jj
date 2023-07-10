@@ -78,3 +78,7 @@ default = []
 bench = ["criterion"]
 vendored-openssl = ["git2/vendored-openssl", "jj-lib/vendored-openssl"]
 watchman = ["jj-lib/watchman"]
+
+[profile.release]
+strip = "debuginfo"
+codegen-units = 1
