@@ -6,6 +6,9 @@ on:
 
 permissions: read-all
 
+env:
+  CARGO_INCREMENTAL: 0
+
 jobs:
   build-release:
     name: build-release

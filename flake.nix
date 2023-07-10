@@ -67,6 +67,7 @@
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
           NIX_JJ_GIT_HASH = self.rev or "";
+          CARGO_INCREMENTAL = "0";
           postInstall = ''
             $out/bin/jj util mangen > ./jj.1
             installManPage ./jj.1
