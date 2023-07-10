@@ -95,7 +95,7 @@
         buildInputs = with pkgs; [
           # Using the minimal profile with explicit "clippy" extension to avoid
           # two versions of rustfmt
-          (rust-bin.stable."1.64.0".minimal.override {
+          (rust-bin.stable.latest.minimal.override {
             extensions = [
               "rust-src" # for rust-analyzer
               "clippy"
