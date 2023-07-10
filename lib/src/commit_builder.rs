@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(missing_docs)]
+
 use std::sync::Arc;
 
 use crate::backend::{self, BackendResult, ChangeId, CommitId, Signature, TreeId};

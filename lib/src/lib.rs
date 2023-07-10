@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![deny(unused_must_use)]
 //! Jujutsu version control system.
 
+#![warn(missing_docs)]
+#![deny(unused_must_use)]
 
 #[macro_use]
 mod content_hash;
