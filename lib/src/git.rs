@@ -294,7 +294,7 @@ pub fn import_some_refs(
     // come from branches which were never fetched.
     let mut pinned_git_heads_set = HashSet::new();
     for heads_for_ref in pinned_git_heads.into_values() {
-        pinned_git_heads_set.extend(heads_for_ref.into_iter());
+        pinned_git_heads_set.extend(heads_for_ref);
     }
     pinned_git_heads_set.retain(|id| mut_repo.index().has_id(id));
     // We could use mut_repo.record_rewrites() here but we know we only need to care
@@ -986,7 +986,7 @@ pub fn parse_gitmodules(
     // Partial config value for each submodule name
     let mut partial_configs: BTreeMap<String, PartialSubmoduleConfig> = BTreeMap::new();
 
-    let entries = git_config.entries(Some(r#"submodule\..+\."#))?;
+    let entries = git_config.entries(Some(r"submodule\..+\."))?;
     entries.for_each(|entry| {
         let (config_name, config_value) = match (entry.name(), entry.value()) {
             // Reject non-utf8 entries

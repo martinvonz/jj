@@ -239,7 +239,7 @@ fn find_globs(
         if names.is_empty() {
             failed_globs.push(glob);
         }
-        matching_branches.extend(names.into_iter());
+        matching_branches.extend(names);
     }
     match &failed_globs[..] {
         [] => { /* No problem */ }
