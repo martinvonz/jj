@@ -8,6 +8,10 @@ on:
 
 permissions: read-all
 
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: 0
+
 jobs:
   build:
     strategy:
