@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(missing_docs)]
+
 #[cfg_attr(unix, path = "lock/unix.rs")]
 #[cfg_attr(not(unix), path = "lock/fallback.rs")]
 mod platform;

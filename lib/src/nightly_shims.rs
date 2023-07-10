@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(missing_docs)]
+
 #[cfg(feature = "map_first_last")]
 pub trait BTreeMapExt<K, V> {
     fn first_key(&self) -> Option<&K>;

@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 pub mod git_store {
     include!("git_store.rs");
 }

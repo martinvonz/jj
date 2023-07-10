@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(dead_code)]
+#![allow(dead_code, missing_docs)]
 
 use std::collections::{HashMap, HashSet};
 use std::iter;

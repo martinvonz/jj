@@ -11,6 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#![allow(missing_docs)]
+
 fn to_reverse_hex_digit(b: u8) -> Option<u8> {
     let value = match b {
         b'0'..=b'9' => b - b'0',

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(missing_docs)]
+
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt::{Debug, Error, Formatter};
