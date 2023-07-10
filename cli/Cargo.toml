@@ -1,0 +1,78 @@
+[package]
+name = "jj-cli"
+version = "0.7.0"
+authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
+edition = "2021"
+rust-version = "1.64"  # Remember to update CI, contributing.md, and flake.nix
+license = "Apache-2.0"
+description = "Jujutsu (an experimental VCS)"
+homepage = "https://github.com/martinvonz/jj"
+repository = "https://github.com/martinvonz/jj"
+documentation = "https://docs.rs/jj-cli"
+readme = "README.md"
+keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
+categories = ["command-line-utilities", "development-tools"]
+default-run = "jj"
+
+[[bin]]
+name = "jj"
+path = "src/main.rs"
+
+[[bin]]
+name = "fake-editor"
+path = "testing/fake-editor.rs"
+
+[[bin]]
+name = "fake-diff-editor"
+path = "testing/fake-diff-editor.rs"
+
+[build-dependencies]
+cargo_metadata = { workspace = true }
+
+[dependencies]
+chrono = { workspace = true }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+clap_mangen = { workspace = true }
+config = { workspace = true }
+criterion = { workspace = true, optional = true }
+crossterm = { workspace = true }
+dirs = { workspace = true }
+esl01-renderdag = { workspace = true }
+git2 = { workspace = true }
+glob = { workspace = true }
+hex = { workspace = true }
+indexmap = { workspace = true }
+itertools = { workspace = true }
+jj-lib = { workspace = true }
+maplit = { workspace = true }
+once_cell = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+regex = { workspace = true }
+rpassword = { workspace = true }
+serde = { workspace = true }
+slab = { workspace = true }
+tempfile = { workspace = true }
+textwrap = { workspace = true }
+thiserror = { workspace = true }
+timeago = { workspace = true }
+toml_edit = { workspace = true }
+tracing = { workspace = true }
+tracing-chrome = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+assert_matches = { workspace = true }
+insta = { workspace = true }
+testutils = { workspace = true }
+
+[features]
+default = []
+bench = ["criterion"]
+vendored-openssl = ["git2/vendored-openssl", "jj-lib/vendored-openssl"]
+watchman = ["jj-lib/watchman"]

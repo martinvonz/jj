@@ -41,7 +41,7 @@
           version = "unstable-${self.shortRev or "dirty"}";
           buildNoDefaultFeatures = true;
           buildFeatures = [ "watchman" ];
-          cargoBuildFlags = ["--bin" "jj"]; # don't build and install the fake editors
+          cargoBuildFlags = [ "--bin" "jj" ]; # don't build and install the fake editors
           useNextest = true;
           src = filterSrc ./. [
             ".*\\.nix$"

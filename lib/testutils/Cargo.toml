@@ -9,15 +9,12 @@ description = "Integration test utils for the jj-lib crate"
 homepage = "https://github.com/martinvonz/jj"
 repository = "https://github.com/martinvonz/jj"
 documentation = "https://docs.rs/jj-lib"
-readme = "../..//README.md"
 publish = false
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-config = { version = "0.13.2", default-features = false, features = ["toml"] }
-git2 = "0.17.2"
-itertools = "0.11.0"
-jj-lib = { path = ".." }
-rand = "0.8.5"
-tempfile = "3.6.0"
+config = { workspace = true }
+git2 = { workspace = true }
+itertools = { workspace = true }
+jj-lib = { workspace = true }
+rand = { workspace = true }
+tempfile = { workspace = true }
