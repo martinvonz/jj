@@ -40,7 +40,7 @@
           pname = "jujutsu";
           version = "unstable-${self.shortRev or "dirty"}";
           buildNoDefaultFeatures = true;
-          buildFeatures = [];
+          buildFeatures = [ "watchman" ];
           cargoBuildFlags = ["--bin" "jj"]; # don't build and install the fake editors
           useNextest = true;
           src = filterSrc ./. [
