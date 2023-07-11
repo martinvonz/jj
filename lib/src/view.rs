@@ -139,7 +139,7 @@ impl View {
         if let Some(target) = target {
             match name {
                 RefName::LocalBranch(name) => {
-                    self.set_local_branch(name, target);
+                    self.set_local_branch_target(&name, Some(target));
                 }
                 RefName::RemoteBranch { branch, remote } => {
                     self.set_remote_branch_target(&branch, &remote, Some(target));
@@ -154,7 +154,7 @@ impl View {
         } else {
             match name {
                 RefName::LocalBranch(name) => {
-                    self.remove_local_branch(&name);
+                    self.set_local_branch_target(&name, None);
                 }
                 RefName::RemoteBranch { branch, remote } => {
                     self.set_remote_branch_target(&branch, &remote, None);
@@ -188,11 +188,21 @@ impl View {
             .and_then(|branch_target| branch_target.local_target.clone())
     }
 
-    pub fn set_local_branch(&mut self, name: String, target: RefTarget) {
+    /// Sets local branch to point to the given target. If the target is absent,
+    /// and if no associated remote branches exist, the branch will be removed.
+    pub fn set_local_branch_target(&mut self, name: &str, target: Option<RefTarget>) {
+        if let Some(target) = target {
+            self.insert_local_branch(name.to_owned(), target);
+        } else {
+            self.remove_local_branch(name);
+        }
+    }
+
+    fn insert_local_branch(&mut self, name: String, target: RefTarget) {
         self.data.branches.entry(name).or_default().local_target = Some(target);
     }
 
-    pub fn remove_local_branch(&mut self, name: &str) {
+    fn remove_local_branch(&mut self, name: &str) {
         if let Some(branch) = self.data.branches.get_mut(name) {
             branch.local_target = None;
             if branch.remote_targets.is_empty() {

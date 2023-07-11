@@ -248,9 +248,9 @@ fn test_merge_views_branches() {
     let main_branch_origin_tx0 = write_random_commit(mut_repo, &settings);
     let main_branch_origin_tx1 = write_random_commit(mut_repo, &settings);
     let main_branch_alternate_tx0 = write_random_commit(mut_repo, &settings);
-    mut_repo.set_local_branch(
-        "main".to_string(),
-        RefTarget::Normal(main_branch_local_tx0.id().clone()),
+    mut_repo.set_local_branch_target(
+        "main",
+        Some(RefTarget::Normal(main_branch_local_tx0.id().clone())),
     );
     mut_repo.set_remote_branch_target(
         "main",
@@ -271,9 +271,9 @@ fn test_merge_views_branches() {
 
     let mut tx1 = repo.start_transaction(&settings, "test");
     let main_branch_local_tx1 = write_random_commit(tx1.mut_repo(), &settings);
-    tx1.mut_repo().set_local_branch(
-        "main".to_string(),
-        RefTarget::Normal(main_branch_local_tx1.id().clone()),
+    tx1.mut_repo().set_local_branch_target(
+        "main",
+        Some(RefTarget::Normal(main_branch_local_tx1.id().clone())),
     );
     tx1.mut_repo().set_remote_branch_target(
         "main",
@@ -281,17 +281,17 @@ fn test_merge_views_branches() {
         Some(RefTarget::Normal(main_branch_origin_tx1.id().clone())),
     );
     let feature_branch_tx1 = write_random_commit(tx1.mut_repo(), &settings);
-    tx1.mut_repo().set_local_branch(
-        "feature".to_string(),
-        RefTarget::Normal(feature_branch_tx1.id().clone()),
+    tx1.mut_repo().set_local_branch_target(
+        "feature",
+        Some(RefTarget::Normal(feature_branch_tx1.id().clone())),
     );
     tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let main_branch_local_tx2 = write_random_commit(tx2.mut_repo(), &settings);
-    tx2.mut_repo().set_local_branch(
-        "main".to_string(),
-        RefTarget::Normal(main_branch_local_tx2.id().clone()),
+    tx2.mut_repo().set_local_branch_target(
+        "main",
+        Some(RefTarget::Normal(main_branch_local_tx2.id().clone())),
     );
     tx2.mut_repo().set_remote_branch_target(
         "main",

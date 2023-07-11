@@ -970,12 +970,8 @@ impl MutableRepo {
         self.view.with_ref(|v| v.get_local_branch(name))
     }
 
-    pub fn set_local_branch(&mut self, name: String, target: RefTarget) {
-        self.view_mut().set_local_branch(name, target);
-    }
-
-    pub fn remove_local_branch(&mut self, name: &str) {
-        self.view_mut().remove_local_branch(name);
+    pub fn set_local_branch_target(&mut self, name: &str, target: Option<RefTarget>) {
+        self.view_mut().set_local_branch_target(name, target);
     }
 
     pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> Option<RefTarget> {
