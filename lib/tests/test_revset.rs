@@ -426,24 +426,24 @@ fn test_resolve_symbol_branches() {
     let commit5 = write_random_commit(mut_repo, &settings);
 
     mut_repo.set_local_branch("local".to_owned(), RefTarget::Normal(commit1.id().clone()));
-    mut_repo.set_remote_branch(
-        "remote".to_owned(),
-        "origin".to_owned(),
-        RefTarget::Normal(commit2.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "remote",
+        "origin",
+        Some(RefTarget::Normal(commit2.id().clone())),
     );
     mut_repo.set_local_branch(
         "local-remote".to_owned(),
         RefTarget::Normal(commit3.id().clone()),
     );
-    mut_repo.set_remote_branch(
-        "local-remote".to_owned(),
-        "origin".to_owned(),
-        RefTarget::Normal(commit4.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "local-remote",
+        "origin",
+        Some(RefTarget::Normal(commit4.id().clone())),
     );
-    mut_repo.set_remote_branch(
-        "local-remote".to_owned(),
-        "mirror".to_owned(),
-        mut_repo.get_local_branch("local-remote").unwrap(),
+    mut_repo.set_remote_branch_target(
+        "local-remote",
+        "mirror",
+        mut_repo.get_local_branch("local-remote"),
     );
     mut_repo.set_git_ref_target(
         "refs/heads/local-remote",
@@ -457,13 +457,13 @@ fn test_resolve_symbol_branches() {
             adds: vec![commit3.id().clone(), commit2.id().clone()],
         },
     );
-    mut_repo.set_remote_branch(
-        "remote-conflicted".to_owned(),
-        "origin".to_owned(),
-        RefTarget::Conflict {
+    mut_repo.set_remote_branch_target(
+        "remote-conflicted",
+        "origin",
+        Some(RefTarget::Conflict {
             removes: vec![commit3.id().clone()],
             adds: vec![commit5.id().clone(), commit4.id().clone()],
-        },
+        }),
     );
 
     // Local only
@@ -1779,15 +1779,15 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
     // Can get branches when there are none
     assert_eq!(resolve_commit_ids(mut_repo, "remote_branches()"), vec![]);
     // Can get a few branches
-    mut_repo.set_remote_branch(
-        "branch1".to_string(),
-        "origin".to_string(),
-        RefTarget::Normal(commit1.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "branch1",
+        "origin",
+        Some(RefTarget::Normal(commit1.id().clone())),
     );
-    mut_repo.set_remote_branch(
-        "branch2".to_string(),
-        "private".to_string(),
-        RefTarget::Normal(commit2.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "branch2",
+        "private",
+        Some(RefTarget::Normal(commit2.id().clone())),
     );
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
@@ -1835,10 +1835,10 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
     );
     // Two branches pointing to the same commit does not result in a duplicate in
     // the revset
-    mut_repo.set_remote_branch(
-        "branch3".to_string(),
-        "origin".to_string(),
-        RefTarget::Normal(commit2.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "branch3",
+        "origin",
+        Some(RefTarget::Normal(commit2.id().clone())),
     );
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
@@ -1851,23 +1851,23 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Can get branches when there are conflicted refs
-    mut_repo.set_remote_branch(
-        "branch1".to_string(),
-        "origin".to_string(),
-        RefTarget::Conflict {
+    mut_repo.set_remote_branch_target(
+        "branch1",
+        "origin",
+        Some(RefTarget::Conflict {
             removes: vec![commit1.id().clone()],
             adds: vec![commit2.id().clone(), commit3.id().clone()],
-        },
+        }),
     );
-    mut_repo.set_remote_branch(
-        "branch2".to_string(),
-        "private".to_string(),
-        RefTarget::Conflict {
+    mut_repo.set_remote_branch_target(
+        "branch2",
+        "private",
+        Some(RefTarget::Conflict {
             removes: vec![commit2.id().clone()],
             adds: vec![commit3.id().clone(), commit4.id().clone()],
-        },
+        }),
     );
-    mut_repo.remove_remote_branch("branch3", "origin");
+    mut_repo.set_remote_branch_target("branch3", "origin", None);
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![

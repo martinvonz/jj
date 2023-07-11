@@ -540,7 +540,7 @@ pub fn remove_remote(
         .filter_map(|r| r.starts_with(&prefix).then(|| r.clone()))
         .collect_vec();
     for branch in branches_to_delete {
-        mut_repo.remove_remote_branch(&branch, remote_name);
+        mut_repo.set_remote_branch_target(&branch, remote_name, None);
     }
     for git_ref in git_refs_to_delete {
         mut_repo.set_git_ref_target(&git_ref, None);

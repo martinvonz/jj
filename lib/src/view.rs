@@ -142,7 +142,7 @@ impl View {
                     self.set_local_branch(name, target);
                 }
                 RefName::RemoteBranch { branch, remote } => {
-                    self.set_remote_branch(branch, remote, target);
+                    self.set_remote_branch_target(&branch, &remote, Some(target));
                 }
                 RefName::Tag(name) => {
                     self.set_tag_target(&name, Some(target));
@@ -157,7 +157,7 @@ impl View {
                     self.remove_local_branch(&name);
                 }
                 RefName::RemoteBranch { branch, remote } => {
-                    self.remove_remote_branch(&branch, &remote);
+                    self.set_remote_branch_target(&branch, &remote, None);
                 }
                 RefName::Tag(name) => {
                     self.set_tag_target(&name, None);
@@ -208,7 +208,22 @@ impl View {
             .and_then(|branch_target| branch_target.remote_targets.get(remote_name).cloned())
     }
 
-    pub fn set_remote_branch(&mut self, name: String, remote_name: String, target: RefTarget) {
+    /// Sets remote-tracking branch to point to the given target. If the target
+    /// is absent, the branch will be removed.
+    pub fn set_remote_branch_target(
+        &mut self,
+        name: &str,
+        remote_name: &str,
+        target: Option<RefTarget>,
+    ) {
+        if let Some(target) = target {
+            self.insert_remote_branch(name.to_owned(), remote_name.to_owned(), target);
+        } else {
+            self.remove_remote_branch(name, remote_name);
+        }
+    }
+
+    fn insert_remote_branch(&mut self, name: String, remote_name: String, target: RefTarget) {
         self.data
             .branches
             .entry(name)
@@ -217,7 +232,7 @@ impl View {
             .insert(remote_name, target);
     }
 
-    pub fn remove_remote_branch(&mut self, name: &str, remote_name: &str) {
+    fn remove_remote_branch(&mut self, name: &str, remote_name: &str) {
         if let Some(branch) = self.data.branches.get_mut(name) {
             branch.remote_targets.remove(remote_name);
             if branch.remote_targets.is_empty() && branch.local_target.is_none() {
