@@ -243,7 +243,7 @@ pub fn import_some_refs(
         let new_target = Some(RefTarget::Normal(id.clone()));
         if new_target != old_target {
             prevent_gc(git_repo, &id)?;
-            mut_repo.set_git_ref(full_name.to_owned(), RefTarget::Normal(id.clone()));
+            mut_repo.set_git_ref_target(full_name, Some(RefTarget::Normal(id.clone())));
             let commit = store.get_commit(&id).unwrap();
             mut_repo.add_head(&commit);
             changed_git_refs.insert(ref_name, (old_target, new_target));
@@ -253,7 +253,7 @@ pub fn import_some_refs(
         // TODO: or clean up invalid ref in case it was stored due to historical bug?
         let ref_name = parse_git_ref(&full_name).expect("stored git ref should be parsable");
         if git_ref_filter(&ref_name) {
-            mut_repo.remove_git_ref(&full_name);
+            mut_repo.set_git_ref_target(&full_name, None);
             changed_git_refs.insert(ref_name, (Some(target), None));
         } else {
             pinned_git_heads.insert(ref_name, target.adds().to_vec());
@@ -467,7 +467,7 @@ pub fn export_some_refs(
             true
         };
         if success {
-            mut_repo.remove_git_ref(&git_ref_name);
+            mut_repo.set_git_ref_target(&git_ref_name, None);
         } else {
             failed_branches.push(parsed_ref_name);
         }
@@ -509,9 +509,9 @@ pub fn export_some_refs(
             }
         };
         if success {
-            mut_repo.set_git_ref(
-                git_ref_name,
-                RefTarget::Normal(CommitId::from_bytes(new_oid.as_bytes())),
+            mut_repo.set_git_ref_target(
+                &git_ref_name,
+                Some(RefTarget::Normal(CommitId::from_bytes(new_oid.as_bytes()))),
             );
         } else {
             failed_branches.push(parsed_ref_name);
@@ -543,7 +543,7 @@ pub fn remove_remote(
         mut_repo.remove_remote_branch(&branch, remote_name);
     }
     for git_ref in git_refs_to_delete {
-        mut_repo.remove_git_ref(&git_ref);
+        mut_repo.set_git_ref_target(&git_ref, None);
     }
     Ok(())
 }
@@ -572,8 +572,8 @@ pub fn rename_remote(
         })
         .collect_vec();
     for (old, new, target) in git_refs {
-        mut_repo.remove_git_ref(&old);
-        mut_repo.set_git_ref(new, target);
+        mut_repo.set_git_ref_target(&old, None);
+        mut_repo.set_git_ref_target(&new, Some(target));
     }
     Ok(())
 }

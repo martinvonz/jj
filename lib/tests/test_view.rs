@@ -263,9 +263,9 @@ fn test_merge_views_branches() {
         RefTarget::Normal(main_branch_alternate_tx0.id().clone()),
     );
     let feature_branch_local_tx0 = write_random_commit(mut_repo, &settings);
-    mut_repo.set_git_ref(
-        "feature".to_string(),
-        RefTarget::Normal(feature_branch_local_tx0.id().clone()),
+    mut_repo.set_git_ref_target(
+        "feature",
+        Some(RefTarget::Normal(feature_branch_local_tx0.id().clone())),
     );
     let repo = tx.commit();
 
@@ -384,35 +384,35 @@ fn test_merge_views_git_refs() {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
     let main_branch_tx0 = write_random_commit(mut_repo, &settings);
-    mut_repo.set_git_ref(
-        "refs/heads/main".to_string(),
-        RefTarget::Normal(main_branch_tx0.id().clone()),
+    mut_repo.set_git_ref_target(
+        "refs/heads/main",
+        Some(RefTarget::Normal(main_branch_tx0.id().clone())),
     );
     let feature_branch_tx0 = write_random_commit(mut_repo, &settings);
-    mut_repo.set_git_ref(
-        "refs/heads/feature".to_string(),
-        RefTarget::Normal(feature_branch_tx0.id().clone()),
+    mut_repo.set_git_ref_target(
+        "refs/heads/feature",
+        Some(RefTarget::Normal(feature_branch_tx0.id().clone())),
     );
     let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "test");
     let main_branch_tx1 = write_random_commit(tx1.mut_repo(), &settings);
-    tx1.mut_repo().set_git_ref(
-        "refs/heads/main".to_string(),
-        RefTarget::Normal(main_branch_tx1.id().clone()),
+    tx1.mut_repo().set_git_ref_target(
+        "refs/heads/main",
+        Some(RefTarget::Normal(main_branch_tx1.id().clone())),
     );
     let feature_branch_tx1 = write_random_commit(tx1.mut_repo(), &settings);
-    tx1.mut_repo().set_git_ref(
-        "refs/heads/feature".to_string(),
-        RefTarget::Normal(feature_branch_tx1.id().clone()),
+    tx1.mut_repo().set_git_ref_target(
+        "refs/heads/feature",
+        Some(RefTarget::Normal(feature_branch_tx1.id().clone())),
     );
     tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let main_branch_tx2 = write_random_commit(tx2.mut_repo(), &settings);
-    tx2.mut_repo().set_git_ref(
-        "refs/heads/main".to_string(),
-        RefTarget::Normal(main_branch_tx2.id().clone()),
+    tx2.mut_repo().set_git_ref_target(
+        "refs/heads/main",
+        Some(RefTarget::Normal(main_branch_tx2.id().clone())),
     );
     tx2.commit();
 
