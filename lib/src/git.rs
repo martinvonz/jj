@@ -203,10 +203,10 @@ pub fn import_some_refs(
             let head_commit = store.get_commit(&head_commit_id).unwrap();
             prevent_gc(git_repo, &head_commit_id)?;
             mut_repo.add_head(&head_commit);
-            mut_repo.set_git_head(RefTarget::Normal(head_commit_id));
+            mut_repo.set_git_head_target(Some(RefTarget::Normal(head_commit_id)));
         }
     } else {
-        mut_repo.clear_git_head();
+        mut_repo.set_git_head_target(None);
     }
 
     let mut changed_git_refs = BTreeMap::new();

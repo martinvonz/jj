@@ -649,7 +649,7 @@ fn test_resolve_symbol_git_head() {
     "###);
 
     // With HEAD@git
-    mut_repo.set_git_head(RefTarget::Normal(commit1.id().clone()));
+    mut_repo.set_git_head_target(Some(RefTarget::Normal(commit1.id().clone())));
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "HEAD", None).unwrap_err(), @r###"
     NoSuchRevision {
@@ -1677,7 +1677,7 @@ fn test_evaluate_expression_git_head(use_git: bool) {
 
     // Can get git head when it's not set
     assert_eq!(resolve_commit_ids(mut_repo, "git_head()"), vec![]);
-    mut_repo.set_git_head(RefTarget::Normal(commit1.id().clone()));
+    mut_repo.set_git_head_target(Some(RefTarget::Normal(commit1.id().clone())));
     assert_eq!(
         resolve_commit_ids(mut_repo, "git_head()"),
         vec![commit1.id().clone()]
