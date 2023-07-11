@@ -796,7 +796,7 @@ impl WorkspaceCommandHelper {
                 let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
                 let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
                 git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
-                mut_repo.set_git_head_target(Some(RefTarget::Normal(first_parent_id)));
+                mut_repo.set_git_head_target(RefTarget::normal(first_parent_id));
             }
         } else {
             // The workspace was removed (maybe the user undid the

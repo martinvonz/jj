@@ -109,9 +109,9 @@ fn test_import_refs() {
     assert_eq!(*view.heads(), expected_heads);
 
     let expected_main_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(jj_id(&commit2))),
+        local_target: RefTarget::normal(jj_id(&commit2)),
         remote_targets: btreemap! {
-          "origin".to_string() => RefTarget::Normal(jj_id(&commit1)),
+          "origin".to_string() => RefTarget::normal(jj_id(&commit1)).unwrap(),
         },
     };
     assert_eq!(
@@ -119,7 +119,7 @@ fn test_import_refs() {
         Some(expected_main_branch).as_ref()
     );
     let expected_feature1_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(jj_id(&commit3))),
+        local_target: RefTarget::normal(jj_id(&commit3)),
         remote_targets: btreemap! {},
     };
     assert_eq!(
@@ -127,7 +127,7 @@ fn test_import_refs() {
         Some(expected_feature1_branch).as_ref()
     );
     let expected_feature2_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(jj_id(&commit4))),
+        local_target: RefTarget::normal(jj_id(&commit4)),
         remote_targets: btreemap! {},
     };
     assert_eq!(
@@ -135,9 +135,9 @@ fn test_import_refs() {
         Some(expected_feature2_branch).as_ref()
     );
     let expected_feature3_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(jj_id(&commit6))),
+        local_target: RefTarget::normal(jj_id(&commit6)),
         remote_targets: btreemap! {
-          "origin".to_string() => RefTarget::Normal(jj_id(&commit6)),
+          "origin".to_string() => RefTarget::normal(jj_id(&commit6)).unwrap(),
         },
     };
     assert_eq!(
@@ -147,35 +147,35 @@ fn test_import_refs() {
 
     assert_eq!(
         view.tags().get("v1.0"),
-        Some(RefTarget::Normal(jj_id(&commit5))).as_ref()
+        RefTarget::normal(jj_id(&commit5)).as_ref()
     );
 
     assert_eq!(view.git_refs().len(), 6);
     assert_eq!(
         view.get_git_ref("refs/heads/main"),
-        Some(RefTarget::Normal(jj_id(&commit2)))
+        RefTarget::normal(jj_id(&commit2))
     );
     assert_eq!(
         view.get_git_ref("refs/heads/feature1"),
-        Some(RefTarget::Normal(jj_id(&commit3)))
+        RefTarget::normal(jj_id(&commit3))
     );
     assert_eq!(
         view.get_git_ref("refs/heads/feature2"),
-        Some(RefTarget::Normal(jj_id(&commit4)))
+        RefTarget::normal(jj_id(&commit4))
     );
     assert_eq!(
         view.get_git_ref("refs/remotes/origin/main"),
-        Some(RefTarget::Normal(jj_id(&commit1)))
+        RefTarget::normal(jj_id(&commit1))
     );
     assert_eq!(
         view.get_git_ref("refs/remotes/origin/feature3"),
-        Some(RefTarget::Normal(jj_id(&commit6)))
+        RefTarget::normal(jj_id(&commit6))
     );
     assert_eq!(
         view.get_git_ref("refs/tags/v1.0"),
-        Some(RefTarget::Normal(jj_id(&commit5)))
+        RefTarget::normal(jj_id(&commit5))
     );
-    assert_eq!(view.git_head(), Some(&RefTarget::Normal(jj_id(&commit2))));
+    assert_eq!(view.git_head(), RefTarget::normal(jj_id(&commit2)).as_ref());
 }
 
 #[test]
@@ -220,7 +220,7 @@ fn test_import_refs_reimport() {
         .write()
         .unwrap();
     tx.mut_repo()
-        .set_local_branch_target("feature2", Some(RefTarget::Normal(commit6.id().clone())));
+        .set_local_branch_target("feature2", RefTarget::normal(commit6.id().clone()));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -236,12 +236,12 @@ fn test_import_refs_reimport() {
     assert_eq!(*view.heads(), expected_heads);
 
     assert_eq!(view.branches().len(), 2);
-    let commit1_target = RefTarget::Normal(jj_id(&commit1));
-    let commit2_target = RefTarget::Normal(jj_id(&commit2));
+    let commit1_target = RefTarget::normal(jj_id(&commit1));
+    let commit2_target = RefTarget::normal(jj_id(&commit2));
     let expected_main_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(jj_id(&commit2))),
+        local_target: RefTarget::normal(jj_id(&commit2)),
         remote_targets: btreemap! {
-          "origin".to_string() => commit1_target.clone(),
+          "origin".to_string() => commit1_target.clone().unwrap(),
         },
     };
     assert_eq!(
@@ -263,16 +263,10 @@ fn test_import_refs_reimport() {
     assert!(view.tags().is_empty());
 
     assert_eq!(view.git_refs().len(), 3);
-    assert_eq!(view.get_git_ref("refs/heads/main"), Some(commit2_target));
-    assert_eq!(
-        view.get_git_ref("refs/remotes/origin/main"),
-        Some(commit1_target)
-    );
-    let commit5_target = RefTarget::Normal(jj_id(&commit5));
-    assert_eq!(
-        view.get_git_ref("refs/heads/feature2"),
-        Some(commit5_target)
-    );
+    assert_eq!(view.get_git_ref("refs/heads/main"), commit2_target);
+    assert_eq!(view.get_git_ref("refs/remotes/origin/main"), commit1_target);
+    let commit5_target = RefTarget::normal(jj_id(&commit5));
+    assert_eq!(view.get_git_ref("refs/heads/feature2"), commit5_target);
 }
 
 #[test]
@@ -443,18 +437,18 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
         Some(&BranchTarget {
             // Even though the git repo does not have a local branch for `feature-remote-only`, jj
             // creates one. This follows the model explained in docs/branches.md.
-            local_target: Some(RefTarget::Normal(jj_id(&commit_remote_only))),
+            local_target: RefTarget::normal(jj_id(&commit_remote_only)),
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Normal(jj_id(&commit_remote_only))
+                "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_only)).unwrap(),
             },
         }),
     );
     assert_eq!(
         view.branches().get("feature-remote-and-local"),
         Some(&BranchTarget {
-            local_target: Some(RefTarget::Normal(jj_id(&commit_remote_and_local))),
+            local_target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Normal(jj_id(&commit_remote_and_local))
+                "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)).unwrap(),
             },
         }),
     );
@@ -532,18 +526,18 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         Some(&BranchTarget {
             // Even though the git repo does not have a local branch for `feature-remote-only`, jj
             // creates one. This follows the model explained in docs/branches.md.
-            local_target: Some(RefTarget::Normal(jj_id(&commit_remote_only))),
+            local_target: RefTarget::normal(jj_id(&commit_remote_only)),
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Normal(jj_id(&commit_remote_only))
+                "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_only)).unwrap(),
             },
         }),
     );
     assert_eq!(
         view.branches().get("feature-remote-and-local"),
         Some(&BranchTarget {
-            local_target: Some(RefTarget::Normal(jj_id(&commit_remote_and_local))),
+            local_target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Normal(jj_id(&commit_remote_and_local))
+                "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)).unwrap(),
             },
         }),
     );
@@ -576,18 +570,18 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
     assert_eq!(
         view.branches().get("feature-remote-only"),
         Some(&BranchTarget {
-            local_target: Some(RefTarget::Normal(jj_id(&new_commit_remote_only))),
+            local_target: RefTarget::normal(jj_id(&new_commit_remote_only)),
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Normal(jj_id(&new_commit_remote_only))
+                "origin".to_string() => RefTarget::normal(jj_id(&new_commit_remote_only)).unwrap(),
             },
         }),
     );
     assert_eq!(
         view.branches().get("feature-remote-and-local"),
         Some(&BranchTarget {
-            local_target: Some(RefTarget::Normal(jj_id(&new_commit_remote_and_local))),
+            local_target: RefTarget::normal(jj_id(&new_commit_remote_and_local)),
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Normal(jj_id(&new_commit_remote_and_local))
+                "origin".to_string() => RefTarget::normal(jj_id(&new_commit_remote_and_local)).unwrap(),
             },
         }),
     );
@@ -712,37 +706,37 @@ fn test_import_some_refs() {
     // Check that branches feature[1-4] have been locally imported and are known to
     // be present on origin as well.
     assert_eq!(view.branches().len(), 4);
-    let commit_feat1_target = RefTarget::Normal(jj_id(&commit_feat1));
-    let commit_feat2_target = RefTarget::Normal(jj_id(&commit_feat2));
-    let commit_feat3_target = RefTarget::Normal(jj_id(&commit_feat3));
-    let commit_feat4_target = RefTarget::Normal(jj_id(&commit_feat4));
+    let commit_feat1_target = RefTarget::normal(jj_id(&commit_feat1));
+    let commit_feat2_target = RefTarget::normal(jj_id(&commit_feat2));
+    let commit_feat3_target = RefTarget::normal(jj_id(&commit_feat3));
+    let commit_feat4_target = RefTarget::normal(jj_id(&commit_feat4));
     let expected_feature1_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(jj_id(&commit_feat1))),
-        remote_targets: btreemap! { "origin".to_string() => commit_feat1_target },
+        local_target: RefTarget::normal(jj_id(&commit_feat1)),
+        remote_targets: btreemap! { "origin".to_string() => commit_feat1_target.unwrap() },
     };
     assert_eq!(
         view.branches().get("feature1"),
         Some(expected_feature1_branch).as_ref()
     );
     let expected_feature2_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(jj_id(&commit_feat2))),
-        remote_targets: btreemap! { "origin".to_string() => commit_feat2_target },
+        local_target: RefTarget::normal(jj_id(&commit_feat2)),
+        remote_targets: btreemap! { "origin".to_string() => commit_feat2_target.unwrap() },
     };
     assert_eq!(
         view.branches().get("feature2"),
         Some(expected_feature2_branch).as_ref()
     );
     let expected_feature3_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(jj_id(&commit_feat3))),
-        remote_targets: btreemap! { "origin".to_string() => commit_feat3_target },
+        local_target: RefTarget::normal(jj_id(&commit_feat3)),
+        remote_targets: btreemap! { "origin".to_string() => commit_feat3_target.unwrap() },
     };
     assert_eq!(
         view.branches().get("feature3"),
         Some(expected_feature3_branch).as_ref()
     );
     let expected_feature4_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(jj_id(&commit_feat4))),
-        remote_targets: btreemap! { "origin".to_string() => commit_feat4_target },
+        local_target: RefTarget::normal(jj_id(&commit_feat4)),
+        remote_targets: btreemap! { "origin".to_string() => commit_feat4_target.unwrap() },
     };
     assert_eq!(
         view.branches().get("feature4"),
@@ -926,7 +920,7 @@ fn test_import_refs_detached_head() {
     assert_eq!(repo.view().git_refs().len(), 0);
     assert_eq!(
         repo.view().git_head(),
-        Some(&RefTarget::Normal(jj_id(&commit1)))
+        RefTarget::normal(jj_id(&commit1)).as_ref()
     );
 }
 
@@ -950,7 +944,7 @@ fn test_export_refs_no_detach() {
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
-        Some(RefTarget::Normal(jj_id(&commit1)))
+        RefTarget::normal(jj_id(&commit1))
     );
     assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/main"));
     assert_eq!(
@@ -983,11 +977,11 @@ fn test_export_refs_branch_changed() {
         .set_parents(vec![jj_id(&commit)])
         .write()
         .unwrap();
-    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(new_commit.id().clone())));
+    mut_repo.set_local_branch_target("main", RefTarget::normal(new_commit.id().clone()));
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
-        Some(RefTarget::Normal(new_commit.id().clone()))
+        RefTarget::normal(new_commit.id().clone())
     );
     assert_eq!(
         git_repo
@@ -1022,11 +1016,11 @@ fn test_export_refs_current_branch_changed() {
         .set_parents(vec![jj_id(&commit1)])
         .write()
         .unwrap();
-    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(new_commit.id().clone())));
+    mut_repo.set_local_branch_target("main", RefTarget::normal(new_commit.id().clone()));
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
-        Some(RefTarget::Normal(new_commit.id().clone()))
+        RefTarget::normal(new_commit.id().clone())
     );
     assert_eq!(
         git_repo
@@ -1056,11 +1050,11 @@ fn test_export_refs_unborn_git_branch() {
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
 
     let new_commit = write_random_commit(mut_repo, &test_data.settings);
-    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(new_commit.id().clone())));
+    mut_repo.set_local_branch_target("main", RefTarget::normal(new_commit.id().clone()));
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
-        Some(RefTarget::Normal(new_commit.id().clone()))
+        RefTarget::normal(new_commit.id().clone())
     );
     assert_eq!(
         git_repo
@@ -1100,17 +1094,17 @@ fn test_export_import_sequence() {
     git::import_refs(mut_repo, &git_repo, &git_settings).unwrap();
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
-        Some(RefTarget::Normal(commit_a.id().clone()))
+        RefTarget::normal(commit_a.id().clone())
     );
 
     // Modify the branch in jj to point to B
-    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
+    mut_repo.set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
 
     // Export the branch to git
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
-        Some(RefTarget::Normal(commit_b.id().clone()))
+        RefTarget::normal(commit_b.id().clone())
     );
 
     // Modify the branch in git to point to C
@@ -1122,11 +1116,11 @@ fn test_export_import_sequence() {
     git::import_refs(mut_repo, &git_repo, &git_settings).unwrap();
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
-        Some(RefTarget::Normal(commit_c.id().clone()))
+        RefTarget::normal(commit_c.id().clone())
     );
     assert_eq!(
         mut_repo.view().get_local_branch("main"),
-        Some(RefTarget::Normal(commit_c.id().clone()))
+        RefTarget::normal(commit_c.id().clone())
     );
 }
 
@@ -1151,7 +1145,7 @@ fn test_import_export_no_auto_local_branch() {
     let expected_branch = BranchTarget {
         local_target: None,
         remote_targets: btreemap! {
-            "origin".to_string() => RefTarget::Normal(jj_id(&git_commit))
+            "origin".to_string() => RefTarget::normal(jj_id(&git_commit)).unwrap(),
         },
     };
     assert_eq!(
@@ -1160,7 +1154,7 @@ fn test_import_export_no_auto_local_branch() {
     );
     assert_eq!(
         mut_repo.get_git_ref("refs/remotes/origin/main"),
-        Some(RefTarget::Normal(jj_id(&git_commit)))
+        RefTarget::normal(jj_id(&git_commit))
     );
 
     // Export the branch to git
@@ -1180,13 +1174,13 @@ fn test_export_conflicts() {
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
     let commit_b = write_random_commit(mut_repo, &test_data.settings);
     let commit_c = write_random_commit(mut_repo, &test_data.settings);
-    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(commit_a.id().clone())));
-    mut_repo.set_local_branch_target("feature", Some(RefTarget::Normal(commit_a.id().clone())));
+    mut_repo.set_local_branch_target("main", RefTarget::normal(commit_a.id().clone()));
+    mut_repo.set_local_branch_target("feature", RefTarget::normal(commit_a.id().clone()));
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
 
     // Create a conflict and export. It should not be exported, but other changes
     // should be.
-    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
+    mut_repo.set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
     mut_repo.set_local_branch_target(
         "feature",
         Some(RefTarget::Conflict {
@@ -1223,7 +1217,7 @@ fn test_export_partial_failure() {
         .start_transaction(&test_data.settings, "test");
     let mut_repo = tx.mut_repo();
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
-    let target = Some(RefTarget::Normal(commit_a.id().clone()));
+    let target = RefTarget::normal(commit_a.id().clone());
     // Empty string is disallowed by Git
     mut_repo.set_local_branch_target("", target.clone());
     // Branch named HEAD is disallowed by Git CLI
@@ -1313,7 +1307,7 @@ fn test_export_reexport_transitions() {
     for branch in [
         "AAB", "AAX", "ABA", "ABB", "ABC", "ABX", "AXA", "AXB", "AXX",
     ] {
-        mut_repo.set_local_branch_target(branch, Some(RefTarget::Normal(commit_a.id().clone())));
+        mut_repo.set_local_branch_target(branch, RefTarget::normal(commit_a.id().clone()));
     }
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
 
@@ -1322,10 +1316,10 @@ fn test_export_reexport_transitions() {
         mut_repo.set_local_branch_target(branch, None);
     }
     for branch in ["XAA", "XAB", "XAX"] {
-        mut_repo.set_local_branch_target(branch, Some(RefTarget::Normal(commit_a.id().clone())));
+        mut_repo.set_local_branch_target(branch, RefTarget::normal(commit_a.id().clone()));
     }
     for branch in ["ABA", "ABB", "ABC", "ABX"] {
-        mut_repo.set_local_branch_target(branch, Some(RefTarget::Normal(commit_b.id().clone())));
+        mut_repo.set_local_branch_target(branch, RefTarget::normal(commit_b.id().clone()));
     }
 
     // Make changes on the git side
@@ -1401,15 +1395,15 @@ fn test_export_reexport_transitions() {
     assert_eq!(
         *mut_repo.view().git_refs(),
         btreemap! {
-            "refs/heads/AAX".to_string() => RefTarget::Normal(commit_a.id().clone()),
-            "refs/heads/AAB".to_string() => RefTarget::Normal(commit_a.id().clone()),
-            "refs/heads/ABA".to_string() => RefTarget::Normal(commit_b.id().clone()),
-            "refs/heads/ABB".to_string() => RefTarget::Normal(commit_b.id().clone()),
-            "refs/heads/ABC".to_string() => RefTarget::Normal(commit_a.id().clone()),
-            "refs/heads/ABX".to_string() => RefTarget::Normal(commit_a.id().clone()),
-            "refs/heads/AXB".to_string() => RefTarget::Normal(commit_a.id().clone()),
-            "refs/heads/XAA".to_string() => RefTarget::Normal(commit_a.id().clone()),
-            "refs/heads/XAX".to_string() => RefTarget::Normal(commit_a.id().clone()),
+            "refs/heads/AAX".to_string() => RefTarget::normal(commit_a.id().clone()).unwrap(),
+            "refs/heads/AAB".to_string() => RefTarget::normal(commit_a.id().clone()).unwrap(),
+            "refs/heads/ABA".to_string() => RefTarget::normal(commit_b.id().clone()).unwrap(),
+            "refs/heads/ABB".to_string() => RefTarget::normal(commit_b.id().clone()).unwrap(),
+            "refs/heads/ABC".to_string() => RefTarget::normal(commit_a.id().clone()).unwrap(),
+            "refs/heads/ABX".to_string() => RefTarget::normal(commit_a.id().clone()).unwrap(),
+            "refs/heads/AXB".to_string() => RefTarget::normal(commit_a.id().clone()).unwrap(),
+            "refs/heads/XAA".to_string() => RefTarget::normal(commit_a.id().clone()).unwrap(),
+            "refs/heads/XAX".to_string() => RefTarget::normal(commit_a.id().clone()).unwrap(),
         }
     );
 }
@@ -1490,19 +1484,19 @@ fn test_fetch_initial_commit() {
     // The initial commit is visible after git::fetch().
     let view = repo.view();
     assert!(view.heads().contains(&jj_id(&initial_git_commit)));
-    let initial_commit_target = RefTarget::Normal(jj_id(&initial_git_commit));
+    let initial_commit_target = RefTarget::normal(jj_id(&initial_git_commit));
     assert_eq!(
         *view.git_refs(),
         btreemap! {
-            "refs/remotes/origin/main".to_string() => initial_commit_target.clone(),
+            "refs/remotes/origin/main".to_string() => initial_commit_target.clone().unwrap(),
         }
     );
     assert_eq!(
         *view.branches(),
         btreemap! {
             "main".to_string() => BranchTarget {
-                local_target: Some(initial_commit_target.clone()),
-                remote_targets: btreemap! {"origin".to_string() => initial_commit_target}
+                local_target: initial_commit_target.clone(),
+                remote_targets: btreemap! {"origin".to_string() => initial_commit_target.unwrap()}
             },
         }
     );
@@ -1553,19 +1547,19 @@ fn test_fetch_success() {
     // The new commit is visible after we fetch again
     let view = repo.view();
     assert!(view.heads().contains(&jj_id(&new_git_commit)));
-    let new_commit_target = RefTarget::Normal(jj_id(&new_git_commit));
+    let new_commit_target = RefTarget::normal(jj_id(&new_git_commit));
     assert_eq!(
         *view.git_refs(),
         btreemap! {
-            "refs/remotes/origin/main".to_string() => new_commit_target.clone(),
+            "refs/remotes/origin/main".to_string() => new_commit_target.clone().unwrap(),
         }
     );
     assert_eq!(
         *view.branches(),
         btreemap! {
             "main".to_string() => BranchTarget {
-                local_target: Some(new_commit_target.clone()),
-                remote_targets: btreemap! {"origin".to_string() => new_commit_target}
+                local_target: new_commit_target.clone(),
+                remote_targets: btreemap! {"origin".to_string() => new_commit_target.unwrap()}
             },
         }
     );

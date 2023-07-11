@@ -717,10 +717,8 @@ fn cmd_git_push(
                     change_str.deref()
                 )?;
             }
-            tx.mut_repo().set_local_branch_target(
-                &branch_name,
-                Some(RefTarget::Normal(commit.id().clone())),
-            );
+            tx.mut_repo()
+                .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
             let branch_target = tx.repo().view().get_branch(&branch_name).unwrap();
             match classify_branch_update(&branch_name, branch_target, &remote) {
                 Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),

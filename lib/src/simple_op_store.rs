@@ -320,7 +320,7 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     if let Some(git_head) = proto.git_head.as_ref() {
         view.git_head = Some(ref_target_from_proto(git_head.clone()));
     } else if !proto.git_head_legacy.is_empty() {
-        view.git_head = Some(RefTarget::Normal(CommitId::new(proto.git_head_legacy)));
+        view.git_head = RefTarget::normal(CommitId::new(proto.git_head_legacy));
     }
 
     view
@@ -382,11 +382,11 @@ mod tests {
         let head_id2 = CommitId::from_hex("aaa222");
         let public_head_id1 = CommitId::from_hex("bbb444");
         let public_head_id2 = CommitId::from_hex("bbb555");
-        let branch_main_local_target = RefTarget::Normal(CommitId::from_hex("ccc111"));
-        let branch_main_origin_target = RefTarget::Normal(CommitId::from_hex("ccc222"));
-        let branch_deleted_origin_target = RefTarget::Normal(CommitId::from_hex("ccc333"));
-        let tag_v1_target = RefTarget::Normal(CommitId::from_hex("ddd111"));
-        let git_refs_main_target = RefTarget::Normal(CommitId::from_hex("fff111"));
+        let branch_main_local_target = RefTarget::normal(CommitId::from_hex("ccc111"));
+        let branch_main_origin_target = RefTarget::normal(CommitId::from_hex("ccc222"));
+        let branch_deleted_origin_target = RefTarget::normal(CommitId::from_hex("ccc333"));
+        let tag_v1_target = RefTarget::normal(CommitId::from_hex("ddd111"));
+        let git_refs_main_target = RefTarget::normal(CommitId::from_hex("fff111"));
         let git_refs_feature_target = RefTarget::Conflict {
             removes: vec![CommitId::from_hex("fff111")],
             adds: vec![CommitId::from_hex("fff222"), CommitId::from_hex("fff333")],
@@ -398,26 +398,26 @@ mod tests {
             public_head_ids: hashset! {public_head_id1, public_head_id2},
             branches: btreemap! {
                 "main".to_string() => BranchTarget {
-                    local_target: Some(branch_main_local_target),
+                    local_target: branch_main_local_target,
                     remote_targets: btreemap! {
-                        "origin".to_string() => branch_main_origin_target,
+                        "origin".to_string() => branch_main_origin_target.unwrap(),
                     }
                 },
                 "deleted".to_string() => BranchTarget {
                     local_target: None,
                     remote_targets: btreemap! {
-                        "origin".to_string() => branch_deleted_origin_target,
+                        "origin".to_string() => branch_deleted_origin_target.unwrap(),
                     }
                 },
             },
             tags: btreemap! {
-                "v1.0".to_string() => tag_v1_target,
+                "v1.0".to_string() => tag_v1_target.unwrap(),
             },
             git_refs: btreemap! {
-                "refs/heads/main".to_string() => git_refs_main_target,
+                "refs/heads/main".to_string() => git_refs_main_target.unwrap(),
                 "refs/heads/feature".to_string() => git_refs_feature_target
             },
-            git_head: Some(RefTarget::Normal(CommitId::from_hex("fff111"))),
+            git_head: RefTarget::normal(CommitId::from_hex("fff111")),
             wc_commit_ids: hashmap! {
                 WorkspaceId::default() => default_wc_commit_id,
                 WorkspaceId::new("test".to_string()) => test_wc_commit_id,
