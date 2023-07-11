@@ -338,24 +338,24 @@ fn test_merge_views_tags() {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
     let v1_tx0 = write_random_commit(mut_repo, &settings);
-    mut_repo.set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx0.id().clone()));
+    mut_repo.set_tag_target("v1.0", Some(RefTarget::Normal(v1_tx0.id().clone())));
     let v2_tx0 = write_random_commit(mut_repo, &settings);
-    mut_repo.set_tag("v2.0".to_string(), RefTarget::Normal(v2_tx0.id().clone()));
+    mut_repo.set_tag_target("v2.0", Some(RefTarget::Normal(v2_tx0.id().clone())));
     let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "test");
     let v1_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo()
-        .set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx1.id().clone()));
+        .set_tag_target("v1.0", Some(RefTarget::Normal(v1_tx1.id().clone())));
     let v2_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo()
-        .set_tag("v2.0".to_string(), RefTarget::Normal(v2_tx1.id().clone()));
+        .set_tag_target("v2.0", Some(RefTarget::Normal(v2_tx1.id().clone())));
     tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let v1_tx2 = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo()
-        .set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx2.id().clone()));
+        .set_tag_target("v1.0", Some(RefTarget::Normal(v1_tx2.id().clone())));
     tx2.commit();
 
     let repo = repo.reload_at_head(&settings).unwrap();
