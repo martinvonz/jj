@@ -302,13 +302,13 @@ fn test_merge_views_branches() {
 
     let repo = repo.reload_at_head(&settings).unwrap();
     let expected_main_branch = BranchTarget {
-        local_target: Some(RefTarget::Conflict {
-            removes: vec![main_branch_local_tx0.id().clone()],
-            adds: vec![
+        local_target: RefTarget::from_legacy_form(
+            [main_branch_local_tx0.id().clone()],
+            [
                 main_branch_local_tx1.id().clone(),
                 main_branch_local_tx2.id().clone(),
             ],
-        }),
+        ),
         remote_targets: btreemap! {
             "origin".to_string() => RefTarget::normal(main_branch_origin_tx1.id().clone()).unwrap(),
             "alternate".to_string() => RefTarget::normal(main_branch_alternate_tx0.id().clone()).unwrap(),
@@ -359,15 +359,15 @@ fn test_merge_views_tags() {
     tx2.commit();
 
     let repo = repo.reload_at_head(&settings).unwrap();
-    let expected_v1 = RefTarget::Conflict {
-        removes: vec![v1_tx0.id().clone()],
-        adds: vec![v1_tx1.id().clone(), v1_tx2.id().clone()],
-    };
+    let expected_v1 = RefTarget::from_legacy_form(
+        [v1_tx0.id().clone()],
+        [v1_tx1.id().clone(), v1_tx2.id().clone()],
+    );
     let expected_v2 = RefTarget::normal(v2_tx1.id().clone());
     assert_eq!(
         repo.view().tags(),
         &btreemap! {
-            "v1.0".to_string() => expected_v1,
+            "v1.0".to_string() => expected_v1.unwrap(),
             "v2.0".to_string() => expected_v2.unwrap(),
         }
     );
@@ -417,15 +417,15 @@ fn test_merge_views_git_refs() {
     tx2.commit();
 
     let repo = repo.reload_at_head(&settings).unwrap();
-    let expected_main_branch = RefTarget::Conflict {
-        removes: vec![main_branch_tx0.id().clone()],
-        adds: vec![main_branch_tx1.id().clone(), main_branch_tx2.id().clone()],
-    };
+    let expected_main_branch = RefTarget::from_legacy_form(
+        [main_branch_tx0.id().clone()],
+        [main_branch_tx1.id().clone(), main_branch_tx2.id().clone()],
+    );
     let expected_feature_branch = RefTarget::normal(feature_branch_tx1.id().clone());
     assert_eq!(
         repo.view().git_refs(),
         &btreemap! {
-            "refs/heads/main".to_string() => expected_main_branch,
+            "refs/heads/main".to_string() => expected_main_branch.unwrap(),
             "refs/heads/feature".to_string() => expected_feature_branch.unwrap(),
         }
     );
@@ -458,11 +458,11 @@ fn test_merge_views_git_heads() {
     tx2.commit();
 
     let repo = repo.reload_at_head(&settings).unwrap();
-    let expected_git_head = RefTarget::Conflict {
-        removes: vec![tx0_head.id().clone()],
-        adds: vec![tx1_head.id().clone(), tx2_head.id().clone()],
-    };
-    assert_eq!(repo.view().git_head(), Some(&expected_git_head));
+    let expected_git_head = RefTarget::from_legacy_form(
+        [tx0_head.id().clone()],
+        [tx1_head.id().clone(), tx2_head.id().clone()],
+    );
+    assert_eq!(repo.view().git_head(), expected_git_head.as_ref());
 }
 
 fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<ReadonlyRepo> {

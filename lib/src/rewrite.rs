@@ -278,17 +278,14 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         new_ids
     }
 
-    fn ref_target_update(old_id: CommitId, new_ids: Vec<CommitId>) -> (RefTarget, RefTarget) {
-        let old_ids = std::iter::repeat(old_id).take(new_ids.len()).collect_vec();
+    fn ref_target_update(
+        old_id: CommitId,
+        new_ids: Vec<CommitId>,
+    ) -> (Option<RefTarget>, Option<RefTarget>) {
+        let old_ids = std::iter::repeat(old_id).take(new_ids.len());
         (
-            RefTarget::Conflict {
-                removes: vec![],
-                adds: old_ids,
-            },
-            RefTarget::Conflict {
-                removes: vec![],
-                adds: new_ids,
-            },
+            RefTarget::from_legacy_form([], old_ids),
+            RefTarget::from_legacy_form([], new_ids),
         )
     }
 
@@ -322,8 +319,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             for branch_name in branch_updates {
                 self.mut_repo.merge_single_ref(
                     &RefName::LocalBranch(branch_name),
-                    Some(&old_target),
-                    Some(&new_target),
+                    old_target.as_ref(),
+                    new_target.as_ref(),
                 );
             }
         }

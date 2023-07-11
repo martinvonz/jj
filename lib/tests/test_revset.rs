@@ -445,18 +445,18 @@ fn test_resolve_symbol_branches() {
 
     mut_repo.set_local_branch_target(
         "local-conflicted",
-        Some(RefTarget::Conflict {
-            removes: vec![commit1.id().clone()],
-            adds: vec![commit3.id().clone(), commit2.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit1.id().clone()],
+            [commit3.id().clone(), commit2.id().clone()],
+        ),
     );
     mut_repo.set_remote_branch_target(
         "remote-conflicted",
         "origin",
-        Some(RefTarget::Conflict {
-            removes: vec![commit3.id().clone()],
-            adds: vec![commit5.id().clone(), commit4.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit3.id().clone()],
+            [commit5.id().clone(), commit4.id().clone()],
+        ),
     );
 
     // Local only
@@ -683,10 +683,10 @@ fn test_resolve_symbol_git_refs() {
     );
     mut_repo.set_git_ref_target(
         "refs/heads/conflicted",
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit1.id().clone(), commit3.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit1.id().clone(), commit3.id().clone()],
+        ),
     );
     mut_repo.set_git_ref_target("refs/tags/tag1", RefTarget::normal(commit2.id().clone()));
     mut_repo.set_git_ref_target(
@@ -1612,17 +1612,17 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
     // Can get git refs when there are conflicted refs
     mut_repo.set_git_ref_target(
         "refs/heads/branch1",
-        Some(RefTarget::Conflict {
-            removes: vec![commit1.id().clone()],
-            adds: vec![commit2.id().clone(), commit3.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit1.id().clone()],
+            [commit2.id().clone(), commit3.id().clone()],
+        ),
     );
     mut_repo.set_git_ref_target(
         "refs/tags/tag1",
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit3.id().clone(), commit4.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit3.id().clone(), commit4.id().clone()],
+        ),
     );
     mut_repo.set_git_ref_target("refs/tags/tag2", None);
     assert_eq!(
@@ -1701,17 +1701,17 @@ fn test_evaluate_expression_branches(use_git: bool) {
     // Can get branches when there are conflicted refs
     mut_repo.set_local_branch_target(
         "branch1",
-        Some(RefTarget::Conflict {
-            removes: vec![commit1.id().clone()],
-            adds: vec![commit2.id().clone(), commit3.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit1.id().clone()],
+            [commit2.id().clone(), commit3.id().clone()],
+        ),
     );
     mut_repo.set_local_branch_target(
         "branch2",
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit3.id().clone(), commit4.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit3.id().clone(), commit4.id().clone()],
+        ),
     );
     mut_repo.set_local_branch_target("branch3", None);
     assert_eq!(
@@ -1809,18 +1809,18 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
     mut_repo.set_remote_branch_target(
         "branch1",
         "origin",
-        Some(RefTarget::Conflict {
-            removes: vec![commit1.id().clone()],
-            adds: vec![commit2.id().clone(), commit3.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit1.id().clone()],
+            [commit2.id().clone(), commit3.id().clone()],
+        ),
     );
     mut_repo.set_remote_branch_target(
         "branch2",
         "private",
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit3.id().clone(), commit4.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit3.id().clone(), commit4.id().clone()],
+        ),
     );
     mut_repo.set_remote_branch_target("branch3", "origin", None);
     assert_eq!(

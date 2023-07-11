@@ -148,6 +148,18 @@ impl RefTarget {
         Some(RefTarget::Normal(id))
     }
 
+    /// Creates conflicting target from removed/added ids.
+    pub fn from_legacy_form(
+        removed_ids: impl IntoIterator<Item = CommitId>,
+        added_ids: impl IntoIterator<Item = CommitId>,
+    ) -> Option<Self> {
+        // TODO: This function will create non-conflicting target if there're only one
+        // add id and no removed ids.
+        let removes = removed_ids.into_iter().collect();
+        let adds = added_ids.into_iter().collect();
+        Some(RefTarget::Conflict { removes, adds })
+    }
+
     pub fn is_conflict(&self) -> bool {
         matches!(self, RefTarget::Conflict { .. })
     }
