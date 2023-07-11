@@ -1653,7 +1653,11 @@ fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
         }
         // A remote with name "git" will shadow local-git tracking branches
         if remote_name == "git" {
-            if let Some(target) = get_local_git_tracking_branch(view, name) {
+            let maybe_target = match name {
+                "HEAD" => view.git_head(),
+                _ => get_local_git_tracking_branch(view, name),
+            };
+            if let Some(target) = maybe_target {
                 return Some(target.adds().to_vec());
             }
         }
@@ -1662,7 +1666,8 @@ fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
 }
 
 fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<String> {
-    let (all_branches, _) = git::build_unified_branches_map(repo.view());
+    let view = repo.view();
+    let (all_branches, _) = git::build_unified_branches_map(view);
     all_branches
         .iter()
         .flat_map(|(name, branch_target)| {
@@ -1675,6 +1680,7 @@ fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<
                 .map(move |(remote_name, _)| format!("{name}@{remote_name}"));
             local_symbol.into_iter().chain(remote_symbols)
         })
+        .chain(view.git_head().is_some().then(|| "HEAD@git".to_owned()))
         .collect()
 }
 

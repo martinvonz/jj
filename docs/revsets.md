@@ -102,7 +102,8 @@ revsets (expressions) as arguments.
   possible targets are included.
 * `git_refs()`:  All Git ref targets as of the last import. If a Git ref
   is in a conflicted state, all its possible targets are included.
-* `git_head()`: The Git `HEAD` target as of the last import.
+* `git_head()`: The Git `HEAD` target as of the last import. Equivalent to
+  `present(HEAD@git)`.
 * `visible_heads()`: All visible heads (same as `heads(all())`).
 * `heads(x)`: Commits in `x` that are not ancestors of other commits in `x`.
   Note that this is different from
