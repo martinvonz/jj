@@ -1023,12 +1023,8 @@ impl MutableRepo {
         self.view.with_ref(|v| v.git_head().cloned())
     }
 
-    pub fn set_git_head(&mut self, target: RefTarget) {
-        self.view_mut().set_git_head(target);
-    }
-
-    pub fn clear_git_head(&mut self) {
-        self.view_mut().clear_git_head();
+    pub fn set_git_head_target(&mut self, target: Option<RefTarget>) {
+        self.view_mut().set_git_head_target(target);
     }
 
     pub fn set_view(&mut self, data: op_store::View) {
@@ -1152,16 +1148,13 @@ impl MutableRepo {
             );
         }
 
-        if let Some(new_git_head) = merge_ref_targets(
+        let new_git_head_target = merge_ref_targets(
             self.index(),
             self.view().git_head(),
             base.git_head(),
             other.git_head(),
-        ) {
-            self.set_git_head(new_git_head);
-        } else {
-            self.clear_git_head();
-        }
+        );
+        self.set_git_head_target(new_git_head_target);
     }
 
     /// Finds and records commits that were rewritten or abandoned between

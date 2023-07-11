@@ -442,19 +442,19 @@ fn test_merge_views_git_heads() {
     let mut tx0 = repo.start_transaction(&settings, "test");
     let tx0_head = write_random_commit(tx0.mut_repo(), &settings);
     tx0.mut_repo()
-        .set_git_head(RefTarget::Normal(tx0_head.id().clone()));
+        .set_git_head_target(Some(RefTarget::Normal(tx0_head.id().clone())));
     let repo = tx0.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "test");
     let tx1_head = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo()
-        .set_git_head(RefTarget::Normal(tx1_head.id().clone()));
+        .set_git_head_target(Some(RefTarget::Normal(tx1_head.id().clone())));
     tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let tx2_head = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo()
-        .set_git_head(RefTarget::Normal(tx2_head.id().clone()));
+        .set_git_head_target(Some(RefTarget::Normal(tx2_head.id().clone())));
     tx2.commit();
 
     let repo = repo.reload_at_head(&settings).unwrap();

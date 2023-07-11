@@ -258,12 +258,10 @@ impl View {
         self.data.git_refs.remove(name);
     }
 
-    pub fn set_git_head(&mut self, target: RefTarget) {
-        self.data.git_head = Some(target);
-    }
-
-    pub fn clear_git_head(&mut self) {
-        self.data.git_head = None;
+    /// Sets `HEAD@git` to point to the given target. If the target is absent,
+    /// the reference will be cleared.
+    pub fn set_git_head_target(&mut self, target: Option<RefTarget>) {
+        self.data.git_head = target;
     }
 
     pub fn set_view(&mut self, data: op_store::View) {
