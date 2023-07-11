@@ -425,20 +425,13 @@ fn test_resolve_symbol_branches() {
     let commit4 = write_random_commit(mut_repo, &settings);
     let commit5 = write_random_commit(mut_repo, &settings);
 
-    mut_repo.set_local_branch_target("local", Some(RefTarget::Normal(commit1.id().clone())));
-    mut_repo.set_remote_branch_target(
-        "remote",
-        "origin",
-        Some(RefTarget::Normal(commit2.id().clone())),
-    );
-    mut_repo.set_local_branch_target(
-        "local-remote",
-        Some(RefTarget::Normal(commit3.id().clone())),
-    );
+    mut_repo.set_local_branch_target("local", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_remote_branch_target("remote", "origin", RefTarget::normal(commit2.id().clone()));
+    mut_repo.set_local_branch_target("local-remote", RefTarget::normal(commit3.id().clone()));
     mut_repo.set_remote_branch_target(
         "local-remote",
         "origin",
-        Some(RefTarget::Normal(commit4.id().clone())),
+        RefTarget::normal(commit4.id().clone()),
     );
     mut_repo.set_remote_branch_target(
         "local-remote",
@@ -649,7 +642,7 @@ fn test_resolve_symbol_git_head() {
     "###);
 
     // With HEAD@git
-    mut_repo.set_git_head_target(Some(RefTarget::Normal(commit1.id().clone())));
+    mut_repo.set_git_head_target(RefTarget::normal(commit1.id().clone()));
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "HEAD", None).unwrap_err(), @r###"
     NoSuchRevision {
@@ -682,11 +675,11 @@ fn test_resolve_symbol_git_refs() {
     let commit5 = write_random_commit(mut_repo, &settings);
     mut_repo.set_git_ref_target(
         "refs/heads/branch1",
-        Some(RefTarget::Normal(commit1.id().clone())),
+        RefTarget::normal(commit1.id().clone()),
     );
     mut_repo.set_git_ref_target(
         "refs/heads/branch2",
-        Some(RefTarget::Normal(commit2.id().clone())),
+        RefTarget::normal(commit2.id().clone()),
     );
     mut_repo.set_git_ref_target(
         "refs/heads/conflicted",
@@ -695,13 +688,10 @@ fn test_resolve_symbol_git_refs() {
             adds: vec![commit1.id().clone(), commit3.id().clone()],
         }),
     );
-    mut_repo.set_git_ref_target(
-        "refs/tags/tag1",
-        Some(RefTarget::Normal(commit2.id().clone())),
-    );
+    mut_repo.set_git_ref_target("refs/tags/tag1", RefTarget::normal(commit2.id().clone()));
     mut_repo.set_git_ref_target(
         "refs/tags/remotes/origin/branch1",
-        Some(RefTarget::Normal(commit3.id().clone())),
+        RefTarget::normal(commit3.id().clone()),
     );
 
     // Nonexistent ref
@@ -712,20 +702,14 @@ fn test_resolve_symbol_git_refs() {
     );
 
     // Full ref
-    mut_repo.set_git_ref_target(
-        "refs/heads/branch",
-        Some(RefTarget::Normal(commit4.id().clone())),
-    );
+    mut_repo.set_git_ref_target("refs/heads/branch", RefTarget::normal(commit4.id().clone()));
     assert_eq!(
         resolve_symbol(mut_repo, "refs/heads/branch", None).unwrap(),
         vec![commit4.id().clone()]
     );
 
     // Qualified with only heads/
-    mut_repo.set_git_ref_target(
-        "refs/heads/branch",
-        Some(RefTarget::Normal(commit5.id().clone())),
-    );
+    mut_repo.set_git_ref_target("refs/heads/branch", RefTarget::normal(commit5.id().clone()));
     // branch alone is not recognized
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "branch", None).unwrap_err(), @r###"
@@ -738,10 +722,7 @@ fn test_resolve_symbol_git_refs() {
         ],
     }
     "###);
-    mut_repo.set_git_ref_target(
-        "refs/tags/branch",
-        Some(RefTarget::Normal(commit4.id().clone())),
-    );
+    mut_repo.set_git_ref_target("refs/tags/branch", RefTarget::normal(commit4.id().clone()));
     // The *tag* branch is recognized
     assert_eq!(
         resolve_symbol(mut_repo, "branch", None).unwrap(),
@@ -754,10 +735,7 @@ fn test_resolve_symbol_git_refs() {
     );
 
     // Unqualified tag name
-    mut_repo.set_git_ref_target(
-        "refs/tags/tag",
-        Some(RefTarget::Normal(commit4.id().clone())),
-    );
+    mut_repo.set_git_ref_target("refs/tags/tag", RefTarget::normal(commit4.id().clone()));
     assert_eq!(
         resolve_symbol(mut_repo, "tag", None).unwrap(),
         vec![commit4.id().clone()]
@@ -766,7 +744,7 @@ fn test_resolve_symbol_git_refs() {
     // Unqualified remote-tracking branch name
     mut_repo.set_git_ref_target(
         "refs/remotes/origin/remote-branch",
-        Some(RefTarget::Normal(commit2.id().clone())),
+        RefTarget::normal(commit2.id().clone()),
     );
     assert_eq!(
         resolve_symbol(mut_repo, "origin/remote-branch", None).unwrap(),
@@ -778,8 +756,8 @@ fn test_resolve_symbol_git_refs() {
     mut_repo
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
         .unwrap();
-    mut_repo.set_git_ref_target("@", Some(RefTarget::Normal(commit2.id().clone())));
-    mut_repo.set_git_ref_target("root", Some(RefTarget::Normal(commit3.id().clone())));
+    mut_repo.set_git_ref_target("@", RefTarget::normal(commit2.id().clone()));
+    mut_repo.set_git_ref_target("root", RefTarget::normal(commit3.id().clone()));
     assert_eq!(
         resolve_symbol(mut_repo, "@", Some(&ws_id)).unwrap(),
         vec![mut_repo.view().get_wc_commit_id(&ws_id).unwrap().clone()]
@@ -1617,22 +1595,16 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
     // Can get a mix of git refs
     mut_repo.set_git_ref_target(
         "refs/heads/branch1",
-        Some(RefTarget::Normal(commit1.id().clone())),
+        RefTarget::normal(commit1.id().clone()),
     );
-    mut_repo.set_git_ref_target(
-        "refs/tags/tag1",
-        Some(RefTarget::Normal(commit2.id().clone())),
-    );
+    mut_repo.set_git_ref_target("refs/tags/tag1", RefTarget::normal(commit2.id().clone()));
     assert_eq!(
         resolve_commit_ids(mut_repo, "git_refs()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Two refs pointing to the same commit does not result in a duplicate in the
     // revset
-    mut_repo.set_git_ref_target(
-        "refs/tags/tag2",
-        Some(RefTarget::Normal(commit2.id().clone())),
-    );
+    mut_repo.set_git_ref_target("refs/tags/tag2", RefTarget::normal(commit2.id().clone()));
     assert_eq!(
         resolve_commit_ids(mut_repo, "git_refs()"),
         vec![commit2.id().clone(), commit1.id().clone()]
@@ -1677,7 +1649,7 @@ fn test_evaluate_expression_git_head(use_git: bool) {
 
     // Can get git head when it's not set
     assert_eq!(resolve_commit_ids(mut_repo, "git_head()"), vec![]);
-    mut_repo.set_git_head_target(Some(RefTarget::Normal(commit1.id().clone())));
+    mut_repo.set_git_head_target(RefTarget::normal(commit1.id().clone()));
     assert_eq!(
         resolve_commit_ids(mut_repo, "git_head()"),
         vec![commit1.id().clone()]
@@ -1702,8 +1674,8 @@ fn test_evaluate_expression_branches(use_git: bool) {
     // Can get branches when there are none
     assert_eq!(resolve_commit_ids(mut_repo, "branches()"), vec![]);
     // Can get a few branches
-    mut_repo.set_local_branch_target("branch1", Some(RefTarget::Normal(commit1.id().clone())));
-    mut_repo.set_local_branch_target("branch2", Some(RefTarget::Normal(commit2.id().clone())));
+    mut_repo.set_local_branch_target("branch1", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_local_branch_target("branch2", RefTarget::normal(commit2.id().clone()));
     assert_eq!(
         resolve_commit_ids(mut_repo, "branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
@@ -1721,7 +1693,7 @@ fn test_evaluate_expression_branches(use_git: bool) {
     assert_eq!(resolve_commit_ids(mut_repo, "branches(branch3)"), vec![]);
     // Two branches pointing to the same commit does not result in a duplicate in
     // the revset
-    mut_repo.set_local_branch_target("branch3", Some(RefTarget::Normal(commit2.id().clone())));
+    mut_repo.set_local_branch_target("branch3", RefTarget::normal(commit2.id().clone()));
     assert_eq!(
         resolve_commit_ids(mut_repo, "branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
@@ -1770,15 +1742,11 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
     // Can get branches when there are none
     assert_eq!(resolve_commit_ids(mut_repo, "remote_branches()"), vec![]);
     // Can get a few branches
-    mut_repo.set_remote_branch_target(
-        "branch1",
-        "origin",
-        Some(RefTarget::Normal(commit1.id().clone())),
-    );
+    mut_repo.set_remote_branch_target("branch1", "origin", RefTarget::normal(commit1.id().clone()));
     mut_repo.set_remote_branch_target(
         "branch2",
         "private",
-        Some(RefTarget::Normal(commit2.id().clone())),
+        RefTarget::normal(commit2.id().clone()),
     );
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
@@ -1826,11 +1794,7 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
     );
     // Two branches pointing to the same commit does not result in a duplicate in
     // the revset
-    mut_repo.set_remote_branch_target(
-        "branch3",
-        "origin",
-        Some(RefTarget::Normal(commit2.id().clone())),
-    );
+    mut_repo.set_remote_branch_target("branch3", "origin", RefTarget::normal(commit2.id().clone()));
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
@@ -2766,7 +2730,7 @@ fn test_no_such_revision_suggestion() {
         mut_repo.set_branch(
             branch_name.to_string(),
             BranchTarget {
-                local_target: Some(RefTarget::Normal(commit.id().clone())),
+                local_target: RefTarget::normal(commit.id().clone()),
                 remote_targets: Default::default(),
             },
         );

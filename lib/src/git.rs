@@ -203,7 +203,7 @@ pub fn import_some_refs(
             let head_commit = store.get_commit(&head_commit_id).unwrap();
             prevent_gc(git_repo, &head_commit_id)?;
             mut_repo.add_head(&head_commit);
-            mut_repo.set_git_head_target(Some(RefTarget::Normal(head_commit_id)));
+            mut_repo.set_git_head_target(RefTarget::normal(head_commit_id));
         }
     } else {
         mut_repo.set_git_head_target(None);
@@ -240,10 +240,10 @@ pub fn import_some_refs(
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
         let old_target = jj_view_git_refs.remove(full_name);
-        let new_target = Some(RefTarget::Normal(id.clone()));
+        let new_target = RefTarget::normal(id.clone());
         if new_target != old_target {
             prevent_gc(git_repo, &id)?;
-            mut_repo.set_git_ref_target(full_name, Some(RefTarget::Normal(id.clone())));
+            mut_repo.set_git_ref_target(full_name, RefTarget::normal(id.clone()));
             let commit = store.get_commit(&id).unwrap();
             mut_repo.add_head(&commit);
             changed_git_refs.insert(ref_name, (old_target, new_target));
@@ -511,7 +511,7 @@ pub fn export_some_refs(
         if success {
             mut_repo.set_git_ref_target(
                 &git_ref_name,
-                Some(RefTarget::Normal(CommitId::from_bytes(new_oid.as_bytes()))),
+                RefTarget::normal(CommitId::from_bytes(new_oid.as_bytes())),
             );
         } else {
             failed_branches.push(parsed_ref_name);

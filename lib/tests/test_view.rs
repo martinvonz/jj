@@ -250,22 +250,22 @@ fn test_merge_views_branches() {
     let main_branch_alternate_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_local_branch_target(
         "main",
-        Some(RefTarget::Normal(main_branch_local_tx0.id().clone())),
+        RefTarget::normal(main_branch_local_tx0.id().clone()),
     );
     mut_repo.set_remote_branch_target(
         "main",
         "origin",
-        Some(RefTarget::Normal(main_branch_origin_tx0.id().clone())),
+        RefTarget::normal(main_branch_origin_tx0.id().clone()),
     );
     mut_repo.set_remote_branch_target(
         "main",
         "alternate",
-        Some(RefTarget::Normal(main_branch_alternate_tx0.id().clone())),
+        RefTarget::normal(main_branch_alternate_tx0.id().clone()),
     );
     let feature_branch_local_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_git_ref_target(
         "feature",
-        Some(RefTarget::Normal(feature_branch_local_tx0.id().clone())),
+        RefTarget::normal(feature_branch_local_tx0.id().clone()),
     );
     let repo = tx.commit();
 
@@ -273,17 +273,17 @@ fn test_merge_views_branches() {
     let main_branch_local_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo().set_local_branch_target(
         "main",
-        Some(RefTarget::Normal(main_branch_local_tx1.id().clone())),
+        RefTarget::normal(main_branch_local_tx1.id().clone()),
     );
     tx1.mut_repo().set_remote_branch_target(
         "main",
         "origin",
-        Some(RefTarget::Normal(main_branch_origin_tx1.id().clone())),
+        RefTarget::normal(main_branch_origin_tx1.id().clone()),
     );
     let feature_branch_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo().set_local_branch_target(
         "feature",
-        Some(RefTarget::Normal(feature_branch_tx1.id().clone())),
+        RefTarget::normal(feature_branch_tx1.id().clone()),
     );
     tx1.commit();
 
@@ -291,12 +291,12 @@ fn test_merge_views_branches() {
     let main_branch_local_tx2 = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo().set_local_branch_target(
         "main",
-        Some(RefTarget::Normal(main_branch_local_tx2.id().clone())),
+        RefTarget::normal(main_branch_local_tx2.id().clone()),
     );
     tx2.mut_repo().set_remote_branch_target(
         "main",
         "origin",
-        Some(RefTarget::Normal(main_branch_origin_tx1.id().clone())),
+        RefTarget::normal(main_branch_origin_tx1.id().clone()),
     );
     tx2.commit();
 
@@ -310,12 +310,12 @@ fn test_merge_views_branches() {
             ],
         }),
         remote_targets: btreemap! {
-            "origin".to_string() => RefTarget::Normal(main_branch_origin_tx1.id().clone()),
-            "alternate".to_string() => RefTarget::Normal(main_branch_alternate_tx0.id().clone()),
+            "origin".to_string() => RefTarget::normal(main_branch_origin_tx1.id().clone()).unwrap(),
+            "alternate".to_string() => RefTarget::normal(main_branch_alternate_tx0.id().clone()).unwrap(),
         },
     };
     let expected_feature_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(feature_branch_tx1.id().clone())),
+        local_target: RefTarget::normal(feature_branch_tx1.id().clone()),
         remote_targets: btreemap! {},
     };
     assert_eq!(
@@ -338,24 +338,24 @@ fn test_merge_views_tags() {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
     let v1_tx0 = write_random_commit(mut_repo, &settings);
-    mut_repo.set_tag_target("v1.0", Some(RefTarget::Normal(v1_tx0.id().clone())));
+    mut_repo.set_tag_target("v1.0", RefTarget::normal(v1_tx0.id().clone()));
     let v2_tx0 = write_random_commit(mut_repo, &settings);
-    mut_repo.set_tag_target("v2.0", Some(RefTarget::Normal(v2_tx0.id().clone())));
+    mut_repo.set_tag_target("v2.0", RefTarget::normal(v2_tx0.id().clone()));
     let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "test");
     let v1_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo()
-        .set_tag_target("v1.0", Some(RefTarget::Normal(v1_tx1.id().clone())));
+        .set_tag_target("v1.0", RefTarget::normal(v1_tx1.id().clone()));
     let v2_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo()
-        .set_tag_target("v2.0", Some(RefTarget::Normal(v2_tx1.id().clone())));
+        .set_tag_target("v2.0", RefTarget::normal(v2_tx1.id().clone()));
     tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let v1_tx2 = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo()
-        .set_tag_target("v1.0", Some(RefTarget::Normal(v1_tx2.id().clone())));
+        .set_tag_target("v1.0", RefTarget::normal(v1_tx2.id().clone()));
     tx2.commit();
 
     let repo = repo.reload_at_head(&settings).unwrap();
@@ -363,12 +363,12 @@ fn test_merge_views_tags() {
         removes: vec![v1_tx0.id().clone()],
         adds: vec![v1_tx1.id().clone(), v1_tx2.id().clone()],
     };
-    let expected_v2 = RefTarget::Normal(v2_tx1.id().clone());
+    let expected_v2 = RefTarget::normal(v2_tx1.id().clone());
     assert_eq!(
         repo.view().tags(),
         &btreemap! {
             "v1.0".to_string() => expected_v1,
-            "v2.0".to_string() => expected_v2,
+            "v2.0".to_string() => expected_v2.unwrap(),
         }
     );
 }
@@ -386,12 +386,12 @@ fn test_merge_views_git_refs() {
     let main_branch_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_git_ref_target(
         "refs/heads/main",
-        Some(RefTarget::Normal(main_branch_tx0.id().clone())),
+        RefTarget::normal(main_branch_tx0.id().clone()),
     );
     let feature_branch_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_git_ref_target(
         "refs/heads/feature",
-        Some(RefTarget::Normal(feature_branch_tx0.id().clone())),
+        RefTarget::normal(feature_branch_tx0.id().clone()),
     );
     let repo = tx.commit();
 
@@ -399,12 +399,12 @@ fn test_merge_views_git_refs() {
     let main_branch_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo().set_git_ref_target(
         "refs/heads/main",
-        Some(RefTarget::Normal(main_branch_tx1.id().clone())),
+        RefTarget::normal(main_branch_tx1.id().clone()),
     );
     let feature_branch_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo().set_git_ref_target(
         "refs/heads/feature",
-        Some(RefTarget::Normal(feature_branch_tx1.id().clone())),
+        RefTarget::normal(feature_branch_tx1.id().clone()),
     );
     tx1.commit();
 
@@ -412,7 +412,7 @@ fn test_merge_views_git_refs() {
     let main_branch_tx2 = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo().set_git_ref_target(
         "refs/heads/main",
-        Some(RefTarget::Normal(main_branch_tx2.id().clone())),
+        RefTarget::normal(main_branch_tx2.id().clone()),
     );
     tx2.commit();
 
@@ -421,12 +421,12 @@ fn test_merge_views_git_refs() {
         removes: vec![main_branch_tx0.id().clone()],
         adds: vec![main_branch_tx1.id().clone(), main_branch_tx2.id().clone()],
     };
-    let expected_feature_branch = RefTarget::Normal(feature_branch_tx1.id().clone());
+    let expected_feature_branch = RefTarget::normal(feature_branch_tx1.id().clone());
     assert_eq!(
         repo.view().git_refs(),
         &btreemap! {
             "refs/heads/main".to_string() => expected_main_branch,
-            "refs/heads/feature".to_string() => expected_feature_branch,
+            "refs/heads/feature".to_string() => expected_feature_branch.unwrap(),
         }
     );
 }
@@ -442,19 +442,19 @@ fn test_merge_views_git_heads() {
     let mut tx0 = repo.start_transaction(&settings, "test");
     let tx0_head = write_random_commit(tx0.mut_repo(), &settings);
     tx0.mut_repo()
-        .set_git_head_target(Some(RefTarget::Normal(tx0_head.id().clone())));
+        .set_git_head_target(RefTarget::normal(tx0_head.id().clone()));
     let repo = tx0.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "test");
     let tx1_head = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo()
-        .set_git_head_target(Some(RefTarget::Normal(tx1_head.id().clone())));
+        .set_git_head_target(RefTarget::normal(tx1_head.id().clone()));
     tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let tx2_head = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo()
-        .set_git_head_target(Some(RefTarget::Normal(tx2_head.id().clone())));
+        .set_git_head_target(RefTarget::normal(tx2_head.id().clone()));
     tx2.commit();
 
     let repo = repo.reload_at_head(&settings).unwrap();

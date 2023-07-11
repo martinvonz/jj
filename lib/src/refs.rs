@@ -171,9 +171,9 @@ mod tests {
     fn test_classify_branch_push_action_unchanged() {
         let commit_id1 = CommitId::from_hex("11");
         let branch = BranchTarget {
-            local_target: Some(RefTarget::Normal(commit_id1.clone())),
+            local_target: RefTarget::normal(commit_id1.clone()),
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Normal(commit_id1)
+                "origin".to_string() => RefTarget::normal(commit_id1).unwrap(),
             },
         };
         assert_eq!(
@@ -186,7 +186,7 @@ mod tests {
     fn test_classify_branch_push_action_added() {
         let commit_id1 = CommitId::from_hex("11");
         let branch = BranchTarget {
-            local_target: Some(RefTarget::Normal(commit_id1.clone())),
+            local_target: RefTarget::normal(commit_id1.clone()),
             remote_targets: btreemap! {},
         };
         assert_eq!(
@@ -204,7 +204,7 @@ mod tests {
         let branch = BranchTarget {
             local_target: None,
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Normal(commit_id1.clone())
+                "origin".to_string() => RefTarget::normal(commit_id1.clone()).unwrap(),
             },
         };
         assert_eq!(
@@ -221,9 +221,9 @@ mod tests {
         let commit_id1 = CommitId::from_hex("11");
         let commit_id2 = CommitId::from_hex("22");
         let branch = BranchTarget {
-            local_target: Some(RefTarget::Normal(commit_id2.clone())),
+            local_target: RefTarget::normal(commit_id2.clone()),
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Normal(commit_id1.clone())
+                "origin".to_string() => RefTarget::normal(commit_id1.clone()).unwrap(),
             },
         };
         assert_eq!(
@@ -245,7 +245,7 @@ mod tests {
                 adds: vec![commit_id1.clone(), commit_id2],
             }),
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Normal(commit_id1)
+                "origin".to_string() => RefTarget::normal(commit_id1).unwrap(),
             },
         };
         assert_eq!(
@@ -259,7 +259,7 @@ mod tests {
         let commit_id1 = CommitId::from_hex("11");
         let commit_id2 = CommitId::from_hex("22");
         let branch = BranchTarget {
-            local_target: Some(RefTarget::Normal(commit_id1.clone())),
+            local_target: RefTarget::normal(commit_id1.clone()),
             remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::Conflict {
                 removes: vec![],

@@ -935,7 +935,7 @@ fn test_rebase_descendants_basic_branch_update() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo()
-        .set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
+        .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -947,7 +947,7 @@ fn test_rebase_descendants_basic_branch_update() {
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
-        Some(RefTarget::Normal(commit_b2.id().clone()))
+        RefTarget::normal(commit_b2.id().clone())
     );
 
     assert_eq!(
@@ -978,7 +978,7 @@ fn test_rebase_descendants_branch_move_two_steps() {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     tx.mut_repo()
-        .set_local_branch_target("main", Some(RefTarget::Normal(commit_c.id().clone())));
+        .set_local_branch_target("main", RefTarget::normal(commit_c.id().clone()));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1001,7 +1001,7 @@ fn test_rebase_descendants_branch_move_two_steps() {
     assert_eq!(commit_c3.parent_ids(), vec![commit_b2.id().clone()]);
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
-        Some(RefTarget::Normal(commit_c3.id().clone()))
+        RefTarget::normal(commit_c3.id().clone())
     );
 }
 
@@ -1024,14 +1024,14 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo()
-        .set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
+        .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
     tx.mut_repo().set_remote_branch_target(
         "main",
         "origin",
-        Some(RefTarget::Normal(commit_b.id().clone())),
+        RefTarget::normal(commit_b.id().clone()),
     );
     tx.mut_repo()
-        .set_tag_target("v1", Some(RefTarget::Normal(commit_b.id().clone())));
+        .set_tag_target("v1", RefTarget::normal(commit_b.id().clone()));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1043,16 +1043,16 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
-        Some(RefTarget::Normal(commit_b2.id().clone()))
+        RefTarget::normal(commit_b2.id().clone())
     );
     // The remote branch and tag should not get updated
     assert_eq!(
         tx.mut_repo().get_remote_branch("main", "origin"),
-        Some(RefTarget::Normal(commit_b.id().clone()))
+        RefTarget::normal(commit_b.id().clone())
     );
     assert_eq!(
         tx.mut_repo().get_tag("v1"),
-        Some(RefTarget::Normal(commit_b.id().clone()))
+        RefTarget::normal(commit_b.id().clone())
     );
 
     // Commit B is no longer visible even though the remote branch points to it.
@@ -1080,7 +1080,7 @@ fn test_rebase_descendants_update_branch_after_abandon() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo()
-        .set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
+        .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1088,7 +1088,7 @@ fn test_rebase_descendants_update_branch_after_abandon() {
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
-        Some(RefTarget::Normal(commit_a.id().clone()))
+        RefTarget::normal(commit_a.id().clone())
     );
 
     assert_eq!(
@@ -1116,7 +1116,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo()
-        .set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
+        .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1280,7 +1280,7 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
-        Some(RefTarget::Normal(commit_b2.id().clone()))
+        RefTarget::normal(commit_b2.id().clone())
     );
 
     assert_eq!(

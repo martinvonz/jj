@@ -42,91 +42,91 @@ fn test_merge_ref_targets() {
     let commit7 = graph_builder.commit_with_parents(&[&commit5]);
     let repo = tx.commit();
 
-    let target1 = RefTarget::Normal(commit1.id().clone());
-    let target2 = RefTarget::Normal(commit2.id().clone());
-    let target3 = RefTarget::Normal(commit3.id().clone());
-    let target4 = RefTarget::Normal(commit4.id().clone());
-    let target5 = RefTarget::Normal(commit5.id().clone());
-    let target6 = RefTarget::Normal(commit6.id().clone());
-    let _target7 = RefTarget::Normal(commit7.id().clone());
+    let target1 = RefTarget::normal(commit1.id().clone());
+    let target2 = RefTarget::normal(commit2.id().clone());
+    let target3 = RefTarget::normal(commit3.id().clone());
+    let target4 = RefTarget::normal(commit4.id().clone());
+    let target5 = RefTarget::normal(commit5.id().clone());
+    let target6 = RefTarget::normal(commit6.id().clone());
+    let _target7 = RefTarget::normal(commit7.id().clone());
 
     let index = repo.index();
 
     // Left moved forward
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), Some(&target1), Some(&target1)),
-        Some(target3.clone())
+        merge_ref_targets(index, target3.as_ref(), target1.as_ref(), target1.as_ref()),
+        target3
     );
 
     // Right moved forward
     assert_eq!(
-        merge_ref_targets(index, Some(&target1), Some(&target1), Some(&target3)),
-        Some(target3.clone())
+        merge_ref_targets(index, target1.as_ref(), target1.as_ref(), target3.as_ref()),
+        target3
     );
 
     // Left moved backward
     assert_eq!(
-        merge_ref_targets(index, Some(&target1), Some(&target3), Some(&target3)),
-        Some(target1.clone())
+        merge_ref_targets(index, target1.as_ref(), target3.as_ref(), target3.as_ref()),
+        target1
     );
 
     // Right moved backward
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), Some(&target3), Some(&target1)),
-        Some(target1.clone())
+        merge_ref_targets(index, target3.as_ref(), target3.as_ref(), target1.as_ref()),
+        target1
     );
 
     // Left moved sideways
     assert_eq!(
-        merge_ref_targets(index, Some(&target4), Some(&target3), Some(&target3)),
-        Some(target4.clone())
+        merge_ref_targets(index, target4.as_ref(), target3.as_ref(), target3.as_ref()),
+        target4
     );
 
     // Right moved sideways
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), Some(&target3), Some(&target4)),
-        Some(target4.clone())
+        merge_ref_targets(index, target3.as_ref(), target3.as_ref(), target4.as_ref()),
+        target4
     );
 
     // Both added same target
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), None, Some(&target3)),
-        Some(target3.clone())
+        merge_ref_targets(index, target3.as_ref(), None, target3.as_ref()),
+        target3
     );
 
     // Left added target, right added descendant target
     assert_eq!(
-        merge_ref_targets(index, Some(&target2), None, Some(&target3)),
-        Some(target3.clone())
+        merge_ref_targets(index, target2.as_ref(), None, target3.as_ref()),
+        target3
     );
 
     // Right added target, left added descendant target
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), None, Some(&target2)),
-        Some(target3.clone())
+        merge_ref_targets(index, target3.as_ref(), None, target2.as_ref()),
+        target3
     );
 
     // Both moved forward to same target
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), Some(&target1), Some(&target3)),
-        Some(target3.clone())
+        merge_ref_targets(index, target3.as_ref(), target1.as_ref(), target3.as_ref()),
+        target3
     );
 
     // Both moved forward, left moved further
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), Some(&target1), Some(&target2)),
-        Some(target3.clone())
+        merge_ref_targets(index, target3.as_ref(), target1.as_ref(), target2.as_ref()),
+        target3
     );
 
     // Both moved forward, right moved further
     assert_eq!(
-        merge_ref_targets(index, Some(&target2), Some(&target1), Some(&target3)),
-        Some(target3.clone())
+        merge_ref_targets(index, target2.as_ref(), target1.as_ref(), target3.as_ref()),
+        target3
     );
 
     // Left and right moved forward to divergent targets
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), Some(&target1), Some(&target4)),
+        merge_ref_targets(index, target3.as_ref(), target1.as_ref(), target4.as_ref()),
         Some(RefTarget::Conflict {
             removes: vec![commit1.id().clone()],
             adds: vec![commit3.id().clone(), commit4.id().clone()]
@@ -135,7 +135,7 @@ fn test_merge_ref_targets() {
 
     // Left moved back, right moved forward
     assert_eq!(
-        merge_ref_targets(index, Some(&target1), Some(&target2), Some(&target3)),
+        merge_ref_targets(index, target1.as_ref(), target2.as_ref(), target3.as_ref()),
         Some(RefTarget::Conflict {
             removes: vec![commit2.id().clone()],
             adds: vec![commit1.id().clone(), commit3.id().clone()]
@@ -144,7 +144,7 @@ fn test_merge_ref_targets() {
 
     // Right moved back, left moved forward
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), Some(&target2), Some(&target1)),
+        merge_ref_targets(index, target3.as_ref(), target2.as_ref(), target1.as_ref()),
         Some(RefTarget::Conflict {
             removes: vec![commit2.id().clone()],
             adds: vec![commit3.id().clone(), commit1.id().clone()]
@@ -153,19 +153,19 @@ fn test_merge_ref_targets() {
 
     // Left removed
     assert_eq!(
-        merge_ref_targets(index, None, Some(&target3), Some(&target3)),
+        merge_ref_targets(index, None, target3.as_ref(), target3.as_ref()),
         None
     );
 
     // Right removed
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), Some(&target3), None),
+        merge_ref_targets(index, target3.as_ref(), target3.as_ref(), None),
         None
     );
 
     // Left removed, right moved forward
     assert_eq!(
-        merge_ref_targets(index, None, Some(&target1), Some(&target3)),
+        merge_ref_targets(index, None, target1.as_ref(), target3.as_ref()),
         Some(RefTarget::Conflict {
             removes: vec![commit1.id().clone()],
             adds: vec![commit3.id().clone()]
@@ -174,7 +174,7 @@ fn test_merge_ref_targets() {
 
     // Right removed, left moved forward
     assert_eq!(
-        merge_ref_targets(index, Some(&target3), Some(&target1), None),
+        merge_ref_targets(index, target3.as_ref(), target1.as_ref(), None),
         Some(RefTarget::Conflict {
             removes: vec![commit1.id().clone()],
             adds: vec![commit3.id().clone()]
@@ -189,8 +189,8 @@ fn test_merge_ref_targets() {
                 removes: vec![commit2.id().clone()],
                 adds: vec![commit3.id().clone(), commit4.id().clone()]
             }),
-            Some(&target1),
-            Some(&target3)
+            target1.as_ref(),
+            target3.as_ref()
         ),
         // TODO: "removes" should have commit 2, just like it does in the next test case
         Some(RefTarget::Conflict {
@@ -203,8 +203,8 @@ fn test_merge_ref_targets() {
     assert_eq!(
         merge_ref_targets(
             index,
-            Some(&target3),
-            Some(&target1),
+            target3.as_ref(),
+            target1.as_ref(),
             Some(&RefTarget::Conflict {
                 removes: vec![commit2.id().clone()],
                 adds: vec![commit3.id().clone(), commit4.id().clone()]
@@ -231,8 +231,8 @@ fn test_merge_ref_targets() {
                 removes: vec![commit2.id().clone()],
                 adds: vec![commit3.id().clone(), commit4.id().clone()]
             }),
-            Some(&target3),
-            Some(&target5)
+            target3.as_ref(),
+            target5.as_ref()
         ),
         Some(RefTarget::Conflict {
             removes: vec![commit2.id().clone()],
@@ -251,8 +251,8 @@ fn test_merge_ref_targets() {
     assert_eq!(
         merge_ref_targets(
             index,
-            Some(&target5),
-            Some(&target3),
+            target5.as_ref(),
+            target3.as_ref(),
             Some(&RefTarget::Conflict {
                 removes: vec![commit2.id().clone()],
                 adds: vec![commit3.id().clone(), commit4.id().clone()]
@@ -280,8 +280,8 @@ fn test_merge_ref_targets() {
                 removes: vec![commit2.id().clone()],
                 adds: vec![commit3.id().clone(), commit4.id().clone()]
             }),
-            Some(&target3),
-            Some(&target1)
+            target3.as_ref(),
+            target1.as_ref()
         ),
         Some(RefTarget::Conflict {
             removes: vec![commit2.id().clone()],
@@ -301,8 +301,8 @@ fn test_merge_ref_targets() {
     assert_eq!(
         merge_ref_targets(
             index,
-            Some(&target1),
-            Some(&target3),
+            target1.as_ref(),
+            target3.as_ref(),
             Some(&RefTarget::Conflict {
                 removes: vec![commit2.id().clone()],
                 adds: vec![commit3.id().clone(), commit4.id().clone()]
@@ -322,24 +322,24 @@ fn test_merge_ref_targets() {
                 removes: vec![commit2.id().clone()],
                 adds: vec![commit3.id().clone(), commit4.id().clone()]
             }),
-            Some(&target3),
-            Some(&target2)
+            target3.as_ref(),
+            target2.as_ref()
         ),
-        Some(target4.clone())
+        target4
     );
 
     // Existing conflict on right, left undoes one side of conflict
     assert_eq!(
         merge_ref_targets(
             index,
-            Some(&target2),
-            Some(&target3),
+            target2.as_ref(),
+            target3.as_ref(),
             Some(&RefTarget::Conflict {
                 removes: vec![commit2.id().clone()],
                 adds: vec![commit3.id().clone(), commit4.id().clone()]
             })
         ),
-        Some(target4)
+        target4
     );
 
     // Existing conflict on left, right makes unrelated update
@@ -350,8 +350,8 @@ fn test_merge_ref_targets() {
                 removes: vec![commit2.id().clone()],
                 adds: vec![commit3.id().clone(), commit4.id().clone()]
             }),
-            Some(&target5),
-            Some(&target6)
+            target5.as_ref(),
+            target6.as_ref()
         ),
         Some(RefTarget::Conflict {
             removes: vec![commit2.id().clone(), commit5.id().clone()],
@@ -367,8 +367,8 @@ fn test_merge_ref_targets() {
     assert_eq!(
         merge_ref_targets(
             index,
-            Some(&target6),
-            Some(&target5),
+            target6.as_ref(),
+            target5.as_ref(),
             Some(&RefTarget::Conflict {
                 removes: vec![commit2.id().clone()],
                 adds: vec![commit3.id().clone(), commit4.id().clone()]

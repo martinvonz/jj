@@ -156,10 +156,8 @@ fn cmd_branch_create(
         target_commit.id().hex()
     ));
     for branch_name in branch_names {
-        tx.mut_repo().set_local_branch_target(
-            branch_name,
-            Some(RefTarget::Normal(target_commit.id().clone())),
-        );
+        tx.mut_repo()
+            .set_local_branch_target(branch_name, RefTarget::normal(target_commit.id().clone()));
     }
     tx.finish(ui)?;
     Ok(())
@@ -203,10 +201,8 @@ fn cmd_branch_set(
         target_commit.id().hex()
     ));
     for branch_name in branch_names {
-        tx.mut_repo().set_local_branch_target(
-            branch_name,
-            Some(RefTarget::Normal(target_commit.id().clone())),
-        );
+        tx.mut_repo()
+            .set_local_branch_target(branch_name, RefTarget::normal(target_commit.id().clone()));
     }
     tx.finish(ui)?;
     Ok(())

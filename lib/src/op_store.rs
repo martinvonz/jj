@@ -143,6 +143,11 @@ impl ContentHash for RefTarget {
 }
 
 impl RefTarget {
+    /// Creates non-conflicting target pointing to a commit.
+    pub fn normal(id: CommitId) -> Option<Self> {
+        Some(RefTarget::Normal(id))
+    }
+
     pub fn is_conflict(&self) -> bool {
         matches!(self, RefTarget::Conflict { .. })
     }
