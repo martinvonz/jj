@@ -57,12 +57,14 @@ fn parse_git_ref(ref_name: &str) -> Option<RefName> {
     }
 }
 
-fn to_git_ref_name(parsed_ref: &RefName) -> String {
+fn to_git_ref_name(parsed_ref: &RefName) -> Option<String> {
     match parsed_ref {
-        RefName::LocalBranch(branch) => format!("refs/heads/{branch}"),
-        RefName::RemoteBranch { branch, remote } => format!("refs/remotes/{remote}/{branch}"),
-        RefName::Tag(tag) => format!("refs/tags/{tag}"),
-        RefName::GitRef(name) => name.to_owned(),
+        RefName::LocalBranch(branch) => Some(format!("refs/heads/{branch}")),
+        RefName::RemoteBranch { branch, remote } => {
+            (branch != "HEAD").then(|| format!("refs/remotes/{remote}/{branch}"))
+        }
+        RefName::Tag(tag) => Some(format!("refs/tags/{tag}")),
+        RefName::GitRef(name) => Some(name.to_owned()),
     }
 }
 
@@ -396,7 +398,13 @@ pub fn export_some_refs(
             }
             _ => continue,
         };
-        let old_branch = view.get_git_ref(&to_git_ref_name(&jj_known_ref));
+        let old_branch = if let Some(name) = to_git_ref_name(&jj_known_ref) {
+            view.get_git_ref(&name)
+        } else {
+            // Invalid branch name in Git sense
+            failed_branches.push(jj_known_ref);
+            continue;
+        };
         if new_branch == old_branch {
             continue;
         }
@@ -444,7 +452,7 @@ pub fn export_some_refs(
         }
     }
     for (parsed_ref_name, old_oid) in branches_to_delete {
-        let git_ref_name = to_git_ref_name(&parsed_ref_name);
+        let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
         let success = if let Ok(mut git_repo_ref) = git_repo.find_reference(&git_ref_name) {
             if git_repo_ref.target() == Some(old_oid) {
                 // The branch has not been updated by git, so go ahead and delete it
@@ -464,7 +472,7 @@ pub fn export_some_refs(
         }
     }
     for (parsed_ref_name, (old_oid, new_oid)) in branches_to_update {
-        let git_ref_name = to_git_ref_name(&parsed_ref_name);
+        let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
         let success = match old_oid {
             None => {
                 if let Ok(git_repo_ref) = git_repo.find_reference(&git_ref_name) {
