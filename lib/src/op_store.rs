@@ -197,6 +197,38 @@ pub trait RefTargetExt {
     fn adds(&self) -> &[CommitId];
 }
 
+impl RefTargetExt for Option<RefTarget> {
+    fn as_normal(&self) -> Option<&CommitId> {
+        self.as_ref().and_then(|target| target.as_normal())
+    }
+
+    fn is_absent(&self) -> bool {
+        self.is_none()
+    }
+
+    fn is_present(&self) -> bool {
+        self.is_some()
+    }
+
+    fn is_conflict(&self) -> bool {
+        self.as_ref()
+            .map(|target| target.is_conflict())
+            .unwrap_or(false)
+    }
+
+    fn removes(&self) -> &[CommitId] {
+        self.as_ref()
+            .map(|target| target.removes())
+            .unwrap_or_default()
+    }
+
+    fn adds(&self) -> &[CommitId] {
+        self.as_ref()
+            .map(|target| target.adds())
+            .unwrap_or_default()
+    }
+}
+
 impl RefTargetExt for Option<&RefTarget> {
     fn as_normal(&self) -> Option<&CommitId> {
         self.and_then(|target| target.as_normal())

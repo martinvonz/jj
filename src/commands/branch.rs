@@ -372,29 +372,26 @@ fn cmd_branch_list(
 
     let print_branch_target =
         |formatter: &mut dyn Formatter, target: &RefTarget| -> Result<(), CommandError> {
-            match target {
-                RefTarget::Normal(id) => {
-                    write!(formatter, ": ")?;
+            if let Some(id) = target.as_normal() {
+                write!(formatter, ": ")?;
+                let commit = repo.store().get_commit(id)?;
+                workspace_command.write_commit_summary(formatter, &commit)?;
+                writeln!(formatter)?;
+            } else {
+                write!(formatter, " ")?;
+                write!(formatter.labeled("conflict"), "(conflicted)")?;
+                writeln!(formatter, ":")?;
+                for id in target.removes() {
                     let commit = repo.store().get_commit(id)?;
+                    write!(formatter, "  - ")?;
                     workspace_command.write_commit_summary(formatter, &commit)?;
                     writeln!(formatter)?;
                 }
-                RefTarget::Conflict { removes, adds } => {
-                    write!(formatter, " ")?;
-                    write!(formatter.labeled("conflict"), "(conflicted)")?;
-                    writeln!(formatter, ":")?;
-                    for id in removes {
-                        let commit = repo.store().get_commit(id)?;
-                        write!(formatter, "  - ")?;
-                        workspace_command.write_commit_summary(formatter, &commit)?;
-                        writeln!(formatter)?;
-                    }
-                    for id in adds {
-                        let commit = repo.store().get_commit(id)?;
-                        write!(formatter, "  + ")?;
-                        workspace_command.write_commit_summary(formatter, &commit)?;
-                        writeln!(formatter)?;
-                    }
+                for id in target.adds() {
+                    let commit = repo.store().get_commit(id)?;
+                    write!(formatter, "  + ")?;
+                    workspace_command.write_commit_summary(formatter, &commit)?;
+                    writeln!(formatter)?;
                 }
             }
             Ok(())

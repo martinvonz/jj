@@ -39,7 +39,9 @@ use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use jj_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
+use jj_lib::op_store::{
+    OpStore, OpStoreError, OperationId, RefTarget, RefTargetExt as _, WorkspaceId,
+};
 use jj_lib::operation::Operation;
 use jj_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
@@ -735,8 +737,8 @@ impl WorkspaceCommandHelper {
             let new_git_head = tx.mut_repo().view().git_head().cloned();
             // If the Git HEAD has changed, abandon our old checkout and check out the new
             // Git HEAD.
-            match new_git_head {
-                Some(RefTarget::Normal(new_git_head_id)) if new_git_head != old_git_head => {
+            match new_git_head.as_normal() {
+                Some(new_git_head_id) if new_git_head != old_git_head => {
                     let workspace_id = self.workspace_id().to_owned();
                     let op_id = self.repo().op_id().clone();
                     if let Some(old_wc_commit_id) =
@@ -745,7 +747,7 @@ impl WorkspaceCommandHelper {
                         tx.mut_repo()
                             .record_abandoned_commit(old_wc_commit_id.clone());
                     }
-                    let new_git_head_commit = tx.mut_repo().store().get_commit(&new_git_head_id)?;
+                    let new_git_head_commit = tx.mut_repo().store().get_commit(new_git_head_id)?;
                     tx.mut_repo()
                         .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
                     let mut locked_working_copy =
