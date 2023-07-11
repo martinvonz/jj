@@ -160,6 +160,14 @@ impl RefTarget {
         Some(RefTarget::Conflict { removes, adds })
     }
 
+    /// Returns id if this target is non-conflicting and points to a commit.
+    pub fn as_normal(&self) -> Option<&CommitId> {
+        match self {
+            RefTarget::Normal(id) => Some(id),
+            RefTarget::Conflict { .. } => None,
+        }
+    }
+
     pub fn is_conflict(&self) -> bool {
         matches!(self, RefTarget::Conflict { .. })
     }
@@ -176,6 +184,22 @@ impl RefTarget {
             RefTarget::Normal(id) => slice::from_ref(id),
             RefTarget::Conflict { removes: _, adds } => adds,
         }
+    }
+}
+
+// TODO: These methods will be migrate to new Conflict-based RefTarget type.
+pub trait RefTargetExt {
+    fn as_normal(&self) -> Option<&CommitId>;
+    fn is_conflict(&self) -> bool;
+}
+
+impl RefTargetExt for Option<&RefTarget> {
+    fn as_normal(&self) -> Option<&CommitId> {
+        self.and_then(|target| target.as_normal())
+    }
+
+    fn is_conflict(&self) -> bool {
+        self.map(|target| target.is_conflict()).unwrap_or(false)
     }
 }
 
