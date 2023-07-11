@@ -148,7 +148,7 @@ impl View {
                     self.set_tag(name, target);
                 }
                 RefName::GitRef(name) => {
-                    self.set_git_ref(name, target);
+                    self.set_git_ref_target(&name, Some(target));
                 }
             }
         } else {
@@ -163,7 +163,7 @@ impl View {
                     self.remove_tag(&name);
                 }
                 RefName::GitRef(name) => {
-                    self.remove_git_ref(&name);
+                    self.set_git_ref_target(&name, None);
                 }
             }
         }
@@ -250,12 +250,14 @@ impl View {
         self.data.git_refs.get(name).cloned()
     }
 
-    pub fn set_git_ref(&mut self, name: String, target: RefTarget) {
-        self.data.git_refs.insert(name, target);
-    }
-
-    pub fn remove_git_ref(&mut self, name: &str) {
-        self.data.git_refs.remove(name);
+    /// Sets the last imported Git ref to point to the given target. If the
+    /// target is absent, the reference will be removed.
+    pub fn set_git_ref_target(&mut self, name: &str, target: Option<RefTarget>) {
+        if let Some(target) = target {
+            self.data.git_refs.insert(name.to_owned(), target);
+        } else {
+            self.data.git_refs.remove(name);
+        }
     }
 
     /// Sets `HEAD@git` to point to the given target. If the target is absent,
