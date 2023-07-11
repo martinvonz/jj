@@ -40,7 +40,8 @@ pub enum GitImportError {
 
 fn parse_git_ref(ref_name: &str) -> Option<RefName> {
     if let Some(branch_name) = ref_name.strip_prefix("refs/heads/") {
-        Some(RefName::LocalBranch(branch_name.to_string()))
+        // Git CLI says 'HEAD' is not a valid branch name
+        (branch_name != "HEAD").then(|| RefName::LocalBranch(branch_name.to_string()))
     } else if let Some(remote_and_branch) = ref_name.strip_prefix("refs/remotes/") {
         remote_and_branch
             .split_once('/')
@@ -59,7 +60,7 @@ fn parse_git_ref(ref_name: &str) -> Option<RefName> {
 
 fn to_git_ref_name(parsed_ref: &RefName) -> Option<String> {
     match parsed_ref {
-        RefName::LocalBranch(branch) => Some(format!("refs/heads/{branch}")),
+        RefName::LocalBranch(branch) => (branch != "HEAD").then(|| format!("refs/heads/{branch}")),
         RefName::RemoteBranch { branch, remote } => {
             (branch != "HEAD").then(|| format!("refs/remotes/{remote}/{branch}"))
         }

@@ -1243,6 +1243,8 @@ fn test_export_partial_failure() {
     let target = RefTarget::Normal(commit_a.id().clone());
     // Empty string is disallowed by Git
     mut_repo.set_local_branch("".to_string(), target.clone());
+    // Branch named HEAD is disallowed by Git CLI
+    mut_repo.set_local_branch("HEAD".to_string(), target.clone());
     mut_repo.set_local_branch("main".to_string(), target.clone());
     // `main/sub` will conflict with `main` in Git, at least when using loose ref
     // storage
@@ -1250,6 +1252,7 @@ fn test_export_partial_failure() {
     assert_eq!(
         git::export_refs(mut_repo, &git_repo),
         Ok(vec![
+            RefName::LocalBranch("HEAD".to_string()),
             RefName::LocalBranch("".to_string()),
             RefName::LocalBranch("main/sub".to_string())
         ])
@@ -1257,6 +1260,7 @@ fn test_export_partial_failure() {
 
     // The `main` branch should have succeeded but the other should have failed
     assert!(git_repo.find_reference("refs/heads/").is_err());
+    assert!(git_repo.find_reference("refs/heads/HEAD").is_err());
     assert_eq!(
         git_repo
             .find_reference("refs/heads/main")
@@ -1272,9 +1276,13 @@ fn test_export_partial_failure() {
     mut_repo.remove_local_branch("main");
     assert_eq!(
         git::export_refs(mut_repo, &git_repo),
-        Ok(vec![RefName::LocalBranch("".to_string())])
+        Ok(vec![
+            RefName::LocalBranch("HEAD".to_string()),
+            RefName::LocalBranch("".to_string())
+        ])
     );
     assert!(git_repo.find_reference("refs/heads/").is_err());
+    assert!(git_repo.find_reference("refs/heads/HEAD").is_err());
     assert!(git_repo.find_reference("refs/heads/main").is_err());
     assert_eq!(
         git_repo
