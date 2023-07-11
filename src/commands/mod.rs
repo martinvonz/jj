@@ -37,7 +37,7 @@ use jj_lib::conflicts::Conflict;
 use jj_lib::dag_walk::topo_order_reverse;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::matchers::EverythingMatcher;
-use jj_lib::op_store::{RefTarget, WorkspaceId};
+use jj_lib::op_store::{RefTargetExt as _, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
@@ -1100,7 +1100,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
         } else {
             let mut tx = workspace_command.start_transaction("import git refs");
             jj_lib::git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
-            if let Some(RefTarget::Normal(git_head_id)) = tx.mut_repo().view().git_head().cloned() {
+            if let Some(git_head_id) = tx.mut_repo().view().git_head().as_normal().cloned() {
                 let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
                 tx.check_out(&git_head_commit)?;
             }

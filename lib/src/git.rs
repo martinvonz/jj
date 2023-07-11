@@ -26,7 +26,7 @@ use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
 use crate::git_backend::NO_GC_REF_NAMESPACE;
-use crate::op_store::{BranchTarget, RefTarget};
+use crate::op_store::{BranchTarget, RefTarget, RefTargetExt as _};
 use crate::repo::{MutableRepo, Repo};
 use crate::revset;
 use crate::settings::GitSettings;
@@ -85,7 +85,7 @@ fn resolve_git_ref_to_commit_id(
     known_target: Option<&RefTarget>,
 ) -> Option<CommitId> {
     // Try fast path if we have a candidate id which is known to be a commit object.
-    if let Some(RefTarget::Normal(id)) = known_target {
+    if let Some(id) = known_target.as_normal() {
         if matches!(git_ref.target(), Some(oid) if oid.as_bytes() == id.as_bytes()) {
             return Some(id.clone());
         }
@@ -199,7 +199,7 @@ pub fn import_some_refs(
         let head_ref_name = RefName::GitRef("HEAD".to_owned());
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
         pinned_git_heads.insert(head_ref_name, vec![head_commit_id.clone()]);
-        if !matches!(mut_repo.git_head(), Some(RefTarget::Normal(id)) if id == head_commit_id) {
+        if !matches!(mut_repo.git_head().as_normal(), Some(id) if id == &head_commit_id) {
             let head_commit = store.get_commit(&head_commit_id).unwrap();
             prevent_gc(git_repo, &head_commit_id)?;
             mut_repo.add_head(&head_commit);
@@ -409,28 +409,25 @@ pub fn export_some_refs(
         if new_branch == old_branch {
             continue;
         }
-        let old_oid = match old_branch {
-            None => None,
-            Some(RefTarget::Normal(id)) => Some(Oid::from_bytes(id.as_bytes()).unwrap()),
-            Some(RefTarget::Conflict { .. }) => {
-                // The old git ref should only be a conflict if there were concurrent import
-                // operations while the value changed. Don't overwrite these values.
-                failed_branches.push(jj_known_ref);
-                continue;
-            }
-        };
-        if let Some(new_branch) = new_branch {
-            match new_branch {
-                RefTarget::Normal(id) => {
-                    let new_oid = Oid::from_bytes(id.as_bytes());
-                    branches_to_update.insert(jj_known_ref, (old_oid, new_oid.unwrap()));
-                }
-                RefTarget::Conflict { .. } => {
-                    // Skip conflicts and leave the old value in git_refs
-                    continue;
-                }
-            }
+        let old_oid = if let Some(id) = old_branch.as_normal() {
+            Some(Oid::from_bytes(id.as_bytes()).unwrap())
+        } else if old_branch.is_conflict() {
+            // The old git ref should only be a conflict if there were concurrent import
+            // operations while the value changed. Don't overwrite these values.
+            failed_branches.push(jj_known_ref);
+            continue;
         } else {
+            assert!(old_branch.is_absent());
+            None
+        };
+        if let Some(id) = new_branch.as_normal() {
+            let new_oid = Oid::from_bytes(id.as_bytes());
+            branches_to_update.insert(jj_known_ref, (old_oid, new_oid.unwrap()));
+        } else if new_branch.is_conflict() {
+            // Skip conflicts and leave the old value in git_refs
+            continue;
+        } else {
+            assert!(new_branch.is_absent());
             branches_to_delete.insert(jj_known_ref, old_oid.unwrap());
         }
     }
