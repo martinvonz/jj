@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: Remove after https://github.com/frondeus/test-case/issues/122 is resolved
-#![allow(unknown_lints)] // Needed for clippy <1.70
+// this was supposed to be fixed in 1.71.0, but barely missed the cut.
+// can be released after we bump MSRV to 1.72.0, see:
+// https://github.com/frondeus/test-case/issues/126#issuecomment-1635916592
 #![allow(clippy::items_after_test_module)]
-#![deny(unknown_lints)]
 
 use std::path::Path;
 
