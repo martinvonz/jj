@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools as _;
 use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
@@ -1139,16 +1140,20 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         .write()
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
+
+    let target = tx.mut_repo().get_local_branch("main").unwrap();
+    assert!(target.is_conflict());
     assert_eq!(
-        tx.mut_repo().get_local_branch("main"),
-        Some(RefTarget::Conflict {
-            removes: vec![commit_b.id().clone(), commit_b.id().clone()],
-            adds: vec![
-                commit_b2.id().clone(),
-                commit_b3.id().clone(),
-                commit_b4.id().clone()
-            ]
-        })
+        target.removes().iter().counts(),
+        hashmap! { commit_b.id() => 2 },
+    );
+    assert_eq!(
+        target.adds().iter().counts(),
+        hashmap! {
+            commit_b2.id() => 1,
+            commit_b3.id() => 1,
+            commit_b4.id() => 1,
+        },
     );
 
     assert_eq!(
@@ -1210,16 +1215,20 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
         .write()
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
+
+    let target = tx.mut_repo().get_local_branch("main").unwrap();
+    assert!(target.is_conflict());
     assert_eq!(
-        tx.mut_repo().get_local_branch("main"),
-        Some(RefTarget::Conflict {
-            removes: vec![commit_a.id().clone(), commit_b.id().clone()],
-            adds: vec![
-                commit_c.id().clone(),
-                commit_b2.id().clone(),
-                commit_b3.id().clone(),
-            ]
-        })
+        target.removes().iter().counts(),
+        hashmap! { commit_a.id() => 1, commit_b.id() => 1 },
+    );
+    assert_eq!(
+        target.adds().iter().counts(),
+        hashmap! {
+            commit_c.id() => 1,
+            commit_b2.id() => 1,
+            commit_b3.id() => 1,
+        },
     );
 
     assert_eq!(
