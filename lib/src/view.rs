@@ -135,37 +135,16 @@ impl View {
         }
     }
 
-    pub fn set_or_remove_ref(&mut self, name: RefName, target: Option<RefTarget>) {
-        if let Some(target) = target {
-            match name {
-                RefName::LocalBranch(name) => {
-                    self.set_local_branch_target(&name, Some(target));
-                }
-                RefName::RemoteBranch { branch, remote } => {
-                    self.set_remote_branch_target(&branch, &remote, Some(target));
-                }
-                RefName::Tag(name) => {
-                    self.set_tag_target(&name, Some(target));
-                }
-                RefName::GitRef(name) => {
-                    self.set_git_ref_target(&name, Some(target));
-                }
+    /// Sets reference of the specified kind to point to the given target. If
+    /// the target is absent, the reference will be removed.
+    pub fn set_ref_target(&mut self, name: &RefName, target: Option<RefTarget>) {
+        match name {
+            RefName::LocalBranch(name) => self.set_local_branch_target(name, target),
+            RefName::RemoteBranch { branch, remote } => {
+                self.set_remote_branch_target(branch, remote, target)
             }
-        } else {
-            match name {
-                RefName::LocalBranch(name) => {
-                    self.set_local_branch_target(&name, None);
-                }
-                RefName::RemoteBranch { branch, remote } => {
-                    self.set_remote_branch_target(&branch, &remote, None);
-                }
-                RefName::Tag(name) => {
-                    self.set_tag_target(&name, None);
-                }
-                RefName::GitRef(name) => {
-                    self.set_git_ref_target(&name, None);
-                }
-            }
+            RefName::Tag(name) => self.set_tag_target(name, target),
+            RefName::GitRef(name) => self.set_git_ref_target(name, target),
         }
     }
 
@@ -317,7 +296,7 @@ impl View {
             let new_target =
                 merge_ref_targets(index, self_target.as_ref(), base_target, other_target);
             if new_target != self_target {
-                self.set_or_remove_ref(ref_name.clone(), new_target);
+                self.set_ref_target(ref_name, new_target);
             }
         }
     }
