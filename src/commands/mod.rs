@@ -1492,15 +1492,38 @@ fn cmd_status(
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
+
     if let Some(wc_commit) = &maybe_wc_commit {
+        let parent_tree = merge_commit_trees(repo.as_ref(), &wc_commit.parents())?;
+        let tree = wc_commit.tree();
+        if tree.id() == parent_tree.id() {
+            formatter.write_str("The working copy is clean\n")?;
+        } else {
+            formatter.write_str("Working copy changes:\n")?;
+            diff_util::show_diff_summary(
+                formatter,
+                &workspace_command,
+                parent_tree.diff(&tree, &EverythingMatcher),
+            )?;
+        }
+
+        let conflicts = wc_commit.merged_tree()?.conflicts().collect_vec();
+        if !conflicts.is_empty() {
+            writeln!(
+                formatter.labeled("conflict"),
+                "There are unresolved conflicts at these paths:"
+            )?;
+            print_conflicted_paths(&conflicts, formatter, &workspace_command)?
+        }
+
+        formatter.write_str("Working copy : ")?;
+        workspace_command.write_commit_summary(formatter, wc_commit)?;
+        formatter.write_str("\n")?;
         for parent in wc_commit.parents() {
             formatter.write_str("Parent commit: ")?;
             workspace_command.write_commit_summary(formatter, &parent)?;
             formatter.write_str("\n")?;
         }
-        formatter.write_str("Working copy : ")?;
-        workspace_command.write_commit_summary(formatter, wc_commit)?;
-        formatter.write_str("\n")?;
     } else {
         formatter.write_str("No working copy\n")?;
     }
@@ -1547,30 +1570,6 @@ fn cmd_status(
             formatter,
             "  Use `jj branch list` to see details. Use `jj git fetch` to resolve."
         )?;
-    }
-
-    if let Some(wc_commit) = &maybe_wc_commit {
-        let parent_tree = merge_commit_trees(repo.as_ref(), &wc_commit.parents())?;
-        let tree = wc_commit.tree();
-        if tree.id() == parent_tree.id() {
-            formatter.write_str("The working copy is clean\n")?;
-        } else {
-            formatter.write_str("Working copy changes:\n")?;
-            diff_util::show_diff_summary(
-                formatter,
-                &workspace_command,
-                parent_tree.diff(&tree, &EverythingMatcher),
-            )?;
-        }
-
-        let conflicts = wc_commit.merged_tree()?.conflicts().collect_vec();
-        if !conflicts.is_empty() {
-            writeln!(
-                formatter.labeled("conflict"),
-                "There are unresolved conflicts at these paths:"
-            )?;
-            print_conflicted_paths(&conflicts, formatter, &workspace_command)?
-        }
     }
 
     Ok(())
