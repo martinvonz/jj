@@ -158,7 +158,7 @@ parent.
     <tr>
       <td>Remove a file from the current change</td>
       <td><code>rm filename</code></td>
-      <td><code>rm filename</code></td>
+      <td><code>git rm filename</code></td>
     </tr>
     <tr>
       <td>Modify a file in the current change</td>
