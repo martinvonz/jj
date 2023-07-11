@@ -22,7 +22,7 @@ jobs:
         cargo_flags: [""]
         include:
         - os: ubuntu-latest
-          rust_version: "1.64"
+          rust_version: "1.71"
           cargo_flags: ""
         - os: ubuntu-latest
           rust_version: stable
@@ -65,7 +65,7 @@ jobs:
         with:
           toolchain: nightly
           components: rustfmt
-      - run: cargo fmt --all -- --check
+      - run: cargo +nightly fmt --all -- --check
 
   cargo-deny:
     runs-on: ubuntu-latest
@@ -95,4 +95,4 @@ jobs:
         with:
           toolchain: stable
           components: clippy
-      - run: cargo clippy --all-features --workspace --all-targets -- -D warnings
+      - run: cargo +stable clippy --all-features --workspace --all-targets -- -D warnings

@@ -35,6 +35,13 @@
             pkgs.lib.all (re: builtins.match re relPath == null) regexes;
         };
 
+      rust-version = pkgs.rust-bin.stable."1.71.0".default;
+
+      ourRustPlatform = pkgs.makeRustPlatform {
+        rustc = rust-version;
+        cargo = rust-version;
+      };
+
       # NOTE (aseipp): on Linux, go ahead and use mold by default to improve
       # link times a bit; mostly useful for debug build speed, but will help
       # over time if we ever get more dependencies, too
@@ -42,7 +49,7 @@
     in
     {
       packages = {
-        jujutsu = pkgs.rustPlatform.buildRustPackage rec {
+        jujutsu = ourRustPlatform.buildRustPackage rec {
           pname = "jujutsu";
           version = "unstable-${self.shortRev or "dirty"}";
           buildNoDefaultFeatures = true;
@@ -64,8 +71,9 @@
             makeWrapper
             pkg-config
           ];
-          buildInputs = with pkgs; [ openssl zstd libgit2 libssh2 ]
-            ++ lib.optionals stdenv.isDarwin [
+          buildInputs = with pkgs; [
+            openssl zstd libgit2 libssh2
+          ] ++ lib.optionals stdenv.isDarwin [
             darwin.apple_sdk.frameworks.Security
             darwin.apple_sdk.frameworks.SystemConfiguration
             libiconv
@@ -102,7 +110,7 @@
         buildInputs = with pkgs; [
           # Using the minimal profile with explicit "clippy" extension to avoid
           # two versions of rustfmt
-          (rust-bin.stable."1.64.0".minimal.override {
+          (rust-version.override {
             extensions = [
               "rust-src" # for rust-analyzer
               "clippy"
