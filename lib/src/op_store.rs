@@ -190,7 +190,11 @@ impl RefTarget {
 // TODO: These methods will be migrate to new Conflict-based RefTarget type.
 pub trait RefTargetExt {
     fn as_normal(&self) -> Option<&CommitId>;
+    fn is_absent(&self) -> bool;
+    fn is_present(&self) -> bool;
     fn is_conflict(&self) -> bool;
+    fn removes(&self) -> &[CommitId];
+    fn adds(&self) -> &[CommitId];
 }
 
 impl RefTargetExt for Option<&RefTarget> {
@@ -198,8 +202,24 @@ impl RefTargetExt for Option<&RefTarget> {
         self.and_then(|target| target.as_normal())
     }
 
+    fn is_absent(&self) -> bool {
+        self.is_none()
+    }
+
+    fn is_present(&self) -> bool {
+        self.is_some()
+    }
+
     fn is_conflict(&self) -> bool {
         self.map(|target| target.is_conflict()).unwrap_or(false)
+    }
+
+    fn removes(&self) -> &[CommitId] {
+        self.map(|target| target.removes()).unwrap_or_default()
+    }
+
+    fn adds(&self) -> &[CommitId] {
+        self.map(|target| target.adds()).unwrap_or_default()
     }
 }
 
