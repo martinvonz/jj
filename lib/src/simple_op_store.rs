@@ -29,7 +29,7 @@ use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
-    RefTarget, View, ViewId, WorkspaceId,
+    RefTarget, RefTargetExt as _, View, ViewId, WorkspaceId,
 };
 
 impl From<std::io::Error> for OpStoreError {
@@ -220,15 +220,13 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
             ..Default::default()
         };
         branch_proto.name = name.clone();
-        if let Some(local_target) = &target.local_target {
-            branch_proto.local_target = Some(ref_target_to_proto(local_target));
-        }
+        branch_proto.local_target = ref_target_to_proto(target.local_target.as_ref());
         for (remote_name, target) in &target.remote_targets {
             branch_proto
                 .remote_branches
                 .push(crate::protos::op_store::RemoteBranch {
                     remote_name: remote_name.clone(),
-                    target: Some(ref_target_to_proto(target)),
+                    target: ref_target_to_proto(Some(target)),
                 });
         }
         proto.branches.push(branch_proto);
@@ -237,21 +235,19 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     for (name, target) in &view.tags {
         proto.tags.push(crate::protos::op_store::Tag {
             name: name.clone(),
-            target: Some(ref_target_to_proto(target)),
+            target: ref_target_to_proto(Some(target)),
         });
     }
 
     for (git_ref_name, target) in &view.git_refs {
         proto.git_refs.push(crate::protos::op_store::GitRef {
             name: git_ref_name.clone(),
-            target: Some(ref_target_to_proto(target)),
+            target: ref_target_to_proto(Some(target)),
             ..Default::default()
         });
     }
 
-    if let Some(git_head) = &view.git_head {
-        proto.git_head = Some(ref_target_to_proto(git_head));
-    }
+    proto.git_head = ref_target_to_proto(view.git_head.as_ref());
 
     proto
 }
@@ -326,28 +322,29 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     view
 }
 
-fn ref_target_to_proto(value: &RefTarget) -> crate::protos::op_store::RefTarget {
-    let mut proto = crate::protos::op_store::RefTarget::default();
-    match value {
-        RefTarget::Normal(id) => {
-            proto.value = Some(crate::protos::op_store::ref_target::Value::CommitId(
+fn ref_target_to_proto(value: Option<&RefTarget>) -> Option<crate::protos::op_store::RefTarget> {
+    if let Some(id) = value.as_normal() {
+        let proto = crate::protos::op_store::RefTarget {
+            value: Some(crate::protos::op_store::ref_target::Value::CommitId(
                 id.to_bytes(),
-            ));
-        }
-        RefTarget::Conflict { removes, adds } => {
-            let mut ref_conflict_proto = crate::protos::op_store::RefConflict::default();
-            for id in removes {
-                ref_conflict_proto.removes.push(id.to_bytes());
-            }
-            for id in adds {
-                ref_conflict_proto.adds.push(id.to_bytes());
-            }
-            proto.value = Some(crate::protos::op_store::ref_target::Value::Conflict(
+            )),
+        };
+        Some(proto)
+    } else if value.is_conflict() {
+        let ref_conflict_proto = crate::protos::op_store::RefConflict {
+            removes: value.removes().iter().map(|id| id.to_bytes()).collect(),
+            adds: value.adds().iter().map(|id| id.to_bytes()).collect(),
+        };
+        let proto = crate::protos::op_store::RefTarget {
+            value: Some(crate::protos::op_store::ref_target::Value::Conflict(
                 ref_conflict_proto,
-            ));
-        }
+            )),
+        };
+        Some(proto)
+    } else {
+        assert!(value.is_absent());
+        None
     }
-    proto
 }
 
 fn ref_target_from_proto(proto: crate::protos::op_store::RefTarget) -> RefTarget {
