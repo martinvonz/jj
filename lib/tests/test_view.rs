@@ -252,15 +252,15 @@ fn test_merge_views_branches() {
         "main".to_string(),
         RefTarget::Normal(main_branch_local_tx0.id().clone()),
     );
-    mut_repo.set_remote_branch(
-        "main".to_string(),
-        "origin".to_string(),
-        RefTarget::Normal(main_branch_origin_tx0.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "main",
+        "origin",
+        Some(RefTarget::Normal(main_branch_origin_tx0.id().clone())),
     );
-    mut_repo.set_remote_branch(
-        "main".to_string(),
-        "alternate".to_string(),
-        RefTarget::Normal(main_branch_alternate_tx0.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "main",
+        "alternate",
+        Some(RefTarget::Normal(main_branch_alternate_tx0.id().clone())),
     );
     let feature_branch_local_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_git_ref_target(
@@ -275,10 +275,10 @@ fn test_merge_views_branches() {
         "main".to_string(),
         RefTarget::Normal(main_branch_local_tx1.id().clone()),
     );
-    tx1.mut_repo().set_remote_branch(
-        "main".to_string(),
-        "origin".to_string(),
-        RefTarget::Normal(main_branch_origin_tx1.id().clone()),
+    tx1.mut_repo().set_remote_branch_target(
+        "main",
+        "origin",
+        Some(RefTarget::Normal(main_branch_origin_tx1.id().clone())),
     );
     let feature_branch_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo().set_local_branch(
@@ -293,10 +293,10 @@ fn test_merge_views_branches() {
         "main".to_string(),
         RefTarget::Normal(main_branch_local_tx2.id().clone()),
     );
-    tx2.mut_repo().set_remote_branch(
-        "main".to_string(),
-        "origin".to_string(),
-        RefTarget::Normal(main_branch_origin_tx1.id().clone()),
+    tx2.mut_repo().set_remote_branch_target(
+        "main",
+        "origin",
+        Some(RefTarget::Normal(main_branch_origin_tx1.id().clone())),
     );
     tx2.commit();
 

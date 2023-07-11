@@ -983,12 +983,14 @@ impl MutableRepo {
             .with_ref(|v| v.get_remote_branch(name, remote_name))
     }
 
-    pub fn set_remote_branch(&mut self, name: String, remote_name: String, target: RefTarget) {
-        self.view_mut().set_remote_branch(name, remote_name, target);
-    }
-
-    pub fn remove_remote_branch(&mut self, name: &str, remote_name: &str) {
-        self.view_mut().remove_remote_branch(name, remote_name);
+    pub fn set_remote_branch_target(
+        &mut self,
+        name: &str,
+        remote_name: &str,
+        target: Option<RefTarget>,
+    ) {
+        self.view_mut()
+            .set_remote_branch_target(name, remote_name, target);
     }
 
     pub fn rename_remote(&mut self, old: &str, new: &str) {

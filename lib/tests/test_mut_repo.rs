@@ -473,10 +473,10 @@ fn test_has_changed(use_git: bool) {
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
         .unwrap();
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
-    mut_repo.set_remote_branch(
-        "main".to_string(),
-        "origin".to_string(),
-        RefTarget::Normal(commit1.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "main",
+        "origin",
+        Some(RefTarget::Normal(commit1.id().clone())),
     );
     let repo = tx.commit();
     // Test the setup
@@ -492,17 +492,17 @@ fn test_has_changed(use_git: bool) {
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
         .unwrap();
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
-    mut_repo.set_remote_branch(
-        "main".to_string(),
-        "origin".to_string(),
-        RefTarget::Normal(commit1.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "main",
+        "origin",
+        Some(RefTarget::Normal(commit1.id().clone())),
     );
     assert!(!mut_repo.has_changes());
 
     mut_repo.remove_public_head(commit2.id());
     mut_repo.remove_head(commit2.id());
     mut_repo.remove_local_branch("stable");
-    mut_repo.remove_remote_branch("stable", "origin");
+    mut_repo.set_remote_branch_target("stable", "origin", None);
     assert!(!mut_repo.has_changes());
 
     mut_repo.add_head(&commit2);
@@ -532,16 +532,16 @@ fn test_has_changed(use_git: bool) {
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
     assert!(!mut_repo.has_changes());
 
-    mut_repo.set_remote_branch(
-        "main".to_string(),
-        "origin".to_string(),
-        RefTarget::Normal(commit2.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "main",
+        "origin",
+        Some(RefTarget::Normal(commit2.id().clone())),
     );
     assert!(mut_repo.has_changes());
-    mut_repo.set_remote_branch(
-        "main".to_string(),
-        "origin".to_string(),
-        RefTarget::Normal(commit1.id().clone()),
+    mut_repo.set_remote_branch_target(
+        "main",
+        "origin",
+        Some(RefTarget::Normal(commit1.id().clone())),
     );
     assert!(!mut_repo.has_changes());
 }
@@ -629,9 +629,9 @@ fn test_rename_remote(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
     let commit = write_random_commit(mut_repo, &settings);
-    let target = RefTarget::Normal(commit.id().clone());
-    mut_repo.set_remote_branch("main".to_string(), "origin".to_string(), target.clone());
+    let target = Some(RefTarget::Normal(commit.id().clone()));
+    mut_repo.set_remote_branch_target("main", "origin", target.clone());
     mut_repo.rename_remote("origin", "upstream");
-    assert_eq!(mut_repo.get_remote_branch("main", "upstream"), Some(target));
+    assert_eq!(mut_repo.get_remote_branch("main", "upstream"), target);
     assert_eq!(mut_repo.get_remote_branch("main", "origin"), None);
 }
