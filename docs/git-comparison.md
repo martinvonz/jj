@@ -135,6 +135,17 @@ parent.
       <td><code>git diff &lt;revision&gt;^ &lt;revision&gt;</code></td>
     </tr>
     <tr>
+      <td>Show diff from another change to the current change</td>
+      <td><code>jj diff --from &lt;revision&gt;</code></td>
+      <td><code>git diff &lt;revision&gt;</code></td>
+    </tr>
+    <tr>
+      <td>Show diff from change A to change B</td>
+      <td><code>jj diff --from A --to B</code></td>
+      <td><code>git diff A B</code></td>
+    </tr>
+    <tr>
+    <tr>
       <td>Show description and diff of a change</td>
       <td><code>jj show &lt;revision&gt;</code></td>
       <td><code>git show &lt;revision&gt;</code></td>
