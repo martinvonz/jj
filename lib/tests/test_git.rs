@@ -249,10 +249,10 @@ fn test_import_refs_reimport() {
         Some(expected_main_branch).as_ref()
     );
     let expected_feature2_branch = BranchTarget {
-        local_target: Some(RefTarget::Conflict {
-            removes: vec![jj_id(&commit4)],
-            adds: vec![commit6.id().clone(), jj_id(&commit5)],
-        }),
+        local_target: RefTarget::from_legacy_form(
+            [jj_id(&commit4)],
+            [commit6.id().clone(), jj_id(&commit5)],
+        ),
         remote_targets: btreemap! {},
     };
     assert_eq!(
@@ -1183,10 +1183,10 @@ fn test_export_conflicts() {
     mut_repo.set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
     mut_repo.set_local_branch_target(
         "feature",
-        Some(RefTarget::Conflict {
-            removes: vec![commit_a.id().clone()],
-            adds: vec![commit_b.id().clone(), commit_c.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit_a.id().clone()],
+            [commit_b.id().clone(), commit_c.id().clone()],
+        ),
     );
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(

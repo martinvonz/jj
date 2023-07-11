@@ -240,10 +240,7 @@ mod tests {
         let commit_id1 = CommitId::from_hex("11");
         let commit_id2 = CommitId::from_hex("22");
         let branch = BranchTarget {
-            local_target: Some(RefTarget::Conflict {
-                removes: vec![],
-                adds: vec![commit_id1.clone(), commit_id2],
-            }),
+            local_target: RefTarget::from_legacy_form([], [commit_id1.clone(), commit_id2]),
             remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(commit_id1).unwrap(),
             },
@@ -261,10 +258,10 @@ mod tests {
         let branch = BranchTarget {
             local_target: RefTarget::normal(commit_id1.clone()),
             remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::Conflict {
-                removes: vec![],
-                adds: vec![commit_id1, commit_id2]
-            }
+                "origin".to_string() => RefTarget::from_legacy_form(
+                    [],
+                    [commit_id1, commit_id2],
+                ).unwrap(),
             },
         };
         assert_eq!(

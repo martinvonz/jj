@@ -387,10 +387,10 @@ mod tests {
         let branch_deleted_origin_target = RefTarget::normal(CommitId::from_hex("ccc333"));
         let tag_v1_target = RefTarget::normal(CommitId::from_hex("ddd111"));
         let git_refs_main_target = RefTarget::normal(CommitId::from_hex("fff111"));
-        let git_refs_feature_target = RefTarget::Conflict {
-            removes: vec![CommitId::from_hex("fff111")],
-            adds: vec![CommitId::from_hex("fff222"), CommitId::from_hex("fff333")],
-        };
+        let git_refs_feature_target = RefTarget::from_legacy_form(
+            [CommitId::from_hex("fff111")],
+            [CommitId::from_hex("fff222"), CommitId::from_hex("fff333")],
+        );
         let default_wc_commit_id = CommitId::from_hex("abc111");
         let test_wc_commit_id = CommitId::from_hex("abc222");
         View {
@@ -415,7 +415,7 @@ mod tests {
             },
             git_refs: btreemap! {
                 "refs/heads/main".to_string() => git_refs_main_target.unwrap(),
-                "refs/heads/feature".to_string() => git_refs_feature_target
+                "refs/heads/feature".to_string() => git_refs_feature_target.unwrap(),
             },
             git_head: RefTarget::normal(CommitId::from_hex("fff111")),
             wc_commit_ids: hashmap! {

@@ -1182,10 +1182,10 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let commit_c = graph_builder.initial_commit();
     tx.mut_repo().set_local_branch_target(
         "main",
-        Some(RefTarget::Conflict {
-            removes: vec![commit_a.id().clone()],
-            adds: vec![commit_b.id().clone(), commit_c.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit_a.id().clone()],
+            [commit_b.id().clone(), commit_c.id().clone()],
+        ),
     );
     let repo = tx.commit();
 
@@ -1263,10 +1263,10 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo().set_local_branch_target(
         "main",
-        Some(RefTarget::Conflict {
-            removes: vec![commit_a.id().clone()],
-            adds: vec![commit_b.id().clone(), commit_c.id().clone()],
-        }),
+        RefTarget::from_legacy_form(
+            [commit_a.id().clone()],
+            [commit_b.id().clone(), commit_c.id().clone()],
+        ),
     );
     let repo = tx.commit();
 
@@ -1306,10 +1306,7 @@ fn test_rebase_descendants_branch_delete_modify_abandon() {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo().set_local_branch_target(
         "main",
-        Some(RefTarget::Conflict {
-            removes: vec![commit_a.id().clone()],
-            adds: vec![commit_b.id().clone()],
-        }),
+        RefTarget::from_legacy_form([commit_a.id().clone()], [commit_b.id().clone()]),
     );
     let repo = tx.commit();
 

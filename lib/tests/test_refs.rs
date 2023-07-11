@@ -127,28 +127,28 @@ fn test_merge_ref_targets() {
     // Left and right moved forward to divergent targets
     assert_eq!(
         merge_ref_targets(index, target3.as_ref(), target1.as_ref(), target4.as_ref()),
-        Some(RefTarget::Conflict {
-            removes: vec![commit1.id().clone()],
-            adds: vec![commit3.id().clone(), commit4.id().clone()]
-        })
+        RefTarget::from_legacy_form(
+            [commit1.id().clone()],
+            [commit3.id().clone(), commit4.id().clone()]
+        )
     );
 
     // Left moved back, right moved forward
     assert_eq!(
         merge_ref_targets(index, target1.as_ref(), target2.as_ref(), target3.as_ref()),
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit1.id().clone(), commit3.id().clone()]
-        })
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit1.id().clone(), commit3.id().clone()]
+        )
     );
 
     // Right moved back, left moved forward
     assert_eq!(
         merge_ref_targets(index, target3.as_ref(), target2.as_ref(), target1.as_ref()),
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit3.id().clone(), commit1.id().clone()]
-        })
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit3.id().clone(), commit1.id().clone()]
+        )
     );
 
     // Left removed
@@ -166,37 +166,32 @@ fn test_merge_ref_targets() {
     // Left removed, right moved forward
     assert_eq!(
         merge_ref_targets(index, None, target1.as_ref(), target3.as_ref()),
-        Some(RefTarget::Conflict {
-            removes: vec![commit1.id().clone()],
-            adds: vec![commit3.id().clone()]
-        })
+        RefTarget::from_legacy_form([commit1.id().clone()], [commit3.id().clone()])
     );
 
     // Right removed, left moved forward
     assert_eq!(
         merge_ref_targets(index, target3.as_ref(), target1.as_ref(), None),
-        Some(RefTarget::Conflict {
-            removes: vec![commit1.id().clone()],
-            adds: vec![commit3.id().clone()]
-        })
+        RefTarget::from_legacy_form([commit1.id().clone()], [commit3.id().clone()])
     );
 
     // Left became conflicted, right moved forward
     assert_eq!(
         merge_ref_targets(
             index,
-            Some(&RefTarget::Conflict {
-                removes: vec![commit2.id().clone()],
-                adds: vec![commit3.id().clone(), commit4.id().clone()]
-            }),
+            RefTarget::from_legacy_form(
+                [commit2.id().clone()],
+                [commit3.id().clone(), commit4.id().clone()]
+            )
+            .as_ref(),
             target1.as_ref(),
             target3.as_ref()
         ),
         // TODO: "removes" should have commit 2, just like it does in the next test case
-        Some(RefTarget::Conflict {
-            removes: vec![commit1.id().clone()],
-            adds: vec![commit4.id().clone(), commit3.id().clone()]
-        })
+        RefTarget::from_legacy_form(
+            [commit1.id().clone()],
+            [commit4.id().clone(), commit3.id().clone()]
+        )
     );
 
     // Right became conflicted, left moved forward
@@ -205,15 +200,16 @@ fn test_merge_ref_targets() {
             index,
             target3.as_ref(),
             target1.as_ref(),
-            Some(&RefTarget::Conflict {
-                removes: vec![commit2.id().clone()],
-                adds: vec![commit3.id().clone(), commit4.id().clone()]
-            })
+            RefTarget::from_legacy_form(
+                [commit2.id().clone()],
+                [commit3.id().clone(), commit4.id().clone()]
+            )
+            .as_ref(),
         ),
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit3.id().clone(), commit4.id().clone()]
-        })
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit3.id().clone(), commit4.id().clone()]
+        )
     );
 
     // Existing conflict on left, right moves an "add" sideways
@@ -227,17 +223,18 @@ fn test_merge_ref_targets() {
     assert_eq!(
         merge_ref_targets(
             index,
-            Some(&RefTarget::Conflict {
-                removes: vec![commit2.id().clone()],
-                adds: vec![commit3.id().clone(), commit4.id().clone()]
-            }),
+            RefTarget::from_legacy_form(
+                [commit2.id().clone()],
+                [commit3.id().clone(), commit4.id().clone()]
+            )
+            .as_ref(),
             target3.as_ref(),
             target5.as_ref()
         ),
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit5.id().clone(), commit4.id().clone()]
-        })
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit5.id().clone(), commit4.id().clone()]
+        )
     );
 
     // Existing conflict on right, left moves an "add" sideways
@@ -253,15 +250,16 @@ fn test_merge_ref_targets() {
             index,
             target5.as_ref(),
             target3.as_ref(),
-            Some(&RefTarget::Conflict {
-                removes: vec![commit2.id().clone()],
-                adds: vec![commit3.id().clone(), commit4.id().clone()]
-            })
+            RefTarget::from_legacy_form(
+                [commit2.id().clone()],
+                [commit3.id().clone(), commit4.id().clone()]
+            )
+            .as_ref(),
         ),
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit5.id().clone(), commit4.id().clone()]
-        })
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit5.id().clone(), commit4.id().clone()]
+        )
     );
 
     // Existing conflict on left, right moves an "add" backwards, past point of
@@ -276,17 +274,18 @@ fn test_merge_ref_targets() {
     assert_eq!(
         merge_ref_targets(
             index,
-            Some(&RefTarget::Conflict {
-                removes: vec![commit2.id().clone()],
-                adds: vec![commit3.id().clone(), commit4.id().clone()]
-            }),
+            RefTarget::from_legacy_form(
+                [commit2.id().clone()],
+                [commit3.id().clone(), commit4.id().clone()]
+            )
+            .as_ref(),
             target3.as_ref(),
             target1.as_ref()
         ),
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit1.id().clone(), commit4.id().clone()]
-        })
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit1.id().clone(), commit4.id().clone()]
+        )
     );
 
     // Existing conflict on right, left moves an "add" backwards, past point of
@@ -303,25 +302,27 @@ fn test_merge_ref_targets() {
             index,
             target1.as_ref(),
             target3.as_ref(),
-            Some(&RefTarget::Conflict {
-                removes: vec![commit2.id().clone()],
-                adds: vec![commit3.id().clone(), commit4.id().clone()]
-            })
+            RefTarget::from_legacy_form(
+                [commit2.id().clone()],
+                [commit3.id().clone(), commit4.id().clone()]
+            )
+            .as_ref(),
         ),
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit1.id().clone(), commit4.id().clone()]
-        })
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit1.id().clone(), commit4.id().clone()]
+        )
     );
 
     // Existing conflict on left, right undoes one side of conflict
     assert_eq!(
         merge_ref_targets(
             index,
-            Some(&RefTarget::Conflict {
-                removes: vec![commit2.id().clone()],
-                adds: vec![commit3.id().clone(), commit4.id().clone()]
-            }),
+            RefTarget::from_legacy_form(
+                [commit2.id().clone()],
+                [commit3.id().clone(), commit4.id().clone()]
+            )
+            .as_ref(),
             target3.as_ref(),
             target2.as_ref()
         ),
@@ -334,10 +335,11 @@ fn test_merge_ref_targets() {
             index,
             target2.as_ref(),
             target3.as_ref(),
-            Some(&RefTarget::Conflict {
-                removes: vec![commit2.id().clone()],
-                adds: vec![commit3.id().clone(), commit4.id().clone()]
-            })
+            RefTarget::from_legacy_form(
+                [commit2.id().clone()],
+                [commit3.id().clone(), commit4.id().clone()]
+            )
+            .as_ref(),
         ),
         target4
     );
@@ -346,21 +348,22 @@ fn test_merge_ref_targets() {
     assert_eq!(
         merge_ref_targets(
             index,
-            Some(&RefTarget::Conflict {
-                removes: vec![commit2.id().clone()],
-                adds: vec![commit3.id().clone(), commit4.id().clone()]
-            }),
+            RefTarget::from_legacy_form(
+                [commit2.id().clone()],
+                [commit3.id().clone(), commit4.id().clone()]
+            )
+            .as_ref(),
             target5.as_ref(),
             target6.as_ref()
         ),
-        Some(RefTarget::Conflict {
-            removes: vec![commit2.id().clone(), commit5.id().clone()],
-            adds: vec![
+        RefTarget::from_legacy_form(
+            [commit2.id().clone(), commit5.id().clone()],
+            [
                 commit3.id().clone(),
                 commit4.id().clone(),
                 commit6.id().clone()
             ]
-        })
+        )
     );
 
     // Existing conflict on right, left makes unrelated update
@@ -369,18 +372,19 @@ fn test_merge_ref_targets() {
             index,
             target6.as_ref(),
             target5.as_ref(),
-            Some(&RefTarget::Conflict {
-                removes: vec![commit2.id().clone()],
-                adds: vec![commit3.id().clone(), commit4.id().clone()]
-            })
+            RefTarget::from_legacy_form(
+                [commit2.id().clone()],
+                [commit3.id().clone(), commit4.id().clone()]
+            )
+            .as_ref(),
         ),
-        Some(RefTarget::Conflict {
-            removes: vec![commit5.id().clone(), commit2.id().clone()],
-            adds: vec![
+        RefTarget::from_legacy_form(
+            [commit5.id().clone(), commit2.id().clone()],
+            [
                 commit6.id().clone(),
                 commit3.id().clone(),
                 commit4.id().clone()
             ]
-        })
+        )
     );
 }
