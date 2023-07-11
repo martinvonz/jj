@@ -935,7 +935,7 @@ fn test_rebase_descendants_basic_branch_update() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo()
-        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+        .set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -978,7 +978,7 @@ fn test_rebase_descendants_branch_move_two_steps() {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     tx.mut_repo()
-        .set_local_branch("main".to_string(), RefTarget::Normal(commit_c.id().clone()));
+        .set_local_branch_target("main", Some(RefTarget::Normal(commit_c.id().clone())));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1024,7 +1024,7 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo()
-        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+        .set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
     tx.mut_repo().set_remote_branch_target(
         "main",
         "origin",
@@ -1080,7 +1080,7 @@ fn test_rebase_descendants_update_branch_after_abandon() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo()
-        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+        .set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1116,7 +1116,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo()
-        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+        .set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1180,12 +1180,12 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.initial_commit();
     let commit_c = graph_builder.initial_commit();
-    tx.mut_repo().set_local_branch(
-        "main".to_string(),
-        RefTarget::Conflict {
+    tx.mut_repo().set_local_branch_target(
+        "main",
+        Some(RefTarget::Conflict {
             removes: vec![commit_a.id().clone()],
             adds: vec![commit_b.id().clone(), commit_c.id().clone()],
-        },
+        }),
     );
     let repo = tx.commit();
 
@@ -1261,12 +1261,12 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
-    tx.mut_repo().set_local_branch(
-        "main".to_string(),
-        RefTarget::Conflict {
+    tx.mut_repo().set_local_branch_target(
+        "main",
+        Some(RefTarget::Conflict {
             removes: vec![commit_a.id().clone()],
             adds: vec![commit_b.id().clone(), commit_c.id().clone()],
-        },
+        }),
     );
     let repo = tx.commit();
 
@@ -1304,12 +1304,12 @@ fn test_rebase_descendants_branch_delete_modify_abandon() {
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
-    tx.mut_repo().set_local_branch(
-        "main".to_string(),
-        RefTarget::Conflict {
+    tx.mut_repo().set_local_branch_target(
+        "main",
+        Some(RefTarget::Conflict {
             removes: vec![commit_a.id().clone()],
             adds: vec![commit_b.id().clone()],
-        },
+        }),
     );
     let repo = tx.commit();
 

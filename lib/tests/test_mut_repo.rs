@@ -170,10 +170,7 @@ fn test_checkout_previous_empty_with_local_branch(use_git: bool) {
         )
         .write()
         .unwrap();
-    mut_repo.set_local_branch(
-        "b".to_owned(),
-        RefTarget::Normal(old_wc_commit.id().clone()),
-    );
+    mut_repo.set_local_branch_target("b", Some(RefTarget::Normal(old_wc_commit.id().clone())));
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
     let repo = tx.commit();
@@ -472,7 +469,7 @@ fn test_has_changed(use_git: bool) {
     mut_repo
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
         .unwrap();
-    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
+    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(commit1.id().clone())));
     mut_repo.set_remote_branch_target(
         "main",
         "origin",
@@ -491,7 +488,7 @@ fn test_has_changed(use_git: bool) {
     mut_repo
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
         .unwrap();
-    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
+    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(commit1.id().clone())));
     mut_repo.set_remote_branch_target(
         "main",
         "origin",
@@ -501,7 +498,7 @@ fn test_has_changed(use_git: bool) {
 
     mut_repo.remove_public_head(commit2.id());
     mut_repo.remove_head(commit2.id());
-    mut_repo.remove_local_branch("stable");
+    mut_repo.set_local_branch_target("stable", None);
     mut_repo.set_remote_branch_target("stable", "origin", None);
     assert!(!mut_repo.has_changes());
 
@@ -527,9 +524,9 @@ fn test_has_changed(use_git: bool) {
     mut_repo.set_wc_commit(ws_id, commit1.id().clone()).unwrap();
     assert!(!mut_repo.has_changes());
 
-    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit2.id().clone()));
+    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(commit2.id().clone())));
     assert!(mut_repo.has_changes());
-    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
+    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(commit1.id().clone())));
     assert!(!mut_repo.has_changes());
 
     mut_repo.set_remote_branch_target(

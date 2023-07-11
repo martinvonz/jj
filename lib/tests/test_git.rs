@@ -219,10 +219,8 @@ fn test_import_refs_reimport() {
         .set_parents(vec![jj_id(&commit2)])
         .write()
         .unwrap();
-    tx.mut_repo().set_local_branch(
-        "feature2".to_string(),
-        RefTarget::Normal(commit6.id().clone()),
-    );
+    tx.mut_repo()
+        .set_local_branch_target("feature2", Some(RefTarget::Normal(commit6.id().clone())));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -988,10 +986,7 @@ fn test_export_refs_branch_changed() {
         .set_parents(vec![jj_id(&commit)])
         .write()
         .unwrap();
-    mut_repo.set_local_branch(
-        "main".to_string(),
-        RefTarget::Normal(new_commit.id().clone()),
-    );
+    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(new_commit.id().clone())));
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
@@ -1030,10 +1025,7 @@ fn test_export_refs_current_branch_changed() {
         .set_parents(vec![jj_id(&commit1)])
         .write()
         .unwrap();
-    mut_repo.set_local_branch(
-        "main".to_string(),
-        RefTarget::Normal(new_commit.id().clone()),
-    );
+    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(new_commit.id().clone())));
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
@@ -1067,10 +1059,7 @@ fn test_export_refs_unborn_git_branch() {
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
 
     let new_commit = write_random_commit(mut_repo, &test_data.settings);
-    mut_repo.set_local_branch(
-        "main".to_string(),
-        RefTarget::Normal(new_commit.id().clone()),
-    );
+    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(new_commit.id().clone())));
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
@@ -1118,7 +1107,7 @@ fn test_export_import_sequence() {
     );
 
     // Modify the branch in jj to point to B
-    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
 
     // Export the branch to git
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
@@ -1194,22 +1183,19 @@ fn test_export_conflicts() {
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
     let commit_b = write_random_commit(mut_repo, &test_data.settings);
     let commit_c = write_random_commit(mut_repo, &test_data.settings);
-    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_a.id().clone()));
-    mut_repo.set_local_branch(
-        "feature".to_string(),
-        RefTarget::Normal(commit_a.id().clone()),
-    );
+    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(commit_a.id().clone())));
+    mut_repo.set_local_branch_target("feature", Some(RefTarget::Normal(commit_a.id().clone())));
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
 
     // Create a conflict and export. It should not be exported, but other changes
     // should be.
-    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
-    mut_repo.set_local_branch(
-        "feature".to_string(),
-        RefTarget::Conflict {
+    mut_repo.set_local_branch_target("main", Some(RefTarget::Normal(commit_b.id().clone())));
+    mut_repo.set_local_branch_target(
+        "feature",
+        Some(RefTarget::Conflict {
             removes: vec![commit_a.id().clone()],
             adds: vec![commit_b.id().clone(), commit_c.id().clone()],
-        },
+        }),
     );
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(
@@ -1240,15 +1226,15 @@ fn test_export_partial_failure() {
         .start_transaction(&test_data.settings, "test");
     let mut_repo = tx.mut_repo();
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
-    let target = RefTarget::Normal(commit_a.id().clone());
+    let target = Some(RefTarget::Normal(commit_a.id().clone()));
     // Empty string is disallowed by Git
-    mut_repo.set_local_branch("".to_string(), target.clone());
+    mut_repo.set_local_branch_target("", target.clone());
     // Branch named HEAD is disallowed by Git CLI
-    mut_repo.set_local_branch("HEAD".to_string(), target.clone());
-    mut_repo.set_local_branch("main".to_string(), target.clone());
+    mut_repo.set_local_branch_target("HEAD", target.clone());
+    mut_repo.set_local_branch_target("main", target.clone());
     // `main/sub` will conflict with `main` in Git, at least when using loose ref
     // storage
-    mut_repo.set_local_branch("main/sub".to_string(), target);
+    mut_repo.set_local_branch_target("main/sub", target);
     assert_eq!(
         git::export_refs(mut_repo, &git_repo),
         Ok(vec![
@@ -1273,7 +1259,7 @@ fn test_export_partial_failure() {
 
     // Now remove the `main` branch and make sure that the `main/sub` gets exported
     // even though it didn't change
-    mut_repo.remove_local_branch("main");
+    mut_repo.set_local_branch_target("main", None);
     assert_eq!(
         git::export_refs(mut_repo, &git_repo),
         Ok(vec![
@@ -1330,19 +1316,19 @@ fn test_export_reexport_transitions() {
     for branch in [
         "AAB", "AAX", "ABA", "ABB", "ABC", "ABX", "AXA", "AXB", "AXX",
     ] {
-        mut_repo.set_local_branch(branch.to_string(), RefTarget::Normal(commit_a.id().clone()));
+        mut_repo.set_local_branch_target(branch, Some(RefTarget::Normal(commit_a.id().clone())));
     }
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
 
     // Make changes on the jj side
     for branch in ["AXA", "AXB", "AXX"] {
-        mut_repo.remove_local_branch(branch);
+        mut_repo.set_local_branch_target(branch, None);
     }
     for branch in ["XAA", "XAB", "XAX"] {
-        mut_repo.set_local_branch(branch.to_string(), RefTarget::Normal(commit_a.id().clone()));
+        mut_repo.set_local_branch_target(branch, Some(RefTarget::Normal(commit_a.id().clone())));
     }
     for branch in ["ABA", "ABB", "ABC", "ABX"] {
-        mut_repo.set_local_branch(branch.to_string(), RefTarget::Normal(commit_b.id().clone()));
+        mut_repo.set_local_branch_target(branch, Some(RefTarget::Normal(commit_b.id().clone())));
     }
 
     // Make changes on the git side

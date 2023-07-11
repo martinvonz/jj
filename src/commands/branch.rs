@@ -156,9 +156,9 @@ fn cmd_branch_create(
         target_commit.id().hex()
     ));
     for branch_name in branch_names {
-        tx.mut_repo().set_local_branch(
-            branch_name.to_string(),
-            RefTarget::Normal(target_commit.id().clone()),
+        tx.mut_repo().set_local_branch_target(
+            branch_name,
+            Some(RefTarget::Normal(target_commit.id().clone())),
         );
     }
     tx.finish(ui)?;
@@ -203,9 +203,9 @@ fn cmd_branch_set(
         target_commit.id().hex()
     ));
     for branch_name in branch_names {
-        tx.mut_repo().set_local_branch(
-            branch_name.to_string(),
-            RefTarget::Normal(target_commit.id().clone()),
+        tx.mut_repo().set_local_branch_target(
+            branch_name,
+            Some(RefTarget::Normal(target_commit.id().clone())),
         );
     }
     tx.finish(ui)?;
@@ -280,7 +280,7 @@ fn cmd_branch_delete(
     let branch_term = make_branch_term(names.iter().collect_vec().as_slice());
     let mut tx = workspace_command.start_transaction(&format!("delete {branch_term}"));
     for branch_name in names.iter() {
-        tx.mut_repo().remove_local_branch(branch_name);
+        tx.mut_repo().set_local_branch_target(branch_name, None);
     }
     tx.finish(ui)?;
     if names.len() > 1 {
