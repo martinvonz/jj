@@ -157,8 +157,8 @@ fn test_resolve_workspace_directory() {
     // Ancestor of cwd
     let stdout = test_env.jj_cmd_success(&subdir, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
-    Parent commit: 00000000 (no description set)
-    Working copy : 230dd059 (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    Working copy : qpvuntsm 230dd059 (empty) (no description set)
     The working copy is clean
     "###);
 
@@ -171,8 +171,8 @@ fn test_resolve_workspace_directory() {
     // Valid explicit path
     let stdout = test_env.jj_cmd_success(&subdir, &["status", "-R", "../.."]);
     insta::assert_snapshot!(stdout, @r###"
-    Parent commit: 00000000 (no description set)
-    Working copy : 230dd059 (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    Working copy : qpvuntsm 230dd059 (empty) (no description set)
     The working copy is clean
     "###);
 

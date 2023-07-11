@@ -55,8 +55,8 @@ fn test_git_clone() {
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "clone"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
-    Working copy now at: 1f0b881a (no description set)
-    Parent commit      : 9f01a0e0 message
+    Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
+    Parent commit      : mzyxwzks 9f01a0e0 message
     Added 1 files, modified 0 files, removed 0 files
     "###);
     assert!(test_env.env_root().join("clone").join("file").exists());
@@ -133,8 +133,8 @@ fn test_git_clone_colocate() {
     );
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
-    Working copy now at: 1f0b881a (no description set)
-    Parent commit      : 9f01a0e0 message
+    Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
+    Parent commit      : mzyxwzks 9f01a0e0 message
     Added 1 files, modified 0 files, removed 0 files
     "###);
     assert!(test_env.env_root().join("clone").join("file").exists());

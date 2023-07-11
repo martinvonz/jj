@@ -27,8 +27,8 @@ fn test_describe() {
     // Set a description using `-m` flag
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description from CLI"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: cf3e8673 description from CLI
-    Parent commit      : 00000000 (no description set)
+    Working copy now at: qpvuntsm cf3e8673 (empty) description from CLI
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
 
     // Set the same description using `-m` flag, but with explicit newline
@@ -55,8 +55,8 @@ fn test_describe() {
     std::fs::write(&edit_script, "write\ndescription from editor").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 100943ae description from editor
-    Parent commit      : 00000000 (no description set)
+    Working copy now at: qpvuntsm 100943ae (empty) description from editor
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
 
     // Lines in editor starting with "JJ: " are ignored
@@ -67,16 +67,16 @@ fn test_describe() {
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: ccefa58b description among comment
-    Parent commit      : 00000000 (no description set)
+    Working copy now at: qpvuntsm ccefa58b (empty) description among comment
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
 
     // Multi-line description
     std::fs::write(&edit_script, "write\nline1\nline2\n\nline4\n\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: e932ba42 line1
-    Parent commit      : 00000000 (no description set)
+    Working copy now at: qpvuntsm e932ba42 (empty) line1
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-Tdescription"]);
@@ -97,8 +97,8 @@ fn test_describe() {
     // Clear description
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", ""]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: d6957294 (no description set)
-    Parent commit      : 00000000 (no description set)
+    Working copy now at: qpvuntsm d6957294 (empty) (no description set)
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
     std::fs::write(&edit_script, "write\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);

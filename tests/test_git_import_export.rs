@@ -34,8 +34,8 @@ fn test_resolution_of_git_tracking_branches() {
     // Move the local branch somewhere else
     test_env.jj_cmd_success(&repo_path, &["describe", "-r", "main", "-m", "new_message"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    main: 3af37026 new_message
-      @git (ahead by 1 commits, behind by 1 commits): 16d541ca old_message
+    main: qpvuntsm 3af37026 (empty) new_message
+      @git (ahead by 1 commits, behind by 1 commits): qpvuntsm 16d541ca (empty) old_message
     "###);
 
     // Test that we can address both revisions
@@ -95,7 +95,7 @@ fn test_git_export_undo() {
 
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: 230dd059 (no description set)
+    a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
 
@@ -139,7 +139,7 @@ fn test_git_import_undo() {
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: 230dd059 (no description set)
+    a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
     // "git import" can be undone by default in non-colocated repositories.
@@ -150,7 +150,7 @@ fn test_git_import_undo() {
     // Try "git import" again, which should re-import the branch "a".
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: 230dd059 (no description set)
+    a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
     // If we don't restore the git_refs, undoing the import removes the local branch
@@ -169,7 +169,7 @@ fn test_git_import_undo() {
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a (forgotten)
-      @git: 230dd059 (no description set)
+      @git: qpvuntsm 230dd059 (empty) (no description set)
       (this branch will be deleted from the underlying Git repo on the next `jj git export`)
     "###);
     // Try "git import" again, which should *not* re-import the branch "a" and be a
@@ -179,7 +179,7 @@ fn test_git_import_undo() {
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a (forgotten)
-      @git: 230dd059 (no description set)
+      @git: qpvuntsm 230dd059 (empty) (no description set)
       (this branch will be deleted from the underlying Git repo on the next `jj git export`)
     "###);
 
@@ -195,7 +195,7 @@ fn test_git_import_undo() {
     // Try "git import" again, which should again re-import the branch "a".
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: 230dd059 (no description set)
+    a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 }
 
@@ -221,27 +221,27 @@ fn test_git_import_move_export_with_default_undo() {
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: 230dd059 (no description set)
+    a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
     // Move branch "a" and export to git repo
     test_env.jj_cmd_success(&repo_path, &["new"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "set", "a"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: 096dc80d (no description set)
-      @git (behind by 1 commits): 230dd059 (no description set)
+    a: yqosqzyt 096dc80d (empty) (no description set)
+      @git (behind by 1 commits): qpvuntsm 230dd059 (empty) (no description set)
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: 096dc80d (no description set)
+    a: yqosqzyt 096dc80d (empty) (no description set)
     "###);
 
     // "git import" can be undone with the default `restore` behavior, as shown in
     // the previous test. However, "git export" can't: the branches in the git
     // repo stay where they were.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]), @r###"
-    Working copy now at: 230dd059 (no description set)
-    Parent commit      : 00000000 (no description set)
+    Working copy now at: qpvuntsm 230dd059 (empty) (no description set)
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
@@ -259,7 +259,7 @@ fn test_git_import_move_export_with_default_undo() {
     // intuitive result here.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: 096dc80d (no description set)
+    a: yqosqzyt 096dc80d (empty) (no description set)
     "###);
 }
 

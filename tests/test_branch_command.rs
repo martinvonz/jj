@@ -196,17 +196,17 @@ fn test_branch_delete_glob() {
 
     // The deleted branches are still there
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    bar-2: 6fbf398c commit
+    bar-2: qpvuntsm 6fbf398c (empty) commit
     foo-1 (deleted)
-      @origin: 6fbf398c commit
+      @origin: qpvuntsm 6fbf398c (empty) commit
       (this branch will be *deleted permanently* on the remote on the
        next `jj git push`. Use `jj branch forget` to prevent this)
     foo-3 (deleted)
-      @origin: 6fbf398c commit
+      @origin: qpvuntsm 6fbf398c (empty) commit
       (this branch will be *deleted permanently* on the remote on the
        next `jj git push`. Use `jj branch forget` to prevent this)
     foo-4 (deleted)
-      @origin: 6fbf398c commit
+      @origin: qpvuntsm 6fbf398c (empty) commit
       (this branch will be *deleted permanently* on the remote on the
        next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
@@ -228,7 +228,7 @@ fn test_branch_forget_export() {
     test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    foo: 65b6b74e (no description set)
+    foo: rlvkpnrz 65b6b74e (empty) (no description set)
     "###);
 
     // Exporting the branch to git creates a local-git tracking branch
@@ -241,7 +241,7 @@ fn test_branch_forget_export() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     foo (forgotten)
-      @git: 65b6b74e (no description set)
+      @git: rlvkpnrz 65b6b74e (empty) (no description set)
       (this branch will be deleted from the underlying Git repo on the next `jj git export`)
     "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r=foo", "--no-graph"]);
@@ -315,7 +315,7 @@ fn test_branch_forget_fetched_branch() {
     // Fetch normally
     test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    feature1: 9f01a0e0 message
+    feature1: mzyxwzks 9f01a0e0 message
     "###);
 
     // TEST 1: with export-import
@@ -341,7 +341,7 @@ fn test_branch_forget_fetched_branch() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    feature1: 9f01a0e0 message
+    feature1: mzyxwzks 9f01a0e0 message
     "###);
 
     // TEST 2: No export/import (otherwise the same as test 1)
@@ -351,7 +351,7 @@ fn test_branch_forget_fetched_branch() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    feature1: 9f01a0e0 message
+    feature1: mzyxwzks 9f01a0e0 message
     "###);
 
     // TEST 3: fetch branch that was moved & forgotten
@@ -374,7 +374,7 @@ fn test_branch_forget_fetched_branch() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    feature1: 38aefb17 another message
+    feature1: ooosovrs 38aefb17 (empty) another message
     "###);
 }
 
@@ -420,7 +420,7 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
     test_env.jj_cmd_success(&repo_path, &["branch", "delete", "feature1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1 (deleted)
-      @origin: 9f01a0e0 message
+      @origin: mzyxwzks 9f01a0e0 message
       (this branch will be *deleted permanently* on the remote on the
        next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
@@ -490,14 +490,14 @@ fn test_branch_list_filtered_by_revset() {
 
     // All branches are listed by default.
     insta::assert_snapshot!(test_env.jj_cmd_success(&local_path, &["branch", "list"]), @r###"
-    local-keep: c7b4c09c local-keep
+    local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-delete (deleted)
-      @origin: dad5f298 remote-delete
+      @origin: yxusvupt dad5f298 (empty) remote-delete
       (this branch will be *deleted permanently* on the remote on the
        next `jj git push`. Use `jj branch forget` to prevent this)
-    remote-keep: 911e9120 remote-keep
-    remote-rewrite: e31634b6 rewritten
-      @origin (ahead by 1 commits, behind by 1 commits): 3e9a5af6 remote-rewrite
+    remote-keep: nlwprzpn 911e9120 (empty) remote-keep
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn 3e9a5af6 (empty) remote-rewrite
     "###);
 
     let query = |revset| test_env.jj_cmd_success(&local_path, &["branch", "list", "-r", revset]);
@@ -507,25 +507,25 @@ fn test_branch_list_filtered_by_revset() {
     // "all()" doesn't include deleted branches since they have no local targets.
     // So "all()" is identical to "branches()".
     insta::assert_snapshot!(query("all()"), @r###"
-    local-keep: c7b4c09c local-keep
-    remote-keep: 911e9120 remote-keep
-    remote-rewrite: e31634b6 rewritten
-      @origin (ahead by 1 commits, behind by 1 commits): 3e9a5af6 remote-rewrite
+    local-keep: kpqxywon c7b4c09c (empty) local-keep
+    remote-keep: nlwprzpn 911e9120 (empty) remote-keep
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn 3e9a5af6 (empty) remote-rewrite
     "###);
 
     // Exclude remote-only branches. "remote-rewrite@origin" is included since
     // local "remote-rewrite" target matches.
     insta::assert_snapshot!(query("branches()"), @r###"
-    local-keep: c7b4c09c local-keep
-    remote-keep: 911e9120 remote-keep
-    remote-rewrite: e31634b6 rewritten
-      @origin (ahead by 1 commits, behind by 1 commits): 3e9a5af6 remote-rewrite
+    local-keep: kpqxywon c7b4c09c (empty) local-keep
+    remote-keep: nlwprzpn 911e9120 (empty) remote-keep
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn 3e9a5af6 (empty) remote-rewrite
     "###);
 
     // Select branches by name.
     insta::assert_snapshot!(query("branches(remote-rewrite)"), @r###"
-    remote-rewrite: e31634b6 rewritten
-      @origin (ahead by 1 commits, behind by 1 commits): 3e9a5af6 remote-rewrite
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn 3e9a5af6 (empty) remote-rewrite
     "###);
 
     // Can't select deleted branch.

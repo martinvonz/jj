@@ -43,8 +43,8 @@ fn test_unsquash() {
     // Unsquashes into the working copy from its parent by default
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 1b10d78f (no description set)
-    Parent commit      : 90aeefd0 (no description set)
+    Working copy now at: mzvwutvl 1b10d78f (no description set)
+    Parent commit      : qpvuntsm 90aeefd0 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  1b10d78f6136 c
@@ -61,8 +61,8 @@ fn test_unsquash() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: 45b8b3dd (no description set)
-    Parent commit      : 9146bcc8 (no description set)
+    Working copy now at: mzvwutvl 45b8b3dd (no description set)
+    Parent commit      : kkmpptxz 9146bcc8 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  45b8b3ddc25a c
@@ -107,9 +107,9 @@ fn test_unsquash() {
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 3217340c merge
-    Parent commit      : 90fe0a96 (no description set)
-    Parent commit      : 5658521e (no description set)
+    Working copy now at: pzsxstzt 3217340c merge
+    Parent commit      : mzvwutvl 90fe0a96 (no description set)
+    Parent commit      : xznxytkn 5658521e (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    3217340cb761
@@ -158,8 +158,8 @@ fn test_unsquash_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: 37c961d0 (no description set)
-    Parent commit      : 000af220 (no description set)
+    Working copy now at: mzvwutvl 37c961d0 (no description set)
+    Parent commit      : kkmpptxz 000af220 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  37c961d0d1e2 c
@@ -177,8 +177,8 @@ fn test_unsquash_partial() {
     std::fs::write(edit_script, "reset file1").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: a8e8fded (no description set)
-    Parent commit      : 46cc0667 (no description set)
+    Working copy now at: mzvwutvl a8e8fded (no description set)
+    Parent commit      : kkmpptxz 46cc0667 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  a8e8fded1021 c

@@ -41,10 +41,10 @@ fn test_split_by_paths() {
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["split", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
-    First part: 5eebce1d (no description set)
-    Second part: 45833353 (no description set)
-    Working copy now at: 45833353 (no description set)
-    Parent commit      : 5eebce1d (no description set)
+    First part: qpvuntsm 5eebce1d (no description set)
+    Second part: kkmpptxz 45833353 (no description set)
+    Working copy now at: kkmpptxz 45833353 (no description set)
+    Parent commit      : qpvuntsm 5eebce1d (no description set)
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
@@ -87,10 +87,10 @@ fn test_split_by_paths() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["split", "-r", "@-", "."]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    First part: 31425b56 (no description set)
-    Second part: af096392 (no description set)
-    Working copy now at: 28d4ec20 (no description set)
-    Parent commit      : af096392 (no description set)
+    First part: qpvuntsm 31425b56 (no description set)
+    Second part: yqosqzyt af096392 (empty) (no description set)
+    Working copy now at: kkmpptxz 28d4ec20 (no description set)
+    Parent commit      : yqosqzyt af096392 (empty) (no description set)
     "###);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -113,10 +113,10 @@ fn test_split_by_paths() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["split", "-r", "@-", "nonexistent"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    First part: 0647b2cb (no description set)
-    Second part: d5d77af6 (no description set)
-    Working copy now at: 86f228dc (no description set)
-    Parent commit      : d5d77af6 (no description set)
+    First part: qpvuntsm 0647b2cb (empty) (no description set)
+    Second part: kpqxywon d5d77af6 (no description set)
+    Working copy now at: kkmpptxz 86f228dc (no description set)
+    Parent commit      : kpqxywon d5d77af6 (no description set)
     "###);
     insta::assert_snapshot!(stderr, @r###"
     The given paths do not match any file: nonexistent
