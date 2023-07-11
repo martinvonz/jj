@@ -40,11 +40,6 @@ use crate::file_util::persist_content_addressed_temp_file;
 use crate::index::{
     HexPrefix, Index, IndexStore, IndexWriteError, MutableIndex, PrefixResolution, ReadonlyIndex,
 };
-#[cfg(not(feature = "map_first_last"))]
-// This import is used on Rust 1.61, but not on recent version.
-// TODO: Remove it when our MSRV becomes recent enough.
-#[allow(unused_imports)]
-use crate::nightly_shims::BTreeSetExt;
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};

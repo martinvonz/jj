@@ -19,7 +19,6 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::backend::CommitId;
 use crate::default_index_store::{IndexEntry, IndexPosition};
-use crate::nightly_shims::BTreeMapExt;
 use crate::revset::{RevsetGraphEdge, RevsetGraphEdgeType};
 
 /// Given an iterator over some set of revisions, yields the same revisions with
@@ -122,7 +121,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
     }
 
     fn next_index_entry(&mut self) -> Option<IndexEntry<'index>> {
-        if let Some(index_entry) = self.look_ahead.pop_last_value() {
+        if let Some(index_entry) = self.look_ahead.last_entry().map(|x| x.remove()) {
             return Some(index_entry);
         }
         self.input_set_iter.next()
