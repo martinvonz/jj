@@ -18,7 +18,7 @@ use crate::backend::CommitId;
 use crate::conflicts::Conflict;
 use crate::index::Index;
 use crate::merge::trivial_merge;
-use crate::op_store::{BranchTarget, RefTarget};
+use crate::op_store::{BranchTarget, RefTarget, RefTargetExt as _};
 
 pub fn merge_ref_targets(
     index: &dyn Index,
@@ -132,31 +132,19 @@ pub fn classify_branch_push_action(
     branch_target: &BranchTarget,
     remote_name: &str,
 ) -> BranchPushAction {
-    let maybe_remote_target = branch_target.remote_targets.get(remote_name);
-    if branch_target.local_target.as_ref() == maybe_remote_target {
-        return BranchPushAction::AlreadyMatches;
-    }
-
-    match (&maybe_remote_target, &branch_target.local_target) {
-        (_, Some(RefTarget::Conflict { .. })) => BranchPushAction::LocalConflicted,
-        (Some(RefTarget::Conflict { .. }), _) => BranchPushAction::RemoteConflicted,
-        (Some(RefTarget::Normal(old_target)), Some(RefTarget::Normal(new_target))) => {
-            BranchPushAction::Update(BranchPushUpdate {
-                old_target: Some(old_target.clone()),
-                new_target: Some(new_target.clone()),
-            })
-        }
-        (Some(RefTarget::Normal(old_target)), None) => BranchPushAction::Update(BranchPushUpdate {
-            old_target: Some(old_target.clone()),
-            new_target: None,
-        }),
-        (None, Some(RefTarget::Normal(new_target))) => BranchPushAction::Update(BranchPushUpdate {
-            old_target: None,
-            new_target: Some(new_target.clone()),
-        }),
-        (None, None) => {
-            panic!("Unexpected branch doesn't exist anywhere")
-        }
+    let local_target = branch_target.local_target.as_ref();
+    let remote_target = branch_target.remote_targets.get(remote_name);
+    if local_target == remote_target {
+        BranchPushAction::AlreadyMatches
+    } else if local_target.is_conflict() {
+        BranchPushAction::LocalConflicted
+    } else if remote_target.is_conflict() {
+        BranchPushAction::RemoteConflicted
+    } else {
+        BranchPushAction::Update(BranchPushUpdate {
+            old_target: remote_target.as_normal().cloned(),
+            new_target: local_target.as_normal().cloned(),
+        })
     }
 }
 
