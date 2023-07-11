@@ -127,8 +127,8 @@ fn test_rebase_branch() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b=e", "-b=d", "-d=b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 commits
-    Working copy now at: 9ca2a154 e
-    Parent commit      : 1394f625 b
+    Working copy now at: znkkpsqq 9ca2a154 e
+    Parent commit      : zsuskuln 1394f625 b
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -148,15 +148,15 @@ fn test_rebase_branch() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "e|d" resolved to more than one revision
     Hint: The revset "e|d" resolved to these revisions:
-    e52756c8 e
-    514fa6b2 d
+    znkkpsqq e52756c8 e
+    vruxwmqv 514fa6b2 d
     Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:e|d').
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b=all:e|d", "-d=b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 commits
-    Working copy now at: 817e3fb0 e
-    Parent commit      : 1394f625 b
+    Working copy now at: znkkpsqq 817e3fb0 e
+    Parent commit      : zsuskuln 1394f625 b
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -198,8 +198,8 @@ fn test_rebase_branch_with_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "d", "-d", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
-    Working copy now at: 391c91a7 e
-    Parent commit      : 1677f795 d
+    Working copy now at: znkkpsqq 391c91a7 e
+    Parent commit      : vruxwmqv 1677f795 d
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -215,8 +215,8 @@ fn test_rebase_branch_with_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-d", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
-    Working copy now at: 040ae3a6 e
-    Parent commit      : 3d0f3644 d
+    Working copy now at: znkkpsqq 040ae3a6 e
+    Parent commit      : vruxwmqv 3d0f3644 d
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -259,8 +259,8 @@ fn test_rebase_single_revision() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "b", "-d", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 2 descendant commits onto parent of rebased commit
-    Working copy now at: 7e15b97a d
-    Parent commit      : 934236c8 c
+    Working copy now at: vruxwmqv 7e15b97a d
+    Parent commit      : royxmykx 934236c8 c
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -278,9 +278,9 @@ fn test_rebase_single_revision() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "c", "-d", "root"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
-    Working copy now at: bf87078f d
-    Parent commit      : d370aee1 b
-    Parent commit      : 2443ea76 a
+    Working copy now at: vruxwmqv bf87078f d
+    Parent commit      : zsuskuln d370aee1 b
+    Parent commit      : rlvkpnrz 2443ea76 a
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -321,9 +321,9 @@ fn test_rebase_single_revision_merge_parent() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "c", "-d", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
-    Working copy now at: c62d0789 d
-    Parent commit      : d370aee1 b
-    Parent commit      : 2443ea76 a
+    Working copy now at: vruxwmqv c62d0789 d
+    Parent commit      : zsuskuln d370aee1 b
+    Parent commit      : rlvkpnrz 2443ea76 a
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -372,8 +372,8 @@ fn test_rebase_multiple_destinations() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "b|c" resolved to more than one revision
     Hint: The revset "b|c" resolved to these revisions:
-    fe2e8e8b c
-    d370aee1 b
+    royxmykx fe2e8e8b c
+    zsuskuln d370aee1 b
     Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:b|c').
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "a", "-d", "all:b|c"]);
@@ -432,8 +432,8 @@ fn test_rebase_with_descendants() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s", "b", "-d", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
-    Working copy now at: 309336ff d
-    Parent commit      : 244fa794 c
+    Working copy now at: vruxwmqv 309336ff d
+    Parent commit      : royxmykx 244fa794 c
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d
@@ -448,8 +448,8 @@ fn test_rebase_with_descendants() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s=c", "-s=d", "-d=a"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 commits
-    Working copy now at: 92c2bc9a d
-    Parent commit      : 2443ea76 a
+    Working copy now at: vruxwmqv 92c2bc9a d
+    Parent commit      : rlvkpnrz 2443ea76 a
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -479,8 +479,8 @@ fn test_rebase_with_descendants() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s=b", "-s=d", "-d=a"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
-    Working copy now at: f1e71cb7 d
-    Parent commit      : 2443ea76 a
+    Working copy now at: vruxwmqv f1e71cb7 d
+    Parent commit      : rlvkpnrz 2443ea76 a
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -498,15 +498,15 @@ fn test_rebase_with_descendants() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "b|d" resolved to more than one revision
     Hint: The revset "b|d" resolved to these revisions:
-    df54a9fd d
-    d370aee1 b
+    vruxwmqv df54a9fd d
+    zsuskuln d370aee1 b
     Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:b|d').
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s=all:b|d", "-d=a"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
-    Working copy now at: d17539f7 d
-    Parent commit      : 2443ea76 a
+    Working copy now at: vruxwmqv d17539f7 d
+    Parent commit      : rlvkpnrz 2443ea76 a
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

@@ -30,8 +30,8 @@ fn test_checkout() {
     // Check out current commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["checkout", "@"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 05ce7118 (no description set)
-    Parent commit      : 5c52832c second
+    Working copy now at: zsuskuln 05ce7118 (empty) (no description set)
+    Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  05ce7118568d3007efc9163b055f9cb4a6becfde
@@ -67,11 +67,11 @@ fn test_checkout_not_single_rev() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "root..@" resolved to more than one revision
     Hint: The revset "root..@" resolved to these revisions:
-    2f859371 (no description set)
-    5c1afd8b fifth
-    009f88bf fourth
-    3fa8931e third
-    5c52832c second
+    royxmykx 2f859371 (empty) (no description set)
+    mzvwutvl 5c1afd8b (empty) fifth
+    zsuskuln 009f88bf (empty) fourth
+    kkmpptxz 3fa8931e (empty) third
+    rlvkpnrz 5c52832c (empty) second
     ...
     "###);
 
@@ -79,19 +79,19 @@ fn test_checkout_not_single_rev() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "root..@-" resolved to more than one revision
     Hint: The revset "root..@-" resolved to these revisions:
-    5c1afd8b fifth
-    009f88bf fourth
-    3fa8931e third
-    5c52832c second
-    69542c19 first
+    mzvwutvl 5c1afd8b (empty) fifth
+    zsuskuln 009f88bf (empty) fourth
+    kkmpptxz 3fa8931e (empty) third
+    rlvkpnrz 5c52832c (empty) second
+    qpvuntsm 69542c19 (empty) first
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "@-|@--"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "@-|@--" resolved to more than one revision
     Hint: The revset "@-|@--" resolved to these revisions:
-    5c1afd8b fifth
-    009f88bf fourth
+    mzvwutvl 5c1afd8b (empty) fifth
+    zsuskuln 009f88bf (empty) fourth
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "none()"]);

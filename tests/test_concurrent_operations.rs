@@ -191,8 +191,8 @@ fn test_concurrent_snapshot_wc_reloadable() {
     std::fs::write(repo_path.join("child2"), "").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", "new child2"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 4011424e new child2
-    Parent commit      : e08863ee new child1
+    Working copy now at: kkmpptxz 4011424e new child2
+    Parent commit      : rlvkpnrz e08863ee new child1
     "###);
 
     // Since the repo can be reloaded before snapshotting, "child2" should be

@@ -87,9 +87,9 @@ fn test_resolution() {
     .unwrap();
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve"]), @r###"
-    Working copy now at: e069f073 conflict
-    Parent commit      : aa493daf a
-    Parent commit      : db6a4daf b
+    Working copy now at: vruxwmqv e069f073 conflict
+    Parent commit      : zsuskuln aa493daf a
+    Parent commit      : royxmykx db6a4daf b
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(
@@ -183,9 +183,9 @@ conflict
             ],
         ),
         @r###"
-    Working copy now at: 0bb40c90 conflict
-    Parent commit      : aa493daf a
-    Parent commit      : db6a4daf b
+    Working copy now at: vruxwmqv 0bb40c90 (conflict) conflict
+    Parent commit      : zsuskuln aa493daf a
+    Parent commit      : royxmykx db6a4daf b
     Added 0 files, modified 1 files, removed 0 files
     After this operation, some files at this revision still have conflicts:
     file    2-sided conflict
@@ -242,9 +242,9 @@ conflict
     .unwrap();
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve"]), @r###"
-    Working copy now at: 95418cb8 conflict
-    Parent commit      : aa493daf a
-    Parent commit      : db6a4daf b
+    Working copy now at: vruxwmqv 95418cb8 conflict
+    Parent commit      : zsuskuln aa493daf a
+    Parent commit      : royxmykx db6a4daf b
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(
@@ -632,9 +632,9 @@ fn test_multiple_conflicts() {
     std::fs::write(&editor_script, "expect\n\0write\nresolution another_file\n").unwrap();
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve", "another_file"]), @r###"
-    Working copy now at: 07feb084 conflict
-    Parent commit      : de7553ef a
-    Parent commit      : f68bc2f0 b
+    Working copy now at: vruxwmqv 07feb084 (conflict) conflict
+    Parent commit      : zsuskuln de7553ef a
+    Parent commit      : royxmykx f68bc2f0 b
     Added 0 files, modified 1 files, removed 0 files
     After this operation, some files at this revision still have conflicts:
     this_file_has_a_very_long_name_to_test_padding 2-sided conflict
@@ -660,9 +660,9 @@ fn test_multiple_conflicts() {
     std::fs::write(&editor_script, "expect\n\0write\nresolution another_file\n").unwrap();
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve", "--quiet", "another_file"]), @r###"
-    Working copy now at: ff142405 conflict
-    Parent commit      : de7553ef a
-    Parent commit      : f68bc2f0 b
+    Working copy now at: vruxwmqv ff142405 (conflict) conflict
+    Parent commit      : zsuskuln de7553ef a
+    Parent commit      : royxmykx f68bc2f0 b
     Added 0 files, modified 1 files, removed 0 files
     "###);
 

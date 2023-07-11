@@ -33,9 +33,9 @@ fn test_status_merge() {
     // to the auto-merged parents)
     let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
-    Parent commit: 9ae48ddb left
-    Parent commit: 29b991e9 right
-    Working copy : c965365c (no description set)
+    Parent commit: rlvkpnrz 9ae48ddb (empty) left
+    Parent commit: zsuskuln 29b991e9 right
+    Working copy : mzvwutvl c965365c (empty) (no description set)
     The working copy is clean
     "###);
 }
