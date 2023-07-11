@@ -999,12 +999,8 @@ impl MutableRepo {
         self.view.with_ref(|v| v.get_tag(name))
     }
 
-    pub fn set_tag(&mut self, name: String, target: RefTarget) {
-        self.view_mut().set_tag(name, target);
-    }
-
-    pub fn remove_tag(&mut self, name: &str) {
-        self.view_mut().remove_tag(name);
+    pub fn set_tag_target(&mut self, name: &str, target: Option<RefTarget>) {
+        self.view_mut().set_tag_target(name, target);
     }
 
     pub fn get_git_ref(&self, name: &str) -> Option<RefTarget> {

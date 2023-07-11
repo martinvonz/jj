@@ -1031,7 +1031,7 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
         RefTarget::Normal(commit_b.id().clone()),
     );
     tx.mut_repo()
-        .set_tag("v1".to_string(), RefTarget::Normal(commit_b.id().clone()));
+        .set_tag_target("v1", Some(RefTarget::Normal(commit_b.id().clone())));
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");

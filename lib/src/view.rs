@@ -145,7 +145,7 @@ impl View {
                     self.set_remote_branch(branch, remote, target);
                 }
                 RefName::Tag(name) => {
-                    self.set_tag(name, target);
+                    self.set_tag_target(&name, Some(target));
                 }
                 RefName::GitRef(name) => {
                     self.set_git_ref_target(&name, Some(target));
@@ -160,7 +160,7 @@ impl View {
                     self.remove_remote_branch(&branch, &remote);
                 }
                 RefName::Tag(name) => {
-                    self.remove_tag(&name);
+                    self.set_tag_target(&name, None);
                 }
                 RefName::GitRef(name) => {
                     self.set_git_ref_target(&name, None);
@@ -238,12 +238,14 @@ impl View {
         self.data.tags.get(name).cloned()
     }
 
-    pub fn set_tag(&mut self, name: String, target: RefTarget) {
-        self.data.tags.insert(name, target);
-    }
-
-    pub fn remove_tag(&mut self, name: &str) {
-        self.data.tags.remove(name);
+    /// Sets tag to point to the given target. If the target is absent, the tag
+    /// will be removed.
+    pub fn set_tag_target(&mut self, name: &str, target: Option<RefTarget>) {
+        if let Some(target) = target {
+            self.data.tags.insert(name.to_owned(), target);
+        } else {
+            self.data.tags.remove(name);
+        }
     }
 
     pub fn get_git_ref(&self, name: &str) -> Option<RefTarget> {
