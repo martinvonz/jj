@@ -301,13 +301,12 @@ impl View {
         &mut self,
         index: &dyn Index,
         ref_name: &RefName,
-        base_target: Option<&RefTarget>,
-        other_target: Option<&RefTarget>,
+        base_target: &Option<RefTarget>,
+        other_target: &Option<RefTarget>,
     ) {
         if base_target != other_target {
             let self_target = self.get_ref(ref_name);
-            let new_target =
-                merge_ref_targets(index, self_target.as_ref(), base_target, other_target);
+            let new_target = merge_ref_targets(index, &self_target, base_target, other_target);
             if new_target != self_target {
                 self.set_ref_target(ref_name, new_target);
             }

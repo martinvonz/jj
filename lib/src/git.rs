@@ -257,7 +257,7 @@ pub fn import_some_refs(
     }
     for (ref_name, (old_git_target, new_git_target)) in &changed_git_refs {
         // Apply the change that happened in git since last time we imported refs
-        mut_repo.merge_single_ref(ref_name, old_git_target.as_ref(), new_git_target.as_ref());
+        mut_repo.merge_single_ref(ref_name, old_git_target, new_git_target);
         // If a git remote-tracking branch changed, apply the change to the local branch
         // as well
         if !git_settings.auto_local_branch {
@@ -265,11 +265,7 @@ pub fn import_some_refs(
         }
         if let RefName::RemoteBranch { branch, remote: _ } = ref_name {
             let local_ref_name = RefName::LocalBranch(branch.clone());
-            mut_repo.merge_single_ref(
-                &local_ref_name,
-                old_git_target.as_ref(),
-                new_git_target.as_ref(),
-            );
+            mut_repo.merge_single_ref(&local_ref_name, old_git_target, new_git_target);
             let target = mut_repo.get_local_branch(branch);
             if target.is_absent() {
                 pinned_git_heads.remove(&local_ref_name);
