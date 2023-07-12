@@ -22,7 +22,7 @@ use jj_lib::backend::{ChangeId, CommitId, ObjectId as _};
 use jj_lib::commit::Commit;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
-use jj_lib::op_store::{RefTarget, RefTargetExt as _, WorkspaceId};
+use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::{git, rewrite};
 use once_cell::unsync::OnceCell;
@@ -383,7 +383,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
 }
 
 fn build_ref_names_index<'a>(
-    ref_pairs: impl IntoIterator<Item = (&'a String, &'a Option<RefTarget>)>,
+    ref_pairs: impl IntoIterator<Item = (&'a String, &'a RefTarget)>,
 ) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
     for (name, target) in ref_pairs {

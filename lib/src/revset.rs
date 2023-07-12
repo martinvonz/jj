@@ -36,7 +36,7 @@ use crate::commit::Commit;
 use crate::git::{self, get_local_git_tracking_branch};
 use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, PrefixResolution};
-use crate::op_store::{RefTargetExt as _, WorkspaceId};
+use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPath};
 use crate::store::Store;

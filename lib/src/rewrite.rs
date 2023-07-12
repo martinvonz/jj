@@ -23,7 +23,7 @@ use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::index::Index;
-use crate::op_store::{RefTarget, RefTargetExt as _};
+use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
 use crate::revset::{RevsetExpression, RevsetIteratorExt};
@@ -276,10 +276,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         new_ids
     }
 
-    fn ref_target_update(
-        old_id: CommitId,
-        new_ids: Vec<CommitId>,
-    ) -> (Option<RefTarget>, Option<RefTarget>) {
+    fn ref_target_update(old_id: CommitId, new_ids: Vec<CommitId>) -> (RefTarget, RefTarget) {
         let old_ids = std::iter::repeat(old_id).take(new_ids.len());
         (
             RefTarget::from_legacy_form([], old_ids),
@@ -305,7 +302,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                         .or_default()
                         .insert(branch_name.clone());
                 }
-                let local_target = self.mut_repo.get_local_branch(branch_name).unwrap();
+                let local_target = self.mut_repo.get_local_branch(branch_name);
                 for old_add in local_target.added_ids() {
                     if *old_add == old_commit_id {
                         branch_updates.push(branch_name.clone());

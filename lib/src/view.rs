@@ -22,9 +22,7 @@ use itertools::Itertools;
 use crate::backend::CommitId;
 use crate::index::Index;
 use crate::op_store;
-use crate::op_store::{
-    BranchTarget, RefTarget, RefTargetExt as _, RefTargetOptionExt as _, WorkspaceId,
-};
+use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt as _, WorkspaceId};
 use crate::refs::merge_ref_targets;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
@@ -92,15 +90,15 @@ impl View {
         &self.data.branches
     }
 
-    pub fn tags(&self) -> &BTreeMap<String, Option<RefTarget>> {
+    pub fn tags(&self) -> &BTreeMap<String, RefTarget> {
         &self.data.tags
     }
 
-    pub fn git_refs(&self) -> &BTreeMap<String, Option<RefTarget>> {
+    pub fn git_refs(&self) -> &BTreeMap<String, RefTarget> {
         &self.data.git_refs
     }
 
-    pub fn git_head(&self) -> &Option<RefTarget> {
+    pub fn git_head(&self) -> &RefTarget {
         &self.data.git_head
     }
 
@@ -128,7 +126,7 @@ impl View {
         self.data.public_head_ids.remove(head_id);
     }
 
-    pub fn get_ref(&self, name: &RefName) -> Option<RefTarget> {
+    pub fn get_ref(&self, name: &RefName) -> RefTarget {
         match &name {
             RefName::LocalBranch(name) => self.get_local_branch(name),
             RefName::RemoteBranch { branch, remote } => self.get_remote_branch(branch, remote),
@@ -139,7 +137,7 @@ impl View {
 
     /// Sets reference of the specified kind to point to the given target. If
     /// the target is absent, the reference will be removed.
-    pub fn set_ref_target(&mut self, name: &RefName, target: Option<RefTarget>) {
+    pub fn set_ref_target(&mut self, name: &RefName, target: RefTarget) {
         match name {
             RefName::LocalBranch(name) => self.set_local_branch_target(name, target),
             RefName::RemoteBranch { branch, remote } => {
@@ -162,16 +160,17 @@ impl View {
         self.data.branches.remove(name);
     }
 
-    pub fn get_local_branch(&self, name: &str) -> Option<RefTarget> {
-        self.data
-            .branches
-            .get(name)
-            .and_then(|branch_target| branch_target.local_target.clone())
+    pub fn get_local_branch(&self, name: &str) -> RefTarget {
+        if let Some(branch_target) = self.data.branches.get(name) {
+            branch_target.local_target.clone()
+        } else {
+            RefTarget::absent()
+        }
     }
 
     /// Sets local branch to point to the given target. If the target is absent,
     /// and if no associated remote branches exist, the branch will be removed.
-    pub fn set_local_branch_target(&mut self, name: &str, target: Option<RefTarget>) {
+    pub fn set_local_branch_target(&mut self, name: &str, target: RefTarget) {
         if target.is_present() {
             self.insert_local_branch(name.to_owned(), target);
         } else {
@@ -179,7 +178,7 @@ impl View {
         }
     }
 
-    fn insert_local_branch(&mut self, name: String, target: Option<RefTarget>) {
+    fn insert_local_branch(&mut self, name: String, target: RefTarget) {
         assert!(target.is_present());
         self.data.branches.entry(name).or_default().local_target = target;
     }
@@ -193,24 +192,18 @@ impl View {
         }
     }
 
-    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> Option<RefTarget> {
-        self.data.branches.get(name).and_then(|branch_target| {
-            branch_target
-                .remote_targets
-                .get(remote_name)
-                .flatten()
-                .clone()
-        })
+    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> RefTarget {
+        if let Some(branch_target) = self.data.branches.get(name) {
+            let maybe_target = branch_target.remote_targets.get(remote_name);
+            maybe_target.flatten().clone()
+        } else {
+            RefTarget::absent()
+        }
     }
 
     /// Sets remote-tracking branch to point to the given target. If the target
     /// is absent, the branch will be removed.
-    pub fn set_remote_branch_target(
-        &mut self,
-        name: &str,
-        remote_name: &str,
-        target: Option<RefTarget>,
-    ) {
+    pub fn set_remote_branch_target(&mut self, name: &str, remote_name: &str, target: RefTarget) {
         if target.is_present() {
             self.insert_remote_branch(name.to_owned(), remote_name.to_owned(), target);
         } else {
@@ -218,12 +211,7 @@ impl View {
         }
     }
 
-    fn insert_remote_branch(
-        &mut self,
-        name: String,
-        remote_name: String,
-        target: Option<RefTarget>,
-    ) {
+    fn insert_remote_branch(&mut self, name: String, remote_name: String, target: RefTarget) {
         assert!(target.is_present());
         self.data
             .branches
@@ -251,13 +239,13 @@ impl View {
         }
     }
 
-    pub fn get_tag(&self, name: &str) -> Option<RefTarget> {
+    pub fn get_tag(&self, name: &str) -> RefTarget {
         self.data.tags.get(name).flatten().clone()
     }
 
     /// Sets tag to point to the given target. If the target is absent, the tag
     /// will be removed.
-    pub fn set_tag_target(&mut self, name: &str, target: Option<RefTarget>) {
+    pub fn set_tag_target(&mut self, name: &str, target: RefTarget) {
         if target.is_present() {
             self.data.tags.insert(name.to_owned(), target);
         } else {
@@ -265,13 +253,13 @@ impl View {
         }
     }
 
-    pub fn get_git_ref(&self, name: &str) -> Option<RefTarget> {
+    pub fn get_git_ref(&self, name: &str) -> RefTarget {
         self.data.git_refs.get(name).flatten().clone()
     }
 
     /// Sets the last imported Git ref to point to the given target. If the
     /// target is absent, the reference will be removed.
-    pub fn set_git_ref_target(&mut self, name: &str, target: Option<RefTarget>) {
+    pub fn set_git_ref_target(&mut self, name: &str, target: RefTarget) {
         if target.is_present() {
             self.data.git_refs.insert(name.to_owned(), target);
         } else {
@@ -281,7 +269,7 @@ impl View {
 
     /// Sets `HEAD@git` to point to the given target. If the target is absent,
     /// the reference will be cleared.
-    pub fn set_git_head_target(&mut self, target: Option<RefTarget>) {
+    pub fn set_git_head_target(&mut self, target: RefTarget) {
         self.data.git_head = target;
     }
 
@@ -301,8 +289,8 @@ impl View {
         &mut self,
         index: &dyn Index,
         ref_name: &RefName,
-        base_target: &Option<RefTarget>,
-        other_target: &Option<RefTarget>,
+        base_target: &RefTarget,
+        other_target: &RefTarget,
     ) {
         if base_target != other_target {
             let self_target = self.get_ref(ref_name);

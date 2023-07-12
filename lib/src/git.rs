@@ -26,7 +26,7 @@ use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
 use crate::git_backend::NO_GC_REF_NAMESPACE;
-use crate::op_store::{BranchTarget, RefTarget, RefTargetExt as _, RefTargetOptionExt};
+use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
 use crate::repo::{MutableRepo, Repo};
 use crate::revset;
 use crate::settings::GitSettings;
@@ -82,7 +82,7 @@ fn to_remote_branch<'a>(parsed_ref: &'a RefName, remote_name: &str) -> Option<&'
 /// should be faster than `git_ref.peel_to_commit()`.
 fn resolve_git_ref_to_commit_id(
     git_ref: &git2::Reference<'_>,
-    known_target: &Option<RefTarget>,
+    known_target: &RefTarget,
 ) -> Option<CommitId> {
     // Try fast path if we have a candidate id which is known to be a commit object.
     if let Some(id) = known_target.as_normal() {
@@ -137,7 +137,7 @@ pub fn build_unified_branches_map(view: &View) -> (BTreeMap<String, BranchTarget
     (all_branches, bad_branch_names)
 }
 
-fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &Option<RefTarget>)> {
+fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &RefTarget)> {
     view.git_refs().iter().filter_map(|(ref_name, target)| {
         ref_name
             .strip_prefix("refs/heads/")
@@ -145,7 +145,7 @@ fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &O
     })
 }
 
-pub fn get_local_git_tracking_branch<'a>(view: &'a View, branch: &str) -> &'a Option<RefTarget> {
+pub fn get_local_git_tracking_branch<'a>(view: &'a View, branch: &str) -> &'a RefTarget {
     view.git_refs()
         .get(&format!("refs/heads/{branch}"))
         .flatten()

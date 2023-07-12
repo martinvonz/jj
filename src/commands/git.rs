@@ -12,7 +12,7 @@ use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId, TreeValue};
 use jj_lib::git::{self, parse_gitmodules, GitFetchError, GitPushError, GitRefUpdate};
 use jj_lib::git_backend::GitBackend;
-use jj_lib::op_store::{BranchTarget, RefTarget, RefTargetExt as _};
+use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;

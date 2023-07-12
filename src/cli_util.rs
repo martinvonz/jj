@@ -39,9 +39,7 @@ use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use jj_lib::op_store::{
-    OpStore, OpStoreError, OperationId, RefTarget, RefTargetExt as _, WorkspaceId,
-};
+use jj_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jj_lib::operation::Operation;
 use jj_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,

@@ -17,11 +17,13 @@
 use std::collections::{btree_map, BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::{Deref, DerefMut};
-use std::slice;
 
+use itertools::Itertools as _;
+use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::backend::{CommitId, Timestamp};
+use crate::conflicts::Conflict;
 use crate::content_hash::ContentHash;
 
 content_hash! {
@@ -118,158 +120,99 @@ impl OperationId {
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub enum RefTarget {
-    Normal(CommitId),
-    Conflict {
-        removes: Vec<CommitId>,
-        adds: Vec<CommitId>,
-    },
+pub struct RefTarget {
+    conflict: Conflict<Option<CommitId>>,
+}
+
+impl Default for RefTarget {
+    fn default() -> Self {
+        Self::absent()
+    }
 }
 
 impl ContentHash for RefTarget {
     fn hash(&self, state: &mut impl digest::Update) {
-        use RefTarget::*;
-        match self {
-            Normal(id) => {
-                state.update(&0u32.to_le_bytes());
-                id.hash(state);
-            }
-            Conflict { removes, adds } => {
-                state.update(&1u32.to_le_bytes());
-                removes.hash(state);
-                adds.hash(state);
-            }
+        // TODO: Leverage generic implementation. Unlike RefTargetMap, this just exists
+        // in order to minimize the test changes. We can freely switch to the generic
+        // version.
+        if self.is_absent() {
+            state.update(&[0]); // None
+        } else if let Some(id) = self.as_normal() {
+            state.update(&[1]); // Some(
+            state.update(&0u32.to_le_bytes()); // Normal(
+            id.hash(state);
+        } else {
+            state.update(&[1]); // Some(
+            state.update(&1u32.to_le_bytes()); // Conflict(
+            self.removed_ids().cloned().collect_vec().hash(state);
+            self.added_ids().cloned().collect_vec().hash(state);
         }
     }
 }
 
 impl RefTarget {
     /// Creates non-conflicting target pointing to no commit.
-    pub fn absent() -> Option<Self> {
-        None
+    pub fn absent() -> Self {
+        Self::from_conflict(Conflict::resolved(None))
     }
 
     /// Returns non-conflicting target pointing to no commit.
     ///
     /// This will typically be used in place of `None` returned by map lookup.
-    pub fn absent_ref() -> &'static Option<Self> {
-        // TODO: This will be static ref to Conflict::resolved(None).
-        &None
+    pub fn absent_ref() -> &'static Self {
+        static TARGET: Lazy<RefTarget> = Lazy::new(RefTarget::absent);
+        &TARGET
     }
 
     /// Creates non-conflicting target pointing to a commit.
-    pub fn normal(id: CommitId) -> Option<Self> {
-        Some(RefTarget::Normal(id))
+    pub fn normal(id: CommitId) -> Self {
+        Self::from_conflict(Conflict::resolved(Some(id)))
     }
 
-    /// Creates conflicting target from removed/added ids.
+    /// Creates target from removed/added ids.
     pub fn from_legacy_form(
         removed_ids: impl IntoIterator<Item = CommitId>,
         added_ids: impl IntoIterator<Item = CommitId>,
-    ) -> Option<Self> {
-        // TODO: This function will create non-conflicting target if there're only one
-        // add id and no removed ids.
-        let removes = removed_ids.into_iter().collect();
-        let adds = added_ids.into_iter().collect();
-        Some(RefTarget::Conflict { removes, adds })
+    ) -> Self {
+        Self::from_conflict(Conflict::from_legacy_form(removed_ids, added_ids))
+    }
+
+    pub fn from_conflict(conflict: Conflict<Option<CommitId>>) -> Self {
+        RefTarget { conflict }
     }
 
     /// Returns id if this target is non-conflicting and points to a commit.
     pub fn as_normal(&self) -> Option<&CommitId> {
-        match self {
-            RefTarget::Normal(id) => Some(id),
-            RefTarget::Conflict { .. } => None,
-        }
+        let maybe_id = self.conflict.as_resolved()?;
+        maybe_id.as_ref()
     }
 
+    /// Returns true if this target points to no commit.
+    pub fn is_absent(&self) -> bool {
+        matches!(self.conflict.as_resolved(), Some(None))
+    }
+
+    /// Returns true if this target points to any commit. Conflicting target is
+    /// always "present" as it should have at least one commit id.
+    pub fn is_present(&self) -> bool {
+        !self.is_absent()
+    }
+
+    // TODO: overloaded naming: is_conflict() vs as_conflict()
     pub fn is_conflict(&self) -> bool {
-        matches!(self, RefTarget::Conflict { .. })
+        self.conflict.as_resolved().is_none() // TODO: !is_resolved()
     }
 
-    pub fn removed_ids(&self) -> slice::Iter<'_, CommitId> {
-        let removes: &[_] = match self {
-            RefTarget::Normal(_) => &[],
-            RefTarget::Conflict { removes, adds: _ } => removes,
-        };
-        removes.iter()
+    pub fn removed_ids(&self) -> impl Iterator<Item = &CommitId> {
+        self.conflict.removes().iter().flatten()
     }
 
-    pub fn added_ids(&self) -> slice::Iter<'_, CommitId> {
-        let adds: &[_] = match self {
-            RefTarget::Normal(id) => slice::from_ref(id),
-            RefTarget::Conflict { removes: _, adds } => adds,
-        };
-        adds.iter()
-    }
-}
-
-// TODO: These methods will be migrate to new Conflict-based RefTarget type.
-pub trait RefTargetExt {
-    fn as_normal(&self) -> Option<&CommitId>;
-    fn is_absent(&self) -> bool;
-    fn is_present(&self) -> bool;
-    fn is_conflict(&self) -> bool;
-    fn removed_ids(&self) -> slice::Iter<'_, CommitId>;
-    fn added_ids(&self) -> slice::Iter<'_, CommitId>;
-}
-
-impl RefTargetExt for Option<RefTarget> {
-    fn as_normal(&self) -> Option<&CommitId> {
-        self.as_ref().and_then(|target| target.as_normal())
+    pub fn added_ids(&self) -> impl Iterator<Item = &CommitId> {
+        self.conflict.adds().iter().flatten()
     }
 
-    fn is_absent(&self) -> bool {
-        self.is_none()
-    }
-
-    fn is_present(&self) -> bool {
-        self.is_some()
-    }
-
-    fn is_conflict(&self) -> bool {
-        self.as_ref()
-            .map(|target| target.is_conflict())
-            .unwrap_or(false)
-    }
-
-    fn removed_ids(&self) -> slice::Iter<'_, CommitId> {
-        self.as_ref()
-            .map(|target| target.removed_ids())
-            .unwrap_or_else(|| [].iter())
-    }
-
-    fn added_ids(&self) -> slice::Iter<'_, CommitId> {
-        self.as_ref()
-            .map(|target| target.added_ids())
-            .unwrap_or_else(|| [].iter())
-    }
-}
-
-impl RefTargetExt for Option<&RefTarget> {
-    fn as_normal(&self) -> Option<&CommitId> {
-        self.and_then(|target| target.as_normal())
-    }
-
-    fn is_absent(&self) -> bool {
-        self.is_none()
-    }
-
-    fn is_present(&self) -> bool {
-        self.is_some()
-    }
-
-    fn is_conflict(&self) -> bool {
-        self.map(|target| target.is_conflict()).unwrap_or(false)
-    }
-
-    fn removed_ids(&self) -> slice::Iter<'_, CommitId> {
-        self.map(|target| target.removed_ids())
-            .unwrap_or_else(|| [].iter())
-    }
-
-    fn added_ids(&self) -> slice::Iter<'_, CommitId> {
-        self.map(|target| target.added_ids())
-            .unwrap_or_else(|| [].iter())
+    pub fn as_conflict(&self) -> &Conflict<Option<CommitId>> {
+        &self.conflict
     }
 }
 
@@ -280,18 +223,16 @@ pub trait RefTargetOptionExt {
     fn flatten(self) -> Self::Value;
 }
 
-// This isn't needed right now, but Option<RefTarget> will be replaced with new
-// Conflict-based RefTarget type, and it will no longer be Option<Option<T>>.
-impl RefTargetOptionExt for Option<Option<RefTarget>> {
-    type Value = Option<RefTarget>;
+impl RefTargetOptionExt for Option<RefTarget> {
+    type Value = RefTarget;
 
     fn flatten(self) -> Self::Value {
         self.unwrap_or_else(RefTarget::absent)
     }
 }
 
-impl<'a> RefTargetOptionExt for Option<&'a Option<RefTarget>> {
-    type Value = &'a Option<RefTarget>;
+impl<'a> RefTargetOptionExt for Option<&'a RefTarget> {
+    type Value = &'a RefTarget;
 
     fn flatten(self) -> Self::Value {
         self.unwrap_or_else(|| RefTarget::absent_ref())
@@ -300,7 +241,7 @@ impl<'a> RefTargetOptionExt for Option<&'a Option<RefTarget>> {
 
 /// Wrapper to exclude absent `RefTarget` entries from `ContentHash`.
 #[derive(Default, PartialEq, Eq, Clone, Debug)]
-pub struct RefTargetMap(pub BTreeMap<String, Option<RefTarget>>);
+pub struct RefTargetMap(pub BTreeMap<String, RefTarget>);
 
 impl RefTargetMap {
     pub fn new() -> Self {
@@ -315,21 +256,25 @@ impl ContentHash for RefTargetMap {
         // Derived from content_hash.rs. It's okay for this to produce a different hash
         // value than the inner map, but the value must not be equal to the map which
         // preserves absent RefTarget entries.
-        let iter = self
-            .0
-            .iter()
-            .filter_map(|(k, v)| v.as_ref().map(|u| (k, u)));
+        let iter = self.0.iter().filter(|(_, v)| v.is_present());
         state.update(&(iter.clone().count() as u64).to_le_bytes());
         for (k, v) in iter {
             k.hash(state);
-            v.hash(state);
+            if let Some(id) = v.as_normal() {
+                state.update(&0u32.to_le_bytes()); // Normal(
+                id.hash(state);
+            } else {
+                state.update(&1u32.to_le_bytes()); // Conflict(
+                v.removed_ids().cloned().collect_vec().hash(state);
+                v.added_ids().cloned().collect_vec().hash(state);
+            }
         }
     }
 }
 
 // Abuse Deref as this is a temporary workaround. See the comment above.
 impl Deref for RefTargetMap {
-    type Target = BTreeMap<String, Option<RefTarget>>;
+    type Target = BTreeMap<String, RefTarget>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -343,8 +288,8 @@ impl DerefMut for RefTargetMap {
 }
 
 impl IntoIterator for RefTargetMap {
-    type Item = (String, Option<RefTarget>);
-    type IntoIter = btree_map::IntoIter<String, Option<RefTarget>>;
+    type Item = (String, RefTarget);
+    type IntoIter = btree_map::IntoIter<String, RefTarget>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -352,8 +297,8 @@ impl IntoIterator for RefTargetMap {
 }
 
 impl<'a> IntoIterator for &'a RefTargetMap {
-    type Item = (&'a String, &'a Option<RefTarget>);
-    type IntoIter = btree_map::Iter<'a, String, Option<RefTarget>>;
+    type Item = (&'a String, &'a RefTarget);
+    type IntoIter = btree_map::Iter<'a, String, RefTarget>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
@@ -365,7 +310,7 @@ content_hash! {
     pub struct BranchTarget {
         /// The commit the branch points to locally. `None` if the branch has been
         /// deleted locally.
-        pub local_target: Option<RefTarget>,
+        pub local_target: RefTarget,
         // TODO: Do we need to support tombstones for remote branches? For example, if the branch
         // has been deleted locally and you pull from a remote, maybe it should make a difference
         // whether the branch is known to have existed on the remote. We may not want to resurrect
@@ -389,7 +334,7 @@ content_hash! {
         /// The commit the Git HEAD points to.
         // TODO: Support multiple Git worktrees?
         // TODO: Do we want to store the current branch name too?
-        pub git_head: Option<RefTarget>,
+        pub git_head: RefTarget,
         // The commit that *should be* checked out in the workspace. Note that the working copy
         // (.jj/working_copy/) has the source of truth about which commit *is* checked out (to be
         // precise: the commit to which we most recently completed an update to).
