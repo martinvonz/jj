@@ -68,7 +68,7 @@ use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
 
 use crate::config::{
-    config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
+    new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
 };
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
@@ -2001,14 +2001,14 @@ pub fn write_config_value_to_file(
     })
 }
 
-pub fn get_config_file_path(
+pub fn get_new_config_file_path(
     config_source: &ConfigSource,
     workspace_loader: &WorkspaceLoader,
 ) -> Result<PathBuf, CommandError> {
     let edit_path = match config_source {
         // TODO(#531): Special-case for editors that can't handle viewing directories?
         ConfigSource::User => {
-            config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
+            new_config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
         }
         ConfigSource::Repo => workspace_loader.repo_path().join("config.toml"),
         _ => {

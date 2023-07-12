@@ -55,7 +55,7 @@ use jj_lib::{file_util, revset};
 use maplit::{hashmap, hashset};
 
 use crate::cli_util::{
-    check_stale_working_copy, get_config_file_path, print_checkout_stats,
+    check_stale_working_copy, get_new_config_file_path, print_checkout_stats,
     resolve_multiple_nonempty_revsets, resolve_multiple_nonempty_revsets_flag_guarded,
     run_ui_editor, serialize_config_value, short_commit_hash, user_error, user_error_with_hint,
     write_config_value_to_file, Args, CommandError, CommandHelper, DescriptionArg,
@@ -1234,7 +1234,7 @@ fn cmd_config_set(
     command: &CommandHelper,
     args: &ConfigSetArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_config_file_path(
+    let config_path = get_new_config_file_path(
         &args.config_args.get_source_kind(),
         command.workspace_loader()?,
     )?;
@@ -1252,7 +1252,7 @@ fn cmd_config_edit(
     command: &CommandHelper,
     args: &ConfigEditArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_config_file_path(
+    let config_path = get_new_config_file_path(
         &args.config_args.get_source_kind(),
         command.workspace_loader()?,
     )?;
