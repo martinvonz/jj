@@ -369,7 +369,7 @@ fn cmd_branch_list(
     }
 
     let print_branch_target =
-        |formatter: &mut dyn Formatter, target: &RefTarget| -> Result<(), CommandError> {
+        |formatter: &mut dyn Formatter, target: &Option<RefTarget>| -> Result<(), CommandError> {
             if let Some(id) = target.as_normal() {
                 write!(formatter, ": ")?;
                 let commit = repo.store().get_commit(id)?;
@@ -406,8 +406,8 @@ fn cmd_branch_list(
         };
 
         write!(formatter.labeled("branch"), "{name}")?;
-        if let Some(target) = branch_target.local_target.as_ref() {
-            print_branch_target(formatter, target)?;
+        if branch_target.local_target.is_present() {
+            print_branch_target(formatter, &branch_target.local_target)?;
         } else if found_non_git_remote {
             writeln!(formatter, " (deleted)")?;
         } else {
@@ -415,7 +415,7 @@ fn cmd_branch_list(
         }
 
         for (remote, remote_target) in branch_target.remote_targets.iter() {
-            if Some(remote_target) == branch_target.local_target.as_ref() {
+            if remote_target == &branch_target.local_target {
                 continue;
             }
             write!(formatter, "  ")?;

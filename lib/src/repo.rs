@@ -1011,7 +1011,7 @@ impl MutableRepo {
     }
 
     pub fn git_head(&self) -> Option<RefTarget> {
-        self.view.with_ref(|v| v.git_head().cloned())
+        self.view.with_ref(|v| v.git_head().clone())
     }
 
     pub fn set_git_head_target(&mut self, target: Option<RefTarget>) {
@@ -1141,9 +1141,9 @@ impl MutableRepo {
 
         let new_git_head_target = merge_ref_targets(
             self.index(),
-            self.view().git_head(),
-            base.git_head(),
-            other.git_head(),
+            self.view().git_head().as_ref(),
+            base.git_head().as_ref(),
+            other.git_head().as_ref(),
         );
         self.set_git_head_target(new_git_head_target);
     }

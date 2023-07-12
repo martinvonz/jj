@@ -354,11 +354,11 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
     let (all_branches, _) = git::build_unified_branches_map(repo.view());
     for (branch_name, branch_target) in &all_branches {
-        let local_target = branch_target.local_target.as_ref();
+        let local_target = &branch_target.local_target;
         let mut unsynced_remote_targets = branch_target
             .remote_targets
             .iter()
-            .filter(|&(_, target)| Some(target) != local_target)
+            .filter(|&(_, target)| target != local_target)
             .peekable();
         if local_target.is_present() {
             let decorated_name = if local_target.is_conflict() {
@@ -383,7 +383,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
 }
 
 fn build_ref_names_index<'a>(
-    ref_pairs: impl IntoIterator<Item = (&'a String, &'a RefTarget)>,
+    ref_pairs: impl IntoIterator<Item = (&'a String, &'a Option<RefTarget>)>,
 ) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
     for (name, target) in ref_pairs {

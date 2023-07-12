@@ -18,7 +18,7 @@ use crate::backend::CommitId;
 use crate::conflicts::Conflict;
 use crate::index::Index;
 use crate::merge::trivial_merge;
-use crate::op_store::{BranchTarget, RefTarget, RefTargetExt as _};
+use crate::op_store::{BranchTarget, RefTarget, RefTargetExt as _, RefTargetOptionExt};
 
 pub fn merge_ref_targets(
     index: &dyn Index,
@@ -129,8 +129,8 @@ pub fn classify_branch_push_action(
     branch_target: &BranchTarget,
     remote_name: &str,
 ) -> BranchPushAction {
-    let local_target = branch_target.local_target.as_ref();
-    let remote_target = branch_target.remote_targets.get(remote_name);
+    let local_target = &branch_target.local_target;
+    let remote_target = branch_target.remote_targets.get(remote_name).flatten();
     if local_target == remote_target {
         BranchPushAction::AlreadyMatches
     } else if local_target.is_conflict() {
@@ -159,7 +159,7 @@ mod tests {
         let branch = BranchTarget {
             local_target: RefTarget::normal(commit_id1.clone()),
             remote_targets: RefTargetMap(btreemap! {
-                "origin".to_string() => RefTarget::normal(commit_id1).unwrap(),
+                "origin".to_string() => RefTarget::normal(commit_id1),
             }),
         };
         assert_eq!(
@@ -190,7 +190,7 @@ mod tests {
         let branch = BranchTarget {
             local_target: RefTarget::absent(),
             remote_targets: RefTargetMap(btreemap! {
-                "origin".to_string() => RefTarget::normal(commit_id1.clone()).unwrap(),
+                "origin".to_string() => RefTarget::normal(commit_id1.clone()),
             }),
         };
         assert_eq!(
@@ -209,7 +209,7 @@ mod tests {
         let branch = BranchTarget {
             local_target: RefTarget::normal(commit_id2.clone()),
             remote_targets: RefTargetMap(btreemap! {
-                "origin".to_string() => RefTarget::normal(commit_id1.clone()).unwrap(),
+                "origin".to_string() => RefTarget::normal(commit_id1.clone()),
             }),
         };
         assert_eq!(
@@ -228,7 +228,7 @@ mod tests {
         let branch = BranchTarget {
             local_target: RefTarget::from_legacy_form([], [commit_id1.clone(), commit_id2]),
             remote_targets: RefTargetMap(btreemap! {
-                "origin".to_string() => RefTarget::normal(commit_id1).unwrap(),
+                "origin".to_string() => RefTarget::normal(commit_id1),
             }),
         };
         assert_eq!(
@@ -247,7 +247,7 @@ mod tests {
                 "origin".to_string() => RefTarget::from_legacy_form(
                     [],
                     [commit_id1, commit_id2],
-                ).unwrap(),
+                ),
             }),
         };
         assert_eq!(
