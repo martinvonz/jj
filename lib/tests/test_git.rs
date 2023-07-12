@@ -152,28 +152,28 @@ fn test_import_refs() {
 
     assert_eq!(view.git_refs().len(), 6);
     assert_eq!(
-        view.git_refs().get("refs/heads/main"),
-        Some(RefTarget::Normal(jj_id(&commit2))).as_ref()
+        view.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(jj_id(&commit2)))
     );
     assert_eq!(
-        view.git_refs().get("refs/heads/feature1"),
-        Some(RefTarget::Normal(jj_id(&commit3))).as_ref()
+        view.get_git_ref("refs/heads/feature1"),
+        Some(RefTarget::Normal(jj_id(&commit3)))
     );
     assert_eq!(
-        view.git_refs().get("refs/heads/feature2"),
-        Some(RefTarget::Normal(jj_id(&commit4))).as_ref()
+        view.get_git_ref("refs/heads/feature2"),
+        Some(RefTarget::Normal(jj_id(&commit4)))
     );
     assert_eq!(
-        view.git_refs().get("refs/remotes/origin/main"),
-        Some(RefTarget::Normal(jj_id(&commit1))).as_ref()
+        view.get_git_ref("refs/remotes/origin/main"),
+        Some(RefTarget::Normal(jj_id(&commit1)))
     );
     assert_eq!(
-        view.git_refs().get("refs/remotes/origin/feature3"),
-        Some(RefTarget::Normal(jj_id(&commit6))).as_ref()
+        view.get_git_ref("refs/remotes/origin/feature3"),
+        Some(RefTarget::Normal(jj_id(&commit6)))
     );
     assert_eq!(
-        view.git_refs().get("refs/tags/v1.0"),
-        Some(RefTarget::Normal(jj_id(&commit5))).as_ref()
+        view.get_git_ref("refs/tags/v1.0"),
+        Some(RefTarget::Normal(jj_id(&commit5)))
     );
     assert_eq!(view.git_head(), Some(&RefTarget::Normal(jj_id(&commit2))));
 }
@@ -263,18 +263,15 @@ fn test_import_refs_reimport() {
     assert!(view.tags().is_empty());
 
     assert_eq!(view.git_refs().len(), 3);
+    assert_eq!(view.get_git_ref("refs/heads/main"), Some(commit2_target));
     assert_eq!(
-        view.git_refs().get("refs/heads/main"),
-        Some(commit2_target).as_ref()
-    );
-    assert_eq!(
-        view.git_refs().get("refs/remotes/origin/main"),
-        Some(commit1_target).as_ref()
+        view.get_git_ref("refs/remotes/origin/main"),
+        Some(commit1_target)
     );
     let commit5_target = RefTarget::Normal(jj_id(&commit5));
     assert_eq!(
-        view.git_refs().get("refs/heads/feature2"),
-        Some(commit5_target).as_ref()
+        view.get_git_ref("refs/heads/feature2"),
+        Some(commit5_target)
     );
 }
 

@@ -131,7 +131,7 @@ impl View {
             RefName::LocalBranch(name) => self.get_local_branch(name),
             RefName::RemoteBranch { branch, remote } => self.get_remote_branch(branch, remote),
             RefName::Tag(name) => self.get_tag(name),
-            RefName::GitRef(name) => self.git_refs().get(name).cloned(),
+            RefName::GitRef(name) => self.get_git_ref(name),
         }
     }
 
