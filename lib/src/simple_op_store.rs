@@ -20,7 +20,6 @@ use std::fs;
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
-use itertools::Itertools;
 use prost::Message;
 use tempfile::{NamedTempFile, PersistError};
 
@@ -273,13 +272,13 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     }
 
     for branch_proto in proto.branches {
-        let local_target = branch_proto.local_target.map(ref_target_from_proto);
+        let local_target = ref_target_from_proto(branch_proto.local_target);
 
         let mut remote_targets = BTreeMap::new();
         for remote_branch in branch_proto.remote_branches {
             remote_targets.insert(
                 remote_branch.remote_name,
-                ref_target_from_proto(remote_branch.target.unwrap_or_default()),
+                ref_target_from_proto(remote_branch.target).unwrap(),
             );
         }
 
@@ -295,26 +294,23 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     for tag_proto in proto.tags {
         view.tags.insert(
             tag_proto.name,
-            ref_target_from_proto(tag_proto.target.unwrap_or_default()),
+            ref_target_from_proto(tag_proto.target).unwrap(),
         );
     }
 
     for git_ref in proto.git_refs {
-        if let Some(target) = git_ref.target {
-            view.git_refs
-                .insert(git_ref.name, ref_target_from_proto(target));
+        let target = if git_ref.target.is_some() {
+            ref_target_from_proto(git_ref.target)
         } else {
             // Legacy format
-            view.git_refs.insert(
-                git_ref.name,
-                RefTarget::Normal(CommitId::new(git_ref.commit_id)),
-            );
-        }
+            RefTarget::normal(CommitId::new(git_ref.commit_id))
+        };
+        view.git_refs.insert(git_ref.name, target.unwrap());
     }
 
     #[allow(deprecated)]
-    if let Some(git_head) = proto.git_head.as_ref() {
-        view.git_head = Some(ref_target_from_proto(git_head.clone()));
+    if proto.git_head.is_some() {
+        view.git_head = ref_target_from_proto(proto.git_head);
     } else if !proto.git_head_legacy.is_empty() {
         view.git_head = RefTarget::normal(CommitId::new(proto.git_head_legacy));
     }
@@ -347,19 +343,18 @@ fn ref_target_to_proto(value: Option<&RefTarget>) -> Option<crate::protos::op_st
     }
 }
 
-fn ref_target_from_proto(proto: crate::protos::op_store::RefTarget) -> RefTarget {
+fn ref_target_from_proto(
+    maybe_proto: Option<crate::protos::op_store::RefTarget>,
+) -> Option<RefTarget> {
+    let proto = maybe_proto?;
     match proto.value.unwrap() {
         crate::protos::op_store::ref_target::Value::CommitId(id) => {
-            RefTarget::Normal(CommitId::new(id))
+            RefTarget::normal(CommitId::new(id))
         }
         crate::protos::op_store::ref_target::Value::Conflict(conflict) => {
-            let removes = conflict
-                .removes
-                .into_iter()
-                .map(CommitId::new)
-                .collect_vec();
-            let adds = conflict.adds.into_iter().map(CommitId::new).collect_vec();
-            RefTarget::Conflict { removes, adds }
+            let removes = conflict.removes.into_iter().map(CommitId::new);
+            let adds = conflict.adds.into_iter().map(CommitId::new);
+            RefTarget::from_legacy_form(removes, adds)
         }
     }
 }
