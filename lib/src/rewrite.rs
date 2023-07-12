@@ -317,8 +317,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             for branch_name in branch_updates {
                 self.mut_repo.merge_single_ref(
                     &RefName::LocalBranch(branch_name),
-                    old_target.as_ref(),
-                    new_target.as_ref(),
+                    &old_target,
+                    &new_target,
                 );
             }
         }

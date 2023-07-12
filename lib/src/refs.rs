@@ -22,12 +22,12 @@ use crate::op_store::{BranchTarget, RefTarget, RefTargetExt as _, RefTargetOptio
 
 pub fn merge_ref_targets(
     index: &dyn Index,
-    left: Option<&RefTarget>,
-    base: Option<&RefTarget>,
-    right: Option<&RefTarget>,
+    left: &Option<RefTarget>,
+    base: &Option<RefTarget>,
+    right: &Option<RefTarget>,
 ) -> Option<RefTarget> {
-    if let Some(resolved) = trivial_merge(&[base], &[left, right]) {
-        return resolved.cloned();
+    if let Some(&resolved) = trivial_merge(&[base], &[left, right]) {
+        return resolved.clone();
     }
 
     let conflict = Conflict::new(
@@ -60,7 +60,7 @@ fn conflict_to_ref_target(conflict: Conflict<Option<CommitId>>) -> Option<RefTar
 // TODO: Make RefTarget store or be aliased to Conflict<Option<CommitId>>.
 // Since new conflict type can represent a deleted/absent ref, we might have
 // to replace Option<RefTarget> with it. Map API might be a bit trickier.
-fn ref_target_to_conflict(maybe_target: Option<&RefTarget>) -> Conflict<Option<CommitId>> {
+fn ref_target_to_conflict(maybe_target: &Option<RefTarget>) -> Conflict<Option<CommitId>> {
     if let Some(target) = maybe_target {
         Conflict::from_legacy_form(target.removed_ids().cloned(), target.added_ids().cloned())
     } else {

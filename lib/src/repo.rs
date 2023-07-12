@@ -1134,16 +1134,16 @@ impl MutableRepo {
             self.view.get_mut().merge_single_ref(
                 self.index.as_index(),
                 &ref_name,
-                base_target.as_ref(),
-                other_target.as_ref(),
+                &base_target,
+                &other_target,
             );
         }
 
         let new_git_head_target = merge_ref_targets(
             self.index(),
-            self.view().git_head().as_ref(),
-            base.git_head().as_ref(),
-            other.git_head().as_ref(),
+            self.view().git_head(),
+            base.git_head(),
+            other.git_head(),
         );
         self.set_git_head_target(new_git_head_target);
     }
@@ -1199,8 +1199,8 @@ impl MutableRepo {
     pub fn merge_single_ref(
         &mut self,
         ref_name: &RefName,
-        base_target: Option<&RefTarget>,
-        other_target: Option<&RefTarget>,
+        base_target: &Option<RefTarget>,
+        other_target: &Option<RefTarget>,
     ) {
         self.view.get_mut().merge_single_ref(
             self.index.as_index(),
