@@ -279,7 +279,8 @@ fn cmd_branch_delete(
     let branch_term = make_branch_term(names.iter().collect_vec().as_slice());
     let mut tx = workspace_command.start_transaction(&format!("delete {branch_term}"));
     for branch_name in names.iter() {
-        tx.mut_repo().set_local_branch_target(branch_name, None);
+        tx.mut_repo()
+            .set_local_branch_target(branch_name, RefTarget::absent());
     }
     tx.finish(ui)?;
     if names.len() > 1 {

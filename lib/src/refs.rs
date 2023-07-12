@@ -187,7 +187,7 @@ mod tests {
     fn test_classify_branch_push_action_removed() {
         let commit_id1 = CommitId::from_hex("11");
         let branch = BranchTarget {
-            local_target: None,
+            local_target: RefTarget::absent(),
             remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(commit_id1.clone()).unwrap(),
             },

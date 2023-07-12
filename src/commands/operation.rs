@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use clap::Subcommand;
-use jj_lib::op_store::{BranchTarget, RefTargetExt as _};
+use jj_lib::op_store::{BranchTarget, RefTarget, RefTargetExt as _};
 use jj_lib::operation;
 use jj_lib::repo::Repo;
 
@@ -187,7 +187,8 @@ fn view_with_desired_portions_restored(
         let local_target = new_view
             .branches
             .get(branch_name)
-            .and_then(|br| br.local_target.clone());
+            .map(|br| br.local_target.clone())
+            .unwrap_or_else(RefTarget::absent);
         let remote_targets = branch_source_view
             .branches
             .get(branch_name)

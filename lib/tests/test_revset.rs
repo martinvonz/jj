@@ -1624,7 +1624,7 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
             [commit3.id().clone(), commit4.id().clone()],
         ),
     );
-    mut_repo.set_git_ref_target("refs/tags/tag2", None);
+    mut_repo.set_git_ref_target("refs/tags/tag2", RefTarget::absent());
     assert_eq!(
         resolve_commit_ids(mut_repo, "git_refs()"),
         vec![
@@ -1713,7 +1713,7 @@ fn test_evaluate_expression_branches(use_git: bool) {
             [commit3.id().clone(), commit4.id().clone()],
         ),
     );
-    mut_repo.set_local_branch_target("branch3", None);
+    mut_repo.set_local_branch_target("branch3", RefTarget::absent());
     assert_eq!(
         resolve_commit_ids(mut_repo, "branches()"),
         vec![
@@ -1822,7 +1822,7 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
             [commit3.id().clone(), commit4.id().clone()],
         ),
     );
-    mut_repo.set_remote_branch_target("branch3", "origin", None);
+    mut_repo.set_remote_branch_target("branch3", "origin", RefTarget::absent());
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![

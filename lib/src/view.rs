@@ -183,7 +183,7 @@ impl View {
 
     fn remove_local_branch(&mut self, name: &str) {
         if let Some(branch) = self.data.branches.get_mut(name) {
-            branch.local_target = None;
+            branch.local_target = RefTarget::absent();
             if branch.remote_targets.is_empty() {
                 self.remove_branch(name);
             }
