@@ -310,8 +310,8 @@ fn test_merge_views_branches() {
             ],
         ),
         remote_targets: RefTargetMap(btreemap! {
-            "origin".to_string() => RefTarget::normal(main_branch_origin_tx1.id().clone()).unwrap(),
-            "alternate".to_string() => RefTarget::normal(main_branch_alternate_tx0.id().clone()).unwrap(),
+            "origin".to_string() => RefTarget::normal(main_branch_origin_tx1.id().clone()),
+            "alternate".to_string() => RefTarget::normal(main_branch_alternate_tx0.id().clone()),
         }),
     };
     let expected_feature_branch = BranchTarget {
@@ -367,8 +367,8 @@ fn test_merge_views_tags() {
     assert_eq!(
         repo.view().tags(),
         &btreemap! {
-            "v1.0".to_string() => expected_v1.unwrap(),
-            "v2.0".to_string() => expected_v2.unwrap(),
+            "v1.0".to_string() => expected_v1,
+            "v2.0".to_string() => expected_v2,
         }
     );
 }
@@ -425,8 +425,8 @@ fn test_merge_views_git_refs() {
     assert_eq!(
         repo.view().git_refs(),
         &btreemap! {
-            "refs/heads/main".to_string() => expected_main_branch.unwrap(),
-            "refs/heads/feature".to_string() => expected_feature_branch.unwrap(),
+            "refs/heads/main".to_string() => expected_main_branch,
+            "refs/heads/feature".to_string() => expected_feature_branch,
         }
     );
 }
@@ -460,7 +460,7 @@ fn test_merge_views_git_heads() {
         [tx0_head.id().clone()],
         [tx1_head.id().clone(), tx2_head.id().clone()],
     );
-    assert_eq!(repo.view().git_head(), expected_git_head.as_ref());
+    assert_eq!(repo.view().git_head(), &expected_git_head);
 }
 
 fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<ReadonlyRepo> {

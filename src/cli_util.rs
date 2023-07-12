@@ -733,8 +733,8 @@ impl WorkspaceCommandHelper {
         let mut tx = self.start_transaction("import git refs").into_inner();
         git::import_refs(tx.mut_repo(), git_repo, &self.settings.git_settings())?;
         if tx.mut_repo().has_changes() {
-            let old_git_head = self.repo().view().git_head().cloned();
-            let new_git_head = tx.mut_repo().view().git_head().cloned();
+            let old_git_head = self.repo().view().git_head().clone();
+            let new_git_head = tx.mut_repo().view().git_head().clone();
             // If the Git HEAD has changed, abandon our old checkout and check out the new
             // Git HEAD.
             match new_git_head.as_normal() {

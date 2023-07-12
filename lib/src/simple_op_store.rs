@@ -218,13 +218,13 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
             ..Default::default()
         };
         branch_proto.name = name.clone();
-        branch_proto.local_target = ref_target_to_proto(target.local_target.as_ref());
+        branch_proto.local_target = ref_target_to_proto(&target.local_target);
         for (remote_name, target) in &target.remote_targets {
             branch_proto
                 .remote_branches
                 .push(crate::protos::op_store::RemoteBranch {
                     remote_name: remote_name.clone(),
-                    target: ref_target_to_proto(Some(target)),
+                    target: ref_target_to_proto(target),
                 });
         }
         proto.branches.push(branch_proto);
@@ -233,19 +233,19 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     for (name, target) in &view.tags {
         proto.tags.push(crate::protos::op_store::Tag {
             name: name.clone(),
-            target: ref_target_to_proto(Some(target)),
+            target: ref_target_to_proto(target),
         });
     }
 
     for (git_ref_name, target) in &view.git_refs {
         proto.git_refs.push(crate::protos::op_store::GitRef {
             name: git_ref_name.clone(),
-            target: ref_target_to_proto(Some(target)),
+            target: ref_target_to_proto(target),
             ..Default::default()
         });
     }
 
-    proto.git_head = ref_target_to_proto(view.git_head.as_ref());
+    proto.git_head = ref_target_to_proto(&view.git_head);
 
     proto
 }
@@ -277,7 +277,7 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
         for remote_branch in branch_proto.remote_branches {
             remote_targets.insert(
                 remote_branch.remote_name,
-                ref_target_from_proto(remote_branch.target).unwrap(),
+                ref_target_from_proto(remote_branch.target),
             );
         }
 
@@ -291,10 +291,8 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     }
 
     for tag_proto in proto.tags {
-        view.tags.insert(
-            tag_proto.name,
-            ref_target_from_proto(tag_proto.target).unwrap(),
-        );
+        view.tags
+            .insert(tag_proto.name, ref_target_from_proto(tag_proto.target));
     }
 
     for git_ref in proto.git_refs {
@@ -304,7 +302,7 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
             // Legacy format
             RefTarget::normal(CommitId::new(git_ref.commit_id))
         };
-        view.git_refs.insert(git_ref.name, target.unwrap());
+        view.git_refs.insert(git_ref.name, target);
     }
 
     #[allow(deprecated)]
@@ -317,7 +315,7 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     view
 }
 
-fn ref_target_to_proto(value: Option<&RefTarget>) -> Option<crate::protos::op_store::RefTarget> {
+fn ref_target_to_proto(value: &Option<RefTarget>) -> Option<crate::protos::op_store::RefTarget> {
     if let Some(id) = value.as_normal() {
         let proto = crate::protos::op_store::RefTarget {
             value: Some(crate::protos::op_store::ref_target::Value::CommitId(
@@ -326,6 +324,7 @@ fn ref_target_to_proto(value: Option<&RefTarget>) -> Option<crate::protos::op_st
         };
         Some(proto)
     } else if value.is_conflict() {
+        // TODO: Preserve "absent" targets, and remove op_store::RefTargetMap hack.
         let ref_conflict_proto = crate::protos::op_store::RefConflict {
             removes: value.removed_ids().map(|id| id.to_bytes()).collect(),
             adds: value.added_ids().map(|id| id.to_bytes()).collect(),
@@ -391,22 +390,22 @@ mod tests {
                 "main".to_string() => BranchTarget {
                     local_target: branch_main_local_target,
                     remote_targets: RefTargetMap(btreemap! {
-                        "origin".to_string() => branch_main_origin_target.unwrap(),
+                        "origin".to_string() => branch_main_origin_target,
                     }),
                 },
                 "deleted".to_string() => BranchTarget {
                     local_target: RefTarget::absent(),
                     remote_targets: RefTargetMap(btreemap! {
-                        "origin".to_string() => branch_deleted_origin_target.unwrap(),
+                        "origin".to_string() => branch_deleted_origin_target,
                     }),
                 },
             },
             tags: RefTargetMap(btreemap! {
-                "v1.0".to_string() => tag_v1_target.unwrap(),
+                "v1.0".to_string() => tag_v1_target,
             }),
             git_refs: RefTargetMap(btreemap! {
-                "refs/heads/main".to_string() => git_refs_main_target.unwrap(),
-                "refs/heads/feature".to_string() => git_refs_feature_target.unwrap(),
+                "refs/heads/main".to_string() => git_refs_main_target,
+                "refs/heads/feature".to_string() => git_refs_feature_target,
             }),
             git_head: RefTarget::normal(CommitId::from_hex("fff111")),
             wc_commit_ids: hashmap! {

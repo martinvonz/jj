@@ -26,7 +26,7 @@ use thiserror::Error;
 
 use crate::backend::{CommitId, ObjectId};
 use crate::git_backend::NO_GC_REF_NAMESPACE;
-use crate::op_store::{BranchTarget, RefTarget, RefTargetExt as _};
+use crate::op_store::{BranchTarget, RefTarget, RefTargetExt as _, RefTargetOptionExt};
 use crate::repo::{MutableRepo, Repo};
 use crate::revset;
 use crate::settings::GitSettings;
@@ -82,7 +82,7 @@ fn to_remote_branch<'a>(parsed_ref: &'a RefName, remote_name: &str) -> Option<&'
 /// should be faster than `git_ref.peel_to_commit()`.
 fn resolve_git_ref_to_commit_id(
     git_ref: &git2::Reference<'_>,
-    known_target: Option<&RefTarget>,
+    known_target: &Option<RefTarget>,
 ) -> Option<CommitId> {
     // Try fast path if we have a candidate id which is known to be a commit object.
     if let Some(id) = known_target.as_normal() {
@@ -137,7 +137,7 @@ pub fn build_unified_branches_map(view: &View) -> (BTreeMap<String, BranchTarget
     (all_branches, bad_branch_names)
 }
 
-fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &RefTarget)> {
+fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &Option<RefTarget>)> {
     view.git_refs().iter().filter_map(|(ref_name, target)| {
         ref_name
             .strip_prefix("refs/heads/")
@@ -145,8 +145,10 @@ fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &R
     })
 }
 
-pub fn get_local_git_tracking_branch<'a>(view: &'a View, branch: &str) -> Option<&'a RefTarget> {
-    view.git_refs().get(&format!("refs/heads/{branch}"))
+pub fn get_local_git_tracking_branch<'a>(view: &'a View, branch: &str) -> &'a Option<RefTarget> {
+    view.git_refs()
+        .get(&format!("refs/heads/{branch}"))
+        .flatten()
 }
 
 fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) -> Result<(), git2::Error> {
@@ -221,7 +223,8 @@ pub fn import_some_refs(
             // Skip other refs (such as notes) and symbolic refs.
             continue;
         };
-        let Some(id) = resolve_git_ref_to_commit_id(&git_repo_ref, jj_view_git_refs.get(full_name))
+        let Some(id) =
+            resolve_git_ref_to_commit_id(&git_repo_ref, jj_view_git_refs.get(full_name).flatten())
         else {
             // Skip invalid refs.
             continue;
@@ -232,7 +235,7 @@ pub fn import_some_refs(
         }
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
-        let old_target = jj_view_git_refs.remove(full_name);
+        let old_target = jj_view_git_refs.remove(full_name).flatten();
         let new_target = RefTarget::normal(id.clone());
         if new_target != old_target {
             prevent_gc(git_repo, &id)?;
@@ -247,7 +250,7 @@ pub fn import_some_refs(
         let ref_name = parse_git_ref(&full_name).expect("stored git ref should be parsable");
         if git_ref_filter(&ref_name) {
             mut_repo.set_git_ref_target(&full_name, RefTarget::absent());
-            changed_git_refs.insert(ref_name, (Some(target), None));
+            changed_git_refs.insert(ref_name, (target, RefTarget::absent()));
         } else {
             pinned_git_heads.insert(ref_name, target.added_ids().cloned().collect());
         }
@@ -562,7 +565,7 @@ pub fn rename_remote(
         .collect_vec();
     for (old, new, target) in git_refs {
         mut_repo.set_git_ref_target(&old, RefTarget::absent());
-        mut_repo.set_git_ref_target(&new, Some(target));
+        mut_repo.set_git_ref_target(&new, target);
     }
     Ok(())
 }

@@ -152,9 +152,9 @@ impl RefTarget {
     /// Returns non-conflicting target pointing to no commit.
     ///
     /// This will typically be used in place of `None` returned by map lookup.
-    pub fn absent_ref() -> Option<&'static Self> {
+    pub fn absent_ref() -> &'static Option<Self> {
         // TODO: This will be static ref to Conflict::resolved(None).
-        None
+        &None
     }
 
     /// Creates non-conflicting target pointing to a commit.
@@ -273,9 +273,34 @@ impl RefTargetExt for Option<&RefTarget> {
     }
 }
 
+/// Helper to strip redundant `Option<T>` from `RefTarget` lookup result.
+pub trait RefTargetOptionExt {
+    type Value;
+
+    fn flatten(self) -> Self::Value;
+}
+
+// This isn't needed right now, but Option<RefTarget> will be replaced with new
+// Conflict-based RefTarget type, and it will no longer be Option<Option<T>>.
+impl RefTargetOptionExt for Option<Option<RefTarget>> {
+    type Value = Option<RefTarget>;
+
+    fn flatten(self) -> Self::Value {
+        self.unwrap_or_else(RefTarget::absent)
+    }
+}
+
+impl<'a> RefTargetOptionExt for Option<&'a Option<RefTarget>> {
+    type Value = &'a Option<RefTarget>;
+
+    fn flatten(self) -> Self::Value {
+        self.unwrap_or_else(|| RefTarget::absent_ref())
+    }
+}
+
 /// Wrapper to exclude absent `RefTarget` entries from `ContentHash`.
 #[derive(Default, PartialEq, Eq, Clone, Debug)]
-pub struct RefTargetMap(pub BTreeMap<String, RefTarget>);
+pub struct RefTargetMap(pub BTreeMap<String, Option<RefTarget>>);
 
 impl RefTargetMap {
     pub fn new() -> Self {
@@ -290,8 +315,12 @@ impl ContentHash for RefTargetMap {
         // Derived from content_hash.rs. It's okay for this to produce a different hash
         // value than the inner map, but the value must not be equal to the map which
         // preserves absent RefTarget entries.
-        state.update(&(self.0.len() as u64).to_le_bytes());
-        for (k, v) in self.0.iter() {
+        let iter = self
+            .0
+            .iter()
+            .filter_map(|(k, v)| v.as_ref().map(|u| (k, u)));
+        state.update(&(iter.clone().count() as u64).to_le_bytes());
+        for (k, v) in iter {
             k.hash(state);
             v.hash(state);
         }
@@ -300,7 +329,7 @@ impl ContentHash for RefTargetMap {
 
 // Abuse Deref as this is a temporary workaround. See the comment above.
 impl Deref for RefTargetMap {
-    type Target = BTreeMap<String, RefTarget>;
+    type Target = BTreeMap<String, Option<RefTarget>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -314,8 +343,8 @@ impl DerefMut for RefTargetMap {
 }
 
 impl IntoIterator for RefTargetMap {
-    type Item = (String, RefTarget);
-    type IntoIter = btree_map::IntoIter<String, RefTarget>;
+    type Item = (String, Option<RefTarget>);
+    type IntoIter = btree_map::IntoIter<String, Option<RefTarget>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -323,8 +352,8 @@ impl IntoIterator for RefTargetMap {
 }
 
 impl<'a> IntoIterator for &'a RefTargetMap {
-    type Item = (&'a String, &'a RefTarget);
-    type IntoIter = btree_map::Iter<'a, String, RefTarget>;
+    type Item = (&'a String, &'a Option<RefTarget>);
+    type IntoIter = btree_map::Iter<'a, String, Option<RefTarget>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
