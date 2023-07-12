@@ -274,13 +274,13 @@ pub fn import_some_refs(
                 old_git_target.as_ref(),
                 new_git_target.as_ref(),
             );
-            match mut_repo.get_local_branch(branch) {
-                None => pinned_git_heads.remove(&local_ref_name),
-                Some(target) => {
-                    // Note that we are mostly *replacing*, not inserting
-                    pinned_git_heads.insert(local_ref_name, target.added_ids().cloned().collect())
-                }
-            };
+            let target = mut_repo.get_local_branch(branch);
+            if target.is_absent() {
+                pinned_git_heads.remove(&local_ref_name);
+            } else {
+                // Note that we are mostly *replacing*, not inserting
+                pinned_git_heads.insert(local_ref_name, target.added_ids().cloned().collect());
+            }
         }
     }
 
@@ -288,8 +288,7 @@ pub fn import_some_refs(
     // in jj as well.
     let hidable_git_heads = changed_git_refs
         .values()
-        .filter_map(|(old_git_target, _)| old_git_target.as_ref().map(|target| target.added_ids()))
-        .flatten()
+        .flat_map(|(old_git_target, _)| old_git_target.added_ids())
         .cloned()
         .collect_vec();
     if hidable_git_heads.is_empty() {
@@ -369,8 +368,8 @@ pub fn export_some_refs(
         itertools::chain(
             target
                 .local_target
-                .as_ref()
-                .map(|_| RefName::LocalBranch(branch.to_owned())),
+                .is_present()
+                .then(|| RefName::LocalBranch(branch.to_owned())),
             target
                 .remote_targets
                 .keys()
@@ -639,7 +638,7 @@ pub fn fetch(
         .view()
         .branches()
         .iter()
-        .filter_map(|(branch, target)| target.local_target.as_ref().map(|_| branch.to_owned()))
+        .filter_map(|(branch, target)| target.local_target.is_present().then(|| branch.to_owned()))
         .collect();
     // TODO: Inform the user if the export failed? In most cases, export is not
     // essential for fetch to work.

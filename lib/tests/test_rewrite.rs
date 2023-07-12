@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use itertools::Itertools as _;
-use jj_lib::op_store::{RefTarget, WorkspaceId};
+use jj_lib::op_store::{RefTarget, RefTargetExt as _, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::rewrite::DescendantRebaser;
@@ -1141,7 +1141,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
 
-    let target = tx.mut_repo().get_local_branch("main").unwrap();
+    let target = tx.mut_repo().get_local_branch("main");
     assert!(target.is_conflict());
     assert_eq!(
         target.removed_ids().counts(),
@@ -1216,7 +1216,7 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
 
-    let target = tx.mut_repo().get_local_branch("main").unwrap();
+    let target = tx.mut_repo().get_local_branch("main");
     assert!(target.is_conflict());
     assert_eq!(
         target.removed_ids().counts(),

@@ -4,7 +4,7 @@ use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId};
 use jj_lib::git;
-use jj_lib::op_store::{BranchTarget, RefTarget};
+use jj_lib::op_store::{BranchTarget, RefTarget, RefTargetExt as _};
 use jj_lib::repo::Repo;
 use jj_lib::revset::{self, RevsetExpression};
 use jj_lib::view::View;
@@ -130,12 +130,15 @@ fn cmd_branch_create(
     let branch_names: Vec<&str> = args
         .names
         .iter()
-        .map(|branch_name| match view.get_local_branch(branch_name) {
-            Some(_) => Err(user_error_with_hint(
-                format!("Branch already exists: {branch_name}"),
-                "Use `jj branch set` to update it.",
-            )),
-            None => Ok(branch_name.as_str()),
+        .map(|branch_name| {
+            if view.get_local_branch(branch_name).is_present() {
+                Err(user_error_with_hint(
+                    format!("Branch already exists: {branch_name}"),
+                    "Use `jj branch set` to update it.",
+                ))
+            } else {
+                Ok(branch_name.as_str())
+            }
         })
         .try_collect()?;
 
@@ -223,7 +226,7 @@ fn find_globs(
             .iter()
             .filter_map(|(branch_name, branch_target)| {
                 if glob.matches(branch_name)
-                    && (allow_deleted || branch_target.local_target.is_some())
+                    && (allow_deleted || branch_target.local_target.is_present())
                 {
                     Some(branch_name)
                 } else {
@@ -266,7 +269,7 @@ fn cmd_branch_delete(
             .repo()
             .view()
             .get_local_branch(branch_name)
-            .is_none()
+            .is_absent()
         {
             return Err(user_error(format!("No such branch: {branch_name}")));
         }
@@ -334,10 +337,7 @@ fn cmd_branch_list(
     if !args.revisions.is_empty() {
         // Match against local targets only, which is consistent with "jj git push".
         fn local_targets(branch_target: &BranchTarget) -> impl Iterator<Item = &CommitId> {
-            branch_target
-                .local_target
-                .iter()
-                .flat_map(|target| target.added_ids())
+            branch_target.local_target.added_ids()
         }
 
         let filter_expressions: Vec<_> = args
@@ -419,7 +419,8 @@ fn cmd_branch_list(
             }
             write!(formatter, "  ")?;
             write!(formatter.labeled("branch"), "@{remote}")?;
-            if let Some(local_target) = branch_target.local_target.as_ref() {
+            let local_target = &branch_target.local_target;
+            if local_target.is_present() {
                 let remote_added_ids = remote_target.added_ids().cloned().collect_vec();
                 let local_added_ids = local_target.added_ids().cloned().collect_vec();
                 let remote_ahead_count =
@@ -441,7 +442,7 @@ fn cmd_branch_list(
             print_branch_target(formatter, remote_target)?;
         }
 
-        if branch_target.local_target.is_none() {
+        if branch_target.local_target.is_absent() {
             if found_non_git_remote {
                 writeln!(
                     formatter,
@@ -462,7 +463,10 @@ fn cmd_branch_list(
 }
 
 fn is_fast_forward(repo: &dyn Repo, branch_name: &str, new_target_id: &CommitId) -> bool {
-    if let Some(current_target) = repo.view().get_local_branch(branch_name) {
+    let current_target = repo.view().get_local_branch(branch_name);
+    if current_target.is_present() {
+        // Strictly speaking, "all" current targets should be ancestors, but we allow
+        // conflict resolution by setting branch to "any" of the old target descendants.
         current_target
             .added_ids()
             .any(|add| repo.index().is_ancestor(add, new_target_id))

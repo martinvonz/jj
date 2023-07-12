@@ -23,7 +23,7 @@ use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::index::Index;
-use crate::op_store::RefTarget;
+use crate::op_store::{RefTarget, RefTargetExt as _};
 use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
 use crate::revset::{RevsetExpression, RevsetIteratorExt};
@@ -225,13 +225,11 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         // all branches each time we rebase a commit.
         let mut branches: HashMap<_, HashSet<_>> = HashMap::new();
         for (branch_name, branch_target) in mut_repo.view().branches() {
-            if let Some(local_target) = &branch_target.local_target {
-                for commit in local_target.added_ids() {
-                    branches
-                        .entry(commit.clone())
-                        .or_default()
-                        .insert(branch_name.clone());
-                }
+            for commit in branch_target.local_target.added_ids() {
+                branches
+                    .entry(commit.clone())
+                    .or_default()
+                    .insert(branch_name.clone());
             }
         }
 
