@@ -10,7 +10,12 @@ permissions: read-all
 
 jobs:
   nix:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest ]
+        mode: [ "flake check", "build" ]
+    runs-on: ${{ matrix.os }}
     name: nix-build
     timeout-minutes: 20
     steps:
@@ -21,4 +26,4 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-      - run: nix flake check --print-build-logs --show-trace
+      - run: nix ${{ matrix.mode }} --print-build-logs --show-trace
