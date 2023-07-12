@@ -62,10 +62,7 @@ fn conflict_to_ref_target(conflict: Conflict<Option<CommitId>>) -> Option<RefTar
 // to replace Option<RefTarget> with it. Map API might be a bit trickier.
 fn ref_target_to_conflict(maybe_target: Option<&RefTarget>) -> Conflict<Option<CommitId>> {
     if let Some(target) = maybe_target {
-        Conflict::from_legacy_form(
-            target.removes().iter().cloned(),
-            target.adds().iter().cloned(),
-        )
+        Conflict::from_legacy_form(target.removed_ids().cloned(), target.added_ids().cloned())
     } else {
         Conflict::resolved(None) // Deleted or absent ref
     }

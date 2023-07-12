@@ -256,7 +256,7 @@ pub fn import_some_refs(
             mut_repo.set_git_ref_target(&full_name, None);
             changed_git_refs.insert(ref_name, (Some(target), None));
         } else {
-            pinned_git_heads.insert(ref_name, target.adds().to_vec());
+            pinned_git_heads.insert(ref_name, target.added_ids().cloned().collect());
         }
     }
     for (ref_name, (old_git_target, new_git_target)) in &changed_git_refs {
@@ -278,7 +278,7 @@ pub fn import_some_refs(
                 None => pinned_git_heads.remove(&local_ref_name),
                 Some(target) => {
                     // Note that we are mostly *replacing*, not inserting
-                    pinned_git_heads.insert(local_ref_name, target.adds().to_vec())
+                    pinned_git_heads.insert(local_ref_name, target.added_ids().cloned().collect())
                 }
             };
         }
@@ -288,7 +288,7 @@ pub fn import_some_refs(
     // in jj as well.
     let hidable_git_heads = changed_git_refs
         .values()
-        .filter_map(|(old_git_target, _)| old_git_target.as_ref().map(|target| target.adds()))
+        .filter_map(|(old_git_target, _)| old_git_target.as_ref().map(|target| target.added_ids()))
         .flatten()
         .cloned()
         .collect_vec();

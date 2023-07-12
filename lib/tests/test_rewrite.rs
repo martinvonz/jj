@@ -1144,11 +1144,11 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let target = tx.mut_repo().get_local_branch("main").unwrap();
     assert!(target.is_conflict());
     assert_eq!(
-        target.removes().iter().counts(),
+        target.removed_ids().counts(),
         hashmap! { commit_b.id() => 2 },
     );
     assert_eq!(
-        target.adds().iter().counts(),
+        target.added_ids().counts(),
         hashmap! {
             commit_b2.id() => 1,
             commit_b3.id() => 1,
@@ -1219,11 +1219,11 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let target = tx.mut_repo().get_local_branch("main").unwrap();
     assert!(target.is_conflict());
     assert_eq!(
-        target.removes().iter().counts(),
+        target.removed_ids().counts(),
         hashmap! { commit_a.id() => 1, commit_b.id() => 1 },
     );
     assert_eq!(
-        target.adds().iter().counts(),
+        target.added_ids().counts(),
         hashmap! {
             commit_c.id() => 1,
             commit_b2.id() => 1,

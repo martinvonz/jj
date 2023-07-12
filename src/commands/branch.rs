@@ -333,12 +333,11 @@ fn cmd_branch_list(
 
     if !args.revisions.is_empty() {
         // Match against local targets only, which is consistent with "jj git push".
-        fn local_targets(branch_target: &BranchTarget) -> &[CommitId] {
-            if let Some(target) = branch_target.local_target.as_ref() {
-                target.adds()
-            } else {
-                &[]
-            }
+        fn local_targets(branch_target: &BranchTarget) -> impl Iterator<Item = &CommitId> {
+            branch_target
+                .local_target
+                .iter()
+                .flat_map(|target| target.added_ids())
         }
 
         let filter_expressions: Vec<_> = args
@@ -364,9 +363,7 @@ fn cmd_branch_list(
         // can consider these options as producers of branch names, not filters
         // of different kind (which are typically intersected.)
         all_branches.retain(|_, branch_target| {
-            local_targets(branch_target)
-                .iter()
-                .any(|id| filtered_targets.contains(id))
+            local_targets(branch_target).any(|id| filtered_targets.contains(id))
         });
     }
 
@@ -381,13 +378,13 @@ fn cmd_branch_list(
                 write!(formatter, " ")?;
                 write!(formatter.labeled("conflict"), "(conflicted)")?;
                 writeln!(formatter, ":")?;
-                for id in target.removes() {
+                for id in target.removed_ids() {
                     let commit = repo.store().get_commit(id)?;
                     write!(formatter, "  - ")?;
                     workspace_command.write_commit_summary(formatter, &commit)?;
                     writeln!(formatter)?;
                 }
-                for id in target.adds() {
+                for id in target.added_ids() {
                     let commit = repo.store().get_commit(id)?;
                     write!(formatter, "  + ")?;
                     workspace_command.write_commit_summary(formatter, &commit)?;
@@ -423,12 +420,12 @@ fn cmd_branch_list(
             write!(formatter, "  ")?;
             write!(formatter.labeled("branch"), "@{remote}")?;
             if let Some(local_target) = branch_target.local_target.as_ref() {
+                let remote_added_ids = remote_target.added_ids().cloned().collect_vec();
+                let local_added_ids = local_target.added_ids().cloned().collect_vec();
                 let remote_ahead_count =
-                    revset::walk_revs(repo.as_ref(), remote_target.adds(), local_target.adds())?
-                        .count();
+                    revset::walk_revs(repo.as_ref(), &remote_added_ids, &local_added_ids)?.count();
                 let local_ahead_count =
-                    revset::walk_revs(repo.as_ref(), local_target.adds(), remote_target.adds())?
-                        .count();
+                    revset::walk_revs(repo.as_ref(), &local_added_ids, &remote_added_ids)?.count();
                 if remote_ahead_count != 0 && local_ahead_count == 0 {
                     write!(formatter, " (ahead by {remote_ahead_count} commits)")?;
                 } else if remote_ahead_count == 0 && local_ahead_count != 0 {
@@ -467,8 +464,7 @@ fn cmd_branch_list(
 fn is_fast_forward(repo: &dyn Repo, branch_name: &str, new_target_id: &CommitId) -> bool {
     if let Some(current_target) = repo.view().get_local_branch(branch_name) {
         current_target
-            .adds()
-            .iter()
+            .added_ids()
             .any(|add| repo.index().is_ancestor(add, new_target_id))
     } else {
         true

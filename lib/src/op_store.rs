@@ -172,18 +172,20 @@ impl RefTarget {
         matches!(self, RefTarget::Conflict { .. })
     }
 
-    pub fn removes(&self) -> &[CommitId] {
-        match self {
+    pub fn removed_ids(&self) -> slice::Iter<'_, CommitId> {
+        let removes: &[_] = match self {
             RefTarget::Normal(_) => &[],
             RefTarget::Conflict { removes, adds: _ } => removes,
-        }
+        };
+        removes.iter()
     }
 
-    pub fn adds(&self) -> &[CommitId] {
-        match self {
+    pub fn added_ids(&self) -> slice::Iter<'_, CommitId> {
+        let adds: &[_] = match self {
             RefTarget::Normal(id) => slice::from_ref(id),
             RefTarget::Conflict { removes: _, adds } => adds,
-        }
+        };
+        adds.iter()
     }
 }
 
@@ -193,8 +195,8 @@ pub trait RefTargetExt {
     fn is_absent(&self) -> bool;
     fn is_present(&self) -> bool;
     fn is_conflict(&self) -> bool;
-    fn removes(&self) -> &[CommitId];
-    fn adds(&self) -> &[CommitId];
+    fn removed_ids(&self) -> slice::Iter<'_, CommitId>;
+    fn added_ids(&self) -> slice::Iter<'_, CommitId>;
 }
 
 impl RefTargetExt for Option<RefTarget> {
@@ -216,16 +218,16 @@ impl RefTargetExt for Option<RefTarget> {
             .unwrap_or(false)
     }
 
-    fn removes(&self) -> &[CommitId] {
+    fn removed_ids(&self) -> slice::Iter<'_, CommitId> {
         self.as_ref()
-            .map(|target| target.removes())
-            .unwrap_or_default()
+            .map(|target| target.removed_ids())
+            .unwrap_or_else(|| [].iter())
     }
 
-    fn adds(&self) -> &[CommitId] {
+    fn added_ids(&self) -> slice::Iter<'_, CommitId> {
         self.as_ref()
-            .map(|target| target.adds())
-            .unwrap_or_default()
+            .map(|target| target.added_ids())
+            .unwrap_or_else(|| [].iter())
     }
 }
 
@@ -246,12 +248,14 @@ impl RefTargetExt for Option<&RefTarget> {
         self.map(|target| target.is_conflict()).unwrap_or(false)
     }
 
-    fn removes(&self) -> &[CommitId] {
-        self.map(|target| target.removes()).unwrap_or_default()
+    fn removed_ids(&self) -> slice::Iter<'_, CommitId> {
+        self.map(|target| target.removed_ids())
+            .unwrap_or_else(|| [].iter())
     }
 
-    fn adds(&self) -> &[CommitId] {
-        self.map(|target| target.adds()).unwrap_or_default()
+    fn added_ids(&self) -> slice::Iter<'_, CommitId> {
+        self.map(|target| target.added_ids())
+            .unwrap_or_else(|| [].iter())
     }
 }
 
