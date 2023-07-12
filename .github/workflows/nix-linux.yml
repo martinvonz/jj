@@ -22,8 +22,6 @@ jobs:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         with:
           fetch-depth: 0
-      - uses: cachix/install-nix-action@6ed004b9ccb68dbc28e7c85bee15fa93dbd214ac
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
+      - uses: DeterminateSystems/nix-installer-action@65d7c888b2778e8cf30a07a88422ccb23499bfb8
+      - uses: DeterminateSystems/magic-nix-cache-action@5cc3a5e24b688cf7e0ea986ab07a9d3d32c34a95
       - run: nix ${{ matrix.mode }} --print-build-logs --show-trace
