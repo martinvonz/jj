@@ -4,7 +4,7 @@ use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId};
 use jj_lib::git;
-use jj_lib::op_store::{BranchTarget, RefTarget, RefTargetExt as _};
+use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::repo::Repo;
 use jj_lib::revset::{self, RevsetExpression};
 use jj_lib::view::View;
@@ -369,7 +369,7 @@ fn cmd_branch_list(
     }
 
     let print_branch_target =
-        |formatter: &mut dyn Formatter, target: &Option<RefTarget>| -> Result<(), CommandError> {
+        |formatter: &mut dyn Formatter, target: &RefTarget| -> Result<(), CommandError> {
             if let Some(id) = target.as_normal() {
                 write!(formatter, ": ")?;
                 let commit = repo.store().get_commit(id)?;

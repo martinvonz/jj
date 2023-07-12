@@ -37,7 +37,7 @@ use jj_lib::conflicts::Conflict;
 use jj_lib::dag_walk::topo_order_reverse;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::matchers::EverythingMatcher;
-use jj_lib::op_store::{RefTargetExt as _, WorkspaceId};
+use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{

@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use clap::Subcommand;
-use jj_lib::op_store::{BranchTarget, RefTarget, RefTargetExt as _};
+use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::operation;
 use jj_lib::repo::Repo;
 

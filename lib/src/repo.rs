@@ -41,9 +41,7 @@ use crate::git_backend::GitBackend;
 use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use crate::op_store::{
-    BranchTarget, OpStore, OperationId, RefTarget, RefTargetExt as _, WorkspaceId,
-};
+use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
 use crate::operation::Operation;
 use crate::refs::merge_ref_targets;
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
@@ -967,25 +965,20 @@ impl MutableRepo {
         self.view_mut().remove_branch(name);
     }
 
-    pub fn get_local_branch(&self, name: &str) -> Option<RefTarget> {
+    pub fn get_local_branch(&self, name: &str) -> RefTarget {
         self.view.with_ref(|v| v.get_local_branch(name))
     }
 
-    pub fn set_local_branch_target(&mut self, name: &str, target: Option<RefTarget>) {
+    pub fn set_local_branch_target(&mut self, name: &str, target: RefTarget) {
         self.view_mut().set_local_branch_target(name, target);
     }
 
-    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> Option<RefTarget> {
+    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> RefTarget {
         self.view
             .with_ref(|v| v.get_remote_branch(name, remote_name))
     }
 
-    pub fn set_remote_branch_target(
-        &mut self,
-        name: &str,
-        remote_name: &str,
-        target: Option<RefTarget>,
-    ) {
+    pub fn set_remote_branch_target(&mut self, name: &str, remote_name: &str, target: RefTarget) {
         self.view_mut()
             .set_remote_branch_target(name, remote_name, target);
     }
@@ -994,27 +987,27 @@ impl MutableRepo {
         self.view_mut().rename_remote(old, new);
     }
 
-    pub fn get_tag(&self, name: &str) -> Option<RefTarget> {
+    pub fn get_tag(&self, name: &str) -> RefTarget {
         self.view.with_ref(|v| v.get_tag(name))
     }
 
-    pub fn set_tag_target(&mut self, name: &str, target: Option<RefTarget>) {
+    pub fn set_tag_target(&mut self, name: &str, target: RefTarget) {
         self.view_mut().set_tag_target(name, target);
     }
 
-    pub fn get_git_ref(&self, name: &str) -> Option<RefTarget> {
+    pub fn get_git_ref(&self, name: &str) -> RefTarget {
         self.view.with_ref(|v| v.get_git_ref(name))
     }
 
-    pub fn set_git_ref_target(&mut self, name: &str, target: Option<RefTarget>) {
+    pub fn set_git_ref_target(&mut self, name: &str, target: RefTarget) {
         self.view_mut().set_git_ref_target(name, target);
     }
 
-    pub fn git_head(&self) -> Option<RefTarget> {
+    pub fn git_head(&self) -> RefTarget {
         self.view.with_ref(|v| v.git_head().clone())
     }
 
-    pub fn set_git_head_target(&mut self, target: Option<RefTarget>) {
+    pub fn set_git_head_target(&mut self, target: RefTarget) {
         self.view_mut().set_git_head_target(target);
     }
 
@@ -1199,8 +1192,8 @@ impl MutableRepo {
     pub fn merge_single_ref(
         &mut self,
         ref_name: &RefName,
-        base_target: &Option<RefTarget>,
-        other_target: &Option<RefTarget>,
+        base_target: &RefTarget,
+        other_target: &RefTarget,
     ) {
         self.view.get_mut().merge_single_ref(
             self.index.as_index(),

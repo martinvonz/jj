@@ -27,7 +27,7 @@ use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
-    RefTarget, RefTargetExt as _, RefTargetMap, View, ViewId, WorkspaceId,
+    RefTarget, RefTargetMap, View, ViewId, WorkspaceId,
 };
 
 impl From<std::io::Error> for OpStoreError {
@@ -315,7 +315,7 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     view
 }
 
-fn ref_target_to_proto(value: &Option<RefTarget>) -> Option<crate::protos::op_store::RefTarget> {
+fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::RefTarget> {
     if let Some(id) = value.as_normal() {
         let proto = crate::protos::op_store::RefTarget {
             value: Some(crate::protos::op_store::ref_target::Value::CommitId(
@@ -341,10 +341,10 @@ fn ref_target_to_proto(value: &Option<RefTarget>) -> Option<crate::protos::op_st
     }
 }
 
-fn ref_target_from_proto(
-    maybe_proto: Option<crate::protos::op_store::RefTarget>,
-) -> Option<RefTarget> {
-    let proto = maybe_proto?;
+fn ref_target_from_proto(maybe_proto: Option<crate::protos::op_store::RefTarget>) -> RefTarget {
+    let Some(proto) = maybe_proto else {
+        return RefTarget::absent();
+    };
     match proto.value.unwrap() {
         crate::protos::op_store::ref_target::Value::CommitId(id) => {
             RefTarget::normal(CommitId::new(id))

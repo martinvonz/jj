@@ -18,53 +18,31 @@ use crate::backend::CommitId;
 use crate::conflicts::Conflict;
 use crate::index::Index;
 use crate::merge::trivial_merge;
-use crate::op_store::{BranchTarget, RefTarget, RefTargetExt as _, RefTargetOptionExt};
+use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
 
 pub fn merge_ref_targets(
     index: &dyn Index,
-    left: &Option<RefTarget>,
-    base: &Option<RefTarget>,
-    right: &Option<RefTarget>,
-) -> Option<RefTarget> {
+    left: &RefTarget,
+    base: &RefTarget,
+    right: &RefTarget,
+) -> RefTarget {
     if let Some(&resolved) = trivial_merge(&[base], &[left, right]) {
         return resolved.clone();
     }
 
     let conflict = Conflict::new(
-        vec![ref_target_to_conflict(base)],
-        vec![ref_target_to_conflict(left), ref_target_to_conflict(right)],
+        vec![base.as_conflict().clone()],
+        vec![left.as_conflict().clone(), right.as_conflict().clone()],
     )
     .flatten()
     .simplify();
 
     // TODO: switch to conflict.is_resolved()
     if conflict.as_resolved().is_some() {
-        conflict_to_ref_target(conflict)
+        RefTarget::from_conflict(conflict)
     } else {
         let conflict = merge_ref_targets_non_trivial(index, conflict);
-        conflict_to_ref_target(conflict)
-    }
-}
-
-fn conflict_to_ref_target(conflict: Conflict<Option<CommitId>>) -> Option<RefTarget> {
-    match conflict.as_resolved() {
-        Some(Some(id)) => Some(RefTarget::Normal(id.clone())),
-        Some(None) => None, // Deleted ref
-        None => {
-            let (removes, adds) = conflict.into_legacy_form();
-            Some(RefTarget::Conflict { removes, adds })
-        }
-    }
-}
-
-// TODO: Make RefTarget store or be aliased to Conflict<Option<CommitId>>.
-// Since new conflict type can represent a deleted/absent ref, we might have
-// to replace Option<RefTarget> with it. Map API might be a bit trickier.
-fn ref_target_to_conflict(maybe_target: &Option<RefTarget>) -> Conflict<Option<CommitId>> {
-    if let Some(target) = maybe_target {
-        Conflict::from_legacy_form(target.removed_ids().cloned(), target.added_ids().cloned())
-    } else {
-        Conflict::resolved(None) // Deleted or absent ref
+        RefTarget::from_conflict(conflict)
     }
 }
 
