@@ -22,7 +22,7 @@ use itertools::Itertools;
 use crate::backend::CommitId;
 use crate::index::Index;
 use crate::op_store;
-use crate::op_store::{BranchTarget, RefTarget, WorkspaceId};
+use crate::op_store::{BranchTarget, RefTarget, RefTargetExt as _, WorkspaceId};
 use crate::refs::merge_ref_targets;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
@@ -224,7 +224,7 @@ impl View {
     fn remove_remote_branch(&mut self, name: &str, remote_name: &str) {
         if let Some(branch) = self.data.branches.get_mut(name) {
             branch.remote_targets.remove(remote_name);
-            if branch.remote_targets.is_empty() && branch.local_target.is_none() {
+            if branch.remote_targets.is_empty() && branch.local_target.is_absent() {
                 self.remove_branch(name);
             }
         }

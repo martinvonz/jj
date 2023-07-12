@@ -36,7 +36,7 @@ use crate::commit::Commit;
 use crate::git::{self, get_local_git_tracking_branch};
 use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, PrefixResolution};
-use crate::op_store::WorkspaceId;
+use crate::op_store::{RefTargetExt as _, WorkspaceId};
 use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPath};
 use crate::store::Store;
@@ -1644,20 +1644,22 @@ fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
 
 fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
-    if let Some(target) = view.get_local_branch(symbol) {
+    let target = view.get_local_branch(symbol);
+    if target.is_present() {
         return Some(target.added_ids().cloned().collect());
     }
     if let Some((name, remote_name)) = symbol.split_once('@') {
-        if let Some(target) = view.get_remote_branch(name, remote_name) {
+        let target = view.get_remote_branch(name, remote_name);
+        if target.is_present() {
             return Some(target.added_ids().cloned().collect());
         }
         // A remote with name "git" will shadow local-git tracking branches
         if remote_name == "git" {
-            let maybe_target = match name {
+            let target = match name {
                 "HEAD" => view.git_head(),
                 _ => get_local_git_tracking_branch(view, name),
             };
-            if let Some(target) = maybe_target {
+            if target.is_present() {
                 return Some(target.added_ids().cloned().collect());
             }
         }
@@ -1672,7 +1674,7 @@ fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<
         .iter()
         .flat_map(|(name, branch_target)| {
             let local_target = branch_target.local_target.as_ref();
-            let local_symbol = local_target.is_some().then(|| name.to_owned());
+            let local_symbol = local_target.is_present().then(|| name.to_owned());
             let remote_symbols = branch_target
                 .remote_targets
                 .iter()
@@ -1680,7 +1682,7 @@ fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<
                 .map(move |(remote_name, _)| format!("{name}@{remote_name}"));
             local_symbol.into_iter().chain(remote_symbols)
         })
-        .chain(view.git_head().is_some().then(|| "HEAD@git".to_owned()))
+        .chain(view.git_head().is_present().then(|| "HEAD@git".to_owned()))
         .collect()
 }
 
@@ -1870,9 +1872,7 @@ fn resolve_commit_ref(
                 if !branch_name.contains(needle) {
                     continue;
                 }
-                if let Some(local_target) = &branch_target.local_target {
-                    commit_ids.extend(local_target.added_ids().cloned());
-                }
+                commit_ids.extend(branch_target.local_target.added_ids().cloned());
             }
             Ok(commit_ids)
         }
@@ -1907,13 +1907,7 @@ fn resolve_commit_ref(
             }
             Ok(commit_ids)
         }
-        RevsetCommitRef::GitHead => {
-            let mut commit_ids = vec![];
-            if let Some(ref_target) = repo.view().git_head() {
-                commit_ids.extend(ref_target.added_ids().cloned());
-            }
-            Ok(commit_ids)
-        }
+        RevsetCommitRef::GitHead => Ok(repo.view().git_head().added_ids().cloned().collect()),
     }
 }
 

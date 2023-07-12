@@ -41,7 +41,9 @@ use crate::git_backend::GitBackend;
 use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
+use crate::op_store::{
+    BranchTarget, OpStore, OperationId, RefTarget, RefTargetExt as _, WorkspaceId,
+};
 use crate::operation::Operation;
 use crate::refs::merge_ref_targets;
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
@@ -860,8 +862,7 @@ impl MutableRepo {
         fn local_branch_target_ids(view: &View) -> impl Iterator<Item = &CommitId> {
             view.branches()
                 .values()
-                .filter_map(|branch_target| branch_target.local_target.as_ref())
-                .flat_map(|target| target.added_ids())
+                .flat_map(|branch_target| branch_target.local_target.added_ids())
         }
 
         let maybe_wc_commit_id = self

@@ -628,13 +628,7 @@ fn cmd_git_push(
     ) -> Vec<(&'a String, &'a BranchTarget)> {
         view.branches()
             .iter()
-            .filter(|(_, branch_target)| {
-                if let Some(target) = &branch_target.local_target {
-                    target.added_ids().any(&mut is_target)
-                } else {
-                    false
-                }
-            })
+            .filter(|(_, branch_target)| branch_target.local_target.added_ids().any(&mut is_target))
             .collect()
     }
 
@@ -652,7 +646,7 @@ fn cmd_git_push(
         tx_description = format!("push all branches to git remote {remote}");
     } else if args.deleted {
         for (branch_name, branch_target) in repo.view().branches() {
-            if branch_target.local_target.is_some() {
+            if branch_target.local_target.is_present() {
                 continue;
             }
             match classify_branch_update(branch_name, branch_target, &remote) {
@@ -692,7 +686,7 @@ fn cmd_git_push(
                 continue;
             }
             let view = tx.base_repo().view();
-            if view.get_local_branch(&branch_name).is_none() {
+            if view.get_local_branch(&branch_name).is_absent() {
                 // A local branch with the full change ID doesn't exist already, so use the
                 // short ID if it's not ambiguous (which it shouldn't be most of the time).
                 let short_change_id = short_change_hash(commit.change_id());
@@ -709,7 +703,7 @@ fn cmd_git_push(
                     );
                 };
             }
-            if view.get_local_branch(&branch_name).is_none() {
+            if view.get_local_branch(&branch_name).is_absent() {
                 writeln!(
                     ui,
                     "Creating branch {} for revision {}",

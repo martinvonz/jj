@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use clap::Subcommand;
-use jj_lib::op_store::BranchTarget;
+use jj_lib::op_store::{BranchTarget, RefTargetExt as _};
 use jj_lib::operation;
 use jj_lib::repo::Repo;
 
@@ -193,7 +193,7 @@ fn view_with_desired_portions_restored(
             .get(branch_name)
             .map(|br| br.remote_targets.clone())
             .unwrap_or_default();
-        if local_target.is_some() || !remote_targets.is_empty() {
+        if local_target.is_present() || !remote_targets.is_empty() {
             new_branches.insert(
                 branch_name.to_string(),
                 BranchTarget {
