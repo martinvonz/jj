@@ -334,7 +334,7 @@ struct RefNamesIndex {
 }
 
 impl RefNamesIndex {
-    fn insert(&mut self, ids: &[CommitId], name: String) {
+    fn insert<'a>(&mut self, ids: impl IntoIterator<Item = &'a CommitId>, name: String) {
         for id in ids {
             let ref_names = self.index.entry(id.clone()).or_default();
             ref_names.push(name.clone());
@@ -368,7 +368,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
             } else {
                 branch_name.clone()
             };
-            index.insert(target.adds(), decorated_name);
+            index.insert(target.added_ids(), decorated_name);
         }
         for (remote_name, target) in unsynced_remote_targets {
             let decorated_name = if target.is_conflict() {
@@ -376,7 +376,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
             } else {
                 format!("{branch_name}@{remote_name}")
             };
-            index.insert(target.adds(), decorated_name);
+            index.insert(target.added_ids(), decorated_name);
         }
     }
     index
@@ -392,7 +392,7 @@ fn build_ref_names_index<'a>(
         } else {
             name.clone()
         };
-        index.insert(target.adds(), decorated_name);
+        index.insert(target.added_ids(), decorated_name);
     }
     index
 }
@@ -400,7 +400,7 @@ fn build_ref_names_index<'a>(
 // TODO: return NameRef?
 fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> String {
     match repo.view().git_head() {
-        Some(ref_target) if ref_target.adds().contains(commit.id()) => {
+        Some(ref_target) if ref_target.added_ids().contains(commit.id()) => {
             if ref_target.is_conflict() {
                 "HEAD@git?".to_string()
             } else {

@@ -861,7 +861,7 @@ impl MutableRepo {
             view.branches()
                 .values()
                 .filter_map(|branch_target| branch_target.local_target.as_ref())
-                .flat_map(|target| target.adds())
+                .flat_map(|target| target.added_ids())
         }
 
         let maybe_wc_commit_id = self

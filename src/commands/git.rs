@@ -630,7 +630,7 @@ fn cmd_git_push(
             .iter()
             .filter(|(_, branch_target)| {
                 if let Some(target) = &branch_target.local_target {
-                    target.adds().iter().any(&mut is_target)
+                    target.added_ids().any(&mut is_target)
                 } else {
                     false
                 }
@@ -829,7 +829,7 @@ fn cmd_git_push(
     let mut old_heads = vec![];
     for branch_target in repo.view().branches().values() {
         if let Some(old_head) = branch_target.remote_targets.get(&remote) {
-            old_heads.extend_from_slice(old_head.adds());
+            old_heads.extend(old_head.added_ids().cloned());
         }
     }
     if old_heads.is_empty() {

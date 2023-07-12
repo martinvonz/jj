@@ -1636,7 +1636,7 @@ fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     // way to address local git repo's remote-tracking branches.
     for git_ref_prefix in &["", "refs/", "refs/tags/", "refs/remotes/"] {
         if let Some(ref_target) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
-            return Some(ref_target.adds().to_vec());
+            return Some(ref_target.added_ids().cloned().collect());
         }
     }
     None
@@ -1645,11 +1645,11 @@ fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
 fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
     if let Some(target) = view.get_local_branch(symbol) {
-        return Some(target.adds().to_vec());
+        return Some(target.added_ids().cloned().collect());
     }
     if let Some((name, remote_name)) = symbol.split_once('@') {
         if let Some(target) = view.get_remote_branch(name, remote_name) {
-            return Some(target.adds().to_vec());
+            return Some(target.added_ids().cloned().collect());
         }
         // A remote with name "git" will shadow local-git tracking branches
         if remote_name == "git" {
@@ -1658,7 +1658,7 @@ fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
                 _ => get_local_git_tracking_branch(view, name),
             };
             if let Some(target) = maybe_target {
-                return Some(target.adds().to_vec());
+                return Some(target.added_ids().cloned().collect());
             }
         }
     }
@@ -1791,7 +1791,7 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
         } else {
             // Try to resolve as a tag
             if let Some(target) = self.repo.view().tags().get(symbol) {
-                return Ok(target.adds().to_vec());
+                return Ok(target.added_ids().cloned().collect());
             }
 
             // Try to resolve as a branch
@@ -1871,7 +1871,7 @@ fn resolve_commit_ref(
                     continue;
                 }
                 if let Some(local_target) = &branch_target.local_target {
-                    commit_ids.extend_from_slice(local_target.adds());
+                    commit_ids.extend(local_target.added_ids().cloned());
                 }
             }
             Ok(commit_ids)
@@ -1887,7 +1887,7 @@ fn resolve_commit_ref(
                 }
                 for (remote_name, remote_target) in branch_target.remote_targets.iter() {
                     if remote_name.contains(remote_needle) {
-                        commit_ids.extend_from_slice(remote_target.adds());
+                        commit_ids.extend(remote_target.added_ids().cloned());
                     }
                 }
             }
@@ -1896,21 +1896,21 @@ fn resolve_commit_ref(
         RevsetCommitRef::Tags => {
             let mut commit_ids = vec![];
             for ref_target in repo.view().tags().values() {
-                commit_ids.extend_from_slice(ref_target.adds());
+                commit_ids.extend(ref_target.added_ids().cloned());
             }
             Ok(commit_ids)
         }
         RevsetCommitRef::GitRefs => {
             let mut commit_ids = vec![];
             for ref_target in repo.view().git_refs().values() {
-                commit_ids.extend_from_slice(ref_target.adds());
+                commit_ids.extend(ref_target.added_ids().cloned());
             }
             Ok(commit_ids)
         }
         RevsetCommitRef::GitHead => {
             let mut commit_ids = vec![];
             if let Some(ref_target) = repo.view().git_head() {
-                commit_ids.extend_from_slice(ref_target.adds());
+                commit_ids.extend(ref_target.added_ids().cloned());
             }
             Ok(commit_ids)
         }

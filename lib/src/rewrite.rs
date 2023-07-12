@@ -226,7 +226,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let mut branches: HashMap<_, HashSet<_>> = HashMap::new();
         for (branch_name, branch_target) in mut_repo.view().branches() {
             if let Some(local_target) = &branch_target.local_target {
-                for commit in local_target.adds() {
+                for commit in local_target.added_ids() {
                     branches
                         .entry(commit.clone())
                         .or_default()
@@ -308,7 +308,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                         .insert(branch_name.clone());
                 }
                 let local_target = self.mut_repo.get_local_branch(branch_name).unwrap();
-                for old_add in local_target.adds() {
+                for old_add in local_target.added_ids() {
                     if *old_add == old_commit_id {
                         branch_updates.push(branch_name.clone());
                     }

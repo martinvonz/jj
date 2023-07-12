@@ -328,8 +328,8 @@ fn ref_target_to_proto(value: Option<&RefTarget>) -> Option<crate::protos::op_st
         Some(proto)
     } else if value.is_conflict() {
         let ref_conflict_proto = crate::protos::op_store::RefConflict {
-            removes: value.removes().iter().map(|id| id.to_bytes()).collect(),
-            adds: value.adds().iter().map(|id| id.to_bytes()).collect(),
+            removes: value.removed_ids().map(|id| id.to_bytes()).collect(),
+            adds: value.added_ids().map(|id| id.to_bytes()).collect(),
         };
         let proto = crate::protos::op_store::RefTarget {
             value: Some(crate::protos::op_store::ref_target::Value::Conflict(
