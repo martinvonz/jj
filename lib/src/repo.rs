@@ -857,6 +857,13 @@ impl MutableRepo {
         workspace_id: WorkspaceId,
         commit: &Commit,
     ) -> Result<(), EditCommitError> {
+        fn local_branch_target_ids(view: &View) -> impl Iterator<Item = &CommitId> {
+            view.branches()
+                .values()
+                .filter_map(|branch_target| branch_target.local_target.as_ref())
+                .flat_map(|target| target.adds())
+        }
+
         let maybe_wc_commit_id = self
             .view
             .with_ref(|v| v.get_wc_commit_id(&workspace_id).cloned());
@@ -865,8 +872,14 @@ impl MutableRepo {
                 .store()
                 .get_commit(&wc_commit_id)
                 .map_err(EditCommitError::WorkingCopyCommitNotFound)?;
-            if wc_commit.is_discardable() && self.view().heads().contains(wc_commit.id()) {
-                // Abandon the working-copy commit we're leaving if it's empty and a head commit
+            if wc_commit.is_discardable()
+                && self
+                    .view
+                    .with_ref(|v| local_branch_target_ids(v).all(|id| id != wc_commit.id()))
+                && self.view().heads().contains(wc_commit.id())
+            {
+                // Abandon the working-copy commit we're leaving if it's empty, not pointed by
+                // local branch, and a head commit.
                 self.record_abandoned_commit(wc_commit_id);
             }
         }
