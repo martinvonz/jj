@@ -888,7 +888,7 @@ fn test_import_refs_empty_git_repo() {
     assert_eq!(repo.view().branches().len(), 0);
     assert_eq!(repo.view().tags().len(), 0);
     assert_eq!(repo.view().git_refs().len(), 0);
-    assert_eq!(repo.view().git_head(), None);
+    assert_eq!(repo.view().git_head(), RefTarget::absent_ref());
 }
 
 #[test]
@@ -1143,7 +1143,7 @@ fn test_import_export_no_auto_local_branch() {
     git::import_refs(mut_repo, &git_repo, &git_settings).unwrap();
 
     let expected_branch = BranchTarget {
-        local_target: None,
+        local_target: RefTarget::absent(),
         remote_targets: btreemap! {
             "origin".to_string() => RefTarget::normal(jj_id(&git_commit)).unwrap(),
         },
@@ -1159,7 +1159,7 @@ fn test_import_export_no_auto_local_branch() {
 
     // Export the branch to git
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
-    assert_eq!(mut_repo.get_git_ref("refs/heads/main"), None);
+    assert_eq!(mut_repo.get_git_ref("refs/heads/main"), RefTarget::absent());
 }
 
 #[test]
@@ -1250,7 +1250,7 @@ fn test_export_partial_failure() {
 
     // Now remove the `main` branch and make sure that the `main/sub` gets exported
     // even though it didn't change
-    mut_repo.set_local_branch_target("main", None);
+    mut_repo.set_local_branch_target("main", RefTarget::absent());
     assert_eq!(
         git::export_refs(mut_repo, &git_repo),
         Ok(vec![
@@ -1313,7 +1313,7 @@ fn test_export_reexport_transitions() {
 
     // Make changes on the jj side
     for branch in ["AXA", "AXB", "AXX"] {
-        mut_repo.set_local_branch_target(branch, None);
+        mut_repo.set_local_branch_target(branch, RefTarget::absent());
     }
     for branch in ["XAA", "XAB", "XAX"] {
         mut_repo.set_local_branch_target(branch, RefTarget::normal(commit_a.id().clone()));

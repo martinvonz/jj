@@ -396,7 +396,7 @@ mod tests {
                     }
                 },
                 "deleted".to_string() => BranchTarget {
-                    local_target: None,
+                    local_target: RefTarget::absent(),
                     remote_targets: btreemap! {
                         "origin".to_string() => branch_deleted_origin_target.unwrap(),
                     }

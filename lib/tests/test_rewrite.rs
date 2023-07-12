@@ -1313,7 +1313,7 @@ fn test_rebase_descendants_branch_delete_modify_abandon() {
     let mut tx = repo.start_transaction(&settings, "test");
     tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    assert_eq!(tx.mut_repo().get_local_branch("main"), None);
+    assert_eq!(tx.mut_repo().get_local_branch("main"), RefTarget::absent());
 }
 
 #[test_case(false ; "local backend")]

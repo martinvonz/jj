@@ -143,6 +143,19 @@ impl ContentHash for RefTarget {
 }
 
 impl RefTarget {
+    /// Creates non-conflicting target pointing to no commit.
+    pub fn absent() -> Option<Self> {
+        None
+    }
+
+    /// Returns non-conflicting target pointing to no commit.
+    ///
+    /// This will typically be used in place of `None` returned by map lookup.
+    pub fn absent_ref() -> Option<&'static Self> {
+        // TODO: This will be static ref to Conflict::resolved(None).
+        None
+    }
+
     /// Creates non-conflicting target pointing to a commit.
     pub fn normal(id: CommitId) -> Option<Self> {
         Some(RefTarget::Normal(id))

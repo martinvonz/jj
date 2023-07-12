@@ -206,7 +206,7 @@ pub fn import_some_refs(
             mut_repo.set_git_head_target(RefTarget::normal(head_commit_id));
         }
     } else {
-        mut_repo.set_git_head_target(None);
+        mut_repo.set_git_head_target(RefTarget::absent());
     }
 
     let mut changed_git_refs = BTreeMap::new();
@@ -253,7 +253,7 @@ pub fn import_some_refs(
         // TODO: or clean up invalid ref in case it was stored due to historical bug?
         let ref_name = parse_git_ref(&full_name).expect("stored git ref should be parsable");
         if git_ref_filter(&ref_name) {
-            mut_repo.set_git_ref_target(&full_name, None);
+            mut_repo.set_git_ref_target(&full_name, RefTarget::absent());
             changed_git_refs.insert(ref_name, (Some(target), None));
         } else {
             pinned_git_heads.insert(ref_name, target.added_ids().cloned().collect());
@@ -463,7 +463,7 @@ pub fn export_some_refs(
             true
         };
         if success {
-            mut_repo.set_git_ref_target(&git_ref_name, None);
+            mut_repo.set_git_ref_target(&git_ref_name, RefTarget::absent());
         } else {
             failed_branches.push(parsed_ref_name);
         }
@@ -536,10 +536,10 @@ pub fn remove_remote(
         .filter_map(|r| r.starts_with(&prefix).then(|| r.clone()))
         .collect_vec();
     for branch in branches_to_delete {
-        mut_repo.set_remote_branch_target(&branch, remote_name, None);
+        mut_repo.set_remote_branch_target(&branch, remote_name, RefTarget::absent());
     }
     for git_ref in git_refs_to_delete {
-        mut_repo.set_git_ref_target(&git_ref, None);
+        mut_repo.set_git_ref_target(&git_ref, RefTarget::absent());
     }
     Ok(())
 }
@@ -568,7 +568,7 @@ pub fn rename_remote(
         })
         .collect_vec();
     for (old, new, target) in git_refs {
-        mut_repo.set_git_ref_target(&old, None);
+        mut_repo.set_git_ref_target(&old, RefTarget::absent());
         mut_repo.set_git_ref_target(&new, Some(target));
     }
     Ok(())

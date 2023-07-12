@@ -154,13 +154,13 @@ fn test_merge_ref_targets() {
     // Left removed
     assert_eq!(
         merge_ref_targets(index, None, target3.as_ref(), target3.as_ref()),
-        None
+        RefTarget::absent()
     );
 
     // Right removed
     assert_eq!(
         merge_ref_targets(index, target3.as_ref(), target3.as_ref(), None),
-        None
+        RefTarget::absent()
     );
 
     // Left removed, right moved forward

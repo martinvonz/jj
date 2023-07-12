@@ -490,8 +490,8 @@ fn test_has_changed(use_git: bool) {
 
     mut_repo.remove_public_head(commit2.id());
     mut_repo.remove_head(commit2.id());
-    mut_repo.set_local_branch_target("stable", None);
-    mut_repo.set_remote_branch_target("stable", "origin", None);
+    mut_repo.set_local_branch_target("stable", RefTarget::absent());
+    mut_repo.set_remote_branch_target("stable", "origin", RefTarget::absent());
     assert!(!mut_repo.has_changes());
 
     mut_repo.add_head(&commit2);
@@ -614,5 +614,8 @@ fn test_rename_remote(use_git: bool) {
     mut_repo.set_remote_branch_target("main", "origin", target.clone());
     mut_repo.rename_remote("origin", "upstream");
     assert_eq!(mut_repo.get_remote_branch("main", "upstream"), target);
-    assert_eq!(mut_repo.get_remote_branch("main", "origin"), None);
+    assert_eq!(
+        mut_repo.get_remote_branch("main", "origin"),
+        RefTarget::absent()
+    );
 }
