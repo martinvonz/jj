@@ -14,7 +14,6 @@
 
 #![allow(missing_docs)]
 
-use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs;
 use std::io::{ErrorKind, Write};
@@ -28,7 +27,7 @@ use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
-    RefTarget, RefTargetExt as _, View, ViewId, WorkspaceId,
+    RefTarget, RefTargetExt as _, RefTargetMap, View, ViewId, WorkspaceId,
 };
 
 impl From<std::io::Error> for OpStoreError {
@@ -274,7 +273,7 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     for branch_proto in proto.branches {
         let local_target = ref_target_from_proto(branch_proto.local_target);
 
-        let mut remote_targets = BTreeMap::new();
+        let mut remote_targets = RefTargetMap::new();
         for remote_branch in branch_proto.remote_branches {
             remote_targets.insert(
                 remote_branch.remote_name,
@@ -391,24 +390,24 @@ mod tests {
             branches: btreemap! {
                 "main".to_string() => BranchTarget {
                     local_target: branch_main_local_target,
-                    remote_targets: btreemap! {
+                    remote_targets: RefTargetMap(btreemap! {
                         "origin".to_string() => branch_main_origin_target.unwrap(),
-                    }
+                    }),
                 },
                 "deleted".to_string() => BranchTarget {
                     local_target: RefTarget::absent(),
-                    remote_targets: btreemap! {
+                    remote_targets: RefTargetMap(btreemap! {
                         "origin".to_string() => branch_deleted_origin_target.unwrap(),
-                    }
+                    }),
                 },
             },
-            tags: btreemap! {
+            tags: RefTargetMap(btreemap! {
                 "v1.0".to_string() => tag_v1_target.unwrap(),
-            },
-            git_refs: btreemap! {
+            }),
+            git_refs: RefTargetMap(btreemap! {
                 "refs/heads/main".to_string() => git_refs_main_target.unwrap(),
                 "refs/heads/feature".to_string() => git_refs_feature_target.unwrap(),
-            },
+            }),
             git_head: RefTarget::normal(CommitId::from_hex("fff111")),
             wc_commit_ids: hashmap! {
                 WorkspaceId::default() => default_wc_commit_id,
