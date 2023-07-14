@@ -15,6 +15,7 @@
 #![allow(missing_docs)]
 
 use std::collections::{BTreeMap, HashSet};
+use std::error::Error;
 use std::ffi::OsString;
 use std::fs;
 use std::fs::{DirEntry, File, Metadata, OpenOptions};
@@ -299,6 +300,8 @@ pub enum SnapshotError {
     InvalidUtf8SymlinkTarget { path: PathBuf, target: PathBuf },
     #[error("Internal backend error: {0}")]
     InternalBackendError(#[from] BackendError),
+    #[error(transparent)]
+    TreeStateError(#[from] TreeStateError),
 }
 
 #[derive(Debug, Error)]
@@ -374,6 +377,8 @@ pub enum ResetError {
     },
     #[error("Internal error: {0}")]
     InternalBackendError(#[from] BackendError),
+    #[error(transparent)]
+    TreeStateError(#[from] TreeStateError),
 }
 
 #[derive(Debug, Error)]
@@ -398,6 +403,8 @@ pub enum TreeStateError {
         path: PathBuf,
         source: tempfile::PersistError,
     },
+    #[error("Filesystem monitor error: {0}")]
+    Fsmonitor(Box<dyn Error + Send + Sync>),
 }
 
 impl TreeState {
@@ -580,10 +587,16 @@ impl TreeState {
     #[tokio::main]
     pub async fn query_watchman(
         &self,
-    ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), watchman::Error> {
-        let fsmonitor = watchman::Fsmonitor::init(&self.working_copy_path).await?;
+    ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), TreeStateError> {
+        let fsmonitor = watchman::Fsmonitor::init(&self.working_copy_path)
+            .await
+            .map_err(|err| TreeStateError::Fsmonitor(Box::new(err)))?;
         let previous_clock = self.watchman_clock.clone().map(watchman::Clock::from);
-        fsmonitor.query_changed_files(previous_clock).await
+        let changed_files = fsmonitor
+            .query_changed_files(previous_clock)
+            .await
+            .map_err(|err| TreeStateError::Fsmonitor(Box::new(err)))?;
+        Ok(changed_files)
     }
 
     /// Look for changes to the working copy. If there are any changes, create
@@ -1306,33 +1319,31 @@ impl WorkingCopy {
         &self.checkout_state().workspace_id
     }
 
-    fn tree_state(&self) -> &TreeState {
-        self.tree_state
-            .get_or_try_init(|| {
-                TreeState::load(
-                    self.store.clone(),
-                    self.working_copy_path.clone(),
-                    self.state_path.clone(),
-                )
-            })
-            .unwrap() // FIXME: propagate error
+    fn tree_state(&self) -> Result<&TreeState, TreeStateError> {
+        self.tree_state.get_or_try_init(|| {
+            TreeState::load(
+                self.store.clone(),
+                self.working_copy_path.clone(),
+                self.state_path.clone(),
+            )
+        })
     }
 
-    fn tree_state_mut(&mut self) -> &mut TreeState {
-        self.tree_state(); // ensure loaded
-        self.tree_state.get_mut().unwrap()
+    fn tree_state_mut(&mut self) -> Result<&mut TreeState, TreeStateError> {
+        self.tree_state()?; // ensure loaded
+        Ok(self.tree_state.get_mut().unwrap())
     }
 
-    pub fn current_tree_id(&self) -> &TreeId {
-        self.tree_state().current_tree_id()
+    pub fn current_tree_id(&self) -> Result<&TreeId, TreeStateError> {
+        Ok(self.tree_state()?.current_tree_id())
     }
 
-    pub fn file_states(&self) -> &BTreeMap<RepoPath, FileState> {
-        self.tree_state().file_states()
+    pub fn file_states(&self) -> Result<&BTreeMap<RepoPath, FileState>, TreeStateError> {
+        Ok(self.tree_state()?.file_states())
     }
 
-    pub fn sparse_patterns(&self) -> &[RepoPath] {
-        self.tree_state().sparse_patterns()
+    pub fn sparse_patterns(&self) -> Result<&[RepoPath], TreeStateError> {
+        Ok(self.tree_state()?.sparse_patterns())
     }
 
     fn save(&mut self) {
@@ -1343,7 +1354,7 @@ impl WorkingCopy {
         });
     }
 
-    pub fn start_mutation(&mut self) -> LockedWorkingCopy {
+    pub fn start_mutation(&mut self) -> Result<LockedWorkingCopy, TreeStateError> {
         let lock_path = self.state_path.join("working_copy.lock");
         let lock = FileLock::lock(lock_path);
 
@@ -1353,16 +1364,16 @@ impl WorkingCopy {
         // has changed.
         self.tree_state.take();
         let old_operation_id = self.operation_id().clone();
-        let old_tree_id = self.current_tree_id().clone();
+        let old_tree_id = self.current_tree_id()?.clone();
 
-        LockedWorkingCopy {
+        Ok(LockedWorkingCopy {
             wc: self,
             lock,
             old_operation_id,
             old_tree_id,
             tree_state_dirty: false,
             closed: false,
-        }
+        })
     }
 
     pub fn check_out(
@@ -1371,7 +1382,7 @@ impl WorkingCopy {
         old_tree_id: Option<&TreeId>,
         new_tree: &Tree,
     ) -> Result<CheckoutStats, CheckoutError> {
-        let mut locked_wc = self.start_mutation();
+        let mut locked_wc = self.start_mutation()?;
         // Check if the current working-copy commit has changed on disk compared to what
         // the caller expected. It's safe to check out another commit
         // regardless, but it's probably not what  the caller wanted, so we let
@@ -1390,8 +1401,8 @@ impl WorkingCopy {
     #[cfg(feature = "watchman")]
     pub fn query_watchman(
         &self,
-    ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), watchman::Error> {
-        self.tree_state().query_watchman()
+    ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), TreeStateError> {
+        self.tree_state()?.query_watchman()
     }
 }
 
@@ -1419,7 +1430,7 @@ impl LockedWorkingCopy<'_> {
     }
 
     pub fn reset_watchman(&mut self) -> Result<(), SnapshotError> {
-        self.wc.tree_state_mut().reset_watchman();
+        self.wc.tree_state_mut()?.reset_watchman();
         self.tree_state_dirty = true;
         Ok(())
     }
@@ -1428,7 +1439,7 @@ impl LockedWorkingCopy<'_> {
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
     pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<TreeId, SnapshotError> {
-        let tree_state = self.wc.tree_state_mut();
+        let tree_state = self.wc.tree_state_mut()?;
         self.tree_state_dirty |= tree_state.snapshot(options)?;
         Ok(tree_state.current_tree_id().clone())
     }
@@ -1436,18 +1447,18 @@ impl LockedWorkingCopy<'_> {
     pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with the new TreeId so we can
         // continue an interrupted update if we find such a file.
-        let stats = self.wc.tree_state_mut().check_out(new_tree)?;
+        let stats = self.wc.tree_state_mut()?.check_out(new_tree)?;
         self.tree_state_dirty = true;
         Ok(stats)
     }
 
     pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
-        self.wc.tree_state_mut().reset(new_tree)?;
+        self.wc.tree_state_mut()?.reset(new_tree)?;
         self.tree_state_dirty = true;
         Ok(())
     }
 
-    pub fn sparse_patterns(&self) -> &[RepoPath] {
+    pub fn sparse_patterns(&self) -> Result<&[RepoPath], TreeStateError> {
         self.wc.sparse_patterns()
     }
 
@@ -1459,16 +1470,16 @@ impl LockedWorkingCopy<'_> {
         // continue an interrupted update if we find such a file.
         let stats = self
             .wc
-            .tree_state_mut()
+            .tree_state_mut()?
             .set_sparse_patterns(new_sparse_patterns)?;
         self.tree_state_dirty = true;
         Ok(stats)
     }
 
     pub fn finish(mut self, operation_id: OperationId) -> Result<(), TreeStateError> {
-        assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.current_tree_id());
+        assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.current_tree_id()?);
         if self.tree_state_dirty {
-            self.wc.tree_state_mut().save()?;
+            self.wc.tree_state_mut()?.save()?;
         }
         if self.old_operation_id != operation_id {
             self.wc.checkout_state_mut().operation_id = operation_id;

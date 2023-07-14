@@ -103,8 +103,8 @@ pub fn cmd_debug(
             let workspace_command = command.workspace_helper(ui)?;
             let wc = workspace_command.working_copy();
             writeln!(ui, "Current operation: {:?}", wc.operation_id())?;
-            writeln!(ui, "Current tree: {:?}", wc.current_tree_id())?;
-            for (file, state) in wc.file_states() {
+            writeln!(ui, "Current tree: {:?}", wc.current_tree_id()?)?;
+            for (file, state) in wc.file_states()? {
                 writeln!(
                     ui,
                     "{:?} {:13?} {:10?} {:?}",
@@ -238,13 +238,11 @@ fn cmd_debug_watchman(
     let repo = workspace_command.repo().clone();
     match subcommand {
         DebugWatchmanSubcommand::QueryClock => {
-            let (clock, _changed_files) =
-                workspace_command.working_copy().query_watchman().unwrap();
+            let (clock, _changed_files) = workspace_command.working_copy().query_watchman()?;
             ui.write(&format!("Clock: {clock:?}"))?;
         }
         DebugWatchmanSubcommand::QueryChangedFiles => {
-            let (_clock, changed_files) =
-                workspace_command.working_copy().query_watchman().unwrap();
+            let (_clock, changed_files) = workspace_command.working_copy().query_watchman()?;
             ui.write(&format!("Changed files: {changed_files:?}"))?;
         }
         DebugWatchmanSubcommand::ResetClock => {

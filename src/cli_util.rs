@@ -749,7 +749,7 @@ impl WorkspaceCommandHelper {
                     tx.mut_repo()
                         .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
                     let mut locked_working_copy =
-                        self.workspace.working_copy_mut().start_mutation();
+                        self.workspace.working_copy_mut().start_mutation()?;
                     // The working copy was presumably updated by the git command that updated
                     // HEAD, so we just need to reset our working copy
                     // state to it without updating working copy files.
@@ -825,7 +825,7 @@ impl WorkspaceCommandHelper {
             return Err(user_error("Nothing checked out in this workspace"));
         };
 
-        let locked_working_copy = self.workspace.working_copy_mut().start_mutation();
+        let locked_working_copy = self.workspace.working_copy_mut().start_mutation()?;
 
         Ok((locked_working_copy, wc_commit))
     }
@@ -1104,7 +1104,7 @@ impl WorkspaceCommandHelper {
         let base_ignores = self.base_ignores();
 
         // Compare working-copy tree and operation with repo's, and reload as needed.
-        let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
+        let mut locked_wc = self.workspace.working_copy_mut().start_mutation()?;
         let old_op_id = locked_wc.old_operation_id().clone();
         let (repo, wc_commit) = match check_stale_working_copy(&locked_wc, &wc_commit, &repo) {
             Ok(None) => (repo, wc_commit),
@@ -1816,7 +1816,7 @@ pub fn update_working_copy(
         Some(stats)
     } else {
         // Record new operation id which represents the latest working-copy state
-        let locked_wc = wc.start_mutation();
+        let locked_wc = wc.start_mutation()?;
         locked_wc.finish(repo.op_id().clone())?;
         None
     };
