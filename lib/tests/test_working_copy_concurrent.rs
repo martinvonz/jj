@@ -72,7 +72,10 @@ fn test_concurrent_checkout(use_git: bool) {
     // Check that the tree2 is still checked out on disk.
     let workspace3 =
         Workspace::load(&settings, &workspace1_root, &StoreFactories::default()).unwrap();
-    assert_eq!(workspace3.working_copy().current_tree_id(), &tree_id2);
+    assert_eq!(
+        workspace3.working_copy().current_tree_id().unwrap(),
+        &tree_id2
+    );
 }
 
 #[test_case(false ; "local backend")]
@@ -133,7 +136,7 @@ fn test_checkout_parallel(use_git: bool) {
                 // different tree than the one we just checked out, but since
                 // write_tree() should take the same lock as check_out(), write_tree()
                 // should never produce a different tree.
-                let mut locked_wc = workspace.working_copy_mut().start_mutation();
+                let mut locked_wc = workspace.working_copy_mut().start_mutation().unwrap();
                 let new_tree_id = locked_wc
                     .snapshot(SnapshotOptions::empty_for_test())
                     .unwrap();
