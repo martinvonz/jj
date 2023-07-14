@@ -29,7 +29,9 @@ use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
 use jj_lib::tree::Tree;
-use jj_lib::working_copy::{CheckoutError, SnapshotError, SnapshotOptions, TreeState};
+use jj_lib::working_copy::{
+    CheckoutError, SnapshotError, SnapshotOptions, TreeState, TreeStateError,
+};
 use regex::{Captures, Regex};
 use thiserror::Error;
 
@@ -79,6 +81,8 @@ pub enum DiffEditError {
     SnapshotError(#[from] SnapshotError),
     #[error(transparent)]
     ConfigError(#[from] config::ConfigError),
+    #[error(transparent)]
+    TreeStateError(#[from] TreeStateError),
 }
 
 #[derive(Debug, Error)]
@@ -125,7 +129,7 @@ fn check_out(
 ) -> Result<TreeState, DiffEditError> {
     std::fs::create_dir(&wc_dir).map_err(ExternalToolError::SetUpDirError)?;
     std::fs::create_dir(&state_dir).map_err(ExternalToolError::SetUpDirError)?;
-    let mut tree_state = TreeState::init(store, wc_dir, state_dir);
+    let mut tree_state = TreeState::init(store, wc_dir, state_dir)?;
     tree_state.set_sparse_patterns(sparse_patterns)?;
     tree_state.check_out(tree)?;
     Ok(tree_state)

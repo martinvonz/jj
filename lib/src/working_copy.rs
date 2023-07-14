@@ -321,6 +321,8 @@ pub enum CheckoutError {
     },
     #[error("Internal error: {0}")]
     InternalBackendError(#[from] BackendError),
+    #[error(transparent)]
+    TreeStateError(#[from] TreeStateError),
 }
 
 impl CheckoutError {
@@ -374,6 +376,30 @@ pub enum ResetError {
     InternalBackendError(#[from] BackendError),
 }
 
+#[derive(Debug, Error)]
+pub enum TreeStateError {
+    #[error("Reading tree state from {path}: {source}")]
+    ReadTreeState {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("Decoding tree state from {path}: {source}")]
+    DecodeTreeState {
+        path: PathBuf,
+        source: prost::DecodeError,
+    },
+    #[error("Writing tree state to temporary file {path}: {source}")]
+    WriteTreeState {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("Persisting tree state to file {path}: {source}")]
+    PersistTreeState {
+        path: PathBuf,
+        source: tempfile::PersistError,
+    },
+}
+
 impl TreeState {
     pub fn current_tree_id(&self) -> &TreeId {
         &self.tree_id
@@ -391,10 +417,14 @@ impl TreeState {
         Box::new(PrefixMatcher::new(&self.sparse_patterns))
     }
 
-    pub fn init(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> TreeState {
+    pub fn init(
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> Result<TreeState, TreeStateError> {
         let mut wc = TreeState::empty(store, working_copy_path, state_path);
-        wc.save();
-        wc
+        wc.save()?;
+        Ok(wc)
     }
 
     fn empty(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> TreeState {
@@ -413,18 +443,28 @@ impl TreeState {
         }
     }
 
-    pub fn load(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> TreeState {
-        let maybe_file = File::open(state_path.join("tree_state"));
-        let file = match maybe_file {
+    pub fn load(
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> Result<TreeState, TreeStateError> {
+        let tree_state_path = state_path.join("tree_state");
+        let file = match File::open(&tree_state_path) {
             Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => {
                 return TreeState::init(store, working_copy_path, state_path);
             }
-            result => result.unwrap(),
+            Err(err) => {
+                return Err(TreeStateError::ReadTreeState {
+                    path: tree_state_path,
+                    source: err,
+                })
+            }
+            Ok(file) => file,
         };
 
         let mut wc = TreeState::empty(store, working_copy_path, state_path);
-        wc.read(file);
-        wc
+        wc.read(&tree_state_path, file)?;
+        Ok(wc)
     }
 
     fn update_own_mtime(&mut self) {
@@ -435,18 +475,28 @@ impl TreeState {
         }
     }
 
-    fn read(&mut self, mut file: File) {
+    fn read(&mut self, tree_state_path: &Path, mut file: File) -> Result<(), TreeStateError> {
         self.update_own_mtime();
         let mut buf = Vec::new();
-        file.read_to_end(&mut buf).unwrap();
-        let proto = crate::protos::working_copy::TreeState::decode(&*buf).unwrap();
+        file.read_to_end(&mut buf)
+            .map_err(|err| TreeStateError::ReadTreeState {
+                path: tree_state_path.to_owned(),
+                source: err,
+            })?;
+        let proto = crate::protos::working_copy::TreeState::decode(&*buf).map_err(|err| {
+            TreeStateError::DecodeTreeState {
+                path: tree_state_path.to_owned(),
+                source: err,
+            }
+        })?;
         self.tree_id = TreeId::new(proto.tree_id.clone());
         self.file_states = file_states_from_proto(&proto);
         self.sparse_patterns = sparse_patterns_from_proto(&proto);
         self.watchman_clock = proto.watchman_clock;
+        Ok(())
     }
 
-    fn save(&mut self) {
+    fn save(&mut self) -> Result<(), TreeStateError> {
         let mut proto = crate::protos::working_copy::TreeState {
             tree_id: self.tree_id.to_bytes(),
             ..Default::default()
@@ -470,15 +520,23 @@ impl TreeState {
         temp_file
             .as_file_mut()
             .write_all(&proto.encode_to_vec())
-            .unwrap();
+            .map_err(|err| TreeStateError::WriteTreeState {
+                path: self.state_path.clone(),
+                source: err,
+            })?;
         // update own write time while we before we rename it, so we know
         // there is no unknown data in it
         self.update_own_mtime();
         // TODO: Retry if persisting fails (it will on Windows if the file happened to
         // be open for read).
+        let target_path = self.state_path.join("tree_state");
         temp_file
-            .persist(self.state_path.join("tree_state"))
-            .unwrap();
+            .persist(&target_path)
+            .map_err(|err| TreeStateError::PersistTreeState {
+                path: target_path.clone(),
+                source: err,
+            })?;
+        Ok(())
     }
 
     fn write_file_to_store(
@@ -1166,7 +1224,7 @@ impl WorkingCopy {
         state_path: PathBuf,
         operation_id: OperationId,
         workspace_id: WorkspaceId,
-    ) -> WorkingCopy {
+    ) -> Result<WorkingCopy, TreeStateError> {
         let proto = crate::protos::working_copy::Checkout {
             operation_id: operation_id.to_bytes(),
             workspace_id: workspace_id.as_str().to_string(),
@@ -1179,14 +1237,14 @@ impl WorkingCopy {
             .unwrap();
         file.write_all(&proto.encode_to_vec()).unwrap();
         let tree_state =
-            TreeState::init(store.clone(), working_copy_path.clone(), state_path.clone());
-        WorkingCopy {
+            TreeState::init(store.clone(), working_copy_path.clone(), state_path.clone())?;
+        Ok(WorkingCopy {
             store,
             working_copy_path,
             state_path,
             checkout_state: OnceCell::new(),
             tree_state: OnceCell::with_value(tree_state),
-        }
+        })
     }
 
     pub fn load(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> WorkingCopy {
@@ -1249,13 +1307,15 @@ impl WorkingCopy {
     }
 
     fn tree_state(&self) -> &TreeState {
-        self.tree_state.get_or_init(|| {
-            TreeState::load(
-                self.store.clone(),
-                self.working_copy_path.clone(),
-                self.state_path.clone(),
-            )
-        })
+        self.tree_state
+            .get_or_try_init(|| {
+                TreeState::load(
+                    self.store.clone(),
+                    self.working_copy_path.clone(),
+                    self.state_path.clone(),
+                )
+            })
+            .unwrap() // FIXME: propagate error
     }
 
     fn tree_state_mut(&mut self) -> &mut TreeState {
@@ -1323,7 +1383,7 @@ impl WorkingCopy {
             }
         }
         let stats = locked_wc.check_out(new_tree)?;
-        locked_wc.finish(operation_id);
+        locked_wc.finish(operation_id)?;
         Ok(stats)
     }
 
@@ -1405,10 +1465,10 @@ impl LockedWorkingCopy<'_> {
         Ok(stats)
     }
 
-    pub fn finish(mut self, operation_id: OperationId) {
+    pub fn finish(mut self, operation_id: OperationId) -> Result<(), TreeStateError> {
         assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.current_tree_id());
         if self.tree_state_dirty {
-            self.wc.tree_state_mut().save();
+            self.wc.tree_state_mut().save()?;
         }
         if self.old_operation_id != operation_id {
             self.wc.checkout_state_mut().operation_id = operation_id;
@@ -1417,6 +1477,7 @@ impl LockedWorkingCopy<'_> {
         // TODO: Clear the "pending_checkout" file here.
         self.tree_state_dirty = false;
         self.closed = true;
+        Ok(())
     }
 
     pub fn discard(mut self) {

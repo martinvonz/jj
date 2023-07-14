@@ -250,7 +250,7 @@ fn cmd_debug_watchman(
         DebugWatchmanSubcommand::ResetClock => {
             let (mut locked_wc, _commit) = workspace_command.start_working_copy_mutation()?;
             locked_wc.reset_watchman()?;
-            locked_wc.finish(repo.op_id().clone());
+            locked_wc.finish(repo.op_id().clone())?;
             ui.write("Reset Watchman clock")?;
         }
     }
