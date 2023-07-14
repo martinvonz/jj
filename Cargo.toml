@@ -81,6 +81,24 @@ packaging = ["watchman"]
 vendored-openssl = ["git2/vendored-openssl", "jj-lib/vendored-openssl"]
 watchman = ["jj-lib/watchman"]
 
+# It's often really useful to profile and run benchmarks on jj in --release
+# mode, at the expense of some peak performance; so bump codegen-units to a
+# high explicit number, and enable incremental builds to speed things up when
+# iterating on patches
 [profile.release]
+incremental = true # normally off in --release mode
+codegen-units = 16 # normally 256 when incremental=true; tone it down a bit...
+debug = true
+strip = "none"
+
+# But when we cook a release for users to eat at the table, we should be more
+# sophisticated: strip debug info (leaving symbols), codegen-units=1 to improve
+# performance and binary size even further, and turn off incremental builds
+# since they aren't needed.
+[profile.cooked-release]
+# Inherit from the "release" profile, as there may be other release defaults
+# we haven't tweaked ourselves; inheriting them properly is good form.
+inherits = "release"
+incremental = false
+codegen-units = 1 # see issue #1833 for details
 strip = "debuginfo"
-codegen-units = 1
