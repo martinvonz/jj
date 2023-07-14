@@ -56,7 +56,8 @@ use jj_lib::transaction::Transaction;
 use jj_lib::tree::{Tree, TreeMergeError};
 use jj_lib::view::RefName;
 use jj_lib::working_copy::{
-    CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions, WorkingCopy,
+    CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions, TreeStateError,
+    WorkingCopy,
 };
 use jj_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader};
 use jj_lib::{dag_walk, file_util, git, revset};
@@ -181,6 +182,9 @@ impl From<WorkspaceInitError> for CommandError {
             }
             WorkspaceInitError::Backend(err) => {
                 user_error(format!("Failed to access the repository: {err}"))
+            }
+            WorkspaceInitError::TreeState(err) => {
+                CommandError::InternalError(format!("Failed to access the repository: {err}"))
             }
         }
     }
@@ -331,6 +335,12 @@ impl From<clap::Error> for CommandError {
 impl From<GitConfigParseError> for CommandError {
     fn from(err: GitConfigParseError) -> Self {
         CommandError::InternalError(format!("Failed to parse Git config: {err} "))
+    }
+}
+
+impl From<TreeStateError> for CommandError {
+    fn from(err: TreeStateError) -> Self {
+        CommandError::InternalError(format!("Failed to access tree state: {err}"))
     }
 }
 
@@ -746,7 +756,7 @@ impl WorkspaceCommandHelper {
                     locked_working_copy.reset(&new_git_head_commit.tree())?;
                     tx.mut_repo().rebase_descendants(&self.settings)?;
                     self.user_repo = ReadonlyUserRepo::new(tx.commit());
-                    locked_working_copy.finish(op_id);
+                    locked_working_copy.finish(op_id)?;
                 }
                 _ => {
                     let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
@@ -1177,7 +1187,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
 
             self.user_repo = ReadonlyUserRepo::new(tx.commit());
         }
-        locked_wc.finish(self.user_repo.repo.op_id().clone());
+        locked_wc.finish(self.user_repo.repo.op_id().clone())?;
         Ok(())
     }
 
@@ -1807,7 +1817,7 @@ pub fn update_working_copy(
     } else {
         // Record new operation id which represents the latest working-copy state
         let locked_wc = wc.start_mutation();
-        locked_wc.finish(repo.op_id().clone());
+        locked_wc.finish(repo.op_id().clone())?;
         None
     };
     Ok(stats)

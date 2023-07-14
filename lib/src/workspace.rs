@@ -34,7 +34,7 @@ use crate::repo::{
 };
 use crate::settings::UserSettings;
 use crate::submodule_store::SubmoduleStore;
-use crate::working_copy::WorkingCopy;
+use crate::working_copy::{TreeStateError, WorkingCopy};
 
 #[derive(Error, Debug)]
 pub enum WorkspaceInitError {
@@ -44,6 +44,8 @@ pub enum WorkspaceInitError {
     NonUnicodePath,
     #[error(transparent)]
     CheckOutCommit(#[from] CheckOutCommitError),
+    #[error(transparent)]
+    TreeState(#[from] TreeStateError),
     #[error(transparent)]
     Path(#[from] PathError),
     #[error(transparent)]
@@ -112,7 +114,7 @@ fn init_working_copy(
         working_copy_state_path,
         repo.op_id().clone(),
         workspace_id,
-    );
+    )?;
     Ok((working_copy, repo))
 }
 

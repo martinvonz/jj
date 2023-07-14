@@ -1346,7 +1346,7 @@ Make sure they're ignored, then try again.",
         writeln!(ui, "Rebased {num_rebased} descendant commits")?;
     }
     let repo = tx.commit();
-    locked_working_copy.finish(repo.op_id().clone());
+    locked_working_copy.finish(repo.op_id().clone())?;
     Ok(())
 }
 
@@ -3535,7 +3535,7 @@ fn cmd_workspace_update_stale(
                         err
                     ))
                 })?;
-            locked_wc.finish(repo.op_id().clone());
+            locked_wc.finish(repo.op_id().clone())?;
             ui.write("Working copy now at: ")?;
             workspace_command
                 .write_commit_summary(ui.stdout_formatter().as_mut(), &desired_wc_commit)?;
@@ -3620,7 +3620,7 @@ fn cmd_sparse_set(
         CommandError::InternalError(format!("Failed to update working copy paths: {err}"))
     })?;
     let operation_id = locked_wc.old_operation_id().clone();
-    locked_wc.finish(operation_id);
+    locked_wc.finish(operation_id)?;
     print_checkout_stats(ui, stats)?;
 
     Ok(())

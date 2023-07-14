@@ -347,7 +347,7 @@ fn test_reset() {
     // commit the working copy (because it's ignored).
     let mut locked_wc = wc.start_mutation();
     locked_wc.reset(&tree_without_file).unwrap();
-    locked_wc.finish(repo.op_id().clone());
+    locked_wc.finish(repo.op_id().clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
@@ -362,7 +362,7 @@ fn test_reset() {
     // commit the working copy (because it's ignored).
     let mut locked_wc = wc.start_mutation();
     locked_wc.reset(&tree_without_file).unwrap();
-    locked_wc.finish(repo.op_id().clone());
+    locked_wc.finish(repo.op_id().clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
@@ -376,7 +376,7 @@ fn test_reset() {
     // tracked. The file should become tracked (even though it's ignored).
     let mut locked_wc = wc.start_mutation();
     locked_wc.reset(&tree_with_file).unwrap();
-    locked_wc.finish(repo.op_id().clone());
+    locked_wc.finish(repo.op_id().clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
@@ -495,7 +495,7 @@ fn test_snapshot_special_file() {
     let tree_id = locked_wc
         .snapshot(SnapshotOptions::empty_for_test())
         .unwrap();
-    locked_wc.finish(OperationId::from_hex("abc123"));
+    locked_wc.finish(OperationId::from_hex("abc123")).unwrap();
     let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
     // Only the regular files should be in the tree
     assert_eq!(
@@ -514,7 +514,7 @@ fn test_snapshot_special_file() {
     let tree_id = locked_wc
         .snapshot(SnapshotOptions::empty_for_test())
         .unwrap();
-    locked_wc.finish(OperationId::from_hex("abc123"));
+    locked_wc.finish(OperationId::from_hex("abc123")).unwrap();
     let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
     // Only the regular file should be in the tree
     assert_eq!(
@@ -556,7 +556,7 @@ fn test_gitignores(use_git: bool) {
     let new_tree_id1 = locked_wc
         .snapshot(SnapshotOptions::empty_for_test())
         .unwrap();
-    locked_wc.finish(repo.op_id().clone());
+    locked_wc.finish(repo.op_id().clone()).unwrap();
     let tree1 = repo
         .store()
         .get_tree(&RepoPath::root(), &new_tree_id1)
@@ -889,7 +889,7 @@ fn test_fsmonitor() {
           file "foo" (257cc5642cb1a054f08cc83f2d943e56fd3ebe99): "foo\n"
           file "path/to/nested" (79c53955ef856f16f2107446bc721c8879a1bd2e): "nested\n"
         "###);
-        locked_wc.finish(repo.op_id().clone());
+        locked_wc.finish(repo.op_id().clone()).unwrap();
     }
 
     {
@@ -915,6 +915,6 @@ fn test_fsmonitor() {
           file "bar" (5716ca5987cbf97d6bb54920bea6adde242d87e6): "bar\n"
           file "path/to/nested" (79c53955ef856f16f2107446bc721c8879a1bd2e): "nested\n"
         "###);
-        locked_wc.finish(repo.op_id().clone());
+        locked_wc.finish(repo.op_id().clone()).unwrap();
     }
 }
