@@ -34,7 +34,7 @@ use once_cell::unsync::OnceCell;
 use prost::Message;
 use tempfile::NamedTempFile;
 use thiserror::Error;
-use tracing::instrument;
+use tracing::{instrument, trace_span};
 
 use crate::backend::{
     BackendError, ConflictId, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
@@ -602,13 +602,15 @@ impl TreeState {
         let sparse_matcher = self.sparse_matcher();
         let current_tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
-        let mut deleted_files: HashSet<_> = self
-            .file_states
-            .iter()
-            .filter_map(|(path, state)| {
-                (state.file_type != FileType::GitSubmodule).then(|| path.clone())
-            })
-            .collect();
+        let mut deleted_files: HashSet<_> =
+            trace_span!("collecting existing files").in_scope(|| {
+                self.file_states
+                    .iter()
+                    .filter_map(|(path, state)| {
+                        (state.file_type != FileType::GitSubmodule).then(|| path.clone())
+                    })
+                    .collect()
+            });
 
         let fsmonitor_clock_needs_save = fsmonitor_kind.is_some();
         let FsmonitorMatcher {
@@ -633,67 +635,71 @@ impl TreeState {
             disk_dir: self.working_copy_path.clone(),
             git_ignore: base_ignores,
         }];
-        while let Some(WorkItem {
-            dir,
-            disk_dir,
-            git_ignore,
-        }) = work.pop()
-        {
-            if matcher.visit(&dir).is_nothing() {
-                continue;
-            }
-            let git_ignore = git_ignore
-                .chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
-            for maybe_entry in disk_dir.read_dir().unwrap() {
-                let entry = maybe_entry.unwrap();
-                let file_type = entry.file_type().unwrap();
-                let file_name = entry.file_name();
-                let name = file_name
-                    .to_str()
-                    .ok_or_else(|| SnapshotError::InvalidUtf8Path {
-                        path: file_name.clone(),
-                    })?;
-                if name == ".jj" || name == ".git" {
+        trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
+            while let Some(WorkItem {
+                dir,
+                disk_dir,
+                git_ignore,
+            }) = work.pop()
+            {
+                if matcher.visit(&dir).is_nothing() {
                     continue;
                 }
-                let sub_path = dir.join(&RepoPathComponent::from(name));
-                if let Some(file_state) = self.file_states.get(&sub_path) {
-                    if file_state.file_type == FileType::GitSubmodule {
+                let git_ignore = git_ignore
+                    .chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
+                for maybe_entry in disk_dir.read_dir().unwrap() {
+                    let entry = maybe_entry.unwrap();
+                    let file_type = entry.file_type().unwrap();
+                    let file_name = entry.file_name();
+                    let name =
+                        file_name
+                            .to_str()
+                            .ok_or_else(|| SnapshotError::InvalidUtf8Path {
+                                path: file_name.clone(),
+                            })?;
+                    if name == ".jj" || name == ".git" {
                         continue;
                     }
-                }
-
-                if file_type.is_dir() {
-                    // If the whole directory is ignored, skip it unless we're already tracking
-                    // some file in it.
-                    if git_ignore.matches_all_files_in(&sub_path.to_internal_dir_string())
-                        && !self.has_files_under(&sub_path)
-                    {
-                        continue;
-                    }
-
-                    work.push(WorkItem {
-                        dir: sub_path,
-                        disk_dir: entry.path(),
-                        git_ignore: git_ignore.clone(),
-                    });
-                } else {
-                    deleted_files.remove(&sub_path);
-                    if matcher.matches(&sub_path) {
-                        if let Some(progress) = progress {
-                            progress(&sub_path);
+                    let sub_path = dir.join(&RepoPathComponent::from(name));
+                    if let Some(file_state) = self.file_states.get(&sub_path) {
+                        if file_state.file_type == FileType::GitSubmodule {
+                            continue;
                         }
-                        self.update_file_state(
-                            sub_path,
-                            &entry,
-                            git_ignore.as_ref(),
-                            &current_tree,
-                            &mut tree_builder,
-                        )?;
+                    }
+
+                    if file_type.is_dir() {
+                        // If the whole directory is ignored, skip it unless we're already tracking
+                        // some file in it.
+                        if git_ignore.matches_all_files_in(&sub_path.to_internal_dir_string())
+                            && !self.has_files_under(&sub_path)
+                        {
+                            continue;
+                        }
+
+                        work.push(WorkItem {
+                            dir: sub_path,
+                            disk_dir: entry.path(),
+                            git_ignore: git_ignore.clone(),
+                        });
+                    } else {
+                        deleted_files.remove(&sub_path);
+                        if matcher.matches(&sub_path) {
+                            if let Some(progress) = progress {
+                                progress(&sub_path);
+                            }
+                            self.update_file_state(
+                                sub_path,
+                                &entry,
+                                git_ignore.as_ref(),
+                                &current_tree,
+                                &mut tree_builder,
+                            )?;
+                        }
                     }
                 }
             }
-        }
+            Ok(())
+        })?;
 
         for file in &deleted_files {
             self.file_states.remove(file);
@@ -734,22 +740,26 @@ impl TreeState {
         let matcher: Option<Box<dyn Matcher>> = match changed_files {
             None => None,
             Some(changed_files) => {
-                let repo_paths = changed_files
-                    .into_iter()
-                    .filter_map(|path| {
-                        match RepoPath::parse_fs_path(
-                            &self.working_copy_path,
-                            &self.working_copy_path,
-                            path,
-                        ) {
-                            Ok(repo_path) => Some(repo_path),
-                            Err(FsPathParseError::InputNotInRepo(_)) => None,
-                        }
-                    })
-                    .collect_vec();
+                let repo_paths = trace_span!("processing fsmonitor paths").in_scope(|| {
+                    changed_files
+                        .into_iter()
+                        .filter_map(|path| {
+                            match RepoPath::parse_fs_path(
+                                &self.working_copy_path,
+                                &self.working_copy_path,
+                                path,
+                            ) {
+                                Ok(repo_path) => Some(repo_path),
+                                Err(FsPathParseError::InputNotInRepo(_)) => None,
+                            }
+                        })
+                        .collect_vec()
+                });
 
-                let repo_path_set: HashSet<_> = repo_paths.iter().collect();
-                deleted_files.retain(|path| repo_path_set.contains(path));
+                trace_span!("retaining fsmonitor paths").in_scope(|| {
+                    let repo_path_set: HashSet<_> = repo_paths.iter().collect();
+                    deleted_files.retain(|path| repo_path_set.contains(path));
+                });
 
                 Some(Box::new(PrefixMatcher::new(&repo_paths)))
             }
