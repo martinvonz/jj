@@ -49,6 +49,16 @@
         libiconv
       ];
 
+      # NOTE (aseipp): on Linux, go ahead and use mold by default to improve
+      # link times a bit; mostly useful for debug build speed, but will help
+      # over time if we ever get more dependencies, too
+      useMoldLinker = pkgs.stdenv.isLinux;
+
+      # these are needed in both devShell and buildInputs
+      linuxNativeDeps = with pkgs; lib.optionals stdenv.isLinux [
+        mold-wrapped
+      ];
+
     in
     {
       packages = {
@@ -72,13 +82,14 @@
             installShellFiles
             makeWrapper
             pkg-config
-          ];
+          ] ++ linuxNativeDeps;
           buildInputs = with pkgs; [
             openssl zstd libgit2 libssh2
           ] ++ darwinDeps;
 
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
+          RUSTFLAGS = pkgs.lib.optionalString useMoldLinker "-C link-arg=-fuse-ld=mold";
           NIX_JJ_GIT_HASH = self.rev or "";
           CARGO_INCREMENTAL = "0";
 
@@ -135,12 +146,14 @@
 
           # For building the documentation website
           poetry
-        ] ++ darwinDeps;
+        ] ++ darwinDeps ++ linuxNativeDeps;
 
         shellHook = ''
           export RUST_BACKTRACE=1
           export ZSTD_SYS_USE_PKG_CONFIG=1
           export LIBSSH2_SYS_USE_PKG_CONFIG=1
+        '' + pkgs.lib.optionalString useMoldLinker ''
+          export RUSTFLAGS="-C link-arg=-fuse-ld=mold $RUSTFLAGS"
         '';
       };
     }));
