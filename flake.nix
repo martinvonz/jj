@@ -24,6 +24,7 @@
           rust-overlay.overlays.default
         ];
       };
+
       filterSrc = src: regexes:
         pkgs.lib.cleanSourceWith {
           inherit src;
@@ -33,6 +34,11 @@
             in
             pkgs.lib.all (re: builtins.match re relPath == null) regexes;
         };
+
+      # NOTE (aseipp): on Linux, go ahead and use mold by default to improve
+      # link times a bit; mostly useful for debug build speed, but will help
+      # over time if we ever get more dependencies, too
+      useMoldLinker = pkgs.stdenv.isLinux;
     in
     {
       packages = {
@@ -118,12 +124,16 @@
           cargo-insta
           cargo-nextest
           cargo-watch
-        ];
+
+          # Extra, more specific tools follow
+        ] ++ pkgs.lib.optionals useMoldLinker [ mold ];
 
         shellHook = ''
           export RUST_BACKTRACE=1
           export ZSTD_SYS_USE_PKG_CONFIG=1
           export LIBSSH2_SYS_USE_PKG_CONFIG=1
+        '' + pkgs.lib.optionalString useMoldLinker ''
+          export RUSTFLAGS="-C link-arg=-fuse-ld=mold $RUSTFLAGS"
         '';
       };
     }));
