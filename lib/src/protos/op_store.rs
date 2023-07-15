@@ -1,25 +1,48 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RefConflict {
+pub struct RefConflictLegacy {
+    #[deprecated]
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub removes: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
+    #[deprecated]
     #[prost(bytes = "vec", repeated, tag = "2")]
     pub adds: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RefConflict {
+    #[prost(message, repeated, tag = "1")]
+    pub removes: ::prost::alloc::vec::Vec<ref_conflict::Term>,
+    #[prost(message, repeated, tag = "2")]
+    pub adds: ::prost::alloc::vec::Vec<ref_conflict::Term>,
+}
+/// Nested message and enum types in `RefConflict`.
+pub mod ref_conflict {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Term {
+        #[prost(bytes = "vec", optional, tag = "1")]
+        pub value: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RefTarget {
-    #[prost(oneof = "ref_target::Value", tags = "1, 2")]
+    /// New `RefConflict` type represents both `commit_id` and `conflict_legacy`.
+    #[prost(oneof = "ref_target::Value", tags = "1, 2, 3")]
     pub value: ::core::option::Option<ref_target::Value>,
 }
 /// Nested message and enum types in `RefTarget`.
 pub mod ref_target {
+    /// New `RefConflict` type represents both `commit_id` and `conflict_legacy`.
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(bytes, tag = "1")]
         CommitId(::prost::alloc::vec::Vec<u8>),
         #[prost(message, tag = "2")]
+        ConflictLegacy(super::RefConflictLegacy),
+        #[prost(message, tag = "3")]
         Conflict(super::RefConflict),
     }
 }
