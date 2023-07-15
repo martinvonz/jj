@@ -16,15 +16,25 @@ syntax = "proto3";
 
 package op_store;
 
+message RefConflictLegacy {
+  repeated bytes removes = 1 [deprecated = true];
+  repeated bytes adds = 2 [deprecated = true];
+}
+
 message RefConflict {
-  repeated bytes removes = 1;
-  repeated bytes adds = 2;
+  message Term {
+    optional bytes value = 1;
+  }
+  repeated Term removes = 1;
+  repeated Term adds = 2;
 }
 
 message RefTarget {
+  // New `RefConflict` type represents both `commit_id` and `conflict_legacy`.
   oneof value {
-    bytes commit_id = 1;
-    RefConflict conflict = 2;
+    bytes commit_id = 1 [deprecated = true];
+    RefConflictLegacy conflict_legacy = 2 [deprecated = true];
+    RefConflict conflict = 3;
   }
 }
 

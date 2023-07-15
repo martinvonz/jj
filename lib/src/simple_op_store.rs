@@ -24,6 +24,7 @@ use tempfile::{NamedTempFile, PersistError};
 use thiserror::Error;
 
 use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
+use crate::conflicts::Conflict;
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
@@ -355,6 +356,7 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     view
 }
 
+#[allow(deprecated)]
 fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::RefTarget> {
     if let Some(id) = value.as_normal() {
         let proto = crate::protos::op_store::RefTarget {
@@ -365,12 +367,12 @@ fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::Ref
         Some(proto)
     } else if value.has_conflict() {
         // TODO: Preserve "absent" targets, and remove op_store::RefTargetMap hack.
-        let ref_conflict_proto = crate::protos::op_store::RefConflict {
+        let ref_conflict_proto = crate::protos::op_store::RefConflictLegacy {
             removes: value.removed_ids().map(|id| id.to_bytes()).collect(),
             adds: value.added_ids().map(|id| id.to_bytes()).collect(),
         };
         let proto = crate::protos::op_store::RefTarget {
-            value: Some(crate::protos::op_store::ref_target::Value::Conflict(
+            value: Some(crate::protos::op_store::ref_target::Value::ConflictLegacy(
                 ref_conflict_proto,
             )),
         };
@@ -383,16 +385,28 @@ fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::Ref
 
 fn ref_target_from_proto(maybe_proto: Option<crate::protos::op_store::RefTarget>) -> RefTarget {
     let Some(proto) = maybe_proto else {
+        // Legacy absent id
         return RefTarget::absent();
     };
     match proto.value.unwrap() {
+        #[allow(deprecated)]
         crate::protos::op_store::ref_target::Value::CommitId(id) => {
+            // Legacy non-conflicting id
             RefTarget::normal(CommitId::new(id))
         }
-        crate::protos::op_store::ref_target::Value::Conflict(conflict) => {
+        #[allow(deprecated)]
+        crate::protos::op_store::ref_target::Value::ConflictLegacy(conflict) => {
+            // Legacy conflicting ids
             let removes = conflict.removes.into_iter().map(CommitId::new);
             let adds = conflict.adds.into_iter().map(CommitId::new);
             RefTarget::from_legacy_form(removes, adds)
+        }
+        crate::protos::op_store::ref_target::Value::Conflict(conflict) => {
+            let term_from_proto =
+                |term: crate::protos::op_store::ref_conflict::Term| term.value.map(CommitId::new);
+            let removes = conflict.removes.into_iter().map(term_from_proto).collect();
+            let adds = conflict.adds.into_iter().map(term_from_proto).collect();
+            RefTarget::from_conflict(Conflict::new(removes, adds))
         }
     }
 }
@@ -518,5 +532,36 @@ mod tests {
         let op_id = store.write_operation(&operation).unwrap();
         let read_operation = store.read_operation(&op_id).unwrap();
         assert_eq!(read_operation, operation);
+    }
+
+    #[test]
+    fn test_ref_target_legacy_roundtrip() {
+        let target = RefTarget::absent();
+        let maybe_proto = ref_target_to_proto(&target);
+        assert_eq!(ref_target_from_proto(maybe_proto), target);
+
+        let target = RefTarget::normal(CommitId::from_hex("111111"));
+        let maybe_proto = ref_target_to_proto(&target);
+        assert_eq!(ref_target_from_proto(maybe_proto), target);
+
+        // N-way conflict
+        let target = RefTarget::from_legacy_form(
+            [CommitId::from_hex("111111"), CommitId::from_hex("222222")],
+            [
+                CommitId::from_hex("333333"),
+                CommitId::from_hex("444444"),
+                CommitId::from_hex("555555"),
+            ],
+        );
+        let maybe_proto = ref_target_to_proto(&target);
+        assert_eq!(ref_target_from_proto(maybe_proto), target);
+
+        // Change-delete conflict
+        let target = RefTarget::from_legacy_form(
+            [CommitId::from_hex("111111")],
+            [CommitId::from_hex("222222")],
+        );
+        let maybe_proto = ref_target_to_proto(&target);
+        assert_eq!(ref_target_from_proto(maybe_proto), target);
     }
 }
