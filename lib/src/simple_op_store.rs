@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs;
 use std::io::{ErrorKind, Write};
@@ -29,7 +30,7 @@ use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
-    RefTarget, RefTargetMap, View, ViewId, WorkspaceId,
+    RefTarget, View, ViewId, WorkspaceId,
 };
 
 impl From<PersistError> for OpStoreError {
@@ -314,7 +315,7 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     for branch_proto in proto.branches {
         let local_target = ref_target_from_proto(branch_proto.local_target);
 
-        let mut remote_targets = RefTargetMap::new();
+        let mut remote_targets = BTreeMap::new();
         for remote_branch in branch_proto.remote_branches {
             remote_targets.insert(
                 remote_branch.remote_name,
@@ -356,8 +357,26 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     view
 }
 
-#[allow(deprecated)]
 fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::RefTarget> {
+    let term_to_proto = |term: &Option<CommitId>| crate::protos::op_store::ref_conflict::Term {
+        value: term.as_ref().map(|id| id.to_bytes()),
+    };
+    let conflict = value.as_conflict();
+    let conflict_proto = crate::protos::op_store::RefConflict {
+        removes: conflict.removes().iter().map(term_to_proto).collect(),
+        adds: conflict.adds().iter().map(term_to_proto).collect(),
+    };
+    let proto = crate::protos::op_store::RefTarget {
+        value: Some(crate::protos::op_store::ref_target::Value::Conflict(
+            conflict_proto,
+        )),
+    };
+    Some(proto)
+}
+
+#[allow(deprecated)]
+#[cfg(test)]
+fn ref_target_to_proto_legacy(value: &RefTarget) -> Option<crate::protos::op_store::RefTarget> {
     if let Some(id) = value.as_normal() {
         let proto = crate::protos::op_store::RefTarget {
             value: Some(crate::protos::op_store::ref_target::Value::CommitId(
@@ -366,7 +385,6 @@ fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::Ref
         };
         Some(proto)
     } else if value.has_conflict() {
-        // TODO: Preserve "absent" targets, and remove op_store::RefTargetMap hack.
         let ref_conflict_proto = crate::protos::op_store::RefConflictLegacy {
             removes: value.removed_ids().map(|id| id.to_bytes()).collect(),
             adds: value.added_ids().map(|id| id.to_bytes()).collect(),
@@ -384,6 +402,8 @@ fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::Ref
 }
 
 fn ref_target_from_proto(maybe_proto: Option<crate::protos::op_store::RefTarget>) -> RefTarget {
+    // TODO: Delete legacy format handling when we decide to drop support for views
+    // saved by jj <= 0.8.
     let Some(proto) = maybe_proto else {
         // Legacy absent id
         return RefTarget::absent();
@@ -443,24 +463,24 @@ mod tests {
             branches: btreemap! {
                 "main".to_string() => BranchTarget {
                     local_target: branch_main_local_target,
-                    remote_targets: RefTargetMap(btreemap! {
+                    remote_targets: btreemap! {
                         "origin".to_string() => branch_main_origin_target,
-                    }),
+                    },
                 },
                 "deleted".to_string() => BranchTarget {
                     local_target: RefTarget::absent(),
-                    remote_targets: RefTargetMap(btreemap! {
+                    remote_targets: btreemap! {
                         "origin".to_string() => branch_deleted_origin_target,
-                    }),
+                    },
                 },
             },
-            tags: RefTargetMap(btreemap! {
+            tags: btreemap! {
                 "v1.0".to_string() => tag_v1_target,
-            }),
-            git_refs: RefTargetMap(btreemap! {
+            },
+            git_refs: btreemap! {
                 "refs/heads/main".to_string() => git_refs_main_target,
                 "refs/heads/feature".to_string() => git_refs_feature_target,
-            }),
+            },
             git_head: RefTarget::normal(CommitId::from_hex("fff111")),
             wc_commit_ids: hashmap! {
                 WorkspaceId::default() => default_wc_commit_id,
@@ -501,7 +521,7 @@ mod tests {
         // Test exact output so we detect regressions in compatibility
         assert_snapshot!(
             ViewId::new(blake2b_hash(&create_view()).to_vec()).hex(),
-            @"7f47fa81494d7189cb1827b83b3f834662f0f61b4c4090298067e85cdc60f773bf639c4e6a3554a4e401650218ca240291ce591f45a1c501ade1d2b9f97e1a37"
+            @"3c1c6efecfc0809130a5bf139aec77e6299cd7d5985b95c01a29318d40a5e2defc9bd12329e91511e545fbad065f60ce5da91f5f0368c9bf549ca761bb047f7e"
         );
     }
 
@@ -535,13 +555,31 @@ mod tests {
     }
 
     #[test]
-    fn test_ref_target_legacy_roundtrip() {
-        let target = RefTarget::absent();
+    fn test_ref_target_change_delete_order_roundtrip() {
+        let target = RefTarget::from_conflict(Conflict::new(
+            vec![Some(CommitId::from_hex("111111"))],
+            vec![Some(CommitId::from_hex("222222")), None],
+        ));
         let maybe_proto = ref_target_to_proto(&target);
         assert_eq!(ref_target_from_proto(maybe_proto), target);
 
-        let target = RefTarget::normal(CommitId::from_hex("111111"));
+        // If it were legacy format, order of None entry would be lost.
+        let target = RefTarget::from_conflict(Conflict::new(
+            vec![Some(CommitId::from_hex("111111"))],
+            vec![None, Some(CommitId::from_hex("222222"))],
+        ));
         let maybe_proto = ref_target_to_proto(&target);
+        assert_eq!(ref_target_from_proto(maybe_proto), target);
+    }
+
+    #[test]
+    fn test_ref_target_legacy_roundtrip() {
+        let target = RefTarget::absent();
+        let maybe_proto = ref_target_to_proto_legacy(&target);
+        assert_eq!(ref_target_from_proto(maybe_proto), target);
+
+        let target = RefTarget::normal(CommitId::from_hex("111111"));
+        let maybe_proto = ref_target_to_proto_legacy(&target);
         assert_eq!(ref_target_from_proto(maybe_proto), target);
 
         // N-way conflict
@@ -553,7 +591,7 @@ mod tests {
                 CommitId::from_hex("555555"),
             ],
         );
-        let maybe_proto = ref_target_to_proto(&target);
+        let maybe_proto = ref_target_to_proto_legacy(&target);
         assert_eq!(ref_target_from_proto(maybe_proto), target);
 
         // Change-delete conflict
@@ -561,7 +599,7 @@ mod tests {
             [CommitId::from_hex("111111")],
             [CommitId::from_hex("222222")],
         );
-        let maybe_proto = ref_target_to_proto(&target);
+        let maybe_proto = ref_target_to_proto_legacy(&target);
         assert_eq!(ref_target_from_proto(maybe_proto), target);
     }
 }
