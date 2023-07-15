@@ -128,16 +128,15 @@ mod tests {
 
     use super::*;
     use crate::backend::ObjectId;
-    use crate::op_store::RefTargetMap;
 
     #[test]
     fn test_classify_branch_push_action_unchanged() {
         let commit_id1 = CommitId::from_hex("11");
         let branch = BranchTarget {
             local_target: RefTarget::normal(commit_id1.clone()),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(commit_id1),
-            }),
+            },
         };
         assert_eq!(
             classify_branch_push_action(&branch, "origin"),
@@ -150,7 +149,7 @@ mod tests {
         let commit_id1 = CommitId::from_hex("11");
         let branch = BranchTarget {
             local_target: RefTarget::normal(commit_id1.clone()),
-            remote_targets: RefTargetMap::new(),
+            remote_targets: btreemap! {},
         };
         assert_eq!(
             classify_branch_push_action(&branch, "origin"),
@@ -166,9 +165,9 @@ mod tests {
         let commit_id1 = CommitId::from_hex("11");
         let branch = BranchTarget {
             local_target: RefTarget::absent(),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(commit_id1.clone()),
-            }),
+            },
         };
         assert_eq!(
             classify_branch_push_action(&branch, "origin"),
@@ -185,9 +184,9 @@ mod tests {
         let commit_id2 = CommitId::from_hex("22");
         let branch = BranchTarget {
             local_target: RefTarget::normal(commit_id2.clone()),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(commit_id1.clone()),
-            }),
+            },
         };
         assert_eq!(
             classify_branch_push_action(&branch, "origin"),
@@ -204,9 +203,9 @@ mod tests {
         let commit_id2 = CommitId::from_hex("22");
         let branch = BranchTarget {
             local_target: RefTarget::from_legacy_form([], [commit_id1.clone(), commit_id2]),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(commit_id1),
-            }),
+            },
         };
         assert_eq!(
             classify_branch_push_action(&branch, "origin"),
@@ -220,12 +219,12 @@ mod tests {
         let commit_id2 = CommitId::from_hex("22");
         let branch = BranchTarget {
             local_target: RefTarget::normal(commit_id1.clone()),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::from_legacy_form(
                     [],
                     [commit_id1, commit_id2],
                 ),
-            }),
+            },
         };
         assert_eq!(
             classify_branch_push_action(&branch, "origin"),

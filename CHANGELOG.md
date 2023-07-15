@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The minimum supported Rust version (MSRV) is now 1.71.0.
 
+* The storage format of branches, tags, and git refs has changed. Newly-stored
+  repository data will no longer be loadable by older binaries.
+
 ### New features
 
 * `jj log` output is now topologically grouped.

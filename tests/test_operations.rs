@@ -38,12 +38,12 @@ fn test_op_log() {
         ],
     );
     insta::assert_snapshot!(&stdout, @r###"
-    @  45108169c0f8 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @  98f7262e4a06 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'description 0'
-    ◉  a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  19b8089fc78b test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
        initialize repo
     "###);
     let op_log_lines = stdout.lines().collect_vec();
@@ -126,14 +126,14 @@ fn test_op_log_template() {
     let render = |template| test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
 
     insta::assert_snapshot!(render(r#"id ++ "\n""#), @r###"
-    @  a99a3fd5c51e8f7ccb9ae2f9fb749612a23f0a7cf25d8c644f36c35c077449ce3c66f49d098a5a704ca5e47089a7f019563a5b8cbc7d451619e0f90c82241ceb
-    ◉  56b94dfc38e7d54340377f566e96ab97dc6163ea7841daf49fb2e1d1ceb27e26274db1245835a1a421fb9d06e6e0fe1e4f4aa1b0258c6e86df676ad9111d0dab
+    @  19b8089fc78b7c49171f3c8934248be6f89f52311005e961cab5780f9f138b142456d77b27d223d7ee84d21d8c30c4a80100eaf6735b548b1acd0da688f94c80
+    ◉  f1c462c494be39f6690928603c5393f908866bc8d81d8cd1ae0bb2ea02cb4f78cafa47165fa5b7cda258e2178f846881de199066991960a80954ba6066ba0821
     "###);
     insta::assert_snapshot!(
         render(r#"separate(" ", id.short(5), current_operation, user,
                                 time.start(), time.end(), time.duration()) ++ "\n""#), @r###"
-    @  a99a3 true test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
-    ◉  56b94 false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
+    @  19b80 true test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
+    ◉  f1c46 false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
     "###);
     // Test the default template, i.e. with relative start time and duration. We
     // don't generally use that template because it depends on the current time,
@@ -147,9 +147,9 @@ fn test_op_log_template() {
     let regex = Regex::new(r"\d\d years").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(regex.replace_all(&stdout, "NN years"), @r###"
-    @  a99a3fd5c51e test-username@host.example.com NN years ago, lasted less than a microsecond
+    @  19b8089fc78b test-username@host.example.com NN years ago, lasted less than a microsecond
     │  add workspace 'default'
-    ◉  56b94dfc38e7 test-username@host.example.com NN years ago, lasted less than a microsecond
+    ◉  f1c462c494be test-username@host.example.com NN years ago, lasted less than a microsecond
        initialize repo
     "###);
 }
@@ -163,24 +163,24 @@ fn test_op_log_builtin_templates() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 0"]);
 
     insta::assert_snapshot!(render(r#"builtin_op_log_compact"#), @r###"
-    @  45108169c0f8 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @  98f7262e4a06 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'description 0'
-    ◉  a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  19b8089fc78b test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
        initialize repo
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_op_log_comfortable"#), @r###"
-    @  45108169c0f8 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @  98f7262e4a06 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'description 0'
     │
-    ◉  a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  19b8089fc78b test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
     │
-    ◉  56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
        initialize repo
 
     "###);
@@ -207,18 +207,18 @@ fn test_op_log_word_wrap() {
 
     // ui.log-word-wrap option works
     insta::assert_snapshot!(render(&["op", "log"], 40, false), @r###"
-    @  a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    @  19b8089fc78b test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
        initialize repo
     "###);
     insta::assert_snapshot!(render(&["op", "log"], 40, true), @r###"
-    @  a99a3fd5c51e
+    @  19b8089fc78b
     │  test-username@host.example.com
     │  2001-02-03 04:05:07.000 +07:00 -
     │  2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  56b94dfc38e7
+    ◉  f1c462c494be
        test-username@host.example.com
        2001-02-03 04:05:07.000 +07:00 -
        2001-02-03 04:05:07.000 +07:00

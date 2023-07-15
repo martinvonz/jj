@@ -27,7 +27,7 @@ use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git;
 use jj_lib::git::{GitFetchError, GitPushError, GitRefUpdate, SubmoduleConfig};
 use jj_lib::git_backend::GitBackend;
-use jj_lib::op_store::{BranchTarget, RefTarget, RefTargetMap};
+use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::{GitSettings, UserSettings};
 use jj_lib::view::RefName;
@@ -110,14 +110,14 @@ fn test_import_refs() {
 
     let expected_main_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit2)),
-        remote_targets: RefTargetMap(btreemap! {
+        remote_targets: btreemap! {
           "origin".to_string() => RefTarget::normal(jj_id(&commit1)),
-        }),
+        },
     };
     assert_eq!(view.get_branch("main"), Some(expected_main_branch).as_ref());
     let expected_feature1_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit3)),
-        remote_targets: RefTargetMap::new(),
+        remote_targets: btreemap! {},
     };
     assert_eq!(
         view.get_branch("feature1"),
@@ -125,7 +125,7 @@ fn test_import_refs() {
     );
     let expected_feature2_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit4)),
-        remote_targets: RefTargetMap::new(),
+        remote_targets: btreemap! {},
     };
     assert_eq!(
         view.get_branch("feature2"),
@@ -133,9 +133,9 @@ fn test_import_refs() {
     );
     let expected_feature3_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit6)),
-        remote_targets: RefTargetMap(btreemap! {
+        remote_targets: btreemap! {
           "origin".to_string() => RefTarget::normal(jj_id(&commit6)),
-        }),
+        },
     };
     assert_eq!(
         view.get_branch("feature3"),
@@ -234,9 +234,9 @@ fn test_import_refs_reimport() {
     let commit2_target = RefTarget::normal(jj_id(&commit2));
     let expected_main_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit2)),
-        remote_targets: RefTargetMap(btreemap! {
+        remote_targets: btreemap! {
           "origin".to_string() => commit1_target.clone(),
-        }),
+        },
     };
     assert_eq!(view.get_branch("main"), Some(expected_main_branch).as_ref());
     let expected_feature2_branch = BranchTarget {
@@ -244,7 +244,7 @@ fn test_import_refs_reimport() {
             [jj_id(&commit4)],
             [commit6.id().clone(), jj_id(&commit5)],
         ),
-        remote_targets: RefTargetMap::new(),
+        remote_targets: btreemap! {},
     };
     assert_eq!(
         view.get_branch("feature2"),
@@ -432,18 +432,18 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
             // Even though the git repo does not have a local branch for `feature-remote-only`, jj
             // creates one. This follows the model explained in docs/branches.md.
             local_target: RefTarget::normal(jj_id(&commit_remote_only)),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_only)),
-            }),
+            },
         }),
     );
     assert_eq!(
         view.get_branch("feature-remote-and-local"),
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&commit_remote_and_local)),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
-            }),
+            },
         }),
     );
     view.get_branch("main").unwrap(); // branch #3 of 3
@@ -521,18 +521,18 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
             // Even though the git repo does not have a local branch for `feature-remote-only`, jj
             // creates one. This follows the model explained in docs/branches.md.
             local_target: RefTarget::normal(jj_id(&commit_remote_only)),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_only)),
-            }),
+            },
         }),
     );
     assert_eq!(
         view.get_branch("feature-remote-and-local"),
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&commit_remote_and_local)),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
-            }),
+            },
         }),
     );
     view.get_branch("main").unwrap(); // branch #3 of 3
@@ -565,18 +565,18 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         view.get_branch("feature-remote-only"),
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&new_commit_remote_only)),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(jj_id(&new_commit_remote_only)),
-            }),
+            },
         }),
     );
     assert_eq!(
         view.get_branch("feature-remote-and-local"),
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&new_commit_remote_and_local)),
-            remote_targets: RefTargetMap(btreemap! {
+            remote_targets: btreemap! {
                 "origin".to_string() => RefTarget::normal(jj_id(&new_commit_remote_and_local)),
-            }),
+            },
         }),
     );
     view.get_branch("main").unwrap(); // branch #3 of 3
@@ -706,9 +706,9 @@ fn test_import_some_refs() {
     let commit_feat4_target = RefTarget::normal(jj_id(&commit_feat4));
     let expected_feature1_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit_feat1)),
-        remote_targets: RefTargetMap(btreemap! {
+        remote_targets: btreemap! {
             "origin".to_string() => commit_feat1_target,
-        }),
+        },
     };
     assert_eq!(
         view.get_branch("feature1"),
@@ -716,9 +716,9 @@ fn test_import_some_refs() {
     );
     let expected_feature2_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit_feat2)),
-        remote_targets: RefTargetMap(btreemap! {
+        remote_targets: btreemap! {
             "origin".to_string() => commit_feat2_target,
-        }),
+        },
     };
     assert_eq!(
         view.get_branch("feature2"),
@@ -726,9 +726,9 @@ fn test_import_some_refs() {
     );
     let expected_feature3_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit_feat3)),
-        remote_targets: RefTargetMap(btreemap! {
+        remote_targets: btreemap! {
             "origin".to_string() => commit_feat3_target,
-        }),
+        },
     };
     assert_eq!(
         view.get_branch("feature3"),
@@ -736,9 +736,9 @@ fn test_import_some_refs() {
     );
     let expected_feature4_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit_feat4)),
-        remote_targets: RefTargetMap(btreemap! {
+        remote_targets: btreemap! {
             "origin".to_string() => commit_feat4_target,
-        }),
+        },
     };
     assert_eq!(
         view.get_branch("feature4"),
@@ -1143,9 +1143,9 @@ fn test_import_export_no_auto_local_branch() {
 
     let expected_branch = BranchTarget {
         local_target: RefTarget::absent(),
-        remote_targets: RefTargetMap(btreemap! {
+        remote_targets: btreemap! {
             "origin".to_string() => RefTarget::normal(jj_id(&git_commit)),
-        }),
+        },
     };
     assert_eq!(
         mut_repo.view().get_branch("main"),
@@ -1495,9 +1495,9 @@ fn test_fetch_initial_commit() {
         btreemap! {
             "main".to_string() => BranchTarget {
                 local_target: initial_commit_target.clone(),
-                remote_targets: RefTargetMap(btreemap! {
+                remote_targets: btreemap! {
                     "origin".to_string() => initial_commit_target,
-                })
+                },
             },
         }
     );
@@ -1560,9 +1560,9 @@ fn test_fetch_success() {
         btreemap! {
             "main".to_string() => BranchTarget {
                 local_target: new_commit_target.clone(),
-                remote_targets: RefTargetMap(btreemap! {
+                remote_targets: btreemap! {
                     "origin".to_string() => new_commit_target,
-                }),
+                },
             },
         }
     );

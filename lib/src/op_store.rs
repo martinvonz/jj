@@ -14,17 +14,14 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{btree_map, BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
-use std::ops::{Deref, DerefMut};
 
-use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::backend::{id_type, CommitId, ObjectId, Timestamp};
 use crate::conflicts::Conflict;
-use crate::content_hash::ContentHash;
 
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
@@ -56,34 +53,16 @@ impl WorkspaceId {
 id_type!(pub ViewId);
 id_type!(pub OperationId);
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub struct RefTarget {
-    conflict: Conflict<Option<CommitId>>,
+content_hash! {
+    #[derive(PartialEq, Eq, Hash, Clone, Debug)]
+    pub struct RefTarget {
+        conflict: Conflict<Option<CommitId>>,
+    }
 }
 
 impl Default for RefTarget {
     fn default() -> Self {
         Self::absent()
-    }
-}
-
-impl ContentHash for RefTarget {
-    fn hash(&self, state: &mut impl digest::Update) {
-        // TODO: Leverage generic implementation. Unlike RefTargetMap, this just exists
-        // in order to minimize the test changes. We can freely switch to the generic
-        // version.
-        if self.is_absent() {
-            state.update(&[0]); // None
-        } else if let Some(id) = self.as_normal() {
-            state.update(&[1]); // Some(
-            state.update(&0u32.to_le_bytes()); // Normal(
-            id.hash(state);
-        } else {
-            state.update(&[1]); // Some(
-            state.update(&1u32.to_le_bytes()); // Conflict(
-            self.removed_ids().cloned().collect_vec().hash(state);
-            self.added_ids().cloned().collect_vec().hash(state);
-        }
     }
 }
 
@@ -176,72 +155,6 @@ impl<'a> RefTargetOptionExt for Option<&'a RefTarget> {
     }
 }
 
-/// Wrapper to exclude absent `RefTarget` entries from `ContentHash`.
-#[derive(Default, PartialEq, Eq, Clone, Debug)]
-pub struct RefTargetMap(pub BTreeMap<String, RefTarget>);
-
-impl RefTargetMap {
-    pub fn new() -> Self {
-        RefTargetMap(BTreeMap::new())
-    }
-}
-
-// TODO: Update serialization code to preserve absent RefTarget entries, and
-// remove this wrapper.
-impl ContentHash for RefTargetMap {
-    fn hash(&self, state: &mut impl digest::Update) {
-        // Derived from content_hash.rs. It's okay for this to produce a different hash
-        // value than the inner map, but the value must not be equal to the map which
-        // preserves absent RefTarget entries.
-        let iter = self.0.iter().filter(|(_, v)| v.is_present());
-        state.update(&(iter.clone().count() as u64).to_le_bytes());
-        for (k, v) in iter {
-            k.hash(state);
-            if let Some(id) = v.as_normal() {
-                state.update(&0u32.to_le_bytes()); // Normal(
-                id.hash(state);
-            } else {
-                state.update(&1u32.to_le_bytes()); // Conflict(
-                v.removed_ids().cloned().collect_vec().hash(state);
-                v.added_ids().cloned().collect_vec().hash(state);
-            }
-        }
-    }
-}
-
-// Abuse Deref as this is a temporary workaround. See the comment above.
-impl Deref for RefTargetMap {
-    type Target = BTreeMap<String, RefTarget>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for RefTargetMap {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl IntoIterator for RefTargetMap {
-    type Item = (String, RefTarget);
-    type IntoIter = btree_map::IntoIter<String, RefTarget>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a RefTargetMap {
-    type Item = (&'a String, &'a RefTarget);
-    type IntoIter = btree_map::Iter<'a, String, RefTarget>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
-    }
-}
-
 content_hash! {
     #[derive(Default, PartialEq, Eq, Clone, Debug)]
     pub struct BranchTarget {
@@ -252,7 +165,7 @@ content_hash! {
         // has been deleted locally and you pull from a remote, maybe it should make a difference
         // whether the branch is known to have existed on the remote. We may not want to resurrect
         // the branch if the branch's state on the remote was just not known.
-        pub remote_targets: RefTargetMap,
+        pub remote_targets: BTreeMap<String, RefTarget>,
     }
 }
 
@@ -266,8 +179,8 @@ content_hash! {
         /// Heads of the set of public commits.
         pub public_head_ids: HashSet<CommitId>,
         pub branches: BTreeMap<String, BranchTarget>,
-        pub tags: RefTargetMap,
-        pub git_refs: RefTargetMap,
+        pub tags: BTreeMap<String, RefTarget>,
+        pub git_refs: BTreeMap<String, RefTarget>,
         /// The commit the Git HEAD points to.
         // TODO: Support multiple Git worktrees?
         // TODO: Do we want to store the current branch name too?
