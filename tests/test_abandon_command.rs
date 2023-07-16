@@ -121,9 +121,9 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
+    │ ◉  a b
     ◉ │  d
     ◉ │  c
-    │ ◉  a b
     ├─╯
     ◉
     "###);

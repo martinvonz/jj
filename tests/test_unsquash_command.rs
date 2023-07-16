@@ -90,8 +90,8 @@ fn test_unsquash() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    1f8f152ff48e e
     ├─╮
-    ◉ │  5658521e0f8b d
     │ ◉  90fe0a96fc90 c
+    ◉ │  5658521e0f8b d
     ├─╯
     ◉  fa5efbdf533c b
     ◉  90aeefd03044 a
@@ -114,8 +114,8 @@ fn test_unsquash() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    3217340cb761
     ├─╮
-    ◉ │  5658521e0f8b d e??
     │ ◉  90fe0a96fc90 c e??
+    ◉ │  5658521e0f8b d e??
     ├─╯
     ◉  fa5efbdf533c b
     ◉  90aeefd03044 a

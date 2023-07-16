@@ -68,9 +68,9 @@ fn test_templater_branches() {
     insta::assert_snapshot!(output, @r###"
     ◉  b1bb3766d584 branch3??
     │ @  a5b4d15489cc branch2* new-branch
-    │ │ ◉  21c33875443e branch1*
-    ├───╯
     │ ◉  8476341eb395 branch2@origin
+    ├─╯
+    │ ◉  21c33875443e branch1*
     ├─╯
     ◉  000000000000
     "###);

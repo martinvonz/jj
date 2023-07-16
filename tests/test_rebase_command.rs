@@ -248,8 +248,8 @@ fn test_rebase_single_revision() {
     @  d
     ◉    c
     ├─╮
-    ◉ │  b
     │ ◉  a
+    ◉ │  b
     ├─╯
     ◉
     "###);
@@ -290,10 +290,10 @@ fn test_rebase_single_revision() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    d
     ├─╮
-    │ │ ◉  c
-    ◉ │ │  b
-    ├───╯
     │ ◉  a
+    ◉ │  b
+    ├─╯
+    │ ◉  c
     ├─╯
     ◉
     "###);
@@ -313,9 +313,9 @@ fn test_rebase_single_revision_merge_parent() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    d
     ├─╮
+    │ ◉  a
     ◉ │  c
     ◉ │  b
-    │ ◉  a
     ├─╯
     ◉
     "###);
@@ -333,9 +333,9 @@ fn test_rebase_single_revision_merge_parent() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    d
     ├─╮
+    ◉ │  b
     │ │ ◉  c
     │ ├─╯
-    ◉ │  b
     │ ◉  a
     ├─╯
     ◉
@@ -366,8 +366,8 @@ fn test_rebase_multiple_destinations() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    a
     ├─╮
-    @ │  c
     │ ◉  b
+    @ │  c
     ├─╯
     ◉
     "###);
@@ -388,8 +388,8 @@ fn test_rebase_multiple_destinations() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    a
     ├─╮
-    @ │  c
     │ ◉  b
+    @ │  c
     ├─╯
     ◉
     "###);
@@ -417,8 +417,8 @@ fn test_rebase_multiple_destinations() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  a
+    ◉  b
     │ @  c
-    ◉ │  b
     ├─╯
     ◉
     "###);
@@ -439,8 +439,8 @@ fn test_rebase_multiple_destinations() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    a
     ├─╮
-    @ │  c
     │ ◉  b
+    @ │  c
     ├─╯
     ◉
     "###);
@@ -467,8 +467,8 @@ fn test_rebase_with_descendants() {
     @  d
     ◉    c
     ├─╮
-    ◉ │  b
     │ ◉  a
+    ◉ │  b
     ├─╯
     ◉
     "###);
@@ -500,8 +500,8 @@ fn test_rebase_with_descendants() {
     @  d
     │ ◉  c
     ├─╯
+    ◉  a
     │ ◉  b
-    ◉ │  a
     ├─╯
     ◉
     "###);
@@ -512,8 +512,8 @@ fn test_rebase_with_descendants() {
     @  d
     ◉    c
     ├─╮
-    ◉ │  b
     │ ◉  a
+    ◉ │  b
     ├─╯
     ◉
     "###);
@@ -529,8 +529,8 @@ fn test_rebase_with_descendants() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  c
+    ◉  b
     │ @  d
-    ◉ │  b
     ├─╯
     ◉  a
     ◉

@@ -61,8 +61,8 @@ fn test_new_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    0c4e5b9b68ae0cbe7ce3c61042619513d09005bf
     ├─╮
-    ◉ │  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
     │ ◉  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
+    ◉ │  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -77,8 +77,8 @@ fn test_new_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    200ed1a14c8acf09783dafefe5bebf2ff58f12fd
     ├─╮
-    ◉ │  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
     │ ◉  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
+    ◉ │  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -115,8 +115,8 @@ fn test_new_insert_after() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ◉ │  E
     │ ◉  D
+    ◉ │  E
     ├─╯
     │ ◉  C
     │ ◉  B
@@ -137,14 +137,14 @@ fn test_new_insert_after() {
     ◉  C
     │ ◉  F
     ╭─┤
+    │ ◉  E
     @ │    G
     ├───╮
-    │ ◉ │  E
-    ◉ │ │  D
-    ├─╯ │
-    │   ◉  B
-    │   ◉  A
-    ├───╯
+    │ │ ◉  B
+    │ │ ◉  A
+    │ ├─╯
+    ◉ │  D
+    ├─╯
     ◉  root
     "###);
 
@@ -158,15 +158,15 @@ fn test_new_insert_after() {
     ◉  C
     │ ◉  F
     ╭─┤
+    │ ◉  E
     ◉ │    G
     ├───╮
-    @ │ │  H
-    │ ◉ │  E
-    ◉ │ │  D
-    ├─╯ │
-    │   ◉  B
-    │   ◉  A
-    ├───╯
+    │ │ ◉  B
+    │ │ ◉  A
+    │ ├─╯
+    @ │  H
+    ◉ │  D
+    ├─╯
     ◉  root
     "###);
 }
@@ -180,8 +180,8 @@ fn test_new_insert_after_children() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ◉ │  E
     │ ◉  D
+    ◉ │  E
     ├─╯
     │ ◉  C
     │ ◉  B
@@ -203,16 +203,16 @@ fn test_new_insert_after_children() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    G
     ├─╮
-    │ │ ◉    F
-    │ │ ├─╮
-    │ │ ◉ │  E
-    │ │ │ ◉  D
-    │ │ ├─╯
-    ◉ │ │  C
-    ◉ │ │  B
-    ├─╯ │
-    ◉   │  A
+    ◉ │  C
+    ◉ │  B
+    ├─╯
+    ◉  A
+    │ ◉    F
+    │ ├─╮
+    │ │ ◉  D
     ├───╯
+    │ ◉  E
+    ├─╯
     ◉  root
     "###);
 }
@@ -226,8 +226,8 @@ fn test_new_insert_before() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ◉ │  E
     │ ◉  D
+    ◉ │  E
     ├─╯
     │ ◉  C
     │ ◉  B
@@ -251,12 +251,12 @@ fn test_new_insert_before() {
     ├─╯
     @      G
     ├─┬─╮
-    ◉ │ │  E
+    │ │ ◉  B
+    │ │ ◉  A
     │ ◉ │  D
-    ├─╯ │
-    │   ◉  B
-    │   ◉  A
-    ├───╯
+    │ ├─╯
+    ◉ │  E
+    ├─╯
     ◉  root
     "###);
 }
@@ -270,8 +270,8 @@ fn test_new_insert_before_root_successors() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ◉ │  E
     │ ◉  D
+    ◉ │  E
     ├─╯
     │ ◉  C
     │ ◉  B
@@ -290,13 +290,13 @@ fn test_new_insert_before_root_successors() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉    F
     ├─╮
+    │ ◉  E
+    ◉ │  D
     │ │ ◉  C
     │ │ ◉  B
-    ◉ │ │  D
     │ │ ◉  A
     ├───╯
     @ │  G
-    │ ◉  E
     ├─╯
     ◉  root
     "###);
@@ -313,8 +313,8 @@ fn test_new_insert_before_no_loop() {
     insta::assert_snapshot!(stdout, @r###"
     @    7705d353bf5d F
     ├─╮
-    ◉ │  41a89ffcbba2 E
     │ ◉  c9257eff5bf9 D
+    ◉ │  41a89ffcbba2 E
     ├─╯
     │ ◉  ec18c57d72d8 C
     │ ◉  6041917ceeb5 B
@@ -339,8 +339,8 @@ fn test_new_insert_before_no_root_merge() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ◉ │  E
     │ ◉  D
+    ◉ │  E
     ├─╯
     │ ◉  C
     │ ◉  B
@@ -359,12 +359,12 @@ fn test_new_insert_before_no_root_merge() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉    F
     ├─╮
+    │ ◉  E
+    ◉ │  D
     │ │ ◉  C
-    ◉ │ │  D
     │ │ ◉  B
     ├───╯
     @ │  G
-    │ ◉  E
     ◉ │  A
     ├─╯
     ◉  root
@@ -380,8 +380,8 @@ fn test_new_insert_before_root() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    F
     ├─╮
-    ◉ │  E
     │ ◉  D
+    ◉ │  E
     ├─╯
     │ ◉  C
     │ ◉  B
