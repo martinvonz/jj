@@ -449,15 +449,13 @@ fn test_merge_views_git_heads() {
     let tx1_head = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo()
         .set_git_head_target(RefTarget::normal(tx1_head.id().clone()));
-    tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let tx2_head = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo()
         .set_git_head_target(RefTarget::normal(tx2_head.id().clone()));
-    tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = commit_transactions(&settings, vec![tx1, tx2]);
     let expected_git_head = RefTarget::from_legacy_form(
         [tx0_head.id().clone()],
         [tx1_head.id().clone(), tx2_head.id().clone()],
