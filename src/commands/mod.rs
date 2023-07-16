@@ -43,7 +43,9 @@ use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
     RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt,
 };
-use jj_lib::revset_graph::{ReverseRevsetGraphIterator, RevsetGraphEdge, RevsetGraphEdgeType};
+use jj_lib::revset_graph::{
+    ReverseRevsetGraphIterator, RevsetGraphEdgeType, TopoGroupedRevsetGraphIterator,
+};
 use jj_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jj_lib::settings::UserSettings;
 use jj_lib::tree::{merge_trees, Tree};
@@ -1587,11 +1589,11 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         if !args.no_graph {
             let mut graph = get_graphlog(command.settings(), formatter.raw());
             let default_node_symbol = graph.default_node_symbol().to_owned();
-            let iter: Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)>> = if args.reversed
-            {
-                Box::new(ReverseRevsetGraphIterator::new(revset.iter_graph()))
+            let forward_iter = TopoGroupedRevsetGraphIterator::new(revset.iter_graph());
+            let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
+                Box::new(ReverseRevsetGraphIterator::new(Box::new(forward_iter)))
             } else {
-                revset.iter_graph()
+                Box::new(forward_iter)
             };
             for (commit_id, edges) in iter {
                 let mut graphlog_edges = vec![];

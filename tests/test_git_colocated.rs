@@ -340,8 +340,8 @@ fn test_git_colocated_external_checkout() {
     // be abandoned. (#1042)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  0521ce3b8c4e29aab79f3c750e2845dcbc4c3874
+    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master HEAD@git A
     │ ◉  66f4d1806ae41bd604f69155dece64062a0056cf B
-    ◉ │  a86754f975f953fa25da4265764adc0c62e9ce6b master HEAD@git A
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);

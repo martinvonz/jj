@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::backend::CommitId;
 
@@ -54,6 +54,13 @@ pub enum RevsetGraphEdgeType {
     Indirect,
 }
 
+fn reachable_targets(edges: &[RevsetGraphEdge]) -> impl DoubleEndedIterator<Item = &CommitId> {
+    edges
+        .iter()
+        .filter(|edge| edge.edge_type != RevsetGraphEdgeType::Missing)
+        .map(|edge| &edge.target)
+}
+
 pub struct ReverseRevsetGraphIterator {
     items: Vec<(CommitId, Vec<RevsetGraphEdge>)>,
 }
@@ -91,6 +98,127 @@ impl Iterator for ReverseRevsetGraphIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.items.pop()
+    }
+}
+
+/// Graph iterator adapter to group topological branches.
+///
+/// Basic idea is DFS from the heads. At fork point, the other descendant
+/// branches will be visited. At merge point, the second (or the last) ancestor
+/// branch will be visited first. This is practically [the same as Git][Git].
+///
+/// [Git]: https://github.blog/2022-08-30-gits-database-internals-ii-commit-history-queries/#topological-sorting
+#[derive(Clone, Debug)]
+pub struct TopoGroupedRevsetGraphIterator<I> {
+    input_iter: I,
+    /// Graph nodes read from the input iterator but not yet emitted.
+    nodes: HashMap<CommitId, TopoGroupedGraphNode>,
+    /// Stack of graph nodes to be emitted.
+    emittable_ids: Vec<CommitId>,
+    /// List of new head nodes found while processing unpopulated nodes.
+    new_head_ids: Vec<CommitId>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct TopoGroupedGraphNode {
+    /// Graph nodes which must be emitted before.
+    child_ids: HashSet<CommitId>,
+    /// Graph edges to parent nodes. `None` until this node is populated.
+    edges: Option<Vec<RevsetGraphEdge>>,
+}
+
+impl<I> TopoGroupedRevsetGraphIterator<I>
+where
+    I: Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)>,
+{
+    /// Wraps the given iterator to group topological branches. The input
+    /// iterator must be topologically ordered.
+    pub fn new(input_iter: I) -> Self {
+        TopoGroupedRevsetGraphIterator {
+            input_iter,
+            nodes: HashMap::new(),
+            emittable_ids: Vec::new(),
+            new_head_ids: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    fn populate_one(&mut self) -> Option<()> {
+        let (current_id, edges) = self.input_iter.next()?;
+
+        // Set up reverse reference
+        for parent_id in reachable_targets(&edges) {
+            let parent_node = self.nodes.entry(parent_id.clone()).or_default();
+            parent_node.child_ids.insert(current_id.clone());
+        }
+
+        // Populate the current node
+        if let Some(current_node) = self.nodes.get_mut(&current_id) {
+            assert!(current_node.edges.is_none());
+            current_node.edges = Some(edges);
+        } else {
+            let current_node = TopoGroupedGraphNode {
+                edges: Some(edges),
+                ..Default::default()
+            };
+            self.nodes.insert(current_id.clone(), current_node);
+            // Push to non-emitting list so the new head wouldn't be interleaved
+            self.new_head_ids.push(current_id);
+        }
+
+        Some(())
+    }
+
+    #[must_use]
+    fn next_node(&mut self) -> Option<(CommitId, Vec<RevsetGraphEdge>)> {
+        // Based on Kahn's algorithm
+        loop {
+            if let Some(current_id) = self.emittable_ids.last() {
+                let current_node = self.nodes.get_mut(current_id).unwrap();
+                if !current_node.child_ids.is_empty() {
+                    // New children populated after emitting the other
+                    self.emittable_ids.pop().unwrap();
+                    continue;
+                }
+                let Some(edges) = current_node.edges.take() else {
+                    // Not yet populated
+                    self.populate_one().expect("parent node should exist");
+                    continue;
+                };
+                // The second (or the last) parent will be visited first
+                let current_id = self.emittable_ids.pop().unwrap();
+                self.nodes.remove(&current_id).unwrap();
+                for parent_id in reachable_targets(&edges) {
+                    let parent_node = self.nodes.get_mut(parent_id).unwrap();
+                    parent_node.child_ids.remove(&current_id);
+                    if parent_node.child_ids.is_empty() {
+                        self.emittable_ids.push(parent_id.clone());
+                    }
+                }
+                return Some((current_id, edges));
+            } else if !self.new_head_ids.is_empty() {
+                self.emittable_ids.extend(self.new_head_ids.drain(..).rev());
+            } else {
+                // Populate the first or orphan head
+                self.populate_one()?;
+            }
+        }
+    }
+}
+
+impl<I> Iterator for TopoGroupedRevsetGraphIterator<I>
+where
+    I: Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)>,
+{
+    type Item = (CommitId, Vec<RevsetGraphEdge>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(node) = self.next_node() {
+            Some(node)
+        } else {
+            assert!(self.nodes.is_empty(), "all nodes should have been emitted");
+            None
+        }
     }
 }
 
@@ -169,6 +297,1092 @@ mod tests {
         │ B  missing(X)
         │ │
         │ ~
+        │
+        A
+
+        "###);
+    }
+
+    fn topo_grouped<I>(graph_iter: I) -> TopoGroupedRevsetGraphIterator<I::IntoIter>
+    where
+        I: IntoIterator<Item = (CommitId, Vec<RevsetGraphEdge>)>,
+    {
+        TopoGroupedRevsetGraphIterator::new(graph_iter.into_iter())
+    }
+
+    #[test]
+    fn test_topo_grouped_multiple_roots() {
+        let graph = vec![
+            (id('C'), vec![missing('Y')]),
+            (id('B'), vec![missing('X')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        C  missing(Y)
+        │
+        ~
+
+        B  missing(X)
+        │
+        ~
+
+        A
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        C  missing(Y)
+        │
+        ~
+
+        B  missing(X)
+        │
+        ~
+
+        A
+        "###);
+
+        // All nodes can be lazily emitted.
+        let mut iter = topo_grouped(graph.iter().cloned().peekable());
+        assert_eq!(iter.next().unwrap().0, id('C'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('B'));
+        assert_eq!(iter.next().unwrap().0, id('B'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('A'));
+    }
+
+    #[test]
+    fn test_topo_grouped_trivial_fork() {
+        let graph = vec![
+            (id('E'), vec![direct('B')]),
+            (id('D'), vec![direct('A')]),
+            (id('C'), vec![direct('B')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        E  direct(B)
+        │
+        │ D  direct(A)
+        │ │
+        │ │ C  direct(B)
+        ├───╯
+        B │  direct(A)
+        ├─╯
+        A
+
+        "###);
+        // TODO
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        E  direct(B)
+        │
+        │ D  direct(A)
+        │ │
+        │ │ C  direct(B)
+        ├───╯
+        B │  direct(A)
+        ├─╯
+        A
+
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_fork_interleaved() {
+        let graph = vec![
+            (id('F'), vec![direct('D')]),
+            (id('E'), vec![direct('C')]),
+            (id('D'), vec![direct('B')]),
+            (id('C'), vec![direct('B')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        F  direct(D)
+        │
+        │ E  direct(C)
+        │ │
+        D │  direct(B)
+        │ │
+        │ C  direct(B)
+        ├─╯
+        B  direct(A)
+        │
+        A
+
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        F  direct(D)
+        │
+        D  direct(B)
+        │
+        │ E  direct(C)
+        │ │
+        │ C  direct(B)
+        ├─╯
+        B  direct(A)
+        │
+        A
+
+        "###);
+
+        // F can be lazy, then E will be queued, then C.
+        let mut iter = topo_grouped(graph.iter().cloned().peekable());
+        assert_eq!(iter.next().unwrap().0, id('F'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('E'));
+        assert_eq!(iter.next().unwrap().0, id('D'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('C'));
+        assert_eq!(iter.next().unwrap().0, id('E'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('B'));
+    }
+
+    #[test]
+    fn test_topo_grouped_fork_multiple_heads() {
+        let graph = vec![
+            (id('I'), vec![direct('E')]),
+            (id('H'), vec![direct('C')]),
+            (id('G'), vec![direct('A')]),
+            (id('F'), vec![direct('E')]),
+            (id('E'), vec![direct('C')]),
+            (id('D'), vec![direct('C')]),
+            (id('C'), vec![direct('A')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        I  direct(E)
+        │
+        │ H  direct(C)
+        │ │
+        │ │ G  direct(A)
+        │ │ │
+        │ │ │ F  direct(E)
+        ├─────╯
+        E │ │  direct(C)
+        ├─╯ │
+        │ D │  direct(C)
+        ├─╯ │
+        C   │  direct(A)
+        ├───╯
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+        // TODO
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        I  direct(E)
+        │
+        │ H  direct(C)
+        │ │
+        │ │ G  direct(A)
+        │ │ │
+        │ │ │ F  direct(E)
+        ├─────╯
+        E │ │  direct(C)
+        ├─╯ │
+        │ D │  direct(C)
+        ├─╯ │
+        C   │  direct(A)
+        ├───╯
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_fork_parallel() {
+        let graph = vec![
+            // Pull all sub graphs in reverse order:
+            (id('I'), vec![direct('A')]),
+            (id('H'), vec![direct('C')]),
+            (id('G'), vec![direct('E')]),
+            // Orphan sub graph G,F-E:
+            (id('F'), vec![direct('E')]),
+            (id('E'), vec![missing('Y')]),
+            // Orphan sub graph H,D-C:
+            (id('D'), vec![direct('C')]),
+            (id('C'), vec![missing('X')]),
+            // Orphan sub graph I,B-A:
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        I  direct(A)
+        │
+        │ H  direct(C)
+        │ │
+        │ │ G  direct(E)
+        │ │ │
+        │ │ │ F  direct(E)
+        │ │ ├─╯
+        │ │ E  missing(Y)
+        │ │ │
+        │ │ ~
+        │ │
+        │ │ D  direct(C)
+        │ ├─╯
+        │ C  missing(X)
+        │ │
+        │ ~
+        │
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+        // TODO
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        I  direct(A)
+        │
+        │ H  direct(C)
+        │ │
+        │ │ G  direct(E)
+        │ │ │
+        │ │ │ F  direct(E)
+        │ │ ├─╯
+        │ │ E  missing(Y)
+        │ │ │
+        │ │ ~
+        │ │
+        │ │ D  direct(C)
+        │ ├─╯
+        │ C  missing(X)
+        │ │
+        │ ~
+        │
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_fork_nested() {
+        fn sub_graph(
+            chars: impl IntoIterator<Item = char>,
+            root_edges: Vec<RevsetGraphEdge>,
+        ) -> Vec<(CommitId, Vec<RevsetGraphEdge>)> {
+            let [b, c, d, e, f]: [char; 5] = chars.into_iter().collect_vec().try_into().unwrap();
+            vec![
+                (id(f), vec![direct(c)]),
+                (id(e), vec![direct(b)]),
+                (id(d), vec![direct(c)]),
+                (id(c), vec![direct(b)]),
+                (id(b), root_edges),
+            ]
+        }
+
+        // One nested fork sub graph from A
+        let graph = itertools::chain!(
+            vec![(id('G'), vec![direct('A')])],
+            sub_graph('B'..='F', vec![direct('A')]),
+            vec![(id('A'), vec![])],
+        )
+        .collect_vec();
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        G  direct(A)
+        │
+        │ F  direct(C)
+        │ │
+        │ │ E  direct(B)
+        │ │ │
+        │ │ │ D  direct(C)
+        │ ├───╯
+        │ C │  direct(B)
+        │ ├─╯
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+        // TODO
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        G  direct(A)
+        │
+        │ F  direct(C)
+        │ │
+        │ │ E  direct(B)
+        │ │ │
+        │ │ │ D  direct(C)
+        │ ├───╯
+        │ C │  direct(B)
+        │ ├─╯
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+
+        // Two nested fork sub graphs from A
+        let graph = itertools::chain!(
+            vec![(id('L'), vec![direct('A')])],
+            sub_graph('G'..='K', vec![direct('A')]),
+            sub_graph('B'..='F', vec![direct('A')]),
+            vec![(id('A'), vec![])],
+        )
+        .collect_vec();
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        L  direct(A)
+        │
+        │ K  direct(H)
+        │ │
+        │ │ J  direct(G)
+        │ │ │
+        │ │ │ I  direct(H)
+        │ ├───╯
+        │ H │  direct(G)
+        │ ├─╯
+        │ G  direct(A)
+        ├─╯
+        │ F  direct(C)
+        │ │
+        │ │ E  direct(B)
+        │ │ │
+        │ │ │ D  direct(C)
+        │ ├───╯
+        │ C │  direct(B)
+        │ ├─╯
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+        // TODO
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        L  direct(A)
+        │
+        │ K  direct(H)
+        │ │
+        │ │ J  direct(G)
+        │ │ │
+        │ │ │ I  direct(H)
+        │ ├───╯
+        │ H │  direct(G)
+        │ ├─╯
+        │ G  direct(A)
+        ├─╯
+        │ F  direct(C)
+        │ │
+        │ │ E  direct(B)
+        │ │ │
+        │ │ │ D  direct(C)
+        │ ├───╯
+        │ C │  direct(B)
+        │ ├─╯
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+
+        // Two nested fork sub graphs from A, interleaved
+        let graph = itertools::chain!(
+            vec![(id('L'), vec![direct('A')])],
+            sub_graph(['C', 'E', 'G', 'I', 'K'], vec![direct('A')]),
+            sub_graph(['B', 'D', 'F', 'H', 'J'], vec![direct('A')]),
+            vec![(id('A'), vec![])],
+        )
+        .sorted_by(|(id1, _), (id2, _)| id2.cmp(id1))
+        .collect_vec();
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        L  direct(A)
+        │
+        │ K  direct(E)
+        │ │
+        │ │ J  direct(D)
+        │ │ │
+        │ │ │ I  direct(C)
+        │ │ │ │
+        │ │ │ │ H  direct(B)
+        │ │ │ │ │
+        │ │ │ │ │ G  direct(E)
+        │ ├───────╯
+        │ │ │ │ │ F  direct(D)
+        │ │ ├─────╯
+        │ E │ │ │  direct(C)
+        │ ├───╯ │
+        │ │ D   │  direct(B)
+        │ │ ├───╯
+        │ C │  direct(A)
+        ├─╯ │
+        │   B  direct(A)
+        ├───╯
+        A
+
+        "###);
+        // TODO
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        L  direct(A)
+        │
+        │ K  direct(E)
+        │ │
+        │ │ J  direct(D)
+        │ │ │
+        │ │ │ I  direct(C)
+        │ │ │ │
+        │ │ │ │ H  direct(B)
+        │ │ │ │ │
+        │ │ │ │ │ G  direct(E)
+        │ ├───────╯
+        │ E │ │ │  direct(C)
+        │ ├───╯ │
+        │ C │   │  direct(A)
+        ├─╯ │   │
+        │ F │   │  direct(D)
+        │ ├─╯   │
+        │ D     │  direct(B)
+        │ ├─────╯
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+
+
+        // Merged fork sub graphs at K
+        let graph = itertools::chain!(
+            vec![(id('K'), vec![direct('E'), direct('J')])],
+            sub_graph('F'..='J', vec![missing('Y')]),
+            sub_graph('A'..='E', vec![missing('X')]),
+        )
+        .collect_vec();
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        K    direct(E), direct(J)
+        ├─╮
+        │ J  direct(G)
+        │ │
+        │ │ I  direct(F)
+        │ │ │
+        │ │ │ H  direct(G)
+        │ ├───╯
+        │ G │  direct(F)
+        │ ├─╯
+        │ F  missing(Y)
+        │ │
+        │ ~
+        │
+        E  direct(B)
+        │
+        │ D  direct(A)
+        │ │
+        │ │ C  direct(B)
+        ├───╯
+        B │  direct(A)
+        ├─╯
+        A  missing(X)
+        │
+        ~
+        "###);
+        // TODO
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        K    direct(E), direct(J)
+        ├─╮
+        │ J  direct(G)
+        │ │
+        E │  direct(B)
+        │ │
+        │ │ I  direct(F)
+        │ │ │
+        │ │ │ H  direct(G)
+        │ ├───╯
+        │ G │  direct(F)
+        │ ├─╯
+        │ F  missing(Y)
+        │ │
+        │ ~
+        │
+        │ D  direct(A)
+        │ │
+        │ │ C  direct(B)
+        ├───╯
+        B │  direct(A)
+        ├─╯
+        A  missing(X)
+        │
+        ~
+        "###);
+
+        // Merged fork sub graphs at K, interleaved
+        let graph = itertools::chain!(
+            vec![(id('K'), vec![direct('I'), direct('J')])],
+            sub_graph(['B', 'D', 'F', 'H', 'J'], vec![missing('Y')]),
+            sub_graph(['A', 'C', 'E', 'G', 'I'], vec![missing('X')]),
+        )
+        .sorted_by(|(id1, _), (id2, _)| id2.cmp(id1))
+        .collect_vec();
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        K    direct(I), direct(J)
+        ├─╮
+        │ J  direct(D)
+        │ │
+        I │  direct(C)
+        │ │
+        │ │ H  direct(B)
+        │ │ │
+        │ │ │ G  direct(A)
+        │ │ │ │
+        │ │ │ │ F  direct(D)
+        │ ├─────╯
+        │ │ │ │ E  direct(C)
+        ├───────╯
+        │ D │ │  direct(B)
+        │ ├─╯ │
+        C │   │  direct(A)
+        ├─────╯
+        │ B  missing(Y)
+        │ │
+        │ ~
+        │
+        A  missing(X)
+        │
+        ~
+        "###);
+        // TODO
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        K    direct(I), direct(J)
+        ├─╮
+        │ J  direct(D)
+        │ │
+        I │  direct(C)
+        │ │
+        │ │ H  direct(B)
+        │ │ │
+        │ │ │ G  direct(A)
+        │ │ │ │
+        │ │ │ │ F  direct(D)
+        │ ├─────╯
+        │ D │ │  direct(B)
+        │ ├─╯ │
+        │ B   │  missing(Y)
+        │ │   │
+        │ ~   │
+        │     │
+        │ E   │  direct(C)
+        ├─╯   │
+        C     │  direct(A)
+        ├─────╯
+        A  missing(X)
+        │
+        ~
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_merge_interleaved() {
+        let graph = vec![
+            (id('F'), vec![direct('E')]),
+            (id('E'), vec![direct('C'), direct('D')]),
+            (id('D'), vec![direct('B')]),
+            (id('C'), vec![direct('A')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        F  direct(E)
+        │
+        E    direct(C), direct(D)
+        ├─╮
+        │ D  direct(B)
+        │ │
+        C │  direct(A)
+        │ │
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        F  direct(E)
+        │
+        E    direct(C), direct(D)
+        ├─╮
+        │ D  direct(B)
+        │ │
+        │ B  direct(A)
+        │ │
+        C │  direct(A)
+        ├─╯
+        A
+
+        "###);
+
+        // F, E, and D can be lazy, then C will be queued, then B.
+        let mut iter = topo_grouped(graph.iter().cloned().peekable());
+        assert_eq!(iter.next().unwrap().0, id('F'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('E'));
+        assert_eq!(iter.next().unwrap().0, id('E'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('D'));
+        assert_eq!(iter.next().unwrap().0, id('D'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('C'));
+        assert_eq!(iter.next().unwrap().0, id('B'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('A'));
+    }
+
+    #[test]
+    fn test_topo_grouped_merge_but_missing() {
+        let graph = vec![
+            (id('E'), vec![direct('D')]),
+            (id('D'), vec![missing('Y'), direct('C')]),
+            (id('C'), vec![direct('B'), missing('X')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        E  direct(D)
+        │
+        D    missing(Y), direct(C)
+        ├─╮
+        │ │
+        ~ │
+          │
+          C  direct(B), missing(X)
+        ╭─┤
+        │ │
+        ~ │
+          │
+          B  direct(A)
+          │
+          A
+
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        E  direct(D)
+        │
+        D    missing(Y), direct(C)
+        ├─╮
+        │ │
+        ~ │
+          │
+          C  direct(B), missing(X)
+        ╭─┤
+        │ │
+        ~ │
+          │
+          B  direct(A)
+          │
+          A
+
+        "###);
+
+        // All nodes can be lazily emitted.
+        let mut iter = topo_grouped(graph.iter().cloned().peekable());
+        assert_eq!(iter.next().unwrap().0, id('E'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('D'));
+        assert_eq!(iter.next().unwrap().0, id('D'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('C'));
+        assert_eq!(iter.next().unwrap().0, id('C'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('B'));
+        assert_eq!(iter.next().unwrap().0, id('B'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('A'));
+    }
+
+    #[test]
+    fn test_topo_grouped_merge_criss_cross() {
+        let graph = vec![
+            (id('G'), vec![direct('E')]),
+            (id('F'), vec![direct('D')]),
+            (id('E'), vec![direct('B'), direct('C')]),
+            (id('D'), vec![direct('B'), direct('C')]),
+            (id('C'), vec![direct('A')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        G  direct(E)
+        │
+        │ F  direct(D)
+        │ │
+        E │    direct(B), direct(C)
+        ├───╮
+        │ D │  direct(B), direct(C)
+        ╭─┴─╮
+        │   C  direct(A)
+        │   │
+        B   │  direct(A)
+        ├───╯
+        A
+
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        G  direct(E)
+        │
+        E    direct(B), direct(C)
+        ├─╮
+        │ │ F  direct(D)
+        │ │ │
+        │ │ D  direct(B), direct(C)
+        ╭─┬─╯
+        │ C  direct(A)
+        │ │
+        B │  direct(A)
+        ├─╯
+        A
+
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_merge_descendants_interleaved() {
+        let graph = vec![
+            (id('H'), vec![direct('F')]),
+            (id('G'), vec![direct('E')]),
+            (id('F'), vec![direct('D')]),
+            (id('E'), vec![direct('C')]),
+            (id('D'), vec![direct('C'), direct('B')]),
+            (id('C'), vec![direct('A')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        H  direct(F)
+        │
+        │ G  direct(E)
+        │ │
+        F │  direct(D)
+        │ │
+        │ E  direct(C)
+        │ │
+        D │  direct(C), direct(B)
+        ├─╮
+        │ C  direct(A)
+        │ │
+        B │  direct(A)
+        ├─╯
+        A
+
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        H  direct(F)
+        │
+        F  direct(D)
+        │
+        D    direct(C), direct(B)
+        ├─╮
+        │ B  direct(A)
+        │ │
+        │ │ G  direct(E)
+        │ │ │
+        │ │ E  direct(C)
+        ├───╯
+        C │  direct(A)
+        ├─╯
+        A
+
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_merge_multiple_roots() {
+        let graph = vec![
+            (id('D'), vec![direct('C')]),
+            (id('C'), vec![direct('B'), direct('A')]),
+            (id('B'), vec![missing('X')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        D  direct(C)
+        │
+        C    direct(B), direct(A)
+        ├─╮
+        B │  missing(X)
+        │ │
+        ~ │
+          │
+          A
+
+        "###);
+        // A is emitted first because it's the second parent.
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        D  direct(C)
+        │
+        C    direct(B), direct(A)
+        ├─╮
+        │ A
+        │
+        B  missing(X)
+        │
+        ~
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_merge_stairs() {
+        let graph = vec![
+            // Merge topic branches one by one:
+            (id('J'), vec![direct('I'), direct('G')]),
+            (id('I'), vec![direct('H'), direct('E')]),
+            (id('H'), vec![direct('D'), direct('F')]),
+            // Topic branches:
+            (id('G'), vec![direct('D')]),
+            (id('F'), vec![direct('C')]),
+            (id('E'), vec![direct('B')]),
+            // Base nodes:
+            (id('D'), vec![direct('C')]),
+            (id('C'), vec![direct('B')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        J    direct(I), direct(G)
+        ├─╮
+        I │    direct(H), direct(E)
+        ├───╮
+        H │ │    direct(D), direct(F)
+        ├─────╮
+        │ G │ │  direct(D)
+        ├─╯ │ │
+        │   │ F  direct(C)
+        │   │ │
+        │   E │  direct(B)
+        │   │ │
+        D   │ │  direct(C)
+        ├─────╯
+        C   │  direct(B)
+        ├───╯
+        B  direct(A)
+        │
+        A
+
+        "###);
+        // Second branches are visited first.
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        J    direct(I), direct(G)
+        ├─╮
+        │ G  direct(D)
+        │ │
+        I │    direct(H), direct(E)
+        ├───╮
+        │ │ E  direct(B)
+        │ │ │
+        H │ │  direct(D), direct(F)
+        ├─╮ │
+        F │ │  direct(C)
+        │ │ │
+        │ D │  direct(C)
+        ├─╯ │
+        C   │  direct(B)
+        ├───╯
+        B  direct(A)
+        │
+        A
+
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_merge_and_fork() {
+        let graph = vec![
+            (id('J'), vec![direct('F')]),
+            (id('I'), vec![direct('E')]),
+            (id('H'), vec![direct('G')]),
+            (id('G'), vec![direct('D'), direct('E')]),
+            (id('F'), vec![direct('C')]),
+            (id('E'), vec![direct('B')]),
+            (id('D'), vec![direct('B')]),
+            (id('C'), vec![direct('A')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        J  direct(F)
+        │
+        │ I  direct(E)
+        │ │
+        │ │ H  direct(G)
+        │ │ │
+        │ │ G  direct(D), direct(E)
+        │ ╭─┤
+        F │ │  direct(C)
+        │ │ │
+        │ E │  direct(B)
+        │ │ │
+        │ │ D  direct(B)
+        │ ├─╯
+        C │  direct(A)
+        │ │
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        J  direct(F)
+        │
+        F  direct(C)
+        │
+        C  direct(A)
+        │
+        │ I  direct(E)
+        │ │
+        │ │ H  direct(G)
+        │ │ │
+        │ │ G  direct(D), direct(E)
+        │ ╭─┤
+        │ E │  direct(B)
+        │ │ │
+        │ │ D  direct(B)
+        │ ├─╯
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_merge_and_fork_multiple_roots() {
+        let graph = vec![
+            (id('J'), vec![direct('F')]),
+            (id('I'), vec![direct('G')]),
+            (id('H'), vec![direct('E')]),
+            (id('G'), vec![direct('E'), direct('B')]),
+            (id('F'), vec![direct('D')]),
+            (id('E'), vec![direct('C')]),
+            (id('D'), vec![direct('A')]),
+            (id('C'), vec![direct('A')]),
+            (id('B'), vec![missing('X')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        J  direct(F)
+        │
+        │ I  direct(G)
+        │ │
+        │ │ H  direct(E)
+        │ │ │
+        │ G │  direct(E), direct(B)
+        │ ├─╮
+        F │ │  direct(D)
+        │ │ │
+        │ │ E  direct(C)
+        │ │ │
+        D │ │  direct(A)
+        │ │ │
+        │ │ C  direct(A)
+        ├───╯
+        │ B  missing(X)
+        │ │
+        │ ~
+        │
+        A
+
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        J  direct(F)
+        │
+        F  direct(D)
+        │
+        D  direct(A)
+        │
+        │ I  direct(G)
+        │ │
+        │ G    direct(E), direct(B)
+        │ ├─╮
+        │ │ B  missing(X)
+        │ │ │
+        │ │ ~
+        │ │
+        │ │ H  direct(E)
+        │ ├─╯
+        │ E  direct(C)
+        │ │
+        │ C  direct(A)
+        ├─╯
+        A
+
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_parallel_interleaved() {
+        let graph = vec![
+            (id('E'), vec![direct('C')]),
+            (id('D'), vec![direct('B')]),
+            (id('C'), vec![direct('A')]),
+            (id('B'), vec![missing('X')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        E  direct(C)
+        │
+        │ D  direct(B)
+        │ │
+        C │  direct(A)
+        │ │
+        │ B  missing(X)
+        │ │
+        │ ~
+        │
+        A
+
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        E  direct(C)
+        │
+        C  direct(A)
+        │
+        A
+
+        D  direct(B)
+        │
+        B  missing(X)
+        │
+        ~
+        "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_multiple_child_dependencies() {
+        let graph = vec![
+            (id('I'), vec![direct('H'), direct('G')]),
+            (id('H'), vec![direct('D')]),
+            (id('G'), vec![direct('B')]),
+            (id('F'), vec![direct('E'), direct('C')]),
+            (id('E'), vec![direct('D')]),
+            (id('D'), vec![direct('B')]),
+            (id('C'), vec![direct('B')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        I    direct(H), direct(G)
+        ├─╮
+        H │  direct(D)
+        │ │
+        │ G  direct(B)
+        │ │
+        │ │ F    direct(E), direct(C)
+        │ │ ├─╮
+        │ │ E │  direct(D)
+        ├───╯ │
+        D │   │  direct(B)
+        ├─╯   │
+        │     C  direct(B)
+        ├─────╯
+        B  direct(A)
+        │
+        A
+
+        "###);
+        // Topological order must be preserved. Depending on the implementation,
+        // E might be requested more than once by paths D->E and B->D->E.
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        I    direct(H), direct(G)
+        ├─╮
+        │ G  direct(B)
+        │ │
+        H │  direct(D)
+        │ │
+        │ │ F    direct(E), direct(C)
+        │ │ ├─╮
+        │ │ │ C  direct(B)
+        │ ├───╯
+        │ │ E  direct(D)
+        ├───╯
+        D │  direct(B)
+        ├─╯
+        B  direct(A)
         │
         A
 

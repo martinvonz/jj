@@ -43,8 +43,8 @@ fn test_duplicate() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    17a00fc21654   c
     ├─╮
-    ◉ │  d370aee184ba   b
     │ ◉  2443ea76b0b1   a
+    ◉ │  d370aee184ba   b
     ├─╯
     ◉  000000000000
     "###);
@@ -62,10 +62,10 @@ fn test_duplicate() {
     ◉  2f6dc5a1ffc2   a
     │ @    17a00fc21654   c
     │ ├─╮
-    │ ◉ │  d370aee184ba   b
-    ├─╯ │
-    │   ◉  2443ea76b0b1   a
+    │ │ ◉  2443ea76b0b1   a
     ├───╯
+    │ ◉  d370aee184ba   b
+    ├─╯
     ◉  000000000000
     "###);
 
@@ -79,8 +79,8 @@ fn test_duplicate() {
     ├─╮
     │ │ @  17a00fc21654   c
     ╭─┬─╯
-    ◉ │  d370aee184ba   b
     │ ◉  2443ea76b0b1   a
+    ◉ │  d370aee184ba   b
     ├─╯
     ◉  000000000000
     "###);
@@ -101,9 +101,9 @@ fn test_duplicate_many() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    921dde6e55c0   e
     ├─╮
+    │ ◉  1394f625cbbd   b
     ◉ │  ebd06dba20ec   d
     ◉ │  c0cb3a0b73e7   c
-    │ ◉  1394f625cbbd   b
     ├─╯
     ◉  2443ea76b0b1   a
     ◉  000000000000
@@ -120,11 +120,11 @@ fn test_duplicate_many() {
     ◉ │  3b74d9691015   b
     │ │ @  921dde6e55c0   e
     │ ╭─┤
-    │ ◉ │  ebd06dba20ec   d
-    │ ◉ │  c0cb3a0b73e7   c
-    ├─╯ │
-    │   ◉  1394f625cbbd   b
+    │ │ ◉  1394f625cbbd   b
     ├───╯
+    │ ◉  ebd06dba20ec   d
+    │ ◉  c0cb3a0b73e7   c
+    ├─╯
     ◉  2443ea76b0b1   a
     ◉  000000000000
     "###);
@@ -139,11 +139,11 @@ fn test_duplicate_many() {
     ◉  0276d3d7c24d   b
     │ @    921dde6e55c0   e
     │ ├─╮
-    │ ◉ │  ebd06dba20ec   d
-    │ ◉ │  c0cb3a0b73e7   c
-    ├─╯ │
-    │   ◉  1394f625cbbd   b
+    │ │ ◉  1394f625cbbd   b
     ├───╯
+    │ ◉  ebd06dba20ec   d
+    │ ◉  c0cb3a0b73e7   c
+    ├─╯
     ◉  2443ea76b0b1   a
     ◉  000000000000
     "###);
@@ -159,16 +159,16 @@ fn test_duplicate_many() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    0f7430f2727a   e
     ├─╮
-    ◉ │  2181781b4f81   d
     │ ◉  fa167d18a83a   b
+    ◉ │  2181781b4f81   d
     │ │ @    921dde6e55c0   e
     │ │ ├─╮
-    │ │ ◉ │  ebd06dba20ec   d
-    ├───╯ │
-    ◉ │   │  c0cb3a0b73e7   c
-    ├─╯   │
-    │     ◉  1394f625cbbd   b
-    ├─────╯
+    │ │ │ ◉  1394f625cbbd   b
+    │ ├───╯
+    │ │ ◉  ebd06dba20ec   d
+    ├───╯
+    ◉ │  c0cb3a0b73e7   c
+    ├─╯
     ◉  2443ea76b0b1   a
     ◉  000000000000
     "###);
@@ -178,9 +178,9 @@ fn test_duplicate_many() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    921dde6e55c0   e
     ├─╮
+    │ ◉  1394f625cbbd   b
     ◉ │  ebd06dba20ec   d
     ◉ │  c0cb3a0b73e7   c
-    │ ◉  1394f625cbbd   b
     ├─╯
     ◉  2443ea76b0b1   a
     ◉  000000000000
@@ -198,10 +198,10 @@ fn test_duplicate_many() {
     │ │ ◉  c6f7f8c4512e   a
     │ │ │ @  921dde6e55c0   e
     │ ╭───┤
+    │ ◉ │ │  1394f625cbbd   b
     │ │ │ ◉  ebd06dba20ec   d
     ├─────╯
     ◉ │ │  c0cb3a0b73e7   c
-    │ ◉ │  1394f625cbbd   b
     ├─╯ │
     ◉   │  2443ea76b0b1   a
     ├───╯
@@ -221,16 +221,16 @@ fn test_duplicate_many() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    ee8fe64ed254   e
     ├─╮
+    │ ◉  e13ac0adabdf   b
     ◉ │  2f2442db08eb   d
     ◉ │  df53fa589286   c
-    │ ◉  e13ac0adabdf   b
     ├─╯
     ◉  0fe67a05989e   a
     │ @    921dde6e55c0   e
     │ ├─╮
+    │ │ ◉  1394f625cbbd   b
     │ ◉ │  ebd06dba20ec   d
     │ ◉ │  c0cb3a0b73e7   c
-    │ │ ◉  1394f625cbbd   b
     │ ├─╯
     │ ◉  2443ea76b0b1   a
     ├─╯
