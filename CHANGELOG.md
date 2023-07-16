@@ -206,6 +206,7 @@ Thanks to the people who made this release happen!
 * Isabella Basso (@isinyaaa)
 * Kevin Liao (@kevincliao)
 * Martin von Zweigbergk (@martinvonz)
+* mlcui (@mlcui-google)
 * Samuel Tardieu (@samueltardieu)
 * Tal Pressman (@talpr)
 * Vamsi Avula (@avamsi)
