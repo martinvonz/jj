@@ -34,8 +34,9 @@ use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use crate::repo_path::RepoPath;
 use crate::revset::{
     ChangeIdIndex, ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
-    RevsetFilterPredicate, RevsetGraphEdge, GENERATION_RANGE_FULL,
+    RevsetFilterPredicate, GENERATION_RANGE_FULL,
 };
+use crate::revset_graph::RevsetGraphEdge;
 use crate::rewrite;
 use crate::store::Store;
 

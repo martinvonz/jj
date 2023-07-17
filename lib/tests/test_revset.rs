@@ -30,10 +30,10 @@ use jj_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
-    optimize, parse, DefaultSymbolResolver, ReverseRevsetGraphIterator, Revset, RevsetAliasesMap,
-    RevsetExpression, RevsetFilterPredicate, RevsetGraphEdge, RevsetResolutionError,
-    RevsetWorkspaceContext, SymbolResolver as _,
+    optimize, parse, DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetExpression,
+    RevsetFilterPredicate, RevsetResolutionError, RevsetWorkspaceContext, SymbolResolver as _,
 };
+use jj_lib::revset_graph::{ReverseRevsetGraphIterator, RevsetGraphEdge};
 use jj_lib::settings::GitSettings;
 use jj_lib::tree::merge_trees;
 use jj_lib::workspace::Workspace;

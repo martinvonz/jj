@@ -41,9 +41,9 @@ use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
-    ReverseRevsetGraphIterator, RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate,
-    RevsetGraphEdge, RevsetGraphEdgeType, RevsetIteratorExt,
+    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt,
 };
+use jj_lib::revset_graph::{ReverseRevsetGraphIterator, RevsetGraphEdge, RevsetGraphEdgeType};
 use jj_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jj_lib::settings::UserSettings;
 use jj_lib::tree::{merge_trees, Tree};

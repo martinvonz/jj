@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::backend::CommitId;
 use crate::default_index_store::{CompositeIndex, IndexEntry, IndexPosition};
-use crate::revset::{RevsetGraphEdge, RevsetGraphEdgeType};
+use crate::revset_graph::{RevsetGraphEdge, RevsetGraphEdgeType};
 
 /// Like `RevsetGraphEdge`, but stores `IndexPosition` instead.
 ///
