@@ -53,6 +53,7 @@ pub mod refs;
 pub mod repo;
 pub mod repo_path;
 pub mod revset;
+pub mod revset_graph;
 pub mod rewrite;
 pub mod settings;
 pub mod simple_op_heads_store;

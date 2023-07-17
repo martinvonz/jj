@@ -39,6 +39,7 @@ use crate::index::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPath};
+use crate::revset_graph::RevsetGraphEdge;
 use crate::store::Store;
 
 /// Error occurred during symbol resolution.
@@ -2158,40 +2159,6 @@ pub trait ChangeIdIndex: Send + Sync {
     fn shortest_unique_prefix_len(&self, change_id: &ChangeId) -> usize;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct RevsetGraphEdge {
-    pub target: CommitId,
-    pub edge_type: RevsetGraphEdgeType,
-}
-
-impl RevsetGraphEdge {
-    pub fn missing(target: CommitId) -> Self {
-        Self {
-            target,
-            edge_type: RevsetGraphEdgeType::Missing,
-        }
-    }
-    pub fn direct(target: CommitId) -> Self {
-        Self {
-            target,
-            edge_type: RevsetGraphEdgeType::Direct,
-        }
-    }
-    pub fn indirect(target: CommitId) -> Self {
-        Self {
-            target,
-            edge_type: RevsetGraphEdgeType::Indirect,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum RevsetGraphEdgeType {
-    Missing,
-    Direct,
-    Indirect,
-}
-
 pub trait RevsetIteratorExt<'index, I> {
     fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I>;
     fn reversed(self) -> ReverseRevsetIterator;
@@ -2245,46 +2212,6 @@ pub struct RevsetWorkspaceContext<'a> {
     pub cwd: &'a Path,
     pub workspace_id: &'a WorkspaceId,
     pub workspace_root: &'a Path,
-}
-
-pub struct ReverseRevsetGraphIterator {
-    items: Vec<(CommitId, Vec<RevsetGraphEdge>)>,
-}
-
-impl ReverseRevsetGraphIterator {
-    pub fn new<'revset>(
-        input: Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + 'revset>,
-    ) -> Self {
-        let mut entries = vec![];
-        let mut reverse_edges: HashMap<CommitId, Vec<RevsetGraphEdge>> = HashMap::new();
-        for (commit_id, edges) in input {
-            for RevsetGraphEdge { target, edge_type } in edges {
-                reverse_edges
-                    .entry(target)
-                    .or_default()
-                    .push(RevsetGraphEdge {
-                        target: commit_id.clone(),
-                        edge_type,
-                    })
-            }
-            entries.push(commit_id);
-        }
-
-        let mut items = vec![];
-        for commit_id in entries.into_iter() {
-            let edges = reverse_edges.get(&commit_id).cloned().unwrap_or_default();
-            items.push((commit_id, edges));
-        }
-        Self { items }
-    }
-}
-
-impl Iterator for ReverseRevsetGraphIterator {
-    type Item = (CommitId, Vec<RevsetGraphEdge>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.items.pop()
-    }
 }
 
 #[cfg(test)]
