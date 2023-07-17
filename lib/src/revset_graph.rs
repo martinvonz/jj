@@ -93,3 +93,85 @@ impl Iterator for ReverseRevsetGraphIterator {
         self.items.pop()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools as _;
+    use renderdag::{Ancestor, GraphRowRenderer, Renderer as _};
+
+    use super::*;
+    use crate::backend::ObjectId;
+
+    fn id(c: char) -> CommitId {
+        let d = u8::try_from(c).unwrap();
+        CommitId::new(vec![d])
+    }
+
+    fn missing(c: char) -> RevsetGraphEdge {
+        RevsetGraphEdge::missing(id(c))
+    }
+
+    fn direct(c: char) -> RevsetGraphEdge {
+        RevsetGraphEdge::direct(id(c))
+    }
+
+    fn indirect(c: char) -> RevsetGraphEdge {
+        RevsetGraphEdge::indirect(id(c))
+    }
+
+    fn format_edge(edge: &RevsetGraphEdge) -> String {
+        let c = char::from(edge.target.as_bytes()[0]);
+        match edge.edge_type {
+            RevsetGraphEdgeType::Missing => format!("missing({c})"),
+            RevsetGraphEdgeType::Direct => format!("direct({c})"),
+            RevsetGraphEdgeType::Indirect => format!("indirect({c})"),
+        }
+    }
+
+    fn format_graph(
+        graph_iter: impl IntoIterator<Item = (CommitId, Vec<RevsetGraphEdge>)>,
+    ) -> String {
+        let mut renderer = GraphRowRenderer::new()
+            .output()
+            .with_min_row_height(2)
+            .build_box_drawing();
+        graph_iter
+            .into_iter()
+            .map(|(id, edges)| {
+                let glyph = char::from(id.as_bytes()[0]).to_string();
+                let message = edges.iter().map(format_edge).join(", ");
+                let parents = edges
+                    .into_iter()
+                    .map(|edge| match edge.edge_type {
+                        RevsetGraphEdgeType::Missing => Ancestor::Anonymous,
+                        RevsetGraphEdgeType::Direct => Ancestor::Parent(edge.target),
+                        RevsetGraphEdgeType::Indirect => Ancestor::Ancestor(edge.target),
+                    })
+                    .collect();
+                renderer.next_row(id, parents, glyph, message)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_format_graph() {
+        let graph = vec![
+            (id('D'), vec![direct('C'), indirect('B')]),
+            (id('C'), vec![direct('A')]),
+            (id('B'), vec![missing('X')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph), @r###"
+        D    direct(C), indirect(B)
+        ├─╮
+        C ╷  direct(A)
+        │ ╷
+        │ B  missing(X)
+        │ │
+        │ ~
+        │
+        A
+
+        "###);
+    }
+}
