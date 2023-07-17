@@ -34,7 +34,7 @@ cargo_metadata = "0.15.4"
 
 [dependencies]
 chrono = { version = "0.4.26", default-features = false, features = ["std", "clock"] }
-clap = { version = "4.3.11", features = ["derive", "deprecated"] }
+clap = { version = "4.3.13", features = ["derive", "deprecated"] }
 clap_complete = "4.3.2"
 clap_mangen = "0.2.10"
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
@@ -50,8 +50,8 @@ itertools = "0.11.0"
 jj-lib = { version = "=0.8.0", path = "lib", default-features = false }
 maplit = "1.0.2"
 once_cell = "1.18.0"
-pest = "2.7.0"
-pest_derive = "2.7.0"
+pest = "2.7.1"
+pest_derive = "2.7.1"
 regex = "1.9.1"
 rpassword = "7.2.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -60,7 +60,7 @@ tempfile = "3.6.0"
 textwrap = "0.16.0"
 thiserror = "1.0.43"
 timeago = { version = "0.4.1", default-features = false }
-toml_edit = { version = "0.19.13", features = ["serde"] }
+toml_edit = { version = "0.19.14", features = ["serde"] }
 tracing = "0.1.37"
 tracing-chrome = "0.7.1"
 tracing-subscriber = { version = "0.3.17", default-features = false, features = ["std", "ansi", "env-filter", "fmt"] }
@@ -71,7 +71,7 @@ libc = { version = "0.2.147" }
 [dev-dependencies]
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
-insta = { version = "1.30.0", features = ["filters"] }
+insta = { version = "1.31.0", features = ["filters"] }
 testutils = { path = "lib/testutils" }
 
 [features]
