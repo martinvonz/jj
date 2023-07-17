@@ -77,12 +77,10 @@ recommended steps.
 
 ### Summary
 
-If you already have `rustup` installed, then moving into the source code
-directory will install the MSRV for you.
-
 One-time setup:
 
     rustup toolchain add nightly  # wanted for 'rustfmt'
+    rustup toolchain add 1.71     # also specified in Cargo.toml
     cargo install cargo-insta
     cargo install cargo-watch
     cargo install cargo-nextest
@@ -91,7 +89,7 @@ During development (adapt according to your preference):
 
     cargo watch --ignore '.jj/**' -s \
       'cargo clippy --workspace --all-targets \
-       && cargo check --workspace --all-targets'
+       && cargo +1.71 check --workspace --all-targets'
     cargo +nightly fmt # Occasionally
     cargo nextest run --workspace # Occasionally
     cargo insta test --workspace # Occasionally
@@ -120,6 +118,7 @@ These are listed roughly in order of decreasing importance.
 3. Your code will be rejected if it cannot be compiled with the minimal
    supported version of Rust ("MSRV"). Currently, `jj` follows a rather
    casual MSRV policy: "The current `rustc` stable version, minus one."
+   As of this writing, that version is **1.71.0**.
 
 4. Your code needs to pass `cargo clippy`. You can also
    use `cargo +nightly clippy` if you wish to see more warnings.
