@@ -343,9 +343,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.3.13"
+version = "4.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6ae2dba3ed8190620ef7ae248b97e425a12f2a82cf1fec7dbf44b7c54e0c4d5"
+checksum = "8f644d0dac522c8b05ddc39aaaccc5b136d5dc4ff216610c5641e3be5becf56c"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -354,9 +354,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.3.13"
+version = "4.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c53f2c9c7b787e05a14295a057e4e4a71a19c665cc05574564ac790baabdc057"
+checksum = "af410122b9778e024f9e0fb35682cc09cc3f85cad5e8d3ba8f47a9702df6e73d"
 dependencies = [
  "anstream",
  "anstyle",
