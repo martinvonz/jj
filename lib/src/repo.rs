@@ -1081,8 +1081,8 @@ impl MutableRepo {
         let base_branches: HashSet<_> = base.branches().keys().cloned().collect();
         let other_branches: HashSet<_> = other.branches().keys().cloned().collect();
         for branch_name in base_branches.union(&other_branches) {
-            let base_branch = base.branches().get(branch_name);
-            let other_branch = other.branches().get(branch_name);
+            let base_branch = base.get_branch(branch_name);
+            let other_branch = other.get_branch(branch_name);
             if other_branch == base_branch {
                 // Unchanged on other side
                 continue;

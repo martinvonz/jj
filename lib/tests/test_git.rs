@@ -114,16 +114,13 @@ fn test_import_refs() {
           "origin".to_string() => RefTarget::normal(jj_id(&commit1)),
         }),
     };
-    assert_eq!(
-        view.branches().get("main"),
-        Some(expected_main_branch).as_ref()
-    );
+    assert_eq!(view.get_branch("main"), Some(expected_main_branch).as_ref());
     let expected_feature1_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit3)),
         remote_targets: RefTargetMap::new(),
     };
     assert_eq!(
-        view.branches().get("feature1"),
+        view.get_branch("feature1"),
         Some(expected_feature1_branch).as_ref()
     );
     let expected_feature2_branch = BranchTarget {
@@ -131,7 +128,7 @@ fn test_import_refs() {
         remote_targets: RefTargetMap::new(),
     };
     assert_eq!(
-        view.branches().get("feature2"),
+        view.get_branch("feature2"),
         Some(expected_feature2_branch).as_ref()
     );
     let expected_feature3_branch = BranchTarget {
@@ -141,7 +138,7 @@ fn test_import_refs() {
         }),
     };
     assert_eq!(
-        view.branches().get("feature3"),
+        view.get_branch("feature3"),
         Some(expected_feature3_branch).as_ref()
     );
 
@@ -244,10 +241,7 @@ fn test_import_refs_reimport() {
           "origin".to_string() => commit1_target.clone(),
         }),
     };
-    assert_eq!(
-        view.branches().get("main"),
-        Some(expected_main_branch).as_ref()
-    );
+    assert_eq!(view.get_branch("main"), Some(expected_main_branch).as_ref());
     let expected_feature2_branch = BranchTarget {
         local_target: RefTarget::from_legacy_form(
             [jj_id(&commit4)],
@@ -256,7 +250,7 @@ fn test_import_refs_reimport() {
         remote_targets: RefTargetMap::new(),
     };
     assert_eq!(
-        view.branches().get("feature2"),
+        view.get_branch("feature2"),
         Some(expected_feature2_branch).as_ref()
     );
 
@@ -436,7 +430,7 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     assert_eq!(*view.heads(), expected_heads);
     assert_eq!(view.branches().len(), 3);
     assert_eq!(
-        view.branches().get("feature-remote-only"),
+        view.get_branch("feature-remote-only"),
         Some(&BranchTarget {
             // Even though the git repo does not have a local branch for `feature-remote-only`, jj
             // creates one. This follows the model explained in docs/branches.md.
@@ -447,7 +441,7 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
         }),
     );
     assert_eq!(
-        view.branches().get("feature-remote-and-local"),
+        view.get_branch("feature-remote-and-local"),
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             remote_targets: RefTargetMap(btreemap! {
@@ -455,7 +449,7 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
             }),
         }),
     );
-    view.branches().get("main").unwrap(); // branch #3 of 3
+    view.get_branch("main").unwrap(); // branch #3 of 3
 
     // Simulate fetching from a remote where feature-remote-only and
     // feature-remote-and-local branches were deleted. This leads to the
@@ -471,9 +465,9 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     let view = repo.view();
     // The local branches were indeed deleted
     assert_eq!(view.branches().len(), 1);
-    view.branches().get("main").unwrap(); // branch #1 of 1
-    assert_eq!(view.branches().get("feature-remote-local"), None);
-    assert_eq!(view.branches().get("feature-remote-and-local"), None);
+    view.get_branch("main").unwrap(); // branch #1 of 1
+    assert_eq!(view.get_branch("feature-remote-local"), None);
+    assert_eq!(view.get_branch("feature-remote-and-local"), None);
     let expected_heads = hashset! {
             jj_id(&commit_main),
             // Neither commit_remote_only nor commit_remote_and_local should be
@@ -525,7 +519,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
     assert_eq!(*view.heads(), expected_heads);
     assert_eq!(view.branches().len(), 3);
     assert_eq!(
-        view.branches().get("feature-remote-only"),
+        view.get_branch("feature-remote-only"),
         Some(&BranchTarget {
             // Even though the git repo does not have a local branch for `feature-remote-only`, jj
             // creates one. This follows the model explained in docs/branches.md.
@@ -536,7 +530,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         }),
     );
     assert_eq!(
-        view.branches().get("feature-remote-and-local"),
+        view.get_branch("feature-remote-and-local"),
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             remote_targets: RefTargetMap(btreemap! {
@@ -544,7 +538,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
             }),
         }),
     );
-    view.branches().get("main").unwrap(); // branch #3 of 3
+    view.get_branch("main").unwrap(); // branch #3 of 3
 
     // Simulate fetching from a remote where feature-remote-only and
     // feature-remote-and-local branches were moved. This leads to the
@@ -571,7 +565,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
     assert_eq!(view.branches().len(), 3);
     // The local branches are moved
     assert_eq!(
-        view.branches().get("feature-remote-only"),
+        view.get_branch("feature-remote-only"),
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&new_commit_remote_only)),
             remote_targets: RefTargetMap(btreemap! {
@@ -580,7 +574,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         }),
     );
     assert_eq!(
-        view.branches().get("feature-remote-and-local"),
+        view.get_branch("feature-remote-and-local"),
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&new_commit_remote_and_local)),
             remote_targets: RefTargetMap(btreemap! {
@@ -588,7 +582,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
             }),
         }),
     );
-    view.branches().get("main").unwrap(); // branch #3 of 3
+    view.get_branch("main").unwrap(); // branch #3 of 3
     let expected_heads = hashset! {
             jj_id(&commit_main),
             jj_id(&new_commit_remote_and_local),
@@ -720,7 +714,7 @@ fn test_import_some_refs() {
         }),
     };
     assert_eq!(
-        view.branches().get("feature1"),
+        view.get_branch("feature1"),
         Some(expected_feature1_branch).as_ref()
     );
     let expected_feature2_branch = BranchTarget {
@@ -730,7 +724,7 @@ fn test_import_some_refs() {
         }),
     };
     assert_eq!(
-        view.branches().get("feature2"),
+        view.get_branch("feature2"),
         Some(expected_feature2_branch).as_ref()
     );
     let expected_feature3_branch = BranchTarget {
@@ -740,7 +734,7 @@ fn test_import_some_refs() {
         }),
     };
     assert_eq!(
-        view.branches().get("feature3"),
+        view.get_branch("feature3"),
         Some(expected_feature3_branch).as_ref()
     );
     let expected_feature4_branch = BranchTarget {
@@ -750,12 +744,12 @@ fn test_import_some_refs() {
         }),
     };
     assert_eq!(
-        view.branches().get("feature4"),
+        view.get_branch("feature4"),
         Some(expected_feature4_branch).as_ref()
     );
-    assert_eq!(view.branches().get("main"), None,);
+    assert_eq!(view.get_branch("main"), None,);
     assert!(!view.heads().contains(&jj_id(&commit_main)));
-    assert_eq!(view.branches().get("ignored"), None,);
+    assert_eq!(view.get_branch("ignored"), None,);
     assert!(!view.heads().contains(&jj_id(&commit_ign)));
 
     // Delete branch feature1, feature3 and feature4 in git repository and import
@@ -1157,7 +1151,7 @@ fn test_import_export_no_auto_local_branch() {
         }),
     };
     assert_eq!(
-        mut_repo.view().branches().get("main"),
+        mut_repo.view().get_branch("main"),
         Some(expected_branch).as_ref()
     );
     assert_eq!(
