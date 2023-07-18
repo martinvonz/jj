@@ -27,7 +27,7 @@ use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git;
 use jj_lib::git::{GitFetchError, GitPushError, GitRefUpdate, SubmoduleConfig};
 use jj_lib::git_backend::GitBackend;
-use jj_lib::op_store::{BranchTarget, RefTarget, RefTargetMap, RefTargetOptionExt as _};
+use jj_lib::op_store::{BranchTarget, RefTarget, RefTargetMap};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::{GitSettings, UserSettings};
 use jj_lib::view::RefName;
@@ -142,10 +142,7 @@ fn test_import_refs() {
         Some(expected_feature3_branch).as_ref()
     );
 
-    assert_eq!(
-        view.tags().get("v1.0").flatten(),
-        &RefTarget::normal(jj_id(&commit5))
-    );
+    assert_eq!(view.get_tag("v1.0"), &RefTarget::normal(jj_id(&commit5)));
 
     assert_eq!(view.git_refs().len(), 6);
     assert_eq!(
