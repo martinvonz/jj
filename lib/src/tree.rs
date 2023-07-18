@@ -590,27 +590,19 @@ fn try_resolve_file_conflict(
     // merge it. We check early so we don't waste time reading file contents if
     // we can't merge them anyway. At the same time we determine whether the
     // resulting file should be executable.
-    // TODO: Change to let-else once our MSRV is above 1.65
-    let file_id_conflict = if let Some(conflict) = conflict.maybe_map(|term| match term {
+    let Some(file_id_conflict) = conflict.maybe_map(|term| match term {
         Some(TreeValue::File { id, executable: _ }) => Some(id),
         _ => None,
-    }) {
-        conflict
-    } else {
+    }) else {
         return Ok(None);
     };
-    // TODO: Change to let-else once our MSRV is above 1.65
-    let executable_conflict = if let Some(conflict) = conflict.maybe_map(|term| match term {
+    let Some(executable_conflict) = conflict.maybe_map(|term| match term {
         Some(TreeValue::File { id: _, executable }) => Some(executable),
         _ => None,
-    }) {
-        conflict
-    } else {
+    }) else {
         return Ok(None);
     };
-    let executable = if let Some(&executable) = executable_conflict.resolve_trivial() {
-        *executable
-    } else {
+    let Some(&&executable) = executable_conflict.resolve_trivial() else {
         // We're unable to determine whether the result should be executable
         return Ok(None);
     };

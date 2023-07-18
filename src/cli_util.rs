@@ -1096,9 +1096,7 @@ impl WorkspaceCommandHelper {
                 .transpose()
         };
         let repo = self.repo().clone();
-        let wc_commit = if let Some(wc_commit) = get_wc_commit(&repo)? {
-            wc_commit
-        } else {
+        let Some(wc_commit) = get_wc_commit(&repo)? else {
             // If the workspace has been deleted, it's unclear what to do, so we just skip
             // committing the working copy.
             return Ok(());

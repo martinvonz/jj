@@ -213,23 +213,16 @@ pub fn import_some_refs(
     let git_repo_refs = git_repo.references()?;
     for git_repo_ref in git_repo_refs {
         let git_repo_ref = git_repo_ref?;
-        let full_name = if let Some(full_name) = git_repo_ref.name() {
-            full_name
-        } else {
+        let Some(full_name) = git_repo_ref.name() else {
             // Skip non-utf8 refs.
             continue;
         };
-        let ref_name = if let Some(ref_name) = parse_git_ref(full_name) {
-            ref_name
-        } else {
+        let Some(ref_name) = parse_git_ref(full_name) else {
             // Skip other refs (such as notes) and symbolic refs.
             continue;
         };
-        let id = if let Some(id) =
-            resolve_git_ref_to_commit_id(&git_repo_ref, jj_view_git_refs.get(full_name))
-        {
-            id
-        } else {
+        let Some(id) = resolve_git_ref_to_commit_id(&git_repo_ref, jj_view_git_refs.get(full_name))
+        else {
             // Skip invalid refs.
             continue;
         };

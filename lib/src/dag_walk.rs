@@ -206,9 +206,7 @@ where
     let mut neighbor_ids_map: HashMap<ID, Vec<ID>> = HashMap::new();
     let mut has_reached_root = false;
     while queue.len() > 1 || node_map.is_empty() || has_reached_root {
-        let node = if let Some(node) = queue.pop() {
-            node
-        } else {
+        let Some(node) = queue.pop() else {
             break;
         };
         let node_id = id_fn(&node);
