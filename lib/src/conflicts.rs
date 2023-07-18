@@ -285,14 +285,10 @@ impl Conflict<Option<TreeValue>> {
 
         let mut removed_content = vec![vec![]; self.removes().len()];
         let mut added_content = vec![vec![]; self.adds().len()];
-        // TODO: Change to let-else once our MSRV is above 1.65
-        let hunks =
-            if let Some(hunks) = parse_conflict(content, self.removes().len(), self.adds().len()) {
-                hunks
-            } else {
-                // Either there are no self markers of they don't have the expected arity
-                return Ok(None);
-            };
+        let Some(hunks) = parse_conflict(content, self.removes().len(), self.adds().len()) else {
+            // Either there are no self markers of they don't have the expected arity
+            return Ok(None);
+        };
         for hunk in hunks {
             if let Some(slice) = hunk.as_resolved() {
                 for buf in &mut removed_content {
