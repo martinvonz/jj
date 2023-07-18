@@ -126,7 +126,7 @@ impl View {
         self.data.public_head_ids.remove(head_id);
     }
 
-    pub fn get_ref(&self, name: &RefName) -> RefTarget {
+    pub fn get_ref(&self, name: &RefName) -> &RefTarget {
         match &name {
             RefName::LocalBranch(name) => self.get_local_branch(name),
             RefName::RemoteBranch { branch, remote } => self.get_remote_branch(branch, remote),
@@ -160,11 +160,11 @@ impl View {
         self.data.branches.remove(name);
     }
 
-    pub fn get_local_branch(&self, name: &str) -> RefTarget {
+    pub fn get_local_branch(&self, name: &str) -> &RefTarget {
         if let Some(branch_target) = self.data.branches.get(name) {
-            branch_target.local_target.clone()
+            &branch_target.local_target
         } else {
-            RefTarget::absent()
+            RefTarget::absent_ref()
         }
     }
 
@@ -192,12 +192,12 @@ impl View {
         }
     }
 
-    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> RefTarget {
+    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> &RefTarget {
         if let Some(branch_target) = self.data.branches.get(name) {
             let maybe_target = branch_target.remote_targets.get(remote_name);
-            maybe_target.flatten().clone()
+            maybe_target.flatten()
         } else {
-            RefTarget::absent()
+            RefTarget::absent_ref()
         }
     }
 
@@ -239,8 +239,8 @@ impl View {
         }
     }
 
-    pub fn get_tag(&self, name: &str) -> RefTarget {
-        self.data.tags.get(name).flatten().clone()
+    pub fn get_tag(&self, name: &str) -> &RefTarget {
+        self.data.tags.get(name).flatten()
     }
 
     /// Sets tag to point to the given target. If the target is absent, the tag
@@ -253,8 +253,8 @@ impl View {
         }
     }
 
-    pub fn get_git_ref(&self, name: &str) -> RefTarget {
-        self.data.git_refs.get(name).flatten().clone()
+    pub fn get_git_ref(&self, name: &str) -> &RefTarget {
+        self.data.git_refs.get(name).flatten()
     }
 
     /// Sets the last imported Git ref to point to the given target. If the
@@ -294,8 +294,8 @@ impl View {
     ) {
         if base_target != other_target {
             let self_target = self.get_ref(ref_name);
-            let new_target = merge_ref_targets(index, &self_target, base_target, other_target);
-            if new_target != self_target {
+            let new_target = merge_ref_targets(index, self_target, base_target, other_target);
+            if new_target != *self_target {
                 self.set_ref_target(ref_name, new_target);
             }
         }
