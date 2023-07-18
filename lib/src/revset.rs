@@ -1792,7 +1792,8 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             Err(RevsetResolutionError::EmptyString)
         } else {
             // Try to resolve as a tag
-            if let Some(target) = self.repo.view().tags().get(symbol) {
+            let target = self.repo.view().get_tag(symbol);
+            if target.is_present() {
                 return Ok(target.added_ids().cloned().collect());
             }
 
