@@ -966,7 +966,7 @@ impl MutableRepo {
     }
 
     pub fn get_local_branch(&self, name: &str) -> RefTarget {
-        self.view.with_ref(|v| v.get_local_branch(name))
+        self.view.with_ref(|v| v.get_local_branch(name).clone())
     }
 
     pub fn set_local_branch_target(&mut self, name: &str, target: RefTarget) {
@@ -975,7 +975,7 @@ impl MutableRepo {
 
     pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> RefTarget {
         self.view
-            .with_ref(|v| v.get_remote_branch(name, remote_name))
+            .with_ref(|v| v.get_remote_branch(name, remote_name).clone())
     }
 
     pub fn set_remote_branch_target(&mut self, name: &str, remote_name: &str, target: RefTarget) {
@@ -988,7 +988,7 @@ impl MutableRepo {
     }
 
     pub fn get_tag(&self, name: &str) -> RefTarget {
-        self.view.with_ref(|v| v.get_tag(name))
+        self.view.with_ref(|v| v.get_tag(name).clone())
     }
 
     pub fn set_tag_target(&mut self, name: &str, target: RefTarget) {
@@ -996,7 +996,7 @@ impl MutableRepo {
     }
 
     pub fn get_git_ref(&self, name: &str) -> RefTarget {
-        self.view.with_ref(|v| v.get_git_ref(name))
+        self.view.with_ref(|v| v.get_git_ref(name).clone())
     }
 
     pub fn set_git_ref_target(&mut self, name: &str, target: RefTarget) {
@@ -1127,8 +1127,8 @@ impl MutableRepo {
             self.view.get_mut().merge_single_ref(
                 self.index.as_index(),
                 &ref_name,
-                &base_target,
-                &other_target,
+                base_target,
+                other_target,
             );
         }
 

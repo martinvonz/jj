@@ -153,27 +153,27 @@ fn test_import_refs() {
     assert_eq!(view.git_refs().len(), 6);
     assert_eq!(
         view.get_git_ref("refs/heads/main"),
-        RefTarget::normal(jj_id(&commit2))
+        &RefTarget::normal(jj_id(&commit2))
     );
     assert_eq!(
         view.get_git_ref("refs/heads/feature1"),
-        RefTarget::normal(jj_id(&commit3))
+        &RefTarget::normal(jj_id(&commit3))
     );
     assert_eq!(
         view.get_git_ref("refs/heads/feature2"),
-        RefTarget::normal(jj_id(&commit4))
+        &RefTarget::normal(jj_id(&commit4))
     );
     assert_eq!(
         view.get_git_ref("refs/remotes/origin/main"),
-        RefTarget::normal(jj_id(&commit1))
+        &RefTarget::normal(jj_id(&commit1))
     );
     assert_eq!(
         view.get_git_ref("refs/remotes/origin/feature3"),
-        RefTarget::normal(jj_id(&commit6))
+        &RefTarget::normal(jj_id(&commit6))
     );
     assert_eq!(
         view.get_git_ref("refs/tags/v1.0"),
-        RefTarget::normal(jj_id(&commit5))
+        &RefTarget::normal(jj_id(&commit5))
     );
     assert_eq!(view.git_head(), &RefTarget::normal(jj_id(&commit2)));
 }
@@ -263,10 +263,13 @@ fn test_import_refs_reimport() {
     assert!(view.tags().is_empty());
 
     assert_eq!(view.git_refs().len(), 3);
-    assert_eq!(view.get_git_ref("refs/heads/main"), commit2_target);
-    assert_eq!(view.get_git_ref("refs/remotes/origin/main"), commit1_target);
+    assert_eq!(view.get_git_ref("refs/heads/main"), &commit2_target);
+    assert_eq!(
+        view.get_git_ref("refs/remotes/origin/main"),
+        &commit1_target
+    );
     let commit5_target = RefTarget::normal(jj_id(&commit5));
-    assert_eq!(view.get_git_ref("refs/heads/feature2"), commit5_target);
+    assert_eq!(view.get_git_ref("refs/heads/feature2"), &commit5_target);
 }
 
 #[test]
@@ -1125,7 +1128,7 @@ fn test_export_import_sequence() {
     );
     assert_eq!(
         mut_repo.view().get_local_branch("main"),
-        RefTarget::normal(commit_c.id().clone())
+        &RefTarget::normal(commit_c.id().clone())
     );
 }
 
