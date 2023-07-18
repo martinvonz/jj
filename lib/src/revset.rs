@@ -1635,8 +1635,9 @@ fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     // TODO: We should remove `refs/remotes` from this list once we have a better
     // way to address local git repo's remote-tracking branches.
     for git_ref_prefix in &["", "refs/", "refs/tags/", "refs/remotes/"] {
-        if let Some(ref_target) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
-            return Some(ref_target.added_ids().cloned().collect());
+        let target = view.get_git_ref(&(git_ref_prefix.to_string() + symbol));
+        if target.is_present() {
+            return Some(target.added_ids().cloned().collect());
         }
     }
     None
