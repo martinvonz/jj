@@ -146,9 +146,7 @@ fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &R
 }
 
 pub fn get_local_git_tracking_branch<'a>(view: &'a View, branch: &str) -> &'a RefTarget {
-    view.git_refs()
-        .get(&format!("refs/heads/{branch}"))
-        .flatten()
+    view.get_git_ref(&format!("refs/heads/{branch}"))
 }
 
 fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) -> Result<(), git2::Error> {
