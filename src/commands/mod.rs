@@ -1591,7 +1591,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             let default_node_symbol = graph.default_node_symbol().to_owned();
             let forward_iter = TopoGroupedRevsetGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
-                Box::new(ReverseRevsetGraphIterator::new(Box::new(forward_iter)))
+                Box::new(ReverseRevsetGraphIterator::new(forward_iter))
             } else {
                 Box::new(forward_iter)
             };
