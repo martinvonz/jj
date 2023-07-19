@@ -66,9 +66,7 @@ pub struct ReverseRevsetGraphIterator {
 }
 
 impl ReverseRevsetGraphIterator {
-    pub fn new<'revset>(
-        input: Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + 'revset>,
-    ) -> Self {
+    pub fn new(input: impl IntoIterator<Item = (CommitId, Vec<RevsetGraphEdge>)>) -> Self {
         let mut entries = vec![];
         let mut reverse_edges: HashMap<CommitId, Vec<RevsetGraphEdge>> = HashMap::new();
         for (commit_id, edges) in input {
