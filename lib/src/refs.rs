@@ -110,9 +110,9 @@ pub fn classify_branch_push_action(
     let remote_target = branch_target.remote_targets.get(remote_name).flatten();
     if local_target == remote_target {
         BranchPushAction::AlreadyMatches
-    } else if local_target.is_conflict() {
+    } else if local_target.has_conflict() {
         BranchPushAction::LocalConflicted
-    } else if remote_target.is_conflict() {
+    } else if remote_target.has_conflict() {
         BranchPushAction::RemoteConflicted
     } else {
         BranchPushAction::Update(BranchPushUpdate {

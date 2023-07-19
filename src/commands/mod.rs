@@ -1469,11 +1469,11 @@ fn cmd_status(
     let mut conflicted_local_branches = vec![];
     let mut conflicted_remote_branches = vec![];
     for (branch_name, branch_target) in repo.view().branches() {
-        if branch_target.local_target.is_conflict() {
+        if branch_target.local_target.has_conflict() {
             conflicted_local_branches.push(branch_name.clone());
         }
         for (remote_name, remote_target) in &branch_target.remote_targets {
-            if remote_target.is_conflict() {
+            if remote_target.has_conflict() {
                 conflicted_remote_branches.push((branch_name.clone(), remote_name.clone()));
             }
         }

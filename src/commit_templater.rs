@@ -361,7 +361,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
             .filter(|&(_, target)| target != local_target)
             .peekable();
         if local_target.is_present() {
-            let decorated_name = if local_target.is_conflict() {
+            let decorated_name = if local_target.has_conflict() {
                 format!("{branch_name}??")
             } else if unsynced_remote_targets.peek().is_some() {
                 format!("{branch_name}*")
@@ -371,7 +371,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
             index.insert(local_target.added_ids(), decorated_name);
         }
         for (remote_name, target) in unsynced_remote_targets {
-            let decorated_name = if target.is_conflict() {
+            let decorated_name = if target.has_conflict() {
                 format!("{branch_name}@{remote_name}?")
             } else {
                 format!("{branch_name}@{remote_name}")
@@ -387,7 +387,7 @@ fn build_ref_names_index<'a>(
 ) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
     for (name, target) in ref_pairs {
-        let decorated_name = if target.is_conflict() {
+        let decorated_name = if target.has_conflict() {
             format!("{name}?")
         } else {
             name.clone()
@@ -401,7 +401,7 @@ fn build_ref_names_index<'a>(
 fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> String {
     let target = repo.view().git_head();
     if target.added_ids().contains(commit.id()) {
-        if target.is_conflict() {
+        if target.has_conflict() {
             "HEAD@git?".to_string()
         } else {
             "HEAD@git".to_string()

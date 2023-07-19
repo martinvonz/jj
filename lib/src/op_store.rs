@@ -198,8 +198,8 @@ impl RefTarget {
         !self.is_absent()
     }
 
-    // TODO: overloaded naming: is_conflict() vs as_conflict()
-    pub fn is_conflict(&self) -> bool {
+    /// Whether this target has conflicts.
+    pub fn has_conflict(&self) -> bool {
         !self.conflict.is_resolved()
     }
 
