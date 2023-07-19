@@ -37,8 +37,7 @@ pub fn merge_ref_targets(
     .flatten()
     .simplify();
 
-    // TODO: switch to conflict.is_resolved()
-    if conflict.as_resolved().is_some() {
+    if conflict.is_resolved() {
         RefTarget::from_conflict(conflict)
     } else {
         let conflict = merge_ref_targets_non_trivial(index, conflict);

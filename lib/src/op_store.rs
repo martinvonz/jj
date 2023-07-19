@@ -200,7 +200,7 @@ impl RefTarget {
 
     // TODO: overloaded naming: is_conflict() vs as_conflict()
     pub fn is_conflict(&self) -> bool {
-        self.conflict.as_resolved().is_none() // TODO: !is_resolved()
+        !self.conflict.is_resolved()
     }
 
     pub fn removed_ids(&self) -> impl Iterator<Item = &CommitId> {
