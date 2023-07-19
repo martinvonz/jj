@@ -400,7 +400,7 @@ pub fn export_some_refs(
         }
         let old_oid = if let Some(id) = old_branch.as_normal() {
             Some(Oid::from_bytes(id.as_bytes()).unwrap())
-        } else if old_branch.is_conflict() {
+        } else if old_branch.has_conflict() {
             // The old git ref should only be a conflict if there were concurrent import
             // operations while the value changed. Don't overwrite these values.
             failed_branches.push(jj_known_ref);
@@ -412,7 +412,7 @@ pub fn export_some_refs(
         if let Some(id) = new_branch.as_normal() {
             let new_oid = Oid::from_bytes(id.as_bytes());
             branches_to_update.insert(jj_known_ref, (old_oid, new_oid.unwrap()));
-        } else if new_branch.is_conflict() {
+        } else if new_branch.has_conflict() {
             // Skip conflicts and leave the old value in git_refs
             continue;
         } else {

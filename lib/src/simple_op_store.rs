@@ -323,7 +323,7 @@ fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::Ref
             )),
         };
         Some(proto)
-    } else if value.is_conflict() {
+    } else if value.has_conflict() {
         // TODO: Preserve "absent" targets, and remove op_store::RefTargetMap hack.
         let ref_conflict_proto = crate::protos::op_store::RefConflict {
             removes: value.removed_ids().map(|id| id.to_bytes()).collect(),
