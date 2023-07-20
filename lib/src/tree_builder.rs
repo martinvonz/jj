@@ -17,8 +17,6 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use itertools::Itertools as _;
-
 use crate::backend;
 use crate::backend::{TreeId, TreeValue};
 use crate::repo_path::RepoPath;
@@ -90,10 +88,7 @@ impl TreeBuilder {
         // Write trees in reverse lexicographical order, starting with trees without
         // children.
         let store = &self.store;
-        // TODO: trees_to_write.pop_last() can be used, but requires Rust 1.66.0
-        let mut dirs_to_write = trees_to_write.keys().cloned().collect_vec();
-        while let Some(dir) = dirs_to_write.pop() {
-            let tree = trees_to_write.remove(&dir).unwrap();
+        while let Some((dir, tree)) = trees_to_write.pop_last() {
             if let Some((parent, basename)) = dir.split() {
                 let parent_tree = trees_to_write.get_mut(&parent).unwrap();
                 if tree.is_empty() {
@@ -108,7 +103,7 @@ impl TreeBuilder {
                 }
             } else {
                 // We're writing the root tree. Write it even if empty. Return its id.
-                assert!(dirs_to_write.is_empty());
+                assert!(trees_to_write.is_empty());
                 return store.write_tree(&dir, tree).unwrap().id().clone();
             }
         }
