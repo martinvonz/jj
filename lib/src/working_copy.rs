@@ -837,14 +837,14 @@ impl TreeState {
                     // try to parse any conflict markers in the file into a conflict.
                     let new_tree_value = if let (
                         Some(TreeValue::Conflict(conflict_id)),
-                        FileType::Normal { executable: _ },
+                        FileType::Normal { executable },
                     ) = (current_tree_value, &new_file_type)
                     {
                         self.write_conflict_to_store(
                             &repo_path,
                             &disk_path,
                             conflict_id,
-                            new_file_type,
+                            *executable,
                         )?
                     } else {
                         self.write_path_to_store(&repo_path, &disk_path, new_file_type)?
@@ -862,7 +862,7 @@ impl TreeState {
         repo_path: &RepoPath,
         disk_path: &Path,
         conflict_id: ConflictId,
-        file_type: FileType,
+        executable: bool,
     ) -> Result<TreeValue, SnapshotError> {
         let mut file = File::open(disk_path).unwrap();
         let mut content = vec![];
@@ -879,7 +879,8 @@ impl TreeState {
                 Ok(TreeValue::Conflict(conflict_id))
             }
         } else {
-            self.write_path_to_store(repo_path, disk_path, file_type)
+            let id = self.store.write_file(repo_path, &mut content.as_slice())?;
+            Ok(TreeValue::File { id, executable })
         }
     }
 
