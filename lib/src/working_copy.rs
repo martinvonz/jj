@@ -864,7 +864,10 @@ impl TreeState {
         conflict_id: ConflictId,
         executable: bool,
     ) -> Result<TreeValue, SnapshotError> {
-        let mut file = File::open(disk_path).unwrap();
+        let mut file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
+            message: format!("Failed to open file {}", disk_path.display()),
+            err,
+        })?;
         let mut content = vec![];
         file.read_to_end(&mut content).unwrap();
         let conflict = self.store.read_conflict(repo_path, &conflict_id)?;
