@@ -551,11 +551,11 @@ impl TreeState {
         path: &RepoPath,
         disk_path: &Path,
     ) -> Result<FileId, SnapshotError> {
-        let file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
+        let mut file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
             message: format!("Failed to open file {}", disk_path.display()),
             err,
         })?;
-        Ok(self.store.write_file(path, &mut Box::new(file))?)
+        Ok(self.store.write_file(path, &mut file)?)
     }
 
     fn write_symlink_to_store(
