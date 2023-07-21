@@ -830,13 +830,15 @@ impl TreeState {
                     current_file_state.mtime = MillisSinceEpoch(0);
                 }
                 if current_file_state != &new_file_state {
+                    let new_file_type = new_file_state.file_type.clone();
+                    *current_file_state = new_file_state;
                     let current_tree_value = current_tree.path_value(&repo_path);
                     // If the file contained a conflict before and is now a normal file on disk, we
                     // try to parse any conflict markers in the file into a conflict.
                     if let (
                         Some(TreeValue::Conflict(conflict_id)),
                         FileType::Normal { executable: _ },
-                    ) = (&current_tree_value, &new_file_state.file_type)
+                    ) = (&current_tree_value, &new_file_type)
                     {
                         let mut file = File::open(&disk_path).unwrap();
                         let mut content = vec![];
@@ -846,7 +848,6 @@ impl TreeState {
                             .update_from_content(self.store.as_ref(), &repo_path, &content)
                             .unwrap()
                         {
-                            *current_file_state = new_file_state;
                             if new_conflict != conflict {
                                 let new_conflict_id =
                                     self.store.write_conflict(&repo_path, &new_conflict)?;
@@ -856,9 +857,8 @@ impl TreeState {
                         }
                     }
 
-                    let file_type = new_file_state.file_type.clone();
-                    *current_file_state = new_file_state;
-                    let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
+                    let file_value =
+                        self.write_path_to_store(&repo_path, &disk_path, new_file_type)?;
                     tree_builder.set(repo_path, file_value);
                 }
             }
