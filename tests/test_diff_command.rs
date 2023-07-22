@@ -14,6 +14,8 @@
 
 use common::TestEnvironment;
 
+use crate::common::get_stderr_string;
+
 pub mod common;
 
 #[test]
@@ -567,4 +569,21 @@ fn test_diff_skipped_context() {
        9    9: i
       10   10: j
     "###);
+}
+
+#[test]
+fn test_log_warn_path_might_be_revset() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let assert = test_env
+        .jj_cmd(&repo_path, &["diff", "zzzzzzzzzzzz"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+        warning: The following arguments are being treated as paths:
+        zzzzzzzzzzzz
+        To treat them as revsets, use -r instead.
+        "###)
 }
