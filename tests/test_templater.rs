@@ -67,10 +67,10 @@ fn test_templater_branches() {
     let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
     insta::assert_snapshot!(output, @r###"
     ◉  b1bb3766d584 branch3??
+    │ ◉  21c33875443e branch1*
+    ├─╯
     │ @  a5b4d15489cc branch2* new-branch
     │ ◉  8476341eb395 branch2@origin
-    ├─╯
-    │ ◉  21c33875443e branch1*
     ├─╯
     ◉  000000000000
     "###);
