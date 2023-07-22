@@ -195,16 +195,16 @@ fn test_duplicate_many() {
     ◉    9bd4389f5d47   e
     ├─╮
     ◉ │  d94e4c55a68b   d
-    │ │ ◉  c6f7f8c4512e   a
-    │ │ │ @  921dde6e55c0   e
-    │ ╭───┤
-    │ ◉ │ │  1394f625cbbd   b
-    │ │ │ ◉  ebd06dba20ec   d
-    ├─────╯
-    ◉ │ │  c0cb3a0b73e7   c
-    ├─╯ │
-    ◉   │  2443ea76b0b1   a
+    │ │ @  921dde6e55c0   e
+    │ ╭─┤
+    │ ◉ │  1394f625cbbd   b
+    │ │ ◉  ebd06dba20ec   d
     ├───╯
+    ◉ │  c0cb3a0b73e7   c
+    ├─╯
+    ◉  2443ea76b0b1   a
+    │ ◉  c6f7f8c4512e   a
+    ├─╯
     ◉  000000000000
     "###);
 

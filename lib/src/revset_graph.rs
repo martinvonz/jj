@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::backend::CommitId;
 
@@ -107,6 +107,10 @@ impl Iterator for ReverseRevsetGraphIterator {
 /// branches will be visited. At merge point, the second (or the last) ancestor
 /// branch will be visited first. This is practically [the same as Git][Git].
 ///
+/// The branch containing the first commit in the input iterator will be emitted
+/// first. It is often the working-copy ancestor branch. The other head branches
+/// won't be enqueued eagerly, and will be emitted as late as possible.
+///
 /// [Git]: https://github.blog/2022-08-30-gits-database-internals-ii-commit-history-queries/#topological-sorting
 #[derive(Clone, Debug)]
 pub struct TopoGroupedRevsetGraphIterator<I> {
@@ -116,7 +120,9 @@ pub struct TopoGroupedRevsetGraphIterator<I> {
     /// Stack of graph nodes to be emitted.
     emittable_ids: Vec<CommitId>,
     /// List of new head nodes found while processing unpopulated nodes.
-    new_head_ids: Vec<CommitId>,
+    new_head_ids: VecDeque<CommitId>,
+    /// Set of nodes which may be ancestors of `new_head_ids`.
+    blocked_ids: HashSet<CommitId>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -138,7 +144,8 @@ where
             input_iter,
             nodes: HashMap::new(),
             emittable_ids: Vec::new(),
-            new_head_ids: Vec::new(),
+            new_head_ids: VecDeque::new(),
+            blocked_ids: HashSet::new(),
         }
     }
 
@@ -163,10 +170,64 @@ where
             };
             self.nodes.insert(current_id.clone(), current_node);
             // Push to non-emitting list so the new head wouldn't be interleaved
-            self.new_head_ids.push(current_id);
+            self.new_head_ids.push_back(current_id);
         }
 
         Some(())
+    }
+
+    /// Enqueues the first new head which will unblock the waiting ancestors.
+    ///
+    /// This does not move multiple head nodes to the queue at once because
+    /// heads may be connected to the fork points in arbitrary order.
+    fn flush_new_head(&mut self) {
+        assert!(!self.new_head_ids.is_empty());
+        if self.blocked_ids.is_empty() || self.new_head_ids.len() <= 1 {
+            // Fast path: orphaned or no choice
+            let new_head_id = self.new_head_ids.pop_front().unwrap();
+            self.emittable_ids.push(new_head_id);
+            self.blocked_ids.clear();
+            return;
+        }
+
+        // Mark descendant nodes reachable from the blocking nodes
+        let mut to_visit: Vec<&CommitId> = self
+            .blocked_ids
+            .iter()
+            .map(|id| {
+                // Borrow from self.nodes so self.blocked_ids can be mutated later
+                let (id, _) = self.nodes.get_key_value(id).unwrap();
+                id
+            })
+            .collect();
+        let mut visited: HashSet<&CommitId> = to_visit.iter().copied().collect();
+        while let Some(id) = to_visit.pop() {
+            let node = self.nodes.get(id).unwrap();
+            to_visit.extend(node.child_ids.iter().filter(|id| visited.insert(id)));
+        }
+
+        // Pick the first reachable head
+        let index = self
+            .new_head_ids
+            .iter()
+            .position(|id| visited.contains(id))
+            .expect("blocking head should exist");
+        let new_head_id = self.new_head_ids.remove(index).unwrap();
+
+        // Unmark ancestors of the selected head so they won't contribute to future
+        // new-head resolution within the newly-unblocked sub graph. The sub graph
+        // can have many fork points, and the corresponding heads should be picked in
+        // the fork-point order, not in the head appearance order.
+        to_visit.push(&new_head_id);
+        visited.remove(&new_head_id);
+        while let Some(id) = to_visit.pop() {
+            let node = self.nodes.get(id).unwrap();
+            if let Some(edges) = &node.edges {
+                to_visit.extend(reachable_targets(edges).filter(|id| visited.remove(id)));
+            }
+        }
+        self.blocked_ids.retain(|id| visited.contains(id));
+        self.emittable_ids.push(new_head_id);
     }
 
     #[must_use]
@@ -177,7 +238,8 @@ where
                 let current_node = self.nodes.get_mut(current_id).unwrap();
                 if !current_node.child_ids.is_empty() {
                     // New children populated after emitting the other
-                    self.emittable_ids.pop().unwrap();
+                    let current_id = self.emittable_ids.pop().unwrap();
+                    self.blocked_ids.insert(current_id);
                     continue;
                 }
                 let Some(edges) = current_node.edges.take() else {
@@ -192,12 +254,16 @@ where
                     let parent_node = self.nodes.get_mut(parent_id).unwrap();
                     parent_node.child_ids.remove(&current_id);
                     if parent_node.child_ids.is_empty() {
-                        self.emittable_ids.push(parent_id.clone());
+                        let reusable_id = self.blocked_ids.take(parent_id);
+                        let parent_id = reusable_id.unwrap_or_else(|| parent_id.clone());
+                        self.emittable_ids.push(parent_id);
+                    } else {
+                        self.blocked_ids.insert(parent_id.clone());
                     }
                 }
                 return Some((current_id, edges));
             } else if !self.new_head_ids.is_empty() {
-                self.emittable_ids.extend(self.new_head_ids.drain(..).rev());
+                self.flush_new_head();
             } else {
                 // Populate the first or orphan head
                 self.populate_one()?;
@@ -369,19 +435,29 @@ mod tests {
         A
 
         "###);
-        // TODO
+        // D-A is found earlier than B-A, but B is emitted first because it belongs to
+        // the emitting branch.
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         E  direct(B)
         │
+        │ C  direct(B)
+        ├─╯
+        B  direct(A)
+        │
         │ D  direct(A)
-        │ │
-        │ │ C  direct(B)
-        ├───╯
-        B │  direct(A)
         ├─╯
         A
 
         "###);
+
+        // E can be lazy, then D and C will be queued.
+        let mut iter = topo_grouped(graph.iter().cloned().peekable());
+        assert_eq!(iter.next().unwrap().0, id('E'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('D'));
+        assert_eq!(iter.next().unwrap().0, id('C'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('B'));
+        assert_eq!(iter.next().unwrap().0, id('B'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('A'));
     }
 
     #[test]
@@ -466,27 +542,33 @@ mod tests {
         A
 
         "###);
-        // TODO
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         I  direct(E)
         │
+        │ F  direct(E)
+        ├─╯
+        E  direct(C)
+        │
         │ H  direct(C)
-        │ │
-        │ │ G  direct(A)
-        │ │ │
-        │ │ │ F  direct(E)
-        ├─────╯
-        E │ │  direct(C)
-        ├─╯ │
-        │ D │  direct(C)
-        ├─╯ │
-        C   │  direct(A)
-        ├───╯
+        ├─╯
+        │ D  direct(C)
+        ├─╯
+        C  direct(A)
+        │
+        │ G  direct(A)
+        ├─╯
         │ B  direct(A)
         ├─╯
         A
 
         "###);
+
+        // I can be lazy, then H, G, and F will be queued.
+        let mut iter = topo_grouped(graph.iter().cloned().peekable());
+        assert_eq!(iter.next().unwrap().0, id('I'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('H'));
+        assert_eq!(iter.next().unwrap().0, id('F'));
+        assert_eq!(iter.input_iter.peek().unwrap().0, id('E'));
     }
 
     #[test]
@@ -530,30 +612,28 @@ mod tests {
         A
 
         "###);
-        // TODO
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         I  direct(A)
-        │
-        │ H  direct(C)
-        │ │
-        │ │ G  direct(E)
-        │ │ │
-        │ │ │ F  direct(E)
-        │ │ ├─╯
-        │ │ E  missing(Y)
-        │ │ │
-        │ │ ~
-        │ │
-        │ │ D  direct(C)
-        │ ├─╯
-        │ C  missing(X)
-        │ │
-        │ ~
         │
         │ B  direct(A)
         ├─╯
         A
 
+        H  direct(C)
+        │
+        │ D  direct(C)
+        ├─╯
+        C  missing(X)
+        │
+        ~
+
+        G  direct(E)
+        │
+        │ F  direct(E)
+        ├─╯
+        E  missing(Y)
+        │
+        ~
         "###);
     }
 
@@ -596,17 +676,17 @@ mod tests {
         A
 
         "###);
-        // TODO
+        // A:F is picked at A, and A will be unblocked. Then, C:D at C, ...
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         G  direct(A)
         │
         │ F  direct(C)
         │ │
+        │ │ D  direct(C)
+        │ ├─╯
+        │ C  direct(B)
+        │ │
         │ │ E  direct(B)
-        │ │ │
-        │ │ │ D  direct(C)
-        │ ├───╯
-        │ C │  direct(B)
         │ ├─╯
         │ B  direct(A)
         ├─╯
@@ -648,27 +728,27 @@ mod tests {
         A
 
         "###);
-        // TODO
+        // A:K is picked at A, and A will be unblocked. Then, H:I at H, ...
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         L  direct(A)
         │
         │ K  direct(H)
         │ │
+        │ │ I  direct(H)
+        │ ├─╯
+        │ H  direct(G)
+        │ │
         │ │ J  direct(G)
-        │ │ │
-        │ │ │ I  direct(H)
-        │ ├───╯
-        │ H │  direct(G)
         │ ├─╯
         │ G  direct(A)
         ├─╯
         │ F  direct(C)
         │ │
+        │ │ D  direct(C)
+        │ ├─╯
+        │ C  direct(B)
+        │ │
         │ │ E  direct(B)
-        │ │ │
-        │ │ │ D  direct(C)
-        │ ├───╯
-        │ C │  direct(B)
         │ ├─╯
         │ B  direct(A)
         ├─╯
@@ -711,34 +791,33 @@ mod tests {
         A
 
         "###);
-        // TODO
+        // A:K is picked at A, and A will be unblocked. Then, E:G at E, ...
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         L  direct(A)
         │
         │ K  direct(E)
         │ │
-        │ │ J  direct(D)
-        │ │ │
-        │ │ │ I  direct(C)
-        │ │ │ │
-        │ │ │ │ H  direct(B)
-        │ │ │ │ │
-        │ │ │ │ │ G  direct(E)
-        │ ├───────╯
-        │ E │ │ │  direct(C)
-        │ ├───╯ │
-        │ C │   │  direct(A)
-        ├─╯ │   │
-        │ F │   │  direct(D)
-        │ ├─╯   │
-        │ D     │  direct(B)
-        │ ├─────╯
+        │ │ G  direct(E)
+        │ ├─╯
+        │ E  direct(C)
+        │ │
+        │ │ I  direct(C)
+        │ ├─╯
+        │ C  direct(A)
+        ├─╯
+        │ J  direct(D)
+        │ │
+        │ │ F  direct(D)
+        │ ├─╯
+        │ D  direct(B)
+        │ │
+        │ │ H  direct(B)
+        │ ├─╯
         │ B  direct(A)
         ├─╯
         A
 
         "###);
-
 
         // Merged fork sub graphs at K
         let graph = itertools::chain!(
@@ -774,7 +853,7 @@ mod tests {
         │
         ~
         "###);
-        // TODO
+        // K-E,J is resolved without queuing new heads. Then, G:H, F:I, B:C, and A:D.
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         K    direct(E), direct(J)
         ├─╮
@@ -782,21 +861,21 @@ mod tests {
         │ │
         E │  direct(B)
         │ │
+        │ │ H  direct(G)
+        │ ├─╯
+        │ G  direct(F)
+        │ │
         │ │ I  direct(F)
-        │ │ │
-        │ │ │ H  direct(G)
-        │ ├───╯
-        │ G │  direct(F)
         │ ├─╯
         │ F  missing(Y)
         │ │
         │ ~
         │
+        │ C  direct(B)
+        ├─╯
+        B  direct(A)
+        │
         │ D  direct(A)
-        │ │
-        │ │ C  direct(B)
-        ├───╯
-        B │  direct(A)
         ├─╯
         A  missing(X)
         │
@@ -838,7 +917,7 @@ mod tests {
         │
         ~
         "###);
-        // TODO
+        // K-I,J is resolved without queuing new heads. Then, D:F, B:H, C:E, and A:G.
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         K    direct(I), direct(J)
         ├─╮
@@ -846,22 +925,22 @@ mod tests {
         │ │
         I │  direct(C)
         │ │
+        │ │ F  direct(D)
+        │ ├─╯
+        │ D  direct(B)
+        │ │
         │ │ H  direct(B)
-        │ │ │
-        │ │ │ G  direct(A)
-        │ │ │ │
-        │ │ │ │ F  direct(D)
-        │ ├─────╯
-        │ D │ │  direct(B)
-        │ ├─╯ │
-        │ B   │  missing(Y)
-        │ │   │
-        │ ~   │
-        │     │
-        │ E   │  direct(C)
-        ├─╯   │
-        C     │  direct(A)
-        ├─────╯
+        │ ├─╯
+        │ B  missing(Y)
+        │ │
+        │ ~
+        │
+        │ E  direct(C)
+        ├─╯
+        C  direct(A)
+        │
+        │ G  direct(A)
+        ├─╯
         A  missing(X)
         │
         ~
