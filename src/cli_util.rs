@@ -32,7 +32,9 @@ use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
 use jj_lib::commit::Commit;
-use jj_lib::git::{GitConfigParseError, GitExportError, GitHookError, GitImportError};
+use jj_lib::git::{
+    invoke_post_rewrite_hook, GitConfigParseError, GitExportError, GitHookError, GitImportError,
+};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
@@ -1251,9 +1253,10 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         }
         if self.working_copy_shared_with_git {
             self.export_head_to_git(tx.mut_repo())?;
-            let failed_branches =
-                git::export_refs(tx.mut_repo(), &self.git_backend().unwrap().git_repo())?;
+            let git_repo = self.git_backend().unwrap().git_repo();
+            let failed_branches = git::export_refs(tx.mut_repo(), &git_repo)?;
             print_failed_git_export(ui, &failed_branches)?;
+            invoke_post_rewrite_hook(&git_repo, abandoned_commits, rewritten_commits)?;
         }
         let store = tx.mut_repo().store().clone();
         let maybe_old_commit = tx

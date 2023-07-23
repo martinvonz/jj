@@ -467,3 +467,44 @@ fn test_git_colocated_unreachable_commits() {
     Error: Revision "8e713ff77b54928dd4a82aaabeca44b1ae91722c" doesn't exist
     "###);
 }
+
+#[cfg(unix)]
+#[test]
+fn test_git_post_rewrite_hook() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&repo_path).unwrap();
+
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
+
+    let hooks_dir = git_repo.path().join("hooks");
+    std::fs::create_dir_all(&hooks_dir).unwrap();
+    let post_rewrite_hook_path = hooks_dir.join("post-rewrite");
+    std::fs::write(
+        &post_rewrite_hook_path,
+        "\
+        #!/bin/bash
+        echo Hello world
+        cat >foo
+        ",
+    )
+    .unwrap();
+    let mut perms = std::fs::metadata(&post_rewrite_hook_path)
+        .unwrap()
+        .permissions();
+    use std::os::unix::prelude::PermissionsExt;
+    perms.set_mode(0o755);
+    std::fs::set_permissions(post_rewrite_hook_path, perms).unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m=B"]);
+    insta::assert_snapshot!(stdout, @"");
+
+    let foo_contents = std::fs::read_to_string(git_repo.workdir().unwrap().join("foo")).unwrap();
+    assert_eq!(foo_contents, "hello");
+
+    // let abandoned_commits = HashSet::new();
+    // let rewritten_commits = HashMap::new();
+    // // TODO: how to test?
+    // git::invoke_post_rewrite_hook(&git_repo, &abandoned_commits, &rewritten_commits).unwrap();
+}

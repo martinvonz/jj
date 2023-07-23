@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fs::Permissions;
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Barrier};
 use std::thread;
@@ -2232,17 +2233,4 @@ ignoreThisSection = foo
     };
 
     assert_eq!(result, expected);
-}
-
-#[test]
-fn test_post_rewrite_hook() {
-    let test_data = GitRepoData::create();
-    let git_repo = test_data.git_repo;
-    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
-    git_repo.set_head("refs/heads/main").unwrap();
-
-    let abandoned_commits = HashSet::new();
-    let rewritten_commits = HashMap::new();
-    // TODO: how to test?
-    git::invoke_post_rewrite_hook(&git_repo, &abandoned_commits, &rewritten_commits).unwrap();
 }
