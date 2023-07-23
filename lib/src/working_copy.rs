@@ -284,8 +284,6 @@ pub struct CheckoutStats {
 
 #[derive(Debug, Error)]
 pub enum SnapshotError {
-    #[error("Failed to open file {path}: {err:?}")]
-    FileOpenError { path: PathBuf, err: std::io::Error },
     #[error("Failed to query the filesystem monitor: {0}")]
     FsmonitorError(String),
     #[error("{message}: {err}")]
