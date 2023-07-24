@@ -944,7 +944,7 @@ fn test_rebase_descendants_basic_branch_update() {
         .rewrite_commit(&settings, &commit_b)
         .write()
         .unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         RefTarget::normal(commit_b2.id().clone())
@@ -992,7 +992,7 @@ fn test_rebase_descendants_branch_move_two_steps() {
         .rewrite_commit(&settings, &commit_c)
         .write()
         .unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     let heads = tx.mut_repo().view().heads();
     assert_eq!(heads.len(), 1);
     let c3_id = heads.iter().next().unwrap().clone();
@@ -1040,7 +1040,7 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
         .rewrite_commit(&settings, &commit_b)
         .write()
         .unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         RefTarget::normal(commit_b2.id().clone())
@@ -1085,7 +1085,7 @@ fn test_rebase_descendants_update_branch_after_abandon() {
 
     let mut tx = repo.start_transaction(&settings, "test");
     tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         RefTarget::normal(commit_a.id().clone())
@@ -1139,7 +1139,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         .set_description("more different")
         .write()
         .unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
 
     let target = tx.mut_repo().get_local_branch("main");
     assert!(target.has_conflict());
@@ -1214,7 +1214,7 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
         .set_description("different")
         .write()
         .unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
 
     let target = tx.mut_repo().get_local_branch("main");
     assert!(target.has_conflict());
@@ -1277,7 +1277,7 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
         .set_parents(vec![commit_c.id().clone()])
         .write()
         .unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         RefTarget::normal(commit_b2.id().clone())
@@ -1312,7 +1312,7 @@ fn test_rebase_descendants_branch_delete_modify_abandon() {
 
     let mut tx = repo.start_transaction(&settings, "test");
     tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     assert_eq!(tx.mut_repo().get_local_branch("main"), RefTarget::absent());
 }
 
@@ -1356,7 +1356,7 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
         .set_description("C")
         .write()
         .unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 
     // Workspaces 1 and 2 had B checked out, so they get updated to C. Workspace 3
@@ -1401,7 +1401,7 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
 
     let mut tx = repo.start_transaction(&settings, "test");
     tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 
     // Workspaces 1 and 2 had B checked out, so they get updated to the same new
@@ -1455,7 +1455,7 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
 
     let mut tx = repo.start_transaction(&settings, "test");
     tx.mut_repo().record_abandoned_commit(commit_d.id().clone());
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 
     let new_checkout_id = repo.view().get_wc_commit_id(&workspace_id).unwrap();

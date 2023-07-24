@@ -498,7 +498,7 @@ fn test_merge_views_divergent() {
         .set_description("A2")
         .write()
         .unwrap();
-    tx1.rebase_descendants(&settings).unwrap();
+    let _ = tx1.rebase_descendants(&settings).unwrap();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let commit_a3 = tx2
@@ -507,7 +507,7 @@ fn test_merge_views_divergent() {
         .set_description("A3")
         .write()
         .unwrap();
-    tx2.rebase_descendants(&settings).unwrap();
+    let _ = tx2.rebase_descendants(&settings).unwrap();
 
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
 
@@ -543,7 +543,7 @@ fn test_merge_views_child_on_rewritten(child_first: bool) {
         .set_description("A2")
         .write()
         .unwrap();
-    tx2.rebase_descendants(&settings).unwrap();
+    let _ = tx2.rebase_descendants(&settings).unwrap();
 
     let repo = if child_first {
         commit_transactions(&settings, vec![tx1, tx2])
@@ -594,7 +594,7 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
         .set_description("A4")
         .write()
         .unwrap();
-    tx2.rebase_descendants(&settings).unwrap();
+    let _ = tx2.rebase_descendants(&settings).unwrap();
 
     let repo = if child_first {
         commit_transactions(&settings, vec![tx1, tx2])
@@ -645,7 +645,7 @@ fn test_merge_views_child_on_abandoned(child_first: bool) {
     let mut tx2 = repo.start_transaction(&settings, "test");
     tx2.mut_repo()
         .record_abandoned_commit(commit_b.id().clone());
-    tx2.rebase_descendants(&settings).unwrap();
+    let _ = tx2.rebase_descendants(&settings).unwrap();
 
     let repo = if child_first {
         commit_transactions(&settings, vec![tx1, tx2])

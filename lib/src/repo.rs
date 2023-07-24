@@ -663,7 +663,7 @@ impl RepoLoader {
         let mut tx = base_repo.start_transaction(user_settings, "resolve concurrent operations");
         for other_op_head in op_heads.into_iter().skip(1) {
             tx.merge_operation(other_op_head);
-            tx.rebase_descendants(user_settings)?;
+            let _ = tx.rebase_descendants(user_settings)?; // @nocommit
         }
         let merged_repo = tx.write().leave_unpublished();
         Ok(merged_repo.operation().clone())

@@ -564,7 +564,7 @@ impl CommandHelper {
                     );
                     for other_op_head in op_heads.into_iter().skip(1) {
                         tx.merge_operation(other_op_head);
-                        let num_rebased = tx.rebase_descendants(&self.settings)?;
+                        let (num_rebased, rebased) = tx.rebase_descendants(&self.settings)?;
                         if num_rebased > 0 {
                             writeln!(
                                 ui,
@@ -754,12 +754,12 @@ impl WorkspaceCommandHelper {
                     // HEAD, so we just need to reset our working copy
                     // state to it without updating working copy files.
                     locked_working_copy.reset(&new_git_head_commit.tree())?;
-                    tx.rebase_descendants(&self.settings)?;
+                    let _ = tx.rebase_descendants(&self.settings)?;
                     self.user_repo = ReadonlyUserRepo::new(tx.commit());
                     locked_working_copy.finish(op_id)?;
                 }
                 _ => {
-                    let num_rebased = tx.rebase_descendants(&self.settings)?;
+                    let (num_rebased, rebased) = tx.rebase_descendants(&self.settings)?;
                     if num_rebased > 0 {
                         writeln!(
                             ui,
@@ -1170,7 +1170,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                 .set_wc_commit(workspace_id, commit.id().clone())?;
 
             // Rebase descendants
-            let num_rebased = tx.rebase_descendants(&self.settings)?;
+            let (num_rebased, rebased) = tx.rebase_descendants(&self.settings)?;
             if num_rebased > 0 {
                 writeln!(
                     ui,
@@ -1239,7 +1239,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             writeln!(ui, "Nothing changed.")?;
             return Ok(());
         }
-        let num_rebased = tx.rebase_descendants(&self.settings)?;
+        let (num_rebased, rebased) = tx.rebase_descendants(&self.settings)?;
         if num_rebased > 0 {
             writeln!(ui, "Rebased {num_rebased} descendant commits")?;
         }
@@ -1300,7 +1300,8 @@ impl WorkspaceCommandTransaction<'_> {
     }
 
     pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
-        self.tx.rebase_descendants(settings)
+        let (num_rebased, rebased) = self.tx.rebase_descendants(settings)?;
+        Ok(num_rebased)
     }
 
     pub fn set_description(&mut self, description: &str) {

@@ -82,7 +82,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let new_wc_commit = write_random_commit(tx.mut_repo(), &settings);
     tx.mut_repo().edit(ws_id, &new_wc_commit).unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     assert!(tx.mut_repo().view().heads().contains(old_wc_commit.id()));
 }
 
@@ -112,7 +112,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let new_wc_commit = write_random_commit(tx.mut_repo(), &settings);
     tx.mut_repo().edit(ws_id, &new_wc_commit).unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     assert!(!tx.mut_repo().view().heads().contains(old_wc_commit.id()));
 }
 
@@ -143,7 +143,7 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let new_wc_commit = write_random_commit(tx.mut_repo(), &settings);
     tx.mut_repo().edit(ws_id, &new_wc_commit).unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     assert!(tx.mut_repo().view().heads().contains(old_wc_commit.id()));
 }
 
@@ -175,7 +175,7 @@ fn test_checkout_previous_empty_with_local_branch(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let new_wc_commit = write_random_commit(tx.mut_repo(), &settings);
     tx.mut_repo().edit(ws_id, &new_wc_commit).unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     assert!(tx.mut_repo().view().heads().contains(old_wc_commit.id()));
 }
 
@@ -213,7 +213,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let new_wc_commit = write_random_commit(tx.mut_repo(), &settings);
     tx.mut_repo().edit(ws_id, &new_wc_commit).unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     assert_eq!(
         *tx.mut_repo().view().heads(),
         hashset! {old_child.id().clone(), new_wc_commit.id().clone()}

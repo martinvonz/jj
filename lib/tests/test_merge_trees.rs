@@ -624,7 +624,7 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
         .write()
         .unwrap();
     let commit_c3 = rebase_commit(&settings, tx.mut_repo(), &commit_c2, &[commit_b3]).unwrap();
-    tx.rebase_descendants(&settings).unwrap();
+    let _ = tx.rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 
     // The conflict should now be resolved.

@@ -155,14 +155,14 @@ fn test_isolation(use_git: bool) {
         .set_description("rewrite1")
         .write()
         .unwrap();
-    tx1.rebase_descendants(&settings).unwrap();
+    let _ = tx1.rebase_descendants(&settings).unwrap();
     let rewrite2 = tx2
         .mut_repo()
         .rewrite_commit(&settings, &initial)
         .set_description("rewrite2")
         .write()
         .unwrap();
-    tx2.rebase_descendants(&settings).unwrap();
+    let _ = tx2.rebase_descendants(&settings).unwrap();
 
     // Neither transaction has committed yet, so each transaction sees its own
     // commit.

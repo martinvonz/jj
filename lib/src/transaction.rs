@@ -27,6 +27,9 @@ use crate::settings::UserSettings;
 use crate::tree::TreeMergeError;
 use crate::view::View;
 
+#[must_use]
+pub struct RebasedDescendants {}
+
 pub struct Transaction {
     mut_repo: MutableRepo,
     parent_ops: Vec<Operation>,
@@ -71,9 +74,13 @@ impl Transaction {
         &mut self.mut_repo
     }
 
-    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
+    pub fn rebase_descendants(
+        &mut self,
+        settings: &UserSettings,
+    ) -> Result<(usize, RebasedDescendants), TreeMergeError> {
         // TODO: schedule things so that `finish` calls the Git post-rewrite hook if necessary.
-        self.mut_repo.rebase_descendants(settings)
+        let num_rebased = self.mut_repo.rebase_descendants(settings)?;
+        Ok((num_rebased, RebasedDescendants {}))
     }
 
     pub fn merge_operation(&mut self, other_op: Operation) {

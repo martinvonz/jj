@@ -1343,7 +1343,7 @@ Make sure they're ignored, then try again.",
         .rewrite_commit(command.settings(), &wc_commit)
         .set_tree(new_tree_id)
         .write()?;
-    let num_rebased = tx.rebase_descendants(command.settings())?;
+    let (num_rebased, rebased) = tx.rebase_descendants(command.settings())?;
     if num_rebased > 0 {
         writeln!(ui, "Rebased {num_rebased} descendant commits")?;
     }
