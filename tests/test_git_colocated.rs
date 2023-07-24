@@ -470,13 +470,15 @@ fn test_git_colocated_unreachable_commits() {
 
 #[cfg(unix)]
 #[test]
-fn test_git_post_rewrite_hook() {
+fn test_git_post_rewrite_hook_rewritten_descendants() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::init(&repo_path).unwrap();
 
     test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
     test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
+    test_env.jj_cmd_success(&repo_path, &["ci", "-m=B"]);
+    test_env.jj_cmd_success(&repo_path, &["ci", "-m=C"]);
 
     let hooks_dir = git_repo.path().join("hooks");
     std::fs::create_dir_all(&hooks_dir).unwrap();
@@ -485,8 +487,8 @@ fn test_git_post_rewrite_hook() {
         &post_rewrite_hook_path,
         "\
         #!/bin/bash
-        echo Hello world
-        cat >foo
+        echo 'invoking post-rewrite hook'
+        cat
         ",
     )
     .unwrap();
@@ -497,14 +499,67 @@ fn test_git_post_rewrite_hook() {
     perms.set_mode(0o755);
     std::fs::set_permissions(post_rewrite_hook_path, perms).unwrap();
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m=B"]);
-    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "@---", "-m=A2"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 3 descendant commits
+    Working copy now at: 3f8ced5086a2 (no description set)
+    Parent commit      : 2e29ec0650aa C
+    invoking post-rewrite hook
+    2a3078eda7fe17eeb3cd3e390f7476dff078e35f f6007a7b3a77816e70f0785cd221f10a005b4a61
+    9006ced7b0045e53de8359b50427d30928094250 3f8ced5086a2c0277b96222068b5d3a2c7b416b3
+    9f8e4a9deca4e9979a994e16b82074481555a669 2e29ec0650aac54db4a43750f11d9f366d577b09
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  3f8ced5086a2c0277b96222068b5d3a2c7b416b3
+    ◉  2e29ec0650aac54db4a43750f11d9f366d577b09 HEAD@git C
+    ◉  f6007a7b3a77816e70f0785cd221f10a005b4a61 B
+    ◉  fb193c7fd4d8ded35000a41f4cc875141a1fe70a master A2
+    ◉  0000000000000000000000000000000000000000
+    "###);
+}
 
-    let foo_contents = std::fs::read_to_string(git_repo.workdir().unwrap().join("foo")).unwrap();
-    assert_eq!(foo_contents, "hello");
+#[cfg(unix)]
+#[test]
+fn test_git_post_rewrite_hook_abandoned_commits() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&repo_path).unwrap();
 
-    // let abandoned_commits = HashSet::new();
-    // let rewritten_commits = HashMap::new();
-    // // TODO: how to test?
-    // git::invoke_post_rewrite_hook(&git_repo, &abandoned_commits, &rewritten_commits).unwrap();
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
+    test_env.jj_cmd_success(&repo_path, &["ci", "-m=B"]);
+    test_env.jj_cmd_success(&repo_path, &["ci", "-m=C"]);
+
+    let hooks_dir = git_repo.path().join("hooks");
+    std::fs::create_dir_all(&hooks_dir).unwrap();
+    let post_rewrite_hook_path = hooks_dir.join("post-rewrite");
+    std::fs::write(
+        &post_rewrite_hook_path,
+        "\
+        #!/bin/bash
+        echo 'invoking post-rewrite hook'
+        cat
+        ",
+    )
+    .unwrap();
+    let mut perms = std::fs::metadata(&post_rewrite_hook_path)
+        .unwrap()
+        .permissions();
+    use std::os::unix::prelude::PermissionsExt;
+    perms.set_mode(0o755);
+    std::fs::set_permissions(post_rewrite_hook_path, perms).unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "@--"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Abandoned commit 2a3078eda7fe B
+    Rebased 2 descendant commits onto parents of abandoned commits
+    Working copy now at: ba966a6df814 (no description set)
+    Parent commit      : f14a4549bb03 C
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  ba966a6df814a9fd52c2ff12d32b1a9046d52bab
+    ◉  f14a4549bb031a99fe8b3f8f78017332c007cae9 HEAD@git C
+    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master A
+    ◉  0000000000000000000000000000000000000000
+    "###);
 }

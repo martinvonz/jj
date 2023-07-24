@@ -1192,6 +1192,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                     &self.user_repo.git_backend().unwrap().git_repo(),
                 )?;
                 print_failed_git_export(ui, &failed_branches)?;
+                // TODO: do we need to invoke the post-rewrite hook here?
             }
 
             self.user_repo = ReadonlyUserRepo::new(tx.commit());
@@ -1256,7 +1257,20 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             let git_repo = self.git_backend().unwrap().git_repo();
             let failed_branches = git::export_refs(tx.mut_repo(), &git_repo)?;
             print_failed_git_export(ui, &failed_branches)?;
-            invoke_post_rewrite_hook(&git_repo, abandoned_commits, rewritten_commits)?;
+
+            let abandoned_commits = &mut_repo.abandoned_descendants;
+            let rewritten_commits = &mut_repo.rewritten_descendants;
+            // let rewritten_commits: std::collections::HashMap<_, _> = rebased
+            //     .into_iter()
+            //     .map(|(lhs, rhs)| {
+            //         let mut set = HashSet::new();
+            //         set.insert(rhs);
+            //         (lhs, set)
+            //     })
+            //     .collect();
+            if !abandoned_commits.is_empty() || !rewritten_commits.is_empty() {
+                invoke_post_rewrite_hook(&git_repo, abandoned_commits, &rewritten_commits)?;
+            }
         }
         let store = tx.mut_repo().store().clone();
         let maybe_old_commit = tx

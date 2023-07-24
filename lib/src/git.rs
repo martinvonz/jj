@@ -598,12 +598,16 @@ pub fn invoke_post_rewrite_hook(
     let payload = {
         use std::fmt::Write;
         let mut payload = String::new();
-        for commit_id in abandoned_commits {
+        // Sort commits for determinism in testing.
+        for commit_id in abandoned_commits.into_iter().sorted() {
             writeln!(payload, "{} {}", commit_id.hex(), Oid::zero())
                 .map_err(GitHookError::ConstructStdin)?;
         }
-        for (old_commit_id, new_commit_ids) in rewritten_commits {
-            for new_commit_id in new_commit_ids {
+        for (old_commit_id, new_commit_ids) in rewritten_commits
+            .into_iter()
+            .sorted_by_key(|(k, _v)| (*k).clone())
+        {
+            for new_commit_id in new_commit_ids.into_iter().sorted() {
                 writeln!(payload, "{} {}", old_commit_id.hex(), new_commit_id.hex())
                     .map_err(GitHookError::ConstructStdin)?;
             }
@@ -614,13 +618,13 @@ pub fn invoke_post_rewrite_hook(
     // TODO: need to set working directory?
     let mut process = Command::new(post_rewrite_hook_path)
         .arg("rebase") // rewrite type
-        .stdin(Stdio::piped())
+        .stdin(Stdio::piped()) // TODO: feed stdout to `ui`
         .spawn()
-        .unwrap();
-    let mut stdin = process.stdin.take().unwrap();
+        .unwrap(); // TODO: handle errors
+    let mut stdin = process.stdin.take().unwrap(); // TODO: handle errors
     {
         use std::io::Write;
-        write!(stdin, "{}", payload).unwrap();
+        write!(stdin, "{}", payload).unwrap(); // TODO: handle errors
     }
     Ok(())
 }
