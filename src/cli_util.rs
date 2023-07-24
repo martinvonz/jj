@@ -564,7 +564,7 @@ impl CommandHelper {
                     );
                     for other_op_head in op_heads.into_iter().skip(1) {
                         tx.merge_operation(other_op_head);
-                        let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+                        let num_rebased = tx.rebase_descendants(&self.settings)?;
                         if num_rebased > 0 {
                             writeln!(
                                 ui,
@@ -754,12 +754,12 @@ impl WorkspaceCommandHelper {
                     // HEAD, so we just need to reset our working copy
                     // state to it without updating working copy files.
                     locked_working_copy.reset(&new_git_head_commit.tree())?;
-                    tx.mut_repo().rebase_descendants(&self.settings)?;
+                    tx.rebase_descendants(&self.settings)?;
                     self.user_repo = ReadonlyUserRepo::new(tx.commit());
                     locked_working_copy.finish(op_id)?;
                 }
                 _ => {
-                    let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+                    let num_rebased = tx.rebase_descendants(&self.settings)?;
                     if num_rebased > 0 {
                         writeln!(
                             ui,
@@ -1161,15 +1161,16 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                 &self.string_args,
                 "snapshot working copy",
             );
-            let mut_repo = tx.mut_repo();
-            let commit = mut_repo
+            let commit = tx
+                .mut_repo()
                 .rewrite_commit(&self.settings, &wc_commit)
                 .set_tree(new_tree_id)
                 .write()?;
-            mut_repo.set_wc_commit(workspace_id, commit.id().clone())?;
+            tx.mut_repo()
+                .set_wc_commit(workspace_id, commit.id().clone())?;
 
             // Rebase descendants
-            let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
+            let num_rebased = tx.rebase_descendants(&self.settings)?;
             if num_rebased > 0 {
                 writeln!(
                     ui,
@@ -1178,8 +1179,10 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             }
 
             if self.working_copy_shared_with_git {
-                let failed_branches =
-                    git::export_refs(mut_repo, &self.user_repo.git_backend().unwrap().git_repo())?;
+                let failed_branches = git::export_refs(
+                    tx.mut_repo(),
+                    &self.user_repo.git_backend().unwrap().git_repo(),
+                )?;
                 print_failed_git_export(ui, &failed_branches)?;
             }
 
@@ -1232,22 +1235,21 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
     }
 
     fn finish_transaction(&mut self, ui: &mut Ui, mut tx: Transaction) -> Result<(), CommandError> {
-        let mut_repo = tx.mut_repo();
-        let store = mut_repo.store().clone();
-        if !mut_repo.has_changes() {
+        if !tx.mut_repo().has_changes() {
             writeln!(ui, "Nothing changed.")?;
             return Ok(());
         }
-        let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
+        let num_rebased = tx.rebase_descendants(&self.settings)?;
         if num_rebased > 0 {
             writeln!(ui, "Rebased {num_rebased} descendant commits")?;
         }
         if self.working_copy_shared_with_git {
-            self.export_head_to_git(mut_repo)?;
+            self.export_head_to_git(tx.mut_repo())?;
             let failed_branches =
-                git::export_refs(mut_repo, &self.git_backend().unwrap().git_repo())?;
+                git::export_refs(tx.mut_repo(), &self.git_backend().unwrap().git_repo())?;
             print_failed_git_export(ui, &failed_branches)?;
         }
+        let store = tx.mut_repo().store().clone();
         let maybe_old_commit = tx
             .base_repo()
             .view()
@@ -1295,6 +1297,10 @@ impl WorkspaceCommandTransaction<'_> {
 
     pub fn mut_repo(&mut self) -> &mut MutableRepo {
         self.tx.mut_repo()
+    }
+
+    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
+        self.tx.rebase_descendants(settings)
     }
 
     pub fn set_description(&mut self, description: &str) {

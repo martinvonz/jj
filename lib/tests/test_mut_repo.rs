@@ -74,18 +74,16 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let mut_repo = tx.mut_repo();
-    let old_wc_commit = write_random_commit(mut_repo, &settings);
+    let old_wc_commit = write_random_commit(tx.mut_repo(), &settings);
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
+    tx.mut_repo().edit(ws_id.clone(), &old_wc_commit).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let mut_repo = tx.mut_repo();
-    let new_wc_commit = write_random_commit(mut_repo, &settings);
-    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
-    mut_repo.rebase_descendants(&settings).unwrap();
-    assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
+    let new_wc_commit = write_random_commit(tx.mut_repo(), &settings);
+    tx.mut_repo().edit(ws_id, &new_wc_commit).unwrap();
+    tx.rebase_descendants(&settings).unwrap();
+    assert!(tx.mut_repo().view().heads().contains(old_wc_commit.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -98,8 +96,8 @@ fn test_checkout_previous_empty(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let mut_repo = tx.mut_repo();
-    let old_wc_commit = mut_repo
+    let old_wc_commit = tx
+        .mut_repo()
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
@@ -108,15 +106,14 @@ fn test_checkout_previous_empty(use_git: bool) {
         .write()
         .unwrap();
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
+    tx.mut_repo().edit(ws_id.clone(), &old_wc_commit).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let mut_repo = tx.mut_repo();
-    let new_wc_commit = write_random_commit(mut_repo, &settings);
-    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
-    mut_repo.rebase_descendants(&settings).unwrap();
-    assert!(!mut_repo.view().heads().contains(old_wc_commit.id()));
+    let new_wc_commit = write_random_commit(tx.mut_repo(), &settings);
+    tx.mut_repo().edit(ws_id, &new_wc_commit).unwrap();
+    tx.rebase_descendants(&settings).unwrap();
+    assert!(!tx.mut_repo().view().heads().contains(old_wc_commit.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -129,8 +126,8 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let mut_repo = tx.mut_repo();
-    let old_wc_commit = mut_repo
+    let old_wc_commit = tx
+        .mut_repo()
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
@@ -140,15 +137,14 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
         .write()
         .unwrap();
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
+    tx.mut_repo().edit(ws_id.clone(), &old_wc_commit).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let mut_repo = tx.mut_repo();
-    let new_wc_commit = write_random_commit(mut_repo, &settings);
-    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
-    mut_repo.rebase_descendants(&settings).unwrap();
-    assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
+    let new_wc_commit = write_random_commit(tx.mut_repo(), &settings);
+    tx.mut_repo().edit(ws_id, &new_wc_commit).unwrap();
+    tx.rebase_descendants(&settings).unwrap();
+    assert!(tx.mut_repo().view().heads().contains(old_wc_commit.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -161,8 +157,8 @@ fn test_checkout_previous_empty_with_local_branch(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let mut_repo = tx.mut_repo();
-    let old_wc_commit = mut_repo
+    let old_wc_commit = tx
+        .mut_repo()
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
@@ -170,17 +166,17 @@ fn test_checkout_previous_empty_with_local_branch(use_git: bool) {
         )
         .write()
         .unwrap();
-    mut_repo.set_local_branch_target("b", RefTarget::normal(old_wc_commit.id().clone()));
+    tx.mut_repo()
+        .set_local_branch_target("b", RefTarget::normal(old_wc_commit.id().clone()));
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
+    tx.mut_repo().edit(ws_id.clone(), &old_wc_commit).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let mut_repo = tx.mut_repo();
-    let new_wc_commit = write_random_commit(mut_repo, &settings);
-    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
-    mut_repo.rebase_descendants(&settings).unwrap();
-    assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
+    let new_wc_commit = write_random_commit(tx.mut_repo(), &settings);
+    tx.mut_repo().edit(ws_id, &new_wc_commit).unwrap();
+    tx.rebase_descendants(&settings).unwrap();
+    assert!(tx.mut_repo().view().heads().contains(old_wc_commit.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -215,12 +211,11 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let mut_repo = tx.mut_repo();
-    let new_wc_commit = write_random_commit(mut_repo, &settings);
-    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
-    mut_repo.rebase_descendants(&settings).unwrap();
+    let new_wc_commit = write_random_commit(tx.mut_repo(), &settings);
+    tx.mut_repo().edit(ws_id, &new_wc_commit).unwrap();
+    tx.rebase_descendants(&settings).unwrap();
     assert_eq!(
-        *mut_repo.view().heads(),
+        *tx.mut_repo().view().heads(),
         hashset! {old_child.id().clone(), new_wc_commit.id().clone()}
     );
 }

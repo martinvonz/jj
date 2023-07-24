@@ -24,6 +24,7 @@ use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader};
 use crate::settings::UserSettings;
+use crate::tree::TreeMergeError;
 use crate::view::View;
 
 pub struct Transaction {
@@ -68,6 +69,11 @@ impl Transaction {
 
     pub fn mut_repo(&mut self) -> &mut MutableRepo {
         &mut self.mut_repo
+    }
+
+    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
+        // TODO: schedule things so that `finish` calls the Git post-rewrite hook if necessary.
+        self.mut_repo.rebase_descendants(settings)
     }
 
     pub fn merge_operation(&mut self, other_op: Operation) {

@@ -663,7 +663,7 @@ impl RepoLoader {
         let mut tx = base_repo.start_transaction(user_settings, "resolve concurrent operations");
         for other_op_head in op_heads.into_iter().skip(1) {
             tx.merge_operation(other_op_head);
-            tx.mut_repo().rebase_descendants(user_settings)?;
+            tx.rebase_descendants(user_settings)?;
         }
         let merged_repo = tx.write().leave_unpublished();
         Ok(merged_repo.operation().clone())
@@ -809,7 +809,10 @@ impl MutableRepo {
         )
     }
 
-    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
+    pub(super) fn rebase_descendants(
+        &mut self,
+        settings: &UserSettings,
+    ) -> Result<usize, TreeMergeError> {
         if !self.has_rewrites() {
             // Optimization
             return Ok(0);

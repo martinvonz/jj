@@ -143,37 +143,37 @@ fn test_isolation(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "transaction 1");
-    let mut_repo1 = tx1.mut_repo();
     let mut tx2 = repo.start_transaction(&settings, "transaction 2");
-    let mut_repo2 = tx2.mut_repo();
 
     assert_heads(repo.as_ref(), vec![initial.id()]);
-    assert_heads(mut_repo1, vec![initial.id()]);
-    assert_heads(mut_repo2, vec![initial.id()]);
+    assert_heads(tx1.mut_repo(), vec![initial.id()]);
+    assert_heads(tx2.mut_repo(), vec![initial.id()]);
 
-    let rewrite1 = mut_repo1
+    let rewrite1 = tx1
+        .mut_repo()
         .rewrite_commit(&settings, &initial)
         .set_description("rewrite1")
         .write()
         .unwrap();
-    mut_repo1.rebase_descendants(&settings).unwrap();
-    let rewrite2 = mut_repo2
+    tx1.rebase_descendants(&settings).unwrap();
+    let rewrite2 = tx2
+        .mut_repo()
         .rewrite_commit(&settings, &initial)
         .set_description("rewrite2")
         .write()
         .unwrap();
-    mut_repo2.rebase_descendants(&settings).unwrap();
+    tx2.rebase_descendants(&settings).unwrap();
 
     // Neither transaction has committed yet, so each transaction sees its own
     // commit.
     assert_heads(repo.as_ref(), vec![initial.id()]);
-    assert_heads(mut_repo1, vec![rewrite1.id()]);
-    assert_heads(mut_repo2, vec![rewrite2.id()]);
+    assert_heads(tx1.mut_repo(), vec![rewrite1.id()]);
+    assert_heads(tx2.mut_repo(), vec![rewrite2.id()]);
 
     // The base repo and tx2 don't see the commits from tx1.
     tx1.commit();
     assert_heads(repo.as_ref(), vec![initial.id()]);
-    assert_heads(mut_repo2, vec![rewrite2.id()]);
+    assert_heads(tx2.mut_repo(), vec![rewrite2.id()]);
 
     // The base repo still doesn't see the commits after both transactions commit.
     tx2.commit();

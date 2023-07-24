@@ -1343,7 +1343,7 @@ Make sure they're ignored, then try again.",
         .rewrite_commit(command.settings(), &wc_commit)
         .set_tree(new_tree_id)
         .write()?;
-    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
+    let num_rebased = tx.rebase_descendants(command.settings())?;
     if num_rebased > 0 {
         writeln!(ui, "Rebased {num_rebased} descendant commits")?;
     }
@@ -2113,7 +2113,7 @@ fn cmd_abandon(
     for commit in &to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());
     }
-    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
+    let num_rebased = tx.rebase_descendants(command.settings())?;
 
     if to_abandon.len() == 1 {
         ui.write("Abandoned commit ")?;
@@ -2290,7 +2290,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
             }
         }
     }
-    num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
+    num_rebased += tx.rebase_descendants(command.settings())?;
     if num_rebased > 0 {
         writeln!(ui, "Rebased {num_rebased} descendant commits")?;
     }
@@ -3172,7 +3172,7 @@ fn rebase_descendants(
     for old_commit in old_commits {
         rebase_commit(command.settings(), tx.mut_repo(), old_commit, new_parents)?;
     }
-    let num_rebased = old_commits.len() + tx.mut_repo().rebase_descendants(command.settings())?;
+    let num_rebased = old_commits.len() + tx.rebase_descendants(command.settings())?;
     writeln!(ui, "Rebased {num_rebased} commits")?;
     tx.finish(ui)?;
     Ok(())
@@ -3247,7 +3247,7 @@ fn rebase_revision(
         )?;
         num_rebased_descendants += 1;
     }
-    num_rebased_descendants += tx.mut_repo().rebase_descendants(command.settings())?;
+    num_rebased_descendants += tx.rebase_descendants(command.settings())?;
     if num_rebased_descendants > 0 {
         writeln!(
             ui,

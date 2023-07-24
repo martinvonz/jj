@@ -148,7 +148,7 @@ fn test_rewrite(use_git: bool) {
         .set_tree(rewritten_tree.id().clone())
         .write()
         .unwrap();
-    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    tx.rebase_descendants(&settings).unwrap();
     tx.commit();
     assert_eq!(rewritten_commit.parents(), vec![store.root_commit()]);
     assert_eq!(
