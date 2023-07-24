@@ -115,6 +115,9 @@ pub struct GitCloneArgs {
     /// The directory to write the Jujutsu repo to
     #[arg(value_hint = clap::ValueHint::DirPath)]
     destination: Option<String>,
+    /// Whether or not to colocate the Jujutsu repo with the git repo
+    #[arg(long)]
+    colocate: bool,
 }
 
 /// Push to a Git remote
@@ -410,11 +413,11 @@ fn cmd_git_clone(
         fs::create_dir(&wc_path).unwrap();
     }
 
-    let clone_result = do_git_clone(ui, command, &source, &wc_path);
+    let canonical_wc_path: PathBuf = wc_path.canonicalize().unwrap();
+    let clone_result = do_git_clone(ui, command, args.colocate, &source, &canonical_wc_path);
     if clone_result.is_err() {
         // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
         // `/some/path/.`
-        let canonical_wc_path = wc_path.canonicalize().unwrap();
         if let Err(err) = fs::remove_dir_all(canonical_wc_path.join(".jj")).and_then(|_| {
             if !wc_path_existed {
                 fs::remove_dir(&canonical_wc_path)
@@ -452,10 +455,16 @@ fn cmd_git_clone(
 fn do_git_clone(
     ui: &mut Ui,
     command: &CommandHelper,
+    colocate: bool,
     source: &str,
     wc_path: &Path,
 ) -> Result<(WorkspaceCommandHelper, Option<String>), CommandError> {
-    let (workspace, repo) = Workspace::init_internal_git(command.settings(), wc_path)?;
+    let (workspace, repo) = if colocate {
+        let git_repo = git2::Repository::init(wc_path)?;
+        Workspace::init_external_git(command.settings(), wc_path, git_repo.path())?
+    } else {
+        Workspace::init_internal_git(command.settings(), wc_path)?
+    };
     let git_repo = get_git_repo(repo.store())?;
     writeln!(ui, r#"Fetching into new repo in "{}""#, wc_path.display())?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;

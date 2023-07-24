@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj log` output is now topologically grouped.
   [#242](https://github.com/martinvonz/jj/issues/242)
 
+* `jj git clone` now supports the `--colocate` flag to create the git repo
+  in the same directory as the jj repo.
+
 ### Fixed bugs
 
 ## [0.8.0] - 2023-07-09
