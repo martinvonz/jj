@@ -30,11 +30,11 @@ path = "testing/fake-diff-editor.rs"
 members = ["lib", "lib/testutils", "lib/gen-protos"]
 
 [build-dependencies]
-cargo_metadata = "0.15.4"
+cargo_metadata = "0.17.0"
 
 [dependencies]
 chrono = { version = "0.4.26", default-features = false, features = ["std", "clock"] }
-clap = { version = "4.3.17", features = ["derive", "deprecated"] }
+clap = { version = "4.3.19", features = ["derive", "deprecated"] }
 clap_complete = "4.3.2"
 clap_mangen = "0.2.10"
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
