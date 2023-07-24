@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fs::Permissions;
+use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Barrier};
 use std::thread;

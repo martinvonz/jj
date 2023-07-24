@@ -1258,8 +1258,8 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             let failed_branches = git::export_refs(tx.mut_repo(), &git_repo)?;
             print_failed_git_export(ui, &failed_branches)?;
 
-            let abandoned_commits = &mut_repo.abandoned_descendants;
-            let rewritten_commits = &mut_repo.rewritten_descendants;
+            let abandoned_commits = tx.mut_repo().abandoned_descendants.clone();
+            let rewritten_commits = tx.mut_repo().rewritten_descendants.clone();
             // let rewritten_commits: std::collections::HashMap<_, _> = rebased
             //     .into_iter()
             //     .map(|(lhs, rhs)| {
@@ -1269,7 +1269,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             //     })
             //     .collect();
             if !abandoned_commits.is_empty() || !rewritten_commits.is_empty() {
-                invoke_post_rewrite_hook(&git_repo, abandoned_commits, &rewritten_commits)?;
+                invoke_post_rewrite_hook(&git_repo, &abandoned_commits, &rewritten_commits)?;
             }
         }
         let store = tx.mut_repo().store().clone();
