@@ -40,6 +40,6 @@ fn test_load_at_operation(use_git: bool) {
     // If we load the repo at the previous operation, we should see the commit since
     // it has not been removed yet
     let loader = RepoLoader::init(&settings, repo.repo_path(), &StoreFactories::default()).unwrap();
-    let old_repo = loader.load_at(repo.operation());
+    let old_repo = loader.load_at(repo.operation()).unwrap();
     assert!(old_repo.view().heads().contains(commit.id()));
 }

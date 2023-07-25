@@ -260,8 +260,8 @@ pub fn cmd_op_undo(
     let mut tx =
         workspace_command.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
     let repo_loader = tx.base_repo().loader();
-    let bad_repo = repo_loader.load_at(&bad_op);
-    let parent_repo = repo_loader.load_at(&parent_ops[0]);
+    let bad_repo = repo_loader.load_at(&bad_op)?;
+    let parent_repo = repo_loader.load_at(&parent_ops[0])?;
     tx.mut_repo().merge(&bad_repo, &parent_repo);
     let new_view = view_with_desired_portions_restored(
         tx.repo().view().store_view(),
@@ -285,7 +285,7 @@ fn cmd_op_restore(
     let mut tx = workspace_command
         .start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     let new_view = view_with_desired_portions_restored(
-        target_op.view().store_view(),
+        target_op.view()?.store_view(),
         tx.base_repo().view().store_view(),
         &process_what_arg(&args.what, repo_is_colocated),
     );
