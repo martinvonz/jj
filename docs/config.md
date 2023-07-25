@@ -461,7 +461,7 @@ currently only enabled if you compile jj with the `watchman` feature, such as
 with the following invocation:
 
 ```shell
-cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jujutsu --features watchman
+cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli --features watchman
 ```
 
 To configure the Watchman filesystem monitor, set
