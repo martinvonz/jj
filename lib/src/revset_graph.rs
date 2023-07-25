@@ -233,7 +233,11 @@ where
         // Based on Kahn's algorithm
         loop {
             if let Some(current_id) = self.emittable_ids.last() {
-                let current_node = self.nodes.get_mut(current_id).unwrap();
+                let Some(current_node) = self.nodes.get_mut(current_id) else {
+                    // Queued twice because new children populated and emitted
+                    self.emittable_ids.pop().unwrap();
+                    continue;
+                };
                 if !current_node.child_ids.is_empty() {
                     // New children populated after emitting the other
                     let current_id = self.emittable_ids.pop().unwrap();
@@ -1464,5 +1468,68 @@ mod tests {
         A
 
         "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_requeue_unpopulated() {
+        let graph = vec![
+            (id('C'), vec![direct('A'), direct('B')]),
+            (id('B'), vec![direct('A')]),
+            (id('A'), vec![]),
+        ];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        C    direct(A), direct(B)
+        ├─╮
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        C    direct(A), direct(B)
+        ├─╮
+        │ B  direct(A)
+        ├─╯
+        A
+
+        "###);
+
+        // A is queued once by C-A because B isn't populated at this point. Since
+        // B is the second parent, B-A is processed next and A is queued again. So
+        // one of them in the queue has to be ignored.
+        let mut iter = topo_grouped(graph.iter().cloned());
+        assert_eq!(iter.next().unwrap().0, id('C'));
+        assert_eq!(iter.emittable_ids, vec![id('A'), id('B')]);
+        assert_eq!(iter.next().unwrap().0, id('B'));
+        assert_eq!(iter.emittable_ids, vec![id('A'), id('A')]);
+        assert_eq!(iter.next().unwrap().0, id('A'));
+        assert!(iter.next().is_none());
+        assert!(iter.emittable_ids.is_empty());
+    }
+
+    #[test]
+    fn test_topo_grouped_duplicated_edges() {
+        // The graph shouldn't have duplicated parent->child edges, but topo-grouped
+        // iterator can handle it anyway.
+        let graph = vec![(id('B'), vec![direct('A'), direct('A')]), (id('A'), vec![])];
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
+        B  direct(A), direct(A)
+        │
+        A
+
+        "###);
+        insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
+        B  direct(A), direct(A)
+        │
+        A
+
+        "###);
+
+        let mut iter = topo_grouped(graph.iter().cloned());
+        assert_eq!(iter.next().unwrap().0, id('B'));
+        assert_eq!(iter.emittable_ids, vec![id('A'), id('A')]);
+        assert_eq!(iter.next().unwrap().0, id('A'));
+        assert!(iter.next().is_none());
+        assert!(iter.emittable_ids.is_empty());
     }
 }
