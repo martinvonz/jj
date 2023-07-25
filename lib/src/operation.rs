@@ -21,7 +21,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::backend::CommitId;
-use crate::op_store::{OpStore, OperationId, ViewId};
+use crate::op_store::{OpStore, OpStoreResult, OperationId, ViewId};
 use crate::{dag_walk, op_store};
 
 #[derive(Clone)]
@@ -93,9 +93,10 @@ impl Operation {
         parents
     }
 
-    pub fn view(&self) -> View {
-        let data = self.op_store.read_view(&self.data.view_id).unwrap();
-        View::new(self.op_store.clone(), self.data.view_id.clone(), data)
+    pub fn view(&self) -> OpStoreResult<View> {
+        let data = self.op_store.read_view(&self.data.view_id)?;
+        let view = View::new(self.op_store.clone(), self.data.view_id.clone(), data);
+        Ok(view)
     }
 
     pub fn store_operation(&self) -> &op_store::Operation {

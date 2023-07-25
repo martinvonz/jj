@@ -43,7 +43,7 @@ use jj_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceI
 use jj_lib::operation::Operation;
 use jj_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
-    RewriteRootCommit, StoreFactories, StoreLoadError,
+    RepoLoaderError, RewriteRootCommit, StoreFactories, StoreLoadError,
 };
 use jj_lib::repo_path::{FsPathParseError, RepoPath};
 use jj_lib::revset::{
@@ -196,6 +196,7 @@ impl From<OpHeadResolutionError<CommandError>> for CommandError {
             OpHeadResolutionError::NoHeads => CommandError::InternalError(
                 "Corrupt repository: there are no operations".to_string(),
             ),
+            OpHeadResolutionError::OpStore(err) => err.into(),
             OpHeadResolutionError::Err(e) => e,
         }
     }
@@ -210,6 +211,18 @@ impl From<SnapshotError> for CommandError {
 impl From<TreeMergeError> for CommandError {
     fn from(err: TreeMergeError) -> Self {
         CommandError::InternalError(format!("Merge failed: {err}"))
+    }
+}
+
+impl From<OpStoreError> for CommandError {
+    fn from(err: OpStoreError) -> Self {
+        CommandError::InternalError(format!("Failed to load an operation: {err}"))
+    }
+}
+
+impl From<RepoLoaderError> for CommandError {
+    fn from(err: RepoLoaderError) -> Self {
+        CommandError::InternalError(format!("Failed to load the repo: {err}"))
     }
 }
 
@@ -514,7 +527,7 @@ impl CommandHelper {
     ) -> Result<WorkspaceCommandHelper, CommandError> {
         let workspace = self.load_workspace()?;
         let op_head = self.resolve_operation(ui, workspace.repo_loader())?;
-        let repo = workspace.repo_loader().load_at(&op_head);
+        let repo = workspace.repo_loader().load_at(&op_head)?;
         let mut workspace_command = self.for_loaded_repo(ui, workspace, repo)?;
         if snapshot {
             workspace_command.snapshot(ui)?;
@@ -554,7 +567,7 @@ impl CommandHelper {
                         ui,
                         "Concurrent modification detected, resolving automatically.",
                     )?;
-                    let base_repo = repo_loader.load_at(&op_heads[0]);
+                    let base_repo = repo_loader.load_at(&op_heads[0])?;
                     // TODO: It may be helpful to print each operation we're merging here
                     let mut tx = start_repo_transaction(
                         &base_repo,
@@ -563,7 +576,7 @@ impl CommandHelper {
                         "resolve concurrent operations",
                     );
                     for other_op_head in op_heads.into_iter().skip(1) {
-                        tx.merge_operation(other_op_head);
+                        tx.merge_operation(other_op_head)?;
                         let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
                         if num_rebased > 0 {
                             writeln!(
@@ -606,7 +619,7 @@ impl CommandHelper {
             .read_operation(op_id)
             .map_err(|e| CommandError::InternalError(format!("Failed to read operation: {e}")))?;
         let operation = Operation::new(op_store.clone(), op_id.clone(), op_data);
-        let repo = workspace.repo_loader().load_at(&operation);
+        let repo = workspace.repo_loader().load_at(&operation)?;
         self.for_loaded_repo(ui, workspace, repo)
     }
 }
@@ -1107,7 +1120,7 @@ impl WorkspaceCommandHelper {
         let (repo, wc_commit) = match check_stale_working_copy(&locked_wc, &wc_commit, &repo) {
             Ok(None) => (repo, wc_commit),
             Ok(Some(wc_operation)) => {
-                let repo = repo.reload_at(&wc_operation);
+                let repo = repo.reload_at(&wc_operation)?;
                 let wc_commit = if let Some(wc_commit) = get_wc_commit(&repo)? {
                     wc_commit
                 } else {
@@ -1614,7 +1627,8 @@ fn resolve_op_for_load(
             )))
         })
     };
-    let operation = resolve_single_op(op_store, op_heads_store, get_current_op, op_str)?;
+    let operation = resolve_single_op(op_store, op_heads_store, get_current_op, op_str)
+        .map_err(OpHeadResolutionError::Err)?;
     Ok(operation)
 }
 

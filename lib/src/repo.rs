@@ -41,7 +41,7 @@ use crate::git_backend::GitBackend;
 use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
+use crate::op_store::{BranchTarget, OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use crate::operation::Operation;
 use crate::refs::merge_ref_targets;
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
@@ -298,11 +298,11 @@ impl ReadonlyRepo {
     pub fn reload_at_head(
         &self,
         user_settings: &UserSettings,
-    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<TreeMergeError>> {
+    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<RepoLoaderError>> {
         self.loader().load_at_head(user_settings)
     }
 
-    pub fn reload_at(&self, operation: &Operation) -> Arc<ReadonlyRepo> {
+    pub fn reload_at(&self, operation: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
         self.loader().load_at(operation)
     }
 }
@@ -558,6 +558,14 @@ fn read_store_type_compat(
         .map_err(|source| StoreLoadError::ReadError { store, source })
 }
 
+#[derive(Debug, Error)]
+pub enum RepoLoaderError {
+    #[error(transparent)]
+    TreeMerge(#[from] TreeMergeError),
+    #[error(transparent)]
+    OpStore(#[from] OpStoreError),
+}
+
 #[derive(Clone)]
 pub struct RepoLoader {
     repo_path: PathBuf,
@@ -617,19 +625,19 @@ impl RepoLoader {
     pub fn load_at_head(
         &self,
         user_settings: &UserSettings,
-    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<TreeMergeError>> {
+    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<RepoLoaderError>> {
         let op = op_heads_store::resolve_op_heads(
             self.op_heads_store.as_ref(),
             &self.op_store,
             |op_heads| self._resolve_op_heads(op_heads, user_settings),
         )?;
-        let view = View::new(op.view().take_store_view());
+        let view = View::new(op.view()?.take_store_view());
         Ok(self._finish_load(op, view))
     }
 
-    pub fn load_at(&self, op: &Operation) -> Arc<ReadonlyRepo> {
-        let view = View::new(op.view().take_store_view());
-        self._finish_load(op.clone(), view)
+    pub fn load_at(&self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
+        let view = View::new(op.view()?.take_store_view());
+        Ok(self._finish_load(op.clone(), view))
     }
 
     pub fn create_from(
@@ -658,11 +666,11 @@ impl RepoLoader {
         &self,
         op_heads: Vec<Operation>,
         user_settings: &UserSettings,
-    ) -> Result<Operation, TreeMergeError> {
-        let base_repo = self.load_at(&op_heads[0]);
+    ) -> Result<Operation, RepoLoaderError> {
+        let base_repo = self.load_at(&op_heads[0])?;
         let mut tx = base_repo.start_transaction(user_settings, "resolve concurrent operations");
         for other_op_head in op_heads.into_iter().skip(1) {
-            tx.merge_operation(other_op_head);
+            tx.merge_operation(other_op_head)?;
             tx.mut_repo().rebase_descendants(user_settings)?;
         }
         let merged_repo = tx.write().leave_unpublished();

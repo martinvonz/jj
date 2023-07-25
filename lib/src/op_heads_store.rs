@@ -22,15 +22,17 @@ use itertools::Itertools;
 use thiserror::Error;
 
 use crate::dag_walk;
-use crate::op_store::{OpStore, OperationId};
+use crate::op_store::{OpStore, OpStoreError, OperationId};
 use crate::operation::Operation;
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum OpHeadResolutionError<E> {
     #[error("Operation log has no heads")]
     NoHeads,
+    #[error(transparent)]
+    OpStore(#[from] OpStoreError),
     #[error("Op resolution error: {0}")]
-    Err(#[from] E),
+    Err(#[source] E),
 }
 
 pub trait OpHeadsStoreLock<'a> {

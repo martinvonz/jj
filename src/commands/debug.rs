@@ -148,7 +148,7 @@ pub fn cmd_debug(
                 repo.index_store().as_any().downcast_ref();
             if let Some(default_index_store) = default_index_store {
                 default_index_store.reinit();
-                let repo = repo.reload_at(repo.operation());
+                let repo = repo.reload_at(repo.operation())?;
                 let index_impl: &ReadonlyIndexWrapper = repo
                     .readonly_index()
                     .as_any()
@@ -177,7 +177,7 @@ pub fn cmd_debug(
                 writeln!(ui, "{:#?}", op.store_operation())?;
             }
             if operation_args.display != DebugOperationDisplay::Operation {
-                writeln!(ui, "{:#?}", op.view().store_view())?;
+                writeln!(ui, "{:#?}", op.view()?.store_view())?;
             }
         }
         DebugCommands::Watchman(watchman_subcommand) => {

@@ -40,11 +40,19 @@ use crate::file_util::persist_content_addressed_temp_file;
 use crate::index::{
     HexPrefix, Index, IndexStore, IndexWriteError, MutableIndex, PrefixResolution, ReadonlyIndex,
 };
-use crate::op_store::OperationId;
+use crate::op_store::{OpStoreError, OperationId};
 use crate::operation::Operation;
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
 use crate::{backend, dag_walk, default_revset_engine};
+
+#[derive(Debug, Error)]
+pub enum DefaultIndexStoreError {
+    #[error(transparent)]
+    Io(#[from] io::Error),
+    #[error(transparent)]
+    OpStore(#[from] OpStoreError),
+}
 
 #[derive(Debug)]
 pub struct DefaultIndexStore {
@@ -99,8 +107,8 @@ impl DefaultIndexStore {
         &self,
         store: &Arc<Store>,
         operation: &Operation,
-    ) -> io::Result<Arc<ReadonlyIndexImpl>> {
-        let view = operation.view();
+    ) -> Result<Arc<ReadonlyIndexImpl>, DefaultIndexStoreError> {
+        let view = operation.view()?;
         let operations_dir = self.dir.join("operations");
         let commit_id_length = store.commit_id_length();
         let change_id_length = store.change_id_length();
@@ -116,7 +124,7 @@ impl DefaultIndexStore {
                     parent_op_id = Some(op.id().clone())
                 }
             } else {
-                for head in op.view().heads() {
+                for head in op.view()?.heads() {
                     new_heads.insert(head.clone());
                 }
             }
