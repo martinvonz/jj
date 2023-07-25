@@ -812,7 +812,8 @@ impl TreeState {
                 (None, Some(new_file_state)) => {
                     // untracked
                     let file_type = new_file_state.file_type.clone();
-                    let file_value = self.write_path_to_store(repo_path, &disk_path, file_type)?;
+                    let file_value =
+                        self.write_path_to_store(repo_path, &disk_path, None, file_type)?;
                     return Ok(UpdatedFileState::Changed(file_value, new_file_state));
                 }
                 (Some(current_file_state), Some(new_file_state)) => {
@@ -836,13 +837,7 @@ impl TreeState {
             // If the file contained a conflict before and is now a normal file on disk, we
             // try to parse any conflict markers in the file into a conflict.
             let new_tree_value =
-                if let (Some(TreeValue::Conflict(conflict_id)), FileType::Normal { executable }) =
-                    (current_tree_value, &new_file_type)
-                {
-                    self.write_conflict_to_store(repo_path, &disk_path, conflict_id, *executable)?
-                } else {
-                    self.write_path_to_store(repo_path, &disk_path, new_file_type)?
-                };
+                self.write_path_to_store(repo_path, &disk_path, current_tree_value, new_file_type)?;
             return Ok(UpdatedFileState::Changed(new_tree_value, new_file_state));
         }
         Ok(UpdatedFileState::Unchanged(new_file_state))
@@ -882,18 +877,27 @@ impl TreeState {
         &self,
         repo_path: &RepoPath,
         disk_path: &Path,
+        current_tree_value: Option<TreeValue>,
         file_type: FileType,
     ) -> Result<TreeValue, SnapshotError> {
-        match file_type {
-            FileType::Normal { executable } => {
-                let id = self.write_file_to_store(repo_path, disk_path)?;
-                Ok(TreeValue::File { id, executable })
+        // If the file contained a conflict before and is now a normal file on disk, we
+        // try to parse any conflict markers in the file into a conflict.
+        if let (Some(TreeValue::Conflict(conflict_id)), FileType::Normal { executable }) =
+            (current_tree_value, &file_type)
+        {
+            self.write_conflict_to_store(repo_path, disk_path, conflict_id, *executable)
+        } else {
+            match file_type {
+                FileType::Normal { executable } => {
+                    let id = self.write_file_to_store(repo_path, disk_path)?;
+                    Ok(TreeValue::File { id, executable })
+                }
+                FileType::Symlink => {
+                    let id = self.write_symlink_to_store(repo_path, disk_path)?;
+                    Ok(TreeValue::Symlink(id))
+                }
+                FileType::GitSubmodule => panic!("git submodule cannot be written to store"),
             }
-            FileType::Symlink => {
-                let id = self.write_symlink_to_store(repo_path, disk_path)?;
-                Ok(TreeValue::Symlink(id))
-            }
-            FileType::GitSubmodule => panic!("git submodule cannot be written to store"),
         }
     }
 
