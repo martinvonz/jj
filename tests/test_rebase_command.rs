@@ -150,12 +150,9 @@ fn test_rebase_branch() {
     Hint: The revset "e|d" resolved to these revisions:
     e52756c82985 e
     514fa6b265d4 d
-    If this was intentional, specify the `--allow-large-revsets` argument
+    Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:e|d').
     "###);
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &["rebase", "-b=e|d", "-d=b", "--allow-large-revsets"],
-    );
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b=all:e|d", "-d=b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 commits
     Working copy now at: 817e3fb0dc64 e
@@ -377,12 +374,9 @@ fn test_rebase_multiple_destinations() {
     Hint: The revset "b|c" resolved to these revisions:
     fe2e8e8b50b3 c
     d370aee184ba b
-    If this was intentional, specify the `--allow-large-revsets` argument
+    Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:b|c').
     "###);
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &["rebase", "--allow-large-revsets", "-r", "a", "-d", "b|c"],
-    );
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "a", "-d", "all:b|c"]);
     insta::assert_snapshot!(stdout, @r###""###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    a
@@ -398,19 +392,10 @@ fn test_rebase_multiple_destinations() {
     Error: More than one revset resolved to revision d370aee184ba
     "###);
 
-    // Same error with --allow-large-revsets if there is overlap.
+    // Same error with 'all:' if there is overlap.
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &[
-            "rebase",
-            "-r",
-            "a",
-            "-d",
-            "b|c",
-            "-d",
-            "b",
-            "--allow-large-revsets",
-        ],
+        &["rebase", "-r", "a", "-d", "all:b|c", "-d", "b"],
     );
     insta::assert_snapshot!(stderr, @r###"
     Error: More than one revset resolved to revision d370aee184ba
@@ -515,12 +500,9 @@ fn test_rebase_with_descendants() {
     Hint: The revset "b|d" resolved to these revisions:
     df54a9fd85ae d
     d370aee184ba b
-    If this was intentional, specify the `--allow-large-revsets` argument
+    Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:b|d').
     "###);
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &["rebase", "-s=b|d", "-d=a", "--allow-large-revsets"],
-    );
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s=all:b|d", "-d=a"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
     Working copy now at: d17539f7ea7c d

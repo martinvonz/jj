@@ -957,6 +957,8 @@ impl WorkspaceCommandHelper {
         )
     }
 
+    /// Resolve a revset to a single revision. Return an error if the revset is
+    /// empty or has multiple revisions.
     pub fn resolve_single_rev(
         &self,
         revision_str: &str,
@@ -991,6 +993,7 @@ impl WorkspaceCommandHelper {
         }
     }
 
+    /// Resolve a revset any number of revisions (including 0).
     pub fn resolve_revset(
         &self,
         revision_str: &str,
@@ -999,6 +1002,35 @@ impl WorkspaceCommandHelper {
         let revset_expression = self.parse_revset(revision_str, Some(ui))?;
         let revset = self.evaluate_revset(revset_expression)?;
         Ok(revset.iter().commits(self.repo().store()).try_collect()?)
+    }
+
+    /// Resolve a revset any number of revisions (including 0), but require the
+    /// user to indicate if they allow multiple revisions by prefixing the
+    /// expression with `all:`.
+    pub fn resolve_revset_default_single(
+        &self,
+        revision_str: &str,
+        ui: &mut Ui,
+    ) -> Result<Vec<Commit>, CommandError> {
+        // TODO: Let pest parse the prefix too once we've dropped support for `:`
+        if let Some(revision_str) = revision_str.strip_prefix("all:") {
+            self.resolve_revset(revision_str, ui)
+        } else {
+            self.resolve_single_rev(revision_str, ui)
+                .map_err(|err| match err {
+                    CommandError::UserError { message, hint } => user_error_with_hint(
+                        message,
+                        format!(
+                            "{old_hint}Prefix the expression with 'all' to allow any number of \
+                             revisions (i.e. 'all:{}').",
+                            revision_str,
+                            old_hint = hint.map(|hint| format!("{hint}\n")).unwrap_or_default()
+                        ),
+                    ),
+                    err => err,
+                })
+                .map(|commit| vec![commit])
+        }
     }
 
     pub fn parse_revset(
@@ -1839,29 +1871,16 @@ pub fn resolve_multiple_nonempty_revsets(
     Ok(acc)
 }
 
-pub fn resolve_multiple_nonempty_revsets_flag_guarded(
+pub fn resolve_multiple_nonempty_revsets_default_single(
     workspace_command: &WorkspaceCommandHelper,
     ui: &mut Ui,
     revisions: &[RevisionArg],
-    allow_plural_revsets: bool,
 ) -> Result<IndexSet<Commit>, CommandError> {
     let mut all_commits = IndexSet::new();
     for revision_str in revisions {
-        if allow_plural_revsets {
-            let commits = workspace_command.resolve_revset(revision_str, ui)?;
-            workspace_command.check_non_empty(&commits)?;
-            for commit in commits {
-                let commit_hash = short_commit_hash(commit.id());
-                if !all_commits.insert(commit) {
-                    return Err(user_error(format!(
-                        r#"More than one revset resolved to revision {commit_hash}"#,
-                    )));
-                }
-            }
-        } else {
-            let commit = workspace_command
-                .resolve_single_rev(revision_str, ui)
-                .map_err(append_large_revsets_hint_if_multiple_revisions)?;
+        let commits = workspace_command.resolve_revset_default_single(revision_str, ui)?;
+        workspace_command.check_non_empty(&commits)?;
+        for commit in commits {
             let commit_hash = short_commit_hash(commit.id());
             if !all_commits.insert(commit) {
                 return Err(user_error(format!(
@@ -1871,24 +1890,6 @@ pub fn resolve_multiple_nonempty_revsets_flag_guarded(
         }
     }
     Ok(all_commits)
-}
-
-fn append_large_revsets_hint_if_multiple_revisions(err: CommandError) -> CommandError {
-    match err {
-        CommandError::UserError { message, hint } if message.contains("more than one revision") => {
-            CommandError::UserError {
-                message,
-                hint: {
-                    Some(format!(
-                        "{old_hint}If this was intentional, specify the `--allow-large-revsets` \
-                         argument",
-                        old_hint = hint.map(|h| format!("{h}\n")).unwrap_or_default()
-                    ))
-                },
-            }
-        }
-        _ => err,
-    }
 }
 
 pub fn update_working_copy(
