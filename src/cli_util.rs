@@ -914,6 +914,7 @@ impl WorkspaceCommandHelper {
         }
     }
 
+    #[instrument(skip_all)]
     pub fn base_ignores(&self) -> Arc<GitIgnoreFile> {
         fn xdg_config_home() -> Result<PathBuf, VarError> {
             if let Ok(x) = std::env::var("XDG_CONFIG_HOME") {
@@ -1540,6 +1541,7 @@ pub enum StaleWorkingCopyError {
     UnrelatedOperation,
 }
 
+#[instrument(skip_all)]
 pub fn check_stale_working_copy(
     locked_wc: &LockedWorkingCopy,
     wc_commit: &Commit,

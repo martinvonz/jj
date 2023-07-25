@@ -62,7 +62,7 @@ pub mod watchman {
 
     use itertools::Itertools;
     use thiserror::Error;
-    use tracing::info;
+    use tracing::{info, instrument};
     use watchman_client::prelude::{
         Clock as InnerClock, ClockSpec, NameOnly, QueryRequestCommon, QueryResult,
     };
@@ -142,6 +142,7 @@ pub mod watchman {
         /// running, this will start it and have it crawl the working
         /// copy to build up its in-memory representation of the
         /// filesystem, which may take some time.
+        #[instrument]
         pub async fn init(working_copy_path: &Path) -> Result<Self, Error> {
             info!("Initializing Watchman filesystem monitor...");
             let connector = watchman_client::Connector::new();
@@ -165,6 +166,7 @@ pub mod watchman {
         ///
         /// The returned list of paths is absolute. If it is `None`, then the
         /// caller must crawl the entire working copy themselves.
+        #[instrument(skip(self))]
         pub async fn query_changed_files(
             &self,
             previous_clock: Option<Clock>,

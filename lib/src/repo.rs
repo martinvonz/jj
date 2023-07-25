@@ -303,6 +303,7 @@ impl ReadonlyRepo {
         self.loader().load_at_head(user_settings)
     }
 
+    #[instrument]
     pub fn reload_at(&self, operation: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
         self.loader().load_at(operation)
     }

@@ -85,6 +85,7 @@ impl LayeredConfigs {
         }
     }
 
+    #[instrument]
     pub fn read_user_config(&mut self) -> Result<(), ConfigError> {
         self.user = existing_config_path()?
             .map(|path| read_config_path(&path))
