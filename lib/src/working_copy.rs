@@ -607,29 +607,29 @@ impl TreeState {
         let sparse_matcher = self.sparse_matcher();
         let current_tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
-        let mut deleted_files: HashSet<_> =
-            trace_span!("collecting existing files").in_scope(|| {
-                self.file_states
-                    .iter()
-                    .filter_map(|(path, state)| {
-                        (state.file_type != FileType::GitSubmodule).then(|| path.clone())
-                    })
-                    .collect()
-            });
 
         let fsmonitor_clock_needs_save = fsmonitor_kind.is_some();
         let FsmonitorMatcher {
             matcher: fsmonitor_matcher,
             watchman_clock,
-        } = self.make_fsmonitor_matcher(fsmonitor_kind, &mut deleted_files)?;
+        } = self.make_fsmonitor_matcher(fsmonitor_kind)?;
+        let fsmonitor_matcher = match fsmonitor_matcher.as_ref() {
+            None => &EverythingMatcher,
+            Some(fsmonitor_matcher) => fsmonitor_matcher.as_ref(),
+        };
+        let mut deleted_files: HashSet<_> =
+            trace_span!("collecting existing files").in_scope(|| {
+                self.file_states
+                    .iter()
+                    .filter_map(|(path, state)| {
+                        (fsmonitor_matcher.matches(path)
+                            && state.file_type != FileType::GitSubmodule)
+                            .then(|| path.clone())
+                    })
+                    .collect()
+            });
 
-        let matcher = IntersectionMatcher::new(
-            sparse_matcher.as_ref(),
-            match fsmonitor_matcher.as_ref() {
-                None => &EverythingMatcher,
-                Some(fsmonitor_matcher) => fsmonitor_matcher.as_ref(),
-            },
-        );
+        let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
         struct WorkItem {
             dir: RepoPath,
             disk_dir: PathBuf,
@@ -733,7 +733,6 @@ impl TreeState {
     fn make_fsmonitor_matcher(
         &mut self,
         fsmonitor_kind: Option<FsmonitorKind>,
-        deleted_files: &mut HashSet<RepoPath>,
     ) -> Result<FsmonitorMatcher, SnapshotError> {
         let (watchman_clock, changed_files) = match fsmonitor_kind {
             None => (None, None),
@@ -772,11 +771,6 @@ impl TreeState {
                             }
                         })
                         .collect_vec()
-                });
-
-                trace_span!("retaining fsmonitor paths").in_scope(|| {
-                    let repo_path_set: HashSet<_> = repo_paths.iter().collect();
-                    deleted_files.retain(|path| repo_path_set.contains(path));
                 });
 
                 Some(Box::new(PrefixMatcher::new(&repo_paths)))
