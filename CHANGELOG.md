@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `:` revset operator is deprecated. Use `::` instead. We plan to delete the
   `:` form in jj 0.15+.
 
+* The `--allow-large-revsets` flag for `jj rebase` and `jj new` can no longer be
+  used for allowing duplicate destinations. Include the potential duplicates
+  in a single expression instead (e.g. `jj new --allow-large-revsets 'x|y'`).
+
 ### New features
 
 * `jj config edit --user` and `jj config set --user` will now pick a default
