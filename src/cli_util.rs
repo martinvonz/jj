@@ -1845,23 +1845,32 @@ pub fn resolve_multiple_nonempty_revsets_flag_guarded(
     revisions: &[RevisionArg],
     allow_plural_revsets: bool,
 ) -> Result<IndexSet<Commit>, CommandError> {
-    if allow_plural_revsets {
-        resolve_multiple_nonempty_revsets(revisions, workspace_command, ui)
-    } else {
-        let mut commits = IndexSet::new();
-        for revision_str in revisions {
+    let mut all_commits = IndexSet::new();
+    for revision_str in revisions {
+        if allow_plural_revsets {
+            let commits = workspace_command.resolve_revset(revision_str, ui)?;
+            workspace_command.check_non_empty(&commits)?;
+            for commit in commits {
+                let commit_hash = short_commit_hash(commit.id());
+                if !all_commits.insert(commit) {
+                    return Err(user_error(format!(
+                        r#"More than one revset resolved to revision {commit_hash}"#,
+                    )));
+                }
+            }
+        } else {
             let commit = workspace_command
                 .resolve_single_rev(revision_str, ui)
                 .map_err(append_large_revsets_hint_if_multiple_revisions)?;
             let commit_hash = short_commit_hash(commit.id());
-            if !commits.insert(commit) {
+            if !all_commits.insert(commit) {
                 return Err(user_error(format!(
                     r#"More than one revset resolved to revision {commit_hash}"#,
                 )));
             }
         }
-        Ok(commits)
     }
+    Ok(all_commits)
 }
 
 fn append_large_revsets_hint_if_multiple_revisions(err: CommandError) -> CommandError {
