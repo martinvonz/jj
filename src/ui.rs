@@ -18,6 +18,7 @@ use std::str::FromStr;
 use std::{env, fmt, io, mem};
 
 use crossterm::tty::IsTty;
+use tracing::instrument;
 
 use crate::cli_util::CommandError;
 use crate::config::CommandNameAndArgs;
@@ -130,6 +131,7 @@ impl Ui {
     }
 
     /// Switches the output to use the pager, if allowed.
+    #[instrument(skip_all)]
     pub fn request_pager(&mut self) {
         if self.paginate == PaginationChoice::No {
             return;

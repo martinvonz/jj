@@ -64,6 +64,7 @@ use jj_lib::{dag_walk, file_util, git, revset};
 use once_cell::unsync::OnceCell;
 use thiserror::Error;
 use toml_edit;
+use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
 
@@ -366,8 +367,7 @@ impl Debug for ChromeTracingFlushGuard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self { _inner } = self;
         f.debug_struct("ChromeTracingFlushGuard")
-            .field("inner", &"not shown")
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -524,6 +524,7 @@ impl CommandHelper {
         self.maybe_workspace_loader.as_ref().map_err(Clone::clone)
     }
 
+    #[instrument(skip(self, ui))]
     fn workspace_helper_internal(
         &self,
         ui: &mut Ui,
@@ -550,6 +551,7 @@ impl CommandHelper {
         self.workspace_helper_internal(ui, false)
     }
 
+    #[instrument(skip_all)]
     pub fn load_workspace(&self) -> Result<Workspace, CommandError> {
         let loader = self.workspace_loader()?;
         loader
@@ -557,6 +559,7 @@ impl CommandHelper {
             .map_err(|err| map_workspace_load_error(err, &self.global_args))
     }
 
+    #[instrument(skip_all)]
     pub fn resolve_operation(
         &self,
         ui: &mut Ui,
@@ -602,6 +605,7 @@ impl CommandHelper {
         }
     }
 
+    #[instrument(skip_all)]
     pub fn for_loaded_repo(
         &self,
         ui: &mut Ui,
@@ -664,6 +668,7 @@ pub struct WorkspaceCommandHelper {
 }
 
 impl WorkspaceCommandHelper {
+    #[instrument(skip_all)]
     pub fn new(
         ui: &mut Ui,
         command: &CommandHelper,
@@ -729,6 +734,7 @@ impl WorkspaceCommandHelper {
 
     /// Snapshot the working copy if allowed, and import Git refs if the working
     /// copy is collocated with Git.
+    #[instrument(skip_all)]
     pub fn snapshot(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             if self.working_copy_shared_with_git {
@@ -740,6 +746,7 @@ impl WorkspaceCommandHelper {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     fn import_git_refs_and_head(
         &mut self,
         ui: &mut Ui,
@@ -1072,6 +1079,7 @@ impl WorkspaceCommandHelper {
     }
 
     /// Writes one-line summary of the given `commit`.
+    #[instrument(skip_all)]
     pub fn write_commit_summary(
         &self,
         formatter: &mut dyn Formatter,
@@ -1102,6 +1110,7 @@ impl WorkspaceCommandHelper {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     pub fn snapshot_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let workspace_id = self.workspace_id().to_owned();
         let get_wc_commit = |repo: &ReadonlyRepo| -> Result<Option<_>, _> {
@@ -1433,6 +1442,7 @@ impl WorkspaceCommandTransaction<'_> {
     }
 }
 
+#[instrument]
 fn init_workspace_loader(
     cwd: &Path,
     global_args: &GlobalArgs,
@@ -1866,6 +1876,7 @@ fn load_template_aliases(
     Ok(aliases_map)
 }
 
+#[instrument(skip_all)]
 fn parse_commit_summary_template<'a>(
     repo: &'a dyn Repo,
     workspace_id: &WorkspaceId,
@@ -2560,6 +2571,7 @@ impl CliRunner {
         self
     }
 
+    #[instrument(skip_all)]
     fn run_internal(
         self,
         ui: &mut Ui,
@@ -2604,6 +2616,7 @@ impl CliRunner {
     }
 
     #[must_use]
+    #[instrument(skip(self))]
     pub fn run(self) -> ExitCode {
         let layered_configs = LayeredConfigs::from_environment();
         let mut ui = Ui::with_config(&layered_configs.merge())

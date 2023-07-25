@@ -18,6 +18,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use itertools::{process_results, Itertools};
+use tracing::instrument;
 
 use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
@@ -32,10 +33,12 @@ use crate::store::Store;
 use crate::tree::{merge_trees, Tree, TreeMergeError};
 use crate::view::RefName;
 
+#[instrument(skip(repo))]
 pub fn merge_commit_trees(repo: &dyn Repo, commits: &[Commit]) -> Result<Tree, TreeMergeError> {
     merge_commit_trees_without_repo(repo.store(), repo.index(), commits)
 }
 
+#[instrument(skip(index))]
 pub fn merge_commit_trees_without_repo(
     store: &Arc<Store>,
     index: &dyn Index,

@@ -22,6 +22,7 @@ use config::Source;
 use itertools::Itertools;
 use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
+use tracing::instrument;
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -91,6 +92,7 @@ impl LayeredConfigs {
         Ok(())
     }
 
+    #[instrument]
     pub fn read_repo_config(&mut self, repo_path: &Path) -> Result<(), ConfigError> {
         self.repo = Some(read_config_file(&repo_path.join("config.toml"))?);
         Ok(())

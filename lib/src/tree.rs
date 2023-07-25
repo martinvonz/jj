@@ -21,6 +21,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use thiserror::Error;
+use tracing::instrument;
 
 use crate::backend::{
     BackendError, ConflictId, FileId, ObjectId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId,
@@ -184,6 +185,7 @@ impl Tree {
         }
     }
 
+    #[instrument(skip(matcher))]
     pub fn diff<'matcher>(
         &self,
         other: &Tree,
@@ -223,6 +225,7 @@ impl Tree {
         conflicts
     }
 
+    #[instrument]
     pub fn conflicts(&self) -> Vec<(RepoPath, ConflictId)> {
         self.conflicts_matching(&EverythingMatcher)
     }
