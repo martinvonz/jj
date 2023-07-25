@@ -3,6 +3,7 @@ use std::sync::{Mutex, Once};
 
 use once_cell::sync::Lazy;
 use slab::Slab;
+use tracing::instrument;
 
 /// Contains the callbacks passed to currently-live [`CleanupGuard`]s
 static LIVE_GUARDS: Lazy<Mutex<GuardTable>> = Lazy::new(|| Mutex::new(Slab::new()));
@@ -36,6 +37,7 @@ impl CleanupGuard {
 }
 
 impl Drop for CleanupGuard {
+    #[instrument(skip_all)]
     fn drop(&mut self) {
         let guards = &mut *LIVE_GUARDS.lock().unwrap();
         let f = guards.remove(self.slot);

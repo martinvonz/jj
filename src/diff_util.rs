@@ -28,6 +28,7 @@ use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
 use jj_lib::tree::{Tree, TreeDiffIterator};
 use jj_lib::{diff, files, rewrite, tree};
+use tracing::instrument;
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
 use crate::formatter::Formatter;
@@ -671,6 +672,7 @@ pub fn show_git_diff(
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub fn show_diff_summary(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,

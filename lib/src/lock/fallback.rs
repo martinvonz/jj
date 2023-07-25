@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use backoff::{retry, ExponentialBackoff};
+use tracing::instrument;
 
 pub struct FileLock {
     path: PathBuf,
@@ -64,6 +65,7 @@ impl FileLock {
 }
 
 impl Drop for FileLock {
+    #[instrument(skip_all)]
     fn drop(&mut self) {
         std::fs::remove_file(&self.path).expect("failed to delete lock file");
     }

@@ -3673,6 +3673,7 @@ pub fn default_app() -> Command {
     Commands::augment_subcommands(Args::command())
 }
 
+#[instrument(skip_all)]
 pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), CommandError> {
     let derived_subcommands: Commands =
         Commands::from_arg_matches(command_helper.matches()).unwrap();

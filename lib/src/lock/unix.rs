@@ -18,6 +18,7 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use rustix::fs::FlockOperation;
+use tracing::instrument;
 
 pub struct FileLock {
     path: PathBuf,
@@ -48,6 +49,7 @@ impl FileLock {
 }
 
 impl Drop for FileLock {
+    #[instrument(skip_all)]
     fn drop(&mut self) {
         // Removing the file isn't strictly necessary, but reduces confusion.
         _ = std::fs::remove_file(&self.path);

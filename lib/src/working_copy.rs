@@ -574,6 +574,7 @@ impl TreeState {
 
     #[cfg(feature = "watchman")]
     #[tokio::main]
+    #[instrument(skip(self))]
     pub async fn query_watchman(
         &self,
     ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), TreeStateError> {
@@ -704,6 +705,7 @@ impl TreeState {
         Ok(has_changes || fsmonitor_clock_needs_save)
     }
 
+    #[instrument(skip_all)]
     fn make_fsmonitor_matcher(
         &mut self,
         fsmonitor_kind: Option<FsmonitorKind>,
@@ -1311,6 +1313,7 @@ impl WorkingCopy {
         &self.checkout_state().workspace_id
     }
 
+    #[instrument(skip_all)]
     fn tree_state(&self) -> Result<&TreeState, TreeStateError> {
         self.tree_state.get_or_try_init(|| {
             TreeState::load(
@@ -1338,6 +1341,7 @@ impl WorkingCopy {
         Ok(self.tree_state()?.sparse_patterns())
     }
 
+    #[instrument(skip_all)]
     fn save(&mut self) {
         self.write_proto(crate::protos::working_copy::Checkout {
             operation_id: self.operation_id().to_bytes(),
@@ -1468,6 +1472,7 @@ impl LockedWorkingCopy<'_> {
         Ok(stats)
     }
 
+    #[instrument(skip_all)]
     pub fn finish(mut self, operation_id: OperationId) -> Result<(), TreeStateError> {
         assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.current_tree_id()?);
         if self.tree_state_dirty {
