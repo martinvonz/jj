@@ -26,6 +26,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
 use thiserror::Error;
+use tracing::instrument;
 
 use self::dirty_cell::DirtyCell;
 use crate::backend::{
@@ -635,6 +636,7 @@ impl RepoLoader {
         Ok(self._finish_load(op, view))
     }
 
+    #[instrument(skip(self))]
     pub fn load_at(&self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
         let view = View::new(op.view()?.take_store_view());
         Ok(self._finish_load(op.clone(), view))

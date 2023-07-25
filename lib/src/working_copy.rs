@@ -34,6 +34,7 @@ use once_cell::unsync::OnceCell;
 use prost::Message;
 use tempfile::NamedTempFile;
 use thiserror::Error;
+use tracing::instrument;
 
 use crate::backend::{
     BackendError, ConflictId, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
@@ -589,6 +590,7 @@ impl TreeState {
 
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it and return it, and also update the dirstate on disk.
+    #[instrument(skip_all)]
     pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<bool, SnapshotError> {
         let SnapshotOptions {
             base_ignores,

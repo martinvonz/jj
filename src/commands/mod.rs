@@ -53,6 +53,7 @@ use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::Workspace;
 use jj_lib::{file_util, revset};
 use maplit::{hashmap, hashset};
+use tracing::instrument;
 
 use crate::cli_util::{
     check_stale_working_copy, get_new_config_file_path, print_checkout_stats,
@@ -1048,6 +1049,7 @@ fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), Co
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_version(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -1057,6 +1059,7 @@ fn cmd_version(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(), CommandError> {
     if command.global_args().repository.is_some() {
         return Err(user_error("'--repository' cannot be used with 'init'"));
@@ -1137,6 +1140,7 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_config(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -1150,6 +1154,7 @@ fn cmd_config(
     }
 }
 
+#[instrument(skip_all)]
 fn cmd_config_list(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -1192,6 +1197,7 @@ fn cmd_config_list(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_config_get(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -1229,6 +1235,7 @@ fn cmd_config_get(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_config_set(
     _ui: &mut Ui,
     command: &CommandHelper,
@@ -1247,6 +1254,7 @@ fn cmd_config_set(
     write_config_value_to_file(&args.name, &args.value, &config_path)
 }
 
+#[instrument(skip_all)]
 fn cmd_config_edit(
     _ui: &mut Ui,
     command: &CommandHelper,
@@ -1259,6 +1267,7 @@ fn cmd_config_edit(
     run_ui_editor(command.settings(), &config_path)
 }
 
+#[instrument(skip_all)]
 fn cmd_checkout(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -1282,6 +1291,7 @@ fn cmd_checkout(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_untrack(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -1352,6 +1362,7 @@ Make sure they're ignored, then try again.",
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
@@ -1363,6 +1374,7 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
@@ -1393,6 +1405,7 @@ fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), C
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let from_tree;
@@ -1422,6 +1435,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
@@ -1441,6 +1455,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_status(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -1539,6 +1554,7 @@ fn cmd_status(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
@@ -1700,6 +1716,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
@@ -1799,6 +1816,7 @@ fn show_predecessor_patch(
     )
 }
 
+#[instrument(skip_all)]
 fn cmd_interdiff(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -1951,6 +1969,7 @@ fn edit_sparse(
         .try_collect()
 }
 
+#[instrument(skip_all)]
 fn cmd_describe(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -1990,6 +2009,7 @@ fn cmd_describe(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
 
@@ -2031,6 +2051,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_duplicate(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -2089,6 +2110,7 @@ fn cmd_duplicate(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_abandon(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -2139,6 +2161,7 @@ fn cmd_abandon(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
@@ -2174,6 +2197,7 @@ fn resolve_destination_revs(
     }
 }
 
+#[instrument(skip_all)]
 fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     assert!(
@@ -2325,6 +2349,7 @@ fn combine_messages(
     Ok(description)
 }
 
+#[instrument(skip_all)]
 fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
@@ -2413,6 +2438,7 @@ from the source will be moved into the destination.
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
@@ -2502,6 +2528,7 @@ from the source will be moved into the parent.
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_unsquash(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -2572,6 +2599,7 @@ aborted.
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(), CommandError> {
     let executable_bit = match args.mode {
         ChmodMode::Executable => true,
@@ -2661,6 +2689,7 @@ fn chmod_conflict_sides(
     (result, all_files)
 }
 
+#[instrument(skip_all)]
 fn cmd_resolve(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -2721,6 +2750,7 @@ fn cmd_resolve(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn print_conflicted_paths(
     conflicts: &[(RepoPath, Conflict<Option<TreeValue>>)],
     formatter: &mut dyn Formatter,
@@ -2811,6 +2841,7 @@ fn print_conflicted_paths(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_restore(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -2867,6 +2898,7 @@ fn cmd_restore(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_diffedit(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -2971,6 +3003,7 @@ fn diff_summary_to_description(bytes: &[u8]) -> String {
         + &textwrap::indent(text, "JJ:     ")
 }
 
+#[instrument(skip_all)]
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
@@ -3064,6 +3097,7 @@ don't make any changes, then the operation will be aborted.
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
     if !args.allow_large_revsets && args.revisions.len() < 2 {
         return Err(CommandError::CliError(String::from(
@@ -3073,6 +3107,7 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(),
     cmd_new(ui, command, args)
 }
 
+#[instrument(skip_all)]
 fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_parents = resolve_destination_revs(
@@ -3276,6 +3311,7 @@ fn check_rebase_destinations(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_backout(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3315,6 +3351,7 @@ fn make_branch_term(branch_names: &[impl AsRef<str>]) -> String {
     }
 }
 
+#[instrument(skip_all)]
 fn cmd_util(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3349,6 +3386,7 @@ fn cmd_util(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_workspace(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3371,6 +3409,7 @@ fn cmd_workspace(
     }
 }
 
+#[instrument(skip_all)]
 fn cmd_workspace_add(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3434,6 +3473,7 @@ fn cmd_workspace_add(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_workspace_forget(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3462,6 +3502,7 @@ fn cmd_workspace_forget(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_workspace_list(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3478,6 +3519,7 @@ fn cmd_workspace_list(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_workspace_root(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3492,6 +3534,7 @@ fn cmd_workspace_root(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_workspace_update_stale(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3543,6 +3586,7 @@ fn cmd_workspace_update_stale(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result<(), CommandError> {
     match args {
         SparseArgs::List(sub_args) => cmd_sparse_list(ui, command, sub_args),
@@ -3550,6 +3594,7 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
     }
 }
 
+#[instrument(skip_all)]
 fn cmd_sparse_list(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3563,6 +3608,7 @@ fn cmd_sparse_list(
     Ok(())
 }
 
+#[instrument(skip_all)]
 fn cmd_sparse_set(
     ui: &mut Ui,
     command: &CommandHelper,

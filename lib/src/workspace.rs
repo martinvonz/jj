@@ -287,7 +287,7 @@ impl Workspace {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WorkspaceLoader {
     workspace_root: PathBuf,
     repo_dir: PathBuf,
