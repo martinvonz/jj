@@ -57,7 +57,7 @@ use tracing::instrument;
 
 use crate::cli_util::{
     check_stale_working_copy, get_new_config_file_path, print_checkout_stats,
-    resolve_multiple_nonempty_revsets, resolve_multiple_nonempty_revsets_flag_guarded,
+    resolve_multiple_nonempty_revsets, resolve_multiple_nonempty_revsets_default_single,
     run_ui_editor, serialize_config_value, short_commit_hash, user_error, user_error_with_hint,
     write_config_value_to_file, Args, CommandError, CommandHelper, DescriptionArg,
     LogContentFormat, RevisionArg, WorkspaceCommandHelper,
@@ -528,8 +528,8 @@ struct NewArgs {
     /// The change description to use
     #[arg(long, short, default_value = "")]
     message: DescriptionArg,
-    /// Allow revsets expanding to multiple commits in a single argument
-    #[arg(long, short = 'L')]
+    /// Deprecated. Please prefix the revset with `all:` instead.
+    #[arg(long, short = 'L', hide = true)]
     allow_large_revsets: bool,
     /// Insert the new change between the target commit(s) and their children
     #[arg(long, short = 'A', visible_alias = "after")]
@@ -858,9 +858,8 @@ struct RebaseArgs {
     /// commit)
     #[arg(long, short, required = true)]
     destination: Vec<RevisionArg>,
-    /// Allow revsets expanding to multiple commits in a single argument (for
-    /// those options that can be repeated)
-    #[arg(long, short = 'L')]
+    /// Deprecated. Please prefix the revset with `all:` instead.
+    #[arg(long, short = 'L', hide = true)]
     allow_large_revsets: bool,
 }
 
@@ -2183,14 +2182,9 @@ fn resolve_destination_revs(
     workspace_command: &WorkspaceCommandHelper,
     ui: &mut Ui,
     revisions: &[RevisionArg],
-    allow_plural_revsets: bool,
 ) -> Result<IndexSet<Commit>, CommandError> {
-    let commits = resolve_multiple_nonempty_revsets_flag_guarded(
-        workspace_command,
-        ui,
-        revisions,
-        allow_plural_revsets,
-    )?;
+    let commits =
+        resolve_multiple_nonempty_revsets_default_single(workspace_command, ui, revisions)?;
     let root_commit_id = workspace_command.repo().store().root_commit_id();
     if commits.len() >= 2 && commits.iter().any(|c| c.id() == root_commit_id) {
         Err(user_error("Cannot merge with root revision"))
@@ -2201,19 +2195,20 @@ fn resolve_destination_revs(
 
 #[instrument(skip_all)]
 fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
+    if args.allow_large_revsets {
+        return Err(user_error(
+            "--allow-large-revsets has been deprecated.
+Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
+        ));
+    }
     let mut workspace_command = command.workspace_helper(ui)?;
     assert!(
         !args.revisions.is_empty(),
         "expected a non-empty list from clap"
     );
-    let target_commits = resolve_destination_revs(
-        &workspace_command,
-        ui,
-        &args.revisions,
-        args.allow_large_revsets,
-    )?
-    .into_iter()
-    .collect_vec();
+    let target_commits = resolve_destination_revs(&workspace_command, ui, &args.revisions)?
+        .into_iter()
+        .collect_vec();
     let target_ids = target_commits.iter().map(|c| c.id().clone()).collect_vec();
     let mut tx = workspace_command.start_transaction("new empty commit");
     let mut num_rebased = 0;
@@ -3103,7 +3098,7 @@ don't make any changes, then the operation will be aborted.
 
 #[instrument(skip_all)]
 fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
-    if !args.allow_large_revsets && args.revisions.len() < 2 {
+    if args.revisions.len() < 2 {
         return Err(CommandError::CliError(String::from(
             "Merge requires at least two revisions",
         )));
@@ -3113,24 +3108,21 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(),
 
 #[instrument(skip_all)]
 fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result<(), CommandError> {
+    if args.allow_large_revsets {
+        return Err(user_error(
+            "--allow-large-revsets has been deprecated.
+Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets -d x -d y`.",
+        ));
+    }
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_parents = resolve_destination_revs(
-        &workspace_command,
-        ui,
-        &args.destination,
-        args.allow_large_revsets,
-    )?
-    .into_iter()
-    .collect_vec();
+    let new_parents = resolve_destination_revs(&workspace_command, ui, &args.destination)?
+        .into_iter()
+        .collect_vec();
     if let Some(rev_str) = &args.revision {
         rebase_revision(ui, command, &mut workspace_command, &new_parents, rev_str)?;
     } else if !args.source.is_empty() {
-        let source_commits = resolve_multiple_nonempty_revsets_flag_guarded(
-            &workspace_command,
-            ui,
-            &args.source,
-            args.allow_large_revsets,
-        )?;
+        let source_commits =
+            resolve_multiple_nonempty_revsets_default_single(&workspace_command, ui, &args.source)?;
         rebase_descendants(
             ui,
             command,
@@ -3142,12 +3134,7 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
         let branch_commits = if args.branch.is_empty() {
             IndexSet::from([workspace_command.resolve_single_rev("@", ui)?])
         } else {
-            resolve_multiple_nonempty_revsets_flag_guarded(
-                &workspace_command,
-                ui,
-                &args.branch,
-                args.allow_large_revsets,
-            )?
+            resolve_multiple_nonempty_revsets_default_single(&workspace_command, ui, &args.branch)?
         };
         rebase_branch(
             ui,
