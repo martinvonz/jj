@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 
 use prost::Message;
 use tempfile::{NamedTempFile, PersistError};
+use thiserror::Error;
 
 use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
 use crate::content_hash::blake2b_hash;
@@ -36,8 +37,17 @@ impl From<PersistError> for OpStoreError {
     }
 }
 
-impl From<prost::DecodeError> for OpStoreError {
-    fn from(err: prost::DecodeError) -> Self {
+#[derive(Debug, Error)]
+#[error("Failed to read {kind} with ID {id}: {err}")]
+struct DecodeError {
+    kind: &'static str,
+    id: String,
+    #[source]
+    err: prost::DecodeError,
+}
+
+impl From<DecodeError> for OpStoreError {
+    fn from(err: DecodeError) -> Self {
         OpStoreError::Other(err.into())
     }
 }
@@ -82,7 +92,11 @@ impl OpStore for SimpleOpStore {
         let path = self.view_path(id);
         let buf = fs::read(path).map_err(|err| not_found_to_store_error(err, id))?;
 
-        let proto = crate::protos::op_store::View::decode(&*buf)?;
+        let proto = crate::protos::op_store::View::decode(&*buf).map_err(|err| DecodeError {
+            kind: "view",
+            id: id.hex(),
+            err,
+        })?;
         Ok(view_from_proto(proto))
     }
 
@@ -106,7 +120,12 @@ impl OpStore for SimpleOpStore {
         let path = self.operation_path(id);
         let buf = fs::read(path).map_err(|err| not_found_to_store_error(err, id))?;
 
-        let proto = crate::protos::op_store::Operation::decode(&*buf)?;
+        let proto =
+            crate::protos::op_store::Operation::decode(&*buf).map_err(|err| DecodeError {
+                kind: "operation",
+                id: id.hex(),
+                err,
+            })?;
         Ok(operation_from_proto(proto))
     }
 
