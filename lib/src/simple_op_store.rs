@@ -32,19 +32,19 @@ use crate::op_store::{
 
 impl From<std::io::Error> for OpStoreError {
     fn from(err: std::io::Error) -> Self {
-        OpStoreError::Other(err.to_string())
+        OpStoreError::Other(err.into())
     }
 }
 
 impl From<PersistError> for OpStoreError {
     fn from(err: PersistError) -> Self {
-        OpStoreError::Other(err.to_string())
+        OpStoreError::Other(err.into())
     }
 }
 
 impl From<prost::DecodeError> for OpStoreError {
     fn from(err: prost::DecodeError) -> Self {
-        OpStoreError::Other(err.to_string())
+        OpStoreError::Other(err.into())
     }
 }
 

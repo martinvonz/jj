@@ -380,8 +380,8 @@ content_hash! {
 pub enum OpStoreError {
     #[error("Operation not found")]
     NotFound,
-    #[error("{0}")]
-    Other(String),
+    #[error(transparent)]
+    Other(Box<dyn std::error::Error + Send + Sync>),
 }
 
 pub type OpStoreResult<T> = Result<T, OpStoreError>;
