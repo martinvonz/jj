@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use clap::Subcommand;
+use jj_lib::backend::ObjectId;
 use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::operation;
 use jj_lib::repo::Repo;

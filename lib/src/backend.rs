@@ -16,7 +16,7 @@
 
 use std::any::Any;
 use std::collections::BTreeMap;
-use std::fmt::{Debug, Error, Formatter};
+use std::fmt::Debug;
 use std::io::Read;
 use std::result::Result;
 use std::vec::Vec;
@@ -43,14 +43,14 @@ macro_rules! id_type {
             #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
             $vis struct $name(Vec<u8>);
         }
-        impl_id_type!($name);
+        $crate::backend::impl_id_type!($name);
     };
 }
 
 macro_rules! impl_id_type {
     ($name:ident) => {
-        impl Debug for $name {
-            fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        impl std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
                 f.debug_tuple(stringify!($name)).field(&self.hex()).finish()
             }
         }
@@ -90,6 +90,8 @@ macro_rules! impl_id_type {
         }
     };
 }
+
+pub(crate) use {id_type, impl_id_type};
 
 id_type!(pub CommitId);
 id_type!(pub ChangeId);

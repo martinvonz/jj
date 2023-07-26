@@ -16,7 +16,7 @@ use std::cmp::max;
 use std::thread;
 
 use assert_matches::assert_matches;
-use jj_lib::backend::TreeId;
+use jj_lib::backend::{ObjectId, TreeId};
 use jj_lib::op_store::OperationId;
 use jj_lib::repo::{Repo, StoreFactories};
 use jj_lib::repo_path::RepoPath;

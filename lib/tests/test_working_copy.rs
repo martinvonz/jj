@@ -21,7 +21,7 @@ use std::os::unix::net::UnixListener;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jj_lib::backend::{TreeId, TreeValue};
+use jj_lib::backend::{ObjectId, TreeId, TreeValue};
 use jj_lib::conflicts::Conflict;
 use jj_lib::fsmonitor::FsmonitorKind;
 #[cfg(unix)]
