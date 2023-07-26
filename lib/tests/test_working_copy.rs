@@ -33,7 +33,7 @@ use jj_lib::settings::UserSettings;
 use jj_lib::tree_builder::TreeBuilder;
 use jj_lib::working_copy::{LockedWorkingCopy, SnapshotOptions, WorkingCopy};
 use test_case::test_case;
-use testutils::{write_random_commit, TestWorkspace};
+use testutils::{create_tree, write_random_commit, TestWorkspace};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -623,12 +623,7 @@ fn test_gitignores_checkout_never_overwrites_ignored(use_git: bool) {
     testutils::write_working_copy_file(&workspace_root, &modified_path, "garbage");
 
     // Create a tree that adds the same file but with different contents
-    let mut tree_builder = repo
-        .store()
-        .tree_builder(repo.store().empty_tree_id().clone());
-    testutils::write_normal_file(&mut tree_builder, &modified_path, "contents");
-    let tree_id = tree_builder.write_tree();
-    let tree = repo.store().get_tree(&RepoPath::root(), &tree_id).unwrap();
+    let tree = create_tree(repo, &[(&modified_path, "contents")]);
 
     // Now check out the tree that adds the file "modified" with contents
     // "contents". The exiting contents ("garbage") shouldn't be replaced in the
@@ -652,24 +647,14 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
 
-    // Add a .gitignore file saying to ignore the directory "ignored/"
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
-    testutils::write_working_copy_file(
-        test_workspace.workspace.workspace_root(),
-        &gitignore_path,
-        "/ignored/\n",
-    );
     let file_path = RepoPath::from_internal_string("ignored/file");
+    let tree = create_tree(
+        repo,
+        &[(&gitignore_path, "/ignored/\n"), (&file_path, "contents")],
+    );
 
-    // Create a tree that adds a file in the ignored directory
-    let mut tree_builder = repo
-        .store()
-        .tree_builder(repo.store().empty_tree_id().clone());
-    testutils::write_normal_file(&mut tree_builder, &file_path, "contents");
-    let tree_id = tree_builder.write_tree();
-    let tree = repo.store().get_tree(&RepoPath::root(), &tree_id).unwrap();
-
-    // Check out the tree with the file in ignored/
+    // Check out the tree with the file in `ignored/`
     let wc = test_workspace.workspace.working_copy_mut();
     wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
@@ -680,11 +665,7 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
         .snapshot(SnapshotOptions::empty_for_test())
         .unwrap();
     locked_wc.discard();
-    let new_tree = repo
-        .store()
-        .get_tree(&RepoPath::root(), &new_tree_id)
-        .unwrap();
-    assert!(new_tree.path_value(&file_path).is_some());
+    assert_eq!(new_tree_id, *tree.id());
 }
 
 #[test_case(false ; "local backend")]
