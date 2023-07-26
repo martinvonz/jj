@@ -20,6 +20,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::fs::{File, Metadata, OpenOptions};
 use std::io::{Read, Write};
+use std::ops::Bound;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 #[cfg(unix)]
@@ -680,19 +681,59 @@ impl TreeState {
                     }
 
                     if file_type.is_dir() {
-                        // If the whole directory is ignored, skip it unless we're already tracking
-                        // some file in it.
-                        if git_ignore.matches_all_files_in(&path.to_internal_dir_string())
-                            && current_tree.path_value(&path).is_none()
-                        {
-                            continue;
+                        if git_ignore.matches_all_files_in(&path.to_internal_dir_string()) {
+                            // If the whole directory is ignored, visit only paths we're already
+                            // tracking.
+                            let tracked_paths = self
+                                .file_states
+                                .range((Bound::Excluded(&path), Bound::Unbounded))
+                                .take_while(|(sub_path, _)| path.contains(sub_path))
+                                .map(|(sub_path, file_state)| {
+                                    (sub_path.clone(), file_state.clone())
+                                })
+                                .collect_vec();
+                            for (tracked_path, current_file_state) in tracked_paths {
+                                if !matcher.matches(&tracked_path) {
+                                    continue;
+                                }
+                                let disk_path = tracked_path.to_fs_path(&self.working_copy_path);
+                                let metadata = match disk_path.metadata() {
+                                    Ok(metadata) => metadata,
+                                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                                        continue;
+                                    }
+                                    Err(err) => {
+                                        return Err(SnapshotError::IoError {
+                                            message: format!(
+                                                "Failed to stat file {}",
+                                                disk_path.display()
+                                            ),
+                                            err,
+                                        });
+                                    }
+                                };
+                                if let Some(new_file_state) = file_state(&metadata) {
+                                    deleted_files.remove(&tracked_path);
+                                    let update = self.get_updated_tree_value(
+                                        &tracked_path,
+                                        disk_path,
+                                        Some(&current_file_state),
+                                        &current_tree,
+                                        &new_file_state,
+                                    )?;
+                                    if let Some(tree_value) = update {
+                                        tree_builder.set(tracked_path.clone(), tree_value);
+                                    }
+                                    self.file_states.insert(tracked_path, new_file_state);
+                                }
+                            }
+                        } else {
+                            work.push(WorkItem {
+                                dir: path,
+                                disk_dir: entry.path(),
+                                git_ignore: git_ignore.clone(),
+                            });
                         }
-
-                        work.push(WorkItem {
-                            dir: path,
-                            disk_dir: entry.path(),
-                            git_ignore: git_ignore.clone(),
-                        });
                     } else if matcher.matches(&path) {
                         if let Some(progress) = progress {
                             progress(&path);
