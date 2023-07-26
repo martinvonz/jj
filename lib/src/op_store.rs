@@ -317,6 +317,17 @@ content_hash! {
 pub enum OpStoreError {
     #[error("Operation not found")]
     NotFound,
+    #[error("Error when reading object {hash} of type {object_type}: {source}")]
+    ReadObject {
+        object_type: String,
+        hash: String,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    #[error("Could not write object of type {object_type}: {source}")]
+    WriteObject {
+        object_type: &'static str,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
     #[error(transparent)]
     Other(Box<dyn std::error::Error + Send + Sync>),
 }

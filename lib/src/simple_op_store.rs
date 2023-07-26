@@ -30,12 +30,6 @@ use crate::op_store::{
     RefTarget, RefTargetMap, View, ViewId, WorkspaceId,
 };
 
-impl From<std::io::Error> for OpStoreError {
-    fn from(err: std::io::Error) -> Self {
-        OpStoreError::Other(err.into())
-    }
-}
-
 impl From<PersistError> for OpStoreError {
     fn from(err: PersistError) -> Self {
         OpStoreError::Other(err.into())
@@ -86,17 +80,21 @@ impl OpStore for SimpleOpStore {
 
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
         let path = self.view_path(id);
-        let buf = fs::read(path).map_err(not_found_to_store_error)?;
+        let buf = fs::read(path).map_err(|err| not_found_to_store_error(err, id))?;
 
         let proto = crate::protos::op_store::View::decode(&*buf)?;
         Ok(view_from_proto(proto))
     }
 
     fn write_view(&self, view: &View) -> OpStoreResult<ViewId> {
-        let temp_file = NamedTempFile::new_in(&self.path)?;
+        let temp_file =
+            NamedTempFile::new_in(&self.path).map_err(|err| io_to_write_error(err, "view"))?;
 
         let proto = view_to_proto(view);
-        temp_file.as_file().write_all(&proto.encode_to_vec())?;
+        temp_file
+            .as_file()
+            .write_all(&proto.encode_to_vec())
+            .map_err(|err| io_to_write_error(err, "view"))?;
 
         let id = ViewId::new(blake2b_hash(view).to_vec());
 
@@ -106,17 +104,21 @@ impl OpStore for SimpleOpStore {
 
     fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
         let path = self.operation_path(id);
-        let buf = fs::read(path).map_err(not_found_to_store_error)?;
+        let buf = fs::read(path).map_err(|err| not_found_to_store_error(err, id))?;
 
         let proto = crate::protos::op_store::Operation::decode(&*buf)?;
         Ok(operation_from_proto(proto))
     }
 
     fn write_operation(&self, operation: &Operation) -> OpStoreResult<OperationId> {
-        let temp_file = NamedTempFile::new_in(&self.path)?;
+        let temp_file =
+            NamedTempFile::new_in(&self.path).map_err(|err| io_to_write_error(err, "operation"))?;
 
         let proto = operation_to_proto(operation);
-        temp_file.as_file().write_all(&proto.encode_to_vec())?;
+        temp_file
+            .as_file()
+            .write_all(&proto.encode_to_vec())
+            .map_err(|err| io_to_write_error(err, "operation"))?;
 
         let id = OperationId::new(blake2b_hash(operation).to_vec());
 
@@ -125,11 +127,30 @@ impl OpStore for SimpleOpStore {
     }
 }
 
-fn not_found_to_store_error(err: std::io::Error) -> OpStoreError {
+fn not_found_to_store_error(err: std::io::Error, id: &impl ObjectId) -> OpStoreError {
     if err.kind() == ErrorKind::NotFound {
         OpStoreError::NotFound
     } else {
-        OpStoreError::from(err)
+        io_to_read_error(err, id)
+    }
+}
+
+fn io_to_read_error(err: std::io::Error, id: &impl ObjectId) -> OpStoreError {
+    if err.kind() == ErrorKind::NotFound {
+        OpStoreError::NotFound
+    } else {
+        OpStoreError::ReadObject {
+            object_type: id.object_type(),
+            hash: id.hex(),
+            source: Box::new(err),
+        }
+    }
+}
+
+fn io_to_write_error(err: std::io::Error, object_type: &'static str) -> OpStoreError {
+    OpStoreError::WriteObject {
+        object_type,
+        source: Box::new(err),
     }
 }
 
