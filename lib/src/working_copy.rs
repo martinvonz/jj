@@ -18,7 +18,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::ffi::OsString;
 use std::fs;
-use std::fs::{DirEntry, File, Metadata, OpenOptions};
+use std::fs::{File, Metadata, OpenOptions};
 use std::io::{Read, Write};
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
@@ -709,12 +709,22 @@ impl TreeState {
                             if maybe_current_file_state.is_none()
                                 && git_ignore.matches_file(&sub_path.to_internal_file_string())
                             {
-                                // If it wasn't already tracked and it matches the ignored paths, then
+                                // If it wasn't already tracked and it matches
+                                // the ignored paths, then
                                 // ignore it.
                             } else {
+                                let metadata =
+                                    entry.metadata().map_err(|err| SnapshotError::IoError {
+                                        message: format!(
+                                            "Failed to stat file {}",
+                                            entry.path().display()
+                                        ),
+                                        err,
+                                    })?;
                                 let update = self.get_updated_file_state(
                                     &sub_path,
-                                    &entry,
+                                    entry.path(),
+                                    metadata,
                                     maybe_current_file_state,
                                     &current_tree,
                                 )?;
@@ -805,15 +815,11 @@ impl TreeState {
     fn get_updated_file_state(
         &self,
         repo_path: &RepoPath,
-        dir_entry: &DirEntry,
+        disk_path: PathBuf,
+        metadata: Metadata,
         maybe_current_file_state: Option<&FileState>,
         current_tree: &Tree,
     ) -> Result<UpdatedFileState, SnapshotError> {
-        let disk_path = dir_entry.path();
-        let metadata = dir_entry.metadata().map_err(|err| SnapshotError::IoError {
-            message: format!("Failed to stat file {}", disk_path.display()),
-            err,
-        })?;
         let maybe_new_file_state = file_state(&metadata);
         let (current_file_state, new_file_state) =
             match (maybe_current_file_state, maybe_new_file_state) {
