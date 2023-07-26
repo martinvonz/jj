@@ -29,6 +29,8 @@ fn main() -> Result<()> {
     prost_build::Config::new()
         .out_dir(&protos_dir)
         .include_file("mod.rs")
+        // For old protoc versions. 3.12.4 needs this, but 3.21.12 doesn't.
+        .protoc_arg("--experimental_allow_proto3_optional")
         .compile_protos(
             &input
                 .into_iter()
