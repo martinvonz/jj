@@ -594,8 +594,7 @@ fn test_gitignores_in_ignored_dir(use_git: bool) {
     locked_wc.finish(OperationId::from_hex("abc123")).unwrap();
 
     let new_tree = test_workspace.snapshot();
-    // TODO(#1785): should be equal
-    assert_ne!(
+    assert_eq!(
         new_tree.entries().collect_vec(),
         tree2.entries().collect_vec()
     );
