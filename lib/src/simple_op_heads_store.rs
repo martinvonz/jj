@@ -18,6 +18,7 @@ use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::backend::ObjectId;
 use crate::lock::FileLock;
 use crate::op_heads_store::{OpHeadsStore, OpHeadsStoreLock};
 use crate::op_store::OperationId;
@@ -127,6 +128,7 @@ mod tests {
 
     use itertools::Itertools;
 
+    use crate::backend::ObjectId;
     use crate::op_heads_store::OpHeadsStore;
     use crate::op_store::OperationId;
     use crate::simple_op_heads_store::SimpleOpHeadsStore;

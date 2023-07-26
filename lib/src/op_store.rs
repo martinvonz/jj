@@ -22,7 +22,7 @@ use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
-use crate::backend::{CommitId, Timestamp};
+use crate::backend::{id_type, CommitId, ObjectId, Timestamp};
 use crate::conflicts::Conflict;
 use crate::content_hash::ContentHash;
 
@@ -53,71 +53,8 @@ impl WorkspaceId {
     }
 }
 
-content_hash! {
-    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-    pub struct ViewId(Vec<u8>);
-}
-
-impl Debug for ViewId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.debug_tuple("ViewId").field(&self.hex()).finish()
-    }
-}
-
-impl ViewId {
-    pub fn new(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-
-    pub fn from_hex(hex: &str) -> Self {
-        Self(hex::decode(hex).unwrap())
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.clone()
-    }
-
-    pub fn hex(&self) -> String {
-        hex::encode(&self.0)
-    }
-}
-
-content_hash! {
-    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-    pub struct OperationId(Vec<u8>);
-}
-
-impl Debug for OperationId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.debug_tuple("OperationId").field(&self.hex()).finish()
-    }
-}
-
-impl OperationId {
-    pub fn new(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-
-    pub fn from_hex(hex: &str) -> Self {
-        Self(hex::decode(hex).unwrap())
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.clone()
-    }
-
-    pub fn hex(&self) -> String {
-        hex::encode(&self.0)
-    }
-}
+id_type!(pub ViewId);
+id_type!(pub OperationId);
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct RefTarget {
