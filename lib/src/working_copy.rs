@@ -409,7 +409,6 @@ pub enum TreeStateError {
 }
 
 enum UpdatedFileState {
-    Ignored,
     Unchanged(FileState),
     Deleted,
     Changed(TreeValue, FileState),
@@ -706,24 +705,31 @@ impl TreeState {
                             if let Some(progress) = progress {
                                 progress(&sub_path);
                             }
-                            let update = self.get_updated_file_state(
-                                &sub_path,
-                                &entry,
-                                git_ignore.as_ref(),
-                                &current_tree,
-                            )?;
-                            match update {
-                                UpdatedFileState::Ignored => {}
-                                UpdatedFileState::Unchanged(file_state) => {
-                                    self.file_states.insert(sub_path, file_state);
-                                }
-                                UpdatedFileState::Deleted => {
-                                    self.file_states.remove(&sub_path);
-                                    tree_builder.remove(sub_path);
-                                }
-                                UpdatedFileState::Changed(tree_value, file_state) => {
-                                    self.file_states.insert(sub_path.clone(), file_state);
-                                    tree_builder.set(sub_path, tree_value);
+                            let maybe_current_file_state = self.file_states.get(&sub_path);
+                            if maybe_current_file_state.is_none()
+                                && git_ignore.matches_file(&sub_path.to_internal_file_string())
+                            {
+                                // If it wasn't already tracked and it matches the ignored paths, then
+                                // ignore it.
+                            } else {
+                                let update = self.get_updated_file_state(
+                                    &sub_path,
+                                    &entry,
+                                    maybe_current_file_state,
+                                    &current_tree,
+                                )?;
+                                match update {
+                                    UpdatedFileState::Unchanged(file_state) => {
+                                        self.file_states.insert(sub_path, file_state);
+                                    }
+                                    UpdatedFileState::Deleted => {
+                                        self.file_states.remove(&sub_path);
+                                        tree_builder.remove(sub_path);
+                                    }
+                                    UpdatedFileState::Changed(tree_value, file_state) => {
+                                        self.file_states.insert(sub_path.clone(), file_state);
+                                        tree_builder.set(sub_path, tree_value);
+                                    }
                                 }
                             }
                         }
@@ -800,18 +806,9 @@ impl TreeState {
         &self,
         repo_path: &RepoPath,
         dir_entry: &DirEntry,
-        git_ignore: &GitIgnoreFile,
+        maybe_current_file_state: Option<&FileState>,
         current_tree: &Tree,
     ) -> Result<UpdatedFileState, SnapshotError> {
-        let maybe_current_file_state = self.file_states.get(repo_path);
-        if maybe_current_file_state.is_none()
-            && git_ignore.matches_file(&repo_path.to_internal_file_string())
-        {
-            // If it wasn't already tracked and it matches the ignored paths, then
-            // ignore it.
-            return Ok(UpdatedFileState::Ignored);
-        }
-
         let disk_path = dir_entry.path();
         let metadata = dir_entry.metadata().map_err(|err| SnapshotError::IoError {
             message: format!("Failed to stat file {}", disk_path.display()),
