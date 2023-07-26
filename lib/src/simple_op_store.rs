@@ -86,7 +86,7 @@ impl OpStore for SimpleOpStore {
 
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
         let path = self.view_path(id);
-        let buf = fs::read(path)?;
+        let buf = fs::read(path).map_err(not_found_to_store_error)?;
 
         let proto = crate::protos::op_store::View::decode(&*buf)?;
         Ok(view_from_proto(proto))
