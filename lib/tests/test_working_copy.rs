@@ -24,9 +24,7 @@ use itertools::Itertools;
 use jj_lib::backend::{ObjectId, TreeId, TreeValue};
 use jj_lib::conflicts::Conflict;
 use jj_lib::fsmonitor::FsmonitorKind;
-#[cfg(unix)]
-use jj_lib::op_store::OperationId;
-use jj_lib::op_store::WorkspaceId;
+use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::settings::UserSettings;
@@ -551,6 +549,55 @@ fn test_gitignores(use_git: bool) {
             subdir_modified_path,
             modified_path,
         ]
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_gitignores_in_ignored_dir(use_git: bool) {
+    // Tests that .gitignore files in an ignored directory are ignored, i.e. that
+    // they cannot override the ignores from the parent
+
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let op_id = test_workspace.repo.op_id().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
+
+    let gitignore_path = RepoPath::from_internal_string(".gitignore");
+    let nested_gitignore_path = RepoPath::from_internal_string("ignored/.gitignore");
+    let ignored_path = RepoPath::from_internal_string("ignored/file");
+
+    let tree1 = create_tree(&test_workspace.repo, &[(&gitignore_path, "ignored\n")]);
+    let wc = test_workspace.workspace.working_copy_mut();
+    wc.check_out(op_id.clone(), None, &tree1).unwrap();
+
+    testutils::write_working_copy_file(&workspace_root, &nested_gitignore_path, "!file\n");
+    testutils::write_working_copy_file(&workspace_root, &ignored_path, "contents");
+
+    let new_tree = test_workspace.snapshot();
+    assert_eq!(
+        new_tree.entries().collect_vec(),
+        tree1.entries().collect_vec()
+    );
+
+    // The nested .gitignore is ignored even if it's tracked
+    let tree2 = create_tree(
+        &test_workspace.repo,
+        &[
+            (&gitignore_path, "ignored\n"),
+            (&nested_gitignore_path, "!file\n"),
+        ],
+    );
+    let wc = test_workspace.workspace.working_copy_mut();
+    let mut locked_wc = wc.start_mutation().unwrap();
+    locked_wc.reset(&tree2).unwrap();
+    locked_wc.finish(OperationId::from_hex("abc123")).unwrap();
+
+    let new_tree = test_workspace.snapshot();
+    // TODO(#1785): should be equal
+    assert_ne!(
+        new_tree.entries().collect_vec(),
+        tree2.entries().collect_vec()
     );
 }
 
