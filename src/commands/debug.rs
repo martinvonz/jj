@@ -19,7 +19,7 @@ use jj_lib::backend::ObjectId;
 use jj_lib::default_index_store::{DefaultIndexStore, ReadonlyIndexWrapper};
 use jj_lib::revset;
 
-use crate::cli_util::{user_error, CommandError, CommandHelper};
+use crate::cli_util::{resolve_op_for_load, user_error, CommandError, CommandHelper};
 use crate::template_parser;
 use crate::ui::Ui;
 
@@ -167,8 +167,15 @@ pub fn cmd_debug(
             }
         }
         DebugCommands::Operation(operation_args) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let op = workspace_command.resolve_single_op(&operation_args.operation)?;
+            // Resolve the operation without loading the repo, so this command can be used
+            // even if e.g. the view object is broken.
+            let workspace = command.load_workspace()?;
+            let repo_loader = workspace.repo_loader();
+            let op = resolve_op_for_load(
+                repo_loader.op_store(),
+                repo_loader.op_heads_store(),
+                &operation_args.operation,
+            )?;
             if operation_args.display == DebugOperationDisplay::Id {
                 writeln!(ui, "{}", op.id().hex())?;
                 return Ok(());

@@ -1615,7 +1615,7 @@ fn expand_git_path(path_str: String) -> PathBuf {
     PathBuf::from(path_str)
 }
 
-fn resolve_op_for_load(
+pub fn resolve_op_for_load(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<dyn OpHeadsStore>,
     op_str: &str,
