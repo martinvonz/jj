@@ -357,21 +357,6 @@ fn test_reset() {
     assert_eq!(new_tree_id, *tree_without_file.id());
     locked_wc.discard();
 
-    // After we reset to the commit without the file, it should still exist on disk,
-    // but it should not be in the tree state, and it should not get added when we
-    // commit the working copy (because it's ignored).
-    let mut locked_wc = wc.start_mutation().unwrap();
-    locked_wc.reset(&tree_without_file).unwrap();
-    locked_wc.finish(repo.op_id().clone()).unwrap();
-    assert!(ignored_path.to_fs_path(&workspace_root).is_file());
-    assert!(!wc.file_states().unwrap().contains_key(&ignored_path));
-    let mut locked_wc = wc.start_mutation().unwrap();
-    let new_tree_id = locked_wc
-        .snapshot(SnapshotOptions::empty_for_test())
-        .unwrap();
-    assert_eq!(new_tree_id, *tree_without_file.id());
-    locked_wc.discard();
-
     // Now test the opposite direction: resetting to a commit where the file is
     // tracked. The file should become tracked (even though it's ignored).
     let mut locked_wc = wc.start_mutation().unwrap();
