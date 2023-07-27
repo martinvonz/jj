@@ -36,6 +36,10 @@ use jj_lib::working_copy::{SnapshotError, SnapshotOptions};
 use jj_lib::workspace::Workspace;
 use tempfile::TempDir;
 
+use crate::test_backend::TestBackend;
+
+pub mod test_backend;
+
 pub fn hermetic_libgit2() {
     // libgit2 respects init.defaultBranch (and possibly other config
     // variables) in the user's config files. Disable access to them to make
@@ -88,6 +92,7 @@ pub struct TestRepo {
 pub enum TestRepoBackend {
     Git,
     Local,
+    Test,
 }
 
 impl TestRepoBackend {
@@ -95,6 +100,7 @@ impl TestRepoBackend {
         match self {
             TestRepoBackend::Git => Ok(Box::new(GitBackend::init_internal(store_path)?)),
             TestRepoBackend::Local => Ok(Box::new(LocalBackend::init(store_path))),
+            TestRepoBackend::Test => Ok(Box::new(TestBackend::init(store_path))),
         }
     }
 }
