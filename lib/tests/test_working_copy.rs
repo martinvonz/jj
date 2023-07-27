@@ -594,23 +594,45 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
 
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let repo = test_workspace.repo.clone();
 
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
-    let file_path = RepoPath::from_internal_string("ignored/file");
+    let unchanged_path = RepoPath::from_internal_string("ignored/unchanged");
+    let modified_path = RepoPath::from_internal_string("ignored/modified");
+    let deleted_path = RepoPath::from_internal_string("ignored/deleted");
     let tree = create_tree(
-        repo,
-        &[(&gitignore_path, "/ignored/\n"), (&file_path, "contents")],
+        &repo,
+        &[
+            (&gitignore_path, "/ignored/\n"),
+            (&unchanged_path, "contents"),
+            (&modified_path, "contents"),
+            (&deleted_path, "contents"),
+        ],
     );
 
-    // Check out the tree with the file in `ignored/`
+    // Check out the tree with the files in `ignored/`
     let wc = test_workspace.workspace.working_copy_mut();
     wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
-    // Check that the file is still in the tree created by snapshotting the working
-    // copy (that it didn't get removed because the directory is ignored)
+    // Make some changes inside the ignored directory and check that they are
+    // detected when we snapshot. The files that are still there should not be
+    // deleted from the resulting tree.
+    std::fs::write(modified_path.to_fs_path(&workspace_root), "modified").unwrap();
+    std::fs::remove_file(deleted_path.to_fs_path(&workspace_root)).unwrap();
     let new_tree = test_workspace.snapshot();
-    assert_eq!(new_tree.id(), tree.id());
+    let expected_tree = create_tree(
+        &repo,
+        &[
+            (&gitignore_path, "/ignored/\n"),
+            (&unchanged_path, "contents"),
+            (&modified_path, "modified"),
+        ],
+    );
+    assert_eq!(
+        new_tree.entries().collect_vec(),
+        expected_tree.entries().collect_vec()
+    );
 }
 
 #[test_case(false ; "local backend")]
