@@ -246,10 +246,12 @@ pub enum RevsetExpression {
     Ancestors {
         heads: Rc<RevsetExpression>,
         generation: Range<u64>,
+        is_legacy: bool,
     },
     Descendants {
         roots: Rc<RevsetExpression>,
         generation: Range<u64>,
+        is_legacy: bool,
     },
     // Commits that are ancestors of "heads" but not ancestors of "roots"
     Range {
@@ -261,6 +263,7 @@ pub enum RevsetExpression {
     DagRange {
         roots: Rc<RevsetExpression>,
         heads: Rc<RevsetExpression>,
+        is_legacy: bool,
         // TODO: maybe add generation_from_roots/heads?
     },
     Heads(Rc<RevsetExpression>),
@@ -357,6 +360,7 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Ancestors {
             heads: self.clone(),
             generation: 1..2,
+            is_legacy: false,
         })
     }
 
@@ -365,6 +369,14 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Ancestors {
             heads: self.clone(),
             generation: GENERATION_RANGE_FULL,
+            is_legacy: false,
+        })
+    }
+    fn legacy_ancestors(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Ancestors {
+            heads: self.clone(),
+            generation: GENERATION_RANGE_FULL,
+            is_legacy: true,
         })
     }
 
@@ -373,6 +385,7 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Descendants {
             roots: self.clone(),
             generation: 1..2,
+            is_legacy: false,
         })
     }
 
@@ -381,6 +394,14 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Descendants {
             roots: self.clone(),
             generation: GENERATION_RANGE_FULL,
+            is_legacy: false,
+        })
+    }
+    fn legacy_descendants(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Descendants {
+            roots: self.clone(),
+            generation: GENERATION_RANGE_FULL,
+            is_legacy: true,
         })
     }
 
@@ -393,6 +414,17 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::DagRange {
             roots: self.clone(),
             heads: heads.clone(),
+            is_legacy: false,
+        })
+    }
+    pub fn legacy_dag_range_to(
+        self: &Rc<RevsetExpression>,
+        heads: &Rc<RevsetExpression>,
+    ) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::DagRange {
+            roots: self.clone(),
+            heads: heads.clone(),
+            is_legacy: true,
         })
     }
 
@@ -737,9 +769,15 @@ fn parse_expression_rule(
                 | Op::infix(Rule::compat_sub_op, Assoc::Left))
             .op(Op::prefix(Rule::negate_op))
             // Ranges can't be nested without parentheses. Associativity doesn't matter.
-            .op(Op::infix(Rule::dag_range_op, Assoc::Left) | Op::infix(Rule::range_op, Assoc::Left))
-            .op(Op::prefix(Rule::dag_range_pre_op) | Op::prefix(Rule::range_pre_op))
-            .op(Op::postfix(Rule::dag_range_post_op) | Op::postfix(Rule::range_post_op))
+            .op(Op::infix(Rule::dag_range_op, Assoc::Left)
+                | Op::infix(Rule::legacy_dag_range_op, Assoc::Left)
+                | Op::infix(Rule::range_op, Assoc::Left))
+            .op(Op::prefix(Rule::dag_range_pre_op)
+                | Op::prefix(Rule::legacy_dag_range_pre_op)
+                | Op::prefix(Rule::range_pre_op))
+            .op(Op::postfix(Rule::dag_range_post_op)
+                | Op::postfix(Rule::legacy_dag_range_post_op)
+                | Op::postfix(Rule::range_post_op))
             // Neighbors
             .op(Op::postfix(Rule::parents_op)
                 | Op::postfix(Rule::children_op)
@@ -750,10 +788,12 @@ fn parse_expression_rule(
         .map_prefix(|op, rhs| match op.as_rule() {
             Rule::negate_op => Ok(rhs?.negated()),
             Rule::dag_range_pre_op | Rule::range_pre_op => Ok(rhs?.ancestors()),
+            Rule::legacy_dag_range_pre_op => Ok(rhs?.legacy_ancestors()),
             r => panic!("unexpected prefix operator rule {r:?}"),
         })
         .map_postfix(|lhs, op| match op.as_rule() {
             Rule::dag_range_post_op => Ok(lhs?.descendants()),
+            Rule::legacy_dag_range_post_op => Ok(lhs?.legacy_descendants()),
             Rule::range_post_op => Ok(lhs?.range(&RevsetExpression::visible_heads())),
             Rule::parents_op => Ok(lhs?.parents()),
             Rule::children_op => Ok(lhs?.children()),
@@ -767,6 +807,7 @@ fn parse_expression_rule(
             Rule::difference_op => Ok(lhs?.minus(&rhs?)),
             Rule::compat_sub_op => Err(not_infix_op(&op, "~", "difference")),
             Rule::dag_range_op => Ok(lhs?.dag_range_to(&rhs?)),
+            Rule::legacy_dag_range_op => Ok(lhs?.legacy_dag_range_to(&rhs?)),
             Rule::range_op => Ok(lhs?.range(&rhs?)),
             r => panic!("unexpected infix operator rule {r:?}"),
         })
@@ -1276,16 +1317,20 @@ fn try_transform_expression<E>(
             RevsetExpression::All => None,
             RevsetExpression::Commits(_) => None,
             RevsetExpression::CommitRef(_) => None,
-            RevsetExpression::Ancestors { heads, generation } => transform_rec(heads, pre, post)?
-                .map(|heads| RevsetExpression::Ancestors {
-                    heads,
-                    generation: generation.clone(),
-                }),
-            RevsetExpression::Descendants { roots, generation } => transform_rec(roots, pre, post)?
-                .map(|roots| RevsetExpression::Descendants {
-                    roots,
-                    generation: generation.clone(),
-                }),
+            RevsetExpression::Ancestors {
+                heads, generation, ..
+            } => transform_rec(heads, pre, post)?.map(|heads| RevsetExpression::Ancestors {
+                heads,
+                generation: generation.clone(),
+                is_legacy: false,
+            }),
+            RevsetExpression::Descendants {
+                roots, generation, ..
+            } => transform_rec(roots, pre, post)?.map(|roots| RevsetExpression::Descendants {
+                roots,
+                generation: generation.clone(),
+                is_legacy: false,
+            }),
             RevsetExpression::Range {
                 roots,
                 heads,
@@ -1297,9 +1342,14 @@ fn try_transform_expression<E>(
                     generation: generation.clone(),
                 }
             }),
-            RevsetExpression::DagRange { roots, heads } => {
-                transform_rec_pair((roots, heads), pre, post)?
-                    .map(|(roots, heads)| RevsetExpression::DagRange { roots, heads })
+            RevsetExpression::DagRange { roots, heads, .. } => {
+                transform_rec_pair((roots, heads), pre, post)?.map(|(roots, heads)| {
+                    RevsetExpression::DagRange {
+                        roots,
+                        heads,
+                        is_legacy: false,
+                    }
+                })
             }
             RevsetExpression::Heads(candidates) => {
                 transform_rec(candidates, pre, post)?.map(RevsetExpression::Heads)
@@ -1493,10 +1543,13 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
         match (expression.as_ref(), complement.as_ref()) {
             // :heads & ~(:roots) -> roots..heads
             (
-                RevsetExpression::Ancestors { heads, generation },
+                RevsetExpression::Ancestors {
+                    heads, generation, ..
+                },
                 RevsetExpression::Ancestors {
                     heads: roots,
                     generation: GENERATION_RANGE_FULL,
+                    ..
                 },
             ) => Rc::new(RevsetExpression::Range {
                 roots: roots.clone(),
@@ -1540,6 +1593,7 @@ fn unfold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression
             let heads_ancestors = Rc::new(RevsetExpression::Ancestors {
                 heads: heads.clone(),
                 generation: generation.clone(),
+                is_legacy: false,
             });
             Some(heads_ancestors.intersection(&roots.ancestors().negated()))
         }
@@ -1568,6 +1622,7 @@ fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
         RevsetExpression::Ancestors {
             heads,
             generation: generation1,
+            ..
         } => {
             match heads.as_ref() {
                 // (h-)- -> ancestors(ancestors(h, 1), 1) -> ancestors(h, 2)
@@ -1576,9 +1631,11 @@ fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
                 RevsetExpression::Ancestors {
                     heads,
                     generation: generation2,
+                    ..
                 } => Some(Rc::new(RevsetExpression::Ancestors {
                     heads: heads.clone(),
                     generation: add_generation(generation1, generation2),
+                    is_legacy: false,
                 })),
                 _ => None,
             }
@@ -1586,6 +1643,7 @@ fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
         RevsetExpression::Descendants {
             roots,
             generation: generation1,
+            ..
         } => {
             match roots.as_ref() {
                 // (r+)+ -> descendants(descendants(r, 1), 1) -> descendants(r, 2)
@@ -1594,9 +1652,11 @@ fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
                 RevsetExpression::Descendants {
                     roots,
                     generation: generation2,
+                    ..
                 } => Some(Rc::new(RevsetExpression::Descendants {
                     roots: roots.clone(),
                     generation: add_generation(generation1, generation2),
+                    is_legacy: false,
                 })),
                 _ => None,
             }
@@ -1986,11 +2046,15 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::CommitRef(_) => {
                 panic!("Expression '{expression:?}' should have been resolved by caller");
             }
-            RevsetExpression::Ancestors { heads, generation } => ResolvedExpression::Ancestors {
+            RevsetExpression::Ancestors {
+                heads, generation, ..
+            } => ResolvedExpression::Ancestors {
                 heads: self.resolve(heads).into(),
                 generation: generation.clone(),
             },
-            RevsetExpression::Descendants { roots, generation } => ResolvedExpression::DagRange {
+            RevsetExpression::Descendants {
+                roots, generation, ..
+            } => ResolvedExpression::DagRange {
                 roots: self.resolve(roots).into(),
                 heads: self.resolve_visible_heads().into(),
                 generation_from_roots: generation.clone(),
@@ -2004,7 +2068,7 @@ impl VisibilityResolutionContext<'_> {
                 heads: self.resolve(heads).into(),
                 generation: generation.clone(),
             },
-            RevsetExpression::DagRange { roots, heads } => ResolvedExpression::DagRange {
+            RevsetExpression::DagRange { roots, heads, .. } => ResolvedExpression::DagRange {
                 roots: self.resolve(roots).into(),
                 heads: self.resolve(heads).into(),
                 generation_from_roots: GENERATION_RANGE_FULL,
@@ -2266,6 +2330,7 @@ mod tests {
             Rc::new(RevsetExpression::Ancestors {
                 heads: wc_symbol.clone(),
                 generation: 1..2,
+                is_legacy: false,
             })
         );
         assert_eq!(
@@ -2273,13 +2338,15 @@ mod tests {
             Rc::new(RevsetExpression::Ancestors {
                 heads: wc_symbol.clone(),
                 generation: GENERATION_RANGE_FULL,
+                is_legacy: false,
             })
         );
         assert_eq!(
             foo_symbol.children(),
             Rc::new(RevsetExpression::Descendants {
                 roots: foo_symbol.clone(),
-                generation: 1..2
+                generation: 1..2,
+                is_legacy: false,
             }),
         );
         assert_eq!(
@@ -2287,6 +2354,7 @@ mod tests {
             Rc::new(RevsetExpression::Descendants {
                 roots: foo_symbol.clone(),
                 generation: GENERATION_RANGE_FULL,
+                is_legacy: false,
             })
         );
         assert_eq!(
@@ -2294,6 +2362,7 @@ mod tests {
             Rc::new(RevsetExpression::DagRange {
                 roots: foo_symbol.clone(),
                 heads: wc_symbol.clone(),
+                is_legacy: false,
             })
         );
         assert_eq!(
@@ -2301,6 +2370,7 @@ mod tests {
             Rc::new(RevsetExpression::DagRange {
                 roots: foo_symbol.clone(),
                 heads: foo_symbol.clone(),
+                is_legacy: false,
             })
         );
         assert_eq!(
@@ -2420,11 +2490,11 @@ mod tests {
         // Parse the "children" operator
         assert_eq!(parse("@+"), Ok(wc_symbol.children()));
         // Parse the "ancestors" operator
-        assert_eq!(parse(":@"), Ok(wc_symbol.ancestors()));
+        assert_eq!(parse("::@"), Ok(wc_symbol.ancestors()));
         // Parse the "descendants" operator
-        assert_eq!(parse("@:"), Ok(wc_symbol.descendants()));
+        assert_eq!(parse("@::"), Ok(wc_symbol.descendants()));
         // Parse the "dag range" operator
-        assert_eq!(parse("foo:bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
+        assert_eq!(parse("foo::bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
         // Parse the "range" prefix operator
         assert_eq!(parse("..@"), Ok(wc_symbol.ancestors()));
         assert_eq!(
@@ -2447,10 +2517,10 @@ mod tests {
         // Parentheses are allowed before suffix operators
         assert_eq!(parse("(@)-"), Ok(wc_symbol.parents()));
         // Space is allowed around expressions
-        assert_eq!(parse(" :@ "), Ok(wc_symbol.ancestors()));
-        assert_eq!(parse("( :@ )"), Ok(wc_symbol.ancestors()));
+        assert_eq!(parse(" ::@ "), Ok(wc_symbol.ancestors()));
+        assert_eq!(parse("( ::@ )"), Ok(wc_symbol.ancestors()));
         // Space is not allowed around prefix operators
-        assert_eq!(parse(" : @ "), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse(" :: @ "), Err(RevsetParseErrorKind::SyntaxError));
         // Incomplete parse
         assert_eq!(parse("foo | -"), Err(RevsetParseErrorKind::SyntaxError));
         // Space is allowed around infix operators and function arguments
@@ -2565,12 +2635,15 @@ mod tests {
         assert_eq!(parse("x|y&z").unwrap(), parse("x|(y&z)").unwrap());
         assert_eq!(parse("x|y~z").unwrap(), parse("x|(y~z)").unwrap());
         // Parse repeated "ancestors"/"descendants"/"dag range"/"range" operators
-        assert_eq!(parse(":foo:"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("::foo"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo::"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo::bar"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse(":foo:bar"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo:bar:"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("::foo::"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse(":::foo"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("::::foo"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo:::"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo::::"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo:::bar"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo::::bar"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("::foo::bar"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo::bar::"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("....foo"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("foo...."), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("foo.....bar"), Err(RevsetParseErrorKind::SyntaxError));
@@ -2579,8 +2652,8 @@ mod tests {
         // Parse combinations of "parents"/"children" operators and the range operators.
         // The former bind more strongly.
         assert_eq!(parse("foo-+"), Ok(foo_symbol.parents().children()));
-        assert_eq!(parse("foo-:"), Ok(foo_symbol.parents().descendants()));
-        assert_eq!(parse(":foo+"), Ok(foo_symbol.children().ancestors()));
+        assert_eq!(parse("foo-::"), Ok(foo_symbol.parents().descendants()));
+        assert_eq!(parse("::foo+"), Ok(foo_symbol.children().ancestors()));
     }
 
     #[test]
@@ -3531,6 +3604,7 @@ mod tests {
                             ),
                         ),
                         generation: 1..2,
+                        is_legacy: false,
                     },
                 ),
                 CommitRef(
@@ -3569,6 +3643,7 @@ mod tests {
                         ),
                     ),
                     generation: 1..2,
+                    is_legacy: false,
                 },
             ),
             Filter(
@@ -3886,6 +3961,7 @@ mod tests {
                 ),
             ),
             generation: 2..3,
+            is_legacy: false,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse(":(foo---)").unwrap()), @r###"
@@ -3896,6 +3972,7 @@ mod tests {
                 ),
             ),
             generation: 3..18446744073709551615,
+            is_legacy: false,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("(:foo)---").unwrap()), @r###"
@@ -3906,6 +3983,7 @@ mod tests {
                 ),
             ),
             generation: 3..18446744073709551615,
+            is_legacy: false,
         }
         "###);
 
@@ -3919,8 +3997,10 @@ mod tests {
                     ),
                 ),
                 generation: 3..4,
+                is_legacy: false,
             },
             generation: 1..2,
+            is_legacy: false,
         }
         "###);
 
@@ -3951,6 +4031,7 @@ mod tests {
                     ),
                 ),
                 generation: 3..18446744073709551615,
+                is_legacy: false,
             },
             Ancestors {
                 heads: CommitRef(
@@ -3959,6 +4040,7 @@ mod tests {
                     ),
                 ),
                 generation: 2..18446744073709551615,
+                is_legacy: false,
             },
         )
         "###);
@@ -3981,6 +4063,7 @@ mod tests {
                 generation: 0..18446744073709551615,
             },
             generation: 2..3,
+            is_legacy: false,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("foo..(bar..baz)").unwrap()), @r###"
@@ -4014,6 +4097,7 @@ mod tests {
             Rc::new(RevsetExpression::Ancestors {
                 heads,
                 generation: GENERATION_RANGE_EMPTY,
+                is_legacy: false,
             })
         };
         insta::assert_debug_snapshot!(
@@ -4028,6 +4112,7 @@ mod tests {
                 ),
             ),
             generation: 0..0,
+            is_legacy: false,
         }
         "###
         );
@@ -4043,6 +4128,7 @@ mod tests {
                 ),
             ),
             generation: 0..0,
+            is_legacy: false,
         }
         "###
         );
@@ -4059,6 +4145,7 @@ mod tests {
                 ),
             ),
             generation: 2..3,
+            is_legacy: false,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("(foo+++):").unwrap()), @r###"
@@ -4069,6 +4156,7 @@ mod tests {
                 ),
             ),
             generation: 3..18446744073709551615,
+            is_legacy: false,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("(foo:)+++").unwrap()), @r###"
@@ -4079,6 +4167,7 @@ mod tests {
                 ),
             ),
             generation: 3..18446744073709551615,
+            is_legacy: false,
         }
         "###);
 
@@ -4092,8 +4181,10 @@ mod tests {
                     ),
                 ),
                 generation: 3..4,
+                is_legacy: false,
             },
             generation: 1..2,
+            is_legacy: false,
         }
         "###);
 
@@ -4109,12 +4200,14 @@ mod tests {
                     ),
                 ),
                 generation: 2..3,
+                is_legacy: false,
             },
             heads: CommitRef(
                 Symbol(
                     "bar",
                 ),
             ),
+            is_legacy: false,
         }
         "###);
     }

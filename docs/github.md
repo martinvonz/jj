@@ -148,7 +148,7 @@ remote
 Log all remote branches, which you authored or committed to  
 `jj log -r 'remote_branches() & (committer(your@email.com) | author(your@email.com))'`  
 Log all descendants of the current working copy, which aren't on a remote   
-`jj log -r ':@ & ~remote_branches()'`
+`jj log -r '::@ & ~remote_branches()'`
 
 ## Merge conflicts
 

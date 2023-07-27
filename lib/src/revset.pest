@@ -28,15 +28,19 @@ parents_op = { "-" }
 children_op = { "+" }
 compat_parents_op = { "^" }
 
-dag_range_op = { ":" }
-dag_range_pre_op = { ":" }
-dag_range_post_op = { ":" }
+dag_range_op = { "::" }
+dag_range_pre_op = { "::" }
+dag_range_post_op = { "::" }
+// TODO: Drop support for these in 0.15+
+legacy_dag_range_op = { ":" }
+legacy_dag_range_pre_op = { ":" }
+legacy_dag_range_post_op = { ":" }
 range_op = { ".." }
 range_pre_op = { ".." }
 range_post_op = { ".." }
-range_ops = _{ dag_range_op | range_op }
-range_pre_ops = _{ dag_range_pre_op | range_pre_op }
-range_post_ops = _{ dag_range_post_op | range_post_op }
+range_ops = _{ dag_range_op | legacy_dag_range_op | range_op }
+range_pre_ops = _{ dag_range_pre_op | legacy_dag_range_pre_op | range_pre_op }
+range_post_ops = _{ dag_range_post_op | legacy_dag_range_post_op | range_post_op }
 
 negate_op = { "~" }
 union_op = { "|" }

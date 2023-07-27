@@ -712,7 +712,7 @@ impl<'index> EvaluationContext<'index> {
         }
     }
 
-    /// Calculates `root_set:head_set`.
+    /// Calculates `root_set::head_set`.
     fn collect_dag_range<'a, 'b, S, T>(
         &self,
         root_set: &S,

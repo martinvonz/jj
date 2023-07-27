@@ -29,7 +29,7 @@ fn test_syntax_error() {
     1 | x &
       |    ^---
       |
-      = expected dag_range_pre_op, range_pre_op, negate_op, or primary
+      = expected dag_range_pre_op, legacy_dag_range_pre_op, range_pre_op, negate_op, or primary
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "x - y"]);
@@ -61,12 +61,12 @@ fn test_bad_function_call() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "all(or:nothing)"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "all(or::nothing)"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse revset:  --> 1:5
       |
-    1 | all(or:nothing)
-      |     ^--------^
+    1 | all(or::nothing)
+      |     ^---------^
       |
       = Invalid arguments to revset function "all": Expected 0 arguments
     "###);
@@ -141,12 +141,12 @@ fn test_bad_function_call() {
       = Invalid file pattern: Path "../out" is not in the repo
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root:whatever()"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root::whatever()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:6
+    Error: Failed to parse revset:  --> 1:7
       |
-    1 | root:whatever()
-      |      ^------^
+    1 | root::whatever()
+      |       ^------^
       |
       = Revset function "whatever" doesn't exist
     "###);
@@ -279,7 +279,7 @@ fn test_alias() {
     1 | whatever &
       |           ^---
       |
-      = expected dag_range_pre_op, range_pre_op, negate_op, or primary
+      = expected dag_range_pre_op, legacy_dag_range_pre_op, range_pre_op, negate_op, or primary
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "identity()"]);

@@ -4,21 +4,21 @@
 v1.0.0
 v2.40.0
 # Old history
-:v1.0.0
+::v1.0.0
 ..v1.0.0
 # More history
-:v2.40.0
+::v2.40.0
 ..v2.40.0
 # Only recent history
 v2.39.0..v2.40.0
-:v2.40.0 ~ :v2.39.0
-v2.39.0:v2.40.0
+::v2.40.0 ~ ::v2.39.0
+v2.39.0::v2.40.0
 # Tags and branches
 tags()
 branches()
 # Intersection of range with a small subset
-tags() & :v2.40.0
-v2.39.0 & :v2.40.0
+tags() & ::v2.40.0
+v2.39.0 & ::v2.40.0
 # Author and committer
 author(peff)
 committer(gitster)
@@ -26,8 +26,8 @@ committer(gitster)
 author(peff) & committer(gitster)
 author(peff) | committer(gitster)
 # Intersection of filter with a small subset
-:v1.0.0 & (author(peff) & committer(gitster))
-:v1.0.0 & (author(peff) | committer(gitster))
+::v1.0.0 & (author(peff) & committer(gitster))
+::v1.0.0 & (author(peff) | committer(gitster))
 # Roots and heads of small subsets
 roots(tags())
 heads(tags())
@@ -35,32 +35,32 @@ heads(tags())
 roots(author(peff))
 heads(author(peff))
 # Roots and heads of range
-roots(:v2.40.0)
-heads(:v2.40.0)
+roots(::v2.40.0)
+heads(::v2.40.0)
 # Parents and ancestors of old commit
 v1.0.0-
 v1.0.0---
-:v1.0.0---
+::v1.0.0---
 # Children and descendants of old commit
 v1.0.0+
 v1.0.0+++
-v1.0.0+++:
+v1.0.0+++::
 # Parents and ancestors of recent commit
 v2.40.0-
 v2.40.0---
-:v2.40.0---
+::v2.40.0---
 # Children and descendants of recent commit
 v2.40.0+
 v2.40.0+++
-v2.40.0+++:
+v2.40.0+++::
 # Parents and ancestors of small subset
 tags()-
 tags()---
-:tags()---
+::tags()---
 # Children and descendants of small subset
 tags()+
 tags()+++
-tags()+++:
+tags()+++::
 # Filter that doesn't read commit object
 merges()
 ~merges()
