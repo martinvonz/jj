@@ -678,7 +678,7 @@ mod tests {
         A
 
         "###);
-        // A:F is picked at A, and A will be unblocked. Then, C:D at C, ...
+        // A::F is picked at A, and A will be unblocked. Then, C::D at C, ...
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         G  direct(A)
         │
@@ -730,7 +730,7 @@ mod tests {
         A
 
         "###);
-        // A:K is picked at A, and A will be unblocked. Then, H:I at H, ...
+        // A::K is picked at A, and A will be unblocked. Then, H::I at H, ...
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         L  direct(A)
         │
@@ -793,7 +793,7 @@ mod tests {
         A
 
         "###);
-        // A:K is picked at A, and A will be unblocked. Then, E:G at E, ...
+        // A::K is picked at A, and A will be unblocked. Then, E::G at E, ...
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         L  direct(A)
         │
@@ -855,7 +855,8 @@ mod tests {
         │
         ~
         "###);
-        // K-E,J is resolved without queuing new heads. Then, G:H, F:I, B:C, and A:D.
+        // K-E,J is resolved without queuing new heads. Then, G::H, F::I, B::C, and
+        // A::D.
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         K    direct(E), direct(J)
         ├─╮
@@ -919,7 +920,8 @@ mod tests {
         │
         ~
         "###);
-        // K-I,J is resolved without queuing new heads. Then, D:F, B:H, C:E, and A:G.
+        // K-I,J is resolved without queuing new heads. Then, D::F, B::H, C::E, and
+        // A::G.
         insta::assert_snapshot!(format_graph(topo_grouped(graph.iter().cloned())), @r###"
         K    direct(I), direct(J)
         ├─╮

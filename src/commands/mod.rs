@@ -782,7 +782,7 @@ struct SplitArgs {
 /// * all descendants of those commits
 ///
 /// In other words, `jj rebase -b X -d Y` rebases commits in the revset
-/// `(Y..X):` (which is equivalent to `jj rebase -s 'roots(Y..X)' -d Y` for a
+/// `(Y..X)::` (which is equivalent to `jj rebase -s 'roots(Y..X)' -d Y` for a
 /// single root). For example, either `jj rebase -b L -d O` or `jj rebase -b M
 /// -d O` would transform your history like this (because `L` and `M` are on the
 /// same "branch", relative to the destination):

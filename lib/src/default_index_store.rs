@@ -2951,7 +2951,7 @@ mod tests {
         );
 
         // Merge range with sub-range (1..4 + 2..3 should be 1..4, not 1..3):
-        // 8,7,6->5:1..4, B5_1->5:2..3
+        // 8,7,6->5::1..4, B5_1->5::2..3
         assert_eq!(
             walk_commit_ids(
                 &[&ids[8], &ids[7], &ids[6], &id_branch5_1].map(Clone::clone),

@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj log` output is now topologically grouped.
   [#242](https://github.com/martinvonz/jj/issues/242)
 
+* The `:` revset operator can now be written as `::` instead. We plan to
+  delete the `:` form in jj 0.15+.
+
 ### Fixed bugs
 
 ## [0.8.0] - 2023-07-09
