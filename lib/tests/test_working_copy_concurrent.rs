@@ -16,8 +16,6 @@ use std::cmp::max;
 use std::thread;
 
 use assert_matches::assert_matches;
-use jj_lib::backend::{ObjectId, TreeId};
-use jj_lib::op_store::OperationId;
 use jj_lib::repo::{Repo, StoreFactories};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
@@ -151,24 +149,16 @@ fn test_racy_checkout() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings, true);
     let repo = &test_workspace.repo;
+    let op_id = repo.op_id().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     let path = RepoPath::from_internal_string("file");
     let tree = testutils::create_tree(repo, &[(&path, "1")]);
 
-    fn snapshot(workspace: &mut Workspace) -> TreeId {
-        let mut locked_wc = workspace.working_copy_mut().start_mutation().unwrap();
-        let tree_id = locked_wc
-            .snapshot(SnapshotOptions::empty_for_test())
-            .unwrap();
-        locked_wc.finish(OperationId::from_hex("abc123")).unwrap();
-        tree_id
-    }
-
     let mut num_matches = 0;
     for _ in 0..100 {
         let wc = test_workspace.workspace.working_copy_mut();
-        wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
+        wc.check_out(op_id.clone(), None, &tree).unwrap();
         assert_eq!(
             std::fs::read(path.to_fs_path(&workspace_root)).unwrap(),
             b"1".to_vec()
@@ -176,8 +166,8 @@ fn test_racy_checkout() {
         // A file written right after checkout (hopefully, from the test's perspective,
         // within the file system timestamp granularity) is detected as changed.
         write_working_copy_file(&workspace_root, &path, "x");
-        let modified_tree_id = snapshot(&mut test_workspace.workspace);
-        if modified_tree_id == *tree.id() {
+        let modified_tree = test_workspace.snapshot();
+        if modified_tree.id() == tree.id() {
             num_matches += 1;
         }
         // Reset the state for the next round
