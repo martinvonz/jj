@@ -473,7 +473,7 @@ fn test_branch_list_filtered_by_revset() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(
             &local_path,
-            &["log", "-r:(branches() | remote_branches())", "-T", template],
+            &["log", "-r::(branches() | remote_branches())", "-T", template],
         ),
         @r###"
     ◉  e31634b64294 remote-rewrite*

@@ -130,7 +130,7 @@ fn test_rebase_branch_with_merge() {
 
     // Test abandoning the same commit twice indirectly
     test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d:", "a:"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d::", "a::"]);
     insta::assert_snapshot!(stdout, @r###"
     Abandoned the following commits:
       5557ece3e631 e

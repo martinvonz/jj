@@ -612,12 +612,12 @@ fn cmd_git_push(
     let change_commits: Vec<_> = args
         .change
         .iter()
-        .map(|change_str| workspace_command.resolve_single_rev(change_str))
+        .map(|change_str| workspace_command.resolve_single_rev(change_str, ui))
         .try_collect()?;
     // TODO: Narrow search space to local target commits.
     // TODO: Remove redundant CommitId -> Commit -> CommitId round trip.
     let revision_commit_ids: HashSet<_> =
-        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?
+        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?
             .iter()
             .map(|commit| commit.id().clone())
             .collect();
@@ -692,7 +692,7 @@ fn cmd_git_push(
                 let short_change_id = short_change_hash(commit.change_id());
                 if tx
                     .base_workspace_helper()
-                    .resolve_single_rev(&short_change_id)
+                    .resolve_single_rev(&short_change_id, ui)
                     .is_ok()
                 {
                     // Short change ID is not ambiguous, so update the branch name to use it.
@@ -985,7 +985,7 @@ fn cmd_git_submodule_print_gitmodules(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let commit = workspace_command.resolve_single_rev(&args.revisions)?;
+    let commit = workspace_command.resolve_single_rev(&args.revisions, ui)?;
     let gitmodules_path = RepoPath::from_internal_string(".gitmodules");
     let mut gitmodules_file = match commit.tree().path_value(&gitmodules_path) {
         None => {

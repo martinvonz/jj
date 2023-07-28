@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The storage format of branches, tags, and git refs has changed. Newly-stored
   repository data will no longer be loadable by older binaries.
 
+* The `:` revset operator is deprecated. Use `::` instead. We plan to delete the
+  `:` form in jj 0.15+.
+
 ### New features
 
 * `jj config edit --user` and `jj config set --user` will now pick a default
@@ -21,9 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj log` output is now topologically grouped.
   [#242](https://github.com/martinvonz/jj/issues/242)
-
-* The `:` revset operator can now be written as `::` instead. We plan to
-  delete the `:` form in jj 0.15+.
 
 ### Fixed bugs
 

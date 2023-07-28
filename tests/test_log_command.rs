@@ -31,6 +31,55 @@ fn test_log_with_empty_revision() {
 }
 
 #[test]
+fn test_log_legacy_range_operator() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=@:"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    │  (empty) (no description set)
+    ~
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    The `:` revset operator is deprecated. Please switch to `::`.
+    "###);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=:@"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    │  (empty) (no description set)
+    ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+       (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    The `:` revset operator is deprecated. Please switch to `::`.
+    "###);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=root:@"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    │  (empty) (no description set)
+    ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+       (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    The `:` revset operator is deprecated. Please switch to `::`.
+    "###);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["log", "-r=x", "--config-toml", "revset-aliases.x = '@:'"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    │  (empty) (no description set)
+    ~
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    The `:` revset operator is deprecated. Please switch to `::`.
+    "###);
+}
+
+#[test]
 fn test_log_with_or_without_diff() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
@@ -307,7 +356,7 @@ fn test_log_shortest_accessors() {
         @"qpv[untsmwlqt] ba1[a30916d29]");
 
     insta::assert_snapshot!(
-        render(":@", r#"change_id.shortest() ++ " " ++ commit_id.shortest() ++ "\n""#),
+        render("::@", r#"change_id.shortest() ++ " " ++ commit_id.shortest() ++ "\n""#),
         @r###"
     wq 03
     km f7
@@ -323,7 +372,7 @@ fn test_log_shortest_accessors() {
     "###);
 
     insta::assert_snapshot!(
-        render(":@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
+        render("::@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
         @r###"
     wq[nwkozpkust] 03[f51310b83e]
     km[kuslswpqwq] f7[7fb1909080]
@@ -341,7 +390,7 @@ fn test_log_shortest_accessors() {
     // Can get shorter prefixes in configured revset
     test_env.add_config(r#"revsets.short-prefixes = "(@----):""#);
     insta::assert_snapshot!(
-        render(":@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
+        render("::@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
         @r###"
     w[qnwkozpkust] 03[f51310b83e]
     km[kuslswpqwq] f[77fb1909080]
@@ -359,7 +408,7 @@ fn test_log_shortest_accessors() {
     // Can disable short prefixes by setting to empty string
     test_env.add_config(r#"revsets.short-prefixes = """#);
     insta::assert_snapshot!(
-        render(":@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
+        render("::@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
         @r###"
     wq[nwkozpkust] 03[f51310b83e]
     km[kuslswpqwq] f7[7fb1909080]
