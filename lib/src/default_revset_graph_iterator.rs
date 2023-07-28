@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::cmp::min;
+use std::cmp::{min, Ordering};
 use std::collections::{BTreeMap, HashSet};
 
 use crate::backend::CommitId;
@@ -131,7 +131,6 @@ pub struct RevsetGraphIterator<'revset, 'index> {
     /// look_ahead map, but it's faster to keep a separate field for it.
     min_position: IndexPosition,
     /// Edges for commits not in the input set.
-    // TODO: Remove unneeded entries here as we go (that's why it's an ordered map)?
     edges: BTreeMap<IndexPosition, Vec<IndexGraphEdge>>,
     skip_transitive_edges: bool,
 }
@@ -170,6 +169,30 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
         if let Some(edges) = self.edges.get(&index_entry.position()) {
             return edges.clone();
         }
+        let edges = self.new_edges_from_internal_commit(index_entry);
+        self.edges.insert(index_entry.position(), edges.clone());
+        edges
+    }
+
+    fn pop_edges_from_internal_commit(
+        &mut self,
+        index_entry: &IndexEntry<'index>,
+    ) -> Vec<IndexGraphEdge> {
+        let position = index_entry.position();
+        while let Some(entry) = self.edges.last_entry() {
+            match entry.key().cmp(&position) {
+                Ordering::Less => break, // no cached edges found
+                Ordering::Equal => return entry.remove(),
+                Ordering::Greater => entry.remove(),
+            };
+        }
+        self.new_edges_from_internal_commit(index_entry)
+    }
+
+    fn new_edges_from_internal_commit(
+        &mut self,
+        index_entry: &IndexEntry<'index>,
+    ) -> Vec<IndexGraphEdge> {
         let mut edges = Vec::new();
         let mut known_ancestors = HashSet::new();
         for parent in index_entry.parents() {
@@ -193,7 +216,6 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
                 }
             }
         }
-        self.edges.insert(index_entry.position(), edges.clone());
         edges
     }
 
@@ -314,7 +336,7 @@ impl<'revset, 'index> Iterator for RevsetGraphIterator<'revset, 'index> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let index_entry = self.next_index_entry()?;
-        let mut edges = self.edges_from_internal_commit(&index_entry);
+        let mut edges = self.pop_edges_from_internal_commit(&index_entry);
         if self.skip_transitive_edges {
             edges = self.remove_transitive_edges(edges);
         }
