@@ -149,13 +149,13 @@ fn test_chmod_file_dir_deletion_conflicts() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    file_deletion
     ├─╮
-    ◉ │  deletion
+    │ ◉  deletion
     │ │ ◉  file_dir
-    │ ╭─┤
-    │ ◉ │  file
-    ├─╯ │
-    │   ◉  dir
-    ├───╯
+    ╭───┤
+    │ │ ◉  dir
+    │ ├─╯
+    ◉ │  file
+    ├─╯
     ◉  base
     ◉
     "###);

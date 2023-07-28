@@ -45,11 +45,11 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
-    ◉ │  d
-    ◉ │  c
+    │ ◉  d
+    │ ◉  c
     │ │ ◉  b
-    │ ├─╯
-    │ ◉  a
+    ├───╯
+    ◉ │  a
     ├─╯
     ◉
     "###);
@@ -66,10 +66,10 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
-    ◉ │  c d
+    │ ◉  c d
     │ │ ◉  b
-    │ ├─╯
-    │ ◉  a
+    ├───╯
+    ◉ │  a
     ├─╯
     ◉
     "###);
@@ -121,9 +121,9 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
-    │ ◉  a b
-    ◉ │  d
-    ◉ │  c
+    │ ◉  d
+    │ ◉  c
+    ◉ │  a b
     ├─╯
     ◉
     "###);

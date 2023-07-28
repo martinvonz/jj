@@ -123,8 +123,8 @@ fn test_restore_conflicted_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    │ ◉  a
-    ◉ │  b
+    │ ◉  b
+    ◉ │  a
     ├─╯
     ◉  base
     ◉
