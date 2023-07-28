@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::cmp::{min, Reverse};
+use std::cmp::min;
 use std::collections::{BTreeMap, HashSet};
 
 use crate::backend::CommitId;
@@ -132,7 +132,7 @@ pub struct RevsetGraphIterator<'revset, 'index> {
     min_position: IndexPosition,
     /// Edges for commits not in the input set.
     // TODO: Remove unneeded entries here as we go (that's why it's an ordered map)?
-    edges: BTreeMap<IndexPosition, HashSet<IndexGraphEdge>>,
+    edges: BTreeMap<IndexPosition, Vec<IndexGraphEdge>>,
     skip_transitive_edges: bool,
 }
 
@@ -166,25 +166,30 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
     fn edges_from_internal_commit(
         &mut self,
         index_entry: &IndexEntry<'index>,
-    ) -> HashSet<IndexGraphEdge> {
+    ) -> Vec<IndexGraphEdge> {
         if let Some(edges) = self.edges.get(&index_entry.position()) {
             return edges.clone();
         }
-        let mut edges = HashSet::new();
+        let mut edges = Vec::new();
+        let mut known_ancestors = HashSet::new();
         for parent in index_entry.parents() {
             let parent_position = parent.position();
             self.consume_to(parent_position);
             if self.look_ahead.contains_key(&parent_position) {
-                edges.insert(IndexGraphEdge::direct(parent_position));
+                edges.push(IndexGraphEdge::direct(parent_position));
             } else {
                 let parent_edges = self.edges_from_external_commit(parent);
                 if parent_edges
                     .iter()
                     .all(|edge| edge.edge_type == RevsetGraphEdgeType::Missing)
                 {
-                    edges.insert(IndexGraphEdge::missing(parent_position));
+                    edges.push(IndexGraphEdge::missing(parent_position));
                 } else {
-                    edges.extend(parent_edges);
+                    edges.extend(
+                        parent_edges
+                            .into_iter()
+                            .filter(|edge| known_ancestors.insert(edge.target)),
+                    )
                 }
             }
         }
@@ -195,7 +200,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
     fn edges_from_external_commit(
         &mut self,
         index_entry: IndexEntry<'index>,
-    ) -> HashSet<IndexGraphEdge> {
+    ) -> Vec<IndexGraphEdge> {
         let position = index_entry.position();
         let mut stack = vec![index_entry];
         while let Some(entry) = stack.last() {
@@ -204,26 +209,32 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
                 stack.pop().unwrap();
                 continue;
             }
-            let mut edges = HashSet::new();
+            let mut edges = Vec::new();
+            let mut known_ancestors = HashSet::new();
             let mut parents_complete = true;
             for parent in entry.parents() {
                 let parent_position = parent.position();
                 self.consume_to(parent_position);
                 if self.look_ahead.contains_key(&parent_position) {
                     // We have found a path back into the input set
-                    edges.insert(IndexGraphEdge::indirect(parent_position));
+                    edges.push(IndexGraphEdge::indirect(parent_position));
                 } else if let Some(parent_edges) = self.edges.get(&parent_position) {
                     if parent_edges
                         .iter()
                         .all(|edge| edge.edge_type == RevsetGraphEdgeType::Missing)
                     {
-                        edges.insert(IndexGraphEdge::missing(parent_position));
+                        edges.push(IndexGraphEdge::missing(parent_position));
                     } else {
-                        edges.extend(parent_edges.iter().cloned());
+                        edges.extend(
+                            parent_edges
+                                .iter()
+                                .filter(|edge| known_ancestors.insert(edge.target))
+                                .cloned(),
+                        );
                     }
                 } else if parent_position < self.min_position {
                     // The parent is not in the input set
-                    edges.insert(IndexGraphEdge::missing(parent_position));
+                    edges.push(IndexGraphEdge::missing(parent_position));
                 } else {
                     // The parent is not in the input set but it's somewhere in the range
                     // where we have commits in the input set, so continue searching.
@@ -239,10 +250,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
         self.edges.get(&position).unwrap().clone()
     }
 
-    fn remove_transitive_edges(
-        &mut self,
-        edges: HashSet<IndexGraphEdge>,
-    ) -> HashSet<IndexGraphEdge> {
+    fn remove_transitive_edges(&mut self, edges: Vec<IndexGraphEdge>) -> Vec<IndexGraphEdge> {
         if !edges
             .iter()
             .any(|edge| edge.edge_type == RevsetGraphEdgeType::Indirect)
@@ -310,8 +318,6 @@ impl<'revset, 'index> Iterator for RevsetGraphIterator<'revset, 'index> {
         if self.skip_transitive_edges {
             edges = self.remove_transitive_edges(edges);
         }
-        let mut edges: Vec<_> = edges.into_iter().collect();
-        edges.sort_unstable_by_key(|edge| Reverse(edge.target));
         let edges = edges
             .iter()
             .map(|edge| edge.to_revset_edge(self.index))

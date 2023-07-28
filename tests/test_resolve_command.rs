@@ -56,8 +56,8 @@ fn test_resolution() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    │ ◉  a
-    ◉ │  b
+    │ ◉  b
+    ◉ │  a
     ├─╯
     ◉  base
     ◉
@@ -307,8 +307,8 @@ fn test_normal_conflict_input_files() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    │ ◉  a
-    ◉ │  b
+    │ ◉  b
+    ◉ │  a
     ├─╯
     ◉  base
     ◉
@@ -348,8 +348,8 @@ fn test_baseless_conflict_input_files() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    │ ◉  a
-    ◉ │  b
+    │ ◉  b
+    ◉ │  a
     ├─╯
     ◉  base
     ◉
@@ -416,8 +416,8 @@ fn test_edit_delete_conflict_input_files() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    │ ◉  a
-    ◉ │  b
+    │ ◉  b
+    ◉ │  a
     ├─╯
     ◉  base
     ◉
@@ -459,8 +459,8 @@ fn test_file_vs_dir() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    │ ◉  a
-    ◉ │  b
+    │ ◉  b
+    ◉ │  a
     ├─╯
     ◉  base
     ◉
@@ -506,10 +506,10 @@ fn test_description_with_dir_and_deletion() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @      conflict
     ├─┬─╮
-    │ │ ◉  edit
+    │ │ ◉  del
     │ ◉ │  dir
     │ ├─╯
-    ◉ │  del
+    ◉ │  edit
     ├─╯
     ◉  base
     ◉
@@ -586,8 +586,8 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    │ ◉  a
-    ◉ │  b
+    │ ◉  b
+    ◉ │  a
     ├─╯
     ◉  base
     ◉

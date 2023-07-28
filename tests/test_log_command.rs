@@ -956,11 +956,11 @@ fn test_graph_styles() {
     insta::assert_snapshot!(stdout, @r###"
     @    merge
     ├─╮
-    ◉ │  side branch
+    │ ◉  side branch
     │ │  with
     │ │  long
     │ │  description
-    ◉ │  main branch 2
+    │ ◉  main branch 2
     ├─╯
     ◉  main branch 1
     ◉  initial
@@ -973,11 +973,11 @@ fn test_graph_styles() {
     insta::assert_snapshot!(stdout, @r###"
     @    merge
     |\
-    o |  side branch
+    | o  side branch
     | |  with
     | |  long
     | |  description
-    o |  main branch 2
+    | o  main branch 2
     |/
     o  main branch 1
     o  initial
@@ -991,11 +991,11 @@ fn test_graph_styles() {
     @     merge
     |\
     | \
-    o  |  side branch
+    |  o  side branch
     |  |  with
     |  |  long
     |  |  description
-    o  |  main branch 2
+    |  o  main branch 2
     | /
     |/
     o  main branch 1
@@ -1009,11 +1009,11 @@ fn test_graph_styles() {
     insta::assert_snapshot!(stdout, @r###"
     @    merge
     ├─╮
-    ◉ │  side branch
+    │ ◉  side branch
     │ │  with
     │ │  long
     │ │  description
-    ◉ │  main branch 2
+    │ ◉  main branch 2
     ├─╯
     ◉  main branch 1
     ◉  initial
@@ -1026,11 +1026,11 @@ fn test_graph_styles() {
     insta::assert_snapshot!(stdout, @r###"
     @    merge
     ├─┐
-    ◉ │  side branch
+    │ ◉  side branch
     │ │  with
     │ │  long
     │ │  description
-    ◉ │  main branch 2
+    │ ◉  main branch 2
     ├─┘
     ◉  main branch 1
     ◉  initial
@@ -1100,11 +1100,11 @@ fn test_log_word_wrap() {
     ├─╮  3 4 5
     │ │  6 7 8
     │ │  9
-    ◉ │  0 1 2
+    │ ◉  0 1 2
     │ │  3 4 5
     │ │  6 7 8
     │ │  9
-    ◉ │  0 1 2
+    │ ◉  0 1 2
     ├─╯  3 4 5
     │    6 7 8
     │    9
@@ -1122,11 +1122,11 @@ fn test_log_word_wrap() {
     |\  3 4 5
     | | 6 7 8
     | | 9
-    o | 0 1 2
+    | o 0 1 2
     | | 3 4 5
     | | 6 7 8
     | | 9
-    o | 0 1 2
+    | o 0 1 2
     |/  3 4 5
     |   6 7 8
     |   9

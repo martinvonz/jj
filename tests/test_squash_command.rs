@@ -91,8 +91,8 @@ fn test_squash() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    c7a11b36d333 e
     ├─╮
-    │ ◉  90fe0a96fc90 c
-    ◉ │  5658521e0f8b d
+    │ ◉  5658521e0f8b d
+    ◉ │  90fe0a96fc90 c
     ├─╯
     ◉  fa5efbdf533c b
     ◉  90aeefd03044 a
@@ -115,8 +115,8 @@ fn test_squash() {
     @  959145c11426
     ◉    80960125bb96 e
     ├─╮
-    │ ◉  90fe0a96fc90 c
-    ◉ │  5658521e0f8b d
+    │ ◉  5658521e0f8b d
+    ◉ │  90fe0a96fc90 c
     ├─╯
     ◉  fa5efbdf533c b
     ◉  90aeefd03044 a
