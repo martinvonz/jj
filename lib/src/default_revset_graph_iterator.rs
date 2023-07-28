@@ -200,6 +200,10 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
         let mut stack = vec![index_entry];
         while let Some(entry) = stack.last() {
             let position = entry.position();
+            if self.edges.contains_key(&position) {
+                stack.pop().unwrap();
+                continue;
+            }
             let mut edges = HashSet::new();
             let mut parents_complete = true;
             for parent in entry.parents() {
