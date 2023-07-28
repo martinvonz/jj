@@ -151,7 +151,7 @@ fn cmd_branch_create(
     }
 
     let target_commit =
-        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
     workspace_command.check_rewritable(&target_commit)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "create {} pointing to commit {}",
@@ -182,7 +182,7 @@ fn cmd_branch_set(
     }
 
     let target_commit =
-        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
     workspace_command.check_rewritable(&target_commit)?;
     if !args.allow_backwards
         && !branch_names.iter().all(|branch_name| {
@@ -344,7 +344,7 @@ fn cmd_branch_list(
         let filter_expressions: Vec<_> = args
             .revisions
             .iter()
-            .map(|revision_str| workspace_command.parse_revset(revision_str))
+            .map(|revision_str| workspace_command.parse_revset(revision_str, Some(ui)))
             .try_collect()?;
         let filter_expression = RevsetExpression::union_all(&filter_expressions);
         // Intersects with the set of all branch targets to minimize the lookup space.

@@ -36,7 +36,7 @@ fn run_custom_command(
     match command {
         CustomCommands::Frobnicate(args) => {
             let mut workspace_command = command_helper.workspace_helper(ui)?;
-            let commit = workspace_command.resolve_single_rev(&args.revision)?;
+            let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
             let mut tx = workspace_command.start_transaction("Frobnicate");
             let new_commit = tx
                 .mut_repo()

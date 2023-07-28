@@ -1274,7 +1274,7 @@ fn cmd_checkout(
     args: &CheckoutArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let target = workspace_command.resolve_single_rev(&args.revision)?;
+    let target = workspace_command.resolve_single_rev(&args.revision, ui)?;
     let mut tx =
         workspace_command.start_transaction(&format!("check out commit {}", target.id().hex()));
     let commit_builder = tx
@@ -1365,7 +1365,7 @@ Make sure they're ignored, then try again.",
 #[instrument(skip_all)]
 fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     ui.request_pager();
     for (name, _value) in commit.tree().entries_matching(matcher.as_ref()) {
@@ -1377,7 +1377,7 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
 #[instrument(skip_all)]
 fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     let path = workspace_command.parse_file_path(&args.path)?;
     let repo = workspace_command.repo();
     match commit.tree().path_value(&path) {
@@ -1411,13 +1411,13 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
     let from_tree;
     let to_tree;
     if args.from.is_some() || args.to.is_some() {
-        let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
+        let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
         from_tree = from.tree();
-        let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+        let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
         to_tree = to.tree();
     } else {
         let commit =
-            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
         let parents = commit.parents();
         from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
         to_tree = commit.tree()
@@ -1438,7 +1438,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
 #[instrument(skip_all)]
 fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     let template_string = command.settings().config().get_string("templates.show")?;
     let template = workspace_command.parse_commit_template(&template_string)?;
     ui.request_pager();
@@ -1560,12 +1560,12 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     let revset_expression = {
         let mut expression = if args.revisions.is_empty() {
-            workspace_command.parse_revset(&command.settings().default_revset())?
+            workspace_command.parse_revset(&command.settings().default_revset(), Some(ui))?
         } else {
             let expressions: Vec<_> = args
                 .revisions
                 .iter()
-                .map(|revision_str| workspace_command.parse_revset(revision_str))
+                .map(|revision_str| workspace_command.parse_revset(revision_str, Some(ui)))
                 .try_collect()?;
             RevsetExpression::union_all(&expressions)
         };
@@ -1720,7 +1720,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
-    let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let start_commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     let wc_commit_id = workspace_command.get_wc_commit_id();
 
     let diff_formats =
@@ -1823,8 +1823,8 @@ fn cmd_interdiff(
     args: &InterdiffArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
-    let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+    let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
+    let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
 
     let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
@@ -1976,7 +1976,7 @@ fn cmd_describe(
     args: &DescribeArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     workspace_command.check_rewritable(&commit)?;
     let description = if args.stdin {
         let mut buffer = String::new();
@@ -2059,7 +2059,7 @@ fn cmd_duplicate(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let to_duplicate: IndexSet<Commit> =
-        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
+        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?;
     to_duplicate
         .iter()
         .map(|commit| workspace_command.check_rewritable(commit))
@@ -2117,7 +2117,7 @@ fn cmd_abandon(
     args: &AbandonArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let to_abandon = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
+    let to_abandon = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?;
     to_abandon
         .iter()
         .map(|commit| workspace_command.check_rewritable(commit))
@@ -2164,7 +2164,7 @@ fn cmd_abandon(
 #[instrument(skip_all)]
 fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let new_commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     workspace_command.check_rewritable(&new_commit)?;
     if workspace_command.get_wc_commit_id() == Some(new_commit.id()) {
         ui.write("Already editing that commit\n")?;
@@ -2181,11 +2181,13 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
 /// to be rewriteable.
 fn resolve_destination_revs(
     workspace_command: &WorkspaceCommandHelper,
+    ui: &mut Ui,
     revisions: &[RevisionArg],
     allow_plural_revsets: bool,
 ) -> Result<IndexSet<Commit>, CommandError> {
     let commits = resolve_multiple_nonempty_revsets_flag_guarded(
         workspace_command,
+        ui,
         revisions,
         allow_plural_revsets,
     )?;
@@ -2206,6 +2208,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     );
     let target_commits = resolve_destination_revs(
         &workspace_command,
+        ui,
         &args.revisions,
         args.allow_large_revsets,
     )?
@@ -2352,9 +2355,9 @@ fn combine_messages(
 #[instrument(skip_all)]
 fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
+    let source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
     let mut destination =
-        workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+        workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
     if source.id() == destination.id() {
         return Err(user_error("Source and destination cannot be the same."));
     }
@@ -2441,7 +2444,7 @@ from the source will be moved into the destination.
 #[instrument(skip_all)]
 fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     workspace_command.check_rewritable(&commit)?;
     let parents = commit.parents();
     if parents.len() != 1 {
@@ -2535,7 +2538,7 @@ fn cmd_unsquash(
     args: &UnsquashArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     workspace_command.check_rewritable(&commit)?;
     let parents = commit.parents();
     if parents.len() != 1 {
@@ -2612,7 +2615,7 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
         .iter()
         .map(|path| workspace_command.parse_file_path(path))
         .try_collect()?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     workspace_command.check_rewritable(&commit)?;
 
     let mut tx = workspace_command.start_transaction(&format!(
@@ -2697,7 +2700,7 @@ fn cmd_resolve(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     let tree = commit.merged_tree()?;
     let conflicts = tree
         .conflicts()
@@ -2850,12 +2853,12 @@ fn cmd_restore(
     let mut workspace_command = command.workspace_helper(ui)?;
     let (from_tree, to_commit);
     if args.from.is_some() || args.to.is_some() {
-        to_commit = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+        to_commit = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
         from_tree = workspace_command
-            .resolve_single_rev(args.from.as_deref().unwrap_or("@"))?
+            .resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?
             .tree();
     } else {
-        to_commit = workspace_command.resolve_single_rev("@")?;
+        to_commit = workspace_command.resolve_single_rev("@", ui)?;
         from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &to_commit.parents())?;
     }
     workspace_command.check_rewritable(&to_commit)?;
@@ -2908,16 +2911,17 @@ fn cmd_diffedit(
 
     let (target_commit, base_commits, diff_description);
     if args.from.is_some() || args.to.is_some() {
-        target_commit = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+        target_commit =
+            workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
         base_commits =
-            vec![workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?];
+            vec![workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?];
         diff_description = format!(
             "The diff initially shows the commit's changes relative to:\n{}",
             workspace_command.format_commit_summary(&base_commits[0])
         );
     } else {
         target_commit =
-            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
         base_commits = target_commit.parents();
         diff_description = "The diff initially shows the commit's changes.".to_string();
     };
@@ -3006,7 +3010,7 @@ fn diff_summary_to_description(bytes: &[u8]) -> String {
 #[instrument(skip_all)]
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     workspace_command.check_rewritable(&commit)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut tx =
@@ -3112,6 +3116,7 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_parents = resolve_destination_revs(
         &workspace_command,
+        ui,
         &args.destination,
         args.allow_large_revsets,
     )?
@@ -3122,6 +3127,7 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
     } else if !args.source.is_empty() {
         let source_commits = resolve_multiple_nonempty_revsets_flag_guarded(
             &workspace_command,
+            ui,
             &args.source,
             args.allow_large_revsets,
         )?;
@@ -3134,10 +3140,11 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
         )?;
     } else {
         let branch_commits = if args.branch.is_empty() {
-            IndexSet::from([workspace_command.resolve_single_rev("@")?])
+            IndexSet::from([workspace_command.resolve_single_rev("@", ui)?])
         } else {
             resolve_multiple_nonempty_revsets_flag_guarded(
                 &workspace_command,
+                ui,
                 &args.branch,
                 args.allow_large_revsets,
             )?
@@ -3220,7 +3227,7 @@ fn rebase_revision(
     new_parents: &[Commit],
     rev_str: &str,
 ) -> Result<(), CommandError> {
-    let old_commit = workspace_command.resolve_single_rev(rev_str)?;
+    let old_commit = workspace_command.resolve_single_rev(rev_str, ui)?;
     workspace_command.check_rewritable(&old_commit)?;
     check_rebase_destinations(workspace_command.repo(), new_parents, &old_commit)?;
     let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
@@ -3318,10 +3325,10 @@ fn cmd_backout(
     args: &BackoutArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit_to_back_out = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit_to_back_out = workspace_command.resolve_single_rev(&args.revision, ui)?;
     let mut parents = vec![];
     for revision_str in &args.destination {
-        let destination = workspace_command.resolve_single_rev(revision_str)?;
+        let destination = workspace_command.resolve_single_rev(revision_str, ui)?;
         parents.push(destination);
     }
     let mut tx = workspace_command.start_transaction(&format!(

@@ -957,8 +957,12 @@ impl WorkspaceCommandHelper {
         )
     }
 
-    pub fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
-        let revset_expression = self.parse_revset(revision_str)?;
+    pub fn resolve_single_rev(
+        &self,
+        revision_str: &str,
+        ui: &mut Ui,
+    ) -> Result<Commit, CommandError> {
+        let revset_expression = self.parse_revset(revision_str, Some(ui))?;
         let revset = self.evaluate_revset(revset_expression)?;
         let mut iter = revset.iter().commits(self.repo().store()).fuse();
         match (iter.next(), iter.next()) {
@@ -987,8 +991,12 @@ impl WorkspaceCommandHelper {
         }
     }
 
-    pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
-        let revset_expression = self.parse_revset(revision_str)?;
+    pub fn resolve_revset(
+        &self,
+        revision_str: &str,
+        ui: &mut Ui,
+    ) -> Result<Vec<Commit>, CommandError> {
+        let revset_expression = self.parse_revset(revision_str, Some(ui))?;
         let revset = self.evaluate_revset(revset_expression)?;
         Ok(revset.iter().commits(self.repo().store()).try_collect()?)
     }
@@ -996,12 +1004,69 @@ impl WorkspaceCommandHelper {
     pub fn parse_revset(
         &self,
         revision_str: &str,
+        ui: Option<&mut Ui>,
     ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
         let expression = revset::parse(
             revision_str,
             &self.revset_aliases_map,
             Some(&self.revset_context()),
         )?;
+        if let Some(ui) = ui {
+            fn has_legacy_rule(expression: &Rc<RevsetExpression>) -> bool {
+                match expression.as_ref() {
+                    RevsetExpression::None => false,
+                    RevsetExpression::All => false,
+                    RevsetExpression::Commits(_) => false,
+                    RevsetExpression::CommitRef(_) => false,
+                    RevsetExpression::Ancestors {
+                        heads,
+                        generation: _,
+                        is_legacy,
+                    } => *is_legacy || has_legacy_rule(heads),
+                    RevsetExpression::Descendants {
+                        roots,
+                        generation: _,
+                        is_legacy,
+                    } => *is_legacy || has_legacy_rule(roots),
+                    RevsetExpression::Range {
+                        roots,
+                        heads,
+                        generation: _,
+                    } => has_legacy_rule(roots) || has_legacy_rule(heads),
+                    RevsetExpression::DagRange {
+                        roots,
+                        heads,
+                        is_legacy,
+                    } => *is_legacy || has_legacy_rule(roots) || has_legacy_rule(heads),
+                    RevsetExpression::Heads(expression) => has_legacy_rule(expression),
+                    RevsetExpression::Roots(expression) => has_legacy_rule(expression),
+                    RevsetExpression::Latest {
+                        candidates,
+                        count: _,
+                    } => has_legacy_rule(candidates),
+                    RevsetExpression::Filter(_) => false,
+                    RevsetExpression::AsFilter(expression) => has_legacy_rule(expression),
+                    RevsetExpression::Present(expression) => has_legacy_rule(expression),
+                    RevsetExpression::NotIn(expression) => has_legacy_rule(expression),
+                    RevsetExpression::Union(expression1, expression2) => {
+                        has_legacy_rule(expression1) || has_legacy_rule(expression2)
+                    }
+                    RevsetExpression::Intersection(expression1, expression2) => {
+                        has_legacy_rule(expression1) || has_legacy_rule(expression2)
+                    }
+                    RevsetExpression::Difference(expression1, expression2) => {
+                        has_legacy_rule(expression1) || has_legacy_rule(expression2)
+                    }
+                }
+            }
+            if has_legacy_rule(&expression) {
+                writeln!(
+                    ui.warning(),
+                    "The `:` revset operator is deprecated. Please switch to `::`."
+                )
+                .ok();
+            }
+        }
         Ok(revset::optimize(expression))
     }
 
@@ -1046,7 +1111,7 @@ impl WorkspaceCommandHelper {
                 .get_string("revsets.short-prefixes")
                 .unwrap_or_else(|_| self.settings.default_revset());
             if !revset_string.is_empty() {
-                let disambiguation_revset = self.parse_revset(&revset_string).unwrap();
+                let disambiguation_revset = self.parse_revset(&revset_string, None).unwrap();
                 context = context
                     .disambiguate_within(disambiguation_revset, Some(self.workspace_id().clone()));
             }
@@ -1763,10 +1828,11 @@ fn load_revset_aliases(
 pub fn resolve_multiple_nonempty_revsets(
     revision_args: &[RevisionArg],
     workspace_command: &WorkspaceCommandHelper,
+    ui: &mut Ui,
 ) -> Result<IndexSet<Commit>, CommandError> {
     let mut acc = IndexSet::new();
     for revset in revision_args {
-        let revisions = workspace_command.resolve_revset(revset)?;
+        let revisions = workspace_command.resolve_revset(revset, ui)?;
         workspace_command.check_non_empty(&revisions)?;
         acc.extend(revisions);
     }
@@ -1775,16 +1841,17 @@ pub fn resolve_multiple_nonempty_revsets(
 
 pub fn resolve_multiple_nonempty_revsets_flag_guarded(
     workspace_command: &WorkspaceCommandHelper,
+    ui: &mut Ui,
     revisions: &[RevisionArg],
     allow_plural_revsets: bool,
 ) -> Result<IndexSet<Commit>, CommandError> {
     if allow_plural_revsets {
-        resolve_multiple_nonempty_revsets(revisions, workspace_command)
+        resolve_multiple_nonempty_revsets(revisions, workspace_command, ui)
     } else {
         let mut commits = IndexSet::new();
         for revision_str in revisions {
             let commit = workspace_command
-                .resolve_single_rev(revision_str)
+                .resolve_single_rev(revision_str, ui)
                 .map_err(append_large_revsets_hint_if_multiple_revisions)?;
             let commit_hash = short_commit_hash(commit.id());
             if !commits.insert(commit) {

@@ -109,7 +109,7 @@ fn test_duplicate_many() {
     ◉  000000000000
     "###);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b:"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b::"]);
     insta::assert_snapshot!(stdout, @r###"
     Duplicated 1394f625cbbd as 3b74d9691015 b
     Duplicated 921dde6e55c0 as 8348ddcec733 e
@@ -150,7 +150,7 @@ fn test_duplicate_many() {
 
     // Try specifying the same commit twice indirectly
     test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b:", "d:"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b::", "d::"]);
     insta::assert_snapshot!(stdout, @r###"
     Duplicated 1394f625cbbd as fa167d18a83a b
     Duplicated ebd06dba20ec as 2181781b4f81 d
@@ -185,7 +185,7 @@ fn test_duplicate_many() {
     ◉  2443ea76b0b1   a
     ◉  000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "d:", "a"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "d::", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     Duplicated 2443ea76b0b1 as c6f7f8c4512e a
     Duplicated ebd06dba20ec as d94e4c55a68b d
@@ -210,7 +210,7 @@ fn test_duplicate_many() {
 
     // Check for BUG -- makes too many 'a'-s, etc.
     test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a:"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a::"]);
     insta::assert_snapshot!(stdout, @r###"
     Duplicated 2443ea76b0b1 as 0fe67a05989e a
     Duplicated 1394f625cbbd as e13ac0adabdf b

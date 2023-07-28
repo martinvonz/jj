@@ -389,7 +389,13 @@ fn test_color_words_diff_missing_newline() {
 
     let stdout = test_env.jj_cmd_success(
         &repo_path,
-        &["log", "-Tdescription", "-pr:@-", "--no-graph", "--reversed"],
+        &[
+            "log",
+            "-Tdescription",
+            "-pr::@-",
+            "--no-graph",
+            "--reversed",
+        ],
     );
     insta::assert_snapshot!(stdout, @r###"
     === Empty
