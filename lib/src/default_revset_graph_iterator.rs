@@ -24,7 +24,7 @@ use crate::revset_graph::{RevsetGraphEdge, RevsetGraphEdgeType};
 /// Like `RevsetGraphEdge`, but stores `IndexPosition` instead.
 ///
 /// This can be cheaply allocated and hashed compared to `CommitId`-based type.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct IndexGraphEdge {
     target: IndexPosition,
     edge_type: RevsetGraphEdgeType,
@@ -46,7 +46,7 @@ impl IndexGraphEdge {
         IndexGraphEdge { target, edge_type }
     }
 
-    fn to_revset_edge(&self, index: CompositeIndex<'_>) -> RevsetGraphEdge {
+    fn to_revset_edge(self, index: CompositeIndex<'_>) -> RevsetGraphEdge {
         RevsetGraphEdge {
             target: index.entry_by_pos(self.target).commit_id(),
             edge_type: self.edge_type,
@@ -165,13 +165,14 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
     fn edges_from_internal_commit(
         &mut self,
         index_entry: &IndexEntry<'index>,
-    ) -> Vec<IndexGraphEdge> {
-        if let Some(edges) = self.edges.get(&index_entry.position()) {
-            return edges.clone();
+    ) -> &[IndexGraphEdge] {
+        let position = index_entry.position();
+        // `if let Some(edges) = ...` doesn't pass lifetime check as of Rust 1.71.0
+        if self.edges.contains_key(&position) {
+            return self.edges.get(&position).unwrap();
         }
         let edges = self.new_edges_from_internal_commit(index_entry);
-        self.edges.insert(index_entry.position(), edges.clone());
-        edges
+        self.edges.entry(position).or_insert(edges)
     }
 
     fn pop_edges_from_internal_commit(
@@ -210,7 +211,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
                 } else {
                     edges.extend(
                         parent_edges
-                            .into_iter()
+                            .iter()
                             .filter(|edge| known_ancestors.insert(edge.target)),
                     )
                 }
@@ -219,10 +220,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
         edges
     }
 
-    fn edges_from_external_commit(
-        &mut self,
-        index_entry: IndexEntry<'index>,
-    ) -> Vec<IndexGraphEdge> {
+    fn edges_from_external_commit(&mut self, index_entry: IndexEntry<'index>) -> &[IndexGraphEdge] {
         let position = index_entry.position();
         let mut stack = vec![index_entry];
         while let Some(entry) = stack.last() {
@@ -250,8 +248,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
                         edges.extend(
                             parent_edges
                                 .iter()
-                                .filter(|edge| known_ancestors.insert(edge.target))
-                                .cloned(),
+                                .filter(|edge| known_ancestors.insert(edge.target)),
                         );
                     }
                 } else if parent_position < self.min_position {
@@ -269,7 +266,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
                 self.edges.insert(position, edges);
             }
         }
-        self.edges.get(&position).unwrap().clone()
+        self.edges.get(&position).unwrap()
     }
 
     fn remove_transitive_edges(&mut self, edges: Vec<IndexGraphEdge>) -> Vec<IndexGraphEdge> {
@@ -288,7 +285,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
             if edge.edge_type != RevsetGraphEdgeType::Missing {
                 let entry = self.look_ahead.get(&edge.target).unwrap().clone();
                 min_generation = min(min_generation, entry.generation_number());
-                work.extend(self.edges_from_internal_commit(&entry));
+                work.extend_from_slice(self.edges_from_internal_commit(&entry));
             }
         }
         // Find commits reachable transitively and add them to the `unwanted` set.
@@ -309,7 +306,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
             if entry.generation_number() < min_generation {
                 continue;
             }
-            work.extend(self.edges_from_internal_commit(&entry));
+            work.extend_from_slice(self.edges_from_internal_commit(&entry));
         }
 
         edges
