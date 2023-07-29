@@ -1341,7 +1341,7 @@ impl WorkspaceCommandTransaction<'_> {
 
     pub fn run_mergetool(
         &self,
-        ui: &mut Ui,
+        ui: &Ui,
         tree: &Tree,
         repo_path: &RepoPath,
     ) -> Result<TreeId, CommandError> {
@@ -1353,7 +1353,7 @@ impl WorkspaceCommandTransaction<'_> {
 
     pub fn edit_diff(
         &self,
-        ui: &mut Ui,
+        ui: &Ui,
         left_tree: &Tree,
         right_tree: &Tree,
         instructions: &str,
@@ -1372,7 +1372,7 @@ impl WorkspaceCommandTransaction<'_> {
 
     pub fn select_diff(
         &self,
-        ui: &mut Ui,
+        ui: &Ui,
         left_tree: &Tree,
         right_tree: &Tree,
         instructions: &str,
@@ -1598,10 +1598,7 @@ pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std
     Ok(())
 }
 
-pub fn print_failed_git_export(
-    ui: &mut Ui,
-    failed_branches: &[RefName],
-) -> Result<(), std::io::Error> {
+pub fn print_failed_git_export(ui: &Ui, failed_branches: &[RefName]) -> Result<(), std::io::Error> {
     if !failed_branches.is_empty() {
         writeln!(ui.warning(), "Failed to export some branches:")?;
         let mut formatter = ui.stderr_formatter();
@@ -1737,7 +1734,7 @@ fn resolve_single_op_from_store(
 }
 
 fn load_revset_aliases(
-    ui: &mut Ui,
+    ui: &Ui,
     layered_configs: &LayeredConfigs,
 ) -> Result<RevsetAliasesMap, CommandError> {
     const TABLE_KEY: &str = "revset-aliases";
@@ -1852,7 +1849,7 @@ pub fn update_working_copy(
 }
 
 fn load_template_aliases(
-    ui: &mut Ui,
+    ui: &Ui,
     layered_configs: &LayeredConfigs,
 ) -> Result<TemplateAliasesMap, CommandError> {
     const TABLE_KEY: &str = "template-aliases";
@@ -2257,7 +2254,7 @@ impl ValueParserFactory for RevisionArg {
 }
 
 fn resolve_default_command(
-    ui: &mut Ui,
+    ui: &Ui,
     config: &config::Config,
     app: &Command,
     mut string_args: Vec<String>,
@@ -2395,7 +2392,7 @@ fn handle_early_args(
 }
 
 pub fn expand_args(
-    ui: &mut Ui,
+    ui: &Ui,
     app: &Command,
     args_os: ArgsOs,
     config: &config::Config,

@@ -53,7 +53,7 @@ impl Ord for Operation {
 
 impl PartialOrd for Operation {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.id.cmp(&other.id))
+        Some(self.cmp(other))
     }
 }
 
@@ -133,7 +133,7 @@ impl Ord for View {
 
 impl PartialOrd for View {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.id.cmp(&other.id))
+        Some(self.cmp(other))
     }
 }
 

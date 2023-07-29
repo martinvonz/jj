@@ -326,7 +326,7 @@ fn get_single_remote(git_repo: &git2::Repository) -> Result<Option<String>, Comm
 const DEFAULT_REMOTE: &str = "origin";
 
 fn get_default_fetch_remotes(
-    ui: &mut Ui,
+    ui: &Ui,
     command: &CommandHelper,
     git_repo: &git2::Repository,
 ) -> Result<Vec<String>, CommandError> {
@@ -915,7 +915,7 @@ fn cmd_git_push(
 }
 
 fn get_default_push_remote(
-    ui: &mut Ui,
+    ui: &Ui,
     command: &CommandHelper,
     git_repo: &git2::Repository,
 ) -> Result<String, CommandError> {
