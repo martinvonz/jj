@@ -51,9 +51,14 @@ use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJo
 use crate::store::Store;
 use crate::tree::{Diff, Tree};
 
+#[cfg(unix)]
+type FileExecutableFlag = bool;
+#[cfg(windows)]
+type FileExecutableFlag = ();
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FileType {
-    Normal { executable: bool },
+    Normal { executable: FileExecutableFlag },
     Symlink,
     GitSubmodule,
 }
@@ -70,6 +75,12 @@ pub struct FileState {
 
 impl FileState {
     fn for_file(executable: bool, size: u64, metadata: &Metadata) -> Self {
+        #[cfg(windows)]
+        let executable = {
+            // Windows doesn't support executable bit.
+            let _ = executable;
+            ()
+        };
         FileState {
             file_type: FileType::Normal { executable },
             mtime: mtime_from_metadata(metadata),
@@ -96,15 +107,7 @@ impl FileState {
         }
     }
 
-    #[cfg_attr(unix, allow(dead_code))]
-    fn is_executable(&self) -> bool {
-        if let FileType::Normal { executable } = &self.file_type {
-            *executable
-        } else {
-            false
-        }
-    }
-
+    #[cfg(unix)]
     fn mark_executable(&mut self, executable: bool) {
         if let FileType::Normal { .. } = &self.file_type {
             self.file_type = FileType::Normal { executable }
@@ -130,10 +133,18 @@ pub struct TreeState {
 
 fn file_state_from_proto(proto: crate::protos::working_copy::FileState) -> FileState {
     let file_type = match proto.file_type() {
-        crate::protos::working_copy::FileType::Normal => FileType::Normal { executable: false },
+        crate::protos::working_copy::FileType::Normal => FileType::Normal {
+            executable: FileExecutableFlag::default(),
+        },
+        #[cfg(unix)]
         crate::protos::working_copy::FileType::Executable => FileType::Normal { executable: true },
+        // can exist in files written by older versions of jj
+        #[cfg(windows)]
+        crate::protos::working_copy::FileType::Executable => FileType::Normal { executable: () },
         crate::protos::working_copy::FileType::Symlink => FileType::Symlink,
-        crate::protos::working_copy::FileType::Conflict => FileType::Normal { executable: false },
+        crate::protos::working_copy::FileType::Conflict => FileType::Normal {
+            executable: FileExecutableFlag::default(),
+        },
         crate::protos::working_copy::FileType::GitSubmodule => FileType::GitSubmodule,
     };
     FileState {
@@ -146,8 +157,12 @@ fn file_state_from_proto(proto: crate::protos::working_copy::FileState) -> FileS
 fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::FileState {
     let mut proto = crate::protos::working_copy::FileState::default();
     let file_type = match &file_state.file_type {
+        #[cfg(unix)]
         FileType::Normal { executable: false } => crate::protos::working_copy::FileType::Normal,
+        #[cfg(unix)]
         FileType::Normal { executable: true } => crate::protos::working_copy::FileType::Executable,
+        #[cfg(windows)]
+        FileType::Normal { executable: () } => crate::protos::working_copy::FileType::Normal,
         FileType::Symlink => crate::protos::working_copy::FileType::Symlink,
         FileType::GitSubmodule => crate::protos::working_copy::FileType::GitSubmodule,
     };
@@ -242,14 +257,13 @@ fn file_state(metadata: &Metadata) -> Option<FileState> {
         Some(FileType::Symlink)
     } else if metadata_file_type.is_file() {
         #[cfg(unix)]
-        let mode = metadata.permissions().mode();
-        #[cfg(windows)]
-        let mode = 0;
-        if mode & 0o111 != 0 {
+        if metadata.permissions().mode() & 0o111 != 0 {
             Some(FileType::Normal { executable: true })
         } else {
             Some(FileType::Normal { executable: false })
         }
+        #[cfg(windows)]
+        Some(FileType::Normal { executable: () })
     } else {
         None
     };
@@ -821,14 +835,6 @@ impl TreeState {
                 }
             };
 
-        #[cfg(windows)]
-        let mut new_file_state = new_file_state;
-        #[cfg(windows)]
-        {
-            // On Windows, we preserve the state we had recorded
-            // when we wrote the file.
-            new_file_state.mark_executable(current_file_state.is_executable());
-        }
         // If the file's mtime was set at the same time as this state file's own mtime,
         // then we don't know if the file was modified before or after this state file.
         if current_file_state != &new_file_state || current_file_state.mtime >= self.own_mtime {
@@ -883,13 +889,28 @@ impl TreeState {
         // If the file contained a conflict before and is now a normal file on disk, we
         // try to parse any conflict markers in the file into a conflict.
         if let (Some(TreeValue::Conflict(conflict_id)), FileType::Normal { executable }) =
-            (current_tree_value, &file_type)
+            (&current_tree_value, &file_type)
         {
-            self.write_conflict_to_store(repo_path, disk_path, conflict_id, *executable)
+            #[cfg(unix)]
+            let executable = *executable;
+            #[cfg(windows)]
+            let executable = {
+                let _ = executable;
+                false
+            };
+            self.write_conflict_to_store(repo_path, disk_path, conflict_id.clone(), executable)
         } else {
             match file_type {
                 FileType::Normal { executable } => {
                     let id = self.write_file_to_store(repo_path, disk_path)?;
+                    // On Windows, we preserve the executable bit from the current tree.
+                    #[cfg(windows)]
+                    let executable =
+                        if let Some(TreeValue::File { id: _, executable }) = current_tree_value {
+                            executable
+                        } else {
+                            false
+                        };
                     Ok(TreeValue::File { id, executable })
                 }
                 FileType::Symlink => {
@@ -1118,9 +1139,12 @@ impl TreeState {
                 ) if id == old_id => {
                     // Optimization for when only the executable bit changed
                     assert_ne!(executable, old_executable);
-                    self.set_executable(&disk_path, executable)?;
-                    let file_state = self.file_states.get_mut(&path).unwrap();
-                    file_state.mark_executable(executable);
+                    #[cfg(unix)]
+                    {
+                        self.set_executable(&disk_path, executable)?;
+                        let file_state = self.file_states.get_mut(&path).unwrap();
+                        file_state.mark_executable(executable);
+                    }
                     stats.updated_files += 1;
                 }
                 Diff::Modified(_before, after) => {
@@ -1171,11 +1195,16 @@ impl TreeState {
                 }
                 Diff::Added(after) | Diff::Modified(_, after) => {
                     let file_type = match after {
+                        #[cfg(unix)]
                         TreeValue::File { id: _, executable } => FileType::Normal { executable },
+                        #[cfg(windows)]
+                        TreeValue::File { .. } => FileType::Normal { executable: () },
                         TreeValue::Symlink(_id) => FileType::Symlink,
                         TreeValue::Conflict(_id) => {
                             // TODO: Try to set the executable bit based on the conflict
-                            FileType::Normal { executable: false }
+                            FileType::Normal {
+                                executable: FileExecutableFlag::default(),
+                            }
                         }
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {path:?}");
