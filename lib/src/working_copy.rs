@@ -409,8 +409,8 @@ pub enum TreeStateError {
 }
 
 enum UpdatedFileState {
-    Unchanged(FileState),
-    Changed(TreeValue, FileState),
+    Unchanged,
+    Changed(TreeValue),
 }
 
 impl TreeState {
@@ -726,14 +726,15 @@ impl TreeState {
                                         entry.path(),
                                         maybe_current_file_state,
                                         &current_tree,
-                                        new_file_state,
+                                        &new_file_state,
                                     )?;
                                     match update {
-                                        UpdatedFileState::Unchanged(file_state) => {
-                                            self.file_states.insert(sub_path, file_state);
+                                        UpdatedFileState::Unchanged => {
+                                            self.file_states.insert(sub_path, new_file_state);
                                         }
-                                        UpdatedFileState::Changed(tree_value, file_state) => {
-                                            self.file_states.insert(sub_path.clone(), file_state);
+                                        UpdatedFileState::Changed(tree_value) => {
+                                            self.file_states
+                                                .insert(sub_path.clone(), new_file_state);
                                             tree_builder.set(sub_path, tree_value);
                                         }
                                     }
@@ -818,7 +819,7 @@ impl TreeState {
         disk_path: PathBuf,
         maybe_current_file_state: Option<&FileState>,
         current_tree: &Tree,
-        new_file_state: FileState,
+        new_file_state: &FileState,
     ) -> Result<UpdatedFileState, SnapshotError> {
         let current_file_state = match maybe_current_file_state {
             None => {
@@ -826,23 +827,23 @@ impl TreeState {
                 let file_type = new_file_state.file_type.clone();
                 let file_value =
                     self.write_path_to_store(repo_path, &disk_path, None, file_type)?;
-                return Ok(UpdatedFileState::Changed(file_value, new_file_state));
+                return Ok(UpdatedFileState::Changed(file_value));
             }
             Some(current_file_state) => current_file_state,
         };
 
         // If the file's mtime was set at the same time as this state file's own mtime,
         // then we don't know if the file was modified before or after this state file.
-        if current_file_state != &new_file_state || current_file_state.mtime >= self.own_mtime {
+        if current_file_state != new_file_state || current_file_state.mtime >= self.own_mtime {
             let new_file_type = new_file_state.file_type.clone();
             let current_tree_value = current_tree.path_value(repo_path);
             // If the file contained a conflict before and is now a normal file on disk, we
             // try to parse any conflict markers in the file into a conflict.
             let new_tree_value =
                 self.write_path_to_store(repo_path, &disk_path, current_tree_value, new_file_type)?;
-            return Ok(UpdatedFileState::Changed(new_tree_value, new_file_state));
+            return Ok(UpdatedFileState::Changed(new_tree_value));
         }
-        Ok(UpdatedFileState::Unchanged(new_file_state))
+        Ok(UpdatedFileState::Unchanged)
     }
 
     fn write_conflict_to_store(
