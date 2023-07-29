@@ -410,7 +410,6 @@ pub enum TreeStateError {
 
 enum UpdatedFileState {
     Unchanged(FileState),
-    Deleted,
     Changed(TreeValue, FileState),
 }
 
@@ -721,25 +720,26 @@ impl TreeState {
                                         ),
                                         err,
                                     })?;
-                                let update = self.get_updated_file_state(
-                                    &sub_path,
-                                    entry.path(),
-                                    metadata,
-                                    maybe_current_file_state,
-                                    &current_tree,
-                                )?;
-                                match update {
-                                    UpdatedFileState::Unchanged(file_state) => {
-                                        self.file_states.insert(sub_path, file_state);
+                                if let Some(new_file_state) = file_state(&metadata) {
+                                    let update = self.get_updated_file_state(
+                                        &sub_path,
+                                        entry.path(),
+                                        maybe_current_file_state,
+                                        &current_tree,
+                                        new_file_state,
+                                    )?;
+                                    match update {
+                                        UpdatedFileState::Unchanged(file_state) => {
+                                            self.file_states.insert(sub_path, file_state);
+                                        }
+                                        UpdatedFileState::Changed(tree_value, file_state) => {
+                                            self.file_states.insert(sub_path.clone(), file_state);
+                                            tree_builder.set(sub_path, tree_value);
+                                        }
                                     }
-                                    UpdatedFileState::Deleted => {
-                                        self.file_states.remove(&sub_path);
-                                        tree_builder.remove(sub_path);
-                                    }
-                                    UpdatedFileState::Changed(tree_value, file_state) => {
-                                        self.file_states.insert(sub_path.clone(), file_state);
-                                        tree_builder.set(sub_path, tree_value);
-                                    }
+                                } else {
+                                    self.file_states.remove(&sub_path);
+                                    tree_builder.remove(sub_path);
                                 }
                             }
                         }
@@ -816,27 +816,20 @@ impl TreeState {
         &self,
         repo_path: &RepoPath,
         disk_path: PathBuf,
-        metadata: Metadata,
         maybe_current_file_state: Option<&FileState>,
         current_tree: &Tree,
+        new_file_state: FileState,
     ) -> Result<UpdatedFileState, SnapshotError> {
-        let maybe_new_file_state = file_state(&metadata);
-        let (current_file_state, new_file_state) =
-            match (maybe_current_file_state, maybe_new_file_state) {
-                (_, None) => {
-                    return Ok(UpdatedFileState::Deleted);
-                }
-                (None, Some(new_file_state)) => {
-                    // untracked
-                    let file_type = new_file_state.file_type.clone();
-                    let file_value =
-                        self.write_path_to_store(repo_path, &disk_path, None, file_type)?;
-                    return Ok(UpdatedFileState::Changed(file_value, new_file_state));
-                }
-                (Some(current_file_state), Some(new_file_state)) => {
-                    (current_file_state, new_file_state)
-                }
-            };
+        let current_file_state = match maybe_current_file_state {
+            None => {
+                // untracked
+                let file_type = new_file_state.file_type.clone();
+                let file_value =
+                    self.write_path_to_store(repo_path, &disk_path, None, file_type)?;
+                return Ok(UpdatedFileState::Changed(file_value, new_file_state));
+            }
+            Some(current_file_state) => current_file_state,
+        };
 
         // If the file's mtime was set at the same time as this state file's own mtime,
         // then we don't know if the file was modified before or after this state file.
