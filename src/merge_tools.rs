@@ -153,7 +153,7 @@ fn set_readonly_recursively(path: &Path) -> Result<(), std::io::Error> {
 // TODO: Rearrange the functions. This should be on the bottom, options should
 // be on the top.
 pub fn run_mergetool(
-    ui: &mut Ui,
+    ui: &Ui,
     tree: &Tree,
     repo_path: &RepoPath,
     settings: &UserSettings,
@@ -296,7 +296,7 @@ fn interpolate_variables<V: AsRef<str>>(
 }
 
 pub fn edit_diff(
-    ui: &mut Ui,
+    ui: &Ui,
     left_tree: &Tree,
     right_tree: &Tree,
     instructions: &str,
@@ -464,7 +464,7 @@ fn get_tool_config(settings: &UserSettings, name: &str) -> Result<Option<MergeTo
 }
 
 fn get_diff_editor_from_settings(
-    ui: &mut Ui,
+    ui: &Ui,
     settings: &UserSettings,
 ) -> Result<MergeTool, ExternalToolError> {
     let args = editor_args_from_settings(ui, settings, "ui.diff-editor")?;
@@ -477,7 +477,7 @@ fn get_diff_editor_from_settings(
 }
 
 fn get_merge_tool_from_settings(
-    ui: &mut Ui,
+    ui: &Ui,
     settings: &UserSettings,
 ) -> Result<MergeTool, ExternalToolError> {
     let args = editor_args_from_settings(ui, settings, "ui.merge-editor")?;
@@ -498,7 +498,7 @@ fn get_merge_tool_from_settings(
 
 /// Finds the appropriate tool for diff editing or merges
 fn editor_args_from_settings(
-    ui: &mut Ui,
+    ui: &Ui,
     settings: &UserSettings,
     key: &str,
 ) -> Result<CommandNameAndArgs, ExternalToolError> {
@@ -533,9 +533,9 @@ mod tests {
     fn test_get_diff_editor() {
         let get = |text| {
             let config = config_from_string(text);
-            let mut ui = Ui::with_config(&config).unwrap();
+            let ui = Ui::with_config(&config).unwrap();
             let settings = UserSettings::from_config(config);
-            get_diff_editor_from_settings(&mut ui, &settings)
+            get_diff_editor_from_settings(&ui, &settings)
         };
 
         // Default
@@ -663,9 +663,9 @@ mod tests {
     fn test_get_merge_tool() {
         let get = |text| {
             let config = config_from_string(text);
-            let mut ui = Ui::with_config(&config).unwrap();
+            let ui = Ui::with_config(&config).unwrap();
             let settings = UserSettings::from_config(config);
-            get_merge_tool_from_settings(&mut ui, &settings)
+            get_merge_tool_from_settings(&ui, &settings)
         };
 
         // Default

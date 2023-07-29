@@ -1010,7 +1010,7 @@ struct UtilMangenArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct UtilConfigSchemaArgs {}
 
-fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), CommandError> {
+fn add_to_git_exclude(ui: &Ui, git_repo: &git2::Repository) -> Result<(), CommandError> {
     let exclude_file_path = git_repo.path().join("info").join("exclude");
     if exclude_file_path.exists() {
         match fs::OpenOptions::new()
