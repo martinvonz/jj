@@ -18,23 +18,18 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-13, windows-latest]
-        rust_version: [stable]
         cargo_flags: [""]
         include:
         - os: ubuntu-latest
-          rust_version: "1.71"
-          cargo_flags: ""
-        - os: ubuntu-latest
-          rust_version: stable
           cargo_flags: "--all-features"
     runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-    - name: Install Rust (${{ matrix.rust_version }})
+    - name: Install Rust
       uses: dtolnay/rust-toolchain@0e66bd3e6b38ec0ad5312288c83e47c143e6b09e
       with:
-        toolchain:  ${{ matrix.rust_version }}
+        toolchain:  1.71
     - name: Build
       run: cargo build --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
     - name: Test
