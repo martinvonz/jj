@@ -821,29 +821,28 @@ impl TreeState {
         current_tree: &Tree,
         new_file_state: &FileState,
     ) -> Result<UpdatedFileState, SnapshotError> {
-        let current_file_state = match maybe_current_file_state {
+        let clean = match maybe_current_file_state {
             None => {
                 // untracked
-                let file_type = new_file_state.file_type.clone();
-                let file_value =
-                    self.write_path_to_store(repo_path, &disk_path, None, file_type)?;
-                return Ok(UpdatedFileState::Changed(file_value));
+                false
             }
-            Some(current_file_state) => current_file_state,
+            Some(current_file_state) => {
+                // If the file's mtime was set at the same time as this state file's own mtime,
+                // then we don't know if the file was modified before or after this state file.
+                current_file_state == new_file_state && current_file_state.mtime < self.own_mtime
+            }
         };
-
-        // If the file's mtime was set at the same time as this state file's own mtime,
-        // then we don't know if the file was modified before or after this state file.
-        if current_file_state != new_file_state || current_file_state.mtime >= self.own_mtime {
+        if clean {
+            Ok(UpdatedFileState::Unchanged)
+        } else {
             let new_file_type = new_file_state.file_type.clone();
             let current_tree_value = current_tree.path_value(repo_path);
             // If the file contained a conflict before and is now a normal file on disk, we
             // try to parse any conflict markers in the file into a conflict.
             let new_tree_value =
                 self.write_path_to_store(repo_path, &disk_path, current_tree_value, new_file_type)?;
-            return Ok(UpdatedFileState::Changed(new_tree_value));
+            Ok(UpdatedFileState::Changed(new_tree_value))
         }
-        Ok(UpdatedFileState::Unchanged)
     }
 
     fn write_conflict_to_store(
