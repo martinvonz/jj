@@ -85,8 +85,8 @@ fn test_init_git_external() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: f6950fc115ae (no description set)
-    Parent commit      : 8d698d4a8ee1 My commit message
+    Working copy now at: f6950fc1 (no description set)
+    Parent commit      : 8d698d4a My commit message
     Added 1 files, modified 0 files, removed 0 files
     Initialized repo in "repo"
     "###);
@@ -108,7 +108,7 @@ fn test_init_git_external() {
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  mwrttmoslwzp git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a8ee1
+    ◉  mwrttmos git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a
     │  My commit message
     ~
     "###);
@@ -168,7 +168,7 @@ fn test_init_git_colocated() {
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  mwrttmoslwzp git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a8ee1
+    ◉  mwrttmos git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a
     │  My commit message
     ~
     "###);

@@ -89,7 +89,7 @@ builtin_op_log_comfortable = 'builtin_op_log_compact ++ "\n"'
 'description_placeholder' = 'label("description", "(no description set)")'
 
 # Hook points for users to customize the default templates:
-'format_short_id(id)' = 'id.shortest(12)'
+'format_short_id(id)' = 'id.shortest(8)'
 'format_short_change_id(id)' = 'format_short_id(id)'
 'format_short_commit_id(id)' = 'format_short_id(id)'
 'format_short_signature(signature)' = 'signature.email()'

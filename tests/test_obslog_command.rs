@@ -31,26 +31,26 @@ fn test_obslog_with_or_without_diff() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad36073
+    @  rlvkpnrz test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad3
     │  my description
-    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5a conflict
     │  my description
-    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bc
     │  my description
-    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0da
        (empty) my description
     "###);
 
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "obslog"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  [1m[38;5;13mr[38;5;8mlvkpnrzqnoo[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:10.000 +07:00[39m [38;5;12m6[38;5;8m6b42ad36073[39m[0m
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:10.000 +07:00[39m [38;5;12m6[38;5;8m6b42ad3[39m[0m
     │  [1mmy description[0m
-    ◉  [1m[39mr[0m[38;5;8mlvkpnrzqnoo[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m [1m[38;5;4maf[0m[38;5;8m536e5af67e[39m [38;5;1mconflict[39m
+    ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m [1m[38;5;4maf[0m[38;5;8m536e5a[39m [38;5;1mconflict[39m
     │  my description
-    ◉  [1m[39mr[0m[38;5;8mlvkpnrzqnoo[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m [1m[38;5;4m6f[0m[38;5;8mbba7bcb590[39m
+    ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m [1m[38;5;4m6f[0m[38;5;8mbba7bc[39m
     │  my description
-    ◉  [1m[39mr[0m[38;5;8mlvkpnrzqnoo[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4me[0m[38;5;8mac0d0dae082[39m
+    ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4me[0m[38;5;8mac0d0da[39m
        [38;5;2m(empty)[39m my description
     "###);
 
@@ -58,7 +58,7 @@ fn test_obslog_with_or_without_diff() {
     // (even even though it resulted in a conflict).
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad36073
+    @  rlvkpnrz test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad3
     │  my description
     │  Resolved conflict in file1:
     │     1    1: <<<<<<<resolved
@@ -67,36 +67,36 @@ fn test_obslog_with_or_without_diff() {
     │     4     : +bar
     │     5     : +++++++
     │     6     : >>>>>>>
-    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5a conflict
     │  my description
-    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bc
     │  my description
     │  Modified regular file file1:
     │     1    1: foo
     │          2: bar
     │  Added regular file file2:
     │          1: foo
-    ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0da
        (empty) my description
     "###);
 
     // Test `--no-graph`
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
-    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad36073
+    rlvkpnrz test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad3
     my description
-    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
+    rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5a conflict
     my description
-    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
+    rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bc
     my description
-    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
+    rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0da
     (empty) my description
     "###);
 
     // Test `--git` format, and that it implies `-p`
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--no-graph", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
-    rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad36073
+    rlvkpnrz test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad3
     my description
     diff --git a/file1 b/file1
     index e155302a24...2ab19ae607 100644
@@ -110,9 +110,9 @@ fn test_obslog_with_or_without_diff() {
     -+++++++
     ->>>>>>>
     +resolved
-    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
+    rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5a conflict
     my description
-    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
+    rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bc
     my description
     diff --git a/file1 b/file1
     index 257cc5642c...3bd1f0e297 100644
@@ -128,7 +128,7 @@ fn test_obslog_with_or_without_diff() {
     +++ b/file2
     @@ -1,0 +1,1 @@
     +foo
-    rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
+    rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0da
     (empty) my description
     "###);
 }
@@ -156,35 +156,33 @@ fn test_obslog_word_wrap() {
 
     // ui.log-word-wrap option applies to both graph/no-graph outputs
     insta::assert_snapshot!(render(&["obslog"], 40, false), @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c19
     │  (empty) first
-    ◉  qpvuntsmwlqt hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    ◉  qpvuntsm hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
        (empty) (no description set)
     "###);
     insta::assert_snapshot!(render(&["obslog"], 40, true), @r###"
-    @  qpvuntsmwlqt test.user@example.com
+    @  qpvuntsm test.user@example.com
     │  2001-02-03 04:05:08.000 +07:00
-    │  69542c1984c1
+    │  69542c19
     │  (empty) first
-    ◉  qpvuntsmwlqt hidden
-       test.user@example.com 2001-02-03
-       04:05:07.000 +07:00 230dd059e1b0
+    ◉  qpvuntsm hidden test.user@example.com
+       2001-02-03 04:05:07.000 +07:00
+       230dd059
        (empty) (no description set)
     "###);
     insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, false), @r###"
-    qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
+    qpvuntsm test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c19
     (empty) first
-    qpvuntsmwlqt hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    qpvuntsm hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     (empty) (no description set)
     "###);
     insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, true), @r###"
-    qpvuntsmwlqt test.user@example.com
-    2001-02-03 04:05:08.000 +07:00
-    69542c1984c1
+    qpvuntsm test.user@example.com
+    2001-02-03 04:05:08.000 +07:00 69542c19
     (empty) first
-    qpvuntsmwlqt hidden
-    test.user@example.com 2001-02-03
-    04:05:07.000 +07:00 230dd059e1b0
+    qpvuntsm hidden test.user@example.com
+    2001-02-03 04:05:07.000 +07:00 230dd059
     (empty) (no description set)
     "###);
 }
@@ -206,25 +204,25 @@ fn test_obslog_squash() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉    qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:10.000 +07:00 27e721a5ba72
+    ◉    qpvuntsm test.user@example.com 2001-02-03 04:05:10.000 +07:00 27e721a5
     ├─╮  squashed
     │ │  Modified regular file file1:
     │ │     1    1: foo
     │ │          2: bar
-    ◉ │  qpvuntsmwlqt hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 9764e503e1a9
+    ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 9764e503
     │ │  first
     │ │  Added regular file file1:
     │ │          1: foo
-    ◉ │  qpvuntsmwlqt hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
+    ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c19
     │ │  (empty) first
-    ◉ │  qpvuntsmwlqt hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
       │  (empty) (no description set)
-      ◉  kkmpptxzrspx hidden test.user@example.com 2001-02-03 04:05:10.000 +07:00 f09a38899f2b
+      ◉  kkmpptxz hidden test.user@example.com 2001-02-03 04:05:10.000 +07:00 f09a3889
       │  second
       │  Modified regular file file1:
       │     1    1: foo
       │          2: bar
-      ◉  kkmpptxzrspx hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 579965369703
+      ◉  kkmpptxz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 57996536
          (empty) second
     "###);
 }

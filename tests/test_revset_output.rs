@@ -256,13 +256,13 @@ fn test_alias() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "my-root"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+    ◉  zzzzzzzz 1970-01-01 00:00:00.000 +00:00 00000000
        (empty) (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "identity(my-root)"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+    ◉  zzzzzzzz 1970-01-01 00:00:00.000 +00:00 00000000
        (empty) (no description set)
     "###);
 
@@ -385,7 +385,7 @@ fn test_bad_alias_decl() {
     // Invalid declaration should be warned and ignored.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r", "my-root"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+    ◉  zzzzzzzz 1970-01-01 00:00:00.000 +00:00 00000000
        (empty) (no description set)
     "###);
     insta::assert_snapshot!(stderr, @r###"

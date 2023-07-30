@@ -42,8 +42,8 @@ fn test_edit() {
     // Makes the specified commit the working-copy commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["edit", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: f41390a5efbf first
-    Parent commit      : 000000000000 (no description set)
+    Working copy now at: f41390a5 first
+    Parent commit      : 00000000 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

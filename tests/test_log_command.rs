@@ -38,7 +38,7 @@ fn test_log_legacy_range_operator() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=@:"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
     ~
     "###);
@@ -47,9 +47,9 @@ fn test_log_legacy_range_operator() {
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=:@"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
-    ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+    ◉  zzzzzzzz 1970-01-01 00:00:00.000 +00:00 00000000
        (empty) (no description set)
     "###);
     insta::assert_snapshot!(stderr, @r###"
@@ -57,9 +57,9 @@ fn test_log_legacy_range_operator() {
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=root:@"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
-    ◉  zzzzzzzzzzzz 1970-01-01 00:00:00.000 +00:00 000000000000
+    ◉  zzzzzzzz 1970-01-01 00:00:00.000 +00:00 00000000
        (empty) (no description set)
     "###);
     insta::assert_snapshot!(stderr, @r###"
@@ -70,7 +70,7 @@ fn test_log_legacy_range_operator() {
         &["log", "-r=x", "--config-toml", "revset-aliases.x = '@:'"],
     );
     insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
     ~
     "###);
@@ -650,7 +650,7 @@ fn test_log_author_format() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "--revisions=@"]),
         @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
     ~
     "###
@@ -668,7 +668,7 @@ fn test_log_author_format() {
             ],
         ),
         @r###"
-    @  qpvuntsmwlqt test.user 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+    @  qpvuntsm test.user 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
     ~
     "###
@@ -1113,32 +1113,31 @@ fn test_log_word_wrap() {
 
     // ui.log-word-wrap option applies to both graph/no-graph outputs
     insta::assert_snapshot!(render(&["log", "-r@"], 40, false), @r###"
-    @  mzvwutvlkqwt test.user@example.com 2001-02-03 04:05:11.000 +07:00 68518a7e6c9e
+    @  mzvwutvl test.user@example.com 2001-02-03 04:05:11.000 +07:00 68518a7e
     │  (empty) merge
     ~
     "###);
     insta::assert_snapshot!(render(&["log", "-r@"], 40, true), @r###"
-    @  mzvwutvlkqwt test.user@example.com
+    @  mzvwutvl test.user@example.com
     │  2001-02-03 04:05:11.000 +07:00
-    ~  68518a7e6c9e
+    ~  68518a7e
        (empty) merge
     "###);
     insta::assert_snapshot!(render(&["log", "--no-graph", "-r@"], 40, false), @r###"
-    mzvwutvlkqwt test.user@example.com 2001-02-03 04:05:11.000 +07:00 68518a7e6c9e
+    mzvwutvl test.user@example.com 2001-02-03 04:05:11.000 +07:00 68518a7e
     (empty) merge
     "###);
     insta::assert_snapshot!(render(&["log", "--no-graph", "-r@"], 40, true), @r###"
-    mzvwutvlkqwt test.user@example.com
-    2001-02-03 04:05:11.000 +07:00
-    68518a7e6c9e
+    mzvwutvl test.user@example.com
+    2001-02-03 04:05:11.000 +07:00 68518a7e
     (empty) merge
     "###);
 
     // Color labels should be preserved
     insta::assert_snapshot!(render(&["log", "-r@", "--color=always"], 40, true), @r###"
-    @  [1m[38;5;13mm[38;5;8mzvwutvlkqwt[39m [38;5;3mtest.user@example.com[39m[0m
+    @  [1m[38;5;13mm[38;5;8mzvwutvl[39m [38;5;3mtest.user@example.com[39m[0m
     │  [1m[38;5;14m2001-02-03 04:05:11.000 +07:00[39m[0m
-    ~  [1m[38;5;12m6[38;5;8m8518a7e6c9e[39m[0m
+    ~  [1m[38;5;12m6[38;5;8m8518a7e[39m[0m
        [1m[38;5;10m(empty)[39m merge[0m
     "###);
 
@@ -1189,22 +1188,22 @@ fn test_log_word_wrap() {
 
     // Shouldn't panic with $COLUMNS < graph_width
     insta::assert_snapshot!(render(&["log", "-r@"], 0, true), @r###"
-    @  mzvwutvlkqwt
+    @  mzvwutvl
     │  test.user@example.com
     ~  2001-02-03
        04:05:11.000
        +07:00
-       68518a7e6c9e
+       68518a7e
        (empty)
        merge
     "###);
     insta::assert_snapshot!(render(&["log", "-r@"], 1, true), @r###"
-    @  mzvwutvlkqwt
+    @  mzvwutvl
     │  test.user@example.com
     ~  2001-02-03
        04:05:11.000
        +07:00
-       68518a7e6c9e
+       68518a7e
        (empty)
        merge
     "###);

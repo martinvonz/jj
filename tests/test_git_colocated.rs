@@ -206,8 +206,8 @@ fn test_git_colocated_branches() {
         )
         .unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
-    Working copy now at: 096dc80da670 (no description set)
-    Parent commit      : 230dd059e1b0 (no description set)
+    Working copy now at: 096dc80d (no description set)
+    Parent commit      : 230dd059 (no description set)
     @  096dc80da67094fbaa6683e2a205dddffa31f9a8
     │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master foo
     ├─╯
@@ -231,8 +231,8 @@ fn test_git_colocated_branch_forget() {
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    foo: 65b6b74e0897 (no description set)
-    master: 230dd059e1b0 (no description set)
+    foo: 65b6b74e (no description set)
+    master: 230dd059 (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "forget", "foo"]);
@@ -241,7 +241,7 @@ fn test_git_colocated_branch_forget() {
     // this, see `test_branch_forget_export` in `test_branch_command.rs`.
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    master: 230dd059e1b0 (no description set)
+    master: 230dd059 (no description set)
     "###);
 }
 
