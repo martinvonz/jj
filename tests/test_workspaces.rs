@@ -31,7 +31,7 @@ fn test_workspaces_add_second_workspace() {
 
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    default: e0e6d5672858 (no description set)
+    default: e0e6d567 (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(
@@ -40,8 +40,8 @@ fn test_workspaces_add_second_workspace() {
     );
     insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
     Created workspace in "../secondary"
-    Working copy now at: 397eac932ad3 (no description set)
-    Parent commit      : 7d308bc9d934 initial
+    Working copy now at: 397eac93 (no description set)
+    Parent commit      : 7d308bc9 initial
     Added 1 files, modified 0 files, removed 0 files
     "###);
 
@@ -65,8 +65,8 @@ fn test_workspaces_add_second_workspace() {
     // Both workspaces show up when we list them
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    default: e0e6d5672858 (no description set)
-    second: 397eac932ad3 (no description set)
+    default: e0e6d567 (no description set)
+    second: 397eac93 (no description set)
     "###);
 }
 
@@ -100,8 +100,8 @@ fn test_workspaces_conflicting_edits() {
     let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: fe8f41ed01d6 (no description set)
-    Parent commit      : c0d4a99ef98a (no description set)
+    Working copy now at: fe8f41ed (no description set)
+    Parent commit      : c0d4a99e (no description set)
     "###);
 
     // The secondary workspace's working-copy commit was updated
@@ -132,7 +132,7 @@ fn test_workspaces_conflicting_edits() {
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
     Rebased 1 descendant commits onto commits rewritten by other operation
-    Working copy now at: a1896a17282f (no description set)
+    Working copy now at: a1896a17 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
@@ -185,8 +185,8 @@ fn test_workspaces_updated_by_other() {
     let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: fe8f41ed01d6 (no description set)
-    Parent commit      : c0d4a99ef98a (no description set)
+    Working copy now at: fe8f41ed (no description set)
+    Parent commit      : c0d4a99e (no description set)
     "###);
 
     // The secondary workspace's working-copy commit was updated.
@@ -207,7 +207,7 @@ fn test_workspaces_updated_by_other() {
     // It was detected that the working copy is now stale, but clean. So no
     // divergent commit should be created.
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: a1896a17282f (no description set)
+    Working copy now at: a1896a17 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
@@ -298,7 +298,7 @@ fn test_workspaces_forget() {
     // When listing workspaces, only the secondary workspace shows up
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    secondary: feda1c4e5ffe (no description set)
+    secondary: feda1c4e (no description set)
     "###);
 
     // `jj status` tells us that there's no working copy here

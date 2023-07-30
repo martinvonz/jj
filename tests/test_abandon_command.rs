@@ -56,11 +56,11 @@ fn test_rebase_branch_with_merge() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d"]);
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned commit b7c62f28ed10 d
+    Abandoned commit b7c62f28 d
     Rebased 1 descendant commits onto parents of abandoned commits
-    Working copy now at: 11a2e10edf4e e
-    Parent commit      : 2443ea76b0b1 a
-    Parent commit      : fe2e8e8b50b3 c
+    Working copy now at: 11a2e10e e
+    Parent commit      : 2443ea76 a
+    Parent commit      : fe2e8e8b c
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -77,9 +77,9 @@ fn test_rebase_branch_with_merge() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon"] /* abandons `e` */);
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned commit 5557ece3e631 e
-    Working copy now at: 6b5275139632 (no description set)
-    Parent commit      : 2443ea76b0b1 a
+    Abandoned commit 5557ece3 e
+    Working copy now at: 6b527513 (no description set)
+    Parent commit      : 2443ea76 a
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -97,11 +97,11 @@ fn test_rebase_branch_with_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "descendants(c)"]);
     insta::assert_snapshot!(stdout, @r###"
     Abandoned the following commits:
-      5557ece3e631 e
-      b7c62f28ed10 d
-      fe2e8e8b50b3 c
-    Working copy now at: e7bb061217d5 (no description set)
-    Parent commit      : 2443ea76b0b1 a
+      5557ece3 e
+      b7c62f28 d
+      fe2e8e8b c
+    Working copy now at: e7bb0612 (no description set)
+    Parent commit      : 2443ea76 a
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -116,7 +116,7 @@ fn test_rebase_branch_with_merge() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "b", "b"]);
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned commit 1394f625cbbd b
+    Abandoned commit 1394f625 b
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
@@ -133,12 +133,12 @@ fn test_rebase_branch_with_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d::", "a::"]);
     insta::assert_snapshot!(stdout, @r###"
     Abandoned the following commits:
-      5557ece3e631 e
-      b7c62f28ed10 d
-      1394f625cbbd b
-      2443ea76b0b1 a
-    Working copy now at: af874bffee6e (no description set)
-    Parent commit      : 000000000000 (no description set)
+      5557ece3 e
+      b7c62f28 d
+      1394f625 b
+      2443ea76 a
+    Working copy now at: af874bff (no description set)
+    Parent commit      : 00000000 (no description set)
     Added 0 files, modified 0 files, removed 4 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

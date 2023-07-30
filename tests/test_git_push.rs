@@ -73,11 +73,11 @@ fn test_git_push_current_branch() {
     // Check the setup
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    branch1: 19e00bf64429 modified branch1 commit
-      @origin (ahead by 1 commits, behind by 1 commits): 45a3aa29e907 description 1
-    branch2: 10ee3363b259 foo
-      @origin (behind by 1 commits): 8476341eb395 description 2
-    my-branch: 10ee3363b259 foo
+    branch1: 19e00bf6 modified branch1 commit
+      @origin (ahead by 1 commits, behind by 1 commits): 45a3aa29 description 1
+    branch2: 10ee3363 foo
+      @origin (behind by 1 commits): 8476341e description 2
+    my-branch: 10ee3363 foo
     "###);
     // First dry-run. `branch1` should not get pushed.
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--dry-run"]);
@@ -95,10 +95,10 @@ fn test_git_push_current_branch() {
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    branch1: 19e00bf64429 modified branch1 commit
-      @origin (ahead by 1 commits, behind by 1 commits): 45a3aa29e907 description 1
-    branch2: 10ee3363b259 foo
-    my-branch: 10ee3363b259 foo
+    branch1: 19e00bf6 modified branch1 commit
+      @origin (ahead by 1 commits, behind by 1 commits): 45a3aa29 description 1
+    branch2: 10ee3363 foo
+    my-branch: 10ee3363 foo
     "###);
 }
 
@@ -183,12 +183,12 @@ fn test_git_push_multiple() {
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1 (deleted)
-      @origin: 45a3aa29e907 description 1
+      @origin: 45a3aa29 description 1
       (this branch will be *deleted permanently* on the remote on the
        next `jj git push`. Use `jj branch forget` to prevent this)
-    branch2: 15dcdaa4f12f foo
-      @origin (ahead by 1 commits, behind by 1 commits): 8476341eb395 description 2
-    my-branch: 15dcdaa4f12f foo
+    branch2: 15dcdaa4 foo
+      @origin (ahead by 1 commits, behind by 1 commits): 8476341e description 2
+    my-branch: 15dcdaa4 foo
     "###);
     // First dry-run
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all", "--dry-run"]);
@@ -238,8 +238,8 @@ fn test_git_push_multiple() {
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    branch2: 15dcdaa4f12f foo
-    my-branch: 15dcdaa4f12f foo
+    branch2: 15dcdaa4 foo
+    my-branch: 15dcdaa4 foo
     "###);
 }
 
@@ -525,11 +525,11 @@ fn test_git_push_conflicting_branches() {
     test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch2"]);
     test_env.jj_cmd_success(&workspace_root, &["git", "fetch"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["branch", "list"]), @r###"
-    branch1: 45a3aa29e907 description 1
+    branch1: 45a3aa29 description 1
     branch2 (conflicted):
-      + 8e670e2d47e1 description 3
-      + 8476341eb395 description 2
-      @origin (behind by 1 commits): 8476341eb395 description 2
+      + 8e670e2d description 3
+      + 8476341e description 2
+      @origin (behind by 1 commits): 8476341e description 2
     "###);
 
     let bump_branch1 = || {

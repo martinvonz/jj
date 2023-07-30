@@ -86,12 +86,12 @@ fn test_no_subcommand() {
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "show"]);
     // TODO: test_env.jj_cmd_success(&repo_path, &["-r", "help"])
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["-r", "log"]), @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 help log show 230dd059e1b0
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 help log show 230dd059
     │  (empty) (no description set)
     ~
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["-r", "show"]), @r###"
-    @  qpvuntsmwlqt test.user@example.com 2001-02-03 04:05:07.000 +07:00 help log show 230dd059e1b0
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 help log show 230dd059
     │  (empty) (no description set)
     ~
     "###);
@@ -157,8 +157,8 @@ fn test_resolve_workspace_directory() {
     // Ancestor of cwd
     let stdout = test_env.jj_cmd_success(&subdir, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
-    Parent commit: 000000000000 (no description set)
-    Working copy : 230dd059e1b0 (no description set)
+    Parent commit: 00000000 (no description set)
+    Working copy : 230dd059 (no description set)
     The working copy is clean
     "###);
 
@@ -171,8 +171,8 @@ fn test_resolve_workspace_directory() {
     // Valid explicit path
     let stdout = test_env.jj_cmd_success(&subdir, &["status", "-R", "../.."]);
     insta::assert_snapshot!(stdout, @r###"
-    Parent commit: 000000000000 (no description set)
-    Working copy : 230dd059e1b0 (no description set)
+    Parent commit: 00000000 (no description set)
+    Working copy : 230dd059 (no description set)
     The working copy is clean
     "###);
 

@@ -63,9 +63,9 @@ fn test_diffedit() {
     std::fs::write(&edit_script, "reset file2").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 1930da4a57e9 (no description set)
-    Working copy now at: 1930da4a57e9 (no description set)
-    Parent commit      : 613028a4693c (no description set)
+    Created 1930da4a (no description set)
+    Working copy now at: 1930da4a (no description set)
+    Parent commit      : 613028a4 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -78,10 +78,10 @@ fn test_diffedit() {
     std::fs::write(&edit_script, "write file3\nmodified\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created c03ae96780b6 (no description set)
+    Created c03ae967 (no description set)
     Rebased 1 descendant commits
-    Working copy now at: 2a4dc204a6ab (no description set)
-    Parent commit      : c03ae96780b6 (no description set)
+    Working copy now at: 2a4dc204 (no description set)
+    Parent commit      : c03ae967 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let contents = String::from_utf8(std::fs::read(repo_path.join("file3")).unwrap()).unwrap();
@@ -98,9 +98,9 @@ fn test_diffedit() {
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 15f2c966d508 (no description set)
-    Working copy now at: 15f2c966d508 (no description set)
-    Parent commit      : 613028a4693c (no description set)
+    Created 15f2c966 (no description set)
+    Working copy now at: 15f2c966 (no description set)
+    Parent commit      : 613028a4 (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -148,10 +148,10 @@ fn test_diffedit_merge() {
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created a70eded7af9e merge
+    Created a70eded7 merge
     Rebased 1 descendant commits
-    Working copy now at: a5f1ce845f74 (no description set)
-    Parent commit      : a70eded7af9e merge
+    Working copy now at: a5f1ce84 (no description set)
+    Parent commit      : a70eded7 merge
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -215,9 +215,9 @@ fn test_diffedit_old_restore_interactive_tests() {
     std::fs::write(&edit_script, "reset file2\0reset file3").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "--from", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created abdbf6271a1c (no description set)
-    Working copy now at: abdbf6271a1c (no description set)
-    Parent commit      : 2375fa164210 (no description set)
+    Created abdbf627 (no description set)
+    Working copy now at: abdbf627 (no description set)
+    Parent commit      : 2375fa16 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -230,9 +230,9 @@ fn test_diffedit_old_restore_interactive_tests() {
     std::fs::write(&edit_script, "write file3\nunrelated\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "--from", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created e31f7f33ad07 (no description set)
-    Working copy now at: e31f7f33ad07 (no description set)
-    Parent commit      : 2375fa164210 (no description set)
+    Created e31f7f33 (no description set)
+    Working copy now at: e31f7f33 (no description set)
+    Parent commit      : 2375fa16 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
