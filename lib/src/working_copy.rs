@@ -722,15 +722,10 @@ impl TreeState {
                                     &current_tree,
                                     &new_file_state,
                                 )?;
-                                match update {
-                                    None => {
-                                        self.file_states.insert(sub_path, new_file_state);
-                                    }
-                                    Some(tree_value) => {
-                                        self.file_states.insert(sub_path.clone(), new_file_state);
-                                        tree_builder.set(sub_path, tree_value);
-                                    }
+                                if let Some(tree_value) = update {
+                                    tree_builder.set(sub_path.clone(), tree_value);
                                 }
+                                self.file_states.insert(sub_path, new_file_state);
                             }
                         }
                     }
