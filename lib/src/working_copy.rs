@@ -698,49 +698,43 @@ impl TreeState {
                             disk_dir: entry.path(),
                             git_ignore: git_ignore.clone(),
                         });
-                    } else {
-                        deleted_files.remove(&sub_path);
-                        if matcher.matches(&sub_path) {
-                            if let Some(progress) = progress {
-                                progress(&sub_path);
-                            }
-                            let maybe_current_file_state = self.file_states.get(&sub_path);
-                            if maybe_current_file_state.is_none()
-                                && git_ignore.matches_file(&sub_path.to_internal_file_string())
-                            {
-                                // If it wasn't already tracked and it matches
-                                // the ignored paths, then
-                                // ignore it.
-                            } else {
-                                let metadata =
-                                    entry.metadata().map_err(|err| SnapshotError::IoError {
-                                        message: format!(
-                                            "Failed to stat file {}",
-                                            entry.path().display()
-                                        ),
-                                        err,
-                                    })?;
-                                if let Some(new_file_state) = file_state(&metadata) {
-                                    let update = self.get_updated_file_state(
-                                        &sub_path,
-                                        entry.path(),
-                                        maybe_current_file_state,
-                                        &current_tree,
-                                        &new_file_state,
-                                    )?;
-                                    match update {
-                                        UpdatedFileState::Unchanged => {
-                                            self.file_states.insert(sub_path, new_file_state);
-                                        }
-                                        UpdatedFileState::Changed(tree_value) => {
-                                            self.file_states
-                                                .insert(sub_path.clone(), new_file_state);
-                                            tree_builder.set(sub_path, tree_value);
-                                        }
+                    } else if matcher.matches(&sub_path) {
+                        if let Some(progress) = progress {
+                            progress(&sub_path);
+                        }
+                        let maybe_current_file_state = self.file_states.get(&sub_path);
+                        if maybe_current_file_state.is_none()
+                            && git_ignore.matches_file(&sub_path.to_internal_file_string())
+                        {
+                            // If it wasn't already tracked and it matches
+                            // the ignored paths, then
+                            // ignore it.
+                        } else {
+                            let metadata =
+                                entry.metadata().map_err(|err| SnapshotError::IoError {
+                                    message: format!(
+                                        "Failed to stat file {}",
+                                        entry.path().display()
+                                    ),
+                                    err,
+                                })?;
+                            if let Some(new_file_state) = file_state(&metadata) {
+                                deleted_files.remove(&sub_path);
+                                let update = self.get_updated_file_state(
+                                    &sub_path,
+                                    entry.path(),
+                                    maybe_current_file_state,
+                                    &current_tree,
+                                    &new_file_state,
+                                )?;
+                                match update {
+                                    UpdatedFileState::Unchanged => {
+                                        self.file_states.insert(sub_path, new_file_state);
                                     }
-                                } else {
-                                    self.file_states.remove(&sub_path);
-                                    tree_builder.remove(sub_path);
+                                    UpdatedFileState::Changed(tree_value) => {
+                                        self.file_states.insert(sub_path.clone(), new_file_state);
+                                        tree_builder.set(sub_path, tree_value);
+                                    }
                                 }
                             }
                         }
