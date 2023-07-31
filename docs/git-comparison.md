@@ -252,10 +252,15 @@ parent.
       <td>Interactively move part of the diff in an arbitrary change to another
           arbitrary change</td>
       <td><code>jj move -i --from X --to Y</code></td>
-      <td><code>Not supported</code></td>
+      <td>Not supported</td>
     </tr>
     <tr>
-      <td>Interactively split a change in two</td>
+      <td>Interactively split the changes in the working copy in two</td>
+      <td><code>jj split</code></td>
+      <td><code>git commit -p</code></td>
+    </tr>
+    <tr>
+      <td>Interactively split an arbitrary change in two</td>
       <td><code>jj split -r &lt;revision&gt;</code></td>
       <td>Not supported (can be emulated with the "edit" action in
           <code>git rebase -i</code>)</td>
