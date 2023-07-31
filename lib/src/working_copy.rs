@@ -408,11 +408,6 @@ pub enum TreeStateError {
     Fsmonitor(Box<dyn Error + Send + Sync>),
 }
 
-enum UpdatedFileState {
-    Unchanged,
-    Changed(TreeValue),
-}
-
 impl TreeState {
     pub fn current_tree_id(&self) -> &TreeId {
         &self.tree_id
@@ -720,7 +715,7 @@ impl TreeState {
                                 })?;
                             if let Some(new_file_state) = file_state(&metadata) {
                                 deleted_files.remove(&sub_path);
-                                let update = self.get_updated_file_state(
+                                let update = self.get_updated_tree_value(
                                     &sub_path,
                                     entry.path(),
                                     maybe_current_file_state,
@@ -728,10 +723,10 @@ impl TreeState {
                                     &new_file_state,
                                 )?;
                                 match update {
-                                    UpdatedFileState::Unchanged => {
+                                    None => {
                                         self.file_states.insert(sub_path, new_file_state);
                                     }
-                                    UpdatedFileState::Changed(tree_value) => {
+                                    Some(tree_value) => {
                                         self.file_states.insert(sub_path.clone(), new_file_state);
                                         tree_builder.set(sub_path, tree_value);
                                     }
@@ -807,14 +802,14 @@ impl TreeState {
         })
     }
 
-    fn get_updated_file_state(
+    fn get_updated_tree_value(
         &self,
         repo_path: &RepoPath,
         disk_path: PathBuf,
         maybe_current_file_state: Option<&FileState>,
         current_tree: &Tree,
         new_file_state: &FileState,
-    ) -> Result<UpdatedFileState, SnapshotError> {
+    ) -> Result<Option<TreeValue>, SnapshotError> {
         let clean = match maybe_current_file_state {
             None => {
                 // untracked
@@ -827,7 +822,7 @@ impl TreeState {
             }
         };
         if clean {
-            Ok(UpdatedFileState::Unchanged)
+            Ok(None)
         } else {
             let new_file_type = new_file_state.file_type.clone();
             let current_tree_value = current_tree.path_value(repo_path);
@@ -835,7 +830,7 @@ impl TreeState {
             // try to parse any conflict markers in the file into a conflict.
             let new_tree_value =
                 self.write_path_to_store(repo_path, &disk_path, current_tree_value, new_file_type)?;
-            Ok(UpdatedFileState::Changed(new_tree_value))
+            Ok(Some(new_tree_value))
         }
     }
 
