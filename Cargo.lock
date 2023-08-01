@@ -1027,6 +1027,7 @@ dependencies = [
  "serde",
  "slab",
  "tempfile",
+ "test-case",
  "testutils",
  "textwrap",
  "thiserror",

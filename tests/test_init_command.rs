@@ -14,12 +14,16 @@
 
 use std::path::PathBuf;
 
+use test_case::test_case;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
 
-fn init_git_repo(git_repo_path: &PathBuf) {
-    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+fn init_git_repo(git_repo_path: &PathBuf, bare: bool) {
+    let git_repo =
+        git2::Repository::init_opts(git_repo_path, git2::RepositoryInitOptions::new().bare(bare))
+            .unwrap();
     let git_blob_oid = git_repo.blob(b"some content").unwrap();
     let mut git_tree_builder = git_repo.treebuilder(None).unwrap();
     git_tree_builder
@@ -69,11 +73,12 @@ fn test_init_git_internal() {
     assert_eq!(git_target_file_contents, "git");
 }
 
-#[test]
-fn test_init_git_external() {
+#[test_case(false; "full")]
+#[test_case(true; "bare")]
+fn test_init_git_external(bare: bool) {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("git-repo");
-    init_git_repo(&git_repo_path);
+    init_git_repo(&git_repo_path, bare);
 
     let stdout = test_env.jj_cmd_success(
         test_env.env_root(),
@@ -84,12 +89,14 @@ fn test_init_git_external() {
             git_repo_path.to_str().unwrap(),
         ],
     );
-    insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: sqpuoqvx f6950fc1 (empty) (no description set)
-    Parent commit      : mwrttmos 8d698d4a My commit message
-    Added 1 files, modified 0 files, removed 0 files
-    Initialized repo in "repo"
-    "###);
+    insta::allow_duplicates! {
+        insta::assert_snapshot!(stdout, @r###"
+        Working copy now at: sqpuoqvx f6950fc1 (empty) (no description set)
+        Parent commit      : mwrttmos 8d698d4a My commit message
+        Added 1 files, modified 0 files, removed 0 files
+        Initialized repo in "repo"
+        "###);
+    }
 
     let workspace_root = test_env.env_root().join("repo");
     let jj_path = workspace_root.join(".jj");
@@ -100,18 +107,24 @@ fn test_init_git_external() {
     assert!(jj_path.join("working_copy").is_dir());
     assert!(repo_path.is_dir());
     assert!(store_path.is_dir());
-    let git_target_file_contents = std::fs::read_to_string(store_path.join("git_target")).unwrap();
-    assert!(git_target_file_contents
-        .replace('\\', "/")
-        .ends_with("/git-repo/.git"));
+    let unix_git_target_file_contents = std::fs::read_to_string(store_path.join("git_target"))
+        .unwrap()
+        .replace('\\', "/");
+    if bare {
+        assert!(unix_git_target_file_contents.ends_with("/git-repo"));
+    } else {
+        assert!(unix_git_target_file_contents.ends_with("/git-repo/.git"));
+    }
 
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  mwrttmos git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a
-    │  My commit message
-    ~
-    "###);
+    insta::allow_duplicates! {
+        insta::assert_snapshot!(stdout, @r###"
+        ◉  mwrttmos git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a
+        │  My commit message
+        ~
+        "###);
+    }
 }
 
 #[test]
@@ -146,7 +159,7 @@ fn test_init_git_external_non_existent_git_directory() {
 fn test_init_git_colocated() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
-    init_git_repo(&workspace_root);
+    init_git_repo(&workspace_root, false);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @r###"
     Initialized repo in "."
@@ -178,7 +191,7 @@ fn test_init_git_colocated() {
 fn test_init_git_internal_but_could_be_colocated() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
-    init_git_repo(&workspace_root);
+    init_git_repo(&workspace_root, false);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git"]);
     insta::assert_snapshot!(stdout, @r###"

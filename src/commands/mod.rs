@@ -1102,7 +1102,11 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
             .canonicalize()
             .map_err(|_| user_error(format!("{} doesn't exist", git_store_path.display())))?;
         if !git_store_path.ends_with(".git") {
-            git_store_path = git_store_path.join(".git");
+            git_store_path.push(".git");
+            // Undo if .git doesn't exist - likely a bare repo.
+            if !git_store_path.exists() {
+                git_store_path.pop();
+            }
         }
         // If the git repo is inside the workspace, use a relative path to it so the
         // whole workspace can be moved without breaking.
