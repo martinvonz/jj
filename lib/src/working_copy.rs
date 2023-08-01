@@ -410,6 +410,10 @@ pub enum TreeStateError {
 }
 
 impl TreeState {
+    pub fn working_copy_path(&self) -> &Path {
+        &self.working_copy_path
+    }
+
     pub fn current_tree_id(&self) -> &TreeId {
         &self.tree_id
     }
