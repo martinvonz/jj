@@ -76,7 +76,7 @@ before you're done with the changes.
 ### The repo is the source of truth
 
 With Jujutsu, the working copy plays a smaller role than with Git. Commands
-snapshot the working copy before they start, then the update the repo, and then
+snapshot the working copy before they start, then they update the repo, and then
 the working copy is updated (if the working-copy commit was modified). Almost
 all commands (even checkout!) operate on the commits in the repo, leaving the
 common functionality of snapshotting and updating of the working copy to
