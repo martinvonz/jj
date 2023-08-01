@@ -32,11 +32,19 @@ fn test_restore() {
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
     std::fs::write(repo_path.join("file3"), "c\n").unwrap();
 
+    // There is no `-r` argument
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-r=@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: `jj restore` does not have a `--revision`/`-r` option. If you'd like to modify
+    the *current* revision, use `--from`. If you'd like to modify a *different* revision,
+    use `--to` or `--changes-in`.
+    "###);
+
     // Restores from parent by default
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created b05f8b84f2fc (no description set)
-    Working copy now at: b05f8b84f2fc (no description set)
+    Created ed1678e3725a (no description set)
+    Working copy now at: ed1678e3725a (no description set)
     Parent commit      : 1a986a275de6 (no description set)
     Added 1 files, modified 1 files, removed 1 files
     "###);
@@ -51,10 +59,10 @@ fn test_restore() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "-c=@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created e989e4b86680 (no description set)
+    Created e25100af9fff (no description set)
     Rebased 1 descendant commits
-    Working copy now at: b47256590e11 (no description set)
-    Parent commit      : e989e4b86680 (no description set)
+    Working copy now at: fd42591eb9a3 (no description set)
+    Parent commit      : e25100af9fff (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r=@-"]);
@@ -70,8 +78,8 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 1dd6eb63d587 (no description set)
-    Working copy now at: 1dd6eb63d587 (no description set)
+    Created 237116e2437f (no description set)
+    Working copy now at: 237116e2437f (no description set)
     Parent commit      : 1a986a275de6 (no description set)
     Added 1 files, modified 0 files, removed 2 files
     "###);
@@ -84,10 +92,10 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created ec9d5b59c3cf (no description set)
+    Created 887f8f96c5a6 (no description set)
     Rebased 1 descendant commits
-    Working copy now at: d6f3c6815772 (no description set)
-    Parent commit      : ec9d5b59c3cf (no description set)
+    Working copy now at: d2725e6e14de (no description set)
+    Parent commit      : 887f8f96c5a6 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -102,10 +110,10 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 5f6eb3d5c5bf (no description set)
+    Created 50c1fe092f55 (no description set)
     Rebased 1 descendant commits
-    Working copy now at: 525afd5d4a26 (no description set)
-    Parent commit      : 5f6eb3d5c5bf (no description set)
+    Working copy now at: c63aab8ec732 (no description set)
+    Parent commit      : 50c1fe092f55 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -120,8 +128,8 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "file2", "file3"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 569ce73d04fb (no description set)
-    Working copy now at: 569ce73d04fb (no description set)
+    Created 48f89f52d23e (no description set)
+    Working copy now at: 48f89f52d23e (no description set)
     Parent commit      : 1a986a275de6 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);

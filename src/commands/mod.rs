@@ -713,14 +713,17 @@ struct RestoreArgs {
     ///
     /// The default behavior of `jj restore` is equivalent to `jj restore
     /// --changes-in @`.
-    //
-    // If we followed the pattern of `jj diff` and `jj diffedit`, this option
-    // could simply be called `--revision`/`-r`. However, that would make it
-    // likely that someone unfamiliar with this pattern would use `-r` when they
-    // wanted `--from`. This would make a different revision empty, and the user
-    // might not even realize something went wrong.
     #[arg(long, short, value_name="REVISION", conflicts_with_all=["to", "from"])]
     changes_in: Option<RevisionArg>,
+    /// Prints an error. DO NOT USE.
+    ///
+    /// If we followed the pattern of `jj diff` and `jj diffedit`, we would use
+    /// `--revision` instead of `--changes-in` However, that would make it
+    /// likely that someone unfamiliar with this pattern would use `-r` when
+    /// they wanted `--from`. This would make a different revision empty, and
+    /// the user might not even realize something went wrong.
+    #[arg(long, short, hide = true)]
+    revision: Option<RevisionArg>,
 }
 
 /// Touch up the content changes in a revision with a diff editor
@@ -2867,6 +2870,13 @@ fn cmd_restore(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let (from_tree, to_commit);
+    if args.revision.is_some() {
+        return Err(user_error(
+            "`jj restore` does not have a `--revision`/`-r` option. If you'd like to modify\nthe \
+             *current* revision, use `--from`. If you'd like to modify a *different* \
+             revision,\nuse `--to` or `--changes-in`.",
+        ));
+    }
     if args.from.is_some() || args.to.is_some() {
         to_commit = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
         from_tree = workspace_command
