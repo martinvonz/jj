@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* `jj init --git-repo` now works with bare repositories.
+
 * `jj config edit --user` and `jj config set --user` will now pick a default
   config location if no existing file is found, potentially creating parent directories.
 
