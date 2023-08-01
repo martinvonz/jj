@@ -24,7 +24,7 @@ use itertools::Itertools;
 use jj_lib::backend::{TreeId, TreeValue};
 use jj_lib::conflicts::materialize_merge_result;
 use jj_lib::gitignore::GitIgnoreFile;
-use jj_lib::matchers::EverythingMatcher;
+use jj_lib::matchers::{EverythingMatcher, Matcher};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
@@ -33,6 +33,7 @@ use jj_lib::working_copy::{
     CheckoutError, SnapshotError, SnapshotOptions, TreeState, TreeStateError,
 };
 use regex::{Captures, Regex};
+use tempfile::TempDir;
 use thiserror::Error;
 
 use crate::config::CommandNameAndArgs;
@@ -72,17 +73,25 @@ pub enum ExternalToolError {
 }
 
 #[derive(Debug, Error)]
+pub enum DiffCheckoutError {
+    #[error("Failed to write directories to diff: {0}")]
+    Checkout(#[from] CheckoutError),
+    #[error("Error setting up temporary directory: {0}")]
+    SetUpDir(#[source] std::io::Error),
+    #[error(transparent)]
+    TreeState(#[from] TreeStateError),
+}
+
+#[derive(Debug, Error)]
 pub enum DiffEditError {
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
-    #[error("Failed to write directories to diff: {0}")]
-    Checkout(#[from] CheckoutError),
+    #[error(transparent)]
+    DiffCheckoutError(#[from] DiffCheckoutError),
     #[error("Failed to snapshot changes: {0}")]
     Snapshot(#[from] SnapshotError),
     #[error(transparent)]
     Config(#[from] config::ConfigError),
-    #[error(transparent)]
-    TreeState(#[from] TreeStateError),
 }
 
 #[derive(Debug, Error)]
@@ -109,15 +118,82 @@ pub enum ConflictResolveError {
     Backend(#[from] jj_lib::backend::BackendError),
 }
 
+struct DiffWorkingCopies {
+    _temp_dir: TempDir,
+    left_tree_state: TreeState,
+    right_tree_state: TreeState,
+}
+
+impl DiffWorkingCopies {
+    fn left_working_copy_path(&self) -> &Path {
+        self.left_tree_state.working_copy_path()
+    }
+
+    fn right_working_copy_path(&self) -> &Path {
+        self.right_tree_state.working_copy_path()
+    }
+
+    fn to_command_variables(&self) -> HashMap<&'static str, &str> {
+        let left_wc_dir = self.left_working_copy_path();
+        let right_wc_dir = self.right_working_copy_path();
+        maplit::hashmap! {
+            "left" => left_wc_dir.to_str().expect("temp_dir would be valid utf-8"),
+            "right" => right_wc_dir.to_str().expect("temp_dir would be valid utf-8"),
+        }
+    }
+}
+
+/// Check out the two trees in temporary directories. Only include changed files
+/// in the sparse checkout patterns.
+fn check_out_trees(
+    store: &Arc<Store>,
+    left_tree: &Tree,
+    right_tree: &Tree,
+    matcher: &dyn Matcher,
+) -> Result<DiffWorkingCopies, DiffCheckoutError> {
+    let changed_files = left_tree
+        .diff(right_tree, matcher)
+        .map(|(path, _value)| path)
+        .collect_vec();
+
+    let temp_dir = tempfile::Builder::new()
+        .prefix("jj-diff-")
+        .tempdir()
+        .map_err(DiffCheckoutError::SetUpDir)?;
+    let left_wc_dir = temp_dir.path().join("left");
+    let left_state_dir = temp_dir.path().join("left_state");
+    let right_wc_dir = temp_dir.path().join("right");
+    let right_state_dir = temp_dir.path().join("right_state");
+    let left_tree_state = check_out(
+        store.clone(),
+        left_wc_dir,
+        left_state_dir,
+        left_tree,
+        changed_files.clone(),
+    )?;
+    let right_tree_state = check_out(
+        store.clone(),
+        right_wc_dir,
+        right_state_dir,
+        right_tree,
+        changed_files,
+    )?;
+    Ok(DiffWorkingCopies {
+        _temp_dir: temp_dir,
+        left_tree_state,
+        right_tree_state,
+    })
+}
+
 fn check_out(
     store: Arc<Store>,
     wc_dir: PathBuf,
     state_dir: PathBuf,
     tree: &Tree,
     sparse_patterns: Vec<RepoPath>,
-) -> Result<TreeState, DiffEditError> {
-    std::fs::create_dir(&wc_dir).map_err(ExternalToolError::SetUpDir)?;
-    std::fs::create_dir(&state_dir).map_err(ExternalToolError::SetUpDir)?;
+) -> Result<TreeState, DiffCheckoutError> {
+    std::fs::create_dir(&wc_dir).map_err(DiffCheckoutError::SetUpDir)?;
+    std::fs::create_dir(&state_dir).map_err(DiffCheckoutError::SetUpDir)?;
     let mut tree_state = TreeState::init(store, wc_dir, state_dir)?;
     tree_state.set_sparse_patterns(sparse_patterns)?;
     tree_state.check_out(tree)?;
@@ -294,37 +370,10 @@ pub fn edit_diff(
     settings: &UserSettings,
 ) -> Result<TreeId, DiffEditError> {
     let store = left_tree.store();
-    let changed_files = left_tree
-        .diff(right_tree, &EverythingMatcher)
-        .map(|(path, _value)| path)
-        .collect_vec();
-
-    // Check out the two trees in temporary directories. Only include changed files
-    // in the sparse checkout patterns.
-    let temp_dir = tempfile::Builder::new()
-        .prefix("jj-diff-edit-")
-        .tempdir()
+    let diff_wc = check_out_trees(store, left_tree, right_tree, &EverythingMatcher)?;
+    set_readonly_recursively(diff_wc.left_working_copy_path())
         .map_err(ExternalToolError::SetUpDir)?;
-    let left_wc_dir = temp_dir.path().join("left");
-    let left_state_dir = temp_dir.path().join("left_state");
-    let right_wc_dir = temp_dir.path().join("right");
-    let right_state_dir = temp_dir.path().join("right_state");
-    check_out(
-        store.clone(),
-        left_wc_dir.clone(),
-        left_state_dir,
-        left_tree,
-        changed_files.clone(),
-    )?;
-    set_readonly_recursively(&left_wc_dir).map_err(ExternalToolError::SetUpDir)?;
-    let mut right_tree_state = check_out(
-        store.clone(),
-        right_wc_dir.clone(),
-        right_state_dir,
-        right_tree,
-        changed_files,
-    )?;
-    let instructions_path = right_wc_dir.join("JJ-INSTRUCTIONS");
+    let instructions_path = diff_wc.right_working_copy_path().join("JJ-INSTRUCTIONS");
     // In the unlikely event that the file already exists, then the user will simply
     // not get any instructions.
     let add_instructions =
@@ -339,10 +388,7 @@ pub fn edit_diff(
 
     // Start a diff editor on the two directories.
     let editor = get_diff_editor_from_settings(ui, settings)?;
-    let patterns = maplit::hashmap! {
-        "left" => left_wc_dir.to_str().expect("temp_dir would be valid utf-8"),
-        "right" => right_wc_dir.to_str().expect("temp_dir would be valid utf-8"),
-    };
+    let patterns = diff_wc.to_command_variables();
     let mut cmd = Command::new(&editor.program);
     cmd.args(interpolate_variables(&editor.edit_args, &patterns));
     tracing::info!(?cmd, "Invoking the external diff editor:");
@@ -361,6 +407,7 @@ pub fn edit_diff(
         std::fs::remove_file(instructions_path).ok();
     }
 
+    let mut right_tree_state = diff_wc.right_tree_state;
     right_tree_state.snapshot(SnapshotOptions {
         base_ignores,
         fsmonitor_kind: settings.fsmonitor_kind()?,
