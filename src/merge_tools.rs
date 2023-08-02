@@ -68,7 +68,7 @@ pub enum ExternalToolError {
         exit_status: std::process::ExitStatus,
     },
     #[error("I/O error: {0}")]
-    Io(#[from] std::io::Error),
+    Io(#[source] std::io::Error),
 }
 
 #[derive(Debug, Error)]
@@ -107,17 +107,6 @@ pub enum ConflictResolveError {
     EmptyOrUnchanged,
     #[error("Backend error: {0}")]
     Backend(#[from] jj_lib::backend::BackendError),
-}
-
-impl From<std::io::Error> for DiffEditError {
-    fn from(err: std::io::Error) -> Self {
-        DiffEditError::ExternalTool(ExternalToolError::from(err))
-    }
-}
-impl From<std::io::Error> for ConflictResolveError {
-    fn from(err: std::io::Error) -> Self {
-        ConflictResolveError::ExternalTool(ExternalToolError::from(err))
-    }
 }
 
 fn check_out(
@@ -244,7 +233,8 @@ pub fn run_mergetool(
         }));
     }
 
-    let output_file_contents: Vec<u8> = std::fs::read(paths.get("output").unwrap())?;
+    let output_file_contents: Vec<u8> =
+        std::fs::read(paths.get("output").unwrap()).map_err(ExternalToolError::Io)?;
     if output_file_contents.is_empty() || output_file_contents == initial_output_content {
         return Err(ConflictResolveError::EmptyOrUnchanged);
     }
@@ -510,7 +500,8 @@ fn editor_args_from_settings(
         writeln!(
             ui.hint(),
             "Using default editor '{default_editor}'; you can change this by setting {key}"
-        )?;
+        )
+        .map_err(ExternalToolError::Io)?;
         Ok(default_editor.into())
     }
 }
