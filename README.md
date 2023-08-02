@@ -63,13 +63,16 @@ add functionality that cannot easily be added to the Git backend.
 
 ### The working copy is automatically committed
 
-Almost all Jujutsu commands automatically commit the working copy. That means
-that commands never fail because the working copy is dirty (no "error: Your
-local changes to the following files..."), and there is no need for `git stash`.
-You also get an automatic backup of the working copy whenever you run a command.
-Also, because the working copy is a commit, commands work the same way on the
-working-copy commit as on any other commit, so you can set the commit message
-before you're done with the changes.
+Jujutsu uses a real commit to represent the working copy. Checking out a commit
+results a new working-copy commit on top of the target commit. Almost all
+commands automatically amend the working-copy commit.
+
+The working-copy being a commit means that commands never fail because the
+working copy is dirty (no "error: Your local changes to the following
+files..."), and there is no need for `git stash`. Also, because the working copy
+is a commit, commands work the same way on the working-copy commit as on any
+other commit, so you can set the commit message before you're done with the
+changes.
 
 <img src="demos/working_copy.png" />
 
