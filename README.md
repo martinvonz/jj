@@ -43,7 +43,8 @@ to replace (rare in English). The project is called "Jujutsu" because it matches
 
 If you have any questions, please join us on Discord
 [![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
-. The [glossary](docs/glossary.md) may also be helpful.
+or start a [GitHub Discussion](https://github.com/martinvonz/jj/discussions).
+The [glossary](docs/glossary.md) may also be helpful.
 
 ## Features
 
