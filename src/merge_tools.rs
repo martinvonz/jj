@@ -41,14 +41,14 @@ use crate::ui::Ui;
 #[derive(Debug, Error)]
 pub enum ExternalToolError {
     #[error("Invalid config: {0}")]
-    ConfigError(#[from] ConfigError),
+    Config(#[from] ConfigError),
     #[error(
         "To use `{tool_name}` as a merge tool, the config `merge-tools.{tool_name}.merge-args` \
          must be defined (see docs for details)"
     )]
     MergeArgsNotConfigured { tool_name: String },
     #[error("Error setting up temporary directory: {0:?}")]
-    SetUpDirError(#[source] std::io::Error),
+    SetUpDir(#[source] std::io::Error),
     // TODO: Remove the "(run with --verbose to see the exact invocation)"
     // from this and other errors. Print it as a hint but only if --verbose is *not* set.
     #[error(
@@ -68,55 +68,55 @@ pub enum ExternalToolError {
         exit_status: std::process::ExitStatus,
     },
     #[error("I/O error: {0:?}")]
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
 }
 
 #[derive(Debug, Error)]
 pub enum DiffEditError {
     #[error(transparent)]
-    ExternalToolError(#[from] ExternalToolError),
+    ExternalTool(#[from] ExternalToolError),
     #[error("Failed to write directories to diff: {0:?}")]
-    CheckoutError(#[from] CheckoutError),
+    Checkout(#[from] CheckoutError),
     #[error("Failed to snapshot changes: {0:?}")]
-    SnapshotError(#[from] SnapshotError),
+    Snapshot(#[from] SnapshotError),
     #[error(transparent)]
-    ConfigError(#[from] config::ConfigError),
+    Config(#[from] config::ConfigError),
     #[error(transparent)]
-    TreeStateError(#[from] TreeStateError),
+    TreeState(#[from] TreeStateError),
 }
 
 #[derive(Debug, Error)]
 pub enum ConflictResolveError {
     #[error(transparent)]
-    ExternalToolError(#[from] ExternalToolError),
+    ExternalTool(#[from] ExternalToolError),
     #[error("Couldn't find the path {0:?} in this revision")]
-    PathNotFoundError(RepoPath),
+    PathNotFound(RepoPath),
     #[error("Couldn't find any conflicts at {0:?} in this revision")]
-    NotAConflictError(RepoPath),
+    NotAConflict(RepoPath),
     #[error(
         "Only conflicts that involve normal files (not symlinks, not executable, etc.) are \
          supported. Conflict summary for {0:?}:\n{1}"
     )]
-    NotNormalFilesError(RepoPath, String),
+    NotNormalFiles(RepoPath, String),
     #[error("The conflict at {path:?} has {sides} sides. At most 2 sides are supported.")]
-    ConflictTooComplicatedError { path: RepoPath, sides: usize },
+    ConflictTooComplicated { path: RepoPath, sides: usize },
     #[error(
         "The output file is either unchanged or empty after the editor quit (run with --verbose \
          to see the exact invocation)."
     )]
     EmptyOrUnchanged,
     #[error("Backend error: {0:?}")]
-    BackendError(#[from] jj_lib::backend::BackendError),
+    Backend(#[from] jj_lib::backend::BackendError),
 }
 
 impl From<std::io::Error> for DiffEditError {
     fn from(err: std::io::Error) -> Self {
-        DiffEditError::ExternalToolError(ExternalToolError::from(err))
+        DiffEditError::ExternalTool(ExternalToolError::from(err))
     }
 }
 impl From<std::io::Error> for ConflictResolveError {
     fn from(err: std::io::Error) -> Self {
-        ConflictResolveError::ExternalToolError(ExternalToolError::from(err))
+        ConflictResolveError::ExternalTool(ExternalToolError::from(err))
     }
 }
 
@@ -127,8 +127,8 @@ fn check_out(
     tree: &Tree,
     sparse_patterns: Vec<RepoPath>,
 ) -> Result<TreeState, DiffEditError> {
-    std::fs::create_dir(&wc_dir).map_err(ExternalToolError::SetUpDirError)?;
-    std::fs::create_dir(&state_dir).map_err(ExternalToolError::SetUpDirError)?;
+    std::fs::create_dir(&wc_dir).map_err(ExternalToolError::SetUpDir)?;
+    std::fs::create_dir(&state_dir).map_err(ExternalToolError::SetUpDir)?;
     let mut tree_state = TreeState::init(store, wc_dir, state_dir)?;
     tree_state.set_sparse_patterns(sparse_patterns)?;
     tree_state.check_out(tree)?;
@@ -160,8 +160,8 @@ pub fn run_mergetool(
 ) -> Result<TreeId, ConflictResolveError> {
     let conflict_id = match tree.path_value(repo_path) {
         Some(TreeValue::Conflict(id)) => id,
-        Some(_) => return Err(ConflictResolveError::NotAConflictError(repo_path.clone())),
-        None => return Err(ConflictResolveError::PathNotFoundError(repo_path.clone())),
+        Some(_) => return Err(ConflictResolveError::NotAConflict(repo_path.clone())),
+        None => return Err(ConflictResolveError::PathNotFound(repo_path.clone())),
     };
     let conflict = tree.store().read_conflict(repo_path, &conflict_id)?;
     let file_conflict = conflict.to_file_conflict().ok_or_else(|| {
@@ -169,14 +169,14 @@ pub fn run_mergetool(
         conflict
             .describe(&mut summary_bytes)
             .expect("Writing to an in-memory buffer should never fail");
-        ConflictResolveError::NotNormalFilesError(
+        ConflictResolveError::NotNormalFiles(
             repo_path.clone(),
             String::from_utf8_lossy(summary_bytes.as_slice()).to_string(),
         )
     })?;
     // We only support conflicts with 2 sides (3-way conflicts)
     if file_conflict.adds().len() > 2 {
-        return Err(ConflictResolveError::ConflictTooComplicatedError {
+        return Err(ConflictResolveError::ConflictTooComplicated {
             path: repo_path.clone(),
             sides: file_conflict.adds().len(),
         });
@@ -203,7 +203,7 @@ pub fn run_mergetool(
     let temp_dir = tempfile::Builder::new()
         .prefix("jj-resolve-")
         .tempdir()
-        .map_err(ExternalToolError::SetUpDirError)?;
+        .map_err(ExternalToolError::SetUpDir)?;
     let suffix = repo_path
         .components()
         .last()
@@ -215,10 +215,10 @@ pub fn run_mergetool(
         .iter()
         .map(|(role, contents)| -> Result<_, ConflictResolveError> {
             let path = temp_dir.path().join(format!("{role}{suffix}"));
-            std::fs::write(&path, contents).map_err(ExternalToolError::SetUpDirError)?;
+            std::fs::write(&path, contents).map_err(ExternalToolError::SetUpDir)?;
             if *role != "output" {
                 // TODO: Should actually ignore the error here, or have a warning.
-                set_readonly_recursively(&path).map_err(ExternalToolError::SetUpDirError)?;
+                set_readonly_recursively(&path).map_err(ExternalToolError::SetUpDir)?;
             }
             Ok((
                 *role,
@@ -314,7 +314,7 @@ pub fn edit_diff(
     let temp_dir = tempfile::Builder::new()
         .prefix("jj-diff-edit-")
         .tempdir()
-        .map_err(ExternalToolError::SetUpDirError)?;
+        .map_err(ExternalToolError::SetUpDir)?;
     let left_wc_dir = temp_dir.path().join("left");
     let left_state_dir = temp_dir.path().join("left_state");
     let right_wc_dir = temp_dir.path().join("right");
@@ -326,7 +326,7 @@ pub fn edit_diff(
         left_tree,
         changed_files.clone(),
     )?;
-    set_readonly_recursively(&left_wc_dir).map_err(ExternalToolError::SetUpDirError)?;
+    set_readonly_recursively(&left_wc_dir).map_err(ExternalToolError::SetUpDir)?;
     let mut right_tree_state = check_out(
         store.clone(),
         right_wc_dir.clone(),
@@ -342,10 +342,9 @@ pub fn edit_diff(
     if add_instructions {
         // TODO: This can be replaced with std::fs::write. Is this used in other places
         // as well?
-        let mut file =
-            File::create(&instructions_path).map_err(ExternalToolError::SetUpDirError)?;
+        let mut file = File::create(&instructions_path).map_err(ExternalToolError::SetUpDir)?;
         file.write_all(instructions.as_bytes())
-            .map_err(ExternalToolError::SetUpDirError)?;
+            .map_err(ExternalToolError::SetUpDir)?;
     }
 
     // Start a diff editor on the two directories.
