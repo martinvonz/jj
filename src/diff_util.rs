@@ -25,7 +25,7 @@ use jj_lib::files::DiffLine;
 use jj_lib::matchers::Matcher;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
-use jj_lib::settings::UserSettings;
+use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::tree::{Tree, TreeDiffIterator};
 use jj_lib::{diff, files, rewrite, tree};
 use tracing::instrument;
@@ -66,12 +66,15 @@ pub enum DiffFormat {
 }
 
 /// Returns a list of requested diff formats, which will never be empty.
-pub fn diff_formats_for(settings: &UserSettings, args: &DiffFormatArgs) -> Vec<DiffFormat> {
+pub fn diff_formats_for(
+    settings: &UserSettings,
+    args: &DiffFormatArgs,
+) -> Result<Vec<DiffFormat>, config::ConfigError> {
     let formats = diff_formats_from_args(args);
     if formats.is_empty() {
-        vec![default_diff_format(settings)]
+        Ok(vec![default_diff_format(settings)?])
     } else {
-        formats
+        Ok(formats)
     }
 }
 
@@ -81,14 +84,14 @@ pub fn diff_formats_for_log(
     settings: &UserSettings,
     args: &DiffFormatArgs,
     patch: bool,
-) -> Vec<DiffFormat> {
+) -> Result<Vec<DiffFormat>, config::ConfigError> {
     let mut formats = diff_formats_from_args(args);
     // --patch implies default if no format other than --summary is specified
     if patch && matches!(formats.as_slice(), [] | [DiffFormat::Summary]) {
-        formats.push(default_diff_format(settings));
+        formats.push(default_diff_format(settings)?);
         formats.dedup();
     }
-    formats
+    Ok(formats)
 }
 
 fn diff_formats_from_args(args: &DiffFormatArgs) -> Vec<DiffFormat> {
@@ -103,19 +106,23 @@ fn diff_formats_from_args(args: &DiffFormatArgs) -> Vec<DiffFormat> {
     .collect()
 }
 
-fn default_diff_format(settings: &UserSettings) -> DiffFormat {
-    match settings
-        .config()
-        .get_string("ui.diff.format")
-        // old config name
-        .or_else(|_| settings.config().get_string("diff.format"))
-        .as_deref()
-    {
-        Ok("summary") => DiffFormat::Summary,
-        Ok("types") => DiffFormat::Types,
-        Ok("git") => DiffFormat::Git,
-        Ok("color-words") => DiffFormat::ColorWords,
-        _ => DiffFormat::ColorWords,
+fn default_diff_format(settings: &UserSettings) -> Result<DiffFormat, config::ConfigError> {
+    let config = settings.config();
+    let name = if let Some(name) = config.get_string("ui.diff.format").optional()? {
+        name
+    } else if let Some(name) = config.get_string("diff.format").optional()? {
+        name // old config name
+    } else {
+        "color-words".to_owned()
+    };
+    match name.as_ref() {
+        "summary" => Ok(DiffFormat::Summary),
+        "types" => Ok(DiffFormat::Types),
+        "git" => Ok(DiffFormat::Git),
+        "color-words" => Ok(DiffFormat::ColorWords),
+        _ => Err(config::ConfigError::Message(format!(
+            "invalid diff format: {name}"
+        ))),
     }
 }
 
