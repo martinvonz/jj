@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from a merge revision's parents. This undoes the changes that `jj diff -r`
   would show.
 
+* `jj diff`/`log` now supports `--tool <name>` option to generate diffs by
+  external program. For configuration, see [the documentation](docs/config.md).
+  [#1886](https://github.com/martinvonz/jj/issues/1886)
 
 ### Fixed bugs
 

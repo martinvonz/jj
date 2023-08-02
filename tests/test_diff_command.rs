@@ -574,3 +574,98 @@ fn test_diff_skipped_context() {
       10   10: j
     "###);
 }
+
+#[test]
+fn test_diff_external_tool() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    std::fs::remove_file(repo_path.join("file1")).unwrap();
+    std::fs::write(repo_path.join("file2"), "foo\nbar\n").unwrap();
+    std::fs::write(repo_path.join("file3"), "foo\n").unwrap();
+
+    let edit_script = test_env.set_up_fake_diff_editor();
+    std::fs::write(
+        &edit_script,
+        "print-files-before\0print --\0print-files-after",
+    )
+    .unwrap();
+
+    // diff without file patterns
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["diff", "--tool=fake-diff-editor"]), @r###"
+    file1
+    file2
+    --
+    file2
+    file3
+    "###);
+
+    // diff with file patterns
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["diff", "--tool=fake-diff-editor", "file1"]), @r###"
+    file1
+    --
+    "###);
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-p", "--tool=fake-diff-editor"]), @r###"
+    @  rlvkpnrz test.user@example.com 2001-02-03 04:05:09.000 +07:00 0cba70c7
+    │  (no description set)
+    │  file1
+    │  file2
+    │  --
+    │  file2
+    │  file3
+    ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:08.000 +07:00 39b5a56f
+    │  (no description set)
+    │  --
+    │  file1
+    │  file2
+    ◉  zzzzzzzz 1970-01-01 00:00:00.000 +00:00 00000000
+       (empty) (no description set)
+       --
+    "###);
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["show", "--tool=fake-diff-editor"]), @r###"
+    Commit ID: 0cba70c72186eabb5a2f91be63a8366b9f6da6c6
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 04:05:08.000 +07:00)
+    Committer: Test User <test.user@example.com> (2001-02-03 04:05:09.000 +07:00)
+
+        (no description set)
+
+    file1
+    file2
+    --
+    file2
+    file3
+    "###);
+
+    // Output of external diff tool shouldn't be escaped
+    std::fs::write(&edit_script, "print \x1b[1;31mred").unwrap();
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["diff", "--color=always", "--tool=fake-diff-editor"]),
+        @r###"
+    [1;31mred
+    "###);
+
+    // Non-zero exit code isn't an error
+    std::fs::write(&edit_script, "print diff\0fail").unwrap();
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["show", "--tool=fake-diff-editor"]), @r###"
+    Commit ID: 0cba70c72186eabb5a2f91be63a8366b9f6da6c6
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 04:05:08.000 +07:00)
+    Committer: Test User <test.user@example.com> (2001-02-03 04:05:09.000 +07:00)
+
+        (no description set)
+
+    diff
+    "###);
+}

@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use config::ConfigError;
@@ -92,6 +92,14 @@ pub enum DiffEditError {
     Snapshot(#[from] SnapshotError),
     #[error(transparent)]
     Config(#[from] config::ConfigError),
+}
+
+#[derive(Debug, Error)]
+pub enum DiffGenerateError {
+    #[error(transparent)]
+    ExternalTool(#[from] ExternalToolError),
+    #[error(transparent)]
+    DiffCheckoutError(#[from] DiffCheckoutError),
 }
 
 #[derive(Debug, Error)]
@@ -420,13 +428,48 @@ pub fn edit_diff(
     Ok(right_tree_state.current_tree_id().clone())
 }
 
+/// Generates textual diff by the specified `tool`, and writes into `writer`.
+pub fn generate_diff(
+    writer: &mut dyn Write,
+    left_tree: &Tree,
+    right_tree: &Tree,
+    matcher: &dyn Matcher,
+    tool: &MergeTool,
+) -> Result<(), DiffGenerateError> {
+    let store = left_tree.store();
+    let diff_wc = check_out_trees(store, left_tree, right_tree, matcher)?;
+    // TODO: Add support for tools without directory diff functionality?
+    // TODO: Somehow propagate --color to the external command?
+    let patterns = diff_wc.to_command_variables();
+    let mut cmd = Command::new(&tool.program);
+    cmd.args(interpolate_variables(&tool.diff_args, &patterns));
+    tracing::info!(?cmd, "Invoking the external diff generator:");
+    let mut child = cmd
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .spawn()
+        .map_err(|source| ExternalToolError::FailedToExecute {
+            tool_binary: tool.program.clone(),
+            source,
+        })?;
+    io::copy(&mut child.stdout.take().unwrap(), writer).map_err(ExternalToolError::Io)?;
+    // Non-zero exit code isn't an error. For example, the traditional diff command
+    // will exit with 1 if inputs are different.
+    let exit_status = child.wait().map_err(ExternalToolError::Io)?;
+    tracing::info!(?cmd, ?exit_status, "The external diff generator exited:");
+    Ok(())
+}
+
 /// Merge/diff tool loaded from the settings.
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
-struct MergeTool {
+pub struct MergeTool {
     /// Program to execute. Must be defined; defaults to the tool name
     /// if not specified in the config.
     pub program: String,
+    /// Arguments to pass to the program when generating diffs.
+    /// `$left` and `$right` are replaced with the corresponding directories.
+    pub diff_args: Vec<String>,
     /// Arguments to pass to the program when editing diffs.
     /// `$left` and `$right` are replaced with the corresponding directories.
     pub edit_args: Vec<String>,
@@ -450,6 +493,7 @@ impl Default for MergeTool {
     fn default() -> Self {
         MergeTool {
             program: String::new(),
+            diff_args: ["$left", "$right"].map(ToOwned::to_owned).to_vec(),
             edit_args: ["$left", "$right"].map(ToOwned::to_owned).to_vec(),
             merge_args: vec![],
             merge_tool_edits_conflict_markers: false,
@@ -458,6 +502,13 @@ impl Default for MergeTool {
 }
 
 impl MergeTool {
+    pub fn with_program(program: impl Into<String>) -> Self {
+        MergeTool {
+            program: program.into(),
+            ..Default::default()
+        }
+    }
+
     pub fn with_edit_args(command_args: &CommandNameAndArgs) -> Self {
         let (name, args) = command_args.split_name_and_args();
         let mut tool = MergeTool {
@@ -484,7 +535,10 @@ impl MergeTool {
 }
 
 /// Loads merge tool options from `[merge-tools.<name>]`.
-fn get_tool_config(settings: &UserSettings, name: &str) -> Result<Option<MergeTool>, ConfigError> {
+pub fn get_tool_config(
+    settings: &UserSettings,
+    name: &str,
+) -> Result<Option<MergeTool>, ConfigError> {
     const TABLE_KEY: &str = "merge-tools";
     let tools_table = settings.config().get_table(TABLE_KEY)?;
     if let Some(v) = tools_table.get(name) {
@@ -583,6 +637,10 @@ mod tests {
         insta::assert_debug_snapshot!(get("").unwrap(), @r###"
         MergeTool {
             program: "meld",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "$left",
                 "$right",
@@ -603,6 +661,10 @@ mod tests {
         insta::assert_debug_snapshot!(get(r#"ui.diff-editor = "my-diff""#).unwrap(), @r###"
         MergeTool {
             program: "my-diff",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "$left",
                 "$right",
@@ -617,6 +679,10 @@ mod tests {
             get(r#"ui.diff-editor = "my-diff -l $left -r $right""#).unwrap(), @r###"
         MergeTool {
             program: "my-diff",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "-l",
                 "$left",
@@ -633,6 +699,10 @@ mod tests {
             get(r#"ui.diff-editor = ["my-diff", "--diff", "$left", "$right"]"#).unwrap(), @r###"
         MergeTool {
             program: "my-diff",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "--diff",
                 "$left",
@@ -653,6 +723,10 @@ mod tests {
         ).unwrap(), @r###"
         MergeTool {
             program: "foo bar",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "--edit",
                 "args",
@@ -674,6 +748,10 @@ mod tests {
         ).unwrap(), @r###"
         MergeTool {
             program: "MyDiff",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "$left",
                 "$right",
@@ -687,6 +765,10 @@ mod tests {
         insta::assert_debug_snapshot!(get(r#"ui.diff-editor = ["meld"]"#).unwrap(), @r###"
         MergeTool {
             program: "meld",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "$left",
                 "$right",
@@ -713,6 +795,10 @@ mod tests {
         insta::assert_debug_snapshot!(get("").unwrap(), @r###"
         MergeTool {
             program: "meld",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "$left",
                 "$right",
@@ -741,6 +827,10 @@ mod tests {
             get(r#"ui.merge-editor = "my-merge $left $base $right $output""#).unwrap(), @r###"
         MergeTool {
             program: "my-merge",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "$left",
                 "$right",
@@ -762,6 +852,10 @@ mod tests {
             ).unwrap(), @r###"
         MergeTool {
             program: "my-merge",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "$left",
                 "$right",
@@ -786,6 +880,10 @@ mod tests {
         ).unwrap(), @r###"
         MergeTool {
             program: "foo bar",
+            diff_args: [
+                "$left",
+                "$right",
+            ],
             edit_args: [
                 "$left",
                 "$right",

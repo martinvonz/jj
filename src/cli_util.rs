@@ -72,7 +72,7 @@ use crate::config::{
     new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
 };
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
-use crate::merge_tools::{ConflictResolveError, DiffEditError};
+use crate::merge_tools::{ConflictResolveError, DiffEditError, DiffGenerateError};
 use crate::template_parser::{TemplateAliasesMap, TemplateParseError};
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
@@ -236,6 +236,12 @@ impl From<ResetError> for CommandError {
 impl From<DiffEditError> for CommandError {
     fn from(err: DiffEditError) -> Self {
         user_error(format!("Failed to edit diff: {err}"))
+    }
+}
+
+impl From<DiffGenerateError> for CommandError {
+    fn from(err: DiffGenerateError) -> Self {
+        user_error(format!("Failed to generate diff: {err}"))
     }
 }
 

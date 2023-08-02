@@ -32,10 +32,11 @@ use tracing::instrument;
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
 use crate::formatter::Formatter;
+use crate::merge_tools::{self, MergeTool};
 
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(clap::ArgGroup::new("short-format").args(&["summary", "types"])))]
-#[command(group(clap::ArgGroup::new("long-format").args(&["git", "color_words"])))]
+#[command(group(clap::ArgGroup::new("long-format").args(&["git", "color_words", "tool"])))]
 pub struct DiffFormatArgs {
     /// For each path, show only whether it was modified, added, or removed
     #[arg(long, short)]
@@ -55,14 +56,18 @@ pub struct DiffFormatArgs {
     /// Show a word-level diff with changes indicated only by color
     #[arg(long)]
     pub color_words: bool,
+    /// Generate diff by external command
+    #[arg(long)]
+    pub tool: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DiffFormat {
     Summary,
     Types,
     Git,
     ColorWords,
+    Tool(Box<MergeTool>),
 }
 
 /// Returns a list of requested diff formats, which will never be empty.
@@ -70,7 +75,7 @@ pub fn diff_formats_for(
     settings: &UserSettings,
     args: &DiffFormatArgs,
 ) -> Result<Vec<DiffFormat>, config::ConfigError> {
-    let formats = diff_formats_from_args(args);
+    let formats = diff_formats_from_args(settings, args)?;
     if formats.is_empty() {
         Ok(vec![default_diff_format(settings)?])
     } else {
@@ -85,7 +90,7 @@ pub fn diff_formats_for_log(
     args: &DiffFormatArgs,
     patch: bool,
 ) -> Result<Vec<DiffFormat>, config::ConfigError> {
-    let mut formats = diff_formats_from_args(args);
+    let mut formats = diff_formats_from_args(settings, args)?;
     // --patch implies default if no format other than --summary is specified
     if patch && matches!(formats.as_slice(), [] | [DiffFormat::Summary]) {
         formats.push(default_diff_format(settings)?);
@@ -94,8 +99,11 @@ pub fn diff_formats_for_log(
     Ok(formats)
 }
 
-fn diff_formats_from_args(args: &DiffFormatArgs) -> Vec<DiffFormat> {
-    [
+fn diff_formats_from_args(
+    settings: &UserSettings,
+    args: &DiffFormatArgs,
+) -> Result<Vec<DiffFormat>, config::ConfigError> {
+    let mut formats = [
         (args.summary, DiffFormat::Summary),
         (args.types, DiffFormat::Types),
         (args.git, DiffFormat::Git),
@@ -103,7 +111,13 @@ fn diff_formats_from_args(args: &DiffFormatArgs) -> Vec<DiffFormat> {
     ]
     .into_iter()
     .filter_map(|(arg, format)| arg.then_some(format))
-    .collect()
+    .collect_vec();
+    if let Some(name) = &args.tool {
+        let tool = merge_tools::get_tool_config(settings, name)?
+            .unwrap_or_else(|| MergeTool::with_program(name));
+        formats.push(DiffFormat::Tool(Box::new(tool)));
+    }
+    Ok(formats)
 }
 
 fn default_diff_format(settings: &UserSettings) -> Result<DiffFormat, config::ConfigError> {
@@ -120,6 +134,7 @@ fn default_diff_format(settings: &UserSettings) -> Result<DiffFormat, config::Co
         "types" => Ok(DiffFormat::Types),
         "git" => Ok(DiffFormat::Git),
         "color-words" => Ok(DiffFormat::ColorWords),
+        // TODO: add configurable default for DiffFormat::Tool?
         _ => Err(config::ConfigError::Message(format!(
             "invalid diff format: {name}"
         ))),
@@ -135,19 +150,25 @@ pub fn show_diff(
     formats: &[DiffFormat],
 ) -> Result<(), CommandError> {
     for format in formats {
-        let tree_diff = from_tree.diff(to_tree, matcher);
         match format {
             DiffFormat::Summary => {
+                let tree_diff = from_tree.diff(to_tree, matcher);
                 show_diff_summary(formatter, workspace_command, tree_diff)?;
             }
             DiffFormat::Types => {
+                let tree_diff = from_tree.diff(to_tree, matcher);
                 show_types(formatter, workspace_command, tree_diff)?;
             }
             DiffFormat::Git => {
+                let tree_diff = from_tree.diff(to_tree, matcher);
                 show_git_diff(formatter, workspace_command, tree_diff)?;
             }
             DiffFormat::ColorWords => {
+                let tree_diff = from_tree.diff(to_tree, matcher);
                 show_color_words_diff(formatter, workspace_command, tree_diff)?;
+            }
+            DiffFormat::Tool(tool) => {
+                merge_tools::generate_diff(formatter.raw(), from_tree, to_tree, matcher, tool)?;
             }
         }
     }

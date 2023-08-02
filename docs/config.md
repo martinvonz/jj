@@ -141,6 +141,21 @@ ui.default-command = "log"
 ui.diff.format = "git"
 ```
 
+### Generating diffs by external command
+
+If `diff --tool <name>` argument is given, the external diff command will be
+called instead of the internal diff function. The command arguments can be
+specified as follows.
+
+```toml
+[merge-tools.<name>]
+# program = "<name>"  # Defaults to the name of the tool if not specified
+diff-args = ["--color=always", "$left", "$right"]
+```
+
+- `$left` and `$right` are replaced with the paths to the left and right
+  directories to diff respectively.
+
 ### Default revisions to log
 
 You can configure the revisions `jj log` without `-r` should show.

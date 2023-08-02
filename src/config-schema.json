@@ -242,6 +242,12 @@
                     "program": {
                         "type": "string"
                     },
+                    "diff-args": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
                     "edit-args": {
                         "type": "array",
                         "items": {
