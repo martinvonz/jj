@@ -463,6 +463,14 @@ branches. Since the local branch isn't created, the remote branch will be
 deleted if you push the branch with `jj git push --branch` or `jj git push
 --all`.
 
+### Prefix for generated branches on push
+
+`jj git push --change` generates branch names with a prefix of "push-" by
+default. You can pick a different prefix by setting `push.branch-prefix`. For
+example:
+
+    push.branch-prefix = "martinvonz/push-"
+
 ## Filesystem monitor
 
 In large repositories, it may be beneficial to use a "filesystem monitor" to
