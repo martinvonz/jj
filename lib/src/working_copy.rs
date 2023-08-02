@@ -383,6 +383,12 @@ pub enum ResetError {
     TreeStateError(#[from] TreeStateError),
 }
 
+struct WorkItem {
+    dir: RepoPath,
+    disk_dir: PathBuf,
+    git_ignore: Arc<GitIgnoreFile>,
+}
+
 #[derive(Debug, Error)]
 pub enum TreeStateError {
     #[error("Reading tree state from {path}: {source}")]
@@ -642,11 +648,6 @@ impl TreeState {
             });
 
         let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
-        struct WorkItem {
-            dir: RepoPath,
-            disk_dir: PathBuf,
-            git_ignore: Arc<GitIgnoreFile>,
-        }
         let mut work = vec![WorkItem {
             dir: RepoPath::root(),
             disk_dir: self.working_copy_path.clone(),
