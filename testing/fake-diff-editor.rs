@@ -80,6 +80,19 @@ fn main() {
                     exit(1)
                 }
             }
+            ["print", message] => {
+                println!("{message}");
+            }
+            ["print-files-before"] => {
+                for base_name in files_recursively(&args.before).iter().sorted() {
+                    println!("{base_name}");
+                }
+            }
+            ["print-files-after"] => {
+                for base_name in files_recursively(&args.after).iter().sorted() {
+                    println!("{base_name}");
+                }
+            }
             ["rm", file] => {
                 std::fs::remove_file(args.after.join(file)).unwrap();
             }
