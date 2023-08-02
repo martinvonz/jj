@@ -47,7 +47,7 @@ pub enum ExternalToolError {
          must be defined (see docs for details)"
     )]
     MergeArgsNotConfigured { tool_name: String },
-    #[error("Error setting up temporary directory: {0:?}")]
+    #[error("Error setting up temporary directory: {0}")]
     SetUpDir(#[source] std::io::Error),
     // TODO: Remove the "(run with --verbose to see the exact invocation)"
     // from this and other errors. Print it as a hint but only if --verbose is *not* set.
@@ -67,7 +67,7 @@ pub enum ExternalToolError {
     ToolAborted {
         exit_status: std::process::ExitStatus,
     },
-    #[error("I/O error: {0:?}")]
+    #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 }
 
@@ -75,9 +75,9 @@ pub enum ExternalToolError {
 pub enum DiffEditError {
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
-    #[error("Failed to write directories to diff: {0:?}")]
+    #[error("Failed to write directories to diff: {0}")]
     Checkout(#[from] CheckoutError),
-    #[error("Failed to snapshot changes: {0:?}")]
+    #[error("Failed to snapshot changes: {0}")]
     Snapshot(#[from] SnapshotError),
     #[error(transparent)]
     Config(#[from] config::ConfigError),
@@ -105,7 +105,7 @@ pub enum ConflictResolveError {
          to see the exact invocation)."
     )]
     EmptyOrUnchanged,
-    #[error("Backend error: {0:?}")]
+    #[error("Backend error: {0}")]
     Backend(#[from] jj_lib::backend::BackendError),
 }
 
