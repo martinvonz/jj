@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::{Stderr, Stdout, Write};
+use std::io::{IsTerminal as _, Stderr, Stdout, Write};
 use std::process::{Child, ChildStdin, Stdio};
 use std::str::FromStr;
 use std::{env, fmt, io, mem};
 
-use crossterm::tty::IsTty;
 use tracing::instrument;
 
 use crate::cli_util::CommandError;
@@ -81,7 +80,7 @@ fn use_color(choice: ColorChoice) -> bool {
     match choice {
         ColorChoice::Always => true,
         ColorChoice::Never => false,
-        ColorChoice::Auto => io::stdout().is_tty(),
+        ColorChoice::Auto => io::stdout().is_terminal(),
     }
 }
 
@@ -103,7 +102,7 @@ impl Ui {
         let color = use_color(color_setting(config));
         // Sanitize ANSI escape codes if we're printing to a terminal. Doesn't affect
         // ANSI escape codes that originate from the formatter itself.
-        let sanitize = io::stdout().is_tty();
+        let sanitize = io::stdout().is_terminal();
         let formatter_factory = FormatterFactory::prepare(config, color, sanitize)?;
         let progress_indicator = progress_indicator_setting(config);
         Ok(Ui {
@@ -120,7 +119,7 @@ impl Ui {
         self.color = use_color(color_setting(config));
         self.pager_cmd = pager_setting(config)?;
         self.progress_indicator = progress_indicator_setting(config);
-        let sanitize = io::stdout().is_tty();
+        let sanitize = io::stdout().is_terminal();
         self.formatter_factory = FormatterFactory::prepare(config, self.color, sanitize)?;
         Ok(())
     }
@@ -138,7 +137,7 @@ impl Ui {
         }
 
         match self.output {
-            UiOutput::Terminal { .. } if io::stdout().is_tty() => {
+            UiOutput::Terminal { .. } if io::stdout().is_terminal() => {
                 match UiOutput::new_paged(&self.pager_cmd) {
                     Ok(new_output) => {
                         self.output = new_output;
@@ -191,7 +190,7 @@ impl Ui {
     /// operations
     pub fn use_progress_indicator(&self) -> bool {
         match &self.output {
-            UiOutput::Terminal { stderr, .. } => self.progress_indicator && stderr.is_tty(),
+            UiOutput::Terminal { stderr, .. } => self.progress_indicator && stderr.is_terminal(),
             UiOutput::Paged { .. } => false,
         }
     }
@@ -263,7 +262,7 @@ impl Ui {
     }
 
     pub fn prompt(&mut self, prompt: &str) -> io::Result<String> {
-        if !io::stdout().is_tty() {
+        if !io::stdout().is_terminal() {
             return Err(io::Error::new(
                 io::ErrorKind::Unsupported,
                 "Cannot prompt for input since the output is not connected to a terminal",
@@ -277,7 +276,7 @@ impl Ui {
     }
 
     pub fn prompt_password(&mut self, prompt: &str) -> io::Result<String> {
-        if !io::stdout().is_tty() {
+        if !io::stdout().is_terminal() {
             return Err(io::Error::new(
                 io::ErrorKind::Unsupported,
                 "Cannot prompt for input since the output is not connected to a terminal",
