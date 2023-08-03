@@ -82,6 +82,10 @@
                                 "summary"
                             ],
                             "default": "color-words"
+                        },
+                        "tool": {
+                            "type": "string",
+                            "description": "External tool for generating diffs"
                         }
                     }
                 },

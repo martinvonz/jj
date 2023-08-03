@@ -143,9 +143,18 @@ ui.diff.format = "git"
 
 ### Generating diffs by external command
 
-If `diff --tool <name>` argument is given, the external diff command will be
-called instead of the internal diff function. The command arguments can be
-specified as follows.
+If `ui.diff.tool` is set, the specified diff command will be called instead of
+the internal diff function.
+
+```toml
+# Use Difftastic by default
+ui.diff.tool = ["difft", "--color=always", "$left", "$right"]
+# Use tool named "<name>" (see below)
+ui.diff.tool = "<name>"
+```
+
+The external diff tool can also be enabled by `diff --tool <name>` argument.
+For the tool named `<name>`, command arguments can be configured as follows.
 
 ```toml
 [merge-tools.<name>]

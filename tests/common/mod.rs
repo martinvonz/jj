@@ -250,11 +250,7 @@ impl TestEnvironment {
     /// Sets up the fake diff-editor to read an edit script from the returned
     /// path
     pub fn set_up_fake_diff_editor(&mut self) -> PathBuf {
-        let diff_editor_path = assert_cmd::cargo::cargo_bin("fake-diff-editor");
-        assert!(diff_editor_path.is_file());
-        // Simplified TOML escaping, hoping that there are no '"' or control characters
-        // in it
-        let escaped_diff_editor_path = diff_editor_path.to_str().unwrap().replace('\\', r"\\");
+        let escaped_diff_editor_path = escaped_fake_diff_editor_path();
         self.add_config(&format!(
             r###"
             ui.diff-editor = "fake-diff-editor"
@@ -300,4 +296,12 @@ pub fn get_stdout_string(assert: &assert_cmd::assert::Assert) -> String {
 
 pub fn get_stderr_string(assert: &assert_cmd::assert::Assert) -> String {
     String::from_utf8(assert.get_output().stderr.clone()).unwrap()
+}
+
+pub fn escaped_fake_diff_editor_path() -> String {
+    let diff_editor_path = assert_cmd::cargo::cargo_bin("fake-diff-editor");
+    assert!(diff_editor_path.is_file());
+    // Simplified TOML escaping, hoping that there are no '"' or control characters
+    // in it
+    diff_editor_path.to_str().unwrap().replace('\\', r"\\")
 }
