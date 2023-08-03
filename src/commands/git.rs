@@ -147,7 +147,7 @@ pub struct GitPushArgs {
     revisions: Vec<RevisionArg>,
     /// Push this commit by creating a branch based on its change ID (can be
     /// repeated)
-    #[arg(long)]
+    #[arg(long, short)]
     change: Vec<RevisionArg>,
     /// Only display what will change on the remote
     #[arg(long)]
