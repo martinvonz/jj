@@ -510,25 +510,24 @@ impl MergeTool {
     }
 
     pub fn with_edit_args(command_args: &CommandNameAndArgs) -> Self {
-        let (name, args) = command_args.split_name_and_args();
-        let mut tool = MergeTool {
-            program: name.into_owned(),
-            ..Default::default()
-        };
-        if !args.is_empty() {
-            tool.edit_args = args.to_vec();
-        }
-        tool
+        Self::with_args_inner(command_args, |tool| &mut tool.edit_args)
     }
 
     pub fn with_merge_args(command_args: &CommandNameAndArgs) -> Self {
+        Self::with_args_inner(command_args, |tool| &mut tool.merge_args)
+    }
+
+    fn with_args_inner(
+        command_args: &CommandNameAndArgs,
+        get_mut_args: impl FnOnce(&mut Self) -> &mut Vec<String>,
+    ) -> Self {
         let (name, args) = command_args.split_name_and_args();
         let mut tool = MergeTool {
             program: name.into_owned(),
             ..Default::default()
         };
         if !args.is_empty() {
-            tool.merge_args = args.to_vec();
+            *get_mut_args(&mut tool) = args.to_vec();
         }
         tool
     }
@@ -557,17 +556,26 @@ pub fn get_tool_config(
     }
 }
 
+/// Loads merge tool options from `[merge-tools.<name>]` if `args` is of
+/// unstructured string type.
+fn get_tool_config_from_args(
+    settings: &UserSettings,
+    args: &CommandNameAndArgs,
+) -> Result<Option<MergeTool>, ConfigError> {
+    match args {
+        CommandNameAndArgs::String(name) => get_tool_config(settings, name),
+        CommandNameAndArgs::Vec(_) | CommandNameAndArgs::Structured { .. } => Ok(None),
+    }
+}
+
 fn get_diff_editor_from_settings(
     ui: &Ui,
     settings: &UserSettings,
 ) -> Result<MergeTool, ExternalToolError> {
     let args = editor_args_from_settings(ui, settings, "ui.diff-editor")?;
-    let maybe_editor = match &args {
-        CommandNameAndArgs::String(name) => get_tool_config(settings, name)?,
-        CommandNameAndArgs::Vec(_) => None,
-        CommandNameAndArgs::Structured { .. } => None,
-    };
-    Ok(maybe_editor.unwrap_or_else(|| MergeTool::with_edit_args(&args)))
+    let editor = get_tool_config_from_args(settings, &args)?
+        .unwrap_or_else(|| MergeTool::with_edit_args(&args));
+    Ok(editor)
 }
 
 fn get_merge_tool_from_settings(
@@ -575,12 +583,8 @@ fn get_merge_tool_from_settings(
     settings: &UserSettings,
 ) -> Result<MergeTool, ExternalToolError> {
     let args = editor_args_from_settings(ui, settings, "ui.merge-editor")?;
-    let maybe_editor = match &args {
-        CommandNameAndArgs::String(name) => get_tool_config(settings, name)?,
-        CommandNameAndArgs::Vec(_) => None,
-        CommandNameAndArgs::Structured { .. } => None,
-    };
-    let editor = maybe_editor.unwrap_or_else(|| MergeTool::with_merge_args(&args));
+    let editor = get_tool_config_from_args(settings, &args)?
+        .unwrap_or_else(|| MergeTool::with_merge_args(&args));
     if editor.merge_args.is_empty() {
         Err(ExternalToolError::MergeArgsNotConfigured {
             tool_name: args.to_string(),
