@@ -509,6 +509,10 @@ impl MergeTool {
         }
     }
 
+    pub fn with_diff_args(command_args: &CommandNameAndArgs) -> Self {
+        Self::with_args_inner(command_args, |tool| &mut tool.diff_args)
+    }
+
     pub fn with_edit_args(command_args: &CommandNameAndArgs) -> Self {
         Self::with_args_inner(command_args, |tool| &mut tool.edit_args)
     }
@@ -558,7 +562,7 @@ pub fn get_tool_config(
 
 /// Loads merge tool options from `[merge-tools.<name>]` if `args` is of
 /// unstructured string type.
-fn get_tool_config_from_args(
+pub fn get_tool_config_from_args(
     settings: &UserSettings,
     args: &CommandNameAndArgs,
 ) -> Result<Option<MergeTool>, ConfigError> {

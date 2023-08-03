@@ -122,6 +122,12 @@ fn diff_formats_from_args(
 
 fn default_diff_format(settings: &UserSettings) -> Result<DiffFormat, config::ConfigError> {
     let config = settings.config();
+    if let Some(args) = config.get("ui.diff.tool").optional()? {
+        // External "tool" overrides the internal "format" option.
+        let tool = merge_tools::get_tool_config_from_args(settings, &args)?
+            .unwrap_or_else(|| MergeTool::with_diff_args(&args));
+        return Ok(DiffFormat::Tool(Box::new(tool)));
+    }
     let name = if let Some(name) = config.get_string("ui.diff.format").optional()? {
         name
     } else if let Some(name) = config.get_string("diff.format").optional()? {
@@ -134,7 +140,6 @@ fn default_diff_format(settings: &UserSettings) -> Result<DiffFormat, config::Co
         "types" => Ok(DiffFormat::Types),
         "git" => Ok(DiffFormat::Git),
         "color-words" => Ok(DiffFormat::ColorWords),
-        // TODO: add configurable default for DiffFormat::Tool?
         _ => Err(config::ConfigError::Message(format!(
             "invalid diff format: {name}"
         ))),

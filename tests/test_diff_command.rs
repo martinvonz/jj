@@ -647,6 +647,27 @@ fn test_diff_external_tool() {
     file3
     "###);
 
+    // Enabled by default, looks up the merge-tools table
+    let config = "--config-toml=ui.diff.tool='fake-diff-editor'";
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", config]), @r###"
+    file1
+    file2
+    --
+    file2
+    file3
+    "###);
+
+    // Inlined command arguments
+    let command = common::escaped_fake_diff_editor_path();
+    let config = format!(r#"--config-toml=ui.diff.tool=["{command}", "$right", "$left"]"#);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", &config]), @r###"
+    file2
+    file3
+    --
+    file1
+    file2
+    "###);
+
     // Output of external diff tool shouldn't be escaped
     std::fs::write(&edit_script, "print \x1b[1;31mred").unwrap();
     insta::assert_snapshot!(
