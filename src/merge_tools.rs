@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -137,8 +137,8 @@ impl DiffWorkingCopies {
         let left_wc_dir = self.left_working_copy_path();
         let right_wc_dir = self.right_working_copy_path();
         maplit::hashmap! {
-            "left" => left_wc_dir.to_str().expect("temp_dir would be valid utf-8"),
-            "right" => right_wc_dir.to_str().expect("temp_dir would be valid utf-8"),
+            "left" => left_wc_dir.to_str().expect("temp_dir should be valid utf-8"),
+            "right" => right_wc_dir.to_str().expect("temp_dir should be valid utf-8"),
         }
     }
 }
@@ -156,10 +156,7 @@ fn check_out_trees(
         .map(|(path, _value)| path)
         .collect_vec();
 
-    let temp_dir = tempfile::Builder::new()
-        .prefix("jj-diff-")
-        .tempdir()
-        .map_err(DiffCheckoutError::SetUpDir)?;
+    let temp_dir = new_utf8_temp_dir("jj-diff-").map_err(DiffCheckoutError::SetUpDir)?;
     let left_wc_dir = temp_dir.path().join("left");
     let left_state_dir = temp_dir.path().join("left_state");
     let right_wc_dir = temp_dir.path().join("right");
@@ -198,6 +195,16 @@ fn check_out(
     tree_state.set_sparse_patterns(sparse_patterns)?;
     tree_state.check_out(tree)?;
     Ok(tree_state)
+}
+
+fn new_utf8_temp_dir(prefix: &str) -> io::Result<TempDir> {
+    let temp_dir = tempfile::Builder::new().prefix(prefix).tempdir()?;
+    if temp_dir.path().to_str().is_none() {
+        // Not using .display() as we know the path contains unprintable character
+        let message = format!("path {:?} is not valid UTF-8", temp_dir.path());
+        return Err(io::Error::new(io::ErrorKind::InvalidData, message));
+    }
+    Ok(temp_dir)
 }
 
 fn set_readonly_recursively(path: &Path) -> Result<(), std::io::Error> {
@@ -265,10 +272,7 @@ pub fn run_mergetool(
         "output" => initial_output_content.clone(),
     };
 
-    let temp_dir = tempfile::Builder::new()
-        .prefix("jj-resolve-")
-        .tempdir()
-        .map_err(ExternalToolError::SetUpDir)?;
+    let temp_dir = new_utf8_temp_dir("jj-resolve-").map_err(ExternalToolError::SetUpDir)?;
     let suffix = repo_path
         .components()
         .last()
@@ -289,7 +293,7 @@ pub fn run_mergetool(
                 *role,
                 path.into_os_string()
                     .into_string()
-                    .expect("temp_dir would be valid utf-8"),
+                    .expect("temp_dir should be valid utf-8"),
             ))
         })
         .try_collect()?;
