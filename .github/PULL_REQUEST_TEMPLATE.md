@@ -6,6 +6,7 @@ rewriting the branch rather than adding commits on top. Use force-push when
 pushing the updated branch (`jj git push` does that automatically when you
 rewrite a branch). Merge the PR at will once it's been approved. See
 https://github.com/martinvonz/jj/blob/main/docs/contributing.md for details.
+Note that you need to sign Google's CLA to contribute.
 -->
 
 # Checklist
