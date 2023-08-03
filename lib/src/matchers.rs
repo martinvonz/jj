@@ -67,7 +67,7 @@ pub enum VisitFiles {
     Set(HashSet<RepoPathComponent>),
 }
 
-pub trait Matcher {
+pub trait Matcher: Sync {
     fn matches(&self, file: &RepoPath) -> bool;
     fn visit(&self, dir: &RepoPath) -> Visit;
 }

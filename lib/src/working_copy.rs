@@ -33,6 +33,8 @@ use std::time::UNIX_EPOCH;
 use itertools::Itertools;
 use once_cell::unsync::OnceCell;
 use prost::Message;
+use rayon::iter::IntoParallelIterator;
+use rayon::prelude::ParallelIterator;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 use tracing::{instrument, trace_span};
@@ -649,30 +651,26 @@ impl TreeState {
             });
 
         let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
-        let mut work = vec![WorkItem {
+        let work_item = WorkItem {
             dir: RepoPath::root(),
             disk_dir: self.working_copy_path.clone(),
             git_ignore: base_ignores,
-        }];
+        };
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let (tree_entries_tx, tree_entries_rx) = channel();
             let (file_states_tx, file_states_rx) = channel();
             let (deleted_files_tx, deleted_files_rx) = channel();
-            while let Some(work_item) = work.pop() {
-                work.extend(self.visit_directory(
-                    &matcher,
-                    &current_tree,
-                    tree_entries_tx.clone(),
-                    file_states_tx.clone(),
-                    deleted_files_tx.clone(),
-                    work_item,
-                    progress,
-                )?);
-            }
 
-            drop(tree_entries_tx);
-            drop(file_states_tx);
-            drop(deleted_files_tx);
+            self.visit_directory(
+                &matcher,
+                &current_tree,
+                tree_entries_tx,
+                file_states_tx,
+                deleted_files_tx,
+                work_item,
+                progress,
+            )?;
+
             while let Ok((path, tree_value)) = tree_entries_rx.recv() {
                 tree_builder.set(path, tree_value);
             }
@@ -706,7 +704,7 @@ impl TreeState {
         deleted_files_tx: Sender<RepoPath>,
         work_item: WorkItem,
         progress: Option<&SnapshotProgress>,
-    ) -> Result<Vec<WorkItem>, SnapshotError> {
+    ) -> Result<(), SnapshotError> {
         let WorkItem {
             dir,
             disk_dir,
@@ -714,115 +712,141 @@ impl TreeState {
         } = work_item;
 
         if matcher.visit(&dir).is_nothing() {
-            return Ok(Default::default());
+            return Ok(());
         }
         let git_ignore =
             git_ignore.chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
-        let mut work = Vec::new();
-        for maybe_entry in disk_dir.read_dir().unwrap() {
-            let entry = maybe_entry.unwrap();
-            let file_type = entry.file_type().unwrap();
-            let file_name = entry.file_name();
-            let name = file_name
-                .to_str()
-                .ok_or_else(|| SnapshotError::InvalidUtf8Path {
-                    path: file_name.clone(),
-                })?;
-            if name == ".jj" || name == ".git" {
-                continue;
-            }
-            let path = dir.join(&RepoPathComponent::from(name));
-            if let Some(file_state) = self.file_states.get(&path) {
-                if file_state.file_type == FileType::GitSubmodule {
-                    continue;
-                }
-            }
+        let dir_entries = disk_dir
+            .read_dir()
+            .unwrap()
+            .map(|maybe_entry| maybe_entry.unwrap())
+            .collect_vec();
+        dir_entries.into_par_iter().try_for_each_with(
+            (
+                tree_entries_tx.clone(),
+                file_states_tx.clone(),
+                deleted_files_tx.clone(),
+            ),
+            |(tree_entries_tx, file_states_tx, deleted_files_tx),
+             entry|
+             -> Result<(), SnapshotError> {
+                let file_type = entry.file_type().unwrap();
+                let file_name = entry.file_name();
+                let name = file_name
+                    .to_str()
+                    .ok_or_else(|| SnapshotError::InvalidUtf8Path {
+                        path: file_name.clone(),
+                    })?;
 
-            if file_type.is_dir() {
-                if git_ignore.matches_all_files_in(&path.to_internal_dir_string()) {
-                    // If the whole directory is ignored, visit only paths we're already
-                    // tracking.
-                    let tracked_paths = self
-                        .file_states
-                        .range((Bound::Excluded(&path), Bound::Unbounded))
-                        .take_while(|(sub_path, _)| path.contains(sub_path))
-                        .map(|(sub_path, file_state)| (sub_path.clone(), file_state.clone()))
-                        .collect_vec();
-                    for (tracked_path, current_file_state) in tracked_paths {
-                        if !matcher.matches(&tracked_path) {
-                            continue;
-                        }
-                        let disk_path = tracked_path.to_fs_path(&self.working_copy_path);
-                        let metadata = match disk_path.metadata() {
-                            Ok(metadata) => metadata,
-                            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                if name == ".jj" || name == ".git" {
+                    return Ok(());
+                }
+                let path = dir.join(&RepoPathComponent::from(name));
+                if let Some(file_state) = self.file_states.get(&path) {
+                    if file_state.file_type == FileType::GitSubmodule {
+                        return Ok(());
+                    }
+                }
+
+                if file_type.is_dir() {
+                    if git_ignore.matches_all_files_in(&path.to_internal_dir_string()) {
+                        // If the whole directory is ignored, visit only paths we're already
+                        // tracking.
+                        let tracked_paths = self
+                            .file_states
+                            .range((Bound::Excluded(&path), Bound::Unbounded))
+                            .take_while(|(sub_path, _)| path.contains(sub_path))
+                            .map(|(sub_path, file_state)| (sub_path.clone(), file_state.clone()))
+                            .collect_vec();
+                        for (tracked_path, current_file_state) in tracked_paths {
+                            if !matcher.matches(&tracked_path) {
                                 continue;
                             }
-                            Err(err) => {
-                                return Err(SnapshotError::IoError {
-                                    message: format!("Failed to stat file {}", disk_path.display()),
-                                    err,
-                                });
+                            let disk_path = tracked_path.to_fs_path(&self.working_copy_path);
+                            let metadata = match disk_path.metadata() {
+                                Ok(metadata) => metadata,
+                                Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                                    continue;
+                                }
+                                Err(err) => {
+                                    return Err(SnapshotError::IoError {
+                                        message: format!(
+                                            "Failed to stat file {}",
+                                            disk_path.display()
+                                        ),
+                                        err,
+                                    });
+                                }
+                            };
+                            if let Some(new_file_state) = file_state(&metadata) {
+                                deleted_files_tx.send(tracked_path.clone()).ok();
+                                let update = self.get_updated_tree_value(
+                                    &tracked_path,
+                                    disk_path,
+                                    Some(&current_file_state),
+                                    current_tree,
+                                    &new_file_state,
+                                )?;
+                                if let Some(tree_value) = update {
+                                    tree_entries_tx
+                                        .send((tracked_path.clone(), tree_value))
+                                        .ok();
+                                }
+                                file_states_tx.send((tracked_path, new_file_state)).ok();
                             }
+                        }
+                    } else {
+                        let work_item = WorkItem {
+                            dir: path,
+                            disk_dir: entry.path(),
+                            git_ignore: git_ignore.clone(),
                         };
+                        self.visit_directory(
+                            matcher,
+                            current_tree,
+                            tree_entries_tx.clone(),
+                            file_states_tx.clone(),
+                            deleted_files_tx.clone(),
+                            work_item,
+                            progress,
+                        )?;
+                    }
+                } else if matcher.matches(&path) {
+                    if let Some(progress) = progress {
+                        progress(&path);
+                    }
+                    let maybe_current_file_state = self.file_states.get(&path);
+                    if maybe_current_file_state.is_none()
+                        && git_ignore.matches_file(&path.to_internal_file_string())
+                    {
+                        // If it wasn't already tracked and it matches
+                        // the ignored paths, then
+                        // ignore it.
+                    } else {
+                        let metadata = entry.metadata().map_err(|err| SnapshotError::IoError {
+                            message: format!("Failed to stat file {}", entry.path().display()),
+                            err,
+                        })?;
                         if let Some(new_file_state) = file_state(&metadata) {
-                            deleted_files_tx.send(tracked_path.clone()).ok();
+                            deleted_files_tx.send(path.clone()).ok();
                             let update = self.get_updated_tree_value(
-                                &tracked_path,
-                                disk_path,
-                                Some(&current_file_state),
+                                &path,
+                                entry.path(),
+                                maybe_current_file_state,
                                 current_tree,
                                 &new_file_state,
                             )?;
                             if let Some(tree_value) = update {
-                                tree_entries_tx
-                                    .send((tracked_path.clone(), tree_value))
-                                    .ok();
+                                tree_entries_tx.send((path.clone(), tree_value)).ok();
                             }
-                            file_states_tx.send((tracked_path, new_file_state)).ok();
+                            file_states_tx.send((path, new_file_state)).ok();
                         }
                     }
-                } else {
-                    work.push(WorkItem {
-                        dir: path,
-                        disk_dir: entry.path(),
-                        git_ignore: git_ignore.clone(),
-                    });
                 }
-            } else if matcher.matches(&path) {
-                if let Some(progress) = progress {
-                    progress(&path);
-                }
-                let maybe_current_file_state = self.file_states.get(&path);
-                if maybe_current_file_state.is_none()
-                    && git_ignore.matches_file(&path.to_internal_file_string())
-                {
-                    // If it wasn't already tracked and it matches
-                    // the ignored paths, then
-                    // ignore it.
-                } else {
-                    let metadata = entry.metadata().map_err(|err| SnapshotError::IoError {
-                        message: format!("Failed to stat file {}", entry.path().display()),
-                        err,
-                    })?;
-                    if let Some(new_file_state) = file_state(&metadata) {
-                        deleted_files_tx.send(path.clone()).ok();
-                        let update = self.get_updated_tree_value(
-                            &path,
-                            entry.path(),
-                            maybe_current_file_state,
-                            current_tree,
-                            &new_file_state,
-                        )?;
-                        if let Some(tree_value) = update {
-                            tree_entries_tx.send((path.clone(), tree_value)).ok();
-                        }
-                        file_states_tx.send((path, new_file_state)).ok();
-                    }
-                }
-            }
-        }
-        Ok(work)
+                Ok(())
+            },
+        )?;
+        Ok(())
     }
 
     #[instrument(skip_all)]
@@ -1587,4 +1611,4 @@ impl Drop for LockedWorkingCopy<'_> {
     }
 }
 
-pub type SnapshotProgress<'a> = dyn Fn(&RepoPath) + 'a;
+pub type SnapshotProgress<'a> = dyn Fn(&RepoPath) + 'a + Sync;
