@@ -386,7 +386,7 @@ pub enum ResetError {
     TreeStateError(#[from] TreeStateError),
 }
 
-struct WorkItem {
+struct DirectoryToVisit {
     dir: RepoPath,
     disk_dir: PathBuf,
     git_ignore: Arc<GitIgnoreFile>,
@@ -651,7 +651,7 @@ impl TreeState {
             });
 
         let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
-        let work_item = WorkItem {
+        let directory_to_visit = DirectoryToVisit {
             dir: RepoPath::root(),
             disk_dir: self.working_copy_path.clone(),
             git_ignore: base_ignores,
@@ -667,7 +667,7 @@ impl TreeState {
                 tree_entries_tx,
                 file_states_tx,
                 deleted_files_tx,
-                work_item,
+                directory_to_visit,
                 progress,
             )?;
 
@@ -702,14 +702,14 @@ impl TreeState {
         tree_entries_tx: Sender<(RepoPath, TreeValue)>,
         file_states_tx: Sender<(RepoPath, FileState)>,
         deleted_files_tx: Sender<RepoPath>,
-        work_item: WorkItem,
+        directory_to_visit: DirectoryToVisit,
         progress: Option<&SnapshotProgress>,
     ) -> Result<(), SnapshotError> {
-        let WorkItem {
+        let DirectoryToVisit {
             dir,
             disk_dir,
             git_ignore,
-        } = work_item;
+        } = directory_to_visit;
 
         if matcher.visit(&dir).is_nothing() {
             return Ok(());
@@ -796,7 +796,7 @@ impl TreeState {
                             }
                         }
                     } else {
-                        let work_item = WorkItem {
+                        let directory_to_visit = DirectoryToVisit {
                             dir: path,
                             disk_dir: entry.path(),
                             git_ignore: git_ignore.clone(),
@@ -807,7 +807,7 @@ impl TreeState {
                             tree_entries_tx.clone(),
                             file_states_tx.clone(),
                             deleted_files_tx.clone(),
-                            work_item,
+                            directory_to_visit,
                             progress,
                         )?;
                     }
