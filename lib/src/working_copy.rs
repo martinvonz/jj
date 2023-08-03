@@ -26,6 +26,7 @@ use std::os::unix::fs::symlink;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
@@ -51,7 +52,6 @@ use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{Diff, Tree};
-use crate::tree_builder::TreeBuilder;
 
 #[cfg(unix)]
 type FileExecutableFlag = bool;
@@ -655,15 +655,32 @@ impl TreeState {
             git_ignore: base_ignores,
         }];
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
+            let (tree_entries_tx, tree_entries_rx) = channel();
+            let (file_states_tx, file_states_rx) = channel();
+            let (deleted_files_tx, deleted_files_rx) = channel();
             while let Some(work_item) = work.pop() {
                 work.extend(self.visit_directory(
                     &matcher,
                     &current_tree,
-                    &mut tree_builder,
-                    &mut deleted_files,
+                    tree_entries_tx.clone(),
+                    file_states_tx.clone(),
+                    deleted_files_tx.clone(),
                     work_item,
                     progress,
                 )?);
+            }
+
+            drop(tree_entries_tx);
+            drop(file_states_tx);
+            drop(deleted_files_tx);
+            while let Ok((path, tree_value)) = tree_entries_rx.recv() {
+                tree_builder.set(path, tree_value);
+            }
+            while let Ok((path, file_state)) = file_states_rx.recv() {
+                self.file_states.insert(path, file_state);
+            }
+            while let Ok(path) = deleted_files_rx.recv() {
+                deleted_files.remove(&path);
             }
 
             Ok(())
@@ -679,12 +696,14 @@ impl TreeState {
         Ok(has_changes || fsmonitor_clock_needs_save)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn visit_directory(
-        &mut self,
+        &self,
         matcher: &dyn Matcher,
         current_tree: &Tree,
-        tree_builder: &mut TreeBuilder,
-        deleted_files: &mut HashSet<RepoPath>,
+        tree_entries_tx: Sender<(RepoPath, TreeValue)>,
+        file_states_tx: Sender<(RepoPath, FileState)>,
+        deleted_files_tx: Sender<RepoPath>,
         work_item: WorkItem,
         progress: Option<&SnapshotProgress>,
     ) -> Result<Vec<WorkItem>, SnapshotError> {
@@ -747,7 +766,7 @@ impl TreeState {
                             }
                         };
                         if let Some(new_file_state) = file_state(&metadata) {
-                            deleted_files.remove(&tracked_path);
+                            deleted_files_tx.send(tracked_path.clone()).ok();
                             let update = self.get_updated_tree_value(
                                 &tracked_path,
                                 disk_path,
@@ -756,9 +775,11 @@ impl TreeState {
                                 &new_file_state,
                             )?;
                             if let Some(tree_value) = update {
-                                tree_builder.set(tracked_path.clone(), tree_value);
+                                tree_entries_tx
+                                    .send((tracked_path.clone(), tree_value))
+                                    .ok();
                             }
-                            self.file_states.insert(tracked_path, new_file_state);
+                            file_states_tx.send((tracked_path, new_file_state)).ok();
                         }
                     }
                 } else {
@@ -785,7 +806,7 @@ impl TreeState {
                         err,
                     })?;
                     if let Some(new_file_state) = file_state(&metadata) {
-                        deleted_files.remove(&path);
+                        deleted_files_tx.send(path.clone()).ok();
                         let update = self.get_updated_tree_value(
                             &path,
                             entry.path(),
@@ -794,9 +815,9 @@ impl TreeState {
                             &new_file_state,
                         )?;
                         if let Some(tree_value) = update {
-                            tree_builder.set(path.clone(), tree_value);
+                            tree_entries_tx.send((path.clone(), tree_value)).ok();
                         }
-                        self.file_states.insert(path, new_file_state);
+                        file_states_tx.send((path, new_file_state)).ok();
                     }
                 }
             }
