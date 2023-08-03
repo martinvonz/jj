@@ -659,14 +659,14 @@ impl TreeState {
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let (tree_entries_tx, tree_entries_rx) = channel();
             let (file_states_tx, file_states_rx) = channel();
-            let (deleted_files_tx, deleted_files_rx) = channel();
+            let (present_files_tx, present_files_rx) = channel();
 
             self.visit_directory(
                 &matcher,
                 &current_tree,
                 tree_entries_tx,
                 file_states_tx,
-                deleted_files_tx,
+                present_files_tx,
                 directory_to_visit,
                 progress,
             )?;
@@ -677,7 +677,7 @@ impl TreeState {
             while let Ok((path, file_state)) = file_states_rx.recv() {
                 self.file_states.insert(path, file_state);
             }
-            while let Ok(path) = deleted_files_rx.recv() {
+            while let Ok(path) = present_files_rx.recv() {
                 deleted_files.remove(&path);
             }
 
@@ -701,7 +701,7 @@ impl TreeState {
         current_tree: &Tree,
         tree_entries_tx: Sender<(RepoPath, TreeValue)>,
         file_states_tx: Sender<(RepoPath, FileState)>,
-        deleted_files_tx: Sender<RepoPath>,
+        present_files_tx: Sender<RepoPath>,
         directory_to_visit: DirectoryToVisit,
         progress: Option<&SnapshotProgress>,
     ) -> Result<(), SnapshotError> {
@@ -725,9 +725,9 @@ impl TreeState {
             (
                 tree_entries_tx.clone(),
                 file_states_tx.clone(),
-                deleted_files_tx.clone(),
+                present_files_tx.clone(),
             ),
-            |(tree_entries_tx, file_states_tx, deleted_files_tx),
+            |(tree_entries_tx, file_states_tx, present_files_tx),
              entry|
              -> Result<(), SnapshotError> {
                 let file_type = entry.file_type().unwrap();
@@ -779,7 +779,7 @@ impl TreeState {
                                 }
                             };
                             if let Some(new_file_state) = file_state(&metadata) {
-                                deleted_files_tx.send(tracked_path.clone()).ok();
+                                present_files_tx.send(tracked_path.clone()).ok();
                                 let update = self.get_updated_tree_value(
                                     &tracked_path,
                                     disk_path,
@@ -806,7 +806,7 @@ impl TreeState {
                             current_tree,
                             tree_entries_tx.clone(),
                             file_states_tx.clone(),
-                            deleted_files_tx.clone(),
+                            present_files_tx.clone(),
                             directory_to_visit,
                             progress,
                         )?;
@@ -828,7 +828,7 @@ impl TreeState {
                             err,
                         })?;
                         if let Some(new_file_state) = file_state(&metadata) {
-                            deleted_files_tx.send(path.clone()).ok();
+                            present_files_tx.send(path.clone()).ok();
                             let update = self.get_updated_tree_value(
                                 &path,
                                 entry.path(),
