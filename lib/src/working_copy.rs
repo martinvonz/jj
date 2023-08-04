@@ -694,7 +694,9 @@ impl TreeState {
             }
         });
         let has_changes = tree_builder.has_overrides();
-        self.tree_id = tree_builder.write_tree();
+        trace_span!("write tree").in_scope(|| {
+            self.tree_id = tree_builder.write_tree();
+        });
         self.watchman_clock = watchman_clock;
         Ok(has_changes || fsmonitor_clock_needs_save)
     }
