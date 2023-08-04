@@ -318,6 +318,8 @@ The best way to get started is probably to go through
 [Git comparison](docs/git-comparison.md), which includes a table of
 `jj` vs. `git` commands.
 
+As you become more familiar with Jujutsu, the [FAQ](docs/FAQ.md) may help.
+
 ## Related work
 
 There are several tools trying to solve similar problems as Jujutsu. See
