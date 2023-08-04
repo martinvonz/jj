@@ -106,7 +106,6 @@ fn test_merge_views_heads() {
     let head_add_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     let public_head_add_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo().add_public_head(&public_head_add_tx1);
-    tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     tx2.mut_repo().remove_head(head_remove_tx2.id());
@@ -115,9 +114,8 @@ fn test_merge_views_heads() {
     let head_add_tx2 = write_random_commit(tx2.mut_repo(), &settings);
     let public_head_add_tx2 = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo().add_public_head(&public_head_add_tx2);
-    tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = commit_transactions(&settings, vec![tx1, tx2]);
 
     let expected_heads = hashset! {
         head_unchanged.id().clone(),
@@ -200,7 +198,6 @@ fn test_merge_views_checkout() {
     tx1.mut_repo()
         .set_wc_commit(ws6_id.clone(), commit2.id().clone())
         .unwrap();
-    tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     tx2.mut_repo()
@@ -216,12 +213,8 @@ fn test_merge_views_checkout() {
     tx2.mut_repo()
         .set_wc_commit(ws7_id.clone(), commit3.id().clone())
         .unwrap();
-    // Make sure the end time different, assuming the clock has sub-millisecond
-    // precision.
-    std::thread::sleep(std::time::Duration::from_millis(1));
-    tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = commit_transactions(&settings, vec![tx1, tx2]);
 
     // We currently arbitrarily pick the first transaction's working-copy commit
     // (first by transaction end time).
@@ -285,7 +278,6 @@ fn test_merge_views_branches() {
         "feature",
         RefTarget::normal(feature_branch_tx1.id().clone()),
     );
-    tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let main_branch_local_tx2 = write_random_commit(tx2.mut_repo(), &settings);
@@ -298,9 +290,8 @@ fn test_merge_views_branches() {
         "origin",
         RefTarget::normal(main_branch_origin_tx1.id().clone()),
     );
-    tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = commit_transactions(&settings, vec![tx1, tx2]);
     let expected_main_branch = BranchTarget {
         local_target: RefTarget::from_legacy_form(
             [main_branch_local_tx0.id().clone()],
