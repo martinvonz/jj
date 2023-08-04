@@ -626,8 +626,6 @@ impl TreeState {
         } = options;
 
         let sparse_matcher = self.sparse_matcher();
-        let current_tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
-        let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
 
         let fsmonitor_clock_needs_save = fsmonitor_kind.is_some();
         let FsmonitorMatcher {
@@ -638,29 +636,19 @@ impl TreeState {
             None => &EverythingMatcher,
             Some(fsmonitor_matcher) => fsmonitor_matcher.as_ref(),
         };
-        let mut deleted_files: HashSet<_> =
-            trace_span!("collecting existing files").in_scope(|| {
-                self.file_states
-                    .iter()
-                    .filter_map(|(path, state)| {
-                        (fsmonitor_matcher.matches(path)
-                            && state.file_type != FileType::GitSubmodule)
-                            .then(|| path.clone())
-                    })
-                    .collect()
-            });
 
-        let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
-        let directory_to_visit = DirectoryToVisit {
-            dir: RepoPath::root(),
-            disk_dir: self.working_copy_path.clone(),
-            git_ignore: base_ignores,
-        };
         let (tree_entries_tx, tree_entries_rx) = channel();
         let (file_states_tx, file_states_rx) = channel();
         let (present_files_tx, present_files_rx) = channel();
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
+            let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
+            let current_tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
+            let directory_to_visit = DirectoryToVisit {
+                dir: RepoPath::root(),
+                disk_dir: self.working_copy_path.clone(),
+                git_ignore: base_ignores,
+            };
             self.visit_directory(
                 &matcher,
                 &current_tree,
@@ -672,6 +660,18 @@ impl TreeState {
             )
         })?;
 
+        let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
+        let mut deleted_files: HashSet<_> =
+            trace_span!("collecting existing files").in_scope(|| {
+                self.file_states
+                    .iter()
+                    .filter_map(|(path, state)| {
+                        (fsmonitor_matcher.matches(path)
+                            && state.file_type != FileType::GitSubmodule)
+                            .then(|| path.clone())
+                    })
+                    .collect()
+            });
         trace_span!("process tree entries").in_scope(|| {
             while let Ok((path, tree_value)) = tree_entries_rx.recv() {
                 tree_builder.set(path, tree_value);
