@@ -656,11 +656,11 @@ impl TreeState {
             disk_dir: self.working_copy_path.clone(),
             git_ignore: base_ignores,
         };
-        trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
-            let (tree_entries_tx, tree_entries_rx) = channel();
-            let (file_states_tx, file_states_rx) = channel();
-            let (present_files_tx, present_files_rx) = channel();
+        let (tree_entries_tx, tree_entries_rx) = channel();
+        let (file_states_tx, file_states_rx) = channel();
+        let (present_files_tx, present_files_rx) = channel();
 
+        trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             self.visit_directory(
                 &matcher,
                 &current_tree,
@@ -669,25 +669,30 @@ impl TreeState {
                 present_files_tx,
                 directory_to_visit,
                 progress,
-            )?;
+            )
+        })?;
 
+        trace_span!("process tree entries").in_scope(|| {
             while let Ok((path, tree_value)) = tree_entries_rx.recv() {
                 tree_builder.set(path, tree_value);
             }
+        });
+        trace_span!("process file states").in_scope(|| {
             while let Ok((path, file_state)) = file_states_rx.recv() {
                 self.file_states.insert(path, file_state);
             }
+        });
+        trace_span!("process present files").in_scope(|| {
             while let Ok(path) = present_files_rx.recv() {
                 deleted_files.remove(&path);
             }
-
-            Ok(())
-        })?;
-
-        for file in &deleted_files {
-            self.file_states.remove(file);
-            tree_builder.remove(file.clone());
-        }
+        });
+        trace_span!("process deleted files").in_scope(|| {
+            for file in &deleted_files {
+                self.file_states.remove(file);
+                tree_builder.remove(file.clone());
+            }
+        });
         let has_changes = tree_builder.has_overrides();
         self.tree_id = tree_builder.write_tree();
         self.watchman_clock = watchman_clock;
