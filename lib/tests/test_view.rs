@@ -350,15 +350,13 @@ fn test_merge_views_tags() {
     let v2_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo()
         .set_tag_target("v2.0", RefTarget::normal(v2_tx1.id().clone()));
-    tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let v1_tx2 = write_random_commit(tx2.mut_repo(), &settings);
     tx2.mut_repo()
         .set_tag_target("v1.0", RefTarget::normal(v1_tx2.id().clone()));
-    tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = commit_transactions(&settings, vec![tx1, tx2]);
     let expected_v1 = RefTarget::from_legacy_form(
         [v1_tx0.id().clone()],
         [v1_tx1.id().clone(), v1_tx2.id().clone()],
@@ -406,7 +404,6 @@ fn test_merge_views_git_refs() {
         "refs/heads/feature",
         RefTarget::normal(feature_branch_tx1.id().clone()),
     );
-    tx1.commit();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let main_branch_tx2 = write_random_commit(tx2.mut_repo(), &settings);
@@ -414,9 +411,8 @@ fn test_merge_views_git_refs() {
         "refs/heads/main",
         RefTarget::normal(main_branch_tx2.id().clone()),
     );
-    tx2.commit();
 
-    let repo = repo.reload_at_head(&settings).unwrap();
+    let repo = commit_transactions(&settings, vec![tx1, tx2]);
     let expected_main_branch = RefTarget::from_legacy_form(
         [main_branch_tx0.id().clone()],
         [main_branch_tx1.id().clone(), main_branch_tx2.id().clone()],
