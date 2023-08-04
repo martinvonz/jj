@@ -206,6 +206,7 @@ pub fn import_some_refs(
         mut_repo.set_git_head_target(RefTarget::absent());
     }
 
+    // Calculate diff of old/new git refs
     let mut changed_git_refs = BTreeMap::new();
     let git_repo_refs = git_repo.references()?;
     for git_repo_ref in git_repo_refs {
@@ -232,10 +233,6 @@ pub fn import_some_refs(
         let old_target = jj_view_git_refs.remove(full_name).flatten();
         let new_target = RefTarget::normal(id.clone());
         if new_target != old_target {
-            prevent_gc(git_repo, &id)?;
-            mut_repo.set_git_ref_target(full_name, RefTarget::normal(id.clone()));
-            let commit = store.get_commit(&id).unwrap();
-            mut_repo.add_head(&commit);
             changed_git_refs.insert(ref_name, (old_target, new_target));
         }
     }
@@ -245,11 +242,23 @@ pub fn import_some_refs(
         if !git_ref_filter(&ref_name) {
             continue;
         }
-        mut_repo.set_git_ref_target(&full_name, RefTarget::absent());
         changed_git_refs.insert(ref_name, (target, RefTarget::absent()));
     }
+
+    // Import new heads
+    for id in changed_git_refs
+        .values()
+        .flat_map(|(_, new_git_target)| new_git_target.added_ids())
+    {
+        prevent_gc(git_repo, id)?;
+        let commit = store.get_commit(id).unwrap();
+        mut_repo.add_head(&commit);
+    }
+
     for (ref_name, (old_git_target, new_git_target)) in &changed_git_refs {
         // Apply the change that happened in git since last time we imported refs
+        let full_name = to_git_ref_name(ref_name).unwrap();
+        mut_repo.set_git_ref_target(&full_name, new_git_target.clone());
         mut_repo.merge_single_ref(ref_name, old_git_target, new_git_target);
         // If a git remote-tracking branch changed, apply the change to the local branch
         // as well
