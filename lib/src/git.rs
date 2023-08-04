@@ -185,7 +185,6 @@ pub fn import_some_refs(
     git_ref_filter: impl Fn(&RefName) -> bool,
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
-    let mut jj_view_git_refs = mut_repo.view().git_refs().clone();
 
     // TODO: Should this be a separate function? We may not always want to import
     // the Git HEAD (and add it to our set of heads).
@@ -206,44 +205,7 @@ pub fn import_some_refs(
         mut_repo.set_git_head_target(RefTarget::absent());
     }
 
-    // Calculate diff of old/new git refs
-    let mut changed_git_refs = BTreeMap::new();
-    let git_repo_refs = git_repo.references()?;
-    for git_repo_ref in git_repo_refs {
-        let git_repo_ref = git_repo_ref?;
-        let Some(full_name) = git_repo_ref.name() else {
-            // Skip non-utf8 refs.
-            continue;
-        };
-        let Some(ref_name) = parse_git_ref(full_name) else {
-            // Skip other refs (such as notes) and symbolic refs.
-            continue;
-        };
-        let Some(id) =
-            resolve_git_ref_to_commit_id(&git_repo_ref, jj_view_git_refs.get(full_name).flatten())
-        else {
-            // Skip invalid refs.
-            continue;
-        };
-        if !git_ref_filter(&ref_name) {
-            continue;
-        }
-        // TODO: Make it configurable which remotes are publishing and update public
-        // heads here.
-        let old_target = jj_view_git_refs.remove(full_name).flatten();
-        let new_target = RefTarget::normal(id.clone());
-        if new_target != old_target {
-            changed_git_refs.insert(ref_name, (old_target, new_target));
-        }
-    }
-    for (full_name, target) in jj_view_git_refs {
-        // TODO: or clean up invalid ref in case it was stored due to historical bug?
-        let ref_name = parse_git_ref(&full_name).expect("stored git ref should be parsable");
-        if !git_ref_filter(&ref_name) {
-            continue;
-        }
-        changed_git_refs.insert(ref_name, (target, RefTarget::absent()));
-    }
+    let changed_git_refs = diff_refs_to_import(mut_repo.view(), git_repo, git_ref_filter)?;
 
     // Import new heads
     for id in changed_git_refs
@@ -298,6 +260,53 @@ pub fn import_some_refs(
     }
 
     Ok(())
+}
+
+/// Calculates diff of git refs to be imported.
+fn diff_refs_to_import(
+    view: &View,
+    git_repo: &git2::Repository,
+    git_ref_filter: impl Fn(&RefName) -> bool,
+) -> Result<BTreeMap<RefName, (RefTarget, RefTarget)>, GitImportError> {
+    let mut jj_view_git_refs = view.git_refs().clone();
+    let mut changed_git_refs = BTreeMap::new();
+    let git_repo_refs = git_repo.references()?;
+    for git_repo_ref in git_repo_refs {
+        let git_repo_ref = git_repo_ref?;
+        let Some(full_name) = git_repo_ref.name() else {
+            // Skip non-utf8 refs.
+            continue;
+        };
+        let Some(ref_name) = parse_git_ref(full_name) else {
+            // Skip other refs (such as notes) and symbolic refs.
+            continue;
+        };
+        let Some(id) =
+            resolve_git_ref_to_commit_id(&git_repo_ref, jj_view_git_refs.get(full_name).flatten())
+        else {
+            // Skip invalid refs.
+            continue;
+        };
+        if !git_ref_filter(&ref_name) {
+            continue;
+        }
+        // TODO: Make it configurable which remotes are publishing and update public
+        // heads here.
+        let old_target = jj_view_git_refs.remove(full_name).flatten();
+        let new_target = RefTarget::normal(id.clone());
+        if new_target != old_target {
+            changed_git_refs.insert(ref_name, (old_target, new_target));
+        }
+    }
+    for (full_name, target) in jj_view_git_refs {
+        // TODO: or clean up invalid ref in case it was stored due to historical bug?
+        let ref_name = parse_git_ref(&full_name).expect("stored git ref should be parsable");
+        if !git_ref_filter(&ref_name) {
+            continue;
+        }
+        changed_git_refs.insert(ref_name, (target, RefTarget::absent()));
+    }
+    Ok(changed_git_refs)
 }
 
 /// Commits referenced by local/remote branches, tags, or HEAD@git.
