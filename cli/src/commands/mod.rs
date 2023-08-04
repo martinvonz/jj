@@ -488,6 +488,9 @@ struct DuplicateArgs {
 /// Abandon a revision, rebasing descendants onto its parent(s). The behavior is
 /// similar to `jj restore --changes-in`; the difference is that `jj abandon`
 /// gives you a new change, while `jj restore` updates the existing change.
+///
+/// Note that if you abandon the working-copy commit, a new empty working-copy commit will be created.
+/// If you want to remove the empty commit from the top of history, use `jj edit @-`.
 #[derive(clap::Args, Clone, Debug)]
 struct AbandonArgs {
     /// The revision(s) to abandon
@@ -584,6 +587,11 @@ struct MoveArgs {
 /// If the source became empty and both the source and destination had a
 /// non-empty description, you will be asked for the combined description. If
 /// either was empty, then the other one will be used.
+///
+/// Note that if squashing the working-copy commit results in it getting abandoned,
+/// a new empty working-copy commit will still be created.
+/// If you want to continue working on the squashed commit, use `jj edit @-`. This
+/// will abandon the empty commit.
 #[derive(clap::Args, Clone, Debug)]
 #[command(visible_alias = "amend")]
 struct SquashArgs {
