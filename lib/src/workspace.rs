@@ -167,6 +167,7 @@ impl Workspace {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn init_with_factories(
         user_settings: &UserSettings,
         workspace_root: &Path,
@@ -175,6 +176,7 @@ impl Workspace {
         op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
         index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
         submodule_store_factory: impl FnOnce(&Path) -> Box<dyn SubmoduleStore>,
+        workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
         (|| {
@@ -193,13 +195,8 @@ impl Workspace {
                 RepoInitError::Backend(err) => WorkspaceInitError::Backend(err),
                 RepoInitError::Path(err) => WorkspaceInitError::Path(err),
             })?;
-            let (working_copy, repo) = init_working_copy(
-                user_settings,
-                &repo,
-                workspace_root,
-                &jj_dir,
-                WorkspaceId::default(),
-            )?;
+            let (working_copy, repo) =
+                init_working_copy(user_settings, &repo, workspace_root, &jj_dir, workspace_id)?;
             let repo_loader = repo.loader();
             let workspace = Workspace::new(workspace_root, working_copy, repo_loader)?;
             Ok((workspace, repo))
@@ -223,6 +220,7 @@ impl Workspace {
             ReadonlyRepo::default_op_heads_store_factory(),
             ReadonlyRepo::default_index_store_factory(),
             ReadonlyRepo::default_submodule_store_factory(),
+            WorkspaceId::default(),
         )
     }
 
