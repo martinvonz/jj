@@ -14,9 +14,10 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::default::Default;
 use std::io::Read;
+use std::iter;
 use std::path::PathBuf;
 
 use git2::Oid;
@@ -185,7 +186,6 @@ pub fn import_some_refs(
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
     let mut jj_view_git_refs = mut_repo.view().git_refs().clone();
-    let mut pinned_git_heads = HashMap::new();
 
     // TODO: Should this be a separate function? We may not always want to import
     // the Git HEAD (and add it to our set of heads).
@@ -193,12 +193,9 @@ pub fn import_some_refs(
         .head()
         .and_then(|head_ref| head_ref.peel_to_commit())
     {
-        // Add the current HEAD to `pinned_git_heads` to pin the branch. It's not added
-        // to `hidable_git_heads` because HEAD move doesn't automatically mean the old
-        // HEAD branch has been rewritten.
-        let head_ref_name = RefName::GitRef("HEAD".to_owned());
+        // The current HEAD is not added to `hidable_git_heads` because HEAD move
+        // doesn't automatically mean the old HEAD branch has been rewritten.
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
-        pinned_git_heads.insert(head_ref_name, vec![head_commit_id.clone()]);
         if !matches!(mut_repo.git_head().as_normal(), Some(id) if id == &head_commit_id) {
             let head_commit = store.get_commit(&head_commit_id).unwrap();
             prevent_gc(git_repo, &head_commit_id)?;
@@ -227,7 +224,6 @@ pub fn import_some_refs(
             // Skip invalid refs.
             continue;
         };
-        pinned_git_heads.insert(ref_name.clone(), vec![id.clone()]);
         if !git_ref_filter(&ref_name) {
             continue;
         }
@@ -246,12 +242,11 @@ pub fn import_some_refs(
     for (full_name, target) in jj_view_git_refs {
         // TODO: or clean up invalid ref in case it was stored due to historical bug?
         let ref_name = parse_git_ref(&full_name).expect("stored git ref should be parsable");
-        if git_ref_filter(&ref_name) {
-            mut_repo.set_git_ref_target(&full_name, RefTarget::absent());
-            changed_git_refs.insert(ref_name, (target, RefTarget::absent()));
-        } else {
-            pinned_git_heads.insert(ref_name, target.added_ids().cloned().collect());
+        if !git_ref_filter(&ref_name) {
+            continue;
         }
+        mut_repo.set_git_ref_target(&full_name, RefTarget::absent());
+        changed_git_refs.insert(ref_name, (target, RefTarget::absent()));
     }
     for (ref_name, (old_git_target, new_git_target)) in &changed_git_refs {
         // Apply the change that happened in git since last time we imported refs
@@ -264,13 +259,6 @@ pub fn import_some_refs(
         if let RefName::RemoteBranch { branch, remote: _ } = ref_name {
             let local_ref_name = RefName::LocalBranch(branch.clone());
             mut_repo.merge_single_ref(&local_ref_name, old_git_target, new_git_target);
-            let target = mut_repo.get_local_branch(branch);
-            if target.is_absent() {
-                pinned_git_heads.remove(&local_ref_name);
-            } else {
-                // Note that we are mostly *replacing*, not inserting
-                pinned_git_heads.insert(local_ref_name, target.added_ids().cloned().collect());
-            }
         }
     }
 
@@ -284,25 +272,15 @@ pub fn import_some_refs(
     if hidable_git_heads.is_empty() {
         return Ok(());
     }
-    // We must remove non-existing commits from pinned_git_heads, as they could have
-    // come from branches which were never fetched.
-    let mut pinned_git_heads_set = HashSet::new();
-    for heads_for_ref in pinned_git_heads.into_values() {
-        pinned_git_heads_set.extend(heads_for_ref);
-    }
-    pinned_git_heads_set.retain(|id| mut_repo.index().has_id(id));
+    let pinned_heads = pinned_commit_ids(mut_repo.view()).cloned().collect_vec();
     // We could use mut_repo.record_rewrites() here but we know we only need to care
     // about abandoned commits for now. We may want to change this if we ever
     // add a way of preserving change IDs across rewrites by `git` (e.g. by
     // putting them in the commit message).
-    let abandoned_commits = revset::walk_revs(
-        mut_repo,
-        &hidable_git_heads,
-        &pinned_git_heads_set.into_iter().collect_vec(),
-    )
-    .unwrap()
-    .iter()
-    .collect_vec();
+    let abandoned_commits = revset::walk_revs(mut_repo, &hidable_git_heads, &pinned_heads)
+        .unwrap()
+        .iter()
+        .collect_vec();
     let root_commit_id = mut_repo.store().root_commit_id().clone();
     for abandoned_commit in abandoned_commits {
         if abandoned_commit != root_commit_id {
@@ -311,6 +289,23 @@ pub fn import_some_refs(
     }
 
     Ok(())
+}
+
+/// Commits referenced by local/remote branches, tags, or HEAD@git.
+///
+/// On `import_refs()`, this is similar to collecting commits referenced by
+/// `view.git_refs()`. Main difference is that local branches can be moved by
+/// tracking remotes, and such mutation isn't applied to `view.git_refs()` yet.
+fn pinned_commit_ids(view: &View) -> impl Iterator<Item = &CommitId> {
+    let branch_ref_targets = view.branches().values().flat_map(|branch_target| {
+        iter::once(&branch_target.local_target).chain(branch_target.remote_targets.values())
+    });
+    itertools::chain!(
+        branch_ref_targets,
+        view.tags().values(),
+        iter::once(view.git_head()),
+    )
+    .flat_map(|target| target.added_ids())
 }
 
 #[derive(Error, Debug, PartialEq)]
