@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::default::Default;
 use std::io::Read;
 use std::iter;
@@ -268,7 +268,15 @@ fn diff_refs_to_import(
     git_repo: &git2::Repository,
     git_ref_filter: impl Fn(&RefName) -> bool,
 ) -> Result<BTreeMap<RefName, (RefTarget, RefTarget)>, GitImportError> {
-    let mut jj_view_git_refs = view.git_refs().clone();
+    let mut known_git_refs: HashMap<RefName, &RefTarget> = view
+        .git_refs()
+        .iter()
+        .filter_map(|(full_name, target)| {
+            // TODO: or clean up invalid ref in case it was stored due to historical bug?
+            let ref_name = parse_git_ref(full_name).expect("stored git ref should be parsable");
+            git_ref_filter(&ref_name).then_some((ref_name, target))
+        })
+        .collect();
     let mut changed_git_refs = BTreeMap::new();
     let git_repo_refs = git_repo.references()?;
     for git_repo_ref in git_repo_refs {
@@ -281,30 +289,24 @@ fn diff_refs_to_import(
             // Skip other refs (such as notes) and symbolic refs.
             continue;
         };
-        let Some(id) =
-            resolve_git_ref_to_commit_id(&git_repo_ref, jj_view_git_refs.get(full_name).flatten())
-        else {
-            // Skip invalid refs.
+        if !git_ref_filter(&ref_name) {
+            continue;
+        }
+        let old_target = known_git_refs.get(&ref_name).copied().flatten();
+        let Some(id) = resolve_git_ref_to_commit_id(&git_repo_ref, old_target) else {
+            // Skip (or remove existing) invalid refs.
             continue;
         };
-        if !git_ref_filter(&ref_name) {
-            continue;
-        }
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
-        let old_target = jj_view_git_refs.remove(full_name).flatten();
+        known_git_refs.remove(&ref_name);
         let new_target = RefTarget::normal(id.clone());
-        if new_target != old_target {
-            changed_git_refs.insert(ref_name, (old_target, new_target));
+        if new_target != *old_target {
+            changed_git_refs.insert(ref_name, (old_target.clone(), new_target));
         }
     }
-    for (full_name, target) in jj_view_git_refs {
-        // TODO: or clean up invalid ref in case it was stored due to historical bug?
-        let ref_name = parse_git_ref(&full_name).expect("stored git ref should be parsable");
-        if !git_ref_filter(&ref_name) {
-            continue;
-        }
-        changed_git_refs.insert(ref_name, (target, RefTarget::absent()));
+    for (ref_name, old_target) in known_git_refs {
+        changed_git_refs.insert(ref_name, (old_target.clone(), RefTarget::absent()));
     }
     Ok(changed_git_refs)
 }
