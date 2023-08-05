@@ -697,6 +697,18 @@ impl TreeState {
         trace_span!("write tree").in_scope(|| {
             self.tree_id = tree_builder.write_tree();
         });
+        if cfg!(debug_assertions) {
+            let tree = self
+                .store
+                .get_tree(&RepoPath::root(), &self.tree_id)
+                .unwrap();
+            let tree_paths: HashSet<_> = tree
+                .entries_matching(sparse_matcher.as_ref())
+                .map(|(path, _)| path)
+                .collect();
+            let state_paths: HashSet<_> = self.file_states.keys().cloned().collect();
+            assert_eq!(state_paths, tree_paths);
+        }
         self.watchman_clock = watchman_clock;
         Ok(has_changes || fsmonitor_clock_needs_save)
     }
