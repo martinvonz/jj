@@ -1,18 +1,16 @@
 [package]
 name = "jj-cli"
-version = "0.8.0"
-authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
-edition = "2021"
-rust-version = "1.71"                                        # Remember to update CI, and contributing.md
-license = "Apache-2.0"
-description = "Jujutsu (an experimental VCS)"
-homepage = "https://github.com/martinvonz/jj"
-repository = "https://github.com/martinvonz/jj"
-documentation = "https://docs.rs/jj-cli"
-readme = "README.md"
-keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
-categories = ["command-line-utilities", "development-tools"]
+description = "Jujutsu - an experimental version control system"
 default-run = "jj"
+
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+keywords.workspace = true
 
 [[bin]]
 name = "jj"
