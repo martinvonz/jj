@@ -4,6 +4,18 @@ cargo-features = []
 resolver = "2"
 members = ["cli", "lib", "lib/testutils", "lib/gen-protos"]
 
+[workspace.package]
+version = "0.8.0"
+license = "Apache-2.0"
+rust-version = "1.71"                                 # NOTE: remember to update CI, contributing.md, changelog.md, and flake.nix
+edition = "2021"
+readme = "README.md"
+homepage = "https://github.com/martinvonz/jj"
+repository = "https://github.com/martinvonz/jj"
+documentation = "https://github.com/martinvonz/jj"
+categories = ["version-control", "development-tools"]
+keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
+
 [workspace.dependencies]
 anyhow = "1.0.72"
 assert_cmd = "2.0.8"
