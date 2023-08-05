@@ -55,14 +55,14 @@ fn get_git_hash() -> Option<String> {
         .output()
     {
         if output.status.success() {
-            println!("cargo:rerun-if-changed=.jj/repo/op_heads/heads/");
+            println!("cargo:rerun-if-changed=../.jj/repo/op_heads/heads/");
             return Some(String::from_utf8(output.stdout).unwrap());
         }
     }
 
     if let Ok(output) = Command::new("git").args(["rev-parse", "HEAD"]).output() {
         if output.status.success() {
-            println!("cargo:rerun-if-changed=.git/HEAD");
+            println!("cargo:rerun-if-changed=../.git/HEAD");
             let line = str::from_utf8(&output.stdout).unwrap();
             return Some(line.trim_end().to_owned());
         }
