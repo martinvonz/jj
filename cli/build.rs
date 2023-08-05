@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
 use std::process::Command;
 use std::str;
 
 use cargo_metadata::MetadataCommand;
+
+const GIT_HEAD_PATH: &str = "../.git/HEAD";
+const JJ_OP_HEADS_PATH: &str = "../.jj/repo/op_heads/heads";
 
 fn main() -> std::io::Result<()> {
     let path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
@@ -26,6 +30,16 @@ fn main() -> std::io::Result<()> {
         .unwrap();
     let root = meta.root_package().unwrap();
     let version = &root.version;
+
+    if Path::new(GIT_HEAD_PATH).exists() {
+        // In colocated repo, .git/HEAD should reflect the working-copy parent.
+        println!("cargo:rerun-if-changed={GIT_HEAD_PATH}");
+    } else if Path::new(JJ_OP_HEADS_PATH).exists() {
+        // op_heads changes when working-copy files are mutated, which is way more
+        // frequent than .git/HEAD.
+        println!("cargo:rerun-if-changed={JJ_OP_HEADS_PATH}");
+    }
+    println!("cargo:rerun-if-env-changed=NIX_JJ_GIT_HASH");
 
     if let Some(git_hash) = get_git_hash() {
         println!("cargo:rustc-env=JJ_VERSION={}-{}", version, git_hash);
@@ -55,14 +69,12 @@ fn get_git_hash() -> Option<String> {
         .output()
     {
         if output.status.success() {
-            println!("cargo:rerun-if-changed=../.jj/repo/op_heads/heads/");
             return Some(String::from_utf8(output.stdout).unwrap());
         }
     }
 
     if let Ok(output) = Command::new("git").args(["rev-parse", "HEAD"]).output() {
         if output.status.success() {
-            println!("cargo:rerun-if-changed=../.git/HEAD");
             let line = str::from_utf8(&output.stdout).unwrap();
             return Some(line.trim_end().to_owned());
         }
