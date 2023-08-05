@@ -6,4 +6,4 @@ license = "Apache-2.0"
 publish = false
 
 [dependencies]
-prost-build = "0.11.9"
+prost-build.workspace = true
