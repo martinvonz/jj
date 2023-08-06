@@ -1,0 +1,13 @@
+{
+    // NOTE (aseipp): don't autoformat {markdown, toml, et cetera} files, since
+    // there's no real standardized format we've ever tried to agree on; until
+    // then, such a feature tends to make diffs much worse and various people's
+    // editors config may have some "helpful" plugins that autoformat these
+    // filetypes, so this disables a footgun for everyone.
+    "[markdown]": {
+        "editor.formatOnSave": false
+    },
+    "[toml]": {
+        "editor.formatOnSave": false
+    }
+}
