@@ -1,4 +1,13 @@
 {
     "files.insertFinalNewline": true,
     "files.trimTrailingWhitespace": true,
+
+    "files.associations": {
+        ".buckconfig": "ini",
+        ".buckconfig.local": "ini",
+        "*.bzl": "starlark",
+        "*.bxl": "starlark",
+        "BUILD": "starlark",
+        "PACKAGE": "starlark",
+    },
 }

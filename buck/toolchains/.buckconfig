@@ -1,0 +1,7 @@
+[cells]
+toolchains = .
+
+[buildfile]
+name = BUILD
+# see root .buckconfig for more information
+includes = root//buck/shims/noprelude.bzl

@@ -171,6 +171,9 @@
 
           # For building the documentation website
           poetry
+
+          # buck2 tools
+          llvmPackages_latest.clang rust-bindgen
         ] ++ darwinDeps ++ linuxNativeDeps;
 
         shellHook = ''
