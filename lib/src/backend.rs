@@ -23,8 +23,8 @@ use std::vec::Vec;
 
 use thiserror::Error;
 
-use crate::conflicts::Merge;
 use crate::content_hash::ContentHash;
+use crate::merge::Merge;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
 pub trait ObjectId {

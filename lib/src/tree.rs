@@ -27,10 +27,9 @@ use crate::backend::{
     BackendError, ConflictId, FileId, ObjectId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId,
     TreeValue,
 };
-use crate::conflicts::Merge;
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
-use crate::merge::trivial_merge;
+use crate::merge::{trivial_merge, Merge};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::{backend, files};

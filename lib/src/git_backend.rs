@@ -32,9 +32,9 @@ use crate::backend::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, FileId, MillisSinceEpoch,
     ObjectId, Signature, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
-use crate::conflicts::Merge;
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
+use crate::merge::Merge;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::stacked_table::{
     MutableTable, ReadonlyTable, TableSegment, TableStore, TableStoreError,

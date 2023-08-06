@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 use jj_lib::backend::{FileId, TreeValue};
-use jj_lib::conflicts::Merge;
+use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeValue};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};

@@ -22,7 +22,7 @@ use itertools::Itertools;
 
 use crate::backend;
 use crate::backend::{ConflictId, TreeValue};
-use crate::conflicts::Merge;
+use crate::merge::Merge;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{try_resolve_file_conflict, Tree, TreeMergeError};

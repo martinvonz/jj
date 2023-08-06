@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use jj_lib::backend::{FileId, TreeValue};
-use jj_lib::conflicts::{parse_conflict, Merge};
+use jj_lib::conflicts::parse_conflict;
+use jj_lib::merge::Merge;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::store::Store;

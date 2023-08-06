@@ -22,8 +22,8 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use jj_lib::backend::{ObjectId, TreeId, TreeValue};
-use jj_lib::conflicts::Merge;
 use jj_lib::fsmonitor::FsmonitorKind;
+use jj_lib::merge::Merge;
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
