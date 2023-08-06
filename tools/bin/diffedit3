@@ -1,0 +1,43 @@
+#!/usr/bin/env dotslash
+
+{
+  "name": "diffedit3",
+  "platforms": {
+    "macos-aarch64": {
+      "size": 2285223,
+      "hash": "blake3",
+      "digest": "2b4fdb0587aece5658030b68dc7271973b5c731e0c2493efd3aa87ff3f445a61",
+      "format": "tar.gz",
+      "path": "diffedit3",
+      "providers": [
+        {
+          "url": "https://github.com/ilyagr/diffedit3/releases/download/v0.4.0/diffedit3-v0.4.0-aarch64-apple-darwin.tar.gz",
+        }
+      ]
+    },
+    "windows-x86_64": {
+      "size": 1900470,
+      "hash": "blake3",
+      "digest": "462c4fc77655e0688e5317fcdc2a4a6af326b7f04912fc8c7489028b56e50a59",
+      "format": "zip",
+      "path": "diffedit3.exe",
+      "providers": [
+        {
+          "url": "https://github.com/ilyagr/diffedit3/releases/download/v0.4.0/diffedit3-v0.4.0-x86_64-pc-windows-msvc.zip"
+        }
+      ]
+    },
+    "linux-x86_64": {
+      "size": 3498501,
+      "hash": "blake3",
+      "digest": "84557e1409e0e4c76d80ff0758ab5995ec40dd7a151bfdef7858c54d71d43d9a",
+      "format": "tar.gz",
+      "path": "diffedit3",
+      "providers": [
+        {
+          "url": "https://github.com/ilyagr/diffedit3/releases/download/v0.4.0/diffedit3-v0.4.0-x86_64-unknown-linux-musl.tar.gz"
+        }
+      ]
+    }
+  }
+}
