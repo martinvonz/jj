@@ -23,7 +23,7 @@ use std::vec::Vec;
 
 use thiserror::Error;
 
-use crate::conflicts;
+use crate::conflicts::Merge;
 use crate::content_hash::ContentHash;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
@@ -148,7 +148,7 @@ content_hash! {
     pub struct Commit {
         pub parents: Vec<CommitId>,
         pub predecessors: Vec<CommitId>,
-        pub root_tree: conflicts::Conflict<TreeId>,
+        pub root_tree: Merge<TreeId>,
         /// Indicates that there this commit uses the new tree-level conflict format, which means
         /// that if `root_tree` is not a conflict, we know that we won't have to walk it to
         /// determine if there are conflicts.
@@ -397,7 +397,7 @@ pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Comm
     Commit {
         parents: vec![],
         predecessors: vec![],
-        root_tree: conflicts::Conflict::resolved(empty_tree_id),
+        root_tree: Merge::resolved(empty_tree_id),
         uses_tree_conflict_format: false,
         change_id: root_change_id,
         description: String::new(),

@@ -32,7 +32,7 @@ use crate::backend::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, FileId, MillisSinceEpoch,
     ObjectId, Signature, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
-use crate::conflicts;
+use crate::conflicts::Merge;
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
 use crate::repo_path::{RepoPath, RepoPathComponent};
@@ -223,7 +223,7 @@ fn commit_from_git_without_root_parent(commit: &git2::Commit) -> Commit {
     let tree_id = TreeId::from_bytes(commit.tree_id().as_bytes());
     // If this commit is a conflict, we'll update the root tree later, when we read
     // the extra metadata.
-    let root_tree = conflicts::Conflict::resolved(tree_id);
+    let root_tree = Merge::resolved(tree_id);
     let description = commit.message().unwrap_or("<no message>").to_owned();
     let author = signature_from_git(commit.author());
     let committer = signature_from_git(commit.committer());
@@ -304,7 +304,7 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
     match proto.root_tree {
         Some(crate::protos::git_store::commit::RootTree::Conflict(proto_conflict)) => {
             assert!(commit.uses_tree_conflict_format);
-            commit.root_tree = conflicts::Conflict::new(
+            commit.root_tree = Merge::new(
                 proto_conflict
                     .removes
                     .iter()
@@ -765,7 +765,7 @@ impl Backend for GitBackend {
 /// `.jjconflict-base-N` subtrees. This ensure that the parts are not GC'd.
 fn write_tree_conflict(
     repo: &git2::Repository,
-    conflict: &conflicts::Conflict<TreeId>,
+    conflict: &Merge<TreeId>,
 ) -> Result<Oid, BackendError> {
     let mut builder = repo.treebuilder(None).unwrap();
     let mut add_tree_entry = |name, tree_id: &TreeId| {
@@ -988,7 +988,7 @@ mod tests {
         let mut commit = Commit {
             parents: vec![],
             predecessors: vec![],
-            root_tree: conflicts::Conflict::resolved(backend.empty_tree_id().clone()),
+            root_tree: Merge::resolved(backend.empty_tree_id().clone()),
             uses_tree_conflict_format: false,
             change_id: ChangeId::from_hex("abc123"),
             description: "".to_string(),
@@ -1058,7 +1058,7 @@ mod tests {
             TreeId::from_bytes(tree_builder.write().unwrap().as_bytes())
         };
 
-        let root_tree = conflicts::Conflict::new(
+        let root_tree = Merge::new(
             vec![crete_tree(0), crete_tree(1)],
             vec![crete_tree(2), crete_tree(3), crete_tree(4)],
         );
@@ -1103,7 +1103,7 @@ mod tests {
 
         // When writing a single tree using the new format, it's represented by a
         // regular git tree.
-        commit.root_tree = conflicts::Conflict::resolved(crete_tree(5));
+        commit.root_tree = Merge::resolved(crete_tree(5));
         let read_commit_id = backend.write_commit(commit.clone()).unwrap().0;
         let read_commit = backend.read_commit(&read_commit_id).unwrap();
         assert_eq!(read_commit, commit);
@@ -1131,7 +1131,7 @@ mod tests {
         let commit = Commit {
             parents: vec![store.root_commit_id().clone()],
             predecessors: vec![],
-            root_tree: conflicts::Conflict::resolved(store.empty_tree_id().clone()),
+            root_tree: Merge::resolved(store.empty_tree_id().clone()),
             uses_tree_conflict_format: false,
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
@@ -1155,7 +1155,7 @@ mod tests {
         let mut commit1 = Commit {
             parents: vec![store.root_commit_id().clone()],
             predecessors: vec![],
-            root_tree: conflicts::Conflict::resolved(store.empty_tree_id().clone()),
+            root_tree: Merge::resolved(store.empty_tree_id().clone()),
             uses_tree_conflict_format: false,
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),

@@ -15,7 +15,7 @@
 #![allow(missing_docs)]
 
 use crate::backend::CommitId;
-use crate::conflicts::Conflict;
+use crate::conflicts::Merge;
 use crate::index::Index;
 use crate::merge::trivial_merge;
 use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
@@ -30,31 +30,31 @@ pub fn merge_ref_targets(
         return resolved.clone();
     }
 
-    let conflict = Conflict::new(
+    let merge = Merge::new(
         vec![base.as_conflict().clone()],
         vec![left.as_conflict().clone(), right.as_conflict().clone()],
     )
     .flatten()
     .simplify();
 
-    if conflict.is_resolved() {
-        RefTarget::from_conflict(conflict)
+    if merge.is_resolved() {
+        RefTarget::from_merge(merge)
     } else {
-        let conflict = merge_ref_targets_non_trivial(index, conflict);
-        RefTarget::from_conflict(conflict)
+        let merge = merge_ref_targets_non_trivial(index, merge);
+        RefTarget::from_merge(merge)
     }
 }
 
 fn merge_ref_targets_non_trivial(
     index: &dyn Index,
-    conflict: Conflict<Option<CommitId>>,
-) -> Conflict<Option<CommitId>> {
+    conflict: Merge<Option<CommitId>>,
+) -> Merge<Option<CommitId>> {
     let (mut removes, mut adds) = conflict.take();
     while let Some((remove_index, add_index)) = find_pair_to_remove(index, &removes, &adds) {
         removes.remove(remove_index);
         adds.remove(add_index);
     }
-    Conflict::new(removes, adds)
+    Merge::new(removes, adds)
 }
 
 fn find_pair_to_remove(

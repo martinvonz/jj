@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use jj_lib::backend::{FileId, TreeValue};
-use jj_lib::conflicts::{parse_conflict, Conflict};
+use jj_lib::conflicts::{parse_conflict, Merge};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::store::Store;
@@ -67,7 +67,7 @@ line 5
 
     // The left side should come first. The diff should be use the smaller (right)
     // side, and the left side should be a snapshot.
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&base_id))],
         vec![Some(file_value(&left_id)), Some(file_value(&right_id))],
     );
@@ -91,7 +91,7 @@ line 5
     );
     // Swap the positive terms in the conflict. The diff should still use the right
     // side, but now the right side should come first.
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&base_id))],
         vec![Some(file_value(&right_id)), Some(file_value(&left_id))],
     );
@@ -160,7 +160,7 @@ line 3
 
     // The order of (a, b, c) should be preserved. For all cases, the "a" side
     // should be a snapshot.
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&base_id)), Some(file_value(&base_id))],
         vec![
             Some(file_value(&a_id)),
@@ -188,7 +188,7 @@ line 3
     line 3
     "###
     );
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&base_id)), Some(file_value(&base_id))],
         vec![
             Some(file_value(&c_id)),
@@ -216,7 +216,7 @@ line 3
     line 3
     "###
     );
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&base_id)), Some(file_value(&base_id))],
         vec![
             Some(file_value(&c_id)),
@@ -283,7 +283,7 @@ line 5 right
 ",
     );
 
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&base_id))],
         vec![Some(file_value(&left_id)), Some(file_value(&right_id))],
     );
@@ -320,7 +320,7 @@ line 5 right
         @r###"
     Some(
         [
-            Conflict {
+            Merge {
                 removes: [
                     "line 1\nline 2\n",
                 ],
@@ -329,13 +329,13 @@ line 5 right
                     "line 1 right\nline 2\n",
                 ],
             },
-            Conflict {
+            Merge {
                 removes: [],
                 adds: [
                     "line 3\n",
                 ],
             },
-            Conflict {
+            Merge {
                 removes: [
                     "line 4\nline 5\n",
                 ],
@@ -386,7 +386,7 @@ line 5
     );
 
     // left modifies a line, right deletes the same line.
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&base_id))],
         vec![
             Some(file_value(&modified_id)),
@@ -408,7 +408,7 @@ line 5
     );
 
     // right modifies a line, left deletes the same line.
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&base_id))],
         vec![
             Some(file_value(&deleted_id)),
@@ -430,7 +430,7 @@ line 5
     );
 
     // modify/delete conflict at the file level
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&base_id))],
         vec![Some(file_value(&modified_id)), None],
     );
@@ -488,13 +488,13 @@ line 5
         @r###"
     Some(
         [
-            Conflict {
+            Merge {
                 removes: [],
                 adds: [
                     "line 1\n",
                 ],
             },
-            Conflict {
+            Merge {
                 removes: [
                     "line 2\nline 3\nline 4\n",
                 ],
@@ -503,7 +503,7 @@ line 5
                     "right\n",
                 ],
             },
-            Conflict {
+            Merge {
                 removes: [],
                 adds: [
                     "line 5\n",
@@ -542,13 +542,13 @@ line 5
         @r###"
     Some(
         [
-            Conflict {
+            Merge {
                 removes: [],
                 adds: [
                     "line 1\n",
                 ],
             },
-            Conflict {
+            Merge {
                 removes: [
                     "line 2\nline 3\nline 4\n",
                     "line 2\nline 3\nline 4\n",
@@ -559,7 +559,7 @@ line 5
                     "line 2\nforward\nline 3\nline 4\n",
                 ],
             },
-            Conflict {
+            Merge {
                 removes: [],
                 adds: [
                     "line 5\n",
@@ -650,7 +650,7 @@ fn test_update_conflict_from_content() {
     let base_file_id = testutils::write_file(store, &path, "line 1\nline 2\nline 3\n");
     let left_file_id = testutils::write_file(store, &path, "left 1\nline 2\nleft 3\n");
     let right_file_id = testutils::write_file(store, &path, "right 1\nline 2\nright 3\n");
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&base_file_id))],
         vec![
             Some(file_value(&left_file_id)),
@@ -691,7 +691,7 @@ fn test_update_conflict_from_content() {
     let new_right_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nright 3\n");
     assert_eq!(
         new_conflict,
-        Conflict::new(
+        Merge::new(
             vec![Some(file_value(&new_base_file_id))],
             vec![
                 Some(file_value(&new_left_file_id)),
@@ -709,7 +709,7 @@ fn test_update_conflict_from_content_modify_delete() {
     let path = RepoPath::from_internal_string("dir/file");
     let before_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
     let after_file_id = testutils::write_file(store, &path, "line 1\nline 2 after\nline 3\n");
-    let conflict = Conflict::new(
+    let conflict = Merge::new(
         vec![Some(file_value(&before_file_id))],
         vec![Some(file_value(&after_file_id)), None],
     );
@@ -746,7 +746,7 @@ fn test_update_conflict_from_content_modify_delete() {
 
     assert_eq!(
         new_conflict,
-        Conflict::new(
+        Merge::new(
             vec![Some(file_value(&new_base_file_id))],
             vec![Some(file_value(&new_left_file_id)), None]
         )
@@ -756,7 +756,7 @@ fn test_update_conflict_from_content_modify_delete() {
 fn materialize_conflict_string(
     store: &Store,
     path: &RepoPath,
-    conflict: &Conflict<Option<TreeValue>>,
+    conflict: &Merge<Option<TreeValue>>,
 ) -> String {
     let mut result: Vec<u8> = vec![];
     conflict.materialize(store, path, &mut result).unwrap();

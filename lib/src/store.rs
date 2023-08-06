@@ -19,14 +19,15 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::sync::{Arc, RwLock};
 
+use crate::backend;
 use crate::backend::{
     Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, SymlinkId, TreeId, TreeValue,
 };
 use crate::commit::Commit;
+use crate::conflicts::Merge;
 use crate::repo_path::RepoPath;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
-use crate::{backend, conflicts};
 
 /// Wraps the low-level backend and makes it return more convenient types. Also
 /// adds caching.
@@ -159,15 +160,15 @@ impl Store {
         &self,
         path: &RepoPath,
         id: &ConflictId,
-    ) -> BackendResult<conflicts::Conflict<Option<TreeValue>>> {
+    ) -> BackendResult<Merge<Option<TreeValue>>> {
         let backend_conflict = self.backend.read_conflict(path, id)?;
-        Ok(conflicts::Conflict::from_backend_conflict(backend_conflict))
+        Ok(Merge::from_backend_conflict(backend_conflict))
     }
 
     pub fn write_conflict(
         &self,
         path: &RepoPath,
-        contents: &conflicts::Conflict<Option<TreeValue>>,
+        contents: &Merge<Option<TreeValue>>,
     ) -> BackendResult<ConflictId> {
         self.backend
             .write_conflict(path, &contents.clone().into_backend_conflict())

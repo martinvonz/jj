@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use jj_lib::backend::{ObjectId, TreeId, TreeValue};
-use jj_lib::conflicts::Conflict;
+use jj_lib::conflicts::Merge;
 use jj_lib::fsmonitor::FsmonitorKind;
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
@@ -117,7 +117,7 @@ fn test_checkout_file_transitions(use_git: bool) {
                 let base_file_id = testutils::write_file(store, path, "base file contents");
                 let left_file_id = testutils::write_file(store, path, "left file contents");
                 let right_file_id = testutils::write_file(store, path, "right file contents");
-                let conflict = Conflict::new(
+                let conflict = Merge::new(
                     vec![Some(TreeValue::File {
                         id: base_file_id,
                         executable: false,

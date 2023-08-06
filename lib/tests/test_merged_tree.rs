@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 use jj_lib::backend::{FileId, TreeValue};
-use jj_lib::conflicts::Conflict;
+use jj_lib::conflicts::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeValue};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
@@ -45,7 +45,7 @@ fn test_from_legacy_tree() {
     let file2_v1_id = write_file(store.as_ref(), &file2_path, "file2_v1");
     let file2_v2_id = write_file(store.as_ref(), &file2_path, "file2_v2");
     let file2_v3_id = write_file(store.as_ref(), &file2_path, "file2_v3");
-    let file2_conflict = Conflict::new(
+    let file2_conflict = Merge::new(
         vec![Some(file_value(&file2_v1_id))],
         vec![
             Some(file_value(&file2_v2_id)),
@@ -59,7 +59,7 @@ fn test_from_legacy_tree() {
     let file3_path = RepoPath::from_internal_string("modify_delete");
     let file3_v1_id = write_file(store.as_ref(), &file3_path, "file3_v1");
     let file3_v2_id = write_file(store.as_ref(), &file3_path, "file3_v2");
-    let file3_conflict = Conflict::new(
+    let file3_conflict = Merge::new(
         vec![Some(file_value(&file3_v1_id))],
         vec![Some(file_value(&file3_v2_id)), None],
     );
@@ -70,7 +70,7 @@ fn test_from_legacy_tree() {
     let file4_path = RepoPath::from_internal_string("add_add");
     let file4_v1_id = write_file(store.as_ref(), &file4_path, "file4_v1");
     let file4_v2_id = write_file(store.as_ref(), &file4_path, "file4_v2");
-    let file4_conflict = Conflict::new(
+    let file4_conflict = Merge::new(
         vec![None],
         vec![
             Some(file_value(&file4_v1_id)),
@@ -87,7 +87,7 @@ fn test_from_legacy_tree() {
     let file5_v3_id = write_file(store.as_ref(), &file5_path, "file5_v3");
     let file5_v4_id = write_file(store.as_ref(), &file5_path, "file5_v4");
     let file5_v5_id = write_file(store.as_ref(), &file5_path, "file5_v5");
-    let file5_conflict = Conflict::new(
+    let file5_conflict = Merge::new(
         vec![
             Some(file_value(&file5_v1_id)),
             Some(file_value(&file5_v2_id)),
@@ -130,7 +130,7 @@ fn test_from_legacy_tree() {
     // file2: 3-way conflict
     assert_eq!(
         merged_tree.value(&file2_path.components()[0]),
-        MergedTreeValue::Conflict(Conflict::new(
+        MergedTreeValue::Conflict(Merge::new(
             vec![Some(file_value(&file2_v1_id)), None],
             vec![
                 Some(file_value(&file2_v2_id)),
@@ -142,7 +142,7 @@ fn test_from_legacy_tree() {
     // file3: modify/delete conflict
     assert_eq!(
         merged_tree.value(&file3_path.components()[0]),
-        MergedTreeValue::Conflict(Conflict::new(
+        MergedTreeValue::Conflict(Merge::new(
             vec![Some(file_value(&file3_v1_id)), None],
             vec![Some(file_value(&file3_v2_id)), None, None],
         ))
@@ -150,7 +150,7 @@ fn test_from_legacy_tree() {
     // file4: add/add conflict
     assert_eq!(
         merged_tree.value(&file4_path.components()[0]),
-        MergedTreeValue::Conflict(Conflict::new(
+        MergedTreeValue::Conflict(Merge::new(
             vec![None, None],
             vec![
                 Some(file_value(&file4_v1_id)),
@@ -162,7 +162,7 @@ fn test_from_legacy_tree() {
     // file5: 5-way conflict
     assert_eq!(
         merged_tree.value(&file5_path.components()[0]),
-        MergedTreeValue::Conflict(Conflict::new(
+        MergedTreeValue::Conflict(Merge::new(
             vec![
                 Some(file_value(&file5_v1_id)),
                 Some(file_value(&file5_v2_id)),
@@ -236,7 +236,7 @@ fn test_resolve_success() {
         ],
     );
 
-    let tree = MergedTree::new(Conflict::new(vec![base1], vec![side1, side2]));
+    let tree = MergedTree::new(Merge::new(vec![base1], vec![side1, side2]));
     let resolved = tree.resolve().unwrap();
     let resolved_tree = resolved.as_resolved().unwrap().clone();
     assert_eq!(
@@ -260,7 +260,7 @@ fn test_resolve_root_becomes_empty() {
     let side1 = testutils::create_tree(repo, &[(&path2, "base1")]);
     let side2 = testutils::create_tree(repo, &[(&path1, "base1")]);
 
-    let tree = MergedTree::new(Conflict::new(vec![base1], vec![side1, side2]));
+    let tree = MergedTree::new(Merge::new(vec![base1], vec![side1, side2]));
     let resolved = tree.resolve().unwrap();
     assert_eq!(resolved.as_resolved().unwrap().id(), store.empty_tree_id());
 }
@@ -287,11 +287,11 @@ fn test_resolve_with_conflict() {
     let expected_side2 =
         testutils::create_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side2")]);
 
-    let tree = MergedTree::new(Conflict::new(vec![base1], vec![side1, side2]));
+    let tree = MergedTree::new(Merge::new(vec![base1], vec![side1, side2]));
     let resolved_tree = tree.resolve().unwrap();
     assert_eq!(
         resolved_tree,
-        Conflict::new(vec![expected_base1], vec![expected_side1, expected_side2])
+        Merge::new(vec![expected_base1], vec![expected_side1, expected_side2])
     )
 }
 
@@ -368,13 +368,13 @@ fn test_conflict_iterator() {
         ],
     );
 
-    let tree = MergedTree::new(Conflict::new(
+    let tree = MergedTree::new(Merge::new(
         vec![base1.clone()],
         vec![side1.clone(), side2.clone()],
     ));
     let conflicts = tree.conflicts().collect_vec();
     let conflict_at = |path: &RepoPath| {
-        Conflict::new(
+        Merge::new(
             vec![base1.path_value(path)],
             vec![side1.path_value(path), side2.path_value(path)],
         )
@@ -439,13 +439,13 @@ fn test_conflict_iterator_higher_arity() {
         &[(&two_sided_path, "side3"), (&three_sided_path, "side3")],
     );
 
-    let tree = MergedTree::new(Conflict::new(
+    let tree = MergedTree::new(Merge::new(
         vec![base1.clone(), base2.clone()],
         vec![side1.clone(), side2.clone(), side3.clone()],
     ));
     let conflicts = tree.conflicts().collect_vec();
     let conflict_at = |path: &RepoPath| {
-        Conflict::new(
+        Merge::new(
             vec![base1.path_value(path), base2.path_value(path)],
             vec![
                 side1.path_value(path),
@@ -474,7 +474,7 @@ fn test_conflict_iterator_higher_arity() {
         vec![
             (
                 two_sided_path.clone(),
-                Conflict::new(
+                Merge::new(
                     vec![base2.path_value(&two_sided_path)],
                     vec![
                         side1.path_value(&two_sided_path),

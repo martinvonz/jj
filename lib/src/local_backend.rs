@@ -30,7 +30,7 @@ use crate::backend::{
     ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
     Tree, TreeId, TreeValue,
 };
-use crate::conflicts;
+use crate::conflicts::Merge;
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::repo_path::{RepoPath, RepoPathComponent};
@@ -311,7 +311,7 @@ fn commit_from_proto(proto: crate::protos::local_store::Commit) -> Commit {
     let parents = proto.parents.into_iter().map(CommitId::new).collect();
     let predecessors = proto.predecessors.into_iter().map(CommitId::new).collect();
     let conflict = proto.root_tree.unwrap();
-    let root_tree = conflicts::Conflict::new(
+    let root_tree = Merge::new(
         conflict.removes.into_iter().map(TreeId::new).collect(),
         conflict.adds.into_iter().map(TreeId::new).collect(),
     );

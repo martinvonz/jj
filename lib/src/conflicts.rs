@@ -37,34 +37,34 @@ const CONFLICT_DIFF_LINE: &[u8] = b"%%%%%%%\n";
 const CONFLICT_MINUS_LINE: &[u8] = b"-------\n";
 const CONFLICT_PLUS_LINE: &[u8] = b"+++++++\n";
 
-/// A generic representation of conflicting values.
+/// A generic representation of merged values.
 ///
 /// There is exactly one more `adds()` than `removes()`. When interpreted as a
-/// series of diffs, the conflict's (i+1)-st add is matched with the i-th
+/// series of diffs, the merge's (i+1)-st add is matched with the i-th
 /// remove. The zeroth add is considered a diff from the non-existent state.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub struct Conflict<T> {
+pub struct Merge<T> {
     removes: Vec<T>,
     adds: Vec<T>,
 }
 
-impl<T> Conflict<T> {
+impl<T> Merge<T> {
     pub fn new(removes: Vec<T>, adds: Vec<T>) -> Self {
         assert_eq!(adds.len(), removes.len() + 1);
-        Conflict { removes, adds }
+        Merge { removes, adds }
     }
 
-    /// Creates a `Conflict` with a single resolved value.
+    /// Creates a `Merge` with a single resolved value.
     pub fn resolved(value: T) -> Self {
-        Conflict::new(vec![], vec![value])
+        Merge::new(vec![], vec![value])
     }
 
-    /// Create a `Conflict` from a `removes` and `adds`, padding with `None` to
+    /// Create a `Merge` from a `removes` and `adds`, padding with `None` to
     /// make sure that there is exactly one more `adds` than `removes`.
     pub fn from_legacy_form(
         removes: impl IntoIterator<Item = T>,
         adds: impl IntoIterator<Item = T>,
-    ) -> Conflict<Option<T>> {
+    ) -> Merge<Option<T>> {
         let mut removes = removes.into_iter().map(Some).collect_vec();
         let mut adds = adds.into_iter().map(Some).collect_vec();
         while removes.len() + 1 < adds.len() {
@@ -73,7 +73,7 @@ impl<T> Conflict<T> {
         while adds.len() < removes.len() + 1 {
             adds.push(None);
         }
-        Conflict::new(removes, adds)
+        Merge::new(removes, adds)
     }
 
     /// Returns the removes and adds as a pair.
@@ -89,13 +89,13 @@ impl<T> Conflict<T> {
         &self.adds
     }
 
-    /// Whether this conflict is resolved. Does not resolve trivial conflicts.
+    /// Whether this merge is resolved. Does not resolve trivial merges.
     pub fn is_resolved(&self) -> bool {
         self.removes.is_empty()
     }
 
-    /// Returns the resolved value, if this conflict is resolved. Does not
-    /// resolve trivial conflicts.
+    /// Returns the resolved value, if this merge is resolved. Does not
+    /// resolve trivial merges.
     pub fn as_resolved(&self) -> Option<&T> {
         if let [value] = &self.adds[..] {
             Some(value)
@@ -104,7 +104,7 @@ impl<T> Conflict<T> {
         }
     }
 
-    /// Simplify the conflict by joining diffs like A->B and B->C into A->C.
+    /// Simplify the merge by joining diffs like A->B and B->C into A->C.
     /// Also drops trivial diffs like A->A.
     pub fn simplify(mut self) -> Self
     where
@@ -133,38 +133,35 @@ impl<T> Conflict<T> {
         trivial_merge(&self.removes, &self.adds)
     }
 
-    /// Creates a new conflict by applying `f` to each remove and add.
-    pub fn map<'a, U>(&'a self, mut f: impl FnMut(&'a T) -> U) -> Conflict<U> {
+    /// Creates a new merge by applying `f` to each remove and add.
+    pub fn map<'a, U>(&'a self, mut f: impl FnMut(&'a T) -> U) -> Merge<U> {
         self.maybe_map(|term| Some(f(term))).unwrap()
     }
 
-    /// Creates a new conflict by applying `f` to each remove and add, returning
+    /// Creates a new merge by applying `f` to each remove and add, returning
     /// `None if `f` returns `None` for any of them.
-    pub fn maybe_map<'a, U>(
-        &'a self,
-        mut f: impl FnMut(&'a T) -> Option<U>,
-    ) -> Option<Conflict<U>> {
+    pub fn maybe_map<'a, U>(&'a self, mut f: impl FnMut(&'a T) -> Option<U>) -> Option<Merge<U>> {
         let removes = self.removes.iter().map(&mut f).collect::<Option<_>>()?;
         let adds = self.adds.iter().map(&mut f).collect::<Option<_>>()?;
-        Some(Conflict { removes, adds })
+        Some(Merge { removes, adds })
     }
 
-    /// Creates a new conflict by applying `f` to each remove and add, returning
+    /// Creates a new merge by applying `f` to each remove and add, returning
     /// `Err if `f` returns `Err` for any of them.
     pub fn try_map<'a, U, E>(
         &'a self,
         mut f: impl FnMut(&'a T) -> Result<U, E>,
-    ) -> Result<Conflict<U>, E> {
+    ) -> Result<Merge<U>, E> {
         let removes = self.removes.iter().map(&mut f).try_collect()?;
         let adds = self.adds.iter().map(&mut f).try_collect()?;
-        Ok(Conflict { removes, adds })
+        Ok(Merge { removes, adds })
     }
 }
 
-impl<T> Conflict<Option<T>> {
-    /// Creates lists of `removes` and `adds` from a `Conflict` by dropping
+impl<T> Merge<Option<T>> {
+    /// Creates lists of `removes` and `adds` from a `Merge` by dropping
     /// `None` values. Note that the conversion is lossy: the order of `None`
-    /// values is not preserved when converting back to a `Conflict`.
+    /// values is not preserved when converting back to a `Merge`.
     pub fn into_legacy_form(self) -> (Vec<T>, Vec<T>) {
         (
             self.removes.into_iter().flatten().collect(),
@@ -173,8 +170,8 @@ impl<T> Conflict<Option<T>> {
     }
 }
 
-impl<T> Conflict<Conflict<T>> {
-    /// Flattens a nested conflict into a regular conflict.
+impl<T> Merge<Merge<T>> {
+    /// Flattens a nested merge into a regular merge.
     ///
     /// Let's say we have a 3-way merge of 3-way merges like this:
     ///
@@ -183,11 +180,11 @@ impl<T> Conflict<Conflict<T>> {
     ///    1 2
     ///     0
     ///
-    /// Flattening that results in this 9-way conflict:
+    /// Flattening that results in this 9-way merge:
     ///
     /// 4 5 0 7 8
     ///  3 2 1 6
-    pub fn flatten(mut self) -> Conflict<T> {
+    pub fn flatten(mut self) -> Merge<T> {
         self.removes.reverse();
         self.adds.reverse();
         let mut result = self.adds.pop().unwrap();
@@ -207,20 +204,20 @@ impl<T> Conflict<Conflict<T>> {
     }
 }
 
-impl<T: ContentHash> ContentHash for Conflict<T> {
+impl<T: ContentHash> ContentHash for Merge<T> {
     fn hash(&self, state: &mut impl digest::Update) {
         self.removes().hash(state);
         self.adds().hash(state);
     }
 }
 
-impl Conflict<TreeId> {
-    // Creates a resolved conflict for a legacy tree id (same as
-    // `Conflict::resolved()`).
+impl Merge<TreeId> {
+    // Creates a resolved merge for a legacy tree id (same as
+    // `Merge::resolved()`).
     // TODO(#1624): delete when all callers have been updated to support tree-level
     // conflicts
     pub fn from_legacy_tree_id(value: TreeId) -> Self {
-        Conflict {
+        Merge {
             removes: vec![],
             adds: vec![value],
         }
@@ -233,18 +230,18 @@ impl Conflict<TreeId> {
     }
 }
 
-impl Conflict<Option<TreeValue>> {
-    /// Create a `Conflict` from a `backend::Conflict`, padding with `None` to
+impl Merge<Option<TreeValue>> {
+    /// Create a `Merge` from a `backend::Conflict`, padding with `None` to
     /// make sure that there is exactly one more `adds()` than `removes()`.
     pub fn from_backend_conflict(conflict: backend::Conflict) -> Self {
         let removes = conflict.removes.into_iter().map(|term| term.value);
         let adds = conflict.adds.into_iter().map(|term| term.value);
-        Conflict::from_legacy_form(removes, adds)
+        Merge::from_legacy_form(removes, adds)
     }
 
-    /// Creates a `backend::Conflict` from a `Conflict` by dropping `None`
+    /// Creates a `backend::Conflict` from a `Merge` by dropping `None`
     /// values. Note that the conversion is lossy: the order of `None` values is
-    /// not preserved when converting back to a `Conflict`.
+    /// not preserved when converting back to a `Merge`.
     pub fn into_backend_conflict(self) -> backend::Conflict {
         let (removes, adds) = self.into_legacy_form();
         let removes = removes
@@ -264,17 +261,17 @@ impl Conflict<Option<TreeValue>> {
         path: &RepoPath,
         output: &mut dyn Write,
     ) -> std::io::Result<()> {
-        if let Some(file_conflict) = self.to_file_conflict() {
-            let content = file_conflict.extract_as_single_hunk(store, path);
+        if let Some(file_merge) = self.to_file_merge() {
+            let content = file_merge.extract_as_single_hunk(store, path);
             materialize_merge_result(&content, output)
         } else {
             // Unless all terms are regular files, we can't do much better than to try to
-            // describe the conflict.
+            // describe the merge.
             self.describe(output)
         }
     }
 
-    pub fn to_file_conflict(&self) -> Option<Conflict<Option<FileId>>> {
+    pub fn to_file_merge(&self) -> Option<Merge<Option<FileId>>> {
         self.maybe_map(|term| match term {
             None => Some(None),
             Some(TreeValue::File {
@@ -303,9 +300,9 @@ impl Conflict<Option<TreeValue>> {
         store: &Store,
         path: &RepoPath,
         content: &[u8],
-    ) -> BackendResult<Option<Conflict<Option<TreeValue>>>> {
+    ) -> BackendResult<Option<Merge<Option<TreeValue>>>> {
         // TODO: Check that the conflict only involves files and convert it to a
-        // `Conflict<Option<FileId>>` so we can remove the wildcard pattern in the loops
+        // `Merge<Option<FileId>>` so we can remove the wildcard pattern in the loops
         // further down.
 
         // First check if the new content is unchanged compared to the old content. If
@@ -344,7 +341,7 @@ impl Conflict<Option<TreeValue>> {
             }
         }
         // Now write the new files contents we found by parsing the file
-        // with conflict markers. Update the Conflict object with the new
+        // with conflict markers. Update the Merge object with the new
         // FileIds.
         let mut new_removes = vec![];
         for (i, buf) in removed_content.iter().enumerate() {
@@ -392,30 +389,30 @@ impl Conflict<Option<TreeValue>> {
                 }
             }
         }
-        Ok(Some(Conflict::new(new_removes, new_adds)))
+        Ok(Some(Merge::new(new_removes, new_adds)))
     }
 }
 
-impl Conflict<Option<FileId>> {
-    pub fn extract_as_single_hunk(&self, store: &Store, path: &RepoPath) -> Conflict<ContentHunk> {
+impl Merge<Option<FileId>> {
+    pub fn extract_as_single_hunk(&self, store: &Store, path: &RepoPath) -> Merge<ContentHunk> {
         self.map(|term| get_file_contents(store, path, term))
     }
 }
 
-impl<T> Conflict<Option<T>>
+impl<T> Merge<Option<T>>
 where
     T: Borrow<TreeValue>,
 {
-    /// If every non-`None` term of a `Conflict<Option<TreeValue>>`
+    /// If every non-`None` term of a `Merge<Option<TreeValue>>`
     /// is a `TreeValue::Tree`, this converts it to
-    /// a `Conflict<Tree>`, with empty trees instead of
+    /// a `Merge<Tree>`, with empty trees instead of
     /// any `None` terms. Otherwise, returns `None`.
-    pub fn to_tree_conflict(
+    pub fn to_tree_merge(
         &self,
         store: &Arc<Store>,
         dir: &RepoPath,
-    ) -> Result<Option<Conflict<Tree>>, BackendError> {
-        let tree_id_conflict = self.maybe_map(|term| match term {
+    ) -> Result<Option<Merge<Tree>>, BackendError> {
+        let tree_id_merge = self.maybe_map(|term| match term {
             None => Some(None),
             Some(value) => {
                 if let TreeValue::Tree(id) = value.borrow() {
@@ -425,7 +422,7 @@ where
                 }
             }
         });
-        if let Some(tree_id_conflict) = tree_id_conflict {
+        if let Some(tree_id_merge) = tree_id_merge {
             let get_tree = |id: &Option<&TreeId>| -> Result<Tree, BackendError> {
                 if let Some(id) = id {
                     store.get_tree(dir, id)
@@ -433,7 +430,7 @@ where
                     Ok(Tree::null(store.clone(), dir.clone()))
                 }
             };
-            Ok(Some(tree_id_conflict.try_map(get_tree)?))
+            Ok(Some(tree_id_merge.try_map(get_tree)?))
         } else {
             Ok(None)
         }
@@ -511,7 +508,7 @@ fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result
 }
 
 pub fn materialize_merge_result(
-    single_hunk: &Conflict<ContentHunk>,
+    single_hunk: &Merge<ContentHunk>,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
     let removed_slices = single_hunk
@@ -608,7 +605,7 @@ pub fn parse_conflict(
     input: &[u8],
     num_removes: usize,
     num_adds: usize,
-) -> Option<Vec<Conflict<ContentHunk>>> {
+) -> Option<Vec<Merge<ContentHunk>>> {
     if input.is_empty() {
         return None;
     }
@@ -625,7 +622,7 @@ pub fn parse_conflict(
             if hunk.removes().len() == num_removes && hunk.adds().len() == num_adds {
                 let resolved_slice = &input[resolved_start..conflict_start.unwrap()];
                 if !resolved_slice.is_empty() {
-                    hunks.push(Conflict::resolved(ContentHunk(resolved_slice.to_vec())));
+                    hunks.push(Merge::resolved(ContentHunk(resolved_slice.to_vec())));
                 }
                 hunks.push(hunk);
                 resolved_start = pos + line.len();
@@ -639,7 +636,7 @@ pub fn parse_conflict(
         None
     } else {
         if resolved_start < input.len() {
-            hunks.push(Conflict::resolved(ContentHunk(
+            hunks.push(Merge::resolved(ContentHunk(
                 input[resolved_start..].to_vec(),
             )));
         }
@@ -647,7 +644,7 @@ pub fn parse_conflict(
     }
 }
 
-fn parse_conflict_hunk(input: &[u8]) -> Conflict<ContentHunk> {
+fn parse_conflict_hunk(input: &[u8]) -> Merge<ContentHunk> {
     enum State {
         Diff,
         Minus,
@@ -688,7 +685,7 @@ fn parse_conflict_hunk(input: &[u8]) -> Conflict<ContentHunk> {
                     adds.last_mut().unwrap().0.extend_from_slice(rest);
                 } else {
                     // Doesn't look like a conflict
-                    return Conflict::resolved(ContentHunk(vec![]));
+                    return Merge::resolved(ContentHunk(vec![]));
                 }
             }
             State::Minus => {
@@ -699,81 +696,78 @@ fn parse_conflict_hunk(input: &[u8]) -> Conflict<ContentHunk> {
             }
             State::Unknown => {
                 // Doesn't look like a conflict
-                return Conflict::resolved(ContentHunk(vec![]));
+                return Merge::resolved(ContentHunk(vec![]));
             }
         }
     }
 
-    Conflict::new(removes, adds)
+    Merge::new(removes, adds)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn c<T: Clone>(removes: &[T], adds: &[T]) -> Conflict<T> {
-        Conflict::new(removes.to_vec(), adds.to_vec())
+    fn c<T: Clone>(removes: &[T], adds: &[T]) -> Merge<T> {
+        Merge::new(removes.to_vec(), adds.to_vec())
     }
 
     #[test]
     fn test_legacy_form_conversion() {
-        fn test_equivalent<T>(legacy_form: (Vec<T>, Vec<T>), conflict: Conflict<Option<T>>)
+        fn test_equivalent<T>(legacy_form: (Vec<T>, Vec<T>), merge: Merge<Option<T>>)
         where
             T: Clone + PartialEq + std::fmt::Debug,
         {
-            assert_eq!(conflict.clone().into_legacy_form(), legacy_form);
-            assert_eq!(
-                Conflict::from_legacy_form(legacy_form.0, legacy_form.1),
-                conflict
-            );
+            assert_eq!(merge.clone().into_legacy_form(), legacy_form);
+            assert_eq!(Merge::from_legacy_form(legacy_form.0, legacy_form.1), merge);
         }
         // Non-conflict
-        test_equivalent((vec![], vec![0]), Conflict::new(vec![], vec![Some(0)]));
+        test_equivalent((vec![], vec![0]), Merge::new(vec![], vec![Some(0)]));
         // Regular 3-way conflict
         test_equivalent(
             (vec![0], vec![1, 2]),
-            Conflict::new(vec![Some(0)], vec![Some(1), Some(2)]),
+            Merge::new(vec![Some(0)], vec![Some(1), Some(2)]),
         );
         // Modify/delete conflict
         test_equivalent(
             (vec![0], vec![1]),
-            Conflict::new(vec![Some(0)], vec![Some(1), None]),
+            Merge::new(vec![Some(0)], vec![Some(1), None]),
         );
         // Add/add conflict
         test_equivalent(
             (vec![], vec![0, 1]),
-            Conflict::new(vec![None], vec![Some(0), Some(1)]),
+            Merge::new(vec![None], vec![Some(0), Some(1)]),
         );
         // 5-way conflict
         test_equivalent(
             (vec![0, 1], vec![2, 3, 4]),
-            Conflict::new(vec![Some(0), Some(1)], vec![Some(2), Some(3), Some(4)]),
+            Merge::new(vec![Some(0), Some(1)], vec![Some(2), Some(3), Some(4)]),
         );
         // 5-way delete/delete conflict
         test_equivalent(
             (vec![0, 1], vec![]),
-            Conflict::new(vec![Some(0), Some(1)], vec![None, None, None]),
+            Merge::new(vec![Some(0), Some(1)], vec![None, None, None]),
         );
     }
 
     #[test]
     fn test_as_resolved() {
-        assert_eq!(Conflict::new(vec![], vec![0]).as_resolved(), Some(&0));
-        // Even a trivially resolvable conflict is not resolved
-        assert_eq!(Conflict::new(vec![0], vec![0, 1]).as_resolved(), None);
+        assert_eq!(Merge::new(vec![], vec![0]).as_resolved(), Some(&0));
+        // Even a trivially resolvable merge is not resolved
+        assert_eq!(Merge::new(vec![0], vec![0, 1]).as_resolved(), None);
     }
 
     #[test]
     fn test_simplify() {
-        // 1-way "conflict"
+        // 1-way merge
         assert_eq!(c(&[], &[0]).simplify(), c(&[], &[0]));
-        // 3-way conflict
+        // 3-way merge
         assert_eq!(c(&[0], &[0, 0]).simplify(), c(&[], &[0]));
         assert_eq!(c(&[0], &[0, 1]).simplify(), c(&[], &[1]));
         assert_eq!(c(&[0], &[1, 0]).simplify(), c(&[], &[1]));
         assert_eq!(c(&[0], &[1, 1]).simplify(), c(&[0], &[1, 1]));
         assert_eq!(c(&[0], &[1, 2]).simplify(), c(&[0], &[1, 2]));
-        // 5-way conflict
+        // 5-way merge
         assert_eq!(c(&[0, 0], &[0, 0, 0]).simplify(), c(&[], &[0]));
         assert_eq!(c(&[0, 0], &[0, 0, 1]).simplify(), c(&[], &[1]));
         assert_eq!(c(&[0, 0], &[0, 1, 0]).simplify(), c(&[], &[1]));
@@ -833,31 +827,31 @@ mod tests {
     }
 
     #[test]
-    fn test_conflict_invariants() {
+    fn test_merge_invariants() {
         fn check_invariants(removes: &[u32], adds: &[u32]) {
-            let conflict = Conflict::new(removes.to_vec(), adds.to_vec());
+            let merge = Merge::new(removes.to_vec(), adds.to_vec());
             // `simplify()` is idempotent
             assert_eq!(
-                conflict.clone().simplify().simplify(),
-                conflict.clone().simplify(),
-                "simplify() not idempotent for {conflict:?}"
+                merge.clone().simplify().simplify(),
+                merge.clone().simplify(),
+                "simplify() not idempotent for {merge:?}"
             );
             // `resolve_trivial()` is unaffected by `simplify()`
             assert_eq!(
-                conflict.clone().simplify().resolve_trivial(),
-                conflict.resolve_trivial(),
-                "simplify() changed result of resolve_trivial() for {conflict:?}"
+                merge.clone().simplify().resolve_trivial(),
+                merge.resolve_trivial(),
+                "simplify() changed result of resolve_trivial() for {merge:?}"
             );
         }
-        // 1-way "conflict"
+        // 1-way merge
         check_invariants(&[], &[0]);
         for i in 0..=1 {
             for j in 0..=i + 1 {
-                // 3-way conflict
+                // 3-way merge
                 check_invariants(&[0], &[i, j]);
                 for k in 0..=j + 1 {
                     for l in 0..=k + 1 {
-                        // 5-way conflict
+                        // 5-way merge
                         check_invariants(&[0, i], &[j, k, l]);
                     }
                 }
@@ -870,9 +864,9 @@ mod tests {
         fn increment(i: &i32) -> i32 {
             i + 1
         }
-        // 1-way conflict
+        // 1-way merge
         assert_eq!(c(&[], &[1]).map(increment), c(&[], &[2]));
-        // 3-way conflict
+        // 3-way merge
         assert_eq!(c(&[1], &[3, 5]).map(increment), c(&[2], &[4, 6]));
     }
 
@@ -885,10 +879,10 @@ mod tests {
                 None
             }
         }
-        // 1-way conflict
+        // 1-way merge
         assert_eq!(c(&[], &[1]).maybe_map(sqrt), Some(c(&[], &[1])));
         assert_eq!(c(&[], &[-1]).maybe_map(sqrt), None);
-        // 3-way conflict
+        // 3-way merge
         assert_eq!(c(&[1], &[4, 9]).maybe_map(sqrt), Some(c(&[1], &[2, 3])));
         assert_eq!(c(&[-1], &[4, 9]).maybe_map(sqrt), None);
         assert_eq!(c(&[1], &[-4, 9]).maybe_map(sqrt), None);
@@ -903,10 +897,10 @@ mod tests {
                 Err(())
             }
         }
-        // 1-way conflict
+        // 1-way merge
         assert_eq!(c(&[], &[1]).try_map(sqrt), Ok(c(&[], &[1])));
         assert_eq!(c(&[], &[-1]).try_map(sqrt), Err(()));
-        // 3-way conflict
+        // 3-way merge
         assert_eq!(c(&[1], &[4, 9]).try_map(sqrt), Ok(c(&[1], &[2, 3])));
         assert_eq!(c(&[-1], &[4, 9]).try_map(sqrt), Err(()));
         assert_eq!(c(&[1], &[-4, 9]).try_map(sqrt), Err(()));
@@ -914,16 +908,16 @@ mod tests {
 
     #[test]
     fn test_flatten() {
-        // 1-way conflict of 1-way conflict
+        // 1-way merge of 1-way merge
         assert_eq!(c(&[], &[c(&[], &[0])]).flatten(), c(&[], &[0]));
-        // 1-way conflict of 3-way conflict
+        // 1-way merge of 3-way merge
         assert_eq!(c(&[], &[c(&[0], &[1, 2])]).flatten(), c(&[0], &[1, 2]));
-        // 3-way conflict of 1-way conflicts
+        // 3-way merge of 1-way merges
         assert_eq!(
             c(&[c(&[], &[0])], &[c(&[], &[1]), c(&[], &[2])]).flatten(),
             c(&[0], &[1, 2])
         );
-        // 3-way conflict of 3-way conflicts
+        // 3-way merge of 3-way merges
         assert_eq!(
             c(&[c(&[0], &[1, 2])], &[c(&[3], &[4, 5]), c(&[6], &[7, 8])]).flatten(),
             c(&[3, 2, 1, 6], &[4, 5, 0, 7, 8])
