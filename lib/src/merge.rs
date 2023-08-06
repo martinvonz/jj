@@ -165,6 +165,16 @@ impl<T> Merge<T> {
         }
     }
 
+    /// Returns the resolved value, if this merge is resolved. Otherwise returns
+    /// the merge itself as an `Err`. Does not resolve trivial merges.
+    pub fn into_resolved(mut self) -> Result<T, Merge<T>> {
+        if self.removes.is_empty() {
+            Ok(self.adds.pop().unwrap())
+        } else {
+            Err(self)
+        }
+    }
+
     /// Simplify the merge by joining diffs like A->B and B->C into A->C.
     /// Also drops trivial diffs like A->A.
     pub fn simplify(mut self) -> Self

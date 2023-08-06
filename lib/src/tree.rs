@@ -570,14 +570,18 @@ fn merge_tree_value(
             );
             let filename = dir.join(basename);
             let merge = simplify_conflict(store, &filename, conflict)?;
-            if let Some(value) = merge.as_resolved() {
-                return Ok(value.clone());
-            }
-            if let Some(tree_value) = try_resolve_file_conflict(store, &filename, &merge)? {
-                Some(tree_value)
-            } else {
-                let conflict_id = store.write_conflict(&filename, &merge)?;
-                Some(TreeValue::Conflict(conflict_id))
+            match merge.into_resolved() {
+                Ok(value) => value,
+                Err(conflict) => {
+                    if let Some(tree_value) =
+                        try_resolve_file_conflict(store, &filename, &conflict)?
+                    {
+                        Some(tree_value)
+                    } else {
+                        let conflict_id = store.write_conflict(&filename, &conflict)?;
+                        Some(TreeValue::Conflict(conflict_id))
+                    }
+                }
             }
         }
     })

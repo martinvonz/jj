@@ -227,10 +227,13 @@ fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
     for basename in all_tree_conflict_names(merge) {
         let path_merge = merge.map(|tree| tree.value(basename).cloned());
         let path_merge = merge_tree_values(store, dir, path_merge)?;
-        if let Some(value) = path_merge.as_resolved() {
-            new_tree.set_or_remove(basename, value.clone());
-        } else {
-            conflicts.push((basename, path_merge));
+        match path_merge.into_resolved() {
+            Ok(value) => {
+                new_tree.set_or_remove(basename, value);
+            }
+            Err(path_merge) => {
+                conflicts.push((basename, path_merge));
+            }
         };
     }
     if conflicts.is_empty() {
