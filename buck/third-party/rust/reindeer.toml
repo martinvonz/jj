@@ -1,0 +1,35 @@
+vendor = false
+precise_srcs = true
+include_top_level = true
+fixup_templates = true
+
+[buck]
+file_name = "BUILD"
+
+alias = "alias"
+filegroup = "filegroup"
+http_archive = "http_archive"
+git_fetch = "git_fetch"
+
+rust_library = "third_party_rust.rust_library"
+rust_binary = "third_party_rust.rust_binary"
+cxx_library = "third_party_rust.cxx_library"
+prebuilt_cxx_library = "third_party_rust.prebuilt_cxx_library"
+buildscript_genrule = "third_party_rust.buildscript_run"
+
+buckfile_imports = """
+load("@root//buck/shims/third_party_rust.bzl", "third_party_rust")
+
+# XXX (aseipp): this is a hack to provide a convenient top-level alias.
+# this allows us to just build `third-party//rust` without a target name
+# to build everything we need.
+# this should probably be part of reindeer itself?
+
+alias(
+    name = 'rust',
+    actual = ':rust-third-party-0.0.0-top',
+    visibility = ["PUBLIC"],
+)
+
+# XXX: normal reindeer-generated code below
+"""
