@@ -105,13 +105,13 @@ impl RefTarget {
 
     /// Returns true if this target points to no commit.
     pub fn is_absent(&self) -> bool {
-        matches!(self.merge.as_resolved(), Some(None))
+        self.merge.is_absent()
     }
 
     /// Returns true if this target points to any commit. Conflicting target is
     /// always "present" as it should have at least one commit id.
     pub fn is_present(&self) -> bool {
-        !self.is_absent()
+        self.merge.is_present()
     }
 
     /// Whether this target has conflicts.

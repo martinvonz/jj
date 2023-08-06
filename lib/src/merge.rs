@@ -311,6 +311,14 @@ impl<T> Merge<Option<T>> {
         Self::resolved(Some(value))
     }
 
+    pub fn is_absent(&self) -> bool {
+        matches!(self.as_resolved(), Some(None))
+    }
+
+    pub fn is_present(&self) -> bool {
+        !self.is_absent()
+    }
+
     /// Creates lists of `removes` and `adds` from a `Merge` by dropping
     /// `None` values. Note that the conversion is lossy: the order of `None`
     /// values is not preserved when converting back to a `Merge`.
