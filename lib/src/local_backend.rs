@@ -30,9 +30,9 @@ use crate::backend::{
     ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
     Tree, TreeId, TreeValue,
 };
-use crate::conflicts::Merge;
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
+use crate::merge::Merge;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
 const COMMIT_ID_LENGTH: usize = 64;

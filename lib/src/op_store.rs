@@ -21,7 +21,7 @@ use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::backend::{id_type, CommitId, ObjectId, Timestamp};
-use crate::conflicts::Merge;
+use crate::merge::Merge;
 
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]

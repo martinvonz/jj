@@ -24,7 +24,7 @@ use crate::backend::{
     Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, SymlinkId, TreeId, TreeValue,
 };
 use crate::commit::Commit;
-use crate::conflicts::Merge;
+use crate::merge::Merge;
 use crate::repo_path::RepoPath;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;

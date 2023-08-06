@@ -20,10 +20,9 @@ use std::ops::Range;
 
 use itertools::Itertools;
 
-use crate::conflicts::Merge;
 use crate::diff;
 use crate::diff::{Diff, DiffHunk};
-use crate::merge::trivial_merge;
+use crate::merge::{trivial_merge, Merge};
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct DiffLine<'a> {

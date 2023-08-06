@@ -15,9 +15,8 @@
 #![allow(missing_docs)]
 
 use crate::backend::CommitId;
-use crate::conflicts::Merge;
 use crate::index::Index;
-use crate::merge::trivial_merge;
+use crate::merge::{trivial_merge, Merge};
 use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
 
 pub fn merge_ref_targets(
