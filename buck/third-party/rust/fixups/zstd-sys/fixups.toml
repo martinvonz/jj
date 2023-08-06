@@ -1,0 +1,2 @@
+extra_deps = ["third-party//zstd:zstd"]
+buildscript = []
