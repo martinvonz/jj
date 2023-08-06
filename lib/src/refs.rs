@@ -30,8 +30,8 @@ pub fn merge_ref_targets(
     }
 
     let merge = Merge::new(
-        vec![base.as_conflict().clone()],
-        vec![left.as_conflict().clone(), right.as_conflict().clone()],
+        vec![base.as_merge().clone()],
+        vec![left.as_merge().clone(), right.as_merge().clone()],
     )
     .flatten()
     .simplify();
