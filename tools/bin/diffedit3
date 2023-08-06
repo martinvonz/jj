@@ -1,0 +1,19 @@
+#!/usr/bin/env dotslash
+
+{
+  "name": "diffedit3",
+  "platforms": {
+    "linux-x86_64": {
+      "size": 3498501,
+      "hash": "blake3",
+      "digest": "84557e1409e0e4c76d80ff0758ab5995ec40dd7a151bfdef7858c54d71d43d9a",
+      "format": "tar.gz",
+      "path": "diffedit3",
+      "providers": [
+        {
+          "url": "https://github.com/ilyagr/diffedit3/releases/download/v0.4.0/diffedit3-v0.4.0-x86_64-unknown-linux-musl.tar.gz"
+        }
+      ]
+    }
+  }
+}
