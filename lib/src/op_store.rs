@@ -127,7 +127,7 @@ impl RefTarget {
         self.merge.adds().iter().flatten()
     }
 
-    pub fn as_conflict(&self) -> &Merge<Option<CommitId>> {
+    pub fn as_merge(&self) -> &Merge<Option<CommitId>> {
         &self.merge
     }
 }

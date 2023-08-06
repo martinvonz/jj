@@ -361,10 +361,10 @@ fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::Ref
     let term_to_proto = |term: &Option<CommitId>| crate::protos::op_store::ref_conflict::Term {
         value: term.as_ref().map(|id| id.to_bytes()),
     };
-    let conflict = value.as_conflict();
+    let merge = value.as_merge();
     let conflict_proto = crate::protos::op_store::RefConflict {
-        removes: conflict.removes().iter().map(term_to_proto).collect(),
-        adds: conflict.adds().iter().map(term_to_proto).collect(),
+        removes: merge.removes().iter().map(term_to_proto).collect(),
+        adds: merge.adds().iter().map(term_to_proto).collect(),
     };
     let proto = crate::protos::op_store::RefTarget {
         value: Some(crate::protos::op_store::ref_target::Value::Conflict(
