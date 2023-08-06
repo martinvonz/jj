@@ -98,73 +98,6 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_trivial_merge() {
-        assert_eq!(trivial_merge(&[], &[0]), Some(&0));
-        assert_eq!(trivial_merge(&[0], &[0, 0]), Some(&0));
-        assert_eq!(trivial_merge(&[0], &[0, 1]), Some(&1));
-        assert_eq!(trivial_merge(&[0], &[1, 0]), Some(&1));
-        assert_eq!(trivial_merge(&[0], &[1, 1]), Some(&1));
-        assert_eq!(trivial_merge(&[0], &[1, 2]), None);
-        assert_eq!(trivial_merge(&[0, 0], &[0, 0, 0]), Some(&0));
-        assert_eq!(trivial_merge(&[0, 0], &[0, 0, 1]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 0], &[0, 1, 0]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 0], &[0, 1, 1]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 0], &[0, 1, 2]), None);
-        assert_eq!(trivial_merge(&[0, 0], &[1, 0, 0]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 0], &[1, 0, 1]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 0], &[1, 0, 2]), None);
-        assert_eq!(trivial_merge(&[0, 0], &[1, 1, 0]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 0], &[1, 1, 1]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 0], &[1, 1, 2]), None);
-        assert_eq!(trivial_merge(&[0, 0], &[1, 2, 0]), None);
-        assert_eq!(trivial_merge(&[0, 0], &[1, 2, 1]), None);
-        assert_eq!(trivial_merge(&[0, 0], &[1, 2, 2]), None);
-        assert_eq!(trivial_merge(&[0, 0], &[1, 2, 3]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[0, 0, 0]), Some(&0));
-        assert_eq!(trivial_merge(&[0, 1], &[0, 0, 1]), Some(&0));
-        assert_eq!(trivial_merge(&[0, 1], &[0, 0, 2]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 0]), Some(&0));
-        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 1]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 2]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[0, 2, 0]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[0, 2, 1]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[0, 2, 2]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[0, 2, 3]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 0]), Some(&0));
-        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 1]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 2]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[1, 1, 0]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 1], &[1, 1, 1]), Some(&1));
-        assert_eq!(trivial_merge(&[0, 1], &[1, 1, 2]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[1, 2, 0]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[1, 2, 1]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[1, 2, 2]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[1, 2, 3]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 0, 0]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 0, 1]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[2, 0, 2]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[2, 0, 3]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 1, 0]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[2, 1, 1]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 1, 2]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[2, 1, 3]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 2, 0]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[2, 2, 1]), Some(&2));
-        assert_eq!(trivial_merge(&[0, 1], &[2, 2, 2]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 2, 3]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 3, 0]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 3, 1]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 3, 2]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 3, 3]), None);
-        assert_eq!(trivial_merge(&[0, 1], &[2, 3, 4]), None);
-    }
-}
-
 /// A generic representation of merged values.
 ///
 /// There is exactly one more `adds()` than `removes()`. When interpreted as a
@@ -610,5 +543,72 @@ fn get_file_contents(store: &Store, path: &RepoPath, term: &Option<FileId>) -> C
         // If the conflict had removed the file on one side, we pretend that the file
         // was empty there.
         None => ContentHunk(vec![]),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_trivial_merge() {
+        assert_eq!(trivial_merge(&[], &[0]), Some(&0));
+        assert_eq!(trivial_merge(&[0], &[0, 0]), Some(&0));
+        assert_eq!(trivial_merge(&[0], &[0, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0], &[1, 0]), Some(&1));
+        assert_eq!(trivial_merge(&[0], &[1, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0], &[1, 2]), None);
+        assert_eq!(trivial_merge(&[0, 0], &[0, 0, 0]), Some(&0));
+        assert_eq!(trivial_merge(&[0, 0], &[0, 0, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 0], &[0, 1, 0]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 0], &[0, 1, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 0], &[0, 1, 2]), None);
+        assert_eq!(trivial_merge(&[0, 0], &[1, 0, 0]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 0], &[1, 0, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 0], &[1, 0, 2]), None);
+        assert_eq!(trivial_merge(&[0, 0], &[1, 1, 0]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 0], &[1, 1, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 0], &[1, 1, 2]), None);
+        assert_eq!(trivial_merge(&[0, 0], &[1, 2, 0]), None);
+        assert_eq!(trivial_merge(&[0, 0], &[1, 2, 1]), None);
+        assert_eq!(trivial_merge(&[0, 0], &[1, 2, 2]), None);
+        assert_eq!(trivial_merge(&[0, 0], &[1, 2, 3]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[0, 0, 0]), Some(&0));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 0, 1]), Some(&0));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 0, 2]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 0]), Some(&0));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 1, 2]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 2, 0]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[0, 2, 1]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 2, 2]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[0, 2, 3]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 0]), Some(&0));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 0, 2]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 1, 0]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 1, 1]), Some(&1));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 1, 2]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[1, 2, 0]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 2, 1]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[1, 2, 2]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[1, 2, 3]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 0, 0]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 0, 1]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[2, 0, 2]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[2, 0, 3]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 1, 0]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[2, 1, 1]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 1, 2]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[2, 1, 3]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 2, 0]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[2, 2, 1]), Some(&2));
+        assert_eq!(trivial_merge(&[0, 1], &[2, 2, 2]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 2, 3]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 3, 0]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 3, 1]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 3, 2]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 3, 3]), None);
+        assert_eq!(trivial_merge(&[0, 1], &[2, 3, 4]), None);
     }
 }
