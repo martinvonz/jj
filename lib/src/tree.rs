@@ -27,7 +27,7 @@ use crate::backend::{
     BackendError, ConflictId, FileId, ObjectId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId,
     TreeValue,
 };
-use crate::conflicts::Conflict;
+use crate::conflicts::Merge;
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::trivial_merge;
@@ -565,19 +565,19 @@ fn merge_tree_value(
         _ => {
             // Start by creating a Conflict object. Conflicts can cleanly represent a single
             // resolved state, the absence of a state, or a conflicted state.
-            let conflict = Conflict::new(
+            let conflict = Merge::new(
                 vec![maybe_base.cloned()],
                 vec![maybe_side1.cloned(), maybe_side2.cloned()],
             );
             let filename = dir.join(basename);
-            let conflict = simplify_conflict(store, &filename, conflict)?;
-            if let Some(value) = conflict.as_resolved() {
+            let merge = simplify_conflict(store, &filename, conflict)?;
+            if let Some(value) = merge.as_resolved() {
                 return Ok(value.clone());
             }
-            if let Some(tree_value) = try_resolve_file_conflict(store, &filename, &conflict)? {
+            if let Some(tree_value) = try_resolve_file_conflict(store, &filename, &merge)? {
                 Some(tree_value)
             } else {
-                let conflict_id = store.write_conflict(&filename, &conflict)?;
+                let conflict_id = store.write_conflict(&filename, &merge)?;
                 Some(TreeValue::Conflict(conflict_id))
             }
         }
@@ -587,7 +587,7 @@ fn merge_tree_value(
 pub fn try_resolve_file_conflict(
     store: &Store,
     filename: &RepoPath,
-    conflict: &Conflict<Option<TreeValue>>,
+    conflict: &Merge<Option<TreeValue>>,
 ) -> Result<Option<TreeValue>, TreeMergeError> {
     // If there are any non-file or any missing parts in the conflict, we can't
     // merge it. We check early so we don't waste time reading file contents if
@@ -657,8 +657,8 @@ pub fn try_resolve_file_conflict(
 fn simplify_conflict(
     store: &Store,
     path: &RepoPath,
-    conflict: Conflict<Option<TreeValue>>,
-) -> Result<Conflict<Option<TreeValue>>, BackendError> {
+    conflict: Merge<Option<TreeValue>>,
+) -> Result<Merge<Option<TreeValue>>, BackendError> {
     // Important cases to simplify:
     //
     // D
@@ -692,7 +692,7 @@ fn simplify_conflict(
 
     let expanded = conflict.try_map(|term| match term {
         Some(TreeValue::Conflict(id)) => store.read_conflict(path, id),
-        _ => Ok(Conflict::resolved(term.clone())),
+        _ => Ok(Merge::resolved(term.clone())),
     })?;
     Ok(expanded.flatten().simplify())
 }

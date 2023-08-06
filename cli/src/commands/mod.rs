@@ -33,7 +33,7 @@ use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId, TreeValue};
 use jj_lib::commit::Commit;
-use jj_lib::conflicts::Conflict;
+use jj_lib::conflicts::Merge;
 use jj_lib::dag_walk::topo_order_reverse;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::matchers::EverythingMatcher;
@@ -2703,7 +2703,7 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
                     ));
                 }
                 let new_conflict_id =
-                    store.write_conflict(&repo_path, &Conflict::new(new_removes, new_adds))?;
+                    store.write_conflict(&repo_path, &Merge::new(new_removes, new_adds))?;
                 TreeValue::Conflict(new_conflict_id)
             }
             Some(_) => return Err(user_error_with_path("Found neither a file nor a conflict")),
@@ -2805,7 +2805,7 @@ fn cmd_resolve(
 
 #[instrument(skip_all)]
 fn print_conflicted_paths(
-    conflicts: &[(RepoPath, Conflict<Option<TreeValue>>)],
+    conflicts: &[(RepoPath, Merge<Option<TreeValue>>)],
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {

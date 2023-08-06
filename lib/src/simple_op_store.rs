@@ -25,7 +25,7 @@ use tempfile::{NamedTempFile, PersistError};
 use thiserror::Error;
 
 use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
-use crate::conflicts::Conflict;
+use crate::conflicts::Merge;
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
@@ -426,7 +426,7 @@ fn ref_target_from_proto(maybe_proto: Option<crate::protos::op_store::RefTarget>
                 |term: crate::protos::op_store::ref_conflict::Term| term.value.map(CommitId::new);
             let removes = conflict.removes.into_iter().map(term_from_proto).collect();
             let adds = conflict.adds.into_iter().map(term_from_proto).collect();
-            RefTarget::from_conflict(Conflict::new(removes, adds))
+            RefTarget::from_merge(Merge::new(removes, adds))
         }
     }
 }
@@ -556,7 +556,7 @@ mod tests {
 
     #[test]
     fn test_ref_target_change_delete_order_roundtrip() {
-        let target = RefTarget::from_conflict(Conflict::new(
+        let target = RefTarget::from_merge(Merge::new(
             vec![Some(CommitId::from_hex("111111"))],
             vec![Some(CommitId::from_hex("222222")), None],
         ));
@@ -564,7 +564,7 @@ mod tests {
         assert_eq!(ref_target_from_proto(maybe_proto), target);
 
         // If it were legacy format, order of None entry would be lost.
-        let target = RefTarget::from_conflict(Conflict::new(
+        let target = RefTarget::from_merge(Merge::new(
             vec![Some(CommitId::from_hex("111111"))],
             vec![None, Some(CommitId::from_hex("222222"))],
         ));

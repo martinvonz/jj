@@ -21,7 +21,7 @@ use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::backend::{id_type, CommitId, ObjectId, Timestamp};
-use crate::conflicts::Conflict;
+use crate::conflicts::Merge;
 
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
@@ -56,7 +56,7 @@ id_type!(pub OperationId);
 content_hash! {
     #[derive(PartialEq, Eq, Hash, Clone, Debug)]
     pub struct RefTarget {
-        conflict: Conflict<Option<CommitId>>,
+        merge: Merge<Option<CommitId>>,
     }
 }
 
@@ -69,7 +69,7 @@ impl Default for RefTarget {
 impl RefTarget {
     /// Creates non-conflicting target pointing to no commit.
     pub fn absent() -> Self {
-        Self::from_conflict(Conflict::resolved(None))
+        Self::from_merge(Merge::resolved(None))
     }
 
     /// Returns non-conflicting target pointing to no commit.
@@ -82,7 +82,7 @@ impl RefTarget {
 
     /// Creates non-conflicting target pointing to a commit.
     pub fn normal(id: CommitId) -> Self {
-        Self::from_conflict(Conflict::resolved(Some(id)))
+        Self::from_merge(Merge::resolved(Some(id)))
     }
 
     /// Creates target from removed/added ids.
@@ -90,22 +90,22 @@ impl RefTarget {
         removed_ids: impl IntoIterator<Item = CommitId>,
         added_ids: impl IntoIterator<Item = CommitId>,
     ) -> Self {
-        Self::from_conflict(Conflict::from_legacy_form(removed_ids, added_ids))
+        Self::from_merge(Merge::from_legacy_form(removed_ids, added_ids))
     }
 
-    pub fn from_conflict(conflict: Conflict<Option<CommitId>>) -> Self {
-        RefTarget { conflict }
+    pub fn from_merge(merge: Merge<Option<CommitId>>) -> Self {
+        RefTarget { merge }
     }
 
     /// Returns id if this target is non-conflicting and points to a commit.
     pub fn as_normal(&self) -> Option<&CommitId> {
-        let maybe_id = self.conflict.as_resolved()?;
+        let maybe_id = self.merge.as_resolved()?;
         maybe_id.as_ref()
     }
 
     /// Returns true if this target points to no commit.
     pub fn is_absent(&self) -> bool {
-        matches!(self.conflict.as_resolved(), Some(None))
+        matches!(self.merge.as_resolved(), Some(None))
     }
 
     /// Returns true if this target points to any commit. Conflicting target is
@@ -116,19 +116,19 @@ impl RefTarget {
 
     /// Whether this target has conflicts.
     pub fn has_conflict(&self) -> bool {
-        !self.conflict.is_resolved()
+        !self.merge.is_resolved()
     }
 
     pub fn removed_ids(&self) -> impl Iterator<Item = &CommitId> {
-        self.conflict.removes().iter().flatten()
+        self.merge.removes().iter().flatten()
     }
 
     pub fn added_ids(&self) -> impl Iterator<Item = &CommitId> {
-        self.conflict.adds().iter().flatten()
+        self.merge.adds().iter().flatten()
     }
 
-    pub fn as_conflict(&self) -> &Conflict<Option<CommitId>> {
-        &self.conflict
+    pub fn as_conflict(&self) -> &Merge<Option<CommitId>> {
+        &self.merge
     }
 }
 

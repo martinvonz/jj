@@ -244,7 +244,7 @@ pub fn run_mergetool(
         None => return Err(ConflictResolveError::PathNotFound(repo_path.clone())),
     };
     let conflict = tree.store().read_conflict(repo_path, &conflict_id)?;
-    let file_conflict = conflict.to_file_conflict().ok_or_else(|| {
+    let file_merge = conflict.to_file_merge().ok_or_else(|| {
         let mut summary_bytes: Vec<u8> = vec![];
         conflict
             .describe(&mut summary_bytes)
@@ -255,13 +255,13 @@ pub fn run_mergetool(
         )
     })?;
     // We only support conflicts with 2 sides (3-way conflicts)
-    if file_conflict.adds().len() > 2 {
+    if file_merge.adds().len() > 2 {
         return Err(ConflictResolveError::ConflictTooComplicated {
             path: repo_path.clone(),
-            sides: file_conflict.adds().len(),
+            sides: file_merge.adds().len(),
         });
     };
-    let content = file_conflict.extract_as_single_hunk(tree.store(), repo_path);
+    let content = file_merge.extract_as_single_hunk(tree.store(), repo_path);
 
     let editor = get_merge_tool_from_settings(ui, settings)?;
     let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {
