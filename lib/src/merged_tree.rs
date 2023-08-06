@@ -262,8 +262,8 @@ fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
 }
 
 /// Tries to resolve a conflict between tree values. Returns
-/// Ok(Conflict::resolved(Some(value))) if the conflict was resolved, and
-/// Ok(Conflict::resolved(None)) if the path should be removed. Returns the
+/// Ok(Conflict::normal(value)) if the conflict was resolved, and
+/// Ok(Conflict::absent()) if the path should be removed. Returns the
 /// conflict unmodified if it cannot be resolved automatically.
 fn merge_tree_values(
     store: &Arc<Store>,
@@ -279,7 +279,7 @@ fn merge_tree_values(
         // missing trees as empty.
         let merged_tree = merge_trees(&tree_conflict)?;
         if merged_tree.as_resolved().map(|tree| tree.id()) == Some(store.empty_tree_id()) {
-            Ok(Merge::resolved(None))
+            Ok(Merge::absent())
         } else {
             Ok(merged_tree.map(|tree| Some(TreeValue::Tree(tree.id().clone()))))
         }
@@ -287,7 +287,7 @@ fn merge_tree_values(
         // Try to resolve file conflicts by merging the file contents. Treats missing
         // files as empty.
         if let Some(resolved) = try_resolve_file_conflict(store, path, &conflict)? {
-            Ok(Merge::resolved(Some(resolved)))
+            Ok(Merge::normal(resolved))
         } else {
             // Failed to merge the files, or the paths are not files
             Ok(conflict)

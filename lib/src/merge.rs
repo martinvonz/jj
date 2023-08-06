@@ -220,6 +220,16 @@ impl<T> Merge<T> {
 }
 
 impl<T> Merge<Option<T>> {
+    /// Creates a resolved merge with a value of `None`.
+    pub fn absent() -> Self {
+        Self::resolved(None)
+    }
+
+    /// Creates a resolved merge with a value of `Some(value)`.
+    pub fn normal(value: T) -> Self {
+        Self::resolved(Some(value))
+    }
+
     /// Creates lists of `removes` and `adds` from a `Merge` by dropping
     /// `None` values. Note that the conversion is lossy: the order of `None`
     /// values is not preserved when converting back to a `Merge`.

@@ -69,7 +69,7 @@ impl Default for RefTarget {
 impl RefTarget {
     /// Creates non-conflicting target pointing to no commit.
     pub fn absent() -> Self {
-        Self::from_merge(Merge::resolved(None))
+        Self::from_merge(Merge::absent())
     }
 
     /// Returns non-conflicting target pointing to no commit.
@@ -82,7 +82,7 @@ impl RefTarget {
 
     /// Creates non-conflicting target pointing to a commit.
     pub fn normal(id: CommitId) -> Self {
-        Self::from_merge(Merge::resolved(Some(id)))
+        Self::from_merge(Merge::normal(id))
     }
 
     /// Creates target from removed/added ids.
