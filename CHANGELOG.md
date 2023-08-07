@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   used for allowing duplicate destinations. Include the potential duplicates
   in a single expression instead (e.g. `jj new 'all:x|y'`).
 
+* The `push.branch-prefix` option was renamed to `git.push-branch-prefix`.
+
 ### New features
 
 * `jj init --git-repo` now works with bare repositories.

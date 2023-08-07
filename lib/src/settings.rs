@@ -142,7 +142,7 @@ impl UserSettings {
 
     pub fn push_branch_prefix(&self) -> String {
         self.config
-            .get_string("push.branch-prefix")
+            .get_string("git.push-branch-prefix")
             .unwrap_or_else(|_| "push-".to_string())
     }
 
