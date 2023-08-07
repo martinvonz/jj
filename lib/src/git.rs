@@ -221,15 +221,18 @@ pub fn import_some_refs(
         // Apply the change that happened in git since last time we imported refs
         let full_name = to_git_ref_name(ref_name).unwrap();
         mut_repo.set_git_ref_target(&full_name, new_git_target.clone());
-        mut_repo.merge_single_ref(ref_name, old_git_target, new_git_target);
-        // If a git remote-tracking branch changed, apply the change to the local branch
-        // as well
-        if !git_settings.auto_local_branch {
-            continue;
-        }
-        if let RefName::RemoteBranch { branch, remote: _ } = ref_name {
-            let local_ref_name = RefName::LocalBranch(branch.clone());
-            mut_repo.merge_single_ref(&local_ref_name, old_git_target, new_git_target);
+        if let RefName::RemoteBranch { branch, remote } = ref_name {
+            // Remote-tracking branch is the last known state of the branch in the remote.
+            // It shouldn't diverge even if we had inconsistent view.
+            mut_repo.set_remote_branch_target(branch, remote, new_git_target.clone());
+            // If a git remote-tracking branch changed, apply the change to the local branch
+            // as well.
+            if git_settings.auto_local_branch {
+                let local_ref_name = RefName::LocalBranch(branch.clone());
+                mut_repo.merge_single_ref(&local_ref_name, old_git_target, new_git_target);
+            }
+        } else {
+            mut_repo.merge_single_ref(ref_name, old_git_target, new_git_target);
         }
     }
 
