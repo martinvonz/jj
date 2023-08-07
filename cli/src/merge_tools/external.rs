@@ -344,24 +344,36 @@ pub fn run_mergetool_external(
     Ok(tree_builder.write_tree())
 }
 
+// Not interested in $UPPER_CASE_VARIABLES
+static VARIABLE_REGEX: once_cell::sync::Lazy<Regex> =
+    once_cell::sync::Lazy::new(|| Regex::new(r"\$([a-z0-9_]+)\b").unwrap());
+
 fn interpolate_variables<V: AsRef<str>>(
     args: &[String],
     variables: &HashMap<&str, V>,
 ) -> Vec<String> {
-    // Not interested in $UPPER_CASE_VARIABLES
-    let re = Regex::new(r"\$([a-z0-9_]+)\b").unwrap();
     args.iter()
         .map(|arg| {
-            re.replace_all(arg, |caps: &Captures| {
-                let name = &caps[1];
-                if let Some(subst) = variables.get(name) {
-                    subst.as_ref().to_owned()
-                } else {
-                    caps[0].to_owned()
-                }
-            })
-            .into_owned()
+            VARIABLE_REGEX
+                .replace_all(arg, |caps: &Captures| {
+                    let name = &caps[1];
+                    if let Some(subst) = variables.get(name) {
+                        subst.as_ref().to_owned()
+                    } else {
+                        caps[0].to_owned()
+                    }
+                })
+                .into_owned()
         })
+        .collect()
+}
+
+/// Return all variable names found in the args, without the dollar sign
+#[allow(unused)]
+fn find_all_variables(args: &[String]) -> Vec<String> {
+    args.iter()
+        .flat_map(|arg| VARIABLE_REGEX.find_iter(arg))
+        .map(|single_match| single_match.as_str()[1..].to_owned())
         .collect()
 }
 
@@ -513,6 +525,24 @@ mod tests {
         assert_eq!(
             interpolate_variables(&["$left_right".to_owned()], &patterns),
             ["$left $right"],
+        );
+    }
+
+    #[test]
+    fn test_find_all_variables() {
+        assert_eq!(
+            find_all_variables(
+                &[
+                    "$left",
+                    "$right",
+                    "--two=$1 and $2",
+                    "--can-be-part-of-string=$output",
+                    "$NOT_CAPITALS",
+                    "--can-repeat=$right"
+                ]
+                .map(ToOwned::to_owned),
+            ),
+            ["left", "right", "1", "2", "output", "right"],
         );
     }
 }
