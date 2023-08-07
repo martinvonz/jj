@@ -32,7 +32,7 @@ fn test_diffedit() {
 
     let edit_script = test_env.set_up_fake_diff_editor();
 
-    // Nothing happens if we make no changes
+    // Test the setup; nothing happens if we make no changes
     std::fs::write(
         &edit_script,
         "files-before file1 file2\0files-after JJ-INSTRUCTIONS file2",
@@ -107,6 +107,69 @@ fn test_diffedit() {
     insta::assert_snapshot!(stdout, @r###"
     R file1
     R file2
+    "###);
+}
+
+#[test]
+fn test_diffedit_new_file() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    std::fs::remove_file(repo_path.join("file1")).unwrap();
+    std::fs::write(repo_path.join("file2"), "b\n").unwrap();
+
+    let edit_script = test_env.set_up_fake_diff_editor();
+
+    // Test the setup; nothing happens if we make no changes
+    std::fs::write(
+        &edit_script,
+        "files-before file1\0files-after JJ-INSTRUCTIONS file2",
+    )
+    .unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    A file2
+    "###);
+
+    // Creating `file1` on the right side is noticed by `jj diffedit`
+    std::fs::write(&edit_script, "write file1\nmodified\n").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created rlvkpnrz 7b849299 (no description set)
+    Working copy now at: rlvkpnrz 7b849299 (no description set)
+    Parent commit      : qpvuntsm 414e1614 (no description set)
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    M file1
+    A file2
+    "###);
+
+    // Creating a file that wasn't on either side is ignored by diffedit.
+    // TODO(ilyagr) We should decide whether we like this behavior.
+    //
+    // On one hand, it is unexpected and potentially a minor BUG. On the other
+    // hand, this prevents `jj` from loading any backup files the merge tool
+    // generates.
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    std::fs::write(&edit_script, "write new_file\nnew file\n").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    A file2
     "###);
 }
 
