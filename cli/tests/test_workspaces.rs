@@ -193,7 +193,7 @@ fn test_workspaces_conflicting_edits() {
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
     Rebased 1 descendant commits onto commits rewritten by other operation
-    Working copy now at: pmmvwywv a1896a17 (empty) (no description set)
+    Working copy now at: pmmvwywv?? a1896a17 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
