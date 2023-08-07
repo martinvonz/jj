@@ -152,8 +152,8 @@ fn test_checkout_conflicting_change_ids() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "qpvuntsm" resolved to more than one revision
     Hint: The revset "qpvuntsm" resolved to these revisions:
-    qpvuntsm d2ae6806 (empty) two
-    qpvuntsm a9330854 (empty) one
+    qpvuntsm?? d2ae6806 (empty) two
+    qpvuntsm?? a9330854 (empty) one
     Some of these commits have the same change id. Abandon one of them with `jj abandon -r <REVISION>`.
     "###);
 }

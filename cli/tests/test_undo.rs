@@ -112,10 +112,10 @@ fn test_git_push_undo() {
     // git fetch && jj undo && jj git fetch` would become a no-op.
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main (conflicted):
-      - qpvuntsm hidden 0cffb614 (empty) AA
-      + qpvuntsm 0a3e99f0 (empty) CC
-      + qpvuntsm 8c05de15 (empty) BB
-      @origin (behind by 1 commits): qpvuntsm 8c05de15 (empty) BB
+      - qpvuntsm?? hidden 0cffb614 (empty) AA
+      + qpvuntsm?? 0a3e99f0 (empty) CC
+      + qpvuntsm?? 8c05de15 (empty) BB
+      @origin (behind by 1 commits): qpvuntsm?? 8c05de15 (empty) BB
     "###);
 }
 
@@ -270,11 +270,11 @@ fn test_git_push_undo_colocated() {
     // same result in a seemingly different way?
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main (conflicted):
-      - qpvuntsm hidden 0cffb614 (empty) AA
-      + qpvuntsm 0a3e99f0 (empty) CC
-      + qpvuntsm 8c05de15 (empty) BB
-      @git (behind by 1 commits): qpvuntsm 0a3e99f0 (empty) CC
-      @origin (behind by 1 commits): qpvuntsm 8c05de15 (empty) BB
+      - qpvuntsm?? hidden 0cffb614 (empty) AA
+      + qpvuntsm?? 0a3e99f0 (empty) CC
+      + qpvuntsm?? 8c05de15 (empty) BB
+      @git (behind by 1 commits): qpvuntsm?? 0a3e99f0 (empty) CC
+      @origin (behind by 1 commits): qpvuntsm?? 8c05de15 (empty) BB
     "###);
 }
 
