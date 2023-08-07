@@ -144,6 +144,7 @@ struct DiffWorkingCopies {
     _temp_dir: TempDir,
     left_tree_state: TreeState,
     right_tree_state: TreeState,
+    output_tree_state: Option<TreeState>,
 }
 
 impl DiffWorkingCopies {
@@ -155,13 +156,28 @@ impl DiffWorkingCopies {
         self.right_tree_state.working_copy_path()
     }
 
+    fn output_working_copy_path(&self) -> Option<&Path> {
+        self.output_tree_state
+            .as_ref()
+            .map(|state| state.working_copy_path())
+    }
+
     fn to_command_variables(&self) -> HashMap<&'static str, &str> {
         let left_wc_dir = self.left_working_copy_path();
         let right_wc_dir = self.right_working_copy_path();
-        maplit::hashmap! {
+        let mut result = maplit::hashmap! {
             "left" => left_wc_dir.to_str().expect("temp_dir should be valid utf-8"),
             "right" => right_wc_dir.to_str().expect("temp_dir should be valid utf-8"),
+        };
+        if let Some(output_wc_dir) = self.output_working_copy_path() {
+            result.insert(
+                "output",
+                output_wc_dir
+                    .to_str()
+                    .expect("temp_dir should be valid utf-8"),
+            );
         }
+        result
     }
 }
 
@@ -205,12 +221,19 @@ fn set_readonly_recursively(path: &Path) -> Result<(), std::io::Error> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum DiffSide {
+    // Left,
+    Right,
+}
+
 /// Check out the two trees in temporary directories. Only include changed files
 /// in the sparse checkout patterns.
 fn check_out_trees(
     store: &Arc<Store>,
     left_tree: &Tree,
     right_tree: &Tree,
+    output_is: Option<DiffSide>,
     matcher: &dyn Matcher,
 ) -> Result<DiffWorkingCopies, DiffCheckoutError> {
     let changed_files = left_tree
@@ -235,12 +258,29 @@ fn check_out_trees(
         right_wc_dir,
         right_state_dir,
         right_tree,
-        changed_files,
+        changed_files.clone(),
     )?;
+    let output_tree_state = output_is
+        .map(|output_side| {
+            let output_wc_dir = temp_dir.path().join("output");
+            let output_state_dir = temp_dir.path().join("output_state");
+            check_out(
+                store.clone(),
+                output_wc_dir,
+                output_state_dir,
+                match output_side {
+                    // DiffSide::Left => left_tree,
+                    DiffSide::Right => right_tree,
+                },
+                changed_files,
+            )
+        })
+        .transpose()?;
     Ok(DiffWorkingCopies {
         _temp_dir: temp_dir,
         left_tree_state,
         right_tree_state,
+        output_tree_state,
     })
 }
 
@@ -369,7 +409,6 @@ fn interpolate_variables<V: AsRef<str>>(
 }
 
 /// Return all variable names found in the args, without the dollar sign
-#[allow(unused)]
 fn find_all_variables(args: &[String]) -> Vec<String> {
     args.iter()
         .flat_map(|arg| VARIABLE_REGEX.find_iter(arg))
@@ -385,20 +424,70 @@ pub fn edit_diff_external(
     base_ignores: Arc<GitIgnoreFile>,
     settings: &UserSettings,
 ) -> Result<TreeId, DiffEditError> {
+    let got_output_field = find_all_variables(&editor.edit_args).contains(&"output".to_owned());
     let store = left_tree.store();
-    let diff_wc = check_out_trees(store, left_tree, right_tree, &EverythingMatcher)?;
+    let diff_wc = check_out_trees(
+        store,
+        left_tree,
+        right_tree,
+        got_output_field.then_some(DiffSide::Right),
+        &EverythingMatcher,
+    )?;
     set_readonly_recursively(diff_wc.left_working_copy_path())
         .map_err(ExternalToolError::SetUpDir)?;
-    let instructions_path = diff_wc.right_working_copy_path().join("JJ-INSTRUCTIONS");
+    if got_output_field {
+        set_readonly_recursively(diff_wc.right_working_copy_path())
+            .map_err(ExternalToolError::SetUpDir)?;
+    }
+    let output_wc_path = diff_wc
+        .output_working_copy_path()
+        .unwrap_or_else(|| diff_wc.right_working_copy_path());
+    let instructions_path_to_cleanup = output_wc_path.join("JJ-INSTRUCTIONS");
     // In the unlikely event that the file already exists, then the user will simply
     // not get any instructions.
-    let add_instructions =
-        settings.diff_instructions() && !instructions.is_empty() && !instructions_path.exists();
+    let add_instructions = settings.diff_instructions()
+        && !instructions.is_empty()
+        && !instructions_path_to_cleanup.exists();
     if add_instructions {
-        // TODO: This can be replaced with std::fs::write. Is this used in other places
-        // as well?
-        let mut file = File::create(&instructions_path).map_err(ExternalToolError::SetUpDir)?;
-        file.write_all(instructions.as_bytes())
+        let mut output_instructions_file =
+            File::create(&instructions_path_to_cleanup).map_err(ExternalToolError::SetUpDir)?;
+        if diff_wc.right_working_copy_path() != output_wc_path {
+            let mut right_instructions_file =
+                File::create(diff_wc.right_working_copy_path().join("JJ-INSTRUCTIONS"))
+                    .map_err(ExternalToolError::SetUpDir)?;
+            right_instructions_file
+                .write_all(
+                    b"\
+The content of this pane should NOT be edited. Any edits will be
+lost.
+
+You are using the experimental 3-pane diff editor config. Some of
+the following instructions may have been written with a 2-pane
+diff editing in mind and be a little inaccurate.
+
+",
+                )
+                .map_err(ExternalToolError::SetUpDir)?;
+            right_instructions_file
+                .write_all(instructions.as_bytes())
+                .map_err(ExternalToolError::SetUpDir)?;
+            // Note that some diff tools might not show this message and delete the contents
+            // of the output dir instead. Meld does show this message.
+            output_instructions_file
+                .write_all(
+                    b"\
+Please make your edits in this pane.
+
+You are using the experimental 3-pane diff editor config. Some of
+the following instructions may have been written with a 2-pane
+diff editing in mind and be a little inaccurate.
+
+",
+                )
+                .map_err(ExternalToolError::SetUpDir)?;
+        }
+        output_instructions_file
+            .write_all(instructions.as_bytes())
             .map_err(ExternalToolError::SetUpDir)?;
     }
 
@@ -418,17 +507,19 @@ pub fn edit_diff_external(
         }));
     }
     if add_instructions {
-        std::fs::remove_file(instructions_path).ok();
+        std::fs::remove_file(instructions_path_to_cleanup).ok();
     }
 
-    let mut right_tree_state = diff_wc.right_tree_state;
-    right_tree_state.snapshot(SnapshotOptions {
+    let mut output_tree_state = diff_wc
+        .output_tree_state
+        .unwrap_or(diff_wc.right_tree_state);
+    output_tree_state.snapshot(SnapshotOptions {
         base_ignores,
         fsmonitor_kind: settings.fsmonitor_kind()?,
         progress: None,
         max_new_file_size: settings.max_new_file_size()?,
     })?;
-    Ok(right_tree_state.current_tree_id().clone())
+    Ok(output_tree_state.current_tree_id().clone())
 }
 
 /// Generates textual diff by the specified `tool`, and writes into `writer`.
@@ -441,7 +532,7 @@ pub fn generate_diff(
     tool: &ExternalMergeTool,
 ) -> Result<(), DiffGenerateError> {
     let store = left_tree.store();
-    let diff_wc = check_out_trees(store, left_tree, right_tree, matcher)?;
+    let diff_wc = check_out_trees(store, left_tree, right_tree, None, matcher)?;
     set_readonly_recursively(diff_wc.left_working_copy_path())
         .map_err(ExternalToolError::SetUpDir)?;
     set_readonly_recursively(diff_wc.right_working_copy_path())

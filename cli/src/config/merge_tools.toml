@@ -7,6 +7,10 @@ merge-args = ["$base", "$left", "$right", "-o", "$output", "--auto"]
 edit-args = ["$left", "$right"]
 merge-args = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
 
+[merge-tools.meld-3]
+program="meld"
+edit-args = ["$left", "$output", "$right", "-o", "$output"]
+
 [merge-tools.vimdiff]
 program = "vim"
 # `-d` enables diff mode. `-f` makes vim run in foreground even if it starts a GUI.

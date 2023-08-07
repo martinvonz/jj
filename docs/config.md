@@ -374,6 +374,20 @@ merge-tools.kdiff3.edit-args = [
     "--merge", "--cs", "CreateBakFiles=0", "$left", "$right"]
 ```
 
+### Experimental 3-pane diff editing
+
+The special `"meld-3"` diff editor sets up Meld to show 3 panes: the sides of
+the diff on the left and right, and an editing pane in the middle. This allow
+you to see both sides of the original diff while editing. If you use
+`ui.diff-editor = "meld-3"`, note that you can still get the 2-pane Meld view
+using `jj diff --tool meld`.
+
+To configure other diff editors, you can include `$output` together with `$left`
+and `$right` in `merge-tools.TOOL.edit-args`. `jj` will replace `$output` with
+the directory where the diff editor will be expected to put the result of the
+user's edits. Initially, the contents of `$output` will be the same as the
+contents of `$right`.
+
 ### Setting up `scm-diff-editor`
 
 `scm-diff-editor` is a terminal-based diff editor that is part of
