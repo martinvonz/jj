@@ -71,6 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   external program. For configuration, see [the documentation](docs/config.md).
   [#1886](https://github.com/martinvonz/jj/issues/1886)
 
+* A new experimental diff editor `meld-3` is introduced that sets up Meld to
+  allow you to see both sides of the original diff while editing. This can be
+  used with `jj split`, `jj move -i`, etc.
+
 * `jj log`/`obslog`/`op log` now supports `--limit N` option to show the first
   `N` entries.
 
