@@ -43,11 +43,7 @@ if(root,
   label(if(current_working_copy, "working_copy"),
     concat(
       separate(" ",
-        label(
-          separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
-          separate(" ",
-            format_short_change_id(change_id) ++ if(divergent, "??"),
-            if(hidden, "hidden"))),
+        builtin_change_id_with_hidden_and_divergent_info,
         if(author.email(), author.username(), email_placeholder),
         format_timestamp(committer.timestamp()),
         branches,
@@ -69,11 +65,7 @@ if(root,
   label(if(current_working_copy, "working_copy"),
     concat(
       separate(" ",
-        label(
-          separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
-          separate(" ",
-            format_short_change_id(change_id) ++ if(divergent, "??"),
-            if(hidden, "hidden"))),
+        builtin_change_id_with_hidden_and_divergent_info,
         format_short_signature(author),
         format_timestamp(committer.timestamp()),
         branches,
@@ -148,3 +140,11 @@ commit_summary_separator = 'label("separator", " | ")'
 'format_time_range(time_range)' = '''
   time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp'
+
+builtin_change_id_with_hidden_and_divergent_info = '''
+label(
+  separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
+  separate(" ",
+    format_short_change_id(change_id) ++ if(divergent, "??"),
+    if(hidden, "hidden")))
+'''
