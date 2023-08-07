@@ -32,16 +32,6 @@
                 }
             }
         },
-        "push": {
-            "type": "object",
-            "properties": {
-                "branch-prefix": {
-                    "type": "string",
-                    "description": "Prefix used when pushing a change ID as a new branch",
-                    "default": "push-"
-                }
-            }
-        },
         "ui": {
             "type": "object",
             "description": "UI settings",
@@ -214,6 +204,11 @@
                     "type": "boolean",
                     "description": "Whether jj creates a local branch with the same name when it imports a remote-tracking branch from git. See https://github.com/martinvonz/jj/blob/main/docs/config.md#automatic-local-branch-creation",
                     "default": true
+                },
+                "push-branch-prefix": {
+                    "type": "string",
+                    "description": "Prefix used when pushing a change ID as a new branch",
+                    "default": "push-"
                 },
                 "fetch": {
                     "description": "The remote(s) from which commits are fetched",

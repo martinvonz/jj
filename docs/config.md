@@ -475,10 +475,10 @@ deleted if you push the branch with `jj git push --branch` or `jj git push
 ### Prefix for generated branches on push
 
 `jj git push --change` generates branch names with a prefix of "push-" by
-default. You can pick a different prefix by setting `push.branch-prefix`. For
+default. You can pick a different prefix by setting `git.push-branch-prefix`. For
 example:
 
-    push.branch-prefix = "martinvonz/push-"
+    git.push-branch-prefix = "martinvonz/push-"
 
 ## Filesystem monitor
 
