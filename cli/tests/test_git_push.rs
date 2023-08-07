@@ -273,6 +273,22 @@ fn test_git_push_changes() {
     Branch changes to push to origin:
       Force branch push-yostqsxwqrlt from 48d8c7948133 to b5f030322b1d
     "###);
+    // Test changing `git.push-branch-prefix`. It causes us to push again.
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &[
+            "git",
+            "push",
+            "--config-toml",
+            r"git.push-branch-prefix='test-'",
+            "--change=@",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Creating branch test-yostqsxwqrlt for revision @
+    Branch changes to push to origin:
+      Add branch test-yostqsxwqrlt to b5f030322b1d
+    "###);
 }
 
 #[test]
