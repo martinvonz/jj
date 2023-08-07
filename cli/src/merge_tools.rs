@@ -438,6 +438,10 @@ pub fn generate_diff(
 ) -> Result<(), DiffGenerateError> {
     let store = left_tree.store();
     let diff_wc = check_out_trees(store, left_tree, right_tree, matcher)?;
+    set_readonly_recursively(diff_wc.left_working_copy_path())
+        .map_err(ExternalToolError::SetUpDir)?;
+    set_readonly_recursively(diff_wc.right_working_copy_path())
+        .map_err(ExternalToolError::SetUpDir)?;
     // TODO: Add support for tools without directory diff functionality?
     // TODO: Somehow propagate --color to the external command?
     let patterns = diff_wc.to_command_variables();
