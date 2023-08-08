@@ -857,7 +857,7 @@ fn push_refs(
 #[allow(clippy::type_complexity)]
 pub struct RemoteCallbacks<'a> {
     pub progress: Option<&'a mut dyn FnMut(&Progress)>,
-    pub get_ssh_key: Option<&'a mut dyn FnMut(&str) -> Option<PathBuf>>,
+    pub get_ssh_keys: Option<&'a mut dyn FnMut(&str) -> Vec<PathBuf>>,
     pub get_password: Option<&'a mut dyn FnMut(&str, &str) -> Option<String>>,
     pub get_username_password: Option<&'a mut dyn FnMut(&str) -> Option<(String, String)>>,
 }
@@ -879,6 +879,7 @@ impl<'a> RemoteCallbacks<'a> {
         // TODO: We should expose the callbacks to the caller instead -- the library
         // crate shouldn't read environment variables.
         let mut tried_ssh_agent = false;
+        let mut ssh_key_paths_to_try: Option<Vec<PathBuf>> = None;
         callbacks.credentials(move |url, username_from_url, allowed_types| {
             let span = tracing::debug_span!("RemoteCallbacks.credentials");
             let _ = span.enter();
@@ -894,7 +895,7 @@ impl<'a> RemoteCallbacks<'a> {
                     // Try to get the SSH key from the agent once. We don't even check if
                     // $SSH_AUTH_SOCK is set because Windows uses another mechanism.
                     if !tried_ssh_agent {
-                        tracing::info!(username, "using ssh_key_from_agent");
+                        tracing::info!(username, "trying ssh_key_from_agent");
                         tried_ssh_agent = true;
                         return git2::Cred::ssh_key_from_agent(username).map_err(|err| {
                             tracing::error!(err = %err);
@@ -902,16 +903,22 @@ impl<'a> RemoteCallbacks<'a> {
                         });
                     }
 
-                    if let Some(ref mut cb) = self.get_ssh_key {
-                        if let Some(path) = cb(username) {
-                            tracing::info!(username, path = ?path, "using ssh_key");
-                            return git2::Cred::ssh_key(username, None, &path, None).map_err(
-                                |err| {
-                                    tracing::error!(err = %err);
-                                    err
-                                },
-                            );
+                    let paths = ssh_key_paths_to_try.get_or_insert_with(|| {
+                        if let Some(ref mut cb) = self.get_ssh_keys {
+                            let mut paths = cb(username);
+                            paths.reverse();
+                            paths
+                        } else {
+                            vec![]
                         }
+                    });
+
+                    if let Some(path) = paths.pop() {
+                        tracing::info!(username, path = ?path, "trying ssh_key");
+                        return git2::Cred::ssh_key(username, None, &path, None).map_err(|err| {
+                            tracing::error!(err = %err);
+                            err
+                        });
                     }
                 }
                 if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {

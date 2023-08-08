@@ -508,8 +508,8 @@ fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>
     callbacks.progress = callback
         .as_mut()
         .map(|x| x as &mut dyn FnMut(&git::Progress));
-    let mut get_ssh_key = get_ssh_key; // Coerce to unit fn type
-    callbacks.get_ssh_key = Some(&mut get_ssh_key);
+    let mut get_ssh_keys = get_ssh_keys; // Coerce to unit fn type
+    callbacks.get_ssh_keys = Some(&mut get_ssh_keys);
     let mut get_pw = |url: &str, _username: &str| {
         pinentry_get_pw(url).or_else(|| terminal_get_pw(*ui.lock().unwrap(), url))
     };
@@ -590,16 +590,19 @@ fn decode_assuan_data(encoded: &str) -> Option<String> {
 }
 
 #[tracing::instrument]
-fn get_ssh_key(_username: &str) -> Option<PathBuf> {
-    let home_dir = std::env::var("HOME").ok()?;
-    let key_path = std::path::Path::new(&home_dir).join(".ssh").join("id_rsa");
-    if key_path.is_file() {
-        tracing::info!(path = ?key_path, "found ssh key");
-        Some(key_path)
-    } else {
-        tracing::info!(path = ?key_path, "no ssh key found");
-        None
+fn get_ssh_keys(_username: &str) -> Vec<PathBuf> {
+    let mut paths = vec![];
+    if let Ok(home_dir) = std::env::var("HOME") {
+        let key_path = Path::new(&home_dir).join(".ssh").join("id_rsa");
+        if key_path.is_file() {
+            tracing::info!(path = ?key_path, "found ssh key");
+            paths.push(key_path);
+        }
     }
+    if paths.is_empty() {
+        tracing::info!("no ssh key found");
+    }
+    paths
 }
 
 fn cmd_git_push(
