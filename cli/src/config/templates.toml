@@ -9,6 +9,16 @@ separate(" ",
 )
 '''
 
+commit_summary_no_branches = '''
+separate(" ",
+  format_short_change_id(change_id),
+  format_short_commit_id(commit_id),
+  if(conflict, label("conflict", "(conflict)")),
+  if(empty, label("empty", "(empty)")),
+  if(description, description.first_line(), description_placeholder),
+)
+'''
+
 log = 'builtin_log_compact'
 op_log = 'builtin_op_log_compact'
 show = 'builtin_log_detailed'
