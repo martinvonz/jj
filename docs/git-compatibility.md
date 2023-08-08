@@ -20,8 +20,9 @@ a comparison with Git, including how workflows are different, see the
   you miss any particular configuration options.
   * The configuration of remotes (`[remote "<name>"]`).
   * `core.excludesFile`
-* **Authentication: Partial.** Only `ssh-agent`, a password-less key file at
-  `~/.ssh/id_rsa` (and only at exactly that path), or a `credential.helper`.
+* **Authentication: Partial.** Only `ssh-agent`, a password-less key (
+  only `~/.ssh/id_rsa`, `~/.ssh/id_ed25519` or `~/.ssh/id_ed25519_sk`), or
+  a `credential.helper`.
 * **Branches: Yes.** You can read more about
   [how branches work in Jujutsu](branches.md)
   and [how they interoperate with Git](#branches).
