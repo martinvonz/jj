@@ -845,7 +845,7 @@ impl WorkspaceCommandHelper {
         self.workspace.working_copy()
     }
 
-    pub fn unsafe_start_working_copy_mutation(
+    pub fn unchecked_start_working_copy_mutation(
         &mut self,
     ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
         self.check_working_copy_writable()?;
@@ -863,7 +863,7 @@ impl WorkspaceCommandHelper {
     pub fn start_working_copy_mutation(
         &mut self,
     ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
-        let (locked_working_copy, wc_commit) = self.unsafe_start_working_copy_mutation()?;
+        let (locked_working_copy, wc_commit) = self.unchecked_start_working_copy_mutation()?;
         if wc_commit.tree_id() != locked_working_copy.old_tree_id() {
             return Err(user_error("Concurrent working copy operation. Try again."));
         }

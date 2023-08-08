@@ -3616,7 +3616,7 @@ fn cmd_workspace_update_stale(
 
     let repo = workspace_command.repo().clone();
     let (mut locked_wc, desired_wc_commit) =
-        workspace_command.unsafe_start_working_copy_mutation()?;
+        workspace_command.unchecked_start_working_copy_mutation()?;
     match check_stale_working_copy(&locked_wc, &desired_wc_commit, &repo) {
         Ok(_) => {
             locked_wc.discard();
