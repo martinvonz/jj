@@ -130,8 +130,8 @@ fn test_new_insert_after() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 descendant commits
     Working copy now at: kxryzmor ca7c6481 (empty) G
-    Parent commit      : kkmpptxz 6041917c (empty) B
-    Parent commit      : vruxwmqv c9257eff (empty) D
+    Parent commit      : kkmpptxz 6041917c B | (empty) B
+    Parent commit      : vruxwmqv c9257eff D | (empty) D
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉  C
@@ -152,7 +152,7 @@ fn test_new_insert_after() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 descendant commits
     Working copy now at: uyznsvlq fcf8281b (empty) H
-    Parent commit      : vruxwmqv c9257eff (empty) D
+    Parent commit      : vruxwmqv c9257eff D | (empty) D
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉  C
@@ -197,8 +197,8 @@ fn test_new_insert_after_children() {
         test_env.jj_cmd_success(&repo_path, &["new", "--insert-after", "-m", "G", "A", "C"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: kxryzmor b48d4d73 (empty) G
-    Parent commit      : qpvuntsm 65b1ef43 (empty) A
-    Parent commit      : mzvwutvl ec18c57d (empty) C
+    Parent commit      : qpvuntsm 65b1ef43 A | (empty) A
+    Parent commit      : mzvwutvl ec18c57d C | (empty) C
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    G
@@ -241,9 +241,9 @@ fn test_new_insert_before() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 2 descendant commits
     Working copy now at: kxryzmor ff6bbbc7 (empty) G
-    Parent commit      : znkkpsqq 41a89ffc (empty) E
-    Parent commit      : vruxwmqv c9257eff (empty) D
-    Parent commit      : kkmpptxz 6041917c (empty) B
+    Parent commit      : znkkpsqq 41a89ffc E | (empty) E
+    Parent commit      : vruxwmqv c9257eff D | (empty) D
+    Parent commit      : kkmpptxz 6041917c B | (empty) B
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉  F
@@ -354,7 +354,7 @@ fn test_new_insert_before_no_root_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 4 descendant commits
     Working copy now at: kxryzmor bf9fc493 (empty) G
-    Parent commit      : qpvuntsm 65b1ef43 (empty) A
+    Parent commit      : qpvuntsm 65b1ef43 A | (empty) A
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉    F
