@@ -368,12 +368,18 @@ fn cmd_branch_list(
         });
     }
 
+    let no_branches_template = workspace_command.parse_commit_template(
+        &command
+            .settings()
+            .config()
+            .get_string("templates.commit_summary_no_branches")?,
+    )?;
     let print_branch_target =
         |formatter: &mut dyn Formatter, target: &RefTarget| -> Result<(), CommandError> {
             if let Some(id) = target.as_normal() {
                 write!(formatter, ": ")?;
                 let commit = repo.store().get_commit(id)?;
-                workspace_command.write_commit_summary(formatter, &commit)?;
+                no_branches_template.format(&commit, formatter)?;
                 writeln!(formatter)?;
             } else {
                 write!(formatter, " ")?;
@@ -382,13 +388,13 @@ fn cmd_branch_list(
                 for id in target.removed_ids() {
                     let commit = repo.store().get_commit(id)?;
                     write!(formatter, "  - ")?;
-                    workspace_command.write_commit_summary(formatter, &commit)?;
+                    no_branches_template.format(&commit, formatter)?;
                     writeln!(formatter)?;
                 }
                 for id in target.added_ids() {
                     let commit = repo.store().get_commit(id)?;
                     write!(formatter, "  + ")?;
-                    workspace_command.write_commit_summary(formatter, &commit)?;
+                    no_branches_template.format(&commit, formatter)?;
                     writeln!(formatter)?;
                 }
             }
