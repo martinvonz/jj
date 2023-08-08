@@ -593,10 +593,13 @@ fn decode_assuan_data(encoded: &str) -> Option<String> {
 fn get_ssh_keys(_username: &str) -> Vec<PathBuf> {
     let mut paths = vec![];
     if let Ok(home_dir) = std::env::var("HOME") {
-        let key_path = Path::new(&home_dir).join(".ssh").join("id_rsa");
-        if key_path.is_file() {
-            tracing::info!(path = ?key_path, "found ssh key");
-            paths.push(key_path);
+        let ssh_dir = Path::new(&home_dir).join(".ssh");
+        for filename in ["id_ed25519_sk", "id_ed25519", "id_rsa"] {
+            let key_path = ssh_dir.join(filename);
+            if key_path.is_file() {
+                tracing::info!(path = ?key_path, "found ssh key");
+                paths.push(key_path);
+            }
         }
     }
     if paths.is_empty() {
