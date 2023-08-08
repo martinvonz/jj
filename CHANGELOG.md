@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* SSH authentication could hang when ssh-agent couldn't be reached 
+  [#1970](https://github.com/martinvonz/jj/issues/1970)
+
 ## [0.8.0] - 2023-07-09
 
 ### Breaking changes
