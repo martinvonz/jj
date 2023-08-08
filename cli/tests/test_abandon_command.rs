@@ -58,9 +58,9 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Abandoned commit vruxwmqv b7c62f28 d
     Rebased 1 descendant commits onto parents of abandoned commits
-    Working copy now at: znkkpsqq 11a2e10e e
-    Parent commit      : rlvkpnrz 2443ea76 a
-    Parent commit      : royxmykx fe2e8e8b c
+    Working copy now at: znkkpsqq 11a2e10e e | e
+    Parent commit      : rlvkpnrz 2443ea76 a | a
+    Parent commit      : royxmykx fe2e8e8b c d | c
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -79,7 +79,7 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Abandoned commit znkkpsqq 5557ece3 e
     Working copy now at: nkmrtpmo 6b527513 (empty) (no description set)
-    Parent commit      : rlvkpnrz 2443ea76 a
+    Parent commit      : rlvkpnrz 2443ea76 a e?? | a
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -95,13 +95,18 @@ fn test_rebase_branch_with_merge() {
 
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "descendants(c)"]);
+    // TODO(ilyagr): Minor Bug: The branch `e` should be shown next
+    // to the commit with description `e` below. This is because the commits are
+    // printed in the state *after* abandonment. This will be fixed together with
+    // adding (hidden) to the commit template, which causes a more obvious version
+    // of the same problem.
     insta::assert_snapshot!(stdout, @r###"
     Abandoned the following commits:
       znkkpsqq 5557ece3 e
       vruxwmqv b7c62f28 d
       royxmykx fe2e8e8b c
     Working copy now at: xtnwkqum e7bb0612 (empty) (no description set)
-    Parent commit      : rlvkpnrz 2443ea76 a
+    Parent commit      : rlvkpnrz 2443ea76 a e?? | a
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -138,7 +143,7 @@ fn test_rebase_branch_with_merge() {
       zsuskuln 1394f625 b
       rlvkpnrz 2443ea76 a
     Working copy now at: xlzxqlsl af874bff (empty) (no description set)
-    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    Parent commit      : zzzzzzzz 00000000 a b e?? | (empty) (no description set)
     Added 0 files, modified 0 files, removed 4 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

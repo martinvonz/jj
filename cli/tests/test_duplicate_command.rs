@@ -306,8 +306,8 @@ fn test_rebase_duplicates() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s", "a", "-d", "a-"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 4 commits
-    Working copy now at: zsuskuln 29bd36b6 b
-    Parent commit      : rlvkpnrz 2f6dc5a1 a
+    Working copy now at: zsuskuln 29bd36b6 b | b
+    Parent commit      : rlvkpnrz 2f6dc5a1 a | a
     "###);
     // Some of the duplicate commits' timestamps were changed a little to make them
     // have distinct commit ids.

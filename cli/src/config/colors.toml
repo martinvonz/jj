@@ -32,6 +32,7 @@
 "divergent change_id"="red"
 "conflict" = "red"
 "empty" = "green"
+"separator" = "bright black"
 
 "working_copy" = { bold = true }
 "working_copy commit_id" = "bright blue"
