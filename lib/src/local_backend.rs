@@ -141,19 +141,15 @@ impl Backend for LocalBackend {
         let temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
         let mut encoder = zstd::Encoder::new(temp_file.as_file(), 0).map_err(to_other_err)?;
         let mut hasher = Blake2b512::new();
+        let mut buff: Vec<u8> = vec![0; 1 << 14];
         loop {
-            let mut buff: Vec<u8> = Vec::with_capacity(1 << 14);
-            let bytes_read;
-            unsafe {
-                buff.set_len(1 << 14);
-                bytes_read = contents.read(&mut buff).map_err(to_other_err)?;
-                buff.set_len(bytes_read);
-            }
+            let bytes_read = contents.read(&mut buff).map_err(to_other_err)?;
             if bytes_read == 0 {
                 break;
             }
-            encoder.write_all(&buff).map_err(to_other_err)?;
-            hasher.update(&buff);
+            let bytes = &buff[..bytes_read];
+            encoder.write_all(bytes).map_err(to_other_err)?;
+            hasher.update(bytes);
         }
         encoder.finish().map_err(to_other_err)?;
         let id = FileId::new(hasher.finalize().to_vec());
