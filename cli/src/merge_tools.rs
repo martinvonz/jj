@@ -436,7 +436,7 @@ pub fn generate_diff(
     left_tree: &Tree,
     right_tree: &Tree,
     matcher: &dyn Matcher,
-    tool: &MergeTool,
+    tool: &ExternalMergeTool,
 ) -> Result<(), DiffGenerateError> {
     let store = left_tree.store();
     let diff_wc = check_out_trees(store, left_tree, right_tree, matcher)?;
@@ -470,10 +470,15 @@ pub fn generate_diff(
     Ok(())
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MergeTool {
+    External(ExternalMergeTool),
+}
+
 /// Merge/diff tool loaded from the settings.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
-pub struct MergeTool {
+pub struct ExternalMergeTool {
     /// Program to execute. Must be defined; defaults to the tool name
     /// if not specified in the config.
     pub program: String,
@@ -499,9 +504,9 @@ pub struct MergeTool {
     pub merge_tool_edits_conflict_markers: bool,
 }
 
-impl Default for MergeTool {
+impl Default for ExternalMergeTool {
     fn default() -> Self {
-        MergeTool {
+        Self {
             program: String::new(),
             diff_args: ["$left", "$right"].map(ToOwned::to_owned).to_vec(),
             edit_args: ["$left", "$right"].map(ToOwned::to_owned).to_vec(),
@@ -511,9 +516,9 @@ impl Default for MergeTool {
     }
 }
 
-impl MergeTool {
+impl ExternalMergeTool {
     pub fn with_program(program: impl Into<String>) -> Self {
-        MergeTool {
+        Self {
             program: program.into(),
             ..Default::default()
         }
@@ -536,7 +541,7 @@ impl MergeTool {
         get_mut_args: impl FnOnce(&mut Self) -> &mut Vec<String>,
     ) -> Self {
         let (name, args) = command_args.split_name_and_args();
-        let mut tool = MergeTool {
+        let mut tool = Self {
             program: name.into_owned(),
             ..Default::default()
         };
@@ -551,11 +556,11 @@ impl MergeTool {
 pub fn get_tool_config(
     settings: &UserSettings,
     name: &str,
-) -> Result<Option<MergeTool>, ConfigError> {
+) -> Result<Option<ExternalMergeTool>, ConfigError> {
     const TABLE_KEY: &str = "merge-tools";
     let tools_table = settings.config().get_table(TABLE_KEY)?;
     if let Some(v) = tools_table.get(name) {
-        let mut result: MergeTool = v
+        let mut result: ExternalMergeTool = v
             .clone()
             .try_deserialize()
             // add config key, deserialize error is otherwise unclear
@@ -575,7 +580,7 @@ pub fn get_tool_config(
 pub fn get_tool_config_from_args(
     settings: &UserSettings,
     args: &CommandNameAndArgs,
-) -> Result<Option<MergeTool>, ConfigError> {
+) -> Result<Option<ExternalMergeTool>, ConfigError> {
     match args {
         CommandNameAndArgs::String(name) => get_tool_config(settings, name),
         CommandNameAndArgs::Vec(_) | CommandNameAndArgs::Structured { .. } => Ok(None),
@@ -585,20 +590,20 @@ pub fn get_tool_config_from_args(
 fn get_diff_editor_from_settings(
     ui: &Ui,
     settings: &UserSettings,
-) -> Result<MergeTool, ExternalToolError> {
+) -> Result<ExternalMergeTool, ExternalToolError> {
     let args = editor_args_from_settings(ui, settings, "ui.diff-editor")?;
     let editor = get_tool_config_from_args(settings, &args)?
-        .unwrap_or_else(|| MergeTool::with_edit_args(&args));
+        .unwrap_or_else(|| ExternalMergeTool::with_edit_args(&args));
     Ok(editor)
 }
 
 fn get_merge_tool_from_settings(
     ui: &Ui,
     settings: &UserSettings,
-) -> Result<MergeTool, ExternalToolError> {
+) -> Result<ExternalMergeTool, ExternalToolError> {
     let args = editor_args_from_settings(ui, settings, "ui.merge-editor")?;
     let editor = get_tool_config_from_args(settings, &args)?
-        .unwrap_or_else(|| MergeTool::with_merge_args(&args));
+        .unwrap_or_else(|| ExternalMergeTool::with_merge_args(&args));
     if editor.merge_args.is_empty() {
         Err(ExternalToolError::MergeArgsNotConfigured {
             tool_name: args.to_string(),
@@ -664,7 +669,7 @@ mod tests {
 
         // Default
         insta::assert_debug_snapshot!(get("").unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "meld",
             diff_args: [
                 "$left",
@@ -688,7 +693,7 @@ mod tests {
 
         // Just program name, edit_args are filled by default
         insta::assert_debug_snapshot!(get(r#"ui.diff-editor = "my-diff""#).unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "my-diff",
             diff_args: [
                 "$left",
@@ -706,7 +711,7 @@ mod tests {
         // String args (with interpolation variables)
         insta::assert_debug_snapshot!(
             get(r#"ui.diff-editor = "my-diff -l $left -r $right""#).unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "my-diff",
             diff_args: [
                 "$left",
@@ -726,7 +731,7 @@ mod tests {
         // List args (with interpolation variables)
         insta::assert_debug_snapshot!(
             get(r#"ui.diff-editor = ["my-diff", "--diff", "$left", "$right"]"#).unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "my-diff",
             diff_args: [
                 "$left",
@@ -750,7 +755,7 @@ mod tests {
         edit-args = ["--edit", "args", "$left", "$right"]
         "#,
         ).unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "foo bar",
             diff_args: [
                 "$left",
@@ -775,7 +780,7 @@ mod tests {
         program = "MyDiff"
         "#,
         ).unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "MyDiff",
             diff_args: [
                 "$left",
@@ -792,7 +797,7 @@ mod tests {
 
         // List args should never be a merge-tools key, edit_args are filled by default
         insta::assert_debug_snapshot!(get(r#"ui.diff-editor = ["meld"]"#).unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "meld",
             diff_args: [
                 "$left",
@@ -822,7 +827,7 @@ mod tests {
 
         // Default
         insta::assert_debug_snapshot!(get("").unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "meld",
             diff_args: [
                 "$left",
@@ -854,7 +859,7 @@ mod tests {
         // String args
         insta::assert_debug_snapshot!(
             get(r#"ui.merge-editor = "my-merge $left $base $right $output""#).unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "my-merge",
             diff_args: [
                 "$left",
@@ -879,7 +884,7 @@ mod tests {
             get(
                 r#"ui.merge-editor = ["my-merge", "$left", "$base", "$right", "$output"]"#,
             ).unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "my-merge",
             diff_args: [
                 "$left",
@@ -907,7 +912,7 @@ mod tests {
         merge-args = ["$base", "$left", "$right", "$output"]
         "#,
         ).unwrap(), @r###"
-        MergeTool {
+        ExternalMergeTool {
             program: "foo bar",
             diff_args: [
                 "$left",
