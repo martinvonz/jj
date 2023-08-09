@@ -67,6 +67,46 @@ fn test_git_clone() {
     Nothing changed.
     "###);
 
+    // Failed clone should clean up the destination directory
+    std::fs::create_dir(test_env.env_root().join("bad")).unwrap();
+    let assert = test_env
+        .jj_cmd(test_env.env_root(), &["git", "clone", "bad", "failed"])
+        .assert()
+        .code(1);
+    let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
+    let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
+    insta::assert_snapshot!(stdout, @r###"
+    Fetching into new repo in "$TEST_ENV/failed"
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
+    "###);
+    assert!(!test_env.env_root().join("failed").exists());
+
+    // Failed clone shouldn't remove the existing destination directory
+    std::fs::create_dir(test_env.env_root().join("failed")).unwrap();
+    let assert = test_env
+        .jj_cmd(test_env.env_root(), &["git", "clone", "bad", "failed"])
+        .assert()
+        .code(1);
+    let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
+    let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
+    insta::assert_snapshot!(stdout, @r###"
+    Fetching into new repo in "$TEST_ENV/failed"
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
+    "###);
+    assert!(test_env.env_root().join("failed").exists());
+    assert!(!test_env.env_root().join("failed").join(".jj").exists());
+
+    // Failed clone (if attempted) shouldn't remove the existing workspace
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["git", "clone", "bad", "clone"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Destination path exists and is not an empty directory
+    "###);
+    assert!(test_env.env_root().join("clone").join(".jj").exists());
+
     // Try cloning into an existing workspace
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["git", "clone", "source", "clone"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -163,6 +203,59 @@ fn test_git_clone_colocate() {
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
+
+    // Failed clone should clean up the destination directory
+    std::fs::create_dir(test_env.env_root().join("bad")).unwrap();
+    let assert = test_env
+        .jj_cmd(
+            test_env.env_root(),
+            &["git", "clone", "--colocate", "bad", "failed"],
+        )
+        .assert()
+        .code(1);
+    let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
+    let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
+    insta::assert_snapshot!(stdout, @r###"
+    Fetching into new repo in "$TEST_ENV/failed"
+    Failed to clean up $TEST_ENV/failed: Directory not empty (os error 39)
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
+    "###);
+    // FIXME: assert!(!test_env.env_root().join("failed").exists());
+    std::fs::remove_dir_all(test_env.env_root().join("failed")).unwrap();
+
+    // Failed clone shouldn't remove the existing destination directory
+    std::fs::create_dir(test_env.env_root().join("failed")).unwrap();
+    let assert = test_env
+        .jj_cmd(
+            test_env.env_root(),
+            &["git", "clone", "--colocate", "bad", "failed"],
+        )
+        .assert()
+        .code(1);
+    let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
+    let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
+    insta::assert_snapshot!(stdout, @r###"
+    Fetching into new repo in "$TEST_ENV/failed"
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
+    "###);
+    assert!(test_env.env_root().join("failed").exists());
+    // FIXME: assert!(!test_env.env_root().join("failed").join(".git").exists());
+    assert!(!test_env.env_root().join("failed").join(".jj").exists());
+
+    // Failed clone (if attempted) shouldn't remove the existing workspace
+    let stderr = test_env.jj_cmd_failure(
+        test_env.env_root(),
+        &["git", "clone", "--colocate", "bad", "clone"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Destination path exists and is not an empty directory
+    "###);
+    assert!(test_env.env_root().join("clone").join(".git").exists());
+    assert!(test_env.env_root().join("clone").join(".jj").exists());
 
     // Try cloning into an existing workspace
     let stderr = test_env.jj_cmd_failure(
