@@ -217,9 +217,9 @@ fn test_git_clone_colocate() {
     let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/failed"
-    Failed to clean up $TEST_ENV/failed: Directory not empty (os error 39)
     "###);
     insta::assert_snapshot!(stderr, @r###"
+    Failed to clean up $TEST_ENV/failed: Directory not empty (os error 39)
     Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
     "###);
     // FIXME: assert!(!test_env.env_root().join("failed").exists());

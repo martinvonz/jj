@@ -426,7 +426,7 @@ fn cmd_git_clone(
             }
         }) {
             writeln!(
-                ui,
+                ui.warning(),
                 "Failed to clean up {}: {}",
                 canonical_wc_path.display(),
                 err
