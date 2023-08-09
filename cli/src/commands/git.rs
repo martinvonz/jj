@@ -492,6 +492,7 @@ fn do_git_clone(
         GitFetchError::NoSuchRemote(_) => {
             panic!("shouldn't happen as we just created the git remote")
         }
+        GitFetchError::GitImportError(err) => CommandError::from(err),
         GitFetchError::InternalGitError(err) => map_git_error(err),
         GitFetchError::InvalidGlob => {
             unreachable!("we didn't provide any globs")

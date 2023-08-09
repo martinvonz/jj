@@ -25,7 +25,7 @@ use itertools::Itertools;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
-use crate::backend::{CommitId, ObjectId};
+use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::git_backend::NO_GC_REF_NAMESPACE;
 use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
 use crate::repo::{MutableRepo, Repo};
@@ -33,8 +33,20 @@ use crate::revset;
 use crate::settings::GitSettings;
 use crate::view::{RefName, View};
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum GitImportError {
+    #[error("Failed to read Git HEAD target commit {id}: {err}", id=id.hex())]
+    MissingHeadTarget {
+        id: CommitId,
+        #[source]
+        err: BackendError,
+    },
+    #[error("Ancestor of Git ref {ref_name} is missing: {err}")]
+    MissingRefAncestor {
+        ref_name: String,
+        #[source]
+        err: BackendError,
+    },
     #[error("Unexpected git error when importing refs: {0}")]
     InternalGitError(#[from] git2::Error),
 }
@@ -196,7 +208,12 @@ pub fn import_some_refs(
         // doesn't automatically mean the old HEAD branch has been rewritten.
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
         if !matches!(mut_repo.git_head().as_normal(), Some(id) if id == &head_commit_id) {
-            let head_commit = store.get_commit(&head_commit_id).unwrap();
+            let head_commit = store.get_commit(&head_commit_id).map_err(|err| {
+                GitImportError::MissingHeadTarget {
+                    id: head_commit_id.clone(),
+                    err,
+                }
+            })?;
             prevent_gc(git_repo, &head_commit_id)?;
             mut_repo.add_head(&head_commit);
             mut_repo.set_git_head_target(RefTarget::normal(head_commit_id));
@@ -208,13 +225,18 @@ pub fn import_some_refs(
     let changed_git_refs = diff_refs_to_import(mut_repo.view(), git_repo, git_ref_filter)?;
 
     // Import new heads
-    for id in changed_git_refs
-        .values()
-        .flat_map(|(_, new_git_target)| new_git_target.added_ids())
-    {
-        prevent_gc(git_repo, id)?;
-        let commit = store.get_commit(id).unwrap();
-        mut_repo.add_head(&commit);
+    for (ref_name, (_, new_git_target)) in &changed_git_refs {
+        for id in new_git_target.added_ids() {
+            let commit =
+                store
+                    .get_commit(id)
+                    .map_err(|err| GitImportError::MissingRefAncestor {
+                        ref_name: ref_name.to_string(),
+                        err,
+                    })?;
+            prevent_gc(git_repo, id)?;
+            mut_repo.add_head(&commit);
+        }
     }
 
     for (ref_name, (old_git_target, new_git_target)) in &changed_git_refs {
@@ -582,12 +604,14 @@ pub fn rename_remote(
     Ok(())
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum GitFetchError {
     #[error("No git remote named '{0}'")]
     NoSuchRemote(String),
     #[error("Invalid glob provided. Globs may not contain the characters `:` or `^`.")]
     InvalidGlob,
+    #[error("Failec to import Git refs: {0}")]
+    GitImportError(#[from] GitImportError),
     // TODO: I'm sure there are other errors possible, such as transport-level errors.
     #[error("Unexpected git error when fetching: {0}")]
     InternalGitError(#[from] git2::Error),
@@ -718,9 +742,6 @@ pub fn fetch(
         to_remote_branch(ref_name, remote_name)
             .map(&branch_name_filter)
             .unwrap_or(false)
-    })
-    .map_err(|err| match err {
-        GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
     Ok(default_branch)
 }
