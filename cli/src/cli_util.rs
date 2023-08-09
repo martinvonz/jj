@@ -259,9 +259,12 @@ impl From<git2::Error> for CommandError {
 
 impl From<GitImportError> for CommandError {
     fn from(err: GitImportError) -> Self {
-        CommandError::InternalError(format!(
-            "Failed to import refs from underlying Git repo: {err}"
-        ))
+        let message = format!("Failed to import refs from underlying Git repo: {err}");
+        let hint = match err {
+            GitImportError::MissingCommit {..} => Some("Is this Git repository a shallow or partial clone (cloned with the --depth or --filter argument)? jj currently does not support shallow/partial clones. To use jj with this repository, try unshallowing the repository (https://stackoverflow.com/q/6802145) or re-cloning with the full repository contents.".to_string()),
+            GitImportError::InternalGitError(_) => None,
+        };
+        CommandError::UserError { message, hint }
     }
 }
 
