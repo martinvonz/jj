@@ -219,11 +219,9 @@ fn test_git_clone_colocate() {
     Fetching into new repo in "$TEST_ENV/failed"
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Failed to clean up $TEST_ENV/failed: Directory not empty (os error 39)
     Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
     "###);
-    // FIXME: assert!(!test_env.env_root().join("failed").exists());
-    std::fs::remove_dir_all(test_env.env_root().join("failed")).unwrap();
+    assert!(!test_env.env_root().join("failed").exists());
 
     // Failed clone shouldn't remove the existing destination directory
     std::fs::create_dir(test_env.env_root().join("failed")).unwrap();
@@ -243,7 +241,7 @@ fn test_git_clone_colocate() {
     Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
     "###);
     assert!(test_env.env_root().join("failed").exists());
-    // FIXME: assert!(!test_env.env_root().join("failed").join(".git").exists());
+    assert!(!test_env.env_root().join("failed").join(".git").exists());
     assert!(!test_env.env_root().join("failed").join(".jj").exists());
 
     // Failed clone (if attempted) shouldn't remove the existing workspace

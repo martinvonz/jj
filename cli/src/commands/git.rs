@@ -1,11 +1,11 @@
 use std::collections::HashSet;
-use std::fs;
 use std::io::{Read, Write};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::time::Instant;
+use std::{fs, io};
 
 use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
@@ -418,13 +418,17 @@ fn cmd_git_clone(
     if clone_result.is_err() {
         // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
         // `/some/path/.`
-        if let Err(err) = fs::remove_dir_all(canonical_wc_path.join(".jj")).and_then(|_| {
-            if !wc_path_existed {
-                fs::remove_dir(&canonical_wc_path)
-            } else {
-                Ok(())
+        let clean_up_dirs = || -> io::Result<()> {
+            fs::remove_dir_all(canonical_wc_path.join(".jj"))?;
+            if args.colocate {
+                fs::remove_dir_all(canonical_wc_path.join(".git"))?;
             }
-        }) {
+            if !wc_path_existed {
+                fs::remove_dir(&canonical_wc_path)?;
+            }
+            Ok(())
+        };
+        if let Err(err) = clean_up_dirs() {
             writeln!(
                 ui.warning(),
                 "Failed to clean up {}: {}",
