@@ -15,8 +15,9 @@
 use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Barrier};
-use std::thread;
+use std::{fs, thread};
 
+use assert_matches::assert_matches;
 use git2::Oid;
 use itertools::Itertools;
 use jj_lib::backend::{
@@ -25,7 +26,7 @@ use jj_lib::backend::{
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git;
-use jj_lib::git::{GitFetchError, GitPushError, GitRefUpdate, SubmoduleConfig};
+use jj_lib::git::{GitFetchError, GitImportError, GitPushError, GitRefUpdate, SubmoduleConfig};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
@@ -936,6 +937,66 @@ fn test_import_refs_empty_git_repo() {
     assert_eq!(repo.view().tags().len(), 0);
     assert_eq!(repo.view().git_refs().len(), 0);
     assert_eq!(repo.view().git_head(), RefTarget::absent_ref());
+}
+
+#[test]
+fn test_import_refs_missing_git_commit() {
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
+    let test_workspace = TestRepo::init(true);
+    let repo = &test_workspace.repo;
+    let git_repo = get_git_repo(repo);
+
+    // Missing commit is ancestor of ref
+    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
+    let shard = hex::encode(&commit1.id().as_bytes()[..1]);
+    let object_basename = hex::encode(&commit1.id().as_bytes()[1..]);
+    let object_store_path = git_repo.path().join("objects");
+    let object_file = object_store_path.join(&shard).join(object_basename);
+    let backup_object_file = object_store_path.join(&shard).join("backup");
+    assert!(object_file.exists());
+    fs::rename(&object_file, &backup_object_file).unwrap();
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let result = git::import_refs(tx.mut_repo(), &git_repo, &git_settings);
+    assert_matches!(
+        result,
+        Err(GitImportError::MissingRefAncestor {
+            ref_name,
+            err: BackendError::ObjectNotFound { .. }
+        }) if &ref_name == "main"
+    );
+
+    // Missing commit is pointed to by ref
+    fs::rename(&backup_object_file, &object_file).unwrap();
+    git_repo
+        .reference("refs/heads/main", commit1.id(), true, "test")
+        .unwrap();
+    fs::rename(&object_file, &backup_object_file).unwrap();
+    let mut tx = repo.start_transaction(&settings, "test");
+    let result = git::import_refs(tx.mut_repo(), &git_repo, &git_settings);
+    assert_matches!(
+        result,
+        Err(GitImportError::MissingRefAncestor {
+            ref_name,
+            err: BackendError::ObjectNotFound { .. }
+        }) if &ref_name == "main"
+    );
+
+    // Missing commit is pointed to by HEAD
+    fs::rename(&backup_object_file, &object_file).unwrap();
+    git_repo.set_head_detached(commit1.id()).unwrap();
+    fs::rename(&object_file, &backup_object_file).unwrap();
+    let mut tx = repo.start_transaction(&settings, "test");
+    let result = git::import_refs(tx.mut_repo(), &git_repo, &git_settings);
+    assert_matches!(
+        result,
+        Err(GitImportError::MissingHeadTarget {
+            id,
+            err: BackendError::ObjectNotFound { .. }
+        }) if id == jj_id(&commit1)
+    );
 }
 
 #[test]
