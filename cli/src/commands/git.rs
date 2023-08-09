@@ -402,22 +402,24 @@ fn cmd_git_clone(
         .or_else(|| clone_destination_for_source(&source))
         .ok_or_else(|| user_error("No destination specified and wasn't able to guess it"))?;
     let wc_path = command.cwd().join(wc_path_str);
-    let wc_path_existed = wc_path.exists();
-    if wc_path_existed {
-        if !is_empty_dir(&wc_path) {
-            return Err(user_error(
-                "Destination path exists and is not an empty directory",
-            ));
-        }
-    } else {
-        fs::create_dir(&wc_path).unwrap();
+    let wc_path_existed = match fs::create_dir(&wc_path) {
+        Ok(()) => false,
+        Err(err) if err.kind() == io::ErrorKind::AlreadyExists => true,
+        Err(err) => return Err(user_error(format!("Failed to create {wc_path_str}: {err}"))),
+    };
+    if wc_path_existed && !is_empty_dir(&wc_path) {
+        return Err(user_error(
+            "Destination path exists and is not an empty directory",
+        ));
     }
 
-    let canonical_wc_path: PathBuf = wc_path.canonicalize().unwrap();
+    // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
+    // `/some/path/.`
+    let canonical_wc_path: PathBuf = wc_path
+        .canonicalize()
+        .map_err(|err| user_error(format!("Failed to create {wc_path_str}: {err}")))?;
     let clone_result = do_git_clone(ui, command, args.colocate, &source, &canonical_wc_path);
     if clone_result.is_err() {
-        // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
-        // `/some/path/.`
         let clean_up_dirs = || -> io::Result<()> {
             fs::remove_dir_all(canonical_wc_path.join(".jj"))?;
             if args.colocate {
