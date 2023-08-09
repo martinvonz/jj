@@ -33,7 +33,9 @@ use jj_lib::settings::{GitSettings, UserSettings};
 use jj_lib::view::RefName;
 use maplit::{btreemap, hashset};
 use tempfile::TempDir;
-use testutils::{create_random_commit, load_repo_at_head, write_random_commit, TestRepo};
+use testutils::{
+    commit_transactions, create_random_commit, load_repo_at_head, write_random_commit, TestRepo,
+};
 
 fn empty_git_commit<'r>(
     git_repo: &'r git2::Repository,
@@ -651,6 +653,49 @@ fn test_import_refs_reimport_all_from_root_removed() {
     git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert!(!tx.mut_repo().view().heads().contains(&jj_id(&commit)));
+}
+
+#[test]
+fn test_import_refs_reimport_conflicted_remote_branch() {
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+    let git_repo = get_git_repo(repo);
+
+    let commit1 = empty_git_commit(&git_repo, "refs/heads/commit1", &[]);
+    git_ref(&git_repo, "refs/remotes/origin/main", commit1.id());
+    let mut tx1 = repo.start_transaction(&settings, "test");
+    git::import_refs(tx1.mut_repo(), &git_repo, &git_settings).unwrap();
+
+    let commit2 = empty_git_commit(&git_repo, "refs/heads/commit2", &[]);
+    git_ref(&git_repo, "refs/remotes/origin/main", commit2.id());
+    let mut tx2 = repo.start_transaction(&settings, "test");
+    git::import_refs(tx2.mut_repo(), &git_repo, &git_settings).unwrap();
+
+    // Remote branch can diverge by concurrent operations (like `jj git fetch`)
+    let repo = commit_transactions(&settings, vec![tx1, tx2]);
+    assert_eq!(
+        repo.view().get_git_ref("refs/remotes/origin/main"),
+        &RefTarget::from_legacy_form([], [jj_id(&commit1), jj_id(&commit2)]),
+    );
+    assert_eq!(
+        repo.view().get_remote_branch("main", "origin"),
+        &RefTarget::from_legacy_form([], [jj_id(&commit1), jj_id(&commit2)]),
+    );
+
+    // The conflict can be resolved by importing the current Git state
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    let repo = tx.commit();
+    assert_eq!(
+        repo.view().get_git_ref("refs/remotes/origin/main"),
+        &RefTarget::normal(jj_id(&commit2)),
+    );
+    assert_eq!(
+        repo.view().get_remote_branch("main", "origin"),
+        &RefTarget::normal(jj_id(&commit2)),
+    );
 }
 
 #[test]
