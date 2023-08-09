@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use jj_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
-use jj_lib::repo::{ReadonlyRepo, Repo};
-use jj_lib::settings::UserSettings;
-use jj_lib::transaction::Transaction;
+use jj_lib::repo::Repo;
 use maplit::{btreemap, hashset};
 use test_case::test_case;
-use testutils::{create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo};
+use testutils::{
+    commit_transactions, create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo,
+};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -448,23 +446,6 @@ fn test_merge_views_git_heads() {
         [tx1_head.id().clone(), tx2_head.id().clone()],
     );
     assert_eq!(repo.view().git_head(), &expected_git_head);
-}
-
-fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<ReadonlyRepo> {
-    let repo_loader = txs[0].base_repo().loader();
-    let mut op_ids = vec![];
-    for tx in txs {
-        op_ids.push(tx.commit().op_id().clone());
-        std::thread::sleep(std::time::Duration::from_millis(1));
-    }
-    let repo = repo_loader.load_at_head(settings).unwrap();
-    // Test the setup. The assumption here is that the parent order matches the
-    // order in which they were merged (which currently matches the transaction
-    // commit order), so we want to know make sure they appear in a certain
-    // order, so the caller can decide the order by passing them to this
-    // function in a certain order.
-    assert_eq!(*repo.operation().parent_ids(), op_ids);
-    repo
 }
 
 #[test]

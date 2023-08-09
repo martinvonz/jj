@@ -28,6 +28,7 @@ use jj_lib::repo_path::RepoPath;
 use jj_lib::rewrite::RebasedDescendant;
 use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
+use jj_lib::transaction::Transaction;
 use jj_lib::tree::Tree;
 use jj_lib::tree_builder::TreeBuilder;
 use jj_lib::working_copy::SnapshotOptions;
@@ -181,6 +182,23 @@ pub fn load_repo_at_head(settings: &UserSettings, repo_path: &Path) -> Arc<Reado
         .unwrap()
         .load_at_head(settings)
         .unwrap()
+}
+
+pub fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<ReadonlyRepo> {
+    let repo_loader = txs[0].base_repo().loader();
+    let mut op_ids = vec![];
+    for tx in txs {
+        op_ids.push(tx.commit().op_id().clone());
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    let repo = repo_loader.load_at_head(settings).unwrap();
+    // Test the setup. The assumption here is that the parent order matches the
+    // order in which they were merged (which currently matches the transaction
+    // commit order), so we want to know make sure they appear in a certain
+    // order, so the caller can decide the order by passing them to this
+    // function in a certain order.
+    assert_eq!(*repo.operation().parent_ids(), op_ids);
+    repo
 }
 
 pub fn read_file(store: &Store, path: &RepoPath, id: &FileId) -> Vec<u8> {
