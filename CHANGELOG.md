@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * SSH authentication can now use ed25519 and ed25519-sk keys. They still need
   to be password-less.
 
+* Git repository managed by the repo tool can now be detected as a "colocated"
+  repository.
+  [#2011](https://github.com/martinvonz/jj/issues/2011)
+
 ## [0.8.0] - 2023-07-09
 
 ### Breaking changes

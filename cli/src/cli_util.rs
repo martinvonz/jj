@@ -696,14 +696,7 @@ impl WorkspaceCommandHelper {
         )?;
         let loaded_at_head = command.global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !command.global_args.ignore_working_copy;
-        let mut working_copy_shared_with_git = false;
-        let maybe_git_backend = repo.store().backend_impl().downcast_ref::<GitBackend>();
-        if let Some(git_workdir) = maybe_git_backend
-            .and_then(|git_backend| git_backend.git_repo().workdir().map(ToOwned::to_owned))
-            .and_then(|workdir| workdir.canonicalize().ok())
-        {
-            working_copy_shared_with_git = git_workdir == workspace.workspace_root().as_path();
-        }
+        let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
         Ok(Self {
             cwd: command.cwd.clone(),
             string_args: command.string_args.clone(),
@@ -1597,6 +1590,23 @@ jj init --git-repo=.",
             "The repository appears broken or inaccessible: {err}"
         )),
     }
+}
+
+fn is_colocated_git_workspace(workspace: &Workspace, repo: &ReadonlyRepo) -> bool {
+    let Some(git_backend) = repo.store().backend_impl().downcast_ref::<GitBackend>() else {
+        return false;
+    };
+    let git_repo = git_backend.git_repo();
+    let Some(git_workdir) = git_repo.workdir().and_then(|path| path.canonicalize().ok()) else {
+        return false; // Bare repository
+    };
+    // Colocated workspace should have ".git" directory, file, or symlink. Since the
+    // backend is loaded from the canonical path, its working directory should also
+    // be resolved from the canonical ".git" path.
+    let Ok(dot_git_path) = workspace.workspace_root().join(".git").canonicalize() else {
+        return false;
+    };
+    Some(git_workdir.as_ref()) == dot_git_path.parent()
 }
 
 pub fn start_repo_transaction(
