@@ -447,6 +447,7 @@ pub fn generate_diff(
     let mut child = cmd
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
+        .stderr(ui.stderr_for_child().map_err(ExternalToolError::Io)?)
         .spawn()
         .map_err(|source| ExternalToolError::FailedToExecute {
             tool_binary: tool.program.clone(),

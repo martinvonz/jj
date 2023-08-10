@@ -186,6 +186,14 @@ impl Ui {
         }
     }
 
+    /// Stderr stream to be attached to a child process.
+    pub fn stderr_for_child(&self) -> io::Result<Stdio> {
+        match &self.output {
+            UiOutput::Terminal { .. } => Ok(Stdio::inherit()),
+            UiOutput::Paged { child_stdin, .. } => Ok(duplicate_child_stdin(child_stdin)?.into()),
+        }
+    }
+
     /// Whether continuous feedback should be displayed for long-running
     /// operations
     pub fn use_progress_indicator(&self) -> bool {
@@ -356,6 +364,18 @@ impl Drop for OutputGuard {
         _ = self.output.write_all(self.text.as_bytes());
         _ = self.output.flush();
     }
+}
+
+#[cfg(unix)]
+fn duplicate_child_stdin(stdin: &ChildStdin) -> io::Result<std::os::fd::OwnedFd> {
+    use std::os::fd::AsFd as _;
+    stdin.as_fd().try_clone_to_owned()
+}
+
+#[cfg(windows)]
+fn duplicate_child_stdin(stdin: &ChildStdin) -> io::Result<std::os::windows::io::OwnedHandle> {
+    use std::os::windows::io::AsHandle as _;
+    stdin.as_handle().try_clone_to_owned()
 }
 
 fn term_width() -> Option<u16> {
