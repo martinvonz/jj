@@ -999,7 +999,7 @@ impl TreeState {
             let executable = *executable;
             #[cfg(windows)]
             let executable = {
-                let _ = executable;
+                let () = executable; // use the variable
                 false
             };
             self.write_conflict_to_store(repo_path, disk_path, conflict_id.clone(), executable)
@@ -1009,12 +1009,14 @@ impl TreeState {
                     let id = self.write_file_to_store(repo_path, disk_path)?;
                     // On Windows, we preserve the executable bit from the current tree.
                     #[cfg(windows)]
-                    let executable =
+                    let executable = {
+                        let () = executable; // use the variable
                         if let Some(TreeValue::File { id: _, executable }) = current_tree_value {
                             executable
                         } else {
                             false
-                        };
+                        }
+                    };
                     Ok(TreeValue::File { id, executable })
                 }
                 FileType::Symlink => {
