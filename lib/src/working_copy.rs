@@ -52,6 +52,7 @@ use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, IntersectionMatcher, Matcher, PrefixMatcher,
 };
 use crate::merge::Merge;
+use crate::merged_tree::MergedTree;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
@@ -646,6 +647,7 @@ impl TreeState {
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
             let current_tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
+            let current_tree = MergedTree::legacy(current_tree);
             let directory_to_visit = DirectoryToVisit {
                 dir: RepoPath::root(),
                 disk_dir: self.working_copy_path.clone(),
@@ -727,7 +729,7 @@ impl TreeState {
     fn visit_directory(
         &self,
         matcher: &dyn Matcher,
-        current_tree: &Tree,
+        current_tree: &MergedTree,
         tree_entries_tx: Sender<(RepoPath, Merge<Option<TreeValue>>)>,
         file_states_tx: Sender<(RepoPath, FileState)>,
         present_files_tx: Sender<RepoPath>,
@@ -936,7 +938,7 @@ impl TreeState {
         repo_path: &RepoPath,
         disk_path: PathBuf,
         maybe_current_file_state: Option<&FileState>,
-        current_tree: &Tree,
+        current_tree: &MergedTree,
         new_file_state: &FileState,
     ) -> Result<Option<Merge<Option<TreeValue>>>, SnapshotError> {
         let clean = match maybe_current_file_state {
@@ -954,13 +956,7 @@ impl TreeState {
             Ok(None)
         } else {
             let new_file_type = new_file_state.file_type.clone();
-            let current_tree_value = current_tree.path_value(repo_path);
-            let current_tree_values =
-                if let Some(TreeValue::Conflict(conflict_id)) = &current_tree_value {
-                    self.store.read_conflict(repo_path, conflict_id)?
-                } else {
-                    Merge::resolved(current_tree_value)
-                };
+            let current_tree_values = current_tree.path_value(repo_path);
             let new_tree_values = self.write_path_to_store(
                 repo_path,
                 &disk_path,
