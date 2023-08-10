@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   external program. For configuration, see [the documentation](docs/config.md).
   [#1886](https://github.com/martinvonz/jj/issues/1886)
 
+* `jj log`/`obslog`/`op log` now supports `--limit N` option to show the first
+  `N` entries.
+
 ### Fixed bugs
 
 * SSH authentication could hang when ssh-agent couldn't be reached

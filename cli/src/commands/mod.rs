@@ -368,6 +368,11 @@ struct LogArgs {
     /// Show revisions in the opposite order (older revisions first)
     #[arg(long)]
     reversed: bool,
+    /// Limit number of revisions to show
+    ///
+    /// Applied after revisions are filtered and reordered.
+    #[arg(long, short)]
+    limit: Option<usize>,
     /// Don't show the graph, show a flat list of revisions
     #[arg(long)]
     no_graph: bool,
@@ -390,6 +395,9 @@ struct LogArgs {
 struct ObslogArgs {
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
+    /// Limit number of revisions to show
+    #[arg(long, short)]
+    limit: Option<usize>,
     /// Don't show the graph, show a flat list of revisions
     #[arg(long)]
     no_graph: bool,
@@ -1664,7 +1672,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             } else {
                 Box::new(forward_iter)
             };
-            for (commit_id, edges) in iter {
+            for (commit_id, edges) in iter.take(args.limit.unwrap_or(usize::MAX)) {
                 let mut graphlog_edges = vec![];
                 // TODO: Should we update RevsetGraphIterator to yield this flag instead of all
                 // the missing edges since we don't care about where they point here
@@ -1727,7 +1735,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             } else {
                 Box::new(revset.iter())
             };
-            for commit_or_error in iter.commits(store) {
+            for commit_or_error in iter.commits(store).take(args.limit.unwrap_or(usize::MAX)) {
                 let commit = commit_or_error?;
                 with_content_format
                     .write(formatter, |formatter| template.format(&commit, formatter))?;
@@ -1791,11 +1799,14 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     let formatter = formatter.as_mut();
     formatter.push_label("log")?;
 
-    let commits = topo_order_reverse(
+    let mut commits = topo_order_reverse(
         vec![start_commit],
         |commit: &Commit| commit.id().clone(),
         |commit: &Commit| commit.predecessors(),
     );
+    if let Some(n) = args.limit {
+        commits.truncate(n);
+    }
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
         let default_node_symbol = graph.default_node_symbol().to_owned();

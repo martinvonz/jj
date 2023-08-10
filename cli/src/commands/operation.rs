@@ -26,6 +26,9 @@ pub enum OperationCommands {
 /// Show the operation log
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationLogArgs {
+    /// Limit number of operations to show
+    #[arg(long, short)]
+    limit: Option<usize>,
     /// Render each operation using the given template
     ///
     /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
@@ -119,7 +122,7 @@ fn cmd_op_log(
     let formatter = formatter.as_mut();
     let mut graph = get_graphlog(command.settings(), formatter.raw());
     let default_node_symbol = graph.default_node_symbol().to_owned();
-    for op in operation::walk_ancestors(&head_op) {
+    for op in operation::walk_ancestors(&head_op).take(args.limit.unwrap_or(usize::MAX)) {
         let mut edges = vec![];
         for parent in op.parents() {
             edges.push(Edge::direct(parent.id().clone()));
