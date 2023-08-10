@@ -430,6 +430,7 @@ pub fn edit_diff(
 
 /// Generates textual diff by the specified `tool`, and writes into `writer`.
 pub fn generate_diff(
+    _ui: &Ui,
     writer: &mut dyn Write,
     left_tree: &Tree,
     right_tree: &Tree,
