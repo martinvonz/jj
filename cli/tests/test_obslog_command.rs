@@ -80,6 +80,15 @@ fn test_obslog_with_or_without_diff() {
        (empty) my description
     "###);
 
+    // Test `--limit`
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--limit=2"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  rlvkpnrz test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad3
+    │  my description
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5a conflict
+    │  my description
+    "###);
+
     // Test `--no-graph`
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"

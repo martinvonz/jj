@@ -797,6 +797,88 @@ fn test_log_filtered_by_path() {
 }
 
 #[test]
+fn test_log_limit() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "a"]);
+    std::fs::write(repo_path.join("a"), "").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "b"]);
+    std::fs::write(repo_path.join("b"), "").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "c", "description(a)"]);
+    std::fs::write(repo_path.join("c"), "").unwrap();
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["new", "-m", "d", "description(c)", "description(b)"],
+    );
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "--limit=3"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @    d
+    ├─╮
+    │ ◉  b
+    ◉ │  c
+    ├─╯
+    "###);
+
+    // Applied on sorted DAG
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "--limit=2"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @    d
+    ├─╮
+    │ ◉  b
+    "###);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "--limit=2", "--no-graph"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    d
+    c
+    "###);
+
+    // Applied on reversed DAG
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "--limit=3", "--reversed"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    ◉
+    ◉    a
+    ├─╮
+    │ ◉  c
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            "description",
+            "--limit=3",
+            "--reversed",
+            "--no-graph",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    b
+    "###);
+
+    // Applied on filtered commits
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "--limit=1", "b", "c"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    ◉  c
+    │
+    ~
+    "###);
+}
+
+#[test]
 fn test_log_warn_path_might_be_revset() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
