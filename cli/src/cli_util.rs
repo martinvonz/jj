@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::env::{self, ArgsOs, VarError};
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
@@ -2141,13 +2141,30 @@ pub fn get_new_config_file_path(
     Ok(edit_path)
 }
 
-pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(), CommandError> {
+pub fn run_ui_editor(
+    settings: &UserSettings,
+    edit_path: &PathBuf,
+    editor_env_vars: Option<HashMap<&str, String>>,
+) -> Result<(), CommandError> {
     let editor: CommandNameAndArgs = settings.config().get("ui.editor").unwrap();
-    let exit_status = editor
-        .to_command()
-        .arg(edit_path)
+    let mut binder = editor.to_command();
+    let mut builder = binder.arg(edit_path);
+
+    // attach all entries of editor_env_vars to builder
+    let builder = match editor_env_vars {
+        Some(env_vars) => {
+            for (key, value) in env_vars {
+                builder = builder.env(key, value);
+            }
+            builder
+        }
+        None => builder,
+    };
+
+    let exit_status = builder
         .status()
         .map_err(|_| user_error(format!("Failed to run editor '{editor}'")))?;
+
     if !exit_status.success() {
         return Err(user_error(format!(
             "Editor '{editor}' exited with an error"

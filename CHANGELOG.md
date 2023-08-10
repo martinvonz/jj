@@ -62,6 +62,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   repository.
   [#2011](https://github.com/martinvonz/jj/issues/2011)
 
+### Other changes
+
+* `jj describe` and `jj commit` will now pass an environment variable named
+  `JJ_CHANGE_ID` to the configured `ui.editor` when modifying the commit
+  message. This is useful for scripted tools and aliases that set custom
+  `ui.editor` values before invoking another editor.
+
 ## [0.8.0] - 2023-07-09
 
 ### Breaking changes
