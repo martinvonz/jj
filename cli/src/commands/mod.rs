@@ -19,7 +19,7 @@ mod debug;
 mod git;
 mod operation;
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -1316,7 +1316,7 @@ fn cmd_config_edit(
         &args.config_args.get_source_kind(),
         command.workspace_loader()?,
     )?;
-    run_ui_editor(command.settings(), &config_path)
+    run_ui_editor(command.settings(), &config_path, None)
 }
 
 #[instrument(skip_all)]
@@ -1918,6 +1918,7 @@ fn edit_description(
     repo: &ReadonlyRepo,
     description: &str,
     settings: &UserSettings,
+    editor_env_vars: Option<HashMap<&str, String>>,
 ) -> Result<String, CommandError> {
     let description_file_path = (|| -> Result<_, io::Error> {
         let mut file = tempfile::Builder::new()
@@ -1936,7 +1937,7 @@ fn edit_description(
         ))
     })?;
 
-    run_ui_editor(settings, &description_file_path)?;
+    run_ui_editor(settings, &description_file_path, editor_env_vars)?;
 
     let description = fs::read_to_string(&description_file_path).map_err(|e| {
         user_error(format!(
@@ -1997,7 +1998,7 @@ fn edit_sparse(
     })?;
     let file_path = file.path().to_owned();
 
-    run_ui_editor(settings, &file_path)?;
+    run_ui_editor(settings, &file_path, None)?;
 
     // Read and parse patterns.
     io::BufReader::new(file)
@@ -2041,8 +2042,14 @@ fn cmd_describe(
     } else if args.no_edit {
         commit.description().to_owned()
     } else {
+        let env = hashmap! { "JJ_CHANGE_ID" => commit.change_id().hex() };
         let template = description_template_for_commit(&workspace_command, &commit)?;
-        edit_description(workspace_command.repo(), &template, command.settings())?
+        edit_description(
+            workspace_command.repo(),
+            &template,
+            command.settings(),
+            Some(env),
+        )?
     };
     if description == *commit.description() && !args.reset_author {
         ui.write("Nothing changed.\n")?;
@@ -2074,8 +2081,14 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     let description = if let Some(message) = &args.message {
         message.into()
     } else {
+        let env = hashmap! { "JJ_CHANGE_ID" => commit.change_id().hex() };
         let template = description_template_for_commit(&workspace_command, &commit)?;
-        edit_description(workspace_command.repo(), &template, command.settings())?
+        edit_description(
+            workspace_command.repo(),
+            &template,
+            command.settings(),
+            Some(env),
+        )?
     };
 
     let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
@@ -2394,7 +2407,7 @@ fn combine_messages(
                 + destination.description()
                 + "\nJJ: Description from the source commit:\n"
                 + source.description();
-            edit_description(repo, &combined, settings)?
+            edit_description(repo, &combined, settings, None)?
         }
     } else {
         destination.description().to_string()
@@ -3115,7 +3128,8 @@ don't make any changes, then the operation will be aborted.
         &base_tree,
         &middle_tree,
     )?;
-    let first_description = edit_description(tx.base_repo(), &first_template, command.settings())?;
+    let first_description =
+        edit_description(tx.base_repo(), &first_template, command.settings(), None)?;
     let first_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
@@ -3130,7 +3144,7 @@ don't make any changes, then the operation will be aborted.
         &commit.tree(),
     )?;
     let second_description =
-        edit_description(tx.base_repo(), &second_template, command.settings())?;
+        edit_description(tx.base_repo(), &second_template, command.settings(), None)?;
     let second_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
