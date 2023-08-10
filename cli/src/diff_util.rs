@@ -33,6 +33,7 @@ use tracing::instrument;
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
 use crate::formatter::Formatter;
 use crate::merge_tools::{self, MergeTool};
+use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(clap::ArgGroup::new("short-format").args(&["summary", "types"])))]
@@ -147,6 +148,7 @@ fn default_diff_format(settings: &UserSettings) -> Result<DiffFormat, config::Co
 }
 
 pub fn show_diff(
+    ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     from_tree: &Tree,
@@ -173,7 +175,7 @@ pub fn show_diff(
                 show_color_words_diff(formatter, workspace_command, tree_diff)?;
             }
             DiffFormat::Tool(tool) => {
-                merge_tools::generate_diff(formatter.raw(), from_tree, to_tree, matcher, tool)?;
+                merge_tools::generate_diff(ui, formatter.raw(), from_tree, to_tree, matcher, tool)?;
             }
         }
     }
@@ -181,6 +183,7 @@ pub fn show_diff(
 }
 
 pub fn show_patch(
+    ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
@@ -191,6 +194,7 @@ pub fn show_patch(
     let from_tree = rewrite::merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
     let to_tree = commit.tree();
     show_diff(
+        ui,
         formatter,
         workspace_command,
         &from_tree,

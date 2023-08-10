@@ -1486,6 +1486,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
     ui.request_pager();
     diff_util::show_diff(
+        ui,
         ui.stdout_formatter().as_mut(),
         &workspace_command,
         &from_tree,
@@ -1508,6 +1509,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     let formatter = formatter.as_mut();
     template.format(&commit, formatter)?;
     diff_util::show_patch(
+        ui,
         formatter,
         &workspace_command,
         &commit,
@@ -1709,6 +1711,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 if !diff_formats.is_empty() {
                     let mut formatter = ui.new_formatter(&mut buffer);
                     diff_util::show_patch(
+                        ui,
                         formatter.as_mut(),
                         &workspace_command,
                         &commit,
@@ -1741,6 +1744,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                     .write(formatter, |formatter| template.format(&commit, formatter))?;
                 if !diff_formats.is_empty() {
                     diff_util::show_patch(
+                        ui,
                         formatter,
                         &workspace_command,
                         &commit,
@@ -1827,6 +1831,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
             if !diff_formats.is_empty() {
                 let mut formatter = ui.new_formatter(&mut buffer);
                 show_predecessor_patch(
+                    ui,
                     formatter.as_mut(),
                     &workspace_command,
                     &commit,
@@ -1850,7 +1855,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
             with_content_format
                 .write(formatter, |formatter| template.format(&commit, formatter))?;
             if !diff_formats.is_empty() {
-                show_predecessor_patch(formatter, &workspace_command, &commit, &diff_formats)?;
+                show_predecessor_patch(ui, formatter, &workspace_command, &commit, &diff_formats)?;
             }
         }
     }
@@ -1859,6 +1864,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
 }
 
 fn show_predecessor_patch(
+    ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
@@ -1871,6 +1877,7 @@ fn show_predecessor_patch(
     };
     let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
     diff_util::show_diff(
+        ui,
         formatter,
         workspace_command,
         &predecessor_tree,
@@ -1895,6 +1902,7 @@ fn cmd_interdiff(
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
     ui.request_pager();
     diff_util::show_diff(
+        ui,
         ui.stdout_formatter().as_mut(),
         &workspace_command,
         &from_tree,
@@ -2052,7 +2060,7 @@ fn cmd_describe(
     } else if args.no_edit {
         commit.description().to_owned()
     } else {
-        let template = description_template_for_commit(&workspace_command, &commit)?;
+        let template = description_template_for_commit(ui, &workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
     if description == *commit.description() && !args.reset_author {
@@ -2085,7 +2093,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     let description = if let Some(message) = &args.message {
         message.into()
     } else {
-        let template = description_template_for_commit(&workspace_command, &commit)?;
+        let template = description_template_for_commit(ui, &workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
 
@@ -3027,11 +3035,13 @@ don't make any changes, then the operation will be aborted.",
 }
 
 fn description_template_for_commit(
+    ui: &Ui,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
 ) -> Result<String, CommandError> {
     let mut diff_summary_bytes = Vec::new();
     diff_util::show_patch(
+        ui,
         &mut PlainTextFormatter::new(&mut diff_summary_bytes),
         workspace_command,
         commit,
@@ -3048,6 +3058,7 @@ fn description_template_for_commit(
 }
 
 fn description_template_for_cmd_split(
+    ui: &Ui,
     workspace_command: &WorkspaceCommandHelper,
     intro: &str,
     overall_commit_description: &str,
@@ -3056,6 +3067,7 @@ fn description_template_for_cmd_split(
 ) -> Result<String, CommandError> {
     let mut diff_summary_bytes = Vec::new();
     diff_util::show_diff(
+        ui,
         &mut PlainTextFormatter::new(&mut diff_summary_bytes),
         workspace_command,
         from_tree,
@@ -3120,6 +3132,7 @@ don't make any changes, then the operation will be aborted.
     }
 
     let first_template = description_template_for_cmd_split(
+        ui,
         tx.base_workspace_helper(),
         "Enter commit description for the first part (parent).",
         commit.description(),
@@ -3134,6 +3147,7 @@ don't make any changes, then the operation will be aborted.
         .set_description(first_description)
         .write()?;
     let second_template = description_template_for_cmd_split(
+        ui,
         tx.base_workspace_helper(),
         "Enter commit description for the second part (child).",
         commit.description(),
