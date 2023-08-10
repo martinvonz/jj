@@ -51,7 +51,7 @@ use jj_lib::settings::UserSettings;
 use jj_lib::tree::{merge_trees, Tree};
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::Workspace;
-use jj_lib::{file_util, revset};
+use jj_lib::{conflicts, file_util, revset};
 use maplit::{hashmap, hashset};
 use tracing::instrument;
 
@@ -1452,9 +1452,7 @@ fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), C
         Some(TreeValue::Conflict(id)) => {
             let conflict = repo.store().read_conflict(&path, &id)?;
             let mut contents = vec![];
-            conflict
-                .materialize(repo.store(), &path, &mut contents)
-                .unwrap();
+            conflicts::materialize(&conflict, repo.store(), &path, &mut contents).unwrap();
             ui.request_pager();
             ui.stdout_formatter().write_all(&contents)?;
         }

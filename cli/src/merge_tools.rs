@@ -22,7 +22,8 @@ use std::sync::Arc;
 use config::ConfigError;
 use itertools::Itertools;
 use jj_lib::backend::{TreeId, TreeValue};
-use jj_lib::conflicts::materialize_merge_result;
+use jj_lib::conflicts;
+use jj_lib::conflicts::{extract_as_single_hunk, materialize_merge_result};
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::{EverythingMatcher, Matcher};
 use jj_lib::repo_path::RepoPath;
@@ -261,7 +262,7 @@ pub fn run_mergetool(
             sides: file_merge.adds().len(),
         });
     };
-    let content = file_merge.extract_as_single_hunk(tree.store(), repo_path);
+    let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path);
 
     let editor = get_merge_tool_from_settings(ui, settings)?;
     let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {
@@ -329,7 +330,8 @@ pub fn run_mergetool(
 
     let mut new_tree_value: Option<TreeValue> = None;
     if editor.merge_tool_edits_conflict_markers {
-        if let Some(new_conflict) = conflict.update_from_content(
+        if let Some(new_conflict) = conflicts::update_from_content(
+            &conflict,
             tree.store(),
             repo_path,
             output_file_contents.as_slice(),

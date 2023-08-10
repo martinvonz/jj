@@ -42,6 +42,7 @@ use tracing::{instrument, trace_span};
 use crate::backend::{
     BackendError, ConflictId, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
 };
+use crate::conflicts;
 #[cfg(feature = "watchman")]
 use crate::fsmonitor::watchman;
 use crate::fsmonitor::FsmonitorKind;
@@ -967,9 +968,9 @@ impl TreeState {
         let mut content = vec![];
         file.read_to_end(&mut content).unwrap();
         let conflict = self.store.read_conflict(repo_path, &conflict_id)?;
-        if let Some(new_conflict) = conflict
-            .update_from_content(self.store.as_ref(), repo_path, &content)
-            .unwrap()
+        if let Some(new_conflict) =
+            conflicts::update_from_content(&conflict, self.store.as_ref(), repo_path, &content)
+                .unwrap()
         {
             if new_conflict != conflict {
                 let new_conflict_id = self.store.write_conflict(repo_path, &new_conflict)?;
@@ -1109,8 +1110,7 @@ impl TreeState {
                 err,
             })?;
         let mut conflict_data = vec![];
-        conflict
-            .materialize(self.store.as_ref(), path, &mut conflict_data)
+        conflicts::materialize(&conflict, self.store.as_ref(), path, &mut conflict_data)
             .expect("Failed to materialize conflict to in-memory buffer");
         file.write_all(&conflict_data)
             .map_err(|err| CheckoutError::IoError {

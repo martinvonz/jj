@@ -18,10 +18,13 @@ use std::io::Write;
 
 use itertools::Itertools;
 
+use crate::backend::{BackendResult, FileId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
 use crate::files::{ContentHunk, MergeResult};
 use crate::merge::Merge;
+use crate::repo_path::RepoPath;
+use crate::store::Store;
 
 const CONFLICT_START_LINE: &[u8] = b"<<<<<<<\n";
 const CONFLICT_END_LINE: &[u8] = b">>>>>>>\n";
@@ -51,6 +54,47 @@ fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result
         }
     }
     Ok(())
+}
+
+fn get_file_contents(store: &Store, path: &RepoPath, term: &Option<FileId>) -> ContentHunk {
+    match term {
+        Some(id) => {
+            let mut content = vec![];
+            store
+                .read_file(path, id)
+                .unwrap()
+                .read_to_end(&mut content)
+                .unwrap();
+            ContentHunk(content)
+        }
+        // If the conflict had removed the file on one side, we pretend that the file
+        // was empty there.
+        None => ContentHunk(vec![]),
+    }
+}
+
+pub fn extract_as_single_hunk(
+    merge: &Merge<Option<FileId>>,
+    store: &Store,
+    path: &RepoPath,
+) -> Merge<ContentHunk> {
+    merge.map(|term| get_file_contents(store, path, term))
+}
+
+pub fn materialize(
+    conflict: &Merge<Option<TreeValue>>,
+    store: &Store,
+    path: &RepoPath,
+    output: &mut dyn Write,
+) -> std::io::Result<()> {
+    if let Some(file_merge) = conflict.to_file_merge() {
+        let content = extract_as_single_hunk(&file_merge, store, path);
+        materialize_merge_result(&content, output)
+    } else {
+        // Unless all terms are regular files, we can't do much better than to try to
+        // describe the merge.
+        conflict.describe(output)
+    }
 }
 
 pub fn materialize_merge_result(
@@ -248,4 +292,103 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<ContentHunk> {
     }
 
     Merge::new(removes, adds)
+}
+
+/// Returns `None` if there are no conflict markers in `content`.
+pub fn update_from_content(
+    conflict: &Merge<Option<TreeValue>>,
+    store: &Store,
+    path: &RepoPath,
+    content: &[u8],
+) -> BackendResult<Option<Merge<Option<TreeValue>>>> {
+    // TODO: Check that the conflict only involves files and convert it to a
+    // `Merge<Option<FileId>>` so we can remove the wildcard pattern in the loops
+    // further down.
+
+    // First check if the new content is unchanged compared to the old content. If
+    // it is, we don't need parse the content or write any new objects to the
+    // store. This is also a way of making sure that unchanged tree/file
+    // conflicts (for example) are not converted to regular files in the working
+    // copy.
+    let mut old_content = Vec::with_capacity(content.len());
+    materialize(conflict, store, path, &mut old_content).unwrap();
+    if content == old_content {
+        return Ok(Some(conflict.clone()));
+    }
+
+    let mut removed_content = vec![vec![]; conflict.removes().len()];
+    let mut added_content = vec![vec![]; conflict.adds().len()];
+    let Some(hunks) = parse_conflict(content, conflict.removes().len(), conflict.adds().len())
+    else {
+        // Either there are no self markers of they don't have the expected arity
+        return Ok(None);
+    };
+    for hunk in hunks {
+        if let Some(slice) = hunk.as_resolved() {
+            for buf in &mut removed_content {
+                buf.extend_from_slice(&slice.0);
+            }
+            for buf in &mut added_content {
+                buf.extend_from_slice(&slice.0);
+            }
+        } else {
+            let (removes, adds) = hunk.take();
+            for (i, buf) in removes.into_iter().enumerate() {
+                removed_content[i].extend(buf.0);
+            }
+            for (i, buf) in adds.into_iter().enumerate() {
+                added_content[i].extend(buf.0);
+            }
+        }
+    }
+    // Now write the new files contents we found by parsing the file
+    // with conflict markers. Update the Merge object with the new
+    // FileIds.
+    let mut new_removes = vec![];
+    for (i, buf) in removed_content.iter().enumerate() {
+        match &conflict.removes()[i] {
+            Some(TreeValue::File { id: _, executable }) => {
+                let file_id = store.write_file(path, &mut buf.as_slice())?;
+                let new_value = TreeValue::File {
+                    id: file_id,
+                    executable: *executable,
+                };
+                new_removes.push(Some(new_value));
+            }
+            None if buf.is_empty() => {
+                // The missing side of a conflict is still represented by
+                // the empty string we materialized it as
+                new_removes.push(None);
+            }
+            _ => {
+                // The user edited a non-file side. This should never happen. We consider the
+                // conflict resolved for now.
+                return Ok(None);
+            }
+        }
+    }
+    let mut new_adds = vec![];
+    for (i, buf) in added_content.iter().enumerate() {
+        match &conflict.adds()[i] {
+            Some(TreeValue::File { id: _, executable }) => {
+                let file_id = store.write_file(path, &mut buf.as_slice())?;
+                let new_value = TreeValue::File {
+                    id: file_id,
+                    executable: *executable,
+                };
+                new_adds.push(Some(new_value));
+            }
+            None if buf.is_empty() => {
+                // The missing side of a conflict is still represented by
+                // the empty string we materialized it as => nothing to do
+                new_adds.push(None);
+            }
+            _ => {
+                // The user edited a non-file side. This should never happen. We consider the
+                // conflict resolved for now.
+                return Ok(None);
+            }
+        }
+    }
+    Ok(Some(Merge::new(new_removes, new_adds)))
 }

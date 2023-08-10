@@ -27,7 +27,7 @@ use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::tree::{Tree, TreeDiffIterator};
-use jj_lib::{diff, files, rewrite, tree};
+use jj_lib::{conflicts, diff, files, rewrite, tree};
 use tracing::instrument;
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
@@ -341,9 +341,7 @@ fn diff_content(
         TreeValue::Conflict(id) => {
             let conflict = repo.store().read_conflict(path, id).unwrap();
             let mut content = vec![];
-            conflict
-                .materialize(repo.store(), path, &mut content)
-                .unwrap();
+            conflicts::materialize(&conflict, repo.store(), path, &mut content).unwrap();
             Ok(content)
         }
     }
@@ -492,9 +490,7 @@ fn git_diff_part(
             mode = "100644".to_string();
             hash = id.hex();
             let conflict = repo.store().read_conflict(path, id).unwrap();
-            conflict
-                .materialize(repo.store(), path, &mut content)
-                .unwrap();
+            conflicts::materialize(&conflict, repo.store(), path, &mut content).unwrap();
         }
     }
     let hash = hash[0..10].to_string();
