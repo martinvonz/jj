@@ -343,13 +343,18 @@ pub fn default_config() -> config::Config {
             config::File::from_str(include_str!($file), config::FileFormat::Toml)
         };
     }
-    config::Config::builder()
+    let mut builder = config::Config::builder()
         .add_source(from_toml!("config/colors.toml"))
         .add_source(from_toml!("config/merge_tools.toml"))
         .add_source(from_toml!("config/misc.toml"))
-        .add_source(from_toml!("config/templates.toml"))
-        .build()
-        .unwrap()
+        .add_source(from_toml!("config/templates.toml"));
+    if cfg!(unix) {
+        builder = builder.add_source(from_toml!("config/unix.toml"))
+    }
+    if cfg!(windows) {
+        builder = builder.add_source(from_toml!("config/windows.toml"))
+    }
+    builder.build().unwrap()
 }
 
 /// Environment variables that override config values

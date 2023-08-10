@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The `push.branch-prefix` option was renamed to `git.push-branch-prefix`.
 
+* The default editor on Windows is now `Notepad` instead of `pico`.
+
 ### New features
 
 * `jj init --git-repo` now works with bare repositories.
