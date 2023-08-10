@@ -94,6 +94,30 @@ You'll then need to use `jj new --before` to create new commits
 and `jj move --to`
 to move new changes into the correct commits.
 
+### How do I resolve conflicts after rebasing a stack of revisions changing a file on top of a revision renaming that file?
+
+Currently, `jj` does not understand renames (https://github.com/martinvonz/jj/issues/47) and interprets them as a deletion of one file and the creation of another file. So, rebasing on top of a revision that renames a file results in "edit-deletion" conflicts. 
+
+At the moment, there is no perfect workaround. Generally, it helps to rebase on top of the revision *just before* the file
+gets renamed first, resolve any conflicts, and finally apply one of the following workarounds to rebase it on top of the revision that moves the file.
+
+One option to resolve the edit-deletion conflict is to `jj restore path_to_file_with_conflict ...` TODO
+
+In a colocated repo, **another option** is to use `git rebase`, which usually does a good job of recognizing renames. This is done as follows:
+
+```shell script
+# Mark the revision we're rebasing *onto* with a branch
+jj branch c target -r revision_that_moves_the_file
+# Make sure the working copy is clean before using git commands
+jj new
+git switch branch_on_top_of_the_stack_to_rebase
+git rebase target
+```
+
+In many, especially if you followed the above general advice, this should immediately succeed and you are done.
+
+If there are any merge conflicts, make sure to only use `git` commands until the conflicts are resolved and `git status` looks clean. You can also give up at this point by using `git rebase --abort`.
+
 [config]: ./config.md
 
 [gitignore]: https://git-scm.com/docs/gitignore
