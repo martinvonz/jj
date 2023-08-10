@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use jj_lib::backend::{FileId, TreeValue};
-use jj_lib::conflicts::parse_conflict;
+use jj_lib::conflicts::{materialize, parse_conflict, update_from_content};
 use jj_lib::merge::Merge;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
@@ -289,7 +289,7 @@ line 5 right
         vec![Some(file_value(&left_id)), Some(file_value(&right_id))],
     );
     let mut result: Vec<u8> = vec![];
-    conflict.materialize(store, &path, &mut result).unwrap();
+    materialize(&conflict, store, &path, &mut result).unwrap();
     insta::assert_snapshot!(
         String::from_utf8(result.clone()).unwrap(),
         @r###"
@@ -662,28 +662,23 @@ fn test_update_conflict_from_content() {
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
     let mut materialized = vec![];
-    conflict
-        .materialize(store, &path, &mut materialized)
-        .unwrap();
-    let result = conflict
-        .update_from_content(store, &path, &materialized)
-        .unwrap();
+    materialize(&conflict, store, &path, &mut materialized).unwrap();
+    let result = update_from_content(&conflict, store, &path, &materialized).unwrap();
     assert_eq!(result, Some(conflict.clone()));
 
     // If the conflict is resolved, we get None back to indicate that.
-    let result = conflict
-        .update_from_content(store, &path, b"resolved 1\nline 2\nresolved 3\n")
-        .unwrap();
+    let result =
+        update_from_content(&conflict, store, &path, b"resolved 1\nline 2\nresolved 3\n").unwrap();
     assert_eq!(result, None);
 
     // If the conflict is partially resolved, we get a new conflict back.
-    let result = conflict
-        .update_from_content(
-            store,
-            &path,
-            b"resolved 1\nline 2\n<<<<<<<\n%%%%%%%\n-line 3\n+left 3\n+++++++\nright 3\n>>>>>>>\n",
-        )
-        .unwrap();
+    let result = update_from_content(
+        &conflict,
+        store,
+        &path,
+        b"resolved 1\nline 2\n<<<<<<<\n%%%%%%%\n-line 3\n+left 3\n+++++++\nright 3\n>>>>>>>\n",
+    )
+    .unwrap();
     let new_conflict = result.unwrap();
     assert_ne!(new_conflict, conflict);
     // Calculate expected new FileIds
@@ -718,22 +713,16 @@ fn test_update_conflict_from_content_modify_delete() {
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
     let mut materialized = vec![];
-    conflict
-        .materialize(store, &path, &mut materialized)
-        .unwrap();
-    let result = conflict
-        .update_from_content(store, &path, &materialized)
-        .unwrap();
+    materialize(&conflict, store, &path, &mut materialized).unwrap();
+    let result = update_from_content(&conflict, store, &path, &materialized).unwrap();
     assert_eq!(result, Some(conflict.clone()));
 
     // If the conflict is resolved, we get None back to indicate that.
-    let result = conflict
-        .update_from_content(store, &path, b"resolved\n")
-        .unwrap();
+    let result = update_from_content(&conflict, store, &path, b"resolved\n").unwrap();
     assert_eq!(result, None);
 
     // If the conflict is modified, we get a new conflict back.
-    let result = conflict.update_from_content(
+    let result = update_from_content(&conflict,
         store,
         &path,
         b"<<<<<<<\n%%%%%%%\n line 1\n-line 2 before\n+line 2 modified after\n line 3\n+++++++\n>>>>>>>\n",
@@ -760,6 +749,6 @@ fn materialize_conflict_string(
     conflict: &Merge<Option<TreeValue>>,
 ) -> String {
     let mut result: Vec<u8> = vec![];
-    conflict.materialize(store, path, &mut result).unwrap();
+    materialize(conflict, store, path, &mut result).unwrap();
     String::from_utf8(result).unwrap()
 }
