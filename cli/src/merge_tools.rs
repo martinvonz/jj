@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::sync::Arc;
 
 use config::ConfigError;
@@ -61,13 +61,8 @@ pub enum ExternalToolError {
         #[source]
         source: std::io::Error,
     },
-    #[error(
-        "Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: {}.",
-         exit_status.code().map(|c| c.to_string()).unwrap_or_else(|| "<unknown>".to_string())
-    )]
-    ToolAborted {
-        exit_status: std::process::ExitStatus,
-    },
+    #[error("{}", format_tool_aborted(.exit_status))]
+    ToolAborted { exit_status: ExitStatus },
     #[error("I/O error: {0}")]
     Io(#[source] std::io::Error),
 }
@@ -430,7 +425,7 @@ pub fn edit_diff(
 
 /// Generates textual diff by the specified `tool`, and writes into `writer`.
 pub fn generate_diff(
-    _ui: &Ui,
+    ui: &Ui,
     writer: &mut dyn Write,
     left_tree: &Tree,
     right_tree: &Tree,
@@ -462,6 +457,9 @@ pub fn generate_diff(
     // will exit with 1 if inputs are different.
     let exit_status = child.wait().map_err(ExternalToolError::Io)?;
     tracing::info!(?cmd, ?exit_status, "The external diff generator exited:");
+    if !exit_status.success() {
+        writeln!(ui.warning(), "{}", format_tool_aborted(&exit_status)).ok();
+    }
     Ok(())
 }
 
@@ -622,6 +620,17 @@ fn editor_args_from_settings(
         .map_err(ExternalToolError::Io)?;
         Ok(default_editor.into())
     }
+}
+
+fn format_tool_aborted(exit_status: &ExitStatus) -> String {
+    let code = exit_status
+        .code()
+        .map(|c| c.to_string())
+        .unwrap_or_else(|| "<unknown>".to_string());
+    format!(
+        "Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit \
+         code: {code}."
+    )
 }
 
 #[cfg(test)]

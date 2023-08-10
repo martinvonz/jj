@@ -678,8 +678,8 @@ fn test_diff_external_tool() {
 
     // Non-zero exit code isn't an error
     std::fs::write(&edit_script, "print diff\0fail").unwrap();
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["show", "--tool=fake-diff-editor"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["show", "--tool=fake-diff-editor"]);
+    insta::assert_snapshot!(stdout, @r###"
     Commit ID: 0cba70c72186eabb5a2f91be63a8366b9f6da6c6
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
     Author: Test User <test.user@example.com> (2001-02-03 04:05:08.000 +07:00)
@@ -688,5 +688,8 @@ fn test_diff_external_tool() {
         (no description set)
 
     diff
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: 1.
     "###);
 }
