@@ -433,7 +433,7 @@ struct InterdiffArgs {
 /// Update the change description or other metadata
 ///
 /// Starts an editor to let you edit the description of a change. The editor
-/// will be $EDITOR, or `pico` if that's not defined.
+/// will be $EDITOR, or `pico` if that's not defined (`Notepad` on Windows).
 #[derive(clap::Args, Clone, Debug)]
 struct DescribeArgs {
     /// The revision whose description to edit

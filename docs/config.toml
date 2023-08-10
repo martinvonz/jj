@@ -7,7 +7,7 @@ user.email = "YOUR_EMAIL@example.com"
 ui.color = "auto" # the default
 # ui.color = never # no color
 
-ui.editor = "pico" # the default
+ui.editor = "pico" # the default on Unix
 # ui.editor = "vim"
 
 ui.diff-editor = "meld" # default, requires meld to be installed

@@ -5,6 +5,5 @@
 # Placeholder: added by user
 
 [ui]
-editor = "pico"
 pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
 log-word-wrap = false

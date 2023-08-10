@@ -39,8 +39,9 @@ Now let's say we want to edit the `README` file in the repo to say "Goodbye"
 instead of "Hello". Let's start by describing the change (adding a
 commit message) so we don't forget what we're working on:
 ```shell script
-# This will bring up $EDITOR (or `pico` by default). Enter something like
-# "Say goodbye" in the editor and then save the file and close the editor.
+# This will bring up $EDITOR (or `pico` or `Notepad` by default). Enter
+# something like "Say goodbye" in the editor and then save the file and close
+# the editor.
 $ jj describe
 Working copy now at: e427edcfd0ba Say goodbye
 ```
