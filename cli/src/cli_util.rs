@@ -2142,10 +2142,7 @@ pub fn get_new_config_file_path(
 }
 
 pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(), CommandError> {
-    let editor: CommandNameAndArgs = settings
-        .config()
-        .get("ui.editor")
-        .unwrap_or_else(|_| "pico".into());
+    let editor: CommandNameAndArgs = settings.config().get("ui.editor").unwrap();
     let exit_status = editor
         .to_command()
         .arg(edit_path)
