@@ -56,16 +56,16 @@ impl MergedTree {
 
     /// Creates a new `MergedTree` representing a merge of a set of trees. The
     /// individual trees must not have any conflicts.
-    pub fn new(conflict: Merge<Tree>) -> Self {
-        debug_assert!(!conflict.removes().iter().any(|t| t.has_conflict()));
-        debug_assert!(!conflict.adds().iter().any(|t| t.has_conflict()));
-        debug_assert!(itertools::chain(conflict.removes(), conflict.adds())
+    pub fn new(trees: Merge<Tree>) -> Self {
+        debug_assert!(!trees.removes().iter().any(|t| t.has_conflict()));
+        debug_assert!(!trees.adds().iter().any(|t| t.has_conflict()));
+        debug_assert!(itertools::chain(trees.removes(), trees.adds())
             .map(|tree| tree.dir())
             .all_equal());
-        debug_assert!(itertools::chain(conflict.removes(), conflict.adds())
+        debug_assert!(itertools::chain(trees.removes(), trees.adds())
             .map(|tree| Arc::as_ptr(tree.store()))
             .all_equal());
-        MergedTree::Merge(conflict)
+        MergedTree::Merge(trees)
     }
 
     /// Creates a new `MergedTree` backed by a tree with path-level conflicts.
@@ -144,12 +144,12 @@ impl MergedTree {
     pub fn store(&self) -> &Arc<Store> {
         match self {
             MergedTree::Legacy(tree) => tree.store(),
-            MergedTree::Merge(conflict) => conflict.adds()[0].store(),
+            MergedTree::Merge(trees) => trees.adds()[0].store(),
         }
     }
 
     /// The value at the given basename. The value can be `Resolved` even if
-    /// `self` is a `Conflict`, which happens if the value at the path can be
+    /// `self` is a `Merge`, which happens if the value at the path can be
     /// trivially merged. Does not recurse, so if `basename` refers to a Tree,
     /// then a `TreeValue::Tree` will be returned.
     pub fn value(&self, basename: &RepoPathComponent) -> MergedTreeValue {
@@ -161,11 +161,11 @@ impl MergedTree {
                 }
                 other => MergedTreeValue::Resolved(other),
             },
-            MergedTree::Merge(conflict) => {
-                if let Some(tree) = conflict.as_resolved() {
+            MergedTree::Merge(trees) => {
+                if let Some(tree) = trees.as_resolved() {
                     return MergedTreeValue::Resolved(tree.value(basename));
                 }
-                let value = conflict.map(|tree| tree.value(basename));
+                let value = trees.map(|tree| tree.value(basename));
                 if let Some(resolved) = value.resolve_trivial() {
                     return MergedTreeValue::Resolved(*resolved);
                 }
@@ -182,7 +182,7 @@ impl MergedTree {
     pub fn resolve(&self) -> Result<Merge<Tree>, TreeMergeError> {
         match self {
             MergedTree::Legacy(tree) => Ok(Merge::resolved(tree.clone())),
-            MergedTree::Merge(conflict) => merge_trees(conflict),
+            MergedTree::Merge(trees) => merge_trees(trees),
         }
     }
 
@@ -199,13 +199,13 @@ impl MergedTree {
     pub fn has_conflict(&self) -> bool {
         match self {
             MergedTree::Legacy(tree) => tree.has_conflict(),
-            MergedTree::Merge(conflict) => !conflict.is_resolved(),
+            MergedTree::Merge(trees) => !trees.is_resolved(),
         }
     }
 }
 
-fn all_tree_conflict_names(conflict: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComponent> {
-    itertools::chain(conflict.removes(), conflict.adds())
+fn all_tree_conflict_names(trees: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComponent> {
+    itertools::chain(trees.removes(), trees.adds())
         .map(|tree| tree.data().names())
         .kmerge()
         .dedup()
@@ -265,22 +265,22 @@ fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
 }
 
 /// Tries to resolve a conflict between tree values. Returns
-/// Ok(Conflict::normal(value)) if the conflict was resolved, and
-/// Ok(Conflict::absent()) if the path should be removed. Returns the
-/// conflict unmodified if it cannot be resolved automatically.
+/// Ok(Merge::normal(value)) if the conflict was resolved, and
+/// Ok(Merge::absent()) if the path should be removed. Returns the conflict
+/// unmodified if it cannot be resolved automatically.
 fn merge_tree_values(
     store: &Arc<Store>,
     path: &RepoPath,
-    conflict: Merge<Option<TreeValue>>,
+    values: Merge<Option<TreeValue>>,
 ) -> Result<Merge<Option<TreeValue>>, TreeMergeError> {
-    if let Some(resolved) = conflict.resolve_trivial() {
+    if let Some(resolved) = values.resolve_trivial() {
         return Ok(Merge::resolved(resolved.clone()));
     }
 
-    if let Some(tree_conflict) = conflict.to_tree_merge(store, path)? {
+    if let Some(trees) = values.to_tree_merge(store, path)? {
         // If all sides are trees or missing, merge the trees recursively, treating
         // missing trees as empty.
-        let merged_tree = merge_trees(&tree_conflict)?;
+        let merged_tree = merge_trees(&trees)?;
         if merged_tree.as_resolved().map(|tree| tree.id()) == Some(store.empty_tree_id()) {
             Ok(Merge::absent())
         } else {
@@ -289,11 +289,11 @@ fn merge_tree_values(
     } else {
         // Try to resolve file conflicts by merging the file contents. Treats missing
         // files as empty.
-        if let Some(resolved) = try_resolve_file_conflict(store, path, &conflict)? {
+        if let Some(resolved) = try_resolve_file_conflict(store, path, &values)? {
             Ok(Merge::normal(resolved))
         } else {
             // Failed to merge the files, or the paths are not files
-            Ok(conflict)
+            Ok(values)
         }
     }
 }
@@ -312,11 +312,11 @@ impl<'a> ConflictEntriesNonRecursiveIterator<'a> {
                     .filter(|entry| matches!(entry.value(), &TreeValue::Conflict(_)))
                     .map(|entry| entry.name()),
             ),
-            MergedTree::Merge(conflict) => {
-                if conflict.is_resolved() {
+            MergedTree::Merge(trees) => {
+                if trees.is_resolved() {
                     Box::new(iter::empty())
                 } else {
-                    Box::new(all_tree_conflict_names(conflict))
+                    Box::new(all_tree_conflict_names(trees))
                 }
             }
         };
@@ -334,8 +334,8 @@ impl<'a> Iterator for ConflictEntriesNonRecursiveIterator<'a> {
         for basename in self.basename_iter.by_ref() {
             match self.merged_tree.value(basename) {
                 MergedTreeValue::Resolved(_) => {}
-                MergedTreeValue::Conflict(conflict) => {
-                    return Some((basename, conflict));
+                MergedTreeValue::Conflict(tree_values) => {
+                    return Some((basename, tree_values));
                 }
             }
         }
@@ -408,19 +408,19 @@ impl Iterator for ConflictIterator {
             }
             ConflictIterator::Merge { stack } => {
                 while let Some(top) = stack.last_mut() {
-                    if let Some((basename, conflict)) = top.entry_iterator.next() {
+                    if let Some((basename, tree_values)) = top.entry_iterator.next() {
                         let path = top.tree.dir().join(basename);
                         // TODO: propagate errors
-                        if let Some(tree_conflict) =
-                            conflict.to_tree_merge(top.tree.store(), &path).unwrap()
+                        if let Some(trees) =
+                            tree_values.to_tree_merge(top.tree.store(), &path).unwrap()
                         {
                             // If all sides are trees or missing, descend into the merged tree
-                            stack.push(ConflictsDirItem::new(MergedTree::Merge(tree_conflict)));
+                            stack.push(ConflictsDirItem::new(MergedTree::Merge(trees)));
                         } else {
                             // Otherwise this is a conflict between files, trees, etc. If they could
                             // be automatically resolved, they should have been when the top-level
                             // tree conflict was written, so we assume that they can't be.
-                            return Some((path, conflict));
+                            return Some((path, tree_values));
                         }
                     } else {
                         stack.pop();
