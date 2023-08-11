@@ -88,6 +88,11 @@
                         }
                     }
                 },
+                "diff-instructions": {
+                    "type": "boolean",
+                    "description": "Whether to generate the JJ-INSTRUCTIONS file as part of editing a diff",
+                    "default": true
+                },
                 "graph": {
                     "type": "object",
                     "description": "Options for rendering revision graphs from jj log etc",
