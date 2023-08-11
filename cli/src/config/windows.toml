@@ -1,2 +1,3 @@
 [ui]
+paginate = "never"
 editor = "Notepad"
