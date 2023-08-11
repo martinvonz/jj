@@ -288,10 +288,9 @@ line 5 right
         vec![Some(file_value(&base_id))],
         vec![Some(file_value(&left_id)), Some(file_value(&right_id))],
     );
-    let mut result: Vec<u8> = vec![];
-    materialize(&conflict, store, &path, &mut result).unwrap();
+    let materialized = materialize_conflict_string(store, &path, &conflict);
     insta::assert_snapshot!(
-        String::from_utf8(result.clone()).unwrap(),
+        materialized,
         @r###"
     <<<<<<<
     +++++++
@@ -317,7 +316,7 @@ line 5 right
 
     // The first add should always be from the left side
     insta::assert_debug_snapshot!(
-        parse_conflict(&result, conflict.removes().len(), conflict.adds().len()),
+        parse_conflict(materialized.as_bytes(), conflict.removes().len(), conflict.adds().len()),
         @r###"
     Some(
         [
@@ -661,9 +660,8 @@ fn test_update_conflict_from_content() {
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
-    let mut materialized = vec![];
-    materialize(&conflict, store, &path, &mut materialized).unwrap();
-    let result = update_from_content(&conflict, store, &path, &materialized).unwrap();
+    let materialized = materialize_conflict_string(store, &path, &conflict);
+    let result = update_from_content(&conflict, store, &path, materialized.as_bytes()).unwrap();
     assert_eq!(result, Some(conflict.clone()));
 
     // If the conflict is resolved, we get None back to indicate that.
@@ -712,9 +710,8 @@ fn test_update_conflict_from_content_modify_delete() {
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
-    let mut materialized = vec![];
-    materialize(&conflict, store, &path, &mut materialized).unwrap();
-    let result = update_from_content(&conflict, store, &path, &materialized).unwrap();
+    let materialized = materialize_conflict_string(store, &path, &conflict);
+    let result = update_from_content(&conflict, store, &path, materialized.as_bytes()).unwrap();
     assert_eq!(result, Some(conflict.clone()));
 
     // If the conflict is resolved, we get None back to indicate that.
