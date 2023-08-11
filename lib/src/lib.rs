@@ -32,6 +32,7 @@ pub mod default_submodule_store;
 pub mod diff;
 pub mod file_util;
 pub mod files;
+pub mod fmt_util;
 pub mod fsmonitor;
 pub mod git;
 pub mod git_backend;

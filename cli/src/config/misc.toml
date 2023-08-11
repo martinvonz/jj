@@ -10,4 +10,4 @@ pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
 log-word-wrap = false
 
 [snapshot]
-max-new-file-size = 1048576
+max-new-file-size = "1MiB"

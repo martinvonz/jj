@@ -1048,6 +1048,7 @@ dependencies = [
  "rayon",
  "regex",
  "rustix",
+ "serde",
  "serde_json",
  "smallvec",
  "strsim",
