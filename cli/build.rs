@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+extern crate chrono;
+
 use std::path::Path;
 use std::process::Command;
 use std::str;
 
 use cargo_metadata::MetadataCommand;
+use chrono::prelude::*;
 
 const GIT_HEAD_PATH: &str = "../.git/HEAD";
 const JJ_OP_HEADS_PATH: &str = "../.jj/repo/op_heads/heads";
@@ -41,8 +44,16 @@ fn main() -> std::io::Result<()> {
     }
     println!("cargo:rerun-if-env-changed=NIX_JJ_GIT_HASH");
 
-    if let Some(git_hash) = get_git_hash() {
-        println!("cargo:rustc-env=JJ_VERSION={}-{}", version, git_hash);
+    // TODO: timestamp can be "nix"
+    if let Some((git_hash, maybe_date)) = get_git_timestamp_and_hash() {
+        println!(
+            "cargo:rustc-env=JJ_VERSION={}-{}-{}",
+            version,
+            maybe_date
+                .map(|d| d.format("%Y%m%d").to_string())
+                .unwrap_or_else(|| "dateunknown".to_string()),
+            git_hash
+        );
     } else {
         println!("cargo:rustc-env=JJ_VERSION={}", version);
     }
@@ -50,12 +61,27 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn get_git_hash() -> Option<String> {
+/// Convert a string with a unix timestamp to a date
+fn timestamp_to_date(ts_str: &str) -> Option<DateTime<Utc>> {
+    ts_str
+        .parse::<i64>()
+        .ok()
+        .and_then(|ts| DateTime::<Utc>::from_timestamp(ts, 0))
+}
+
+/// Return the git hash and the committer timestamp
+fn get_git_timestamp_and_hash() -> Option<(String, Option<DateTime<Utc>>)> {
     if let Some(nix_hash) = std::env::var("NIX_JJ_GIT_HASH")
         .ok()
         .filter(|s| !s.is_empty())
     {
-        return Some(nix_hash);
+        return Some((nix_hash, None));
+    }
+
+    fn parse_timestamp_vbar_hash(bytes: &[u8]) -> (String, Option<DateTime<Utc>>) {
+        let s = str::from_utf8(bytes).unwrap().trim_end();
+        let (ts_str, id) = s.split_once('|').unwrap();
+        (id.to_owned(), timestamp_to_date(ts_str))
     }
     if let Ok(output) = Command::new("jj")
         .args([
@@ -64,19 +90,21 @@ fn get_git_hash() -> Option<String> {
             "log",
             "--no-graph",
             "-r=@-",
-            "-T=commit_id",
+            r#"-T=committer.timestamp().utc().format("%s") ++ "|" ++ commit_id"#,
         ])
         .output()
     {
         if output.status.success() {
-            return Some(String::from_utf8(output.stdout).unwrap());
+            return Some(parse_timestamp_vbar_hash(&output.stdout));
         }
     }
 
-    if let Ok(output) = Command::new("git").args(["rev-parse", "HEAD"]).output() {
+    if let Ok(output) = Command::new("git")
+        .args(["log", "-1", "--format=%ct|%H", "HEAD"])
+        .output()
+    {
         if output.status.success() {
-            let line = str::from_utf8(&output.stdout).unwrap();
-            return Some(line.trim_end().to_owned());
+            return Some(parse_timestamp_vbar_hash(&output.stdout));
         }
     }
 
