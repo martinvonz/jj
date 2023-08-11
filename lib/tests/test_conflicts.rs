@@ -636,22 +636,22 @@ fn test_update_conflict_from_content() {
     // old conflict id back.
     let materialized = materialize_conflict_string(store, &path, &conflict);
     let result = update_from_content(&conflict, store, &path, materialized.as_bytes()).unwrap();
-    assert_eq!(result, Some(conflict.clone()));
+    assert_eq!(result, conflict);
 
     // If the conflict is resolved, we get None back to indicate that.
     let result =
         update_from_content(&conflict, store, &path, b"resolved 1\nline 2\nresolved 3\n").unwrap();
-    assert_eq!(result, None);
+    let expected_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nresolved 3\n");
+    assert_eq!(result, Merge::normal(expected_file_id));
 
     // If the conflict is partially resolved, we get a new conflict back.
-    let result = update_from_content(
+    let new_conflict = update_from_content(
         &conflict,
         store,
         &path,
         b"resolved 1\nline 2\n<<<<<<<\n%%%%%%%\n-line 3\n+left 3\n+++++++\nright 3\n>>>>>>>\n",
     )
     .unwrap();
-    let new_conflict = result.unwrap();
     assert_ne!(new_conflict, conflict);
     // Calculate expected new FileIds
     let new_base_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nline 3\n");
@@ -683,20 +683,20 @@ fn test_update_conflict_from_content_modify_delete() {
     // old conflict id back.
     let materialized = materialize_conflict_string(store, &path, &conflict);
     let result = update_from_content(&conflict, store, &path, materialized.as_bytes()).unwrap();
-    assert_eq!(result, Some(conflict.clone()));
+    assert_eq!(result, conflict);
 
     // If the conflict is resolved, we get None back to indicate that.
     let result = update_from_content(&conflict, store, &path, b"resolved\n").unwrap();
-    assert_eq!(result, None);
+    let expected_file_id = testutils::write_file(store, &path, "resolved\n");
+    assert_eq!(result, Merge::normal(expected_file_id));
 
     // If the conflict is modified, we get a new conflict back.
-    let result = update_from_content(&conflict,
+    let new_conflict = update_from_content(&conflict,
         store,
         &path,
         b"<<<<<<<\n%%%%%%%\n line 1\n-line 2 before\n+line 2 modified after\n line 3\n+++++++\n>>>>>>>\n",
     )
     .unwrap();
-    let new_conflict = result.unwrap();
     // Calculate expected new FileIds
     let new_base_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
     let new_left_file_id =
