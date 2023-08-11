@@ -562,14 +562,18 @@ fn merge_tree_value(
             }
         }
         _ => {
-            // Start by creating a Conflict object. Conflicts can cleanly represent a single
+            // Start by creating a Merge object. Merges can cleanly represent a single
             // resolved state, the absence of a state, or a conflicted state.
             let conflict = Merge::new(
                 vec![maybe_base.cloned()],
                 vec![maybe_side1.cloned(), maybe_side2.cloned()],
             );
             let filename = dir.join(basename);
-            let merge = simplify_conflict(store, &filename, conflict)?;
+            let expanded = conflict.try_map(|term| match term {
+                Some(TreeValue::Conflict(id)) => store.read_conflict(&filename, id),
+                _ => Ok(Merge::resolved(term.clone())),
+            })?;
+            let merge = expanded.flatten().simplify();
             match merge.into_resolved() {
                 Ok(value) => value,
                 Err(conflict) => {
@@ -655,47 +659,4 @@ pub fn try_resolve_file_conflict(
         }
         MergeResult::Conflict(_) => Ok(None),
     }
-}
-
-fn simplify_conflict(
-    store: &Store,
-    path: &RepoPath,
-    conflict: Merge<Option<TreeValue>>,
-) -> Result<Merge<Option<TreeValue>>, BackendError> {
-    // Important cases to simplify:
-    //
-    // D
-    // |
-    // B C
-    // |/
-    // A
-    //
-    // 1. rebase C to B, then back to A => there should be no conflict
-    // 2. rebase C to B, then to D => the conflict should not mention B
-    // 3. rebase B to C and D to B', then resolve the conflict in B' and rebase D'
-    // on top =>    the conflict should be between B'', B, and D; it should not
-    // mention the conflict in B'
-
-    // Case 1 above:
-    // After first rebase, the conflict is {+B-A+C}. After rebasing back,
-    // the unsimplified conflict is {+A-B+{+B-A+C}}. Since the
-    // inner conflict is positive, we can simply move it into the outer conflict. We
-    // thus get {+A-B+B-A+C}, which we can then simplify to just C (because {+C} ==
-    // C).
-    //
-    // Case 2 above:
-    // After first rebase, the conflict is {+B-A+C}. After rebasing to D,
-    // the unsimplified conflict is {+D-C+{+B-A+C}}. As in the
-    // previous case, the inner conflict can be moved into the outer one. We then
-    // get {+D-C+B-A+C}. That can be simplified to
-    // {+D+B-A}, which is the desired conflict.
-    //
-    // Case 3 above:
-    // TODO: describe this case
-
-    let expanded = conflict.try_map(|term| match term {
-        Some(TreeValue::Conflict(id)) => store.read_conflict(path, id),
-        _ => Ok(Merge::resolved(term.clone())),
-    })?;
-    Ok(expanded.flatten().simplify())
 }
