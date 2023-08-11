@@ -260,6 +260,9 @@ Can be customized by the `format_short_signature()` template alias.
 
 ## Pager
 
+Windows users: Note that pagination is disabled by default on Windows for now
+([#2040](https://github.com/martinvonz/jj/issues/2040)).
+
 The default pager is can be set via `ui.pager` or the `PAGER` environment
 variable. The priority is as follows (environment variables are marked with
 a `$`):
