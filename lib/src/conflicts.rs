@@ -296,29 +296,26 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<ContentHunk> {
 
 /// Returns `None` if there are no conflict markers in `content`.
 pub fn update_from_content(
-    conflict: &Merge<Option<TreeValue>>,
+    file_ids: &Merge<Option<FileId>>,
     store: &Store,
     path: &RepoPath,
     content: &[u8],
-) -> BackendResult<Option<Merge<Option<TreeValue>>>> {
-    // TODO: Check that the conflict only involves files and convert it to a
-    // `Merge<Option<FileId>>` so we can remove the wildcard pattern in the loops
-    // further down.
-
+) -> BackendResult<Option<Merge<Option<FileId>>>> {
     // First check if the new content is unchanged compared to the old content. If
     // it is, we don't need parse the content or write any new objects to the
     // store. This is also a way of making sure that unchanged tree/file
     // conflicts (for example) are not converted to regular files in the working
     // copy.
     let mut old_content = Vec::with_capacity(content.len());
-    materialize(conflict, store, path, &mut old_content).unwrap();
+    let merge_hunk = extract_as_single_hunk(file_ids, store, path);
+    materialize_merge_result(&merge_hunk, &mut old_content).unwrap();
     if content == old_content {
-        return Ok(Some(conflict.clone()));
+        return Ok(Some(file_ids.clone()));
     }
 
-    let mut removed_content = vec![vec![]; conflict.removes().len()];
-    let mut added_content = vec![vec![]; conflict.adds().len()];
-    let Some(hunks) = parse_conflict(content, conflict.removes().len(), conflict.adds().len())
+    let mut removed_content = vec![vec![]; file_ids.removes().len()];
+    let mut added_content = vec![vec![]; file_ids.adds().len()];
+    let Some(hunks) = parse_conflict(content, file_ids.removes().len(), file_ids.adds().len())
     else {
         // Either there are no self markers of they don't have the expected arity
         return Ok(None);
@@ -346,14 +343,10 @@ pub fn update_from_content(
     // FileIds.
     let mut new_removes = vec![];
     for (i, buf) in removed_content.iter().enumerate() {
-        match &conflict.removes()[i] {
-            Some(TreeValue::File { id: _, executable }) => {
+        match &file_ids.removes()[i] {
+            Some(_) => {
                 let file_id = store.write_file(path, &mut buf.as_slice())?;
-                let new_value = TreeValue::File {
-                    id: file_id,
-                    executable: *executable,
-                };
-                new_removes.push(Some(new_value));
+                new_removes.push(Some(file_id));
             }
             None if buf.is_empty() => {
                 // The missing side of a conflict is still represented by
@@ -361,22 +354,18 @@ pub fn update_from_content(
                 new_removes.push(None);
             }
             _ => {
-                // The user edited a non-file side. This should never happen. We consider the
-                // conflict resolved for now.
+                // The user edited the empty placeholder for an absent side. We consider the
+                // conflict resolved.
                 return Ok(None);
             }
         }
     }
     let mut new_adds = vec![];
     for (i, buf) in added_content.iter().enumerate() {
-        match &conflict.adds()[i] {
-            Some(TreeValue::File { id: _, executable }) => {
+        match &file_ids.adds()[i] {
+            Some(_) => {
                 let file_id = store.write_file(path, &mut buf.as_slice())?;
-                let new_value = TreeValue::File {
-                    id: file_id,
-                    executable: *executable,
-                };
-                new_adds.push(Some(new_value));
+                new_adds.push(Some(file_id));
             }
             None if buf.is_empty() => {
                 // The missing side of a conflict is still represented by
@@ -384,8 +373,8 @@ pub fn update_from_content(
                 new_adds.push(None);
             }
             _ => {
-                // The user edited a non-file side. This should never happen. We consider the
-                // conflict resolved for now.
+                // The user edited the empty placeholder for an absent side. We consider the
+                // conflict resolved.
                 return Ok(None);
             }
         }

@@ -18,6 +18,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::io::Write;
+use std::iter::zip;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -344,6 +345,34 @@ impl Merge<Option<TreeValue>> {
             }) => Some(Some(id.clone())),
             _ => None,
         })
+    }
+
+    /// Creates a new merge with the file ids from the given merge. In other
+    /// words, only the executable bits from `self` will be preserved.
+    pub fn with_new_file_ids(&self, file_ids: &Merge<Option<FileId>>) -> Self {
+        assert_eq!(self.removes.len(), file_ids.removes.len());
+        fn updated_terms(
+            old_tree_values: &[Option<TreeValue>],
+            file_ids: &[Option<FileId>],
+        ) -> Vec<Option<TreeValue>> {
+            let mut new_tree_values = vec![];
+            for (tree_value, file_id) in zip(old_tree_values, file_ids) {
+                if let Some(TreeValue::File { id: _, executable }) = tree_value {
+                    new_tree_values.push(Some(TreeValue::File {
+                        id: file_id.as_ref().unwrap().clone(),
+                        executable: *executable,
+                    }));
+                } else {
+                    assert!(tree_value.is_none());
+                    assert!(file_id.is_none());
+                    new_tree_values.push(None);
+                }
+            }
+            new_tree_values
+        }
+        let removes = updated_terms(&self.removes, &file_ids.removes);
+        let adds = updated_terms(&self.adds, &file_ids.adds);
+        Merge { removes, adds }
     }
 
     /// Give a summary description of the conflict's "removes" and "adds"

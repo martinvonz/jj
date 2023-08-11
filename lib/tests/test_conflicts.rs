@@ -12,20 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::backend::{FileId, TreeValue};
-use jj_lib::conflicts::{materialize, parse_conflict, update_from_content};
+use jj_lib::backend::FileId;
+use jj_lib::conflicts::{
+    extract_as_single_hunk, materialize_merge_result, parse_conflict, update_from_content,
+};
 use jj_lib::merge::Merge;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::store::Store;
 use testutils::TestRepo;
-
-fn file_value(file_id: &FileId) -> TreeValue {
-    TreeValue::File {
-        id: file_id.clone(),
-        executable: false,
-    }
-}
 
 #[test]
 fn test_materialize_conflict_basic() {
@@ -69,8 +64,8 @@ line 5
     // The left side should come first. The diff should be use the smaller (right)
     // side, and the left side should be a snapshot.
     let conflict = Merge::new(
-        vec![Some(file_value(&base_id))],
-        vec![Some(file_value(&left_id)), Some(file_value(&right_id))],
+        vec![Some(base_id.clone())],
+        vec![Some(left_id.clone()), Some(right_id.clone())],
     );
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
@@ -93,8 +88,8 @@ line 5
     // Swap the positive terms in the conflict. The diff should still use the right
     // side, but now the right side should come first.
     let conflict = Merge::new(
-        vec![Some(file_value(&base_id))],
-        vec![Some(file_value(&right_id)), Some(file_value(&left_id))],
+        vec![Some(base_id.clone())],
+        vec![Some(right_id.clone()), Some(left_id.clone())],
     );
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
@@ -162,12 +157,8 @@ line 3
     // The order of (a, b, c) should be preserved. For all cases, the "a" side
     // should be a snapshot.
     let conflict = Merge::new(
-        vec![Some(file_value(&base_id)), Some(file_value(&base_id))],
-        vec![
-            Some(file_value(&a_id)),
-            Some(file_value(&b_id)),
-            Some(file_value(&c_id)),
-        ],
+        vec![Some(base_id.clone()), Some(base_id.clone())],
+        vec![Some(a_id.clone()), Some(b_id.clone()), Some(c_id.clone())],
     );
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
@@ -190,12 +181,8 @@ line 3
     "###
     );
     let conflict = Merge::new(
-        vec![Some(file_value(&base_id)), Some(file_value(&base_id))],
-        vec![
-            Some(file_value(&c_id)),
-            Some(file_value(&b_id)),
-            Some(file_value(&a_id)),
-        ],
+        vec![Some(base_id.clone()), Some(base_id.clone())],
+        vec![Some(c_id.clone()), Some(b_id.clone()), Some(a_id.clone())],
     );
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
@@ -218,12 +205,8 @@ line 3
     "###
     );
     let conflict = Merge::new(
-        vec![Some(file_value(&base_id)), Some(file_value(&base_id))],
-        vec![
-            Some(file_value(&c_id)),
-            Some(file_value(&a_id)),
-            Some(file_value(&b_id)),
-        ],
+        vec![Some(base_id.clone()), Some(base_id.clone())],
+        vec![Some(c_id.clone()), Some(a_id.clone()), Some(b_id.clone())],
     );
     insta::assert_snapshot!(
         &materialize_conflict_string(store, &path, &conflict),
@@ -285,8 +268,8 @@ line 5 right
     );
 
     let conflict = Merge::new(
-        vec![Some(file_value(&base_id))],
-        vec![Some(file_value(&left_id)), Some(file_value(&right_id))],
+        vec![Some(base_id.clone())],
+        vec![Some(left_id.clone()), Some(right_id.clone())],
     );
     let materialized = materialize_conflict_string(store, &path, &conflict);
     insta::assert_snapshot!(
@@ -387,11 +370,8 @@ line 5
 
     // left modifies a line, right deletes the same line.
     let conflict = Merge::new(
-        vec![Some(file_value(&base_id))],
-        vec![
-            Some(file_value(&modified_id)),
-            Some(file_value(&deleted_id)),
-        ],
+        vec![Some(base_id.clone())],
+        vec![Some(modified_id.clone()), Some(deleted_id.clone())],
     );
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     line 1
@@ -409,11 +389,8 @@ line 5
 
     // right modifies a line, left deletes the same line.
     let conflict = Merge::new(
-        vec![Some(file_value(&base_id))],
-        vec![
-            Some(file_value(&deleted_id)),
-            Some(file_value(&modified_id)),
-        ],
+        vec![Some(base_id.clone())],
+        vec![Some(deleted_id.clone()), Some(modified_id.clone())],
     );
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     line 1
@@ -431,8 +408,8 @@ line 5
 
     // modify/delete conflict at the file level
     let conflict = Merge::new(
-        vec![Some(file_value(&base_id))],
-        vec![Some(file_value(&modified_id)), None],
+        vec![Some(base_id.clone())],
+        vec![Some(modified_id.clone()), None],
     );
     insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
     <<<<<<<
@@ -651,11 +628,8 @@ fn test_update_conflict_from_content() {
     let left_file_id = testutils::write_file(store, &path, "left 1\nline 2\nleft 3\n");
     let right_file_id = testutils::write_file(store, &path, "right 1\nline 2\nright 3\n");
     let conflict = Merge::new(
-        vec![Some(file_value(&base_file_id))],
-        vec![
-            Some(file_value(&left_file_id)),
-            Some(file_value(&right_file_id)),
-        ],
+        vec![Some(base_file_id.clone())],
+        vec![Some(left_file_id.clone()), Some(right_file_id.clone())],
     );
 
     // If the content is unchanged compared to the materialized value, we get the
@@ -686,10 +660,10 @@ fn test_update_conflict_from_content() {
     assert_eq!(
         new_conflict,
         Merge::new(
-            vec![Some(file_value(&new_base_file_id))],
+            vec![Some(new_base_file_id.clone())],
             vec![
-                Some(file_value(&new_left_file_id)),
-                Some(file_value(&new_right_file_id))
+                Some(new_left_file_id.clone()),
+                Some(new_right_file_id.clone())
             ]
         )
     );
@@ -703,10 +677,7 @@ fn test_update_conflict_from_content_modify_delete() {
     let path = RepoPath::from_internal_string("dir/file");
     let before_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
     let after_file_id = testutils::write_file(store, &path, "line 1\nline 2 after\nline 3\n");
-    let conflict = Merge::new(
-        vec![Some(file_value(&before_file_id))],
-        vec![Some(file_value(&after_file_id)), None],
-    );
+    let conflict = Merge::new(vec![Some(before_file_id)], vec![Some(after_file_id), None]);
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
@@ -734,8 +705,8 @@ fn test_update_conflict_from_content_modify_delete() {
     assert_eq!(
         new_conflict,
         Merge::new(
-            vec![Some(file_value(&new_base_file_id))],
-            vec![Some(file_value(&new_left_file_id)), None]
+            vec![Some(new_base_file_id.clone())],
+            vec![Some(new_left_file_id.clone()), None]
         )
     );
 }
@@ -743,9 +714,10 @@ fn test_update_conflict_from_content_modify_delete() {
 fn materialize_conflict_string(
     store: &Store,
     path: &RepoPath,
-    conflict: &Merge<Option<TreeValue>>,
+    conflict: &Merge<Option<FileId>>,
 ) -> String {
     let mut result: Vec<u8> = vec![];
-    materialize(conflict, store, path, &mut result).unwrap();
+    let contents = extract_as_single_hunk(conflict, store, path);
+    materialize_merge_result(&contents, &mut result).unwrap();
     String::from_utf8(result).unwrap()
 }

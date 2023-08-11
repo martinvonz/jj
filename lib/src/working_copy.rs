@@ -968,19 +968,28 @@ impl TreeState {
         let mut content = vec![];
         file.read_to_end(&mut content).unwrap();
         let conflict = self.store.read_conflict(repo_path, &conflict_id)?;
-        if let Some(new_conflict) =
-            conflicts::update_from_content(&conflict, self.store.as_ref(), repo_path, &content)
-                .unwrap()
-        {
-            if new_conflict != conflict {
-                let new_conflict_id = self.store.write_conflict(repo_path, &new_conflict)?;
-                Ok(TreeValue::Conflict(new_conflict_id))
+        if let Some(old_file_ids) = conflict.to_file_merge() {
+            if let Some(new_file_ids) = conflicts::update_from_content(
+                &old_file_ids,
+                self.store.as_ref(),
+                repo_path,
+                &content,
+            )
+            .unwrap()
+            {
+                if new_file_ids != old_file_ids {
+                    let new_conflict = conflict.with_new_file_ids(&new_file_ids);
+                    let new_conflict_id = self.store.write_conflict(repo_path, &new_conflict)?;
+                    Ok(TreeValue::Conflict(new_conflict_id))
+                } else {
+                    Ok(TreeValue::Conflict(conflict_id))
+                }
             } else {
-                Ok(TreeValue::Conflict(conflict_id))
+                let id = self.store.write_file(repo_path, &mut content.as_slice())?;
+                Ok(TreeValue::File { id, executable })
             }
         } else {
-            let id = self.store.write_file(repo_path, &mut content.as_slice())?;
-            Ok(TreeValue::File { id, executable })
+            Ok(TreeValue::Conflict(conflict_id))
         }
     }
 
