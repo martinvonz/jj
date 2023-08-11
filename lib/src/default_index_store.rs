@@ -1007,7 +1007,7 @@ impl<'a> CompositeIndex<'a> {
         rev_walk
     }
 
-    fn heads_pos(
+    pub fn heads_pos(
         &self,
         mut candidate_positions: BTreeSet<IndexPosition>,
     ) -> BTreeSet<IndexPosition> {
