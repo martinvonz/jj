@@ -18,6 +18,13 @@
   } //
   (flake-utils.lib.eachDefaultSystem (system:
     let
+      # NOTE (aseipp): dirtyRev and dirtyShortRev are part of Nix 2.17.x, so
+      # they're pretty recent and can't be relied on everywhere just yet.
+      gitRev = self.dirtyRev or self.rev or "dirty";
+      gitShortRev = self.dirtyShortRev or self.shortRev or "dirty";
+      gitDate = self.lastModifiedDate or self.lastModified or "19700101";
+      buildVersion = "${builtins.substring 0 8 gitDate}|${gitRev}";
+
       pkgs = import nixpkgs {
         inherit system;
         overlays = [
@@ -47,7 +54,7 @@
       packages = {
         jujutsu = ourRustPlatform.buildRustPackage rec {
           pname = "jujutsu";
-          version = "unstable-${self.shortRev or "dirty"}";
+          version = "unstable-${gitShortRev}";
           buildNoDefaultFeatures = true;
           buildFeatures = [ "packaging" ];
           cargoBuildFlags = ["--bin" "jj"]; # don't build and install the fake editors
@@ -73,10 +80,10 @@
             darwin.apple_sdk.frameworks.Security
             darwin.apple_sdk.frameworks.SystemConfiguration
             libiconv
-            ];
+          ];
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
-          NIX_JJ_GIT_HASH = self.rev or "";
+          NIX_JJ_GIT_HASH = buildVersion;
           CARGO_INCREMENTAL = "0";
           postInstall = ''
             $out/bin/jj util mangen > ./jj.1
@@ -134,6 +141,7 @@
           export RUST_BACKTRACE=1
           export ZSTD_SYS_USE_PKG_CONFIG=1
           export LIBSSH2_SYS_USE_PKG_CONFIG=1
+          export NIX_JJ_GIT_HASH="${buildVersion}"
         '';
       };
     }));
