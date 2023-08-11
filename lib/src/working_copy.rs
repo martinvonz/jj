@@ -53,6 +53,7 @@ use crate::matchers::{
 };
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
+use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::{Diff, Tree};
 
@@ -308,11 +309,11 @@ pub enum SnapshotError {
     InternalBackendError(#[from] BackendError),
     #[error(transparent)]
     TreeStateError(#[from] TreeStateError),
-    #[error("New file {path} of size {size} exceeds snapshot.max-new-file-size ({max_size})")]
+    #[error("New file {path} of size ~{size} exceeds snapshot.max-new-file-size ({max_size})")]
     NewFileTooLarge {
         path: PathBuf,
-        size: u64,
-        max_size: u64,
+        size: HumanByteSize,
+        max_size: HumanByteSize,
     },
 }
 
@@ -863,8 +864,8 @@ impl TreeState {
                         {
                             return Err(SnapshotError::NewFileTooLarge {
                                 path: entry.path().clone(),
-                                size: metadata.len(),
-                                max_size: max_new_file_size,
+                                size: HumanByteSize(metadata.len()),
+                                max_size: HumanByteSize(max_new_file_size),
                             });
                         }
                         if let Some(new_file_state) = file_state(&metadata) {

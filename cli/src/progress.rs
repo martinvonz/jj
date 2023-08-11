@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crossterm::terminal::{Clear, ClearType};
+use jj_lib::fmt_util::binary_prefix;
 use jj_lib::git;
 use jj_lib::repo_path::RepoPath;
 
@@ -104,20 +105,6 @@ fn draw_progress(progress: f32, buffer: &mut String, width: usize) {
 
 const UPDATE_HZ: u32 = 30;
 const INITIAL_DELAY: Duration = Duration::from_millis(250);
-
-/// Find the smallest binary prefix with which the whole part of `x` is at most
-/// three digits, and return the scaled `x` and that prefix.
-fn binary_prefix(x: f32) -> (f32, &'static str) {
-    const TABLE: [&str; 9] = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi"];
-
-    let mut i = 0;
-    let mut scaled = x;
-    while scaled.abs() >= 1000.0 && i < TABLE.len() - 1 {
-        i += 1;
-        scaled /= 1024.0;
-    }
-    (scaled, TABLE[i])
-}
 
 struct RateEstimate {
     state: Option<RateEstimateState>,

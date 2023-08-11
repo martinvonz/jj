@@ -334,9 +334,9 @@
             "description": "Parameters governing automatic capture of files into the working copy commit",
             "properties": {
                 "max-new-file-size": {
-                    "type": "integer",
+                    "type": ["integer", "string"],
                     "description": "New files with a size in bytes above this threshold are not snapshotted, unless the threshold is 0",
-                    "default": "1048576"
+                    "default": "1MiB"
                 }
             }
         }
