@@ -846,6 +846,7 @@ fn test_evaluate_expression_heads(use_git: bool) {
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit1]);
 
     // Heads of an empty set is an empty set
     assert_eq!(resolve_commit_ids(mut_repo, "heads(none())"), vec![]);
@@ -879,6 +880,15 @@ fn test_evaluate_expression_heads(use_git: bool) {
             &format!("heads({} | {})", commit1.id().hex(), commit3.id().hex())
         ),
         vec![commit3.id().clone()]
+    );
+
+    // Heads should be sorted in reverse index position order
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("heads({} | {})", commit3.id().hex(), commit4.id().hex())
+        ),
+        vec![commit4.id().clone(), commit3.id().clone()]
     );
 
     // Heads of all commits is the set of visible heads in the repo

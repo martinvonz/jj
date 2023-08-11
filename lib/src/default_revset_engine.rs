@@ -15,7 +15,7 @@
 #![allow(missing_docs)]
 
 use std::cmp::{Ordering, Reverse};
-use std::collections::{BinaryHeap, HashSet};
+use std::collections::{BTreeSet, BinaryHeap, HashSet};
 use std::fmt;
 use std::iter::Peekable;
 use std::ops::Range;
@@ -29,7 +29,7 @@ use crate::default_index_store::{
 };
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
-use crate::index::{HexPrefix, Index, PrefixResolution};
+use crate::index::{HexPrefix, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use crate::repo_path::RepoPath;
 use crate::revset::{
@@ -594,13 +594,15 @@ impl<'index> EvaluationContext<'index> {
             }
             ResolvedExpression::Heads(candidates) => {
                 let candidate_set = self.evaluate(candidates)?;
-                let candidate_ids = candidate_set
-                    .iter()
-                    .map(|entry| entry.commit_id())
-                    .collect_vec();
-                Ok(Box::new(self.revset_for_commit_ids(
-                    &self.index.heads(&mut candidate_ids.iter()),
-                )))
+                let head_positions: BTreeSet<_> = self
+                    .index
+                    .heads_pos(candidate_set.iter().map(|entry| entry.position()).collect());
+                let index_entries = head_positions
+                    .into_iter()
+                    .rev()
+                    .map(|pos| self.index.entry_by_pos(pos))
+                    .collect();
+                Ok(Box::new(EagerRevset { index_entries }))
             }
             ResolvedExpression::Roots(candidates) => {
                 let candidate_set = EagerRevset {
