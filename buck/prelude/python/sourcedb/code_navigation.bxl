@@ -1,0 +1,52 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# This source code is licensed under both the MIT license found in the
+# LICENSE-MIT file in the root directory of this source tree and the Apache
+# License, Version 2.0 found in the LICENSE-APACHE file in the root directory
+# of this source tree.
+
+load(":build.bxl", "do_build")
+load(":merge.bxl", "do_merge")
+load(":query.bxl", "do_query")
+
+def _build_entry_point(ctx: "bxl_ctx") -> None:
+    bxl_actions = ctx.bxl_actions(
+        exec_deps = "prelude//python/tools/sourcedb_merger:merge",
+        target_platform = "prelude//platforms:default",
+    )
+    actions = bxl_actions.actions
+
+    query = ctx.cquery()
+    root = ctx.root()
+
+    sources = ["{}/{}".format(root, source) for source in ctx.cli_args.source]
+    targets = do_query(ctx, query, actions, query.owner(sources))
+    built_sourcedbs = do_build(ctx, targets)
+
+    # Ensure all source files are materialized
+    ctx.output.ensure_multiple(built_sourcedbs.values())
+
+    # Ensure merged sourcedb is materialized
+    merged_sourcedb = do_merge(
+        ctx,
+        bxl_actions,
+        built_sourcedbs,
+        command_category = "pyre_merge_sourcedb",
+    )
+    ctx.output.print_json({"db": merged_sourcedb.abs_path()})
+
+build = bxl(
+    doc = """Build Python sourcedb for Pyre code navigation server.
+
+    It takes a list of file paths, and will find the owner targets for all
+    those files and build source-db for those owning targets.
+    """,
+    impl = _build_entry_point,
+    cli_args = {
+        "source": cli_args.list(
+            cli_args.string(
+                doc = "File to build a source db for (relative to source root)",
+            ),
+        ),
+    },
+)

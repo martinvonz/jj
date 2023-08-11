@@ -1,0 +1,25 @@
+[repositories]
+prelude = .
+
+# We want to disable the following values when we don't have open source,
+# but our custom config format (yuk) doesn't accept inline comments.
+# Therefore, we hide the name of the group when not open source.
+
+[not_repositories] # @oss-enable
+fbcode = ../..
+fbsource = ../../..
+ovr_config = ../../../arvr/tools/build_defs/config
+bazel_skylib = ../../../third-party/bazel-skylib
+fbcode_macros = ../../../tools/build_defs/fbcode_macros
+fbobjc_dylibs = ../../../xplat/configurations/buck/apple/dylibs
+buck = ../../../xplat/build_infra/buck_client
+buck_bazel_skylib = ../../../xplat/build_infra/buck_client/third-party/skylark/bazel-skylib
+toolchains = ../toolchains
+
+[repository_aliases]
+[not_repository_aliases] # @oss-enable
+config = ovr_config
+
+[buildfile]
+[not_buildfile] # @oss-enable
+name = TARGETS

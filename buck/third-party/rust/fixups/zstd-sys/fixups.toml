@@ -1,0 +1,56 @@
+[[buildscript]]
+[buildscript.cxx_library]
+name = "zstd"
+srcs = [
+    "zstd/lib/common/debug.c",
+    "zstd/lib/common/entropy_common.c",
+    "zstd/lib/common/error_private.c",
+    "zstd/lib/common/fse_decompress.c",
+    "zstd/lib/common/pool.c",
+    "zstd/lib/common/threading.c",
+    #"zstd/lib/common/xxhash.c",
+    "zstd/lib/common/zstd_common.c",
+    "zstd/lib/compress/**/*.c",
+    "zstd/lib/decompress/**/*.c",
+    "zstd/lib/decompress/huf_decompress_amd64.S",
+    "zstd/lib/dictBuilder/**/*.c",
+    "zstd/lib/legacy/**/*.c",
+]
+headers = [
+    "zdict.h",
+    "zstd.h",
+    "zstd/lib/common/bitstream.h",
+    "zstd/lib/common/compiler.h",
+    "zstd/lib/common/cpu.h",
+    "zstd/lib/common/debug.h",
+    "zstd/lib/common/error_private.h",
+    "zstd/lib/common/fse.h",
+    "zstd/lib/common/huf.h",
+    "zstd/lib/common/mem.h",
+    "zstd/lib/common/pool.h",
+    "zstd/lib/common/portability_macros.h",
+    "zstd/lib/common/threading.h",
+    #"zstd/lib/common/xxhash.h",
+    "zstd/lib/common/zstd_deps.h",
+    "zstd/lib/common/zstd_internal.h",
+    "zstd/lib/common/zstd_trace.h",
+    "zstd/lib/compress/**/*.h",
+    "zstd/lib/decompress/**/*.h",
+    "zstd/lib/deprecated/zbuff.h",
+    "zstd/lib/dictBuilder/cover.h",
+    "zstd/lib/dictBuilder/divsufsort.h",
+    "zstd/lib/legacy/**/*.h",
+    "zstd/lib/zdict.h",
+    "zstd/lib/zstd_errors.h",
+    "zstd/lib/zstd.h",
+]
+compiler_flags = [
+    "-O3",
+    "-DZSTD_LIB_DEPRECATED=0",
+    "-fvisibility=hidden",
+    "-DXXH_PRIVATE_API=",
+    "-DZSTDLIB_VISIBILITY=",
+    "-DZDICTLIB_VISIBILITY=",
+    "-DZSTDERRORLIB_VISIBILITY=",
+    "-DZSTD_LEGACY_SUPPORT=1"
+]

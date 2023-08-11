@@ -1,0 +1,5 @@
+python_bootstrap_binary(
+    name = "unzip",
+    main = "unzip.py",
+    visibility = ["PUBLIC"],
+)

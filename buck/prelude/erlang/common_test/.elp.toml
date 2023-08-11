@@ -1,0 +1,4 @@
+[buck]
+enabled = true
+build_deps = false
+included_targets = ["//erlang/common_test/..."]

@@ -1,0 +1,24 @@
+# Used by open source projects to support `prelude//`
+
+constraint_setting(
+    name = "abi",
+    visibility = ["PUBLIC"],
+)
+
+constraint_value(
+    name = "gnu",
+    constraint_setting = ":abi",
+    visibility = ["PUBLIC"],
+)
+
+constraint_value(
+    name = "msvc",
+    constraint_setting = ":abi",
+    visibility = ["PUBLIC"],
+)
+
+constraint_value(
+    name = "musl",
+    constraint_setting = ":abi",
+    visibility = ["PUBLIC"],
+)

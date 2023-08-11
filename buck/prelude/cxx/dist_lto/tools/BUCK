@@ -1,0 +1,44 @@
+load("@prelude//cxx/dist_lto:tools.bzl", "dist_lto_tools")
+
+prelude = native
+
+prelude.python_bootstrap_binary(
+    name = "dist_lto_planner",
+    main = "dist_lto_planner.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "dist_lto_opt",
+    main = "dist_lto_opt.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "dist_lto_prepare",
+    main = "dist_lto_prepare.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "dist_lto_copy",
+    main = "dist_lto_copy.py",
+    visibility = ["PUBLIC"],
+)
+
+dist_lto_tools(
+    name = "dist_lto_tools",
+    planner = ":dist_lto_planner",
+    opt = ":dist_lto_opt",
+    prepare = ":dist_lto_prepare",
+    copy = ":dist_lto_copy",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_test(
+    name = "test_dist_lto_opt",
+    srcs = [
+        "tests/test_dist_lto_opt.py",
+        "dist_lto_opt.py",
+    ],
+)

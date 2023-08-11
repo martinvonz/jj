@@ -1,0 +1,141 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# This source code is licensed under both the MIT license found in the
+# LICENSE-MIT file in the root directory of this source tree and the Apache
+# License, Version 2.0 found in the LICENSE-APACHE file in the root directory
+# of this source tree.
+
+def materialize(ctx, target):
+    analysis = ctx.analysis(target)
+    sources = analysis.providers()[DefaultInfo].sub_targets["sources"][DefaultInfo].default_outputs[0]
+
+    # Ensures the srcs folder will be present
+    return ctx.output.ensure(sources).abs_path()
+
+def _process_target_config(ctx, target):
+    # convert all source paths to absolute paths
+    resolved_attrs = target.resolved_attrs_eager(ctx)
+
+    # Using srcs instead of .sources() gives the resolved artifacts if provided with a buck rule as a src label.
+    # For example, this is used in cxx powered crates internally
+    srcs = []
+    for src in resolved_attrs.srcs:
+        srcs.append(ctx.output.ensure(src).abs_path())
+
+    # remove the configured platform from the deps. for example,
+    # `fbsource//third-party/rust:tracing (ovr_config//platform/linux:x86_64-fbcode-platform010-clang-9f23200ddcddc3cb)`
+    # becomes `fbsource//third-party/rust:tracing`.
+    deps = []
+    for dep in resolved_attrs.deps:
+        deps.append(dep.label.raw_target())
+
+    # Grab only the values that the the gen-rules are being mapped to.
+    mapped_srcs = {}
+    for key, v in resolved_attrs.mapped_srcs.items():
+        mapped_srcs[v] = ctx.output.ensure(key).abs_path()
+
+    # remove the configured platform from named deps.
+    named_deps = {}
+    for dep, alias in resolved_attrs.named_deps.items():
+        named_deps[dep] = alias.label.raw_target()
+
+    # remove the configured platform for tests
+    tests = []
+    for test in resolved_attrs.tests:
+        tests.append(test.raw_target())
+
+    # copy over the absolute paths and raw targets into the output
+    copy = {}
+    attrs = target.attrs_eager()
+    for k in dir(attrs):
+        if k == "srcs":
+            copy["srcs"] = srcs
+        elif k == "deps":
+            copy["deps"] = deps
+        elif k == "mapped_srcs":
+            copy["mapped_srcs"] = mapped_srcs
+        elif k == "named_deps":
+            copy["named_deps"] = named_deps
+        elif k == "tests":
+            copy["tests"] = tests
+        else:
+            copy[k] = getattr(attrs, k)
+
+    # Always generate the source folder. Let rust-project resolve whether or not to use it
+    copy["source_folder"] = materialize(ctx, target)
+    copy["label"] = target.label.raw_target()
+    copy["kind"] = target.rule_type
+    return copy
+
+def cquery_impl(ctx):
+    top_targets = ctx.cli_args.targets
+
+    # the set that we have at home.
+    targets = [target for top_target in top_targets for target in ctx.cquery().deps(top_target)]
+    outputs = ctx.cquery().kind("^(rust_binary|rust_library|rust_test)$", targets)
+    out = {}
+
+    # Eagerly analyze targets
+    ctx.analysis(outputs)
+
+    for target in outputs:
+        out[target.label.raw_target()] = _process_target_config(ctx, target)
+    ctx.output.print_json(out)
+
+query = bxl(
+    impl = cquery_impl,
+    cli_args = {
+        "targets": cli_args.list(cli_args.target_expr()),
+    },
+)
+
+def expand_proc_macros_impl(ctx):
+    # equivalent of `flat_map`ing
+    targets = [target for sublist in ctx.cli_args.targets for target in sublist]
+    targets = ctx.cquery().deps(targets)
+    outputs = ctx.cquery().kind("^(configured_alias)$", targets)
+
+    out = {}
+    for alias in outputs:
+        cfg_actual = alias.resolved_attrs_eager(ctx).actual
+        actual = ctx.cquery().kind("rust_library", cfg_actual.raw_target())
+
+        # if a `configured_alias` has a single `configured_actual` that corresponds to
+        # a rust library, then that is probably the resolved library, but we'll
+        # double-check to make sure it's a proc macro.
+        if len(actual) == 1:
+            if actual[0].attrs_eager().proc_macro:
+                out[alias.label] = actual[0]
+
+    macros = {}
+    for (alias, actual) in out.items():
+        analysis = ctx.analysis(actual.label.raw_target())
+        so = analysis.providers()[DefaultInfo].sub_targets["shared"][DefaultInfo].default_outputs[0]
+        macros[alias] = {"actual": actual.label, "dylib": ctx.output.ensure(so).abs_path()}
+
+    ctx.output.print_json(macros)
+
+expand_proc_macros = bxl(
+    impl = expand_proc_macros_impl,
+    cli_args = {
+        "targets": cli_args.list(cli_args.target_expr()),
+    },
+)
+
+def expand_targets_impl(ctx):
+    # equivalent of `flat_map`ing
+    targets = [target for sublist in ctx.cli_args.targets for target in sublist]
+    kind_target_list = ctx.cquery().kind("^(rust_binary|rust_library|rust_test|alias)$", targets)
+
+    # Allow targets to opt-in to being treated as rust-analyzer-compatible.
+    # This is used for cross-compilation targets that apply Buck transitions to Rust rules.
+    labeled_target_list = ctx.cquery().attrfilter("labels", "rust_analyzer_target", targets)
+    expanded_target_list = kind_target_list + labeled_target_list
+    ctx.output.print_json([target.label.raw_target() for target in expanded_target_list])
+
+expand_targets = bxl(
+    impl = expand_targets_impl,
+    cli_args = {
+        "targets": cli_args.list(cli_args.target_expr()),
+    },
+)

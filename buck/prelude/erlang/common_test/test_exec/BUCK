@@ -1,0 +1,22 @@
+erlang_application(
+    name = "test_exec",
+    srcs = glob([
+        "src/*.erl",
+        "src/*.hrl",
+    ]),
+    app_src = "src/test_exec.app.src",
+    applications = [
+        "kernel",
+        "stdlib",
+        "debugger",
+        "prelude//erlang/common_test/common:common",
+        "prelude//erlang/common_test/cth_hooks:cth_hooks",
+    ],
+    includes = glob(["include/*.hrl"]),
+    mod = ("test_exec", []),
+    resources = read_root_config("erlang", "erlang_tests_default_config", "").split(),
+    shell_libs = [],
+    use_global_parse_transforms = False,
+    visibility = ["PUBLIC"],
+    erl_opts = ["+debug_info"],
+)

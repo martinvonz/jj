@@ -1,0 +1,124 @@
+# The short list of ubiquitous, mainstream operating systems:
+
+config_setting(
+    name = "linux",
+    constraint_values = [
+        "//os/constraints:linux",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "macos",
+    constraint_values = [
+        "//os/constraints:macos",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "windows",
+    constraint_values = [
+        "//os/constraints:windows",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Android
+
+config_setting(
+    name = "android",
+    constraint_values = [
+        "//os/constraints:android",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+native.constraint_setting(
+    name = "maybe_building_android_binary",
+    visibility = ["prelude//..."],
+)
+
+native.constraint_value(
+    name = "building_android_binary",
+    constraint_setting = ":maybe_building_android_binary",
+    visibility = ["prelude//..."],
+)
+
+# Rest of Apple's operating systems.
+
+config_setting(
+    name = "ios",
+    constraint_values = [
+        "//os/constraints:ios",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "tvos",
+    constraint_values = [
+        "//os/constraints:tvos",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "watchos",
+    constraint_values = [
+        "//os/constraints:watchos",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Long tail but contemporarily relevant operating systems.
+# Whether a Tier 2 rustc target exists is approximately the right bar.
+
+config_setting(
+    name = "freebsd",
+    constraint_values = [
+        "//os/constraints:freebsd",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "fuchsia",
+    constraint_values = [
+        "//os/constraints:fuchsia",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "illumos",
+    constraint_values = [
+        "//os/constraints:illumos",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "netbsd",
+    constraint_values = [
+        "//os/constraints:netbsd",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "wasi",
+    constraint_values = [
+        "//os/constraints:wasi",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# For platforms with no OS, like microcontrollers.
+config_setting(
+    name = "none",
+    constraint_values = [
+        "//os/constraints:none",
+    ],
+    visibility = ["PUBLIC"],
+)

@@ -1,0 +1,19 @@
+prelude = native
+
+prelude.export_file(
+    name = "__run_lpar_main__.py",
+    visibility = ["PUBLIC"],
+    src = "__run_lpar_main__.py",
+)
+
+prelude.export_file(
+    name = "sitecustomize.py",
+    visibility = ["PUBLIC"],
+    src = "sitecustomize.py",
+)
+
+prelude.export_file(
+    name = "_lpar_bootstrap.sh.template",
+    visibility = ["PUBLIC"],
+    src = "_lpar_bootstrap.sh.template",
+)

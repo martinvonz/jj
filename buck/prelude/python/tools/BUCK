@@ -1,0 +1,123 @@
+prelude = native
+
+prelude.python_bootstrap_binary(
+    name = "extract",
+    main = "extract.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "create_manifest_for_source_dir",
+    main = "create_manifest_for_source_dir.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "make_source_db",
+    main = "make_source_db.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "make_source_db_no_deps",
+    main = "make_source_db_no_deps.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.export_file(
+    name = "__test_main__.py",
+    src = "__test_main__.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "make_pex_inplace.py",
+    main = "make_pex_inplace.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.export_file(
+    name = "run_inplace_lite.py.in",
+    src = "run_inplace_lite.py.in",
+)
+
+prelude.export_file(
+    name = "run_inplace.py.in",
+    src = "run_inplace.py.in",
+)
+
+prelude.command_alias(
+    name = "make_pex_inplace",
+    exe = ":make_pex_inplace.py",
+    args = ["--template", "$(location :run_inplace.py.in)", "--template-lite", "$(location :run_inplace_lite.py.in)"],
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "make_pex_modules",
+    main = "make_pex_modules.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.export_file(
+    name = "compile.py",
+    src = "compile.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "generate_static_extension_info",
+    main = "generate_static_extension_info.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_library(
+    name = "py38stdlib",
+    srcs = ["py38stdlib.py"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "parse_imports",
+    main = "parse_imports.py",
+    deps = [":py38stdlib"],
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "traverse_dep_manifest",
+    main = "traverse_dep_manifest.py",
+    deps = [":py38stdlib"],
+    visibility = ["PUBLIC"],
+)
+
+# Main file used for native python binaries
+prelude.export_file(
+    name = "embedded_main.cpp",
+    src = "embedded_main.cpp",
+    visibility = ["PUBLIC"],
+)
+
+# Custom importer for native linked `cxx_python_extension' targets
+prelude.export_file(
+    name = "static_extension_utils.cpp",
+    src = "static_extension_utils.cpp",
+    visibility = ["PUBLIC"],
+)
+
+prelude.export_file(
+    name = "static_extension_finder.py",
+    src = "static_extension_finder.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "make_pex_manifest_module",
+    main = "make_pex_manifest_module.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "fail_with_message",
+    main = "fail_with_message.py",
+    visibility = ["PUBLIC"],
+)

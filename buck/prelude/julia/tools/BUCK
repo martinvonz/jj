@@ -1,0 +1,7 @@
+prelude = native
+
+prelude.python_bootstrap_binary(
+    name = "parse_julia_cmd",
+    main = "parse_julia_cmd.py",
+    visibility = ["PUBLIC"],
+)

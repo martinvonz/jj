@@ -1,0 +1,26 @@
+[repositories]
+root = .
+prelude = buck/prelude
+toolchains = buck/toolchains
+third-party = buck/third-party
+none = none
+
+[repository_aliases]
+config = prelude
+fbcode = none
+fbsource = none
+buck = none
+
+[parser]
+target_platform_detector_spec = target:root//...->prelude//platforms:default target:third-party//...->prelude//platforms:default
+
+[project]
+ignore = .jj, .git, target
+
+[buck2]
+digest_algorithms = SHA256
+materializations = deferred
+sqlite_materializer_state = true
+defer_write_actions = true
+hash_all_commands = true
+restarter = true

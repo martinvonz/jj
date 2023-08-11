@@ -1,0 +1,10 @@
+# Used by open source projects to provide a simple platform setting
+
+load(":defs.bzl", "execution_platform", "host_configuration")
+
+execution_platform(
+    name = "default",
+    cpu_configuration = host_configuration.cpu,
+    os_configuration = host_configuration.os,
+    use_windows_path_separators = host_info().os.is_windows,
+)

@@ -1,0 +1,7 @@
+prelude = native
+
+prelude.python_bootstrap_binary(
+    name = "script_template_processor",
+    main = "script_template_processor.py",
+    visibility = ["PUBLIC"],
+)

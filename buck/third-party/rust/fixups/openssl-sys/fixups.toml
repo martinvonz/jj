@@ -1,0 +1,7 @@
+cargo_env = true
+
+[env]
+OPENSSL_NO_VENDOR="1"
+
+[[buildscript]]
+[buildscript.rustc_flags]

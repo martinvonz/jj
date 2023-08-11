@@ -1,0 +1,30 @@
+erlang_escript(
+    name = "escript",
+    main_module = "test_binary",
+    deps = [
+        ":test_binary",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+erlang_application(
+    name = "test_binary",
+    srcs = glob([
+        "src/*.erl",
+        "src/*.hrl",
+    ]),
+    applications = [
+        "kernel",
+        "stdlib",
+        "syntax_tools",
+        "xmerl",
+        "prelude//erlang/toolchain:resources[jsone]",
+        "prelude//erlang/common_test/common:common",
+        "prelude//erlang/common_test/cth_hooks:cth_hooks",
+        "prelude//erlang/common_test/test_exec:test_exec",
+    ],
+    includes = glob(["include/*.hrl"]),
+    use_global_parse_transforms = False,
+    visibility = ["PUBLIC"],
+    erl_opts = ["+debug_info"],
+)

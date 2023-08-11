@@ -1,0 +1,16 @@
+load("//os_lookup:defs.bzl", "os_lookup")
+
+os_lookup(
+    name = "os_lookup",
+    cpu = select({
+        "DEFAULT": None,
+        "config//cpu:arm64": "arm64",
+        "config//cpu:x86_64": "x86_64",
+    }),
+    platform = select({
+        "DEFAULT": "linux",
+        "config//os:macos": "macos",
+        "config//os:windows": "windows",
+    }),
+    visibility = ["PUBLIC"],
+)

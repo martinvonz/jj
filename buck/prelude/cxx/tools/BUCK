@@ -1,0 +1,41 @@
+load(":defs.bzl", "cxx_hacks")
+
+prelude = native
+
+prelude.python_bootstrap_binary(
+    name = "make_comp_db",
+    main = "make_comp_db.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "dep_file_processor",
+    main = "dep_file_processor.py",
+    deps = [
+        ":dep_file_processors",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_library(
+    name = "dep_file_processors",
+    srcs = [
+        "makefile_to_dep_file.py",
+        "show_headers_to_dep_file.py",
+        "show_includes_to_dep_file.py",
+        "dep_file_utils.py",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "linker_wrapper",
+    main = "linker_wrapper.py",
+    visibility = ["PUBLIC"],
+)
+
+# Required to support the $(cxx-header-tree) macro
+cxx_hacks(
+    name = "cxx_hacks",
+    visibility = ["PUBLIC"],
+)

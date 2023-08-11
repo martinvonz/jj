@@ -1,0 +1,39 @@
+config_setting(
+    name = "x86_64",
+    constraint_values = [
+        "prelude//cpu/constraints:x86_64",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "x86_32",
+    constraint_values = [
+        "prelude//cpu/constraints:x86_32",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "arm64",
+    constraint_values = [
+        "prelude//cpu/constraints:arm64",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "arm32",
+    constraint_values = [
+        "prelude//cpu/constraints:arm32",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "wasm32",
+    constraint_values = [
+        "prelude//cpu/constraints:wasm32",
+    ],
+    visibility = ["PUBLIC"],
+)

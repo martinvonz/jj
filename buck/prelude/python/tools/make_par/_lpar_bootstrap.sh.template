@@ -1,0 +1,28 @@
+
+#!/usr/bin/env bash
+# {argcomplete_hint}
+
+BASE_DIR={base_dir}
+DIR={base_dir}
+if [ -n "${{{lib_path_env}+SET}}" ]; then
+    export FB_SAVED_{lib_path_env}=${lib_path_env}
+fi
+export {lib_path_env}={ld_library_path}
+if [ -n "${{PYTHONPATH+SET}}" ]; then
+    export FB_SAVED_PYTHONPATH=$PYTHONPATH
+fi
+export PYTHONPATH=$BASE_DIR
+if [ -n "${{PYTHONHOME+SET}}" ]; then
+    export FB_SAVED_PYTHONHOME=$PYTHONHOME
+fi
+if [ -n "${{{lib_preload_env}+SET}}" ]; then
+    export FB_SAVED_{lib_preload_env}=${lib_preload_env}
+fi
+unset PYTHONHOME
+export FB_LPAR_MAIN_MODULE="{main_module}"
+export FB_PAR_RUNTIME_FILES=$BASE_DIR
+: ${{FB_LPAR_INVOKED_NAME:="$0"}}
+export FB_LPAR_INVOKED_NAME
+{ld_preload}
+{env}
+exec {cmd} "$@"

@@ -1,0 +1,35 @@
+prelude = native
+
+prelude.python_bootstrap_binary(
+    name = "compile_wrapper",
+    main = "compile_wrapper.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "cover_srcs",
+    main = "cover_srcs.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "filter_srcs",
+    main = "filter_srcs.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "cgo_wrapper",
+    main = "cgo_wrapper.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.go_binary(
+    name = "testmaingen",
+    srcs = [
+        "testmaingen.go",
+    ],
+    visibility = [
+        "PUBLIC",
+    ],
+)

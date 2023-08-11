@@ -1,0 +1,10 @@
+
+rust_binary(
+    name = "jj-cli",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2021",
+    visibility = [ "PUBLIC" ],
+    deps = [
+        "//lib:jj-lib",
+    ],
+)

@@ -1,0 +1,24 @@
+erlang_application(
+    name = "cth_hooks",
+    srcs = glob([
+        "src/*.erl",
+        "src/*.hrl",
+    ]),
+    applications = [
+        "kernel",
+        "stdlib",
+        "common_test",
+    ],
+    shell_libs = [],
+    use_global_parse_transforms = False,
+    visibility = ["PUBLIC"],
+    erl_opts = ["+debug_info"],
+)
+
+erlang_application(
+    name = "compiled_suites",
+    srcs = glob(["tests/cth_tpx_SUITE_data/*.erl"]),
+    applications = ["stdlib"],
+    visibility = ["PUBLIC"],
+    erl_opts = ["+debug_info"],
+)

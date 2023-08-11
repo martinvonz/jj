@@ -1,0 +1,37 @@
+prelude = native
+
+prelude.python_bootstrap_library(
+    name = "library",
+    srcs = [
+        "inputs.py",
+        "legacy_outputs.py",
+        "outputs.py",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "merge",
+    main = "merge.py",
+    deps = [
+        ":library",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "legacy_merge",
+    main = "legacy_merge.py",
+    deps = [
+        ":library",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Run the test suite with this command:
+# buck2 run prelude//python/tools/sourcedb_merger:tests --target-platforms prelude//platforms:default
+prelude.sh_binary(
+    name = "tests",
+    main = "tests/main.sh",
+    resources = glob(["**/*.py"]),
+)

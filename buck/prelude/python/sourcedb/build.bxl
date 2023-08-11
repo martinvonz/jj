@@ -1,0 +1,39 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# This source code is licensed under both the MIT license found in the
+# LICENSE-MIT file in the root directory of this source tree and the Apache
+# License, Version 2.0 found in the LICENSE-APACHE file in the root directory
+# of this source tree.
+
+def _get_artifact(result: "bxl_build_result") -> "artifact":
+    # NOTE: the first artifact is always the source db json
+    # T124989384 will make this nicer
+    for artifact in result.artifacts():
+        return artifact
+    fail("Sourcedb rule must have at least one artifact")
+
+def _abort_on_build_failure(target_label: "target_label", result: "bxl_build_result") -> None:
+    for failure in result.failures():
+        error_message = "Target `{}` cannot be built by Buck\nreason: {}".format(target_label, failure)
+        fail(error_message)
+
+# Build sourcedb for the given targets, and return a mapping from target names
+# to the corresponding sourcedb JSON file location.
+def do_build(
+        ctx: "bxl_ctx",
+        targets: list["configured_target_label"]) -> dict["target_label", "artifact"]:
+    # Build sourcedbs of all targets
+    configured_sub_targets = [
+        configured_sub_target(target, ["source-db-no-deps"])
+        for target in targets
+    ]
+    build_results = ctx.build(configured_sub_targets)
+
+    # Compute result dict
+    output = {}
+    for key, result in build_results.items():
+        raw_target = key.raw_target()
+        _abort_on_build_failure(raw_target, result)
+        path = _get_artifact(result)
+        output[raw_target] = path
+    return output

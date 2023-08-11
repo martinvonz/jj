@@ -1,0 +1,13 @@
+prelude = native
+
+prelude.python_bootstrap_binary(
+    name = "gen_class_to_source_map",
+    main = "gen_class_to_source_map.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "merge_class_to_source_maps",
+    main = "merge_class_to_source_maps.py",
+    visibility = ["PUBLIC"],
+)

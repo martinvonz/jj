@@ -1,0 +1,23 @@
+config_setting(
+    name = "gnu",
+    constraint_values = [
+        "prelude//abi/constraints:gnu",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "msvc",
+    constraint_values = [
+        "prelude//abi/constraints:msvc",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+config_setting(
+    name = "musl",
+    constraint_values = [
+        "prelude//abi/constraints:musl",
+    ],
+    visibility = ["PUBLIC"],
+)

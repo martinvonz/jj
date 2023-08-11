@@ -1,0 +1,13 @@
+load("@prelude//http_archive/exec_deps.bzl", "http_archive_exec_deps")
+
+prelude = native
+
+http_archive_exec_deps(
+    name = "exec_deps",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "create_exclusion_list",
+    main = "create_exclusion_list.py",
+)

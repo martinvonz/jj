@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+[ ! -z "$DEBUG" ] && set -x
+set -euo pipefail
+
+BUCK2_VERSION="@BUCK2_VERSION@"
+PRELUDE_HASH_URL="https://github.com/facebook/buck2/releases/download/${BUCK2_VERSION}/prelude_hash"
+PRELUDE_HASH=$(curl -sLo - "${PRELUDE_HASH_URL}")
+PRELUDE_DL_URL="https://github.com/facebook/buck2-prelude/archive/${PRELUDE_HASH}.tar.gz"
+
+echo "NOTE: Updating prelude to ${PRELUDE_HASH}, compatible with buck2 ${BUCK2_VERSION}"
+sleep 3
+
+[ -d "buck/prelude" ] && rm -r buck/prelude ; mkdir -p buck/prelude
+curl -sLo - "${PRELUDE_DL_URL}" | tar -C buck/prelude/ --strip-components 1 -xzv

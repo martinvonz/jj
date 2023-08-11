@@ -1,0 +1,38 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# This source code is licensed under both the MIT license found in the
+# LICENSE-MIT file in the root directory of this source tree and the Apache
+# License, Version 2.0 found in the LICENSE-APACHE file in the root directory
+# of this source tree.
+
+def _deduped_paths(paths):
+    return list({
+        str(path): path.abs_path()
+        for path in paths
+    }.values())
+
+def _ebin_paths(ctx):
+    test_target = ctx.cquery().kind("erlang_test", ctx.cquery().owner(ctx.cli_args.source))
+    app_target = ctx.cquery().kind("erlang_app$", ctx.cquery().owner(ctx.cli_args.source))
+
+    target = test_target + app_target
+
+    paths = []
+    failed_targets = []
+    for k, value in ctx.build(target).items():
+        for _ in value.failures():
+            failed_targets.append(str(k.raw_target()))
+            break
+        paths.extend(ctx.output.ensure_multiple(value.artifacts()))
+
+    if failed_targets:
+        fail("failed to build {} targets: {}".format(len(failed_targets), failed_targets))
+
+    ctx.output.print(sep = "\n", *_deduped_paths(paths))
+
+ebin_paths = bxl(
+    impl = _ebin_paths,
+    cli_args = {
+        "source": cli_args.string(),
+    },
+)

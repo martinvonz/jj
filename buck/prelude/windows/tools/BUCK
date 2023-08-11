@@ -1,0 +1,12 @@
+prelude = native
+
+prelude.export_file(
+    name = "msvc_hermetic_exec.bat",
+    src = "msvc_hermetic_exec.bat",
+)
+
+prelude.command_alias(
+    name = "msvc_hermetic_exec",
+    exe = ":msvc_hermetic_exec.bat",
+    visibility = ["PUBLIC"],
+)

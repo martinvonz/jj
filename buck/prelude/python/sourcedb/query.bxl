@@ -1,0 +1,118 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# This source code is licensed under both the MIT license found in the
+# LICENSE-MIT file in the root directory of this source tree and the Apache
+# License, Version 2.0 found in the LICENSE-APACHE file in the root directory
+# of this source tree.
+
+load("@prelude//python:python.bzl", "PythonLibraryManifestsTSet")
+load("@prelude//python:source_db.bzl", "PythonSourceDBInfo")
+
+BUCK_PYTHON_RULE_KINDS = [
+    "python_binary",
+    "python_library",
+    "python_test",
+]
+BUCK_PYTHON_RULE_KIND_QUERY = "|".join(BUCK_PYTHON_RULE_KINDS)
+
+def _filter_root_targets(
+        query: "cqueryctx",
+        target_patterns: "_iterable_of_target_pattern") -> "target_set":
+    # Find all Pure-Python targets
+    candidate_targets = ctarget_set()
+    for pattern in target_patterns:
+        candidate_targets += query.kind(
+            BUCK_PYTHON_RULE_KIND_QUERY,
+            pattern,
+        )
+
+    # Don't check generated rules
+    filtered_targets = candidate_targets - query.attrfilter(
+        "labels",
+        "generated",
+        candidate_targets,
+    )
+
+    # Do include unittest sources, which are marked as generated
+    filtered_targets = filtered_targets + query.attrfilter(
+        "labels",
+        "unittest-library",
+        candidate_targets,
+    )
+
+    # Provide an opt-out label
+    filtered_targets = filtered_targets - query.attrfilter(
+        "labels",
+        "no_pyre",
+        candidate_targets,
+    )
+    return filtered_targets
+
+def _get_python_library_manifests_from_analysis_result(
+        analysis_result: "analysis_result") -> [PythonLibraryManifestsTSet.type, None]:
+    sub_target = analysis_result.providers()[DefaultInfo].sub_targets.get("source-db-no-deps")
+    if sub_target == None:
+        return None
+    python_source_db_info = sub_target.get(PythonSourceDBInfo)
+    if python_source_db_info == None:
+        return None
+    return python_source_db_info.manifests
+
+def _get_python_library_manifests_from_targets(
+        ctx: "bxl_ctx",
+        targets: "target_set") -> list[PythonLibraryManifestsTSet.type]:
+    return filter(None, [
+        _get_python_library_manifests_from_analysis_result(analysis_result)
+        for analysis_result in ctx.analysis(targets).values()
+    ])
+
+def get_python_library_manifests_tset_from_targets(
+        ctx: "bxl_ctx",
+        actions: "actions",
+        root_targets: "target_set") -> PythonLibraryManifestsTSet.type:
+    return actions.tset(
+        PythonLibraryManifestsTSet,
+        children = _get_python_library_manifests_from_targets(ctx, root_targets),
+    )
+
+def get_python_library_manifests_tset_from_target_patterns(
+        ctx: "bxl_ctx",
+        query: "cqueryctx",
+        actions: "actions",
+        target_patterns: "_iterable_of_target_pattern") -> PythonLibraryManifestsTSet.type:
+    root_targets = _filter_root_targets(query, target_patterns)
+    return get_python_library_manifests_tset_from_targets(ctx, actions, root_targets)
+
+def do_query(
+        ctx: "bxl_ctx",
+        query: "cqueryctx",
+        actions: "actions",
+        target_patterns: "_iterable_of_target_pattern") -> list["configured_target_label"]:
+    manifests_of_transitive_dependencies = get_python_library_manifests_tset_from_target_patterns(
+        ctx,
+        query,
+        actions,
+        target_patterns,
+    )
+    return [
+        manifest.label.configured_target()
+        for manifest in manifests_of_transitive_dependencies.traverse()
+        if manifest.src_types != None
+    ]
+
+def _do_query_entry_point(ctx: "bxl_ctx") -> None:
+    query = ctx.cquery()
+    actions = ctx.bxl_actions().actions
+    targets = do_query(ctx, query, actions, [query.eval(target) for target in ctx.cli_args.target])
+    ctx.output.print_json([target.raw_target() for target in targets])
+
+query = bxl(
+    doc = (
+        "Expand target patterns and look for all targets in their transitive" +
+        "dependencies that will be built by Pyre."
+    ),
+    impl = _do_query_entry_point,
+    cli_args = {
+        "target": cli_args.list(cli_args.string()),
+    },
+)

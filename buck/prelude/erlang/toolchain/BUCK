@@ -1,0 +1,41 @@
+load("@prelude//erlang:erlang_toolchain.bzl", "erlang_parse_transform", "toolchain_resources_internal", "toolchain_utilities")
+
+erlang_parse_transform(
+    name = "transform_project_root",
+    src = "transform_project_root.erl",
+    visibility = ["PUBLIC"],
+)
+
+# export escripts for testing
+filegroup(
+    name = "util_scripts",
+    srcs = glob([
+        "*.escript",
+        "*.sh",
+        "*.erl",
+    ]),
+    visibility = ["PUBLIC"],
+)
+
+toolchain_utilities(
+    name = "toolchain_utilities",
+    app_src_script = "app_src_builder.escript",
+    boot_script_builder = "boot_script_builder.escript",
+    core_parse_transforms = [":transform_project_root"],
+    dependency_analyzer = "dependency_analyzer.escript",
+    edoc = "edoc_cli.escript",
+    erlc_trampoline = "erlc_trampoline.sh",
+    escript_builder = "escript_builder.escript",
+    include_erts = "include_erts.escript",
+    release_variables_builder = "release_variables_builder.escript",
+    utility_modules = [
+        "edoc_doclet_chunks.erl",
+        "edoc_report.erl",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+toolchain_resources_internal(
+    name = "resources",
+    visibility = ["PUBLIC"],
+)

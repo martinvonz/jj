@@ -1,0 +1,87 @@
+#!<PYTHON> <PYTHON_INTERPRETER_FLAGS>
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# This source code is licensed under both the MIT license found in the
+# LICENSE-MIT file in the root directory of this source tree and the Apache
+# License, Version 2.0 found in the LICENSE-APACHE file in the root directory
+# of this source tree.
+
+# LINKTREEDIR=<MODULES_DIR>
+
+main_module = "<MAIN_MODULE>"
+modules_dir = "<MODULES_DIR>"
+
+# Wrap everything in a private function to prevent globals being captured by
+# the `runpy._run_module_as_main` below.
+def __run():
+    import sys
+    import os
+    import platform
+
+    def try_resolve_possible_symlink(path):
+        import ctypes
+        import ctypes.wintypes
+
+        wintypes = ctypes.wintypes
+
+        OPEN_EXISTING = 3
+        FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+        INVALID_HANDLE_VALUE = -1
+
+        CreateFile = ctypes.windll.kernel32.CreateFileW
+        CreateFile.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                               wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD,
+                               wintypes.HANDLE]
+        CreateFile.restype = wintypes.HANDLE
+
+        CloseHandle = ctypes.windll.kernel32.CloseHandle
+        CloseHandle.argtypes = [wintypes.HANDLE]
+        CloseHandle.restype = wintypes.BOOL
+
+        GetFinalPathNameByHandle = ctypes.windll.kernel32.GetFinalPathNameByHandleW
+        GetFinalPathNameByHandle.argtypes = [wintypes.HANDLE, wintypes.LPWSTR, wintypes.DWORD, wintypes.DWORD]
+        GetFinalPathNameByHandle.restype = wintypes.DWORD
+
+        handle = INVALID_HANDLE_VALUE
+        try:
+            handle = CreateFile(path, 0, 0, None, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, None)
+            if handle == INVALID_HANDLE_VALUE:
+                return path
+
+            path_buf = ctypes.create_unicode_buffer(wintypes.MAX_PATH + 1)
+            if GetFinalPathNameByHandle(handle, path_buf, wintypes.MAX_PATH + 1, 0) == 0:
+                return path
+
+            # avoid literal backslash (ASCII octal 134) to get out of multilevel quoting hell
+            if path_buf.value.startswith(chr(0o134) + chr(0o134) + '?' + chr(0o134)):
+                return path_buf.value[4:]
+
+            return path_buf.value
+        finally:
+            if handle != INVALID_HANDLE_VALUE:
+                CloseHandle(handle)
+
+    # We set the paths beforehand to have a minimal amount of imports before
+    # nuking PWD from sys.path. Otherwise, there can be problems if someone runs
+    # from a directory with a similarly named file, even if their code is properly
+    # namespaced. e.g. if one has foo/bar/contextlib.py and while in foo/bar runs
+    # `buck run foo/bar:bin`, runpy will fail as it tries to import
+    # foo/bar/contextlib.py. You're just out of luck if you have sys.py or os.py
+
+    dirpath = os.path.dirname(os.path.realpath(__file__))
+    if platform.system() == "Windows":
+        # Hah hah just kidding. __file__ will point to the symlink and not the
+        # actual pex we want to execute, if we're in a symlink. os.path.realpath
+        # does *not* dereference symlinks on windows until, like, 3.8 maybe.
+        dirpath = os.path.dirname(try_resolve_possible_symlink(sys.argv[0]))
+
+    # Replace the working directory with location of the modules directory.
+    sys.path[0] = os.path.join(dirpath, modules_dir)
+
+    import os
+    import runpy
+
+    runpy._run_module_as_main(main_module, False)
+
+
+__run()

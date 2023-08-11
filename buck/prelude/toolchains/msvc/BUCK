@@ -1,0 +1,18 @@
+load(":tools.bzl", "find_msvc_tools")
+
+python_bootstrap_binary(
+    name = "vswhere",
+    main = "vswhere.py",
+    visibility = [],
+)
+
+python_bootstrap_binary(
+    name = "run_msvc_tool",
+    main = "run_msvc_tool.py",
+    visibility = [],
+)
+
+find_msvc_tools(
+    name = "msvc_tools",
+    visibility = ["PUBLIC"],
+)

@@ -1,0 +1,38 @@
+# Used by open source projects to support `prelude//`
+
+constraint_setting(
+    name = "cpu",
+    visibility = ["PUBLIC"],
+)
+
+constraint_value(
+    name = "x86_64",
+    constraint_setting = ":cpu",
+    visibility = ["PUBLIC"],
+)
+
+constraint_value(
+    name = "x86_32",
+    constraint_setting = ":cpu",
+    visibility = ["PUBLIC"],
+)
+
+# Represents various flavors of ARM64, e.g., arm64_32
+constraint_value(
+    name = "arm64",
+    constraint_setting = ":cpu",
+    visibility = ["PUBLIC"],
+)
+
+# Represents various flavors of ARM32, e.g., ARMv7k
+constraint_value(
+    name = "arm32",
+    constraint_setting = ":cpu",
+    visibility = ["PUBLIC"],
+)
+
+constraint_value(
+    name = "wasm32",
+    constraint_setting = ":cpu",
+    visibility = ["PUBLIC"],
+)

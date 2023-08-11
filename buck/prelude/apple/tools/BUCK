@@ -1,0 +1,30 @@
+prelude = native
+
+prelude.python_bootstrap_binary(
+    name = "make_modulemap",
+    main = "make_modulemap.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.export_file(
+    name = "swift_exec.sh",
+    src = "swift_exec.sh",
+)
+
+prelude.command_alias(
+    name = "swift_exec",
+    exe = ":swift_exec.sh",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "make_vfsoverlay",
+    main = "make_vfsoverlay.py",
+    visibility = ["PUBLIC"],
+)
+
+prelude.python_bootstrap_binary(
+    name = "swift_objc_header_postprocess",
+    main = "swift_objc_header_postprocess.py",
+    visibility = ["PUBLIC"],
+)
