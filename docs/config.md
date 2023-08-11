@@ -267,6 +267,15 @@ a `$`):
 
 `less -FRX` is the default pager in the absence of any other setting.
 
+Additionally, paging behavior can be toggled via `ui.paginate` like so:
+
+```toml
+# Enable pagination for commands that support it (default) 
+ui.paginate = "auto"
+# Disable all pagination, equivalent to using --no-pager
+ui.paginate = "never"
+```
+
 ### Processing contents to be paged
 
 If you'd like to pass the output through a formatter e.g.

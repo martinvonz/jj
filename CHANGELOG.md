@@ -53,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj log`/`obslog`/`op log` now supports `--limit N` option to show the first
   `N` entries.
 
+* Added the `ui.paginate` option to enable/disable pager usage in commands
+
 ### Fixed bugs
 
 * SSH authentication could hang when ssh-agent couldn't be reached
