@@ -90,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Revsets gained a new function `mine()` that aliases `author(exact:"your_email")`.
 
+* `jj log` timestamp format now accepts `.utc()` to convert a timestamp to UTC.
+
 ### Fixed bugs
 
 * `jj config set --user` and `jj config edit --user` can now be used outside of any repository.
