@@ -294,13 +294,15 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<ContentHunk> {
     Merge::new(removes, adds)
 }
 
-/// Returns `None` if there are no conflict markers in `content`.
+/// Parses conflict markers in `content` and returns an updated version of
+/// `file_ids` with the new contents. If no (valid) conflict markers remain, a
+/// single resolves `FileId` will be returned.
 pub fn update_from_content(
     file_ids: &Merge<Option<FileId>>,
     store: &Store,
     path: &RepoPath,
     content: &[u8],
-) -> BackendResult<Option<Merge<Option<FileId>>>> {
+) -> BackendResult<Merge<Option<FileId>>> {
     // First check if the new content is unchanged compared to the old content. If
     // it is, we don't need parse the content or write any new objects to the
     // store. This is also a way of making sure that unchanged tree/file
@@ -310,7 +312,7 @@ pub fn update_from_content(
     let merge_hunk = extract_as_single_hunk(file_ids, store, path);
     materialize_merge_result(&merge_hunk, &mut old_content).unwrap();
     if content == old_content {
-        return Ok(Some(file_ids.clone()));
+        return Ok(file_ids.clone());
     }
 
     let mut removed_content = vec![vec![]; file_ids.removes().len()];
@@ -318,7 +320,8 @@ pub fn update_from_content(
     let Some(hunks) = parse_conflict(content, file_ids.removes().len(), file_ids.adds().len())
     else {
         // Either there are no self markers of they don't have the expected arity
-        return Ok(None);
+        let file_id = store.write_file(path, &mut &content[..])?;
+        return Ok(Merge::normal(file_id));
     };
     for hunk in hunks {
         if let Some(slice) = hunk.as_resolved() {
@@ -356,7 +359,8 @@ pub fn update_from_content(
             _ => {
                 // The user edited the empty placeholder for an absent side. We consider the
                 // conflict resolved.
-                return Ok(None);
+                let file_id = store.write_file(path, &mut &content[..])?;
+                return Ok(Merge::normal(file_id));
             }
         }
     }
@@ -375,9 +379,10 @@ pub fn update_from_content(
             _ => {
                 // The user edited the empty placeholder for an absent side. We consider the
                 // conflict resolved.
-                return Ok(None);
+                let file_id = store.write_file(path, &mut &content[..])?;
+                return Ok(Merge::normal(file_id));
             }
         }
     }
-    Ok(Some(Merge::new(new_removes, new_adds)))
+    Ok(Merge::new(new_removes, new_adds))
 }
