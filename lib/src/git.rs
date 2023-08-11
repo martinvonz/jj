@@ -196,35 +196,37 @@ pub fn import_some_refs(
     git_settings: &GitSettings,
     git_ref_filter: impl Fn(&RefName) -> bool,
 ) -> Result<(), GitImportError> {
-    let store = mut_repo.store().clone();
-
     // TODO: Should this be a separate function? We may not always want to import
     // the Git HEAD (and add it to our set of heads).
-    if let Ok(head_git_commit) = git_repo
+    let old_git_head = mut_repo.view().git_head();
+    let changed_git_head = if let Ok(head_git_commit) = git_repo
         .head()
         .and_then(|head_ref| head_ref.peel_to_commit())
     {
         // The current HEAD is not added to `hidable_git_heads` because HEAD move
         // doesn't automatically mean the old HEAD branch has been rewritten.
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
-        if !matches!(mut_repo.git_head().as_normal(), Some(id) if id == &head_commit_id) {
-            let head_commit = store.get_commit(&head_commit_id).map_err(|err| {
-                GitImportError::MissingHeadTarget {
-                    id: head_commit_id.clone(),
-                    err,
-                }
-            })?;
-            prevent_gc(git_repo, &head_commit_id)?;
-            mut_repo.add_head(&head_commit);
-            mut_repo.set_git_head_target(RefTarget::normal(head_commit_id));
-        }
+        let new_head_target = RefTarget::normal(head_commit_id);
+        (*old_git_head != new_head_target).then_some(new_head_target)
     } else {
-        mut_repo.set_git_head_target(RefTarget::absent());
-    }
-
+        old_git_head.is_present().then(RefTarget::absent)
+    };
     let changed_git_refs = diff_refs_to_import(mut_repo.view(), git_repo, git_ref_filter)?;
 
     // Import new heads
+    let store = mut_repo.store().clone();
+    if let Some(new_head_target) = &changed_git_head {
+        for id in new_head_target.added_ids() {
+            let commit = store
+                .get_commit(id)
+                .map_err(|err| GitImportError::MissingHeadTarget {
+                    id: id.clone(),
+                    err,
+                })?;
+            prevent_gc(git_repo, id)?;
+            mut_repo.add_head(&commit);
+        }
+    }
     for (ref_name, (_, new_git_target)) in &changed_git_refs {
         for id in new_git_target.added_ids() {
             let commit =
@@ -239,8 +241,11 @@ pub fn import_some_refs(
         }
     }
 
+    // Apply the change that happened in git since last time we imported refs.
+    if let Some(new_head_target) = changed_git_head {
+        mut_repo.set_git_head_target(new_head_target);
+    }
     for (ref_name, (old_git_target, new_git_target)) in &changed_git_refs {
-        // Apply the change that happened in git since last time we imported refs
         let full_name = to_git_ref_name(ref_name).unwrap();
         mut_repo.set_git_ref_target(&full_name, new_git_target.clone());
         if let RefName::RemoteBranch { branch, remote } = ref_name {
