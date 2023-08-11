@@ -26,6 +26,7 @@ use jj_lib::conflicts;
 use jj_lib::conflicts::{extract_as_single_hunk, materialize_merge_result};
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::{EverythingMatcher, Matcher};
+use jj_lib::merge::Merge;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
@@ -323,29 +324,30 @@ pub fn run_mergetool(
         return Err(ConflictResolveError::EmptyOrUnchanged);
     }
 
-    let mut new_tree_value: Option<TreeValue> = None;
-    if editor.merge_tool_edits_conflict_markers {
-        let new_file_ids = conflicts::update_from_content(
+    let new_file_ids = if editor.merge_tool_edits_conflict_markers {
+        conflicts::update_from_content(
             &file_merge,
             tree.store(),
             repo_path,
             output_file_contents.as_slice(),
-        )?;
-        if !new_file_ids.is_resolved() {
-            let new_conflict = conflict.with_new_file_ids(&new_file_ids);
-            let new_conflict_id = tree.store().write_conflict(repo_path, &new_conflict)?;
-            new_tree_value = Some(TreeValue::Conflict(new_conflict_id));
-        }
-    }
-    let new_tree_value = new_tree_value.unwrap_or({
+        )?
+    } else {
         let new_file_id = tree
             .store()
             .write_file(repo_path, &mut output_file_contents.as_slice())?;
-        TreeValue::File {
-            id: new_file_id,
+        Merge::normal(new_file_id)
+    };
+    let new_tree_value = match new_file_ids.into_resolved() {
+        Ok(new_file_id) => TreeValue::File {
+            id: new_file_id.unwrap(),
             executable: false,
+        },
+        Err(new_file_ids) => {
+            let new_conflict = conflict.with_new_file_ids(&new_file_ids);
+            let new_conflict_id = tree.store().write_conflict(repo_path, &new_conflict)?;
+            TreeValue::Conflict(new_conflict_id)
         }
-    });
+    };
     let mut tree_builder = tree.store().tree_builder(tree.id().clone());
     tree_builder.set(repo_path.clone(), new_tree_value);
     Ok(tree_builder.write_tree())
