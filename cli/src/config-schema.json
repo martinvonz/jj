@@ -55,6 +55,15 @@
                     ],
                     "default": "auto"
                 },
+                "paginate": {
+                    "type": "string",
+                    "description": "Whether or not to use a pager",
+                    "enum": [
+                        "never",
+                        "auto"
+                    ],
+                     "default": "auto"
+                },
                 "pager": {
                     "type": "string",
                     "description": "Pager to use for displaying command output",

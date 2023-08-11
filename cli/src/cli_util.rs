@@ -2488,7 +2488,7 @@ fn handle_early_args(
         args.config_toml.push(format!(r#"ui.color="{choice}""#));
     }
     if args.no_pager.unwrap_or_default() {
-        ui.set_pagination(crate::ui::PaginationChoice::No);
+        ui.set_pagination(crate::ui::PaginationChoice::Never);
     }
     if !args.config_toml.is_empty() {
         layered_configs.parse_config_args(&args.config_toml)?;

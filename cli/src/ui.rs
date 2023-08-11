@@ -84,11 +84,18 @@ fn use_color(choice: ColorChoice) -> bool {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
 pub enum PaginationChoice {
-    No,
+    Never,
     #[default]
     Auto,
+}
+
+fn pagination_setting(config: &config::Config) -> Result<PaginationChoice, CommandError> {
+    config
+        .get::<PaginationChoice>("ui.paginate")
+        .map_err(|err| CommandError::ConfigError(format!("Invalid `ui.paginate`: {err:?}")))
 }
 
 fn pager_setting(config: &config::Config) -> Result<CommandNameAndArgs, CommandError> {
@@ -109,7 +116,7 @@ impl Ui {
             color,
             formatter_factory,
             pager_cmd: pager_setting(config)?,
-            paginate: PaginationChoice::Auto,
+            paginate: pagination_setting(config)?,
             progress_indicator,
             output: UiOutput::new_terminal(),
         })
@@ -117,6 +124,7 @@ impl Ui {
 
     pub fn reset(&mut self, config: &config::Config) -> Result<(), CommandError> {
         self.color = use_color(color_setting(config));
+        self.paginate = pagination_setting(config)?;
         self.pager_cmd = pager_setting(config)?;
         self.progress_indicator = progress_indicator_setting(config);
         let sanitize = io::stdout().is_terminal();
@@ -132,8 +140,9 @@ impl Ui {
     /// Switches the output to use the pager, if allowed.
     #[instrument(skip_all)]
     pub fn request_pager(&mut self) {
-        if self.paginate == PaginationChoice::No {
-            return;
+        match self.paginate {
+            PaginationChoice::Never => return,
+            PaginationChoice::Auto => {}
         }
 
         match self.output {
