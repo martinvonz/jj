@@ -448,6 +448,13 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
                 time_util::format_absolute_timestamp_with(&timestamp, &format)
             }))
         }
+        "utc" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_timestamp(TemplateFunction::new(self_property, |mut timestamp| {
+                timestamp.tz_offset = 0;
+                timestamp
+            }))
+        }
         _ => return Err(TemplateParseError::no_such_method("Timestamp", function)),
     };
     Ok(property)

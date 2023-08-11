@@ -111,6 +111,19 @@ fn test_log_author_timestamp_ago() {
 }
 
 #[test]
+fn test_log_author_timestamp_utc() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp().utc()"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  2001-02-02 21:05:07.000 +00:00
+    ◉  1970-01-01 00:00:00.000 +00:00
+    "###);
+}
+
+#[test]
 fn test_log_default() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
