@@ -325,7 +325,7 @@ fn diff_refs_to_import(
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
         known_git_refs.remove(&ref_name);
-        let new_target = RefTarget::normal(id.clone());
+        let new_target = RefTarget::normal(id);
         if new_target != *old_target {
             changed_git_refs.insert(ref_name, (old_target.clone(), new_target));
         }
