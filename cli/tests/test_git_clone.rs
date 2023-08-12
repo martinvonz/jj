@@ -197,6 +197,16 @@ fn test_git_clone_colocate() {
             .expect("Repo HEAD should be set.")
             .symbolic_target()
     );
+    // ".jj" directory should be ignored at Git side.
+    let git_statuses: String = jj_git_repo
+        .statuses(None)
+        .unwrap()
+        .iter()
+        .map(|entry| format!("{:?} {}\n", entry.status(), entry.path().unwrap()))
+        .collect();
+    insta::assert_snapshot!(git_statuses, @r###"
+    IGNORED .jj/
+    "###);
 
     // The old default branch "master" shouldn't exist.
     let stdout = test_env.jj_cmd_success(&test_env.env_root().join("clone"), &["branch", "list"]);
