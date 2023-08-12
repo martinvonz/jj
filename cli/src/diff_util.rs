@@ -384,7 +384,11 @@ pub fn show_color_words_diff(
                     formatter.labeled("header"),
                     "Added {description} {ui_path}:"
                 )?;
-                show_color_words_diff_hunks(&[], &right_content, formatter)?;
+                if right_content.is_empty() {
+                    writeln!(formatter.labeled("empty"), "    (empty)")?;
+                } else {
+                    show_color_words_diff_hunks(&[], &right_content, formatter)?;
+                }
             }
             tree::Diff::Modified(left_value, right_value) => {
                 let left_content = diff_content(repo, &path, &left_value)?;
@@ -440,7 +444,11 @@ pub fn show_color_words_diff(
                     formatter.labeled("header"),
                     "Removed {description} {ui_path}:"
                 )?;
-                show_color_words_diff_hunks(&left_content, &[], formatter)?;
+                if left_content.is_empty() {
+                    writeln!(formatter.labeled("empty"), "    (empty)")?;
+                } else {
+                    show_color_words_diff_hunks(&left_content, &[], formatter)?;
+                }
             }
         }
     }

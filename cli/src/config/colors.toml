@@ -51,6 +51,7 @@
 "working_copy conflict" = "bright red"
 "working_copy empty" = "bright green"
 "diff header" = "yellow"
+"diff empty" = "cyan"
 "diff file_header" = { bold = true }
 "diff hunk_header" = "cyan"
 "diff removed" = "red"

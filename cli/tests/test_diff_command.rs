@@ -109,6 +109,28 @@ fn test_diff_basic() {
 }
 
 #[test]
+fn test_diff_empty() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Added regular file file1:
+        (empty)
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    std::fs::remove_file(repo_path.join("file1")).unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Removed regular file file1:
+        (empty)
+    "###);
+}
+
+#[test]
 fn test_diff_types() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
@@ -400,6 +422,7 @@ fn test_color_words_diff_missing_newline() {
     insta::assert_snapshot!(stdout, @r###"
     === Empty
     Added regular file file1:
+        (empty)
     === Add no newline
     Modified regular file file1:
             1: a
