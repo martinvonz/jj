@@ -966,14 +966,14 @@ impl TreeState {
         if let (Some(TreeValue::Conflict(conflict_id)), FileType::Normal { executable }) =
             (&current_tree_value, &file_type)
         {
-            let mut file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
-                message: format!("Failed to open file {}", disk_path.display()),
-                err,
-            })?;
-            let mut content = vec![];
-            file.read_to_end(&mut content).unwrap();
             let conflict = self.store.read_conflict(repo_path, conflict_id)?;
             if let Some(old_file_ids) = conflict.to_file_merge() {
+                let mut file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
+                    message: format!("Failed to open file {}", disk_path.display()),
+                    err,
+                })?;
+                let mut content = vec![];
+                file.read_to_end(&mut content).unwrap();
                 let new_file_ids = conflicts::update_from_content(
                     &old_file_ids,
                     self.store.as_ref(),
