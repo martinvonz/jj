@@ -983,8 +983,7 @@ impl TreeState {
                     self.store.as_ref(),
                     repo_path,
                     &content,
-                )
-                .unwrap();
+                )?;
                 match new_file_ids.into_resolved() {
                     Ok(file_id) => {
                         #[cfg(windows)]
