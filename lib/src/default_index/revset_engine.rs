@@ -950,7 +950,7 @@ impl<'index> EvaluationContext<'index> {
         let make_rev_item = |entry: IndexEntry<'_>| {
             let commit = self.store.get_commit(&entry.commit_id()).unwrap();
             Reverse(Item {
-                timestamp: commit.committer().timestamp.timestamp.clone(),
+                timestamp: commit.committer().timestamp.timestamp,
                 pos: entry.position(),
             })
         };

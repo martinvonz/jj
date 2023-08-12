@@ -1876,8 +1876,7 @@ mod tests {
             commit2.committer.timestamp.timestamp
         );
         // The rest of the commit should be the same
-        actual_commit2.committer.timestamp.timestamp =
-            commit2.committer.timestamp.timestamp.clone();
+        actual_commit2.committer.timestamp.timestamp = commit2.committer.timestamp.timestamp;
         assert_eq!(actual_commit2, commit2);
     }
 

@@ -39,7 +39,7 @@ id_type!(pub FileId);
 id_type!(pub SymlinkId);
 id_type!(pub ConflictId);
 
-#[derive(ContentHash, Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(ContentHash, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct MillisSinceEpoch(pub i64);
 
 #[derive(ContentHash, Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
