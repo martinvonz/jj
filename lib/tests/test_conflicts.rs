@@ -299,7 +299,7 @@ line 5 right
 
     // The first add should always be from the left side
     insta::assert_debug_snapshot!(
-        parse_conflict(materialized.as_bytes(), conflict.removes().len(), conflict.adds().len()),
+        parse_conflict(materialized.as_bytes(), conflict.adds().len()),
         @r###"
     Some(
         [
@@ -436,7 +436,6 @@ line 3
 line 4
 line 5
 ",
-            1,
             2
         ),
         None
@@ -459,7 +458,6 @@ right
 >>>>>>>
 line 5
 ",
-            1,
             2
         ),
         @r###"
@@ -513,7 +511,6 @@ right
 >>>>>>>
 line 5
 ",
-            2,
             3
         ),
         @r###"
@@ -564,7 +561,6 @@ right
 >>>>>>>
 line 5
 ",
-            2,
             3
         ),
         None
@@ -587,7 +583,6 @@ right
 >>>>>>>
 line 5
 ",
-            1,
             2
         ),
         None
@@ -611,7 +606,6 @@ right
 >>>>>>>
 line 5
 ",
-            1,
             2
         ),
         None
