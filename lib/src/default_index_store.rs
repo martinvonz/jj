@@ -35,7 +35,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{ChangeId, CommitId, ObjectId};
-use crate::commit::Commit;
+use crate::commit::{Commit, CommitByCommitterTimestamp};
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::index::{
     HexPrefix, Index, IndexStore, IndexWriteError, MutableIndex, PrefixResolution, ReadonlyIndex,
@@ -147,28 +147,29 @@ impl DefaultIndexStore {
             new_heads_count = new_heads.len(),
             "indexing commits reachable from historical heads"
         );
-        // Build a list of ancestors of heads where parents and predecessors come before
+        // Build a list of ancestors of heads where parents and predecessors come after
         // the commit itself.
         let parent_file_has_id = |id: &CommitId| {
             maybe_parent_file
                 .as_ref()
                 .map_or(false, |index| index.has_id(id))
         };
-        let commits = dag_walk::topo_order_forward(
+        let commits = dag_walk::topo_order_reverse_ord(
             new_heads
                 .iter()
                 .filter(|&id| !parent_file_has_id(id))
                 .map(|id| store.get_commit(id).unwrap())
-                .sorted(),
-            |commit| commit.id().clone(),
-            |commit| {
+                .map(CommitByCommitterTimestamp),
+            |CommitByCommitterTimestamp(commit)| commit.id().clone(),
+            |CommitByCommitterTimestamp(commit)| {
                 itertools::chain(commit.parent_ids(), commit.predecessor_ids())
                     .filter(|&id| !parent_file_has_id(id))
                     .map(|id| store.get_commit(id).unwrap())
+                    .map(CommitByCommitterTimestamp)
                     .collect_vec()
             },
         );
-        for commit in &commits {
+        for CommitByCommitterTimestamp(commit) in commits.iter().rev() {
             data.add_commit(commit);
         }
 

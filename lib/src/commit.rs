@@ -158,3 +158,23 @@ impl Commit {
         false
     }
 }
+
+/// Wrapper to sort `Commit` by committer timestamp.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct CommitByCommitterTimestamp(pub Commit);
+
+impl Ord for CommitByCommitterTimestamp {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_timestamp = &self.0.committer().timestamp.timestamp;
+        let other_timestamp = &other.0.committer().timestamp.timestamp;
+        self_timestamp
+            .cmp(other_timestamp)
+            .then_with(|| self.0.cmp(&other.0)) // to comply with Eq
+    }
+}
+
+impl PartialOrd for CommitByCommitterTimestamp {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
