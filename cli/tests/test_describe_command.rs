@@ -94,10 +94,24 @@ fn test_describe() {
     Nothing changed.
     "###);
 
+    // Multi-line description starting with newlines
+    std::fs::write(&edit_script, "write\n\n\nline1\nline2").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
+    insta::assert_snapshot!(stdout, @r#"
+    Working copy now at: qpvuntsm 13f903c1 (empty) line1
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    "#);
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-Tdescription"]);
+    insta::assert_snapshot!(stdout, @r#"
+    line1
+    line2
+    "#);
+
     // Clear description
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", ""]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: qpvuntsm d6957294 (empty) (no description set)
+    Working copy now at: qpvuntsm 3196270d (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
     std::fs::write(&edit_script, "write\n").unwrap();

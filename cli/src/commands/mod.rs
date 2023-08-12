@@ -1922,13 +1922,12 @@ fn edit_description(
     // Delete the file only if everything went well.
     // TODO: Tell the user the name of the file we left behind.
     std::fs::remove_file(description_file_path).ok();
-    // Normalize line ending, remove trailing blank lines.
-    let mut description = description
+    // Normalize line ending, remove leading and trailing blank lines.
+    let description = description
         .lines()
         .filter(|line| !line.starts_with("JJ: "))
         .join("\n");
-    description.truncate(description.trim_end_matches('\n').len());
-    Ok(text_util::complete_newline(description))
+    Ok(text_util::complete_newline(description.trim_matches('\n')))
 }
 
 fn edit_sparse(
