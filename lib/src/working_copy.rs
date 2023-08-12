@@ -973,7 +973,11 @@ impl TreeState {
                     err,
                 })?;
                 let mut content = vec![];
-                file.read_to_end(&mut content).unwrap();
+                file.read_to_end(&mut content)
+                    .map_err(|err| SnapshotError::IoError {
+                        message: format!("Failed to read file {}", disk_path.display()),
+                        err,
+                    })?;
                 let new_file_ids = conflicts::update_from_content(
                     &old_file_ids,
                     self.store.as_ref(),
