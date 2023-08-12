@@ -148,6 +148,79 @@ fn test_describe() {
 }
 
 #[test]
+fn test_multiple_message_args() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Set a description using `-m` flag
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "describe",
+            "-m",
+            "First Paragraph from CLI",
+            "-m",
+            "Second Paragraph from CLI",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: qpvuntsm bdee9366 (empty) First Paragraph from CLI
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-Tdescription"]);
+    insta::assert_snapshot!(stdout, @r###"
+    First Paragraph from CLI
+
+    Second Paragraph from CLI
+    "###);
+
+    // Set the same description, with existing newlines
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "describe",
+            "-m",
+            "First Paragraph from CLI\n",
+            "-m",
+            "Second Paragraph from CLI\n",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+
+    // Use an empty -m flag between paragraphs to insert an extra blank line
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "describe",
+            "-m",
+            "First Paragraph from CLI\n",
+            "--message",
+            "",
+            "-m",
+            "Second Paragraph from CLI",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: qpvuntsm a7506fe0 (empty) First Paragraph from CLI
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-Tdescription"]);
+    insta::assert_snapshot!(stdout, @r###"
+    First Paragraph from CLI
+
+
+    Second Paragraph from CLI
+    "###);
+}
+
+#[test]
 fn test_describe_author() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

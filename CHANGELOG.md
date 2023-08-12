@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added the `ui.paginate` option to enable/disable pager usage in commands
 
+* `jj checkout`/`jj describe`/`jj commit`/`jj new`/`jj squash` can take repeated
+  `-m/--message` arguments. Each passed message will be combined into paragraphs
+  (separated by a blank line)
+
 ### Fixed bugs
 
 * SSH authentication could hang when ssh-agent couldn't be reached
