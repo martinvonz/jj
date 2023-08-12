@@ -103,6 +103,7 @@ impl DefaultIndexStore {
         )
     }
 
+    #[tracing::instrument(skip(self, store))]
     fn index_at_operation(
         &self,
         store: &Arc<Store>,
@@ -145,6 +146,11 @@ impl DefaultIndexStore {
             }
         }
 
+        tracing::info!(
+            ?maybe_parent_file,
+            new_heads_count = new_heads.len(),
+            "indexing commits reachable from historical heads"
+        );
         let mut heads = new_heads.into_iter().collect_vec();
         heads.sort();
         let commits = topo_order_earlier_first(store, heads, maybe_parent_file);
@@ -154,8 +160,12 @@ impl DefaultIndexStore {
         }
 
         let index_file = data.save_in(self.dir.clone())?;
-
         self.associate_file_with_operation(&index_file, operation.id())?;
+        tracing::info!(
+            ?index_file,
+            commits_count = commits.len(),
+            "saved new index file"
+        );
 
         Ok(index_file)
     }
