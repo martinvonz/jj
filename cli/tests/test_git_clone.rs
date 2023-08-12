@@ -198,6 +198,12 @@ fn test_git_clone_colocate() {
             .symbolic_target()
     );
 
+    // The old default branch "master" shouldn't exist.
+    let stdout = test_env.jj_cmd_success(&test_env.env_root().join("clone"), &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    main: mzyxwzks 9f01a0e0 message
+    "###);
+
     // Subsequent fetch should just work even if the source path was relative
     let stdout = test_env.jj_cmd_success(&test_env.env_root().join("clone"), &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @r###"
