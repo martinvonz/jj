@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::io::{Read, Write};
+use std::io::{Read, Seek as _, SeekFrom, Write};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -202,6 +202,45 @@ fn map_git_error(err: git2::Error) -> CommandError {
     } else {
         user_error(err.to_string())
     }
+}
+
+pub fn add_to_git_exclude(ui: &Ui, git_repo: &git2::Repository) -> Result<(), CommandError> {
+    let exclude_file_path = git_repo.path().join("info").join("exclude");
+    if exclude_file_path.exists() {
+        match fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&exclude_file_path)
+        {
+            Ok(mut exclude_file) => {
+                let mut buf = vec![];
+                exclude_file.read_to_end(&mut buf)?;
+                let pattern = b"\n/.jj/\n";
+                if !buf.windows(pattern.len()).any(|window| window == pattern) {
+                    exclude_file.seek(SeekFrom::End(0))?;
+                    if !buf.ends_with(b"\n") {
+                        exclude_file.write_all(b"\n")?;
+                    }
+                    exclude_file.write_all(b"/.jj/\n")?;
+                }
+            }
+            Err(err) => {
+                writeln!(
+                    ui.error(),
+                    "Failed to add `.jj/` to {}: {}",
+                    exclude_file_path.to_string_lossy(),
+                    err
+                )?;
+            }
+        }
+    } else {
+        writeln!(
+            ui.error(),
+            "Failed to add `.jj/` to {} because it doesn't exist",
+            exclude_file_path.to_string_lossy()
+        )?;
+    }
+    Ok(())
 }
 
 fn cmd_git_remote_add(
