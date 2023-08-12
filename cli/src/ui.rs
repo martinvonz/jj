@@ -132,11 +132,6 @@ impl Ui {
         Ok(())
     }
 
-    /// Sets the pagination value.
-    pub fn set_pagination(&mut self, choice: PaginationChoice) {
-        self.paginate = choice;
-    }
-
     /// Switches the output to use the pager, if allowed.
     #[instrument(skip_all)]
     pub fn request_pager(&mut self) {
