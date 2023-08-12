@@ -151,10 +151,27 @@ impl DefaultIndexStore {
             new_heads_count = new_heads.len(),
             "indexing commits reachable from historical heads"
         );
-        let mut heads = new_heads.into_iter().collect_vec();
-        heads.sort();
-        let commits = topo_order_earlier_first(store, heads, maybe_parent_file);
-
+        // Build a list of ancestors of heads where parents and predecessors come before
+        // the commit itself.
+        let parent_file_has_id = |id: &CommitId| {
+            maybe_parent_file
+                .as_ref()
+                .map_or(false, |index| index.has_id(id))
+        };
+        let commits = dag_walk::topo_order_forward(
+            new_heads
+                .iter()
+                .filter(|&id| !parent_file_has_id(id))
+                .map(|id| store.get_commit(id).unwrap())
+                .sorted(),
+            |commit| commit.id().clone(),
+            |commit| {
+                itertools::chain(commit.parent_ids(), commit.predecessor_ids())
+                    .filter(|&id| !parent_file_has_id(id))
+                    .map(|id| store.get_commit(id).unwrap())
+                    .collect_vec()
+            },
+        );
         for commit in &commits {
             data.add_commit(commit);
         }
@@ -242,76 +259,6 @@ impl IndexStore for DefaultIndexStore {
             })?;
         Ok(Box::new(ReadonlyIndexWrapper(index)))
     }
-}
-
-// Returns the ancestors of heads with parents and predecessors come before the
-// commit itself
-fn topo_order_earlier_first(
-    store: &Arc<Store>,
-    heads: Vec<CommitId>,
-    parent_file: Option<Arc<ReadonlyIndexImpl>>,
-) -> Vec<Commit> {
-    // First create a list of all commits in topological order with
-    // children/successors first (reverse of what we want)
-    let mut work = vec![];
-    for head in &heads {
-        work.push(store.get_commit(head).unwrap());
-    }
-    let mut commits = vec![];
-    let mut visited = HashSet::new();
-    let mut in_parent_file = HashSet::new();
-    let parent_file_source = parent_file.as_ref().map(|file| file.as_ref());
-    while let Some(commit) = work.pop() {
-        if parent_file_source.map_or(false, |index| index.has_id(commit.id())) {
-            in_parent_file.insert(commit.id().clone());
-            continue;
-        } else if !visited.insert(commit.id().clone()) {
-            continue;
-        }
-
-        work.extend(commit.parents());
-        work.extend(commit.predecessors());
-        commits.push(commit);
-    }
-    drop(visited);
-
-    // Now create the topological order with earlier commits first. If we run into
-    // any commits whose parents/predecessors have not all been indexed, put
-    // them in the map of waiting commit (keyed by the commit they're waiting
-    // for). Note that the order in the graph doesn't really have to be
-    // topological, but it seems like a useful property to have.
-
-    // Commits waiting for their parents/predecessors to be added
-    let mut waiting = HashMap::new();
-
-    let mut result = vec![];
-    let mut visited = in_parent_file;
-    while let Some(commit) = commits.pop() {
-        let mut waiting_for_earlier_commit = false;
-        for earlier in commit
-            .parent_ids()
-            .iter()
-            .chain(commit.predecessor_ids().iter())
-        {
-            if !visited.contains(earlier) {
-                waiting
-                    .entry(earlier.clone())
-                    .or_insert_with(Vec::new)
-                    .push(commit.clone());
-                waiting_for_earlier_commit = true;
-                break;
-            }
-        }
-        if !waiting_for_earlier_commit {
-            visited.insert(commit.id().clone());
-            if let Some(dependents) = waiting.remove(commit.id()) {
-                commits.extend(dependents);
-            }
-            result.push(commit);
-        }
-    }
-    assert!(waiting.is_empty());
-    result
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
