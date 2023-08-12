@@ -56,11 +56,11 @@ use maplit::{hashmap, hashset};
 use tracing::instrument;
 
 use crate::cli_util::{
-    check_stale_working_copy, get_new_config_file_path, print_checkout_stats,
+    self, check_stale_working_copy, get_new_config_file_path, print_checkout_stats,
     resolve_multiple_nonempty_revsets, resolve_multiple_nonempty_revsets_default_single,
     run_ui_editor, serialize_config_value, short_commit_hash, user_error, user_error_with_hint,
-    write_config_value_to_file, Args, CommandError, CommandHelper, DescriptionArg,
-    LogContentFormat, RevisionArg, WorkspaceCommandHelper,
+    write_config_value_to_file, Args, CommandError, CommandHelper, LogContentFormat, RevisionArg,
+    WorkspaceCommandHelper,
 };
 use crate::config::{AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -263,8 +263,8 @@ struct CheckoutArgs {
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
     /// The change description to use
-    #[arg(long, short, default_value = "")]
-    message: DescriptionArg,
+    #[arg(long = "message", short, value_name = "MESSAGE")]
+    message_paragraphs: Vec<String>,
 }
 
 /// Stop tracking specified paths in the working copy
@@ -448,8 +448,8 @@ struct DescribeArgs {
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
     /// The change description to use (don't open editor)
-    #[arg(long, short)]
-    message: Option<DescriptionArg>,
+    #[arg(long = "message", short, value_name = "MESSAGE")]
+    message_paragraphs: Vec<String>,
     /// Read the change description from stdin
     #[arg(long)]
     stdin: bool,
@@ -470,8 +470,8 @@ struct DescribeArgs {
 #[command(visible_aliases=&["ci"])]
 struct CommitArgs {
     /// The change description to use (don't open editor)
-    #[arg(long, short)]
-    message: Option<DescriptionArg>,
+    #[arg(long = "message", short, value_name = "MESSAGE")]
+    message_paragraphs: Vec<String>,
 }
 
 /// Create a new change with the same content as an existing one
@@ -534,8 +534,8 @@ struct NewArgs {
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
     /// The change description to use
-    #[arg(long, short, default_value = "")]
-    message: DescriptionArg,
+    #[arg(long = "message", short, value_name = "MESSAGE")]
+    message_paragraphs: Vec<String>,
     /// Deprecated. Please prefix the revset with `all:` instead.
     #[arg(long, short = 'L', hide = true)]
     allow_large_revsets: bool,
@@ -592,8 +592,8 @@ struct SquashArgs {
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
     /// The description to use for squashed revision (don't open editor)
-    #[arg(long, short)]
-    message: Option<DescriptionArg>,
+    #[arg(long = "message", short, value_name = "MESSAGE")]
+    message_paragraphs: Vec<String>,
     /// Interactively choose which parts to squash
     #[arg(long, short)]
     interactive: bool,
@@ -1302,7 +1302,7 @@ fn cmd_checkout(
             vec![target.id().clone()],
             target.tree_id().clone(),
         )
-        .set_description(&args.message);
+        .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs));
     let new_commit = commit_builder.write()?;
     tx.edit(&new_commit).unwrap();
     tx.finish(ui)?;
@@ -2011,8 +2011,8 @@ fn cmd_describe(
         let mut buffer = String::new();
         io::stdin().read_to_string(&mut buffer).unwrap();
         buffer
-    } else if let Some(message) = &args.message {
-        message.into()
+    } else if !args.message_paragraphs.is_empty() {
+        cli_util::join_message_paragraphs(&args.message_paragraphs)
     } else if args.no_edit {
         commit.description().to_owned()
     } else {
@@ -2046,8 +2046,8 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
-    let description = if let Some(message) = &args.message {
-        message.into()
+    let description = if !args.message_paragraphs.is_empty() {
+        cli_util::join_message_paragraphs(&args.message_paragraphs)
     } else {
         let template = description_template_for_commit(ui, &workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?
@@ -2287,7 +2287,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
                 new_parents_commit_id,
                 merged_tree.id().clone(),
             )
-            .set_description(&args.message)
+            .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs))
             .write()?;
         num_rebased = target_ids.len();
         for child_commit in target_commits {
@@ -2307,7 +2307,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
                 target_ids.clone(),
                 merged_tree.id().clone(),
             )
-            .set_description(&args.message)
+            .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs))
             .write()?;
         if args.insert_after {
             // Each child of the targets will be rebased: its set of parents will be updated
@@ -2525,8 +2525,8 @@ from the source will be moved into the parent.
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
     let abandon_child = &new_parent_tree_id == commit.tree_id();
-    let description = if let Some(m) = &args.message {
-        m.into()
+    let description = if !args.message_paragraphs.is_empty() {
+        cli_util::join_message_paragraphs(&args.message_paragraphs)
     } else {
         combine_messages(
             tx.base_repo(),

@@ -2292,35 +2292,17 @@ pub struct EarlyArgs {
     pub config_toml: Vec<String>,
 }
 
-/// `-m/--message` argument which should be terminated with `\n`.
+/// Create a description from a list of paragraphs.
 ///
 /// Based on the Git CLI behavior. See `opt_parse_m()` and `cleanup_mode` in
 /// `git/builtin/commit.c`.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DescriptionArg(String);
-
-impl DescriptionArg {
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
-    }
-}
-
-impl From<String> for DescriptionArg {
-    fn from(s: String) -> Self {
-        DescriptionArg(text_util::complete_newline(s))
-    }
-}
-
-impl From<&DescriptionArg> for String {
-    fn from(arg: &DescriptionArg) -> Self {
-        arg.0.to_owned()
-    }
-}
-
-impl AsRef<str> for DescriptionArg {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
+pub fn join_message_paragraphs(paragraphs: &[String]) -> String {
+    // Ensure each paragraph ends with a newline, then add another newline between
+    // paragraphs.
+    paragraphs
+        .iter()
+        .map(|p| text_util::complete_newline(p.as_str()))
+        .join("\n")
 }
 
 #[derive(Clone, Debug)]
