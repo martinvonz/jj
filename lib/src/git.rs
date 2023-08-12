@@ -242,7 +242,6 @@ pub fn import_some_refs(
     for commit in &head_commits {
         prevent_gc(git_repo, commit.id())?;
     }
-    head_commits.reverse(); // TODO: sort chronologically by add_heads()
     mut_repo.add_heads(&head_commits);
 
     // Apply the change that happened in git since last time we imported refs.

@@ -481,9 +481,9 @@ fn test_branch_list_filtered_by_revset() {
     ├─╯
     │ ◉  3e9a5af6ef15 remote-rewrite@origin (hidden)
     ├─╯
-    │ ◉  911e912015fb remote-keep
-    ├─╯
     │ ◉  dad5f298ca57 remote-delete@origin
+    ├─╯
+    │ ◉  911e912015fb remote-keep
     ├─╯
     ◉  000000000000
     "###);

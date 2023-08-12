@@ -33,7 +33,7 @@ use crate::backend::{
     Backend, BackendError, BackendInitError, BackendLoadError, BackendResult, ChangeId, CommitId,
     ObjectId, TreeId,
 };
-use crate::commit::Commit;
+use crate::commit::{Commit, CommitByCommitterTimestamp};
 use crate::commit_builder::CommitBuilder;
 use crate::default_index_store::DefaultIndexStore;
 use crate::default_submodule_store::DefaultSubmoduleStore;
@@ -938,19 +938,20 @@ impl MutableRepo {
                 }
             }
             _ => {
-                let missing_commits = dag_walk::topo_order_forward(
-                    heads.iter().cloned(),
-                    |commit: &Commit| commit.id().clone(),
-                    |commit: &Commit| -> Vec<Commit> {
+                let missing_commits = dag_walk::topo_order_reverse_ord(
+                    heads.iter().cloned().map(CommitByCommitterTimestamp),
+                    |CommitByCommitterTimestamp(commit)| commit.id().clone(),
+                    |CommitByCommitterTimestamp(commit)| {
                         commit
                             .parent_ids()
                             .iter()
                             .filter(|id| !self.index().has_id(id))
                             .map(|id| self.store().get_commit(id).unwrap())
-                            .collect()
+                            .map(CommitByCommitterTimestamp)
+                            .collect_vec()
                     },
                 );
-                for missing_commit in &missing_commits {
+                for CommitByCommitterTimestamp(missing_commit) in missing_commits.iter().rev() {
                     self.index.add_commit(missing_commit);
                 }
                 for head in heads {
