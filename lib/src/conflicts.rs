@@ -186,16 +186,12 @@ fn diff_size(hunks: &[DiffHunk]) -> usize {
 }
 
 /// Parses conflict markers from a slice. Returns None if there were no valid
-/// conflict markers. The caller has to provide the expected number of removed
-/// and added inputs to the conflicts. Conflict markers that are otherwise valid
-/// will be considered invalid if they don't have the expected arity.
+/// conflict markers. The caller has to provide the expected number of merge
+/// sides (adds). Conflict markers that are otherwise valid will be considered
+/// invalid if they don't have the expected arity.
 // TODO: "parse" is not usually the opposite of "materialize", so maybe we
 // should rename them to "serialize" and "deserialize"?
-pub fn parse_conflict(
-    input: &[u8],
-    num_removes: usize,
-    num_adds: usize,
-) -> Option<Vec<Merge<ContentHunk>>> {
+pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<ContentHunk>>> {
     if input.is_empty() {
         return None;
     }
@@ -209,7 +205,7 @@ pub fn parse_conflict(
         } else if conflict_start.is_some() && line == CONFLICT_END_LINE {
             let conflict_body = &input[conflict_start.unwrap() + CONFLICT_START_LINE.len()..pos];
             let hunk = parse_conflict_hunk(conflict_body);
-            if hunk.removes().len() == num_removes && hunk.adds().len() == num_adds {
+            if hunk.removes().len() + 1 == num_sides && hunk.adds().len() == num_sides {
                 let resolved_slice = &input[resolved_start..conflict_start.unwrap()];
                 if !resolved_slice.is_empty() {
                     hunks.push(Merge::resolved(ContentHunk(resolved_slice.to_vec())));
@@ -317,8 +313,7 @@ pub fn update_from_content(
 
     let mut removed_content = vec![vec![]; file_ids.removes().len()];
     let mut added_content = vec![vec![]; file_ids.adds().len()];
-    let Some(hunks) = parse_conflict(content, file_ids.removes().len(), file_ids.adds().len())
-    else {
+    let Some(hunks) = parse_conflict(content, file_ids.adds().len()) else {
         // Either there are no self markers of they don't have the expected arity
         let file_id = store.write_file(path, &mut &content[..])?;
         return Ok(Merge::normal(file_id));
