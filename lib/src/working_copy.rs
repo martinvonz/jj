@@ -51,6 +51,7 @@ use crate::lock::FileLock;
 use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, IntersectionMatcher, Matcher, PrefixMatcher,
 };
+use crate::merge::Merge;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
@@ -673,8 +674,15 @@ impl TreeState {
                     .collect()
             });
         trace_span!("process tree entries").in_scope(|| {
-            while let Ok((path, tree_value)) = tree_entries_rx.recv() {
-                tree_builder.set(path, tree_value);
+            while let Ok((path, tree_values)) = tree_entries_rx.recv() {
+                match tree_values.into_resolved() {
+                    Ok(tree_value) => {
+                        tree_builder.set(path, tree_value.unwrap());
+                    }
+                    Err(_) => {
+                        todo!()
+                    }
+                }
             }
         });
         trace_span!("process file states").in_scope(|| {
@@ -718,7 +726,7 @@ impl TreeState {
         &self,
         matcher: &dyn Matcher,
         current_tree: &Tree,
-        tree_entries_tx: Sender<(RepoPath, TreeValue)>,
+        tree_entries_tx: Sender<(RepoPath, Merge<Option<TreeValue>>)>,
         file_states_tx: Sender<(RepoPath, FileState)>,
         present_files_tx: Sender<RepoPath>,
         directory_to_visit: DirectoryToVisit,
@@ -928,7 +936,7 @@ impl TreeState {
         maybe_current_file_state: Option<&FileState>,
         current_tree: &Tree,
         new_file_state: &FileState,
-    ) -> Result<Option<TreeValue>, SnapshotError> {
+    ) -> Result<Option<Merge<Option<TreeValue>>>, SnapshotError> {
         let clean = match maybe_current_file_state {
             None => {
                 // untracked
@@ -950,19 +958,18 @@ impl TreeState {
             Ok(Some(new_tree_value))
         }
     }
-
     fn write_path_to_store(
         &self,
         repo_path: &RepoPath,
         disk_path: &Path,
         current_tree_value: Option<TreeValue>,
         file_type: FileType,
-    ) -> Result<TreeValue, SnapshotError> {
+    ) -> Result<Merge<Option<TreeValue>>, SnapshotError> {
         let executable = match file_type {
             FileType::Normal { executable } => executable,
             FileType::Symlink => {
                 let id = self.write_symlink_to_store(repo_path, disk_path)?;
-                return Ok(TreeValue::Symlink(id));
+                return Ok(Merge::normal(TreeValue::Symlink(id)));
             }
             FileType::GitSubmodule => panic!("git submodule cannot be written to store"),
         };
@@ -989,24 +996,24 @@ impl TreeState {
                             let () = executable; // use the variable
                             false
                         };
-                        Ok(TreeValue::File {
+                        Ok(Merge::normal(TreeValue::File {
                             id: file_id.unwrap(),
                             executable,
-                        })
+                        }))
                     }
                     Err(new_file_ids) => {
                         if new_file_ids != old_file_ids {
                             let new_conflict = conflict.with_new_file_ids(&new_file_ids);
                             let new_conflict_id =
                                 self.store.write_conflict(repo_path, &new_conflict)?;
-                            Ok(TreeValue::Conflict(new_conflict_id))
+                            Ok(Merge::normal(TreeValue::Conflict(new_conflict_id)))
                         } else {
-                            Ok(TreeValue::Conflict(conflict_id.clone()))
+                            Ok(Merge::normal(TreeValue::Conflict(conflict_id.clone())))
                         }
                     }
                 }
             } else {
-                Ok(TreeValue::Conflict(conflict_id.clone()))
+                Ok(Merge::normal(TreeValue::Conflict(conflict_id.clone())))
             }
         } else {
             let id = self.write_file_to_store(repo_path, disk_path)?;
@@ -1020,7 +1027,7 @@ impl TreeState {
                     false
                 }
             };
-            Ok(TreeValue::File { id, executable })
+            Ok(Merge::normal(TreeValue::File { id, executable }))
         }
     }
 
