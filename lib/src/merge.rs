@@ -204,28 +204,99 @@ impl<T> Merge<T> {
         trivial_merge(&self.removes, &self.adds)
     }
 
+    /// Returns an iterator over the terms. The items will alternate between
+    /// positive and negative terms, starting with positive (since there's one
+    /// more of those).
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter::new(self)
+    }
+
     /// Creates a new merge by applying `f` to each remove and add.
-    pub fn map<'a, U>(&'a self, mut f: impl FnMut(&'a T) -> U) -> Merge<U> {
-        self.maybe_map(|term| Some(f(term))).unwrap()
+    pub fn map<'a, U>(&'a self, f: impl FnMut(&'a T) -> U) -> Merge<U> {
+        let builder: MergeBuilder<U> = self.iter().map(f).collect();
+        builder.build()
     }
 
     /// Creates a new merge by applying `f` to each remove and add, returning
     /// `None if `f` returns `None` for any of them.
-    pub fn maybe_map<'a, U>(&'a self, mut f: impl FnMut(&'a T) -> Option<U>) -> Option<Merge<U>> {
-        let removes = self.removes.iter().map(&mut f).collect::<Option<_>>()?;
-        let adds = self.adds.iter().map(&mut f).collect::<Option<_>>()?;
-        Some(Merge { removes, adds })
+    pub fn maybe_map<'a, U>(&'a self, f: impl FnMut(&'a T) -> Option<U>) -> Option<Merge<U>> {
+        let builder: Option<MergeBuilder<U>> = self.iter().map(f).collect();
+        builder.map(MergeBuilder::build)
     }
 
     /// Creates a new merge by applying `f` to each remove and add, returning
     /// `Err if `f` returns `Err` for any of them.
     pub fn try_map<'a, U, E>(
         &'a self,
-        mut f: impl FnMut(&'a T) -> Result<U, E>,
+        f: impl FnMut(&'a T) -> Result<U, E>,
     ) -> Result<Merge<U>, E> {
-        let removes = self.removes.iter().map(&mut f).try_collect()?;
-        let adds = self.adds.iter().map(&mut f).try_collect()?;
-        Ok(Merge { removes, adds })
+        let builder: MergeBuilder<U> = self.iter().map(f).try_collect()?;
+        Ok(builder.build())
+    }
+}
+
+pub struct Iter<'a, T> {
+    merge: &'a Merge<T>,
+    i: usize,
+}
+
+impl<'a, T> Iter<'a, T> {
+    fn new(merge: &'a Merge<T>) -> Self {
+        Self { merge, i: 0 }
+    }
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.i > 2 * self.merge.removes.len() {
+            None
+        } else {
+            let item = if self.i % 2 == 0 {
+                &self.merge.adds[self.i / 2]
+            } else {
+                &self.merge.removes[self.i / 2]
+            };
+            self.i += 1;
+            Some(item)
+        }
+    }
+}
+
+/// Helper for consuming items from an iterator and then creating a `Merge`.
+///
+/// By not collecting directly into `Merge`, we can avoid creating invalid
+/// instances of it. If we had `Merge::from_iter()` we would need to allow it to
+/// accept iterators of any length (including 0). We couldn't make it panic on
+/// even lengths because we can get passed such iterators from e.g.
+/// `Option::from_iter()`. By collecting into `MergeBuilder` instead, we move
+/// the checking until after `from_iter()` (to `MergeBuilder::build()`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MergeBuilder<T> {
+    removes: Vec<T>,
+    adds: Vec<T>,
+}
+
+impl<T> MergeBuilder<T> {
+    /// Requires that exactly one more "adds" than "removes" have been added to
+    /// this builder.
+    pub fn build(self) -> Merge<T> {
+        Merge::new(self.removes, self.adds)
+    }
+}
+
+impl<T> FromIterator<T> for MergeBuilder<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut removes = vec![];
+        let mut adds = vec![];
+        let mut curr = &mut adds;
+        let mut next = &mut removes;
+        for item in iter {
+            curr.push(item);
+            std::mem::swap(&mut curr, &mut next);
+        }
+        MergeBuilder { removes, adds }
     }
 }
 
@@ -351,28 +422,21 @@ impl Merge<Option<TreeValue>> {
     /// words, only the executable bits from `self` will be preserved.
     pub fn with_new_file_ids(&self, file_ids: &Merge<Option<FileId>>) -> Self {
         assert_eq!(self.removes.len(), file_ids.removes.len());
-        fn updated_terms(
-            old_tree_values: &[Option<TreeValue>],
-            file_ids: &[Option<FileId>],
-        ) -> Vec<Option<TreeValue>> {
-            let mut new_tree_values = vec![];
-            for (tree_value, file_id) in zip(old_tree_values, file_ids) {
+        let builder: MergeBuilder<Option<TreeValue>> = zip(self.iter(), file_ids.iter())
+            .map(|(tree_value, file_id)| {
                 if let Some(TreeValue::File { id: _, executable }) = tree_value {
-                    new_tree_values.push(Some(TreeValue::File {
+                    Some(TreeValue::File {
                         id: file_id.as_ref().unwrap().clone(),
                         executable: *executable,
-                    }));
+                    })
                 } else {
                     assert!(tree_value.is_none());
                     assert!(file_id.is_none());
-                    new_tree_values.push(None);
+                    None
                 }
-            }
-            new_tree_values
-        }
-        let removes = updated_terms(&self.removes, &file_ids.removes);
-        let adds = updated_terms(&self.adds, &file_ids.adds);
-        Merge { removes, adds }
+            })
+            .collect();
+        builder.build()
     }
 
     /// Give a summary description of the conflict's "removes" and "adds"
@@ -670,6 +734,40 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_iter() {
+        // 1-way merge
+        assert_eq!(c(&[], &[1]).iter().collect_vec(), vec![&1]);
+        // 5-way merge
+        assert_eq!(
+            c(&[1, 2], &[3, 4, 5]).iter().collect_vec(),
+            vec![&3, &1, &4, &2, &5]
+        );
+    }
+
+    #[test]
+    fn test_from_iter() {
+        // 1-way merge
+        assert_eq!(MergeBuilder::from_iter([1]).build(), c(&[], &[1]));
+        // 5-way merge
+        assert_eq!(
+            MergeBuilder::from_iter([1, 2, 3, 4, 5]).build(),
+            c(&[2, 4], &[1, 3, 5])
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_iter_empty() {
+        MergeBuilder::from_iter([1; 0]).build();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_iter_even() {
+        MergeBuilder::from_iter([1, 2]).build();
     }
 
     #[test]
