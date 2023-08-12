@@ -76,6 +76,38 @@ fn test_commit_with_editor() {
 }
 
 #[test]
+fn test_commit_with_default_description() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
+    let workspace_path = test_env.env_root().join("repo");
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(&edit_script, ["dump editor"].join("\0")).unwrap();
+    test_env.jj_cmd_success(&workspace_path, &["commit"]);
+
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r#"
+    @  8dc0591d00f7
+    ◉  7e780ba80aeb TESTED=TODO
+    ◉  000000000000
+    "#);
+    assert_eq!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(),
+        r#"
+
+TESTED=TODO
+JJ: This commit contains the following changes:
+JJ:     A file1
+JJ:     A file2
+
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#
+    );
+}
+
+#[test]
 fn test_commit_without_working_copy() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

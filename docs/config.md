@@ -135,6 +135,16 @@ subcommand name, subcommand alias, or user-defined alias (defaults to `"log"`).
 ui.default-command = "log"
 ```
 
+### Default description
+
+The value of the `ui.default-description` setting will be used to prepopulate
+the editor when describing changes with an empty description. This could be a
+useful reminder to fill in things like BUG=, TESTED= etc.
+
+```toml
+ui.default-description = "\n\nTESTED=TODO"
+```
+
 ### Diff format
 
 ```toml
@@ -179,13 +189,13 @@ revsets.log = "main.."
 
 ```toml
 # Possible values: "curved" (default), "square", "ascii", "ascii-large",
-# "legacy" 
+# "legacy"
 ui.graph.style = "square"
 ```
 
 ### Wrap log content
 
-If enabled, `log`/`obslog`/`op log` content will be wrapped based on 
+If enabled, `log`/`obslog`/`op log` content will be wrapped based on
 the terminal width.
 
 ```toml
@@ -274,7 +284,7 @@ a `$`):
 Additionally, paging behavior can be toggled via `ui.paginate` like so:
 
 ```toml
-# Enable pagination for commands that support it (default) 
+# Enable pagination for commands that support it (default)
 ui.paginate = "auto"
 # Disable all pagination, equivalent to using --no-pager
 ui.paginate = "never"

@@ -2015,7 +2015,7 @@ fn cmd_describe(
     } else if args.no_edit {
         commit.description().to_owned()
     } else {
-        let template = description_template_for_commit(ui, &workspace_command, &commit)?;
+        let template = description_template_for_commit(ui, command, &workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
     if description == *commit.description() && !args.reset_author {
@@ -2048,7 +2048,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     let description = if !args.message_paragraphs.is_empty() {
         cli_util::join_message_paragraphs(&args.message_paragraphs)
     } else {
-        let template = description_template_for_commit(ui, &workspace_command, &commit)?;
+        let template = description_template_for_commit(ui, command, &workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
 
@@ -2991,6 +2991,7 @@ don't make any changes, then the operation will be aborted.",
 
 fn description_template_for_commit(
     ui: &Ui,
+    command: &CommandHelper,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
 ) -> Result<String, CommandError> {
@@ -3003,12 +3004,19 @@ fn description_template_for_commit(
         &EverythingMatcher,
         &[DiffFormat::Summary],
     )?;
-    if diff_summary_bytes.is_empty() {
-        Ok(commit.description().to_owned())
+    let description = if commit.description().is_empty() {
+        command
+            .settings()
+            .config()
+            .get_string("ui.default-description")
+            .unwrap_or("".to_owned())
     } else {
-        Ok(commit.description().to_owned()
-            + "\n"
-            + &diff_summary_to_description(&diff_summary_bytes))
+        commit.description().to_owned()
+    };
+    if diff_summary_bytes.is_empty() {
+        Ok(description)
+    } else {
+        Ok(description + "\n" + &diff_summary_to_description(&diff_summary_bytes))
     }
 }
 
