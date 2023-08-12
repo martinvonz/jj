@@ -69,13 +69,20 @@ fn timestamp_to_date(ts_str: &str) -> Option<DateTime<Utc>> {
         .and_then(|ts| DateTime::<Utc>::from_timestamp(ts, 0))
 }
 
-/// Return the git hash and the committer timestamp
+/// Return the UTC committer date (maybe) and the git hash
 fn get_git_timestamp_and_hash() -> Option<(String, Option<DateTime<Utc>>)> {
-    if let Some(nix_hash) = std::env::var("NIX_JJ_GIT_HASH")
-        .ok()
-        .filter(|s| !s.is_empty())
-    {
-        return Some((nix_hash, None));
+    if let (Ok(nix_hash), maybe_nix_timestamp) = (
+        std::env::var("NIX_JJ_GIT_HASH"),
+        std::env::var("NIX_JJ_GIT_TIMESTAMP"),
+    ) {
+        if !nix_hash.is_empty() {
+            return Some((
+                nix_hash,
+                maybe_nix_timestamp
+                    .ok()
+                    .and_then(|ts_str| timestamp_to_date(&ts_str)),
+            ));
+        }
     }
 
     fn parse_timestamp_vbar_hash(bytes: &[u8]) -> (String, Option<DateTime<Utc>>) {

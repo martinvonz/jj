@@ -18,6 +18,11 @@
   } //
   (flake-utils.lib.eachDefaultSystem (system:
     let
+      # TODO(aseipp): Use dirtyRev and dirtyShortRev to record dirty checkout
+      # when we update `build.rs` to understand dirty checkouts.
+      gitRev = self.rev or "";
+      gitTimestamp = toString self.lastModified;
+
       pkgs = import nixpkgs {
         inherit system;
         overlays = [
@@ -100,7 +105,8 @@
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
           RUSTFLAGS = pkgs.lib.optionalString useMoldLinker "-C link-arg=-fuse-ld=mold";
-          NIX_JJ_GIT_HASH = self.rev or "";
+          NIX_JJ_GIT_HASH = gitRev;
+          NIX_JJ_GIT_TIMESTAMP = gitTimestamp;
           CARGO_INCREMENTAL = "0";
 
           preCheck = ''
@@ -175,8 +181,10 @@
           export RUST_BACKTRACE=1
           export ZSTD_SYS_USE_PKG_CONFIG=1
           export LIBSSH2_SYS_USE_PKG_CONFIG=1
-
           export RUSTFLAGS="-Zthreads=0"
+
+          export NIX_JJ_GIT_HASH="${gitRev}"
+          export NIX_JJ_GIT_TIMESTAMP="${gitTimestamp}";
         '' + pkgs.lib.optionalString useMoldLinker ''
           export RUSTFLAGS+=" -C link-arg=-fuse-ld=mold -C link-arg=-Wl,--compress-debug-sections=zstd"
         '' + darwinNextestHack;
