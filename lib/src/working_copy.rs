@@ -954,49 +954,6 @@ impl TreeState {
         }
     }
 
-    fn write_conflict_to_store(
-        &self,
-        repo_path: &RepoPath,
-        disk_path: &Path,
-        conflict_id: ConflictId,
-        executable: bool,
-    ) -> Result<TreeValue, SnapshotError> {
-        let mut file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
-            message: format!("Failed to open file {}", disk_path.display()),
-            err,
-        })?;
-        let mut content = vec![];
-        file.read_to_end(&mut content).unwrap();
-        let conflict = self.store.read_conflict(repo_path, &conflict_id)?;
-        if let Some(old_file_ids) = conflict.to_file_merge() {
-            let new_file_ids = conflicts::update_from_content(
-                &old_file_ids,
-                self.store.as_ref(),
-                repo_path,
-                &content,
-            )
-            .unwrap();
-            match new_file_ids.into_resolved() {
-                Ok(file_id) => Ok(TreeValue::File {
-                    id: file_id.unwrap(),
-                    executable,
-                }),
-                Err(new_file_ids) => {
-                    if new_file_ids != old_file_ids {
-                        let new_conflict = conflict.with_new_file_ids(&new_file_ids);
-                        let new_conflict_id =
-                            self.store.write_conflict(repo_path, &new_conflict)?;
-                        Ok(TreeValue::Conflict(new_conflict_id))
-                    } else {
-                        Ok(TreeValue::Conflict(conflict_id))
-                    }
-                }
-            }
-        } else {
-            Ok(TreeValue::Conflict(conflict_id))
-        }
-    }
-
     fn write_path_to_store(
         &self,
         repo_path: &RepoPath,
@@ -1016,7 +973,40 @@ impl TreeState {
                 let () = executable; // use the variable
                 false
             };
-            self.write_conflict_to_store(repo_path, disk_path, conflict_id.clone(), executable)
+            let mut file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
+                message: format!("Failed to open file {}", disk_path.display()),
+                err,
+            })?;
+            let mut content = vec![];
+            file.read_to_end(&mut content).unwrap();
+            let conflict = self.store.read_conflict(repo_path, conflict_id)?;
+            if let Some(old_file_ids) = conflict.to_file_merge() {
+                let new_file_ids = conflicts::update_from_content(
+                    &old_file_ids,
+                    self.store.as_ref(),
+                    repo_path,
+                    &content,
+                )
+                .unwrap();
+                match new_file_ids.into_resolved() {
+                    Ok(file_id) => Ok(TreeValue::File {
+                        id: file_id.unwrap(),
+                        executable,
+                    }),
+                    Err(new_file_ids) => {
+                        if new_file_ids != old_file_ids {
+                            let new_conflict = conflict.with_new_file_ids(&new_file_ids);
+                            let new_conflict_id =
+                                self.store.write_conflict(repo_path, &new_conflict)?;
+                            Ok(TreeValue::Conflict(new_conflict_id))
+                        } else {
+                            Ok(TreeValue::Conflict(conflict_id.clone()))
+                        }
+                    }
+                }
+            } else {
+                Ok(TreeValue::Conflict(conflict_id.clone()))
+            }
         } else {
             match file_type {
                 FileType::Normal { executable } => {
