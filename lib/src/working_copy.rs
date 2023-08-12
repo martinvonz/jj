@@ -966,13 +966,6 @@ impl TreeState {
         if let (Some(TreeValue::Conflict(conflict_id)), FileType::Normal { executable }) =
             (&current_tree_value, &file_type)
         {
-            #[cfg(unix)]
-            let executable = *executable;
-            #[cfg(windows)]
-            let executable = {
-                let () = executable; // use the variable
-                false
-            };
             let mut file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
                 message: format!("Failed to open file {}", disk_path.display()),
                 err,
@@ -989,10 +982,19 @@ impl TreeState {
                 )
                 .unwrap();
                 match new_file_ids.into_resolved() {
-                    Ok(file_id) => Ok(TreeValue::File {
-                        id: file_id.unwrap(),
-                        executable,
-                    }),
+                    Ok(file_id) => {
+                        #[cfg(unix)]
+                        let executable = *executable;
+                        #[cfg(windows)]
+                        let executable = {
+                            let () = executable; // use the variable
+                            false
+                        };
+                        Ok(TreeValue::File {
+                            id: file_id.unwrap(),
+                            executable,
+                        })
+                    }
                     Err(new_file_ids) => {
                         if new_file_ids != old_file_ids {
                             let new_conflict = conflict.with_new_file_ids(&new_file_ids);
