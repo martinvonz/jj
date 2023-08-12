@@ -235,6 +235,37 @@ fn test_multiple_message_args() {
 }
 
 #[test]
+fn test_describe_default_description() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
+    let workspace_path = test_env.env_root().join("repo");
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(&edit_script, ["dump editor"].join("\0")).unwrap();
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["describe"]);
+
+    insta::assert_snapshot!(stdout, @r#"
+    Working copy now at: qpvuntsm 7e780ba8 TESTED=TODO
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    "#);
+    assert_eq!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(),
+        r#"
+
+TESTED=TODO
+JJ: This commit contains the following changes:
+JJ:     A file1
+JJ:     A file2
+
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#
+    );
+}
+
+#[test]
 fn test_describe_author() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

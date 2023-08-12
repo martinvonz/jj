@@ -59,11 +59,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `-m/--message` arguments. Each passed message will be combined into paragraphs
   (separated by a blank line)
 
+* It is now possible to set a default description using the new
+  `ui.default-description` option, to use when describing changes with an empty
+  description.
+
 ### Fixed bugs
 
 * SSH authentication could hang when ssh-agent couldn't be reached
   [#1970](https://github.com/martinvonz/jj/issues/1970)
-  
+
 * SSH authentication can now use ed25519 and ed25519-sk keys. They still need
   to be password-less.
 

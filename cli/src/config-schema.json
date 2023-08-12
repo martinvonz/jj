@@ -46,6 +46,11 @@
                     "description": "Default command to run when no explicit command is given",
                     "default": "log"
                 },
+                "default-description": {
+                    "type": "string",
+                    "description": "Default description to use when describing changes with an empty description",
+                    "default": ""
+                },
                 "color": {
                     "description": "Whether to colorize command output",
                     "enum": [
@@ -62,7 +67,7 @@
                         "never",
                         "auto"
                     ],
-                     "default": "auto"
+                    "default": "auto"
                 },
                 "pager": {
                     "type": "string",
