@@ -961,11 +961,18 @@ impl TreeState {
         current_tree_value: Option<TreeValue>,
         file_type: FileType,
     ) -> Result<TreeValue, SnapshotError> {
+        let executable = match file_type {
+            FileType::Normal { executable } => executable,
+            FileType::Symlink => {
+                let id = self.write_symlink_to_store(repo_path, disk_path)?;
+                return Ok(TreeValue::Symlink(id));
+            }
+            FileType::GitSubmodule => panic!("git submodule cannot be written to store"),
+        };
+
         // If the file contained a conflict before and is now a normal file on disk, we
         // try to parse any conflict markers in the file into a conflict.
-        if let (Some(TreeValue::Conflict(conflict_id)), FileType::Normal { executable }) =
-            (&current_tree_value, &file_type)
-        {
+        if let Some(TreeValue::Conflict(conflict_id)) = &current_tree_value {
             let conflict = self.store.read_conflict(repo_path, conflict_id)?;
             if let Some(old_file_ids) = conflict.to_file_merge() {
                 let mut file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
@@ -987,8 +994,6 @@ impl TreeState {
                 .unwrap();
                 match new_file_ids.into_resolved() {
                     Ok(file_id) => {
-                        #[cfg(unix)]
-                        let executable = *executable;
                         #[cfg(windows)]
                         let executable = {
                             let () = executable; // use the variable
@@ -1014,27 +1019,18 @@ impl TreeState {
                 Ok(TreeValue::Conflict(conflict_id.clone()))
             }
         } else {
-            match file_type {
-                FileType::Normal { executable } => {
-                    let id = self.write_file_to_store(repo_path, disk_path)?;
-                    // On Windows, we preserve the executable bit from the current tree.
-                    #[cfg(windows)]
-                    let executable = {
-                        let () = executable; // use the variable
-                        if let Some(TreeValue::File { id: _, executable }) = current_tree_value {
-                            executable
-                        } else {
-                            false
-                        }
-                    };
-                    Ok(TreeValue::File { id, executable })
+            let id = self.write_file_to_store(repo_path, disk_path)?;
+            // On Windows, we preserve the executable bit from the current tree.
+            #[cfg(windows)]
+            let executable = {
+                let () = executable; // use the variable
+                if let Some(TreeValue::File { id: _, executable }) = current_tree_value {
+                    executable
+                } else {
+                    false
                 }
-                FileType::Symlink => {
-                    let id = self.write_symlink_to_store(repo_path, disk_path)?;
-                    Ok(TreeValue::Symlink(id))
-                }
-                FileType::GitSubmodule => panic!("git submodule cannot be written to store"),
-            }
+            };
+            Ok(TreeValue::File { id, executable })
         }
     }
 
