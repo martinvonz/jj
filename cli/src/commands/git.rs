@@ -441,7 +441,7 @@ fn cmd_git_clone(
         }
     }
 
-    if let (mut workspace_command, Some(default_branch)) = clone_result? {
+    if let (mut workspace_command, git_repo, Some(default_branch)) = clone_result? {
         let default_branch_target = workspace_command
             .repo()
             .view()
@@ -449,6 +449,12 @@ fn cmd_git_clone(
         if let Some(commit_id) = default_branch_target.as_normal().cloned() {
             let mut checkout_tx =
                 workspace_command.start_transaction("check out git remote's default branch");
+            if args.colocate {
+                // HEAD can't be detached without specifying a commit, so we set the new default
+                // branch instead. Otherwise, the old "unborn" default branch would move
+                // alongside the new default branch.
+                git_repo.set_head(&format!("refs/heads/{default_branch}"))?;
+            }
             if let Ok(commit) = checkout_tx.repo().store().get_commit(&commit_id) {
                 checkout_tx.check_out(&commit)?;
             }
@@ -464,7 +470,7 @@ fn do_git_clone(
     colocate: bool,
     source: &str,
     wc_path: &Path,
-) -> Result<(WorkspaceCommandHelper, Option<String>), CommandError> {
+) -> Result<(WorkspaceCommandHelper, git2::Repository, Option<String>), CommandError> {
     let (workspace, repo) = if colocate {
         let git_repo = git2::Repository::init(wc_path)?;
         Workspace::init_external_git(command.settings(), wc_path, git_repo.path())?
@@ -499,7 +505,7 @@ fn do_git_clone(
         }
     })?;
     fetch_tx.finish(ui)?;
-    Ok((workspace_command, maybe_default_branch))
+    Ok((workspace_command, git_repo, maybe_default_branch))
 }
 
 fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>) -> T) -> T {
