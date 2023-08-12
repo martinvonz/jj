@@ -41,7 +41,7 @@ e.g. `jj log` will indicate that the change has diverged.
 
 ## Loading an old version of the repo
 
-The top-level `--at-operation/--at-top` option allows you to load the repo at a
+The top-level `--at-operation/--at-op` option allows you to load the repo at a
 specific operation. This can be useful for understanding how your repo got into
 the current state. It can be even more useful for understanding why someone
 else's repo got into its current state.
