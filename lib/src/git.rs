@@ -214,7 +214,8 @@ pub fn import_some_refs(
     let changed_git_refs = diff_refs_to_import(mut_repo.view(), git_repo, git_ref_filter)?;
 
     // Import new heads
-    let store = mut_repo.store().clone();
+    let store = mut_repo.store();
+    let mut head_commits = Vec::new();
     if let Some(new_head_target) = &changed_git_head {
         for id in new_head_target.added_ids() {
             let commit = store
@@ -223,8 +224,7 @@ pub fn import_some_refs(
                     id: id.clone(),
                     err,
                 })?;
-            prevent_gc(git_repo, id)?;
-            mut_repo.add_head(&commit);
+            head_commits.push(commit);
         }
     }
     for (ref_name, (_, new_git_target)) in &changed_git_refs {
@@ -236,10 +236,14 @@ pub fn import_some_refs(
                         ref_name: ref_name.to_string(),
                         err,
                     })?;
-            prevent_gc(git_repo, id)?;
-            mut_repo.add_head(&commit);
+            head_commits.push(commit);
         }
     }
+    for commit in &head_commits {
+        prevent_gc(git_repo, commit.id())?;
+    }
+    head_commits.reverse(); // TODO: sort chronologically by add_heads()
+    mut_repo.add_heads(&head_commits);
 
     // Apply the change that happened in git since last time we imported refs.
     if let Some(new_head_target) = changed_git_head {
