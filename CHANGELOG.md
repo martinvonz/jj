@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+* `jj diff --stat` has been implemented. It shows a histogram of the changes,
+  same as `git diff --stat`. Fixes [#2066](https://github.com/martinvonz/jj/issues/2066)
 
 ### Breaking changes
 
