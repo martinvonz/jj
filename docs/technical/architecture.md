@@ -34,13 +34,13 @@ the commit backend, operations (and views) are stored by the operation backend,
 the heads of the operation log are stored by the "op heads" backend, the commit
 index is stored by the index backend, and the working copy is stored by the
 working copy backend. The interfaces are defined in terms of plain Rust data
-types, not tied to a specific format. The last working copy doesn't have its own
+types, not tied to a specific format. The working copy doesn't have its own
 trait defined yet, but its interface is small and easy to create traits for when
 needed.
 
 The commit backend to use when loading a repo is specified in
-the `.jj/repo/store/backend` file. We don't yet have support for choosing
-different implementations for other kinds of backends than the commit backend.
+the `.jj/repo/store/type` file. There are similar files for the other backends
+(`.jj/repo/index/type`, `.jj/repo/op_store/type`, `.jj/repo/op_heads/type`).
 
 ## Design of the library crate
 
