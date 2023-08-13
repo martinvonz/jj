@@ -60,7 +60,7 @@ tags, and the working-copy commit in each workspace. The operation object
 contains a pointer to the view object (like how commit objects point to tree
 objects), pointers to parent operation(s) (like how commit objects point to
 parent commit(s)), and metadata about the operation. These types are defined
-[here](../../lib/protos/op_store.proto). The operation log is normally linear.
+in `op_store.proto` The operation log is normally linear.
 It becomes non-linear if there are concurrent operations.
 
 When a command starts, it loads the repo at the latest operation. Because the
@@ -90,7 +90,7 @@ it will do a 3-way merge of the view objects based on their common ancestor
 are recorded in the resulting view object. For example, if branch `main` was
 moved from commit A to commit B in one operation and moved to commit C in a
 concurrent operation, then `main` will be recorded as "moved from A to B or C".
-See the `RefTarget` [definition](../../lib/protos/op_store.proto).
+See the `RefTarget` definition in `op_store.proto`.
 
 Because we allow branches (etc.) to be in a conflicted state rather than just
 erroring out when there are multiple heads, the user can continue to use the

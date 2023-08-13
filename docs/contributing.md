@@ -60,7 +60,7 @@ Guidelines](https://opensource.google/conduct/).
 ## Learning Rust
 
 In addition to the [Rust Book](https://doc.rust-lang.org/book/) and the other
-excellent resources at https://www.rust-lang.org/learn, we recommend the
+excellent resources at <https://www.rust-lang.org/learn>, we recommend the
 ["Comprehensive Rust" mini-course](https://google.github.io/comprehensive-rust/)
 for an overview, especially if you are familiar with C++.
 
@@ -195,7 +195,7 @@ any build errors or warnings. Warnings about `"GET /versions.json HTTP/1.1" code
 
  - Install the `protoc` compiler. This usually means either `apt-get install
    protobuf-compiler` or downloading [an official release]. The
-   [`prost` library docs] have additional advice.
+   `prost` [library docs] have additional advice.
  - Run `cargo run -p gen-protos` regularly (or after every edit to a `.proto`
    file). This is the same as running `cargo run` from `lib/gen-protos`. The
    `gen-protos` binary will use the `prost-build` library to compile the
@@ -204,7 +204,7 @@ any build errors or warnings. Warnings about `"GET /versions.json HTTP/1.1" code
    these files in `lib/gen-protos/src/main.rs`.
 
 [an official release]: https://github.com/protocolbuffers/protobuf/releases
-[`prost` library docs]: https://docs.rs/prost-build/latest/prost_build/#sourcing-protoc
+[library docs]: https://docs.rs/prost-build/latest/prost_build/#sourcing-protoc
 
  The `.rs` files generated from `.proto` files are included in the repository,
  and there is a Github CI check that will complain if they do not match.

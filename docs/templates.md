@@ -171,8 +171,11 @@ The following methods are defined.
 
 ## Configuration
 
-[The default templates and aliases](../cli/src/config/templates.toml) are defined
-in the `[templates]` and `[template-aliases]` sections respectively.
+The default templates and aliases() are defined in the `[templates]` and
+`[template-aliases]` sections of the config respectively. The exact definitions
+can be seen in the `cli/src/config/templates.toml` file in jj's source tree.
+
+<!--- TODO: Find a way to embed the default config files in the docs -->
 
 New keywords and functions can be defined as aliases, by using any
 combination of the predefined keywords/functions and other aliases.
