@@ -21,7 +21,7 @@ use std::sync::Arc;
 
 use config::ConfigError;
 use itertools::Itertools;
-use jj_lib::backend::{TreeId, TreeValue};
+use jj_lib::backend::{FileId, TreeId, TreeValue};
 use jj_lib::conflicts;
 use jj_lib::conflicts::{extract_as_single_hunk, materialize_merge_result};
 use jj_lib::gitignore::GitIgnoreFile;
@@ -261,6 +261,22 @@ pub fn run_mergetool(
     let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path);
 
     let editor = get_merge_tool_from_settings(ui, settings)?;
+    match editor {
+        MergeTool::Internal => unimplemented!("run_mergetool with internal mergetool"),
+        MergeTool::External(editor) => {
+            run_mergetool_external(&editor, file_merge, content, repo_path, conflict, tree)
+        }
+    }
+}
+
+fn run_mergetool_external(
+    editor: &ExternalMergeTool,
+    file_merge: Merge<Option<FileId>>,
+    content: jj_lib::merge::Merge<jj_lib::files::ContentHunk>,
+    repo_path: &RepoPath,
+    conflict: jj_lib::merge::Merge<Option<TreeValue>>,
+    tree: &Tree,
+) -> Result<TreeId, ConflictResolveError> {
     let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {
         let mut materialized_conflict = vec![];
         materialize_merge_result(&content, &mut materialized_conflict)
@@ -382,6 +398,29 @@ pub fn edit_diff(
     base_ignores: Arc<GitIgnoreFile>,
     settings: &UserSettings,
 ) -> Result<TreeId, DiffEditError> {
+    // Start a diff editor on the two directories.
+    let editor = get_diff_editor_from_settings(ui, settings)?;
+    match editor {
+        MergeTool::Internal => unimplemented!("run_mergetool with internal mergetool"),
+        MergeTool::External(editor) => edit_diff_external(
+            editor,
+            left_tree,
+            right_tree,
+            instructions,
+            base_ignores,
+            settings,
+        ),
+    }
+}
+
+fn edit_diff_external(
+    editor: ExternalMergeTool,
+    left_tree: &Tree,
+    right_tree: &Tree,
+    instructions: &str,
+    base_ignores: Arc<GitIgnoreFile>,
+    settings: &UserSettings,
+) -> Result<TreeId, DiffEditError> {
     let store = left_tree.store();
     let diff_wc = check_out_trees(store, left_tree, right_tree, &EverythingMatcher)?;
     set_readonly_recursively(diff_wc.left_working_copy_path())
@@ -399,8 +438,6 @@ pub fn edit_diff(
             .map_err(ExternalToolError::SetUpDir)?;
     }
 
-    // Start a diff editor on the two directories.
-    let editor = get_diff_editor_from_settings(ui, settings)?;
     let patterns = diff_wc.to_command_variables();
     let mut cmd = Command::new(&editor.program);
     cmd.args(interpolate_variables(&editor.edit_args, &patterns));
@@ -472,6 +509,7 @@ pub fn generate_diff(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MergeTool {
+    Internal,
     External(ExternalMergeTool),
 }
 
@@ -590,17 +628,17 @@ pub fn get_tool_config_from_args(
 fn get_diff_editor_from_settings(
     ui: &Ui,
     settings: &UserSettings,
-) -> Result<ExternalMergeTool, ExternalToolError> {
+) -> Result<MergeTool, ExternalToolError> {
     let args = editor_args_from_settings(ui, settings, "ui.diff-editor")?;
     let editor = get_tool_config_from_args(settings, &args)?
         .unwrap_or_else(|| ExternalMergeTool::with_edit_args(&args));
-    Ok(editor)
+    Ok(MergeTool::External(editor))
 }
 
 fn get_merge_tool_from_settings(
     ui: &Ui,
     settings: &UserSettings,
-) -> Result<ExternalMergeTool, ExternalToolError> {
+) -> Result<MergeTool, ExternalToolError> {
     let args = editor_args_from_settings(ui, settings, "ui.merge-editor")?;
     let editor = get_tool_config_from_args(settings, &args)?
         .unwrap_or_else(|| ExternalMergeTool::with_merge_args(&args));
@@ -609,7 +647,7 @@ fn get_merge_tool_from_settings(
             tool_name: args.to_string(),
         })
     } else {
-        Ok(editor)
+        Ok(MergeTool::External(editor))
     }
 }
 
@@ -669,82 +707,90 @@ mod tests {
 
         // Default
         insta::assert_debug_snapshot!(get("").unwrap(), @r###"
-        ExternalMergeTool {
-            program: "meld",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "$left",
-                "$right",
-            ],
-            merge_args: [
-                "$left",
-                "$base",
-                "$right",
-                "-o",
-                "$output",
-                "--auto-merge",
-            ],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "meld",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [
+                    "$left",
+                    "$base",
+                    "$right",
+                    "-o",
+                    "$output",
+                    "--auto-merge",
+                ],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // Just program name, edit_args are filled by default
         insta::assert_debug_snapshot!(get(r#"ui.diff-editor = "my-diff""#).unwrap(), @r###"
-        ExternalMergeTool {
-            program: "my-diff",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "$left",
-                "$right",
-            ],
-            merge_args: [],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "my-diff",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // String args (with interpolation variables)
         insta::assert_debug_snapshot!(
             get(r#"ui.diff-editor = "my-diff -l $left -r $right""#).unwrap(), @r###"
-        ExternalMergeTool {
-            program: "my-diff",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "-l",
-                "$left",
-                "-r",
-                "$right",
-            ],
-            merge_args: [],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "my-diff",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "-l",
+                    "$left",
+                    "-r",
+                    "$right",
+                ],
+                merge_args: [],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // List args (with interpolation variables)
         insta::assert_debug_snapshot!(
             get(r#"ui.diff-editor = ["my-diff", "--diff", "$left", "$right"]"#).unwrap(), @r###"
-        ExternalMergeTool {
-            program: "my-diff",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "--diff",
-                "$left",
-                "$right",
-            ],
-            merge_args: [],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "my-diff",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "--diff",
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // Pick from merge-tools
@@ -755,21 +801,23 @@ mod tests {
         edit-args = ["--edit", "args", "$left", "$right"]
         "#,
         ).unwrap(), @r###"
-        ExternalMergeTool {
-            program: "foo bar",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "--edit",
-                "args",
-                "$left",
-                "$right",
-            ],
-            merge_args: [],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "foo bar",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "--edit",
+                    "args",
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // Pick from merge-tools, but no edit-args specified
@@ -780,36 +828,40 @@ mod tests {
         program = "MyDiff"
         "#,
         ).unwrap(), @r###"
-        ExternalMergeTool {
-            program: "MyDiff",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "$left",
-                "$right",
-            ],
-            merge_args: [],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "MyDiff",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // List args should never be a merge-tools key, edit_args are filled by default
         insta::assert_debug_snapshot!(get(r#"ui.diff-editor = ["meld"]"#).unwrap(), @r###"
-        ExternalMergeTool {
-            program: "meld",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "$left",
-                "$right",
-            ],
-            merge_args: [],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "meld",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // Invalid type
@@ -827,26 +879,28 @@ mod tests {
 
         // Default
         insta::assert_debug_snapshot!(get("").unwrap(), @r###"
-        ExternalMergeTool {
-            program: "meld",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "$left",
-                "$right",
-            ],
-            merge_args: [
-                "$left",
-                "$base",
-                "$right",
-                "-o",
-                "$output",
-                "--auto-merge",
-            ],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "meld",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [
+                    "$left",
+                    "$base",
+                    "$right",
+                    "-o",
+                    "$output",
+                    "--auto-merge",
+                ],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // Just program name
@@ -859,24 +913,26 @@ mod tests {
         // String args
         insta::assert_debug_snapshot!(
             get(r#"ui.merge-editor = "my-merge $left $base $right $output""#).unwrap(), @r###"
-        ExternalMergeTool {
-            program: "my-merge",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "$left",
-                "$right",
-            ],
-            merge_args: [
-                "$left",
-                "$base",
-                "$right",
-                "$output",
-            ],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "my-merge",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [
+                    "$left",
+                    "$base",
+                    "$right",
+                    "$output",
+                ],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // List args
@@ -884,24 +940,26 @@ mod tests {
             get(
                 r#"ui.merge-editor = ["my-merge", "$left", "$base", "$right", "$output"]"#,
             ).unwrap(), @r###"
-        ExternalMergeTool {
-            program: "my-merge",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "$left",
-                "$right",
-            ],
-            merge_args: [
-                "$left",
-                "$base",
-                "$right",
-                "$output",
-            ],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "my-merge",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [
+                    "$left",
+                    "$base",
+                    "$right",
+                    "$output",
+                ],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // Pick from merge-tools
@@ -912,24 +970,26 @@ mod tests {
         merge-args = ["$base", "$left", "$right", "$output"]
         "#,
         ).unwrap(), @r###"
-        ExternalMergeTool {
-            program: "foo bar",
-            diff_args: [
-                "$left",
-                "$right",
-            ],
-            edit_args: [
-                "$left",
-                "$right",
-            ],
-            merge_args: [
-                "$base",
-                "$left",
-                "$right",
-                "$output",
-            ],
-            merge_tool_edits_conflict_markers: false,
-        }
+        External(
+            ExternalMergeTool {
+                program: "foo bar",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [
+                    "$base",
+                    "$left",
+                    "$right",
+                    "$output",
+                ],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
         "###);
 
         // List args should never be a merge-tools key
