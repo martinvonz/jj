@@ -16,13 +16,13 @@ On most distributions, you'll need to build from source using `cargo` directly.
 First make sure that you have the `libssl-dev`, `openssl`, and `pkg-config`
 packages installed by running something like this:
 
-```shell script
+```shell
 sudo apt-get install libssl-dev openssl pkg-config
 ```
 
 Now run:
 
-```shell script
+```shell
 cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli
 ```
 
@@ -31,14 +31,14 @@ cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cl
 If you're on Nix OS you can use the flake for this repository.
 For example, if you want to run `jj` loaded from the flake, use:
 
-```shell script
+```shell
 nix run 'github:martinvonz/jj'
 ```
 
 You can also add this flake url to your system input flakes. Or you can
 install the flake to your user profile:
 
-```shell script
+```shell
 nix profile install 'github:martinvonz/jj'
 ```
 
@@ -46,7 +46,7 @@ nix profile install 'github:martinvonz/jj'
 
 If you use linuxbrew, you can run:
 
-```shell script
+```shell
 brew install jj
 ```
 
@@ -56,7 +56,7 @@ brew install jj
 
 If you use Homebrew, you can run:
 
-```shell script
+```shell
 brew install jj
 ```
 
@@ -65,7 +65,7 @@ brew install jj
 You can also install `jj` via [MacPorts](https://www.macports.org) (as
 the `jujutsu` port):
 
-```shell script
+```shell
 sudo port install jujutsu
 ```
 
@@ -75,7 +75,7 @@ sudo port install jujutsu
 
 You may need to run some or all of these:
 
-```shell script
+```shell
 xcode-select --install
 brew install openssl
 brew install pkg-config
@@ -84,7 +84,7 @@ export PKG_CONFIG_PATH="$(brew --prefix)/opt/openssl@3/lib/pkgconfig"
 
 Now run:
 
-```shell script
+```shell
 cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli
 ```
 
@@ -92,7 +92,7 @@ cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cl
 
 Run:
 
-```shell script
+```shell
 cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli --features vendored-openssl
 ```
 
@@ -100,7 +100,7 @@ cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cl
 
 You may want to configure your name and email so commits are made in your name.
 
-```shell script
+```shell
 $ jj config set --user user.name "Martin von Zweigbergk"
 $ jj config set --user user.email "martinvonz@google.com"
 ```
@@ -113,19 +113,19 @@ jj <= 0.7.0). Exactly how to source it depends on your shell.
 
 ### Bash
 
-```shell script
+```shell
 source <(jj util completion)  # --bash is the default
 ```
 
 Or, with jj <= 0.7.0:
 
-```shell script
+```shell
 source <(jj debug completion)  # --bash is the default
 ```
 
 ### Zsh
 
-```shell script
+```shell
 autoload -U compinit
 compinit
 source <(jj util completion --zsh)
@@ -133,7 +133,7 @@ source <(jj util completion --zsh)
 
 Or, with jj <= 0.7.0:
 
-```shell script
+```shell
 autoload -U compinit
 compinit
 source <(jj debug completion --zsh)
@@ -141,25 +141,25 @@ source <(jj debug completion --zsh)
 
 ### Fish
 
-```shell script
+```shell
 jj util completion --fish | source
 ```
 
 Or, with jj <= 0.7.0:
 
-```shell script
+```shell
 jj debug completion --fish | source
 ```
 
 ### Xonsh
 
-```shell script
+```shell
 source-bash $(jj util completion)
 ```
 
 Or, with jj <= 0.7.0:
 
-```shell script
+```shell
 source-bash $(jj debug completion)
 ```
 
