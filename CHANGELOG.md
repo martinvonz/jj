@@ -57,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* `jj config set --user` and `jj config edit --user` can now be used outside of any repository.
+
 * SSH authentication could hang when ssh-agent couldn't be reached
   [#1970](https://github.com/martinvonz/jj/issues/1970)
   
