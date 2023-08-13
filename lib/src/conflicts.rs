@@ -205,7 +205,7 @@ pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<Conten
         } else if conflict_start.is_some() && line == CONFLICT_END_LINE {
             let conflict_body = &input[conflict_start.unwrap() + CONFLICT_START_LINE.len()..pos];
             let hunk = parse_conflict_hunk(conflict_body);
-            if hunk.removes().len() + 1 == num_sides && hunk.adds().len() == num_sides {
+            if hunk.adds().len() == num_sides {
                 let resolved_slice = &input[resolved_start..conflict_start.unwrap()];
                 if !resolved_slice.is_empty() {
                     hunks.push(Merge::resolved(ContentHunk(resolved_slice.to_vec())));
