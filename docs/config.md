@@ -13,7 +13,7 @@ specify `jj` config settings are discussed in a later section.
 
 See the [TOML site] and the [syntax guide] for a description of the syntax.
 
-[The user config file]: #configuration
+[The user config file]: #user-config-file
 [TOML site]: https://toml.io/en/
 [syntax guide]: https://toml.io/en/v1.0.0
 
@@ -515,7 +515,7 @@ executable on your system](https://facebook.github.io/watchman/docs/install)).
 
 Debugging commands are available under `jj debug watchman`.
 
-# Configuration
+# User config file
 
 On all platforms, the user's global `jj` configuration file is located at either
 `~/.jjconfig.toml` (where `~` represents `$HOME` on Unix-likes, or
