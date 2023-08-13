@@ -23,7 +23,7 @@ use crate::backend::{BackendResult, FileId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
 use crate::files::{ContentHunk, MergeResult};
-use crate::merge::Merge;
+use crate::merge::{Merge, MergeBuilder};
 use crate::repo_path::RepoPath;
 use crate::store::Store;
 
@@ -348,36 +348,23 @@ pub fn update_from_content(
         return Ok(Merge::normal(file_id));
     }
 
-    // Now write the new files contents we found by parsing the file
-    // with conflict markers. Update the Merge object with the new
-    // FileIds.
-    let mut new_removes = vec![];
-    for (i, buf) in contents.removes().iter().enumerate() {
-        match &file_ids.removes()[i] {
-            Some(_) => {
-                let file_id = store.write_file(path, &mut buf.as_slice())?;
-                new_removes.push(Some(file_id));
-            }
-            None => {
-                // The missing side of a conflict is still represented by
-                // the empty string we materialized it as
-                new_removes.push(None);
-            }
-        }
-    }
-    let mut new_adds = vec![];
-    for (i, buf) in contents.adds().iter().enumerate() {
-        match &file_ids.adds()[i] {
-            Some(_) => {
-                let file_id = store.write_file(path, &mut buf.as_slice())?;
-                new_adds.push(Some(file_id));
-            }
-            None => {
-                // The missing side of a conflict is still represented by
-                // the empty string we materialized it as => nothing to do
-                new_adds.push(None);
-            }
-        }
-    }
-    Ok(Merge::new(new_removes, new_adds))
+    // Now write the new files contents we found by parsing the file with conflict
+    // markers. Update the Merge object with the new FileIds.
+    let builder: BackendResult<MergeBuilder<Option<FileId>>> =
+        zip(contents.iter(), file_ids.iter())
+            .map(|(content, file_id)| {
+                match file_id {
+                    Some(_) => {
+                        let file_id = store.write_file(path, &mut content.as_slice())?;
+                        Ok(Some(file_id))
+                    }
+                    None => {
+                        // The missing side of a conflict is still represented by
+                        // the empty string we materialized it as
+                        Ok(None)
+                    }
+                }
+            })
+            .collect();
+    Ok(builder?.build())
 }
