@@ -5,7 +5,7 @@ This text assumes that the reader is familiar with Git.
 ## Preparation
 
 If you haven't already, make sure you
-[install and configure Jujutsu](../README.md#Installation).
+[install and configure Jujutsu](install-and-setup.md).
 
 ## Cloning a Git repo
 
