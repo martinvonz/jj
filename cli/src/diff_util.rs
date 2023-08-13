@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::max;
 use std::collections::VecDeque;
 use std::io;
 use std::ops::Range;
@@ -36,12 +37,15 @@ use crate::merge_tools::{self, ExternalMergeTool};
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
-#[command(group(clap::ArgGroup::new("short-format").args(&["summary", "types"])))]
+#[command(group(clap::ArgGroup::new("short-format").args(&["summary", "stat", "types"])))]
 #[command(group(clap::ArgGroup::new("long-format").args(&["git", "color_words", "tool"])))]
 pub struct DiffFormatArgs {
     /// For each path, show only whether it was modified, added, or removed
     #[arg(long, short)]
     pub summary: bool,
+    // Show a histogram of the changes
+    #[arg(long)]
+    pub stat: bool,
     /// For each path, show only its type before and after
     ///
     /// The diff is shown as two letters. The first letter indicates the type
@@ -65,6 +69,7 @@ pub struct DiffFormatArgs {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DiffFormat {
     Summary,
+    Stat,
     Types,
     Git,
     ColorWords,
@@ -109,6 +114,7 @@ fn diff_formats_from_args(
         (args.types, DiffFormat::Types),
         (args.git, DiffFormat::Git),
         (args.color_words, DiffFormat::ColorWords),
+        (args.stat, DiffFormat::Stat),
     ]
     .into_iter()
     .filter_map(|(arg, format)| arg.then_some(format))
@@ -141,6 +147,7 @@ fn default_diff_format(settings: &UserSettings) -> Result<DiffFormat, config::Co
         "types" => Ok(DiffFormat::Types),
         "git" => Ok(DiffFormat::Git),
         "color-words" => Ok(DiffFormat::ColorWords),
+        "stat" => Ok(DiffFormat::Stat),
         _ => Err(config::ConfigError::Message(format!(
             "invalid diff format: {name}"
         ))),
@@ -161,6 +168,10 @@ pub fn show_diff(
             DiffFormat::Summary => {
                 let tree_diff = from_tree.diff(to_tree, matcher);
                 show_diff_summary(formatter, workspace_command, tree_diff)?;
+            }
+            DiffFormat::Stat => {
+                let tree_diff = from_tree.diff(to_tree, matcher);
+                show_diff_stat(ui, formatter, workspace_command, tree_diff)?;
             }
             DiffFormat::Types => {
                 let tree_diff = from_tree.diff(to_tree, matcher);
@@ -747,6 +758,107 @@ pub fn show_diff_summary(
         }
         Ok(())
     })
+}
+
+struct DiffStat {
+    path: String,
+    added: usize,
+    removed: usize,
+}
+
+fn get_diff_stat(path: String, left_content: &[u8], right_content: &[u8]) -> DiffStat {
+    let hunks = unified_diff_hunks(left_content, right_content, 0);
+    let mut added = 0;
+    let mut removed = 0;
+    for hunk in hunks {
+        for (line_type, _content) in hunk.lines {
+            match line_type {
+                DiffLineType::Context => {}
+                DiffLineType::Removed => removed += 1,
+                DiffLineType::Added => added += 1,
+            }
+        }
+    }
+    DiffStat {
+        path,
+        added,
+        removed,
+    }
+}
+
+pub fn show_diff_stat(
+    ui: &Ui,
+    formatter: &mut dyn Formatter,
+    workspace_command: &WorkspaceCommandHelper,
+    tree_diff: TreeDiffIterator,
+) -> Result<(), CommandError> {
+    let mut stats: Vec<DiffStat> = vec![];
+    let mut max_path_length = 0;
+    let mut max_diffs = 0;
+    for (repo_path, diff) in tree_diff {
+        let path = workspace_command.format_file_path(&repo_path);
+        let mut left_content: Vec<u8> = vec![];
+        let mut right_content: Vec<u8> = vec![];
+        match diff {
+            tree::Diff::Modified(left, right) => {
+                left_content = diff_content(workspace_command.repo(), &repo_path, &left)?;
+                right_content = diff_content(workspace_command.repo(), &repo_path, &right)?;
+            }
+            tree::Diff::Added(right) => {
+                right_content = diff_content(workspace_command.repo(), &repo_path, &right)?;
+            }
+            tree::Diff::Removed(left) => {
+                left_content = diff_content(workspace_command.repo(), &repo_path, &left)?;
+            }
+        }
+        max_path_length = max(max_path_length, path.len());
+        let stat = get_diff_stat(path, &left_content, &right_content);
+        max_diffs = max(max_diffs, stat.added + stat.removed);
+        stats.push(stat);
+    }
+
+    let display_width = usize::from(ui.term_width().unwrap_or(80)) - 4; // padding
+    let max_bar_length =
+        display_width - max_path_length - " | ".len() - max_diffs.to_string().len() - 1;
+    let factor = if max_diffs < max_bar_length {
+        1.0
+    } else {
+        max_bar_length as f64 / max_diffs as f64
+    };
+    let number_padding = max_diffs.to_string().len();
+
+    formatter.with_label("diff", |formatter| {
+        let mut total_added = 0;
+        let mut total_removed = 0;
+        for stat in &stats {
+            total_added += stat.added;
+            total_removed += stat.removed;
+            let bar_added = (stat.added as f64 * factor).ceil() as usize;
+            let bar_removed = (stat.removed as f64 * factor).ceil() as usize;
+            // pad to max_path_length
+            write!(
+                formatter,
+                "{:<max_path_length$} | {:>number_padding$}{}",
+                stat.path,
+                stat.added + stat.removed,
+                if bar_added + bar_removed > 0 { " " } else { "" },
+            )?;
+            write!(formatter.labeled("added"), "{}", "+".repeat(bar_added))?;
+            writeln!(formatter.labeled("removed"), "{}", "-".repeat(bar_removed))?;
+        }
+        writeln!(
+            formatter.labeled("stat-summary"),
+            "{} file{} changed, {} insertion{}(+), {} deletion{}(-)",
+            stats.len(),
+            if stats.len() == 1 { "" } else { "s" },
+            total_added,
+            if total_added == 1 { "" } else { "s" },
+            total_removed,
+            if total_removed == 1 { "" } else { "s" },
+        )?;
+        Ok(())
+    })?;
+    Ok(())
 }
 
 pub fn show_types(

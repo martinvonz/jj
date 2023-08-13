@@ -106,6 +106,14 @@ fn test_diff_basic() {
     @@ -1,0 +1,1 @@
     +foo
     "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
+    insta::assert_snapshot!(stdout, @r###"
+     file1 | 1 -
+     file2 | 1 +
+     file3 | 1 +
+     3 files changed, 2 insertions(+), 1 deletion(-)
+    "###);
 }
 
 #[test]
@@ -127,6 +135,12 @@ fn test_diff_empty() {
     insta::assert_snapshot!(stdout, @r###"
     Removed regular file file1:
         (empty)
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1 | 0
+    1 file changed, 0 insertions(+), 0 deletions(-)
     "###);
 }
 
@@ -337,6 +351,24 @@ fn test_diff_relative_paths() {
     -foo1
     +bar1
     "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path.join("dir1"), &["diff", "--stat"]);
+    #[cfg(unix)]
+    insta::assert_snapshot!(stdout, @r###"
+     file2         | 2 +-
+     subdir1/file3 | 2 +-
+     ../dir2/file4 | 2 +-
+     ../file1      | 2 +-
+     4 files changed, 4 insertions(+), 4 deletions(-)
+    "###);
+    #[cfg(windows)]
+    insta::assert_snapshot!(stdout, @r###"
+     file2         | 2 +-
+     subdir1\file3 | 2 +-
+     ..\dir2\file4 | 2 +-
+     ..\file1      | 2 +-
+     4 files changed, 4 insertions(+), 4 deletions(-)
+    "###);
 }
 
 #[test]
@@ -383,6 +415,13 @@ fn test_diff_missing_newline() {
     \ No newline at end of file
     +foo
     \ No newline at end of file
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1 | 3 ++-
+    file2 | 3 +--
+    2 files changed, 3 insertions(+), 3 deletions(-)
     "###);
 }
 
@@ -713,5 +752,34 @@ fn test_diff_external_tool() {
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: 1.
+    "###);
+}
+
+#[test]
+fn test_diff_stat() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1 | 1 +
+    1 file changed, 1 insertion(+), 0 deletions(-)
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
+    insta::assert_snapshot!(stdout, @"0 files changed, 0 insertions(+), 0 deletions(-)");
+
+    std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file1"), "bar\n").unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1 | 1 -
+    1 file changed, 0 insertions(+), 1 deletion(-)
     "###);
 }
