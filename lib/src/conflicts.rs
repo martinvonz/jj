@@ -15,6 +15,7 @@
 #![allow(missing_docs)]
 
 use std::io::Write;
+use std::iter::zip;
 
 use itertools::Itertools;
 
@@ -336,46 +337,45 @@ pub fn update_from_content(
             }
         }
     }
+    let contents = Merge::new(removed_content, added_content);
+
+    // If the user edited the empty placeholder for an absent side, we consider the
+    // conflict resolved.
+    if zip(contents.iter(), file_ids.iter())
+        .any(|(content, file_id)| file_id.is_none() && !content.is_empty())
+    {
+        let file_id = store.write_file(path, &mut &content[..])?;
+        return Ok(Merge::normal(file_id));
+    }
+
     // Now write the new files contents we found by parsing the file
     // with conflict markers. Update the Merge object with the new
     // FileIds.
     let mut new_removes = vec![];
-    for (i, buf) in removed_content.iter().enumerate() {
+    for (i, buf) in contents.removes().iter().enumerate() {
         match &file_ids.removes()[i] {
             Some(_) => {
                 let file_id = store.write_file(path, &mut buf.as_slice())?;
                 new_removes.push(Some(file_id));
             }
-            None if buf.is_empty() => {
+            None => {
                 // The missing side of a conflict is still represented by
                 // the empty string we materialized it as
                 new_removes.push(None);
             }
-            _ => {
-                // The user edited the empty placeholder for an absent side. We consider the
-                // conflict resolved.
-                let file_id = store.write_file(path, &mut &content[..])?;
-                return Ok(Merge::normal(file_id));
-            }
         }
     }
     let mut new_adds = vec![];
-    for (i, buf) in added_content.iter().enumerate() {
+    for (i, buf) in contents.adds().iter().enumerate() {
         match &file_ids.adds()[i] {
             Some(_) => {
                 let file_id = store.write_file(path, &mut buf.as_slice())?;
                 new_adds.push(Some(file_id));
             }
-            None if buf.is_empty() => {
+            None => {
                 // The missing side of a conflict is still represented by
                 // the empty string we materialized it as => nothing to do
                 new_adds.push(None);
-            }
-            _ => {
-                // The user edited the empty placeholder for an absent side. We consider the
-                // conflict resolved.
-                let file_id = store.write_file(path, &mut &content[..])?;
-                return Ok(Merge::normal(file_id));
             }
         }
     }
