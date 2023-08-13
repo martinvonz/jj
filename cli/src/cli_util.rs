@@ -2137,14 +2137,14 @@ pub fn write_config_value_to_file(
 
 pub fn get_new_config_file_path(
     config_source: &ConfigSource,
-    workspace_loader: &WorkspaceLoader,
+    command: &CommandHelper,
 ) -> Result<PathBuf, CommandError> {
     let edit_path = match config_source {
         // TODO(#531): Special-case for editors that can't handle viewing directories?
         ConfigSource::User => {
             new_config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
         }
-        ConfigSource::Repo => workspace_loader.repo_path().join("config.toml"),
+        ConfigSource::Repo => command.workspace_loader()?.repo_path().join("config.toml"),
         _ => {
             return Err(user_error(format!(
                 "Can't get path for config source {config_source:?}"
