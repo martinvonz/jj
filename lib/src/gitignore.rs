@@ -14,8 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::fs::File;
-use std::io::Read;
+use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -184,9 +183,7 @@ impl GitIgnoreFile {
         file: PathBuf,
     ) -> Arc<GitIgnoreFile> {
         if file.is_file() {
-            let mut file = File::open(file).unwrap();
-            let mut buf = Vec::new();
-            file.read_to_end(&mut buf).unwrap();
+            let buf = fs::read(file).unwrap();
             self.chain(prefix, &buf)
         } else {
             self.clone()

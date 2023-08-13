@@ -14,8 +14,9 @@
 
 #![allow(missing_docs)]
 
+use std::fs;
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -304,9 +305,7 @@ impl WorkspaceLoader {
         // If .jj/repo is a file, then we interpret its contents as a relative path to
         // the actual repo directory (typically in another workspace).
         if repo_dir.is_file() {
-            let mut repo_file = File::open(&repo_dir).context(&repo_dir)?;
-            let mut buf = Vec::new();
-            repo_file.read_to_end(&mut buf).context(&repo_dir)?;
+            let buf = fs::read(&repo_dir).context(&repo_dir)?;
             let repo_path_str =
                 String::from_utf8(buf).map_err(|_| WorkspaceLoadError::NonUnicodePath)?;
             repo_dir = jj_dir

@@ -161,9 +161,7 @@ impl Backend for LocalBackend {
 
     fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
         let path = self.symlink_path(id);
-        let mut file = File::open(path).map_err(|err| map_not_found_err(err, id))?;
-        let mut target = String::new();
-        file.read_to_string(&mut target).unwrap();
+        let target = fs::read_to_string(path).map_err(|err| map_not_found_err(err, id))?;
         Ok(target)
     }
 

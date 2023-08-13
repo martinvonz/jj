@@ -24,7 +24,7 @@ use std::io::{Read, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{io, iter};
+use std::{fs, io, iter};
 
 use blake2::Blake2b512;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -86,11 +86,7 @@ impl DefaultIndexStore {
         op_id: &OperationId,
     ) -> Result<Arc<ReadonlyIndexImpl>, IndexLoadError> {
         let op_id_file = self.dir.join("operations").join(op_id.hex());
-        let mut buf = vec![];
-        File::open(op_id_file)
-            .unwrap()
-            .read_to_end(&mut buf)
-            .unwrap();
+        let buf = fs::read(op_id_file).unwrap();
         let index_file_id_hex = String::from_utf8(buf).unwrap();
         let index_file_path = self.dir.join(&index_file_id_hex);
         let mut index_file = File::open(index_file_path).unwrap();
