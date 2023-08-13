@@ -157,8 +157,9 @@ the [tutorial][tut].
 
 [^1]: This is a GitHub Style review, as GitHub currently only is able to compare
 branches.
+
 [^2]: If you're wondering why we prefer clean commits in this project, see
-e.g.[this blog post][stacked]
+e.g. [this blog post][stacked]
 
 [detached]: https://git-scm.com/docs/git-checkout#_detached_head
 

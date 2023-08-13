@@ -94,12 +94,12 @@ You'll then need to use `jj new --before` to create new commits
 and `jj move --to`
 to move new changes into the correct commits.
 
-[config]: ./config.md
+[config]: config.md
 
 [gitignore]: https://git-scm.com/docs/gitignore
 
-[revsets]: ./revsets.md
+[revsets]: revsets.md
 
-[templates]: ./templates.md
+[templates]: templates.md
 
 [this issue]: https://github.com/martinvonz/jj/issues/1531
