@@ -14,7 +14,7 @@
 
 use std::path::PathBuf;
 
-use crate::common::TestEnvironment;
+use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -166,6 +166,37 @@ fn test_git_push_current_branch_unchanged() {
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
+    "###);
+}
+
+#[test]
+fn test_git_push_not_fast_forward() {
+    let (test_env, workspace_root) = set_up();
+
+    // Move branch1 forward on the remote
+    let origin_path = test_env.env_root().join("origin");
+    test_env.jj_cmd_success(&origin_path, &["new", "branch1", "-m=remote"]);
+    std::fs::write(origin_path.join("remote"), "remote").unwrap();
+    test_env.jj_cmd_success(&origin_path, &["branch", "set", "branch1"]);
+    test_env.jj_cmd_success(&origin_path, &["git", "export"]);
+
+    // Move branch1 forward to another commit locally
+    test_env.jj_cmd_success(&workspace_root, &["new", "branch1", "-m=local"]);
+    std::fs::write(workspace_root.join("local"), "local").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch1"]);
+
+    // Pushing should fail
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["git", "push"])
+        .assert()
+        .code(1);
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    Branch changes to push to origin:
+      Move branch branch1 from 45a3aa29e907 to c35839cb8e8c
+    "###);
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Error: The push conflicts with changes made on the remote (it is not fast-forwardable).
+    Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
 }
 

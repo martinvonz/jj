@@ -975,6 +975,11 @@ fn cmd_git_push(
     })
     .map_err(|err| match err {
         GitPushError::InternalGitError(err) => map_git_error(err),
+        GitPushError::NotFastForward => user_error_with_hint(
+            "The push conflicts with changes made on the remote (it is not fast-forwardable).",
+            "Try fetching from the remote, then make the branch point to where you want it to be, \
+             and push again.",
+        ),
         _ => user_error(err.to_string()),
     })?;
     git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
