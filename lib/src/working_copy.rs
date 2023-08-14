@@ -955,16 +955,24 @@ impl TreeState {
         } else {
             let new_file_type = new_file_state.file_type.clone();
             let current_tree_value = current_tree.path_value(repo_path);
-            let new_tree_value =
-                self.write_path_to_store(repo_path, &disk_path, current_tree_value, new_file_type)?;
-            Ok(Some(new_tree_value))
+            let new_tree_value = self.write_path_to_store(
+                repo_path,
+                &disk_path,
+                &current_tree_value,
+                new_file_type,
+            )?;
+            if new_tree_value.as_resolved() != Some(&current_tree_value) {
+                Ok(Some(new_tree_value))
+            } else {
+                Ok(None)
+            }
         }
     }
     fn write_path_to_store(
         &self,
         repo_path: &RepoPath,
         disk_path: &Path,
-        current_tree_value: Option<TreeValue>,
+        current_tree_value: &Option<TreeValue>,
         file_type: FileType,
     ) -> Result<Merge<Option<TreeValue>>, SnapshotError> {
         let executable = match file_type {
@@ -978,7 +986,7 @@ impl TreeState {
 
         // If the file contained a conflict before and is now a normal file on disk, we
         // try to parse any conflict markers in the file into a conflict.
-        if let Some(TreeValue::Conflict(conflict_id)) = &current_tree_value {
+        if let Some(TreeValue::Conflict(conflict_id)) = current_tree_value {
             let conflict = self.store.read_conflict(repo_path, conflict_id)?;
             if let Some(old_file_ids) = conflict.to_file_merge() {
                 let content = fs::read(disk_path).map_err(|err| SnapshotError::IoError {
@@ -1021,7 +1029,7 @@ impl TreeState {
             let executable = {
                 let () = executable; // use the variable
                 if let Some(TreeValue::File { id: _, executable }) = current_tree_value {
-                    executable
+                    *executable
                 } else {
                     false
                 }
