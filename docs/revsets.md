@@ -122,6 +122,8 @@ revsets (expressions) as arguments.
   description.
 * `author(needle)`: Commits with the given string in the author's name or
   email.
+* `mine()`: Commits where the author's email matches the email of the current
+  user.
 * `committer(needle)`: Commits with the given string in the committer's
   name or email.
 * `empty()`: Commits modifying no files. This also includes `merges()` without
