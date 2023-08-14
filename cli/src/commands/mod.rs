@@ -2673,10 +2673,17 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
                         "Some of the sides of the conflict are not files",
                     ));
                 }
-                let new_removes = chmod_conflict_sides(conflict.removes(), executable_bit);
-                let new_adds = chmod_conflict_sides(conflict.adds(), executable_bit);
-                let new_conflict_id =
-                    store.write_conflict(&repo_path, &Merge::new(new_removes, new_adds))?;
+                let new_conflict = conflict.map(|value| match value {
+                    Some(TreeValue::File { id, executable: _ }) => Some(TreeValue::File {
+                        id: id.clone(),
+                        executable: executable_bit,
+                    }),
+                    Some(TreeValue::Conflict(_)) => {
+                        panic!("Conflict sides must not themselves be conflicts")
+                    }
+                    value => value.clone(),
+                });
+                let new_conflict_id = store.write_conflict(&repo_path, &new_conflict)?;
                 TreeValue::Conflict(new_conflict_id)
             }
             Some(_) => return Err(user_error_with_path("Found neither a file nor a conflict")),
@@ -2689,26 +2696,6 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
         .set_tree(tree_builder.write_tree())
         .write()?;
     tx.finish(ui)
-}
-
-fn chmod_conflict_sides(
-    sides: &[Option<TreeValue>],
-    executable_bit: bool,
-) -> Vec<Option<TreeValue>> {
-    let result = sides
-        .iter()
-        .map(|side| {
-            side.as_ref().map(|value| match value {
-                TreeValue::File { id, executable: _ } => TreeValue::File {
-                    id: id.clone(),
-                    executable: executable_bit,
-                },
-                TreeValue::Conflict(_) => panic!("Conflict sides must not themselves be conflicts"),
-                value => value.clone(),
-            })
-        })
-        .collect();
-    result
 }
 
 #[instrument(skip_all)]
