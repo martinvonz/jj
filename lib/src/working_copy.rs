@@ -955,24 +955,31 @@ impl TreeState {
         } else {
             let new_file_type = new_file_state.file_type.clone();
             let current_tree_value = current_tree.path_value(repo_path);
-            let new_tree_value = self.write_path_to_store(
+            let current_tree_values =
+                if let Some(TreeValue::Conflict(conflict_id)) = &current_tree_value {
+                    self.store.read_conflict(repo_path, conflict_id)?
+                } else {
+                    Merge::resolved(current_tree_value)
+                };
+            let new_tree_values = self.write_path_to_store(
                 repo_path,
                 &disk_path,
-                &current_tree_value,
+                &current_tree_values,
                 new_file_type,
             )?;
-            if new_tree_value.as_resolved() != Some(&current_tree_value) {
-                Ok(Some(new_tree_value))
+            if new_tree_values != current_tree_values {
+                Ok(Some(new_tree_values))
             } else {
                 Ok(None)
             }
         }
     }
+
     fn write_path_to_store(
         &self,
         repo_path: &RepoPath,
         disk_path: &Path,
-        current_tree_value: &Option<TreeValue>,
+        current_tree_values: &Merge<Option<TreeValue>>,
         file_type: FileType,
     ) -> Result<Merge<Option<TreeValue>>, SnapshotError> {
         let executable = match file_type {
@@ -986,43 +993,9 @@ impl TreeState {
 
         // If the file contained a conflict before and is now a normal file on disk, we
         // try to parse any conflict markers in the file into a conflict.
-        if let Some(TreeValue::Conflict(conflict_id)) = current_tree_value {
-            let conflict = self.store.read_conflict(repo_path, conflict_id)?;
-            if let Some(old_file_ids) = conflict.to_file_merge() {
-                let content = fs::read(disk_path).map_err(|err| SnapshotError::IoError {
-                    message: format!("Failed to open file {}", disk_path.display()),
-                    err,
-                })?;
-                let new_file_ids = conflicts::update_from_content(
-                    &old_file_ids,
-                    self.store.as_ref(),
-                    repo_path,
-                    &content,
-                )?;
-                match new_file_ids.into_resolved() {
-                    Ok(file_id) => {
-                        #[cfg(windows)]
-                        let executable = {
-                            let () = executable; // use the variable
-                            false
-                        };
-                        Ok(Merge::normal(TreeValue::File {
-                            id: file_id.unwrap(),
-                            executable,
-                        }))
-                    }
-                    Err(new_file_ids) => {
-                        if new_file_ids != old_file_ids {
-                            Ok(conflict.with_new_file_ids(&new_file_ids))
-                        } else {
-                            Ok(Merge::normal(TreeValue::Conflict(conflict_id.clone())))
-                        }
-                    }
-                }
-            } else {
-                Ok(Merge::normal(TreeValue::Conflict(conflict_id.clone())))
-            }
-        } else {
+        if let Some(current_tree_value) = current_tree_values.as_resolved() {
+            #[cfg(unix)]
+            let _ = current_tree_value; // use the variable
             let id = self.write_file_to_store(repo_path, disk_path)?;
             // On Windows, we preserve the executable bit from the current tree.
             #[cfg(windows)]
@@ -1035,6 +1008,39 @@ impl TreeState {
                 }
             };
             Ok(Merge::normal(TreeValue::File { id, executable }))
+        } else if let Some(old_file_ids) = current_tree_values.to_file_merge() {
+            let content = fs::read(disk_path).map_err(|err| SnapshotError::IoError {
+                message: format!("Failed to open file {}", disk_path.display()),
+                err,
+            })?;
+            let new_file_ids = conflicts::update_from_content(
+                &old_file_ids,
+                self.store.as_ref(),
+                repo_path,
+                &content,
+            )?;
+            match new_file_ids.into_resolved() {
+                Ok(file_id) => {
+                    #[cfg(windows)]
+                    let executable = {
+                        let () = executable; // use the variable
+                        false
+                    };
+                    Ok(Merge::normal(TreeValue::File {
+                        id: file_id.unwrap(),
+                        executable,
+                    }))
+                }
+                Err(new_file_ids) => {
+                    if new_file_ids != old_file_ids {
+                        Ok(current_tree_values.with_new_file_ids(&new_file_ids))
+                    } else {
+                        Ok(current_tree_values.clone())
+                    }
+                }
+            }
+        } else {
+            Ok(current_tree_values.clone())
         }
     }
 
