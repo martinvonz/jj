@@ -560,8 +560,7 @@ impl MutableIndexImpl {
             buf.write_u32::<LittleEndian>(pos.0).unwrap();
         }
 
-        buf[parent_overflow_offset..parent_overflow_offset + 4]
-            .as_mut()
+        (&mut buf[parent_overflow_offset..parent_overflow_offset + 4])
             .write_u32::<LittleEndian>(parent_overflow.len() as u32)
             .unwrap();
         for parent_pos in parent_overflow {
