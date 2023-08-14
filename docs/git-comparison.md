@@ -76,7 +76,8 @@ might be used to using `git add -p; git commit`. With Jujutsu, you'd instead
 use `jj split` to split the working-copy commit into two commits. To add more
 changes into the parent commit, which you might normally use
 `git add -p; git commit --amend` for, you can instead use `jj squash -i` to
-choose which changes to move into the parent commit.
+choose which changes to move into the parent commit, or `jj squash <file>` to
+move a specific file.
 
 
 ## Command equivalence table
