@@ -900,3 +900,37 @@ fn test_fsmonitor() {
         locked_wc.finish(repo.op_id().clone()).unwrap();
     }
 }
+
+#[test]
+fn test_snapshot_max_new_file_size() {
+    let settings = UserSettings::from_config(
+        testutils::base_config()
+            .add_source(config::File::from_str(
+                "snapshot.max-new-file-size = \"1KiB\"",
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap(),
+    );
+    let mut test_workspace = TestWorkspace::init(&settings, true);
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let small_path = RepoPath::from_internal_string("small");
+    let large_path = RepoPath::from_internal_string("large");
+    std::fs::write(small_path.to_fs_path(&workspace_root), vec![0; 1024]).unwrap();
+    test_workspace
+        .snapshot()
+        .expect("files exactly matching the size limit should succeed");
+    std::fs::write(small_path.to_fs_path(&workspace_root), vec![0; 1024 + 1]).unwrap();
+    test_workspace
+        .snapshot()
+        .expect("existing files may grow beyond the size limit");
+    // A new file of 1KiB + 1 bytes should fail
+    std::fs::write(large_path.to_fs_path(&workspace_root), vec![0; 1024 + 1]).unwrap();
+    let err = test_workspace
+        .snapshot()
+        .expect_err("new files beyond the size limit should fail");
+    assert!(
+        matches!(err, SnapshotError::NewFileTooLarge { .. }),
+        "the failure should be attributed to new file size"
+    );
+}

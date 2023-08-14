@@ -31,7 +31,7 @@ use jj_lib::store::Store;
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::Tree;
 use jj_lib::tree_builder::TreeBuilder;
-use jj_lib::working_copy::{SnapshotOptions, SnapshotError};
+use jj_lib::working_copy::{SnapshotError, SnapshotOptions};
 use jj_lib::workspace::Workspace;
 use tempfile::TempDir;
 
@@ -60,20 +60,21 @@ pub fn new_temp_dir() -> TempDir {
         .unwrap()
 }
 
+pub fn base_config() -> config::ConfigBuilder<config::builder::DefaultState> {
+    config::Config::builder().add_source(config::File::from_str(
+        r#"
+            user.name = "Test User"
+            user.email = "test.user@example.com"
+            operation.username = "test-username"
+            operation.hostname = "host.example.com"
+            debug.randomness-seed = "42"
+        "#,
+        config::FileFormat::Toml,
+    ))
+}
+
 pub fn user_settings() -> UserSettings {
-    let config = config::Config::builder()
-        .add_source(config::File::from_str(
-            r#"
-                user.name = "Test User"
-                user.email = "test.user@example.com"
-                operation.username = "test-username"
-                operation.hostname = "host.example.com"
-                debug.randomness-seed = "42"
-           "#,
-            config::FileFormat::Toml,
-        ))
-        .build()
-        .unwrap();
+    let config = base_config().build().unwrap();
     UserSettings::from_config(config)
 }
 
@@ -131,6 +132,7 @@ pub struct TestWorkspace {
     temp_dir: TempDir,
     pub workspace: Workspace,
     pub repo: Arc<ReadonlyRepo>,
+    settings: UserSettings,
 }
 
 impl TestWorkspace {
@@ -152,6 +154,7 @@ impl TestWorkspace {
             temp_dir,
             workspace,
             repo,
+            settings: settings.clone(),
         }
     }
 
@@ -164,8 +167,10 @@ impl TestWorkspace {
     /// new operation).
     pub fn snapshot(&mut self) -> Result<Tree, SnapshotError> {
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation().unwrap();
-        let tree_id = locked_wc
-            .snapshot(SnapshotOptions::empty_for_test());
+        let tree_id = locked_wc.snapshot(SnapshotOptions {
+            max_new_file_size: self.settings.max_new_file_size().unwrap(),
+            ..SnapshotOptions::empty_for_test()
+        });
         // arbitrary operation id
         locked_wc.finish(self.repo.op_id().clone()).unwrap();
         Ok(self
