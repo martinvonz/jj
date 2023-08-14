@@ -2667,7 +2667,7 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
                 let (new_adds, all_files) = chmod_conflict_sides(conflict.adds(), executable_bit);
                 if !all_files {
                     return Err(user_error_with_path(
-                        "None of the sides of the conflict are files",
+                        "Some of the sides of the conflict are not files",
                     ));
                 }
                 let new_conflict_id =

@@ -171,7 +171,7 @@ fn test_chmod_file_dir_deletion_conflicts() {
     "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["chmod", "x", "file", "-r=file_dir"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: None of the sides of the conflict are files at 'file'.
+    Error: Some of the sides of the conflict are not files at 'file'.
     "###);
 
     // The file_deletion conflict can be chmod-ed
