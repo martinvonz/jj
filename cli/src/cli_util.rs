@@ -2664,7 +2664,12 @@ impl CliRunner {
         ui: &mut Ui,
         mut layered_configs: LayeredConfigs,
     ) -> Result<(), CommandError> {
-        let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
+        let cwd = env::current_dir().map_err(|_| {
+            user_error_with_hint(
+                "Could not determine current directory",
+                "Did you check-out a commit where the directory doesn't exist?",
+            )
+        })?;
         layered_configs.read_user_config()?;
         let config = layered_configs.merge();
         ui.reset(&config)?;
