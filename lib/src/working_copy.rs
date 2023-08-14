@@ -673,18 +673,20 @@ impl TreeState {
                     .map(|(path, _state)| path.clone())
                     .collect()
             });
-        trace_span!("process tree entries").in_scope(|| {
+        trace_span!("process tree entries").in_scope(|| -> Result<(), SnapshotError> {
             while let Ok((path, tree_values)) = tree_entries_rx.recv() {
                 match tree_values.into_resolved() {
                     Ok(tree_value) => {
                         tree_builder.set(path, tree_value.unwrap());
                     }
-                    Err(_) => {
-                        todo!()
+                    Err(conflict) => {
+                        let conflict_id = self.store.write_conflict(&path, &conflict)?;
+                        tree_builder.set(path, TreeValue::Conflict(conflict_id));
                     }
                 }
             }
-        });
+            Ok(())
+        })?;
         trace_span!("process file states").in_scope(|| {
             while let Ok((path, file_state)) = file_states_rx.recv() {
                 self.file_states.insert(path, file_state);
@@ -1003,10 +1005,7 @@ impl TreeState {
                     }
                     Err(new_file_ids) => {
                         if new_file_ids != old_file_ids {
-                            let new_conflict = conflict.with_new_file_ids(&new_file_ids);
-                            let new_conflict_id =
-                                self.store.write_conflict(repo_path, &new_conflict)?;
-                            Ok(Merge::normal(TreeValue::Conflict(new_conflict_id)))
+                            Ok(conflict.with_new_file_ids(&new_file_ids))
                         } else {
                             Ok(Merge::normal(TreeValue::Conflict(conflict_id.clone())))
                         }
