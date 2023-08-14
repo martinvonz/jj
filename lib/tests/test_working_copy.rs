@@ -29,7 +29,7 @@ use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::settings::UserSettings;
 use jj_lib::tree_builder::TreeBuilder;
-use jj_lib::working_copy::{LockedWorkingCopy, SnapshotOptions, WorkingCopy};
+use jj_lib::working_copy::{LockedWorkingCopy, SnapshotError, SnapshotOptions, WorkingCopy};
 use test_case::test_case;
 use testutils::{create_tree, write_random_commit, TestWorkspace};
 
@@ -42,7 +42,7 @@ fn test_root(use_git: bool) {
 
     let wc = test_workspace.workspace.working_copy();
     assert_eq!(wc.sparse_patterns().unwrap(), vec![RepoPath::root()]);
-    let new_tree = test_workspace.snapshot();
+    let new_tree = test_workspace.snapshot().unwrap();
     let repo = &test_workspace.repo;
     let wc_commit_id = repo
         .view()
@@ -199,7 +199,7 @@ fn test_checkout_file_transitions(use_git: bool) {
         .unwrap();
 
     // Check that the working copy is clean.
-    let new_tree = test_workspace.snapshot();
+    let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(*new_tree.id(), right_tree_id);
 
     for (_left_kind, right_kind, path) in &files {
@@ -341,7 +341,7 @@ fn test_reset() {
     locked_wc.finish(op_id.clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().unwrap().contains_key(&ignored_path));
-    let new_tree = test_workspace.snapshot();
+    let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(new_tree.id(), tree_without_file.id());
 
     // Now test the opposite direction: resetting to a commit where the file is
@@ -352,7 +352,7 @@ fn test_reset() {
     locked_wc.finish(op_id.clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(wc.file_states().unwrap().contains_key(&ignored_path));
-    let new_tree = test_workspace.snapshot();
+    let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(new_tree.id(), tree_with_file.id());
 }
 
@@ -479,7 +479,7 @@ fn test_snapshot_special_file() {
     // Replace a regular file by a socket and snapshot the working copy again
     std::fs::remove_file(&file1_disk_path).unwrap();
     UnixListener::bind(&file1_disk_path).unwrap();
-    let tree = test_workspace.snapshot();
+    let tree = test_workspace.snapshot().unwrap();
     // Only the regular file should be in the tree
     assert_eq!(
         tree.entries().map(|(path, _value)| path).collect_vec(),
@@ -515,7 +515,7 @@ fn test_gitignores(use_git: bool) {
     std::fs::create_dir(workspace_root.join("dir")).unwrap();
     testutils::write_working_copy_file(&workspace_root, &subdir_modified_path, "1");
 
-    let tree1 = test_workspace.snapshot();
+    let tree1 = test_workspace.snapshot().unwrap();
     let files1 = tree1.entries().map(|(name, _value)| name).collect_vec();
     assert_eq!(
         files1,
@@ -539,7 +539,7 @@ fn test_gitignores(use_git: bool) {
     testutils::write_working_copy_file(&workspace_root, &subdir_modified_path, "2");
     testutils::write_working_copy_file(&workspace_root, &subdir_ignored_path, "2");
 
-    let tree2 = test_workspace.snapshot();
+    let tree2 = test_workspace.snapshot().unwrap();
     let files2 = tree2.entries().map(|(name, _value)| name).collect_vec();
     assert_eq!(
         files2,
@@ -574,7 +574,7 @@ fn test_gitignores_in_ignored_dir(use_git: bool) {
     testutils::write_working_copy_file(&workspace_root, &nested_gitignore_path, "!file\n");
     testutils::write_working_copy_file(&workspace_root, &ignored_path, "contents");
 
-    let new_tree = test_workspace.snapshot();
+    let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(
         new_tree.entries().collect_vec(),
         tree1.entries().collect_vec()
@@ -593,7 +593,7 @@ fn test_gitignores_in_ignored_dir(use_git: bool) {
     locked_wc.reset(&tree2).unwrap();
     locked_wc.finish(OperationId::from_hex("abc123")).unwrap();
 
-    let new_tree = test_workspace.snapshot();
+    let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(
         new_tree.entries().collect_vec(),
         tree2.entries().collect_vec()
@@ -666,7 +666,7 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     // deleted from the resulting tree.
     std::fs::write(modified_path.to_fs_path(&workspace_root), "modified").unwrap();
     std::fs::remove_file(deleted_path.to_fs_path(&workspace_root)).unwrap();
-    let new_tree = test_workspace.snapshot();
+    let new_tree = test_workspace.snapshot().unwrap();
     let expected_tree = create_tree(
         &repo,
         &[
@@ -701,7 +701,7 @@ fn test_dotgit_ignored(use_git: bool) {
         &RepoPath::from_internal_string(".git/file"),
         "contents",
     );
-    let new_tree = test_workspace.snapshot();
+    let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(new_tree.id(), store.empty_tree_id());
     std::fs::remove_dir_all(&dotgit_path).unwrap();
 
@@ -711,7 +711,7 @@ fn test_dotgit_ignored(use_git: bool) {
         &RepoPath::from_internal_string(".git"),
         "contents",
     );
-    let new_tree = test_workspace.snapshot();
+    let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(new_tree.id(), store.empty_tree_id());
 }
 
@@ -763,7 +763,7 @@ fn test_gitsubmodule() {
 
     // Check that the files present in the submodule are not tracked
     // when we snapshot
-    let new_tree = test_workspace.snapshot();
+    let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(*new_tree.id(), tree_id);
 
     // Check that the files in the submodule are not deleted

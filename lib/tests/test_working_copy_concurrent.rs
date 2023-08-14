@@ -166,7 +166,7 @@ fn test_racy_checkout() {
         // A file written right after checkout (hopefully, from the test's perspective,
         // within the file system timestamp granularity) is detected as changed.
         write_working_copy_file(&workspace_root, &path, "x");
-        let modified_tree = test_workspace.snapshot();
+        let modified_tree = test_workspace.snapshot().unwrap();
         if modified_tree.id() == tree.id() {
             num_matches += 1;
         }

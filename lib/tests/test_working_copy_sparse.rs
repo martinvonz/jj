@@ -167,7 +167,7 @@ fn test_sparse_commit() {
 
     // Create a tree from the working copy. Only dir1/file1 should be updated in the
     // tree.
-    let modified_tree = test_workspace.snapshot();
+    let modified_tree = test_workspace.snapshot().unwrap();
     let diff = tree.diff(&modified_tree, &EverythingMatcher).collect_vec();
     assert_eq!(diff.len(), 1);
     assert_eq!(diff[0].0, dir1_file1_path);
@@ -181,7 +181,7 @@ fn test_sparse_commit() {
 
     // Create a tree from the working copy. Only dir1/file1 and dir2/file1 should be
     // updated in the tree.
-    let modified_tree = test_workspace.snapshot();
+    let modified_tree = test_workspace.snapshot().unwrap();
     let diff = tree.diff(&modified_tree, &EverythingMatcher).collect_vec();
     assert_eq!(diff.len(), 2);
     assert_eq!(diff[0].0, dir1_file1_path);
@@ -216,7 +216,7 @@ fn test_sparse_commit_gitignore() {
 
     // Create a tree from the working copy. Only dir1/file2 should be updated in the
     // tree because dir1/file1 is ignored.
-    let modified_tree = test_workspace.snapshot();
+    let modified_tree = test_workspace.snapshot().unwrap();
     let entries = modified_tree.entries().collect_vec();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].0, dir1_file2_path);

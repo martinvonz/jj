@@ -31,7 +31,7 @@ use jj_lib::store::Store;
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::Tree;
 use jj_lib::tree_builder::TreeBuilder;
-use jj_lib::working_copy::SnapshotOptions;
+use jj_lib::working_copy::{SnapshotOptions, SnapshotError};
 use jj_lib::workspace::Workspace;
 use tempfile::TempDir;
 
@@ -162,18 +162,17 @@ impl TestWorkspace {
     /// Snapshots the working copy and returns the tree. Updates the working
     /// copy state on disk, but does not update the working-copy commit (no
     /// new operation).
-    pub fn snapshot(&mut self) -> Tree {
+    pub fn snapshot(&mut self) -> Result<Tree, SnapshotError> {
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation().unwrap();
         let tree_id = locked_wc
-            .snapshot(SnapshotOptions::empty_for_test())
-            .unwrap();
+            .snapshot(SnapshotOptions::empty_for_test());
         // arbitrary operation id
         locked_wc.finish(self.repo.op_id().clone()).unwrap();
-        return self
+        Ok(self
             .repo
             .store()
-            .get_tree(&RepoPath::root(), &tree_id)
-            .unwrap();
+            .get_tree(&RepoPath::root(), &tree_id?)
+            .unwrap())
     }
 }
 
