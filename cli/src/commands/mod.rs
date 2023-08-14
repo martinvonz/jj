@@ -2663,13 +2663,18 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
             },
             Some(TreeValue::Conflict(id)) => {
                 let conflict = tree.store().read_conflict(&repo_path, &id)?;
-                let (new_removes, _) = chmod_conflict_sides(conflict.removes(), executable_bit);
-                let (new_adds, all_files) = chmod_conflict_sides(conflict.adds(), executable_bit);
+                let all_files = conflict
+                    .adds()
+                    .iter()
+                    .flatten()
+                    .all(|tree_value| matches!(tree_value, TreeValue::File { .. }));
                 if !all_files {
                     return Err(user_error_with_path(
                         "Some of the sides of the conflict are not files",
                     ));
                 }
+                let new_removes = chmod_conflict_sides(conflict.removes(), executable_bit);
+                let new_adds = chmod_conflict_sides(conflict.adds(), executable_bit);
                 let new_conflict_id =
                     store.write_conflict(&repo_path, &Merge::new(new_removes, new_adds))?;
                 TreeValue::Conflict(new_conflict_id)
@@ -2689,8 +2694,7 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
 fn chmod_conflict_sides(
     sides: &[Option<TreeValue>],
     executable_bit: bool,
-) -> (Vec<Option<TreeValue>>, bool) {
-    let mut all_files = true;
+) -> Vec<Option<TreeValue>> {
     let result = sides
         .iter()
         .map(|side| {
@@ -2700,14 +2704,11 @@ fn chmod_conflict_sides(
                     executable: executable_bit,
                 },
                 TreeValue::Conflict(_) => panic!("Conflict sides must not themselves be conflicts"),
-                value => {
-                    all_files = false;
-                    value.clone()
-                }
+                value => value.clone(),
             })
         })
         .collect();
-    (result, all_files)
+    result
 }
 
 #[instrument(skip_all)]
