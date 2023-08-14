@@ -553,7 +553,7 @@ additional configuration settings. This overrides settings defined in config
 files or environment variables. For example,
 
 ```shell
-jj --config-toml='ui.color="always"' --config-toml='ui.difftool="kdiff3"' split
+jj --config-toml='ui.color="always"' --config-toml='ui.diff-editor="kdiff3"' split
 ```
 
 Config specified this way must be valid TOML. In particular, string values must
