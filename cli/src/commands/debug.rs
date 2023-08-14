@@ -199,6 +199,7 @@ fn cmd_debug_revset(
     command: &CommandHelper,
     args: &DebugRevsetArgs,
 ) -> Result<(), CommandError> {
+    let user_email = command.settings().user_email();
     let workspace_command = command.workspace_helper(ui)?;
     let workspace_ctx = workspace_command.revset_context();
     let repo = workspace_command.repo().as_ref();
@@ -206,6 +207,7 @@ fn cmd_debug_revset(
     let expression = revset::parse(
         &args.revision,
         workspace_command.revset_aliases_map(),
+        &user_email,
         Some(&workspace_ctx),
     )?;
     writeln!(ui, "-- Parsed:")?;

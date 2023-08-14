@@ -192,7 +192,7 @@ fn test_resolve_symbol_commit_id() {
     assert_eq!(resolve_commit_ids(repo.as_ref(), "present(foo)"), []);
     let symbol_resolver = DefaultSymbolResolver::new(repo.as_ref(), None);
     assert_matches!(
-        optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap()).resolve_user_expression(repo.as_ref(), &symbol_resolver),
+        optimize(parse("present(04)", &RevsetAliasesMap::new(), &settings.user_email(), None).unwrap()).resolve_user_expression(repo.as_ref(), &symbol_resolver),
         Err(RevsetResolutionError::AmbiguousCommitIdPrefix(s)) if s == "04"
     );
     assert_eq!(
@@ -775,7 +775,16 @@ fn test_resolve_symbol_git_refs() {
 }
 
 fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
-    let expression = optimize(parse(revset_str, &RevsetAliasesMap::new(), None).unwrap());
+    let settings = testutils::user_settings();
+    let expression = optimize(
+        parse(
+            revset_str,
+            &RevsetAliasesMap::new(),
+            &settings.user_email(),
+            None,
+        )
+        .unwrap(),
+    );
     let symbol_resolver = DefaultSymbolResolver::new(repo, None);
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)
@@ -789,13 +798,21 @@ fn resolve_commit_ids_in_workspace(
     workspace: &Workspace,
     cwd: Option<&Path>,
 ) -> Vec<CommitId> {
+    let settings = testutils::user_settings();
     let workspace_ctx = RevsetWorkspaceContext {
         cwd: cwd.unwrap_or_else(|| workspace.workspace_root()),
         workspace_id: workspace.workspace_id(),
         workspace_root: workspace.workspace_root(),
     };
-    let expression =
-        optimize(parse(revset_str, &RevsetAliasesMap::new(), Some(&workspace_ctx)).unwrap());
+    let expression = optimize(
+        parse(
+            revset_str,
+            &RevsetAliasesMap::new(),
+            &settings.user_email(),
+            Some(&workspace_ctx),
+        )
+        .unwrap(),
+    );
     let symbol_resolver = DefaultSymbolResolver::new(repo, Some(workspace_ctx.workspace_id));
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)
@@ -2072,6 +2089,75 @@ fn test_evaluate_expression_author(use_git: bool) {
             &format!("root.. & (author(name1) | {})", commit3.id().hex())
         ),
         vec![commit3.id().clone(), commit1.id().clone()]
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_evaluate_expression_mine(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let mut_repo = tx.mut_repo();
+
+    let timestamp = Timestamp {
+        timestamp: MillisSinceEpoch(0),
+        tz_offset: 0,
+    };
+    let commit1 = create_random_commit(mut_repo, &settings)
+        .set_author(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp.clone(),
+        })
+        .write()
+        .unwrap();
+    let commit2 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![commit1.id().clone()])
+        .set_author(Signature {
+            name: "name2".to_string(),
+            email: settings.user_email(),
+            timestamp: timestamp.clone(),
+        })
+        .write()
+        .unwrap();
+    // Can find a unique match by name
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "mine()"),
+        vec![commit2.id().clone()]
+    );
+    let commit3 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![commit2.id().clone()])
+        .set_author(Signature {
+            name: "name3".to_string(),
+            email: settings.user_email(),
+            timestamp,
+        })
+        .write()
+        .unwrap();
+    // Can find multiple matches by name
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "mine()"),
+        vec![commit3.id().clone(), commit2.id().clone()]
+    );
+    // Searches only among candidates if specified
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "visible_heads() & mine()"),
+        vec![commit3.id().clone()],
+    );
+    // Filter by union of pure predicate and set
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("root.. & (mine() | {})", commit1.id().hex())
+        ),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone()
+        ]
     );
 }
 

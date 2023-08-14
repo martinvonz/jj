@@ -1723,7 +1723,13 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                  the working copy commit, pass -r '@' instead."
             )?;
         } else if revset.is_empty()
-            && revset::parse(only_path, &RevsetAliasesMap::new(), None).is_ok()
+            && revset::parse(
+                only_path,
+                &RevsetAliasesMap::new(),
+                &command.settings().user_email(),
+                None,
+            )
+            .is_ok()
         {
             writeln!(
                 ui.warning(),
@@ -2512,7 +2518,13 @@ from the source will be moved into the parent.
         if let [only_path] = &args.paths[..] {
             let (_, matches) = command.matches().subcommand().unwrap();
             if matches.value_source("revision").unwrap() == ValueSource::DefaultValue
-                && revset::parse(only_path, &RevsetAliasesMap::new(), None).is_ok()
+                && revset::parse(
+                    only_path,
+                    &RevsetAliasesMap::new(),
+                    &command.settings().user_email(),
+                    None,
+                )
+                .is_ok()
             {
                 writeln!(
                     ui.warning(),

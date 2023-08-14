@@ -51,8 +51,8 @@ $ # Do some more work.
 $ jj commit -m "Update tutorial"
 $ jj branch create doc-update
 $ # Move the previous revision to doc-update.
-$ jj branch set doc-update -r @- 
-$ jj git push 
+$ jj branch set doc-update -r @-
+$ jj git push
 ```
 
 ## Working in a Jujutsu repository
@@ -63,7 +63,7 @@ able to create a branch for a revision.
 
 ```shell script
 $ # Do your work
-$ jj commit 
+$ jj commit
 $ # Jujutsu automatically creates a branch
 $ jj git push --change $revision
 ```
@@ -101,11 +101,11 @@ something like this:
 
 ```shell script
 $ # Create a new commit on top of the second-to-last commit in `your-feature`,
-$ # as reviews requested a fix there. 
-$ jj new your-feature- 
+$ # as reviews requested a fix there.
+$ jj new your-feature-
 $ # Address the comments by updating the code
 $ # Review the changes
-$ jj diff 
+$ jj diff
 $ # Squash the changes into the parent commit
 $ jj squash
 $ # Push the updated branch to the remote. Jujutsu automatically makes it a force push
@@ -140,14 +140,14 @@ commands like `gh issue list` normally.
 ## Useful Revsets
 
 Log all revisions across all local branches, which aren't on the main branch nor
-on any remote    
-`jj log -r 'branches() & ~(main | remote_branches())'`  
+on any remote
+`jj log -r 'branches() & ~(main | remote_branches())'`
 Log all revisions which you authored, across all branches which aren't on any
-remote  
-`jj log -r 'author(your@email.com) & branches() & ~remote_branches()'`  
-Log all remote branches, which you authored or committed to  
-`jj log -r 'remote_branches() & (committer(your@email.com) | author(your@email.com))'`  
-Log all descendants of the current working copy, which aren't on a remote   
+remote
+`jj log -r 'mine() & branches() & ~remote_branches()'`
+Log all remote branches, which you authored or committed to
+`jj log -r 'remote_branches() & (mine() | committer(your@email.com))'`
+Log all descendants of the current working copy, which aren't on a remote
 `jj log -r ':@ & ~remote_branches()'`
 
 ## Merge conflicts

@@ -103,6 +103,8 @@ pub enum RevsetParseErrorKind {
     },
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
     InvalidFunctionArguments { name: String, message: String },
+    #[error("Revset function \"mine\" requires a user name")]
+    MineWithoutUserName,
     #[error("Invalid file pattern: {0}")]
     FsPathParseError(#[source] FsPathParseError),
     #[error("Cannot resolve file pattern without workspace")]
@@ -681,6 +683,7 @@ struct ParseState<'a> {
     aliases_map: &'a RevsetAliasesMap,
     aliases_expanding: &'a [RevsetAliasId<'a>],
     locals: &'a HashMap<&'a str, Rc<RevsetExpression>>,
+    user_email: &'a str,
     workspace_ctx: Option<&'a RevsetWorkspaceContext<'a>>,
 }
 
@@ -705,6 +708,7 @@ impl ParseState<'_> {
             aliases_map: self.aliases_map,
             aliases_expanding: &aliases_expanding,
             locals,
+            user_email: self.user_email,
             workspace_ctx: self.workspace_ctx,
         };
         f(expanding_state).map_err(|e| {
@@ -1049,6 +1053,12 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             needle,
         )))
     });
+    map.insert("mine", |name, arguments_pair, state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
+            state.user_email.to_owned(),
+        )))
+    });
     map.insert("committer", |name, arguments_pair, state| {
         let arg = expect_one_argument(name, arguments_pair)?;
         let needle = parse_function_argument_to_string(name, arg, state)?;
@@ -1267,12 +1277,14 @@ fn parse_function_argument_as_literal<T: FromStr>(
 pub fn parse(
     revset_str: &str,
     aliases_map: &RevsetAliasesMap,
+    user_email: &str,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let state = ParseState {
         aliases_map,
         aliases_expanding: &[],
         locals: &HashMap::new(),
+        user_email,
         workspace_ctx,
     };
     parse_program(revset_str, state)
@@ -2301,7 +2313,13 @@ mod tests {
             workspace_root: Path::new("/"),
         };
         // Map error to comparable object
-        super::parse(revset_str, &aliases_map, Some(&workspace_ctx)).map_err(|e| e.kind)
+        super::parse(
+            revset_str,
+            &aliases_map,
+            "test.user@example.com",
+            Some(&workspace_ctx),
+        )
+        .map_err(|e| e.kind)
     }
 
     #[test]
@@ -2704,6 +2722,13 @@ mod tests {
             Ok(RevsetExpression::filter(
                 RevsetFilterPredicate::Description("(foo)".to_string())
             ))
+        );
+        assert!(parse("mine(foo)").is_err());
+        assert_eq!(
+            parse("mine()"),
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
+                "test.user@example.com".to_string()
+            )))
         );
         assert_eq!(
             parse("empty()"),

@@ -1053,6 +1053,7 @@ impl WorkspaceCommandHelper {
         let expression = revset::parse(
             revision_str,
             &self.revset_aliases_map,
+            &self.settings.user_email(),
             Some(&self.revset_context()),
         )?;
         if let Some(ui) = ui {

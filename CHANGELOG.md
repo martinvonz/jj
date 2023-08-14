@@ -72,6 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj split` will now leave the description empty on the second part if the
   description was empty on the input commit.
 
+* Revsets gained a new function `mine()` that aliases `author([your_email])`.
+
 ### Fixed bugs
 
 * `jj config set --user` and `jj config edit --user` can now be used outside of any repository.
