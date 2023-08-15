@@ -793,7 +793,12 @@ struct DiffeditArgs {
 /// Edit the right side of the diff until it has the content you want in the
 /// first revision. Once you close the editor, your edited content will replace
 /// the previous revision. The remaining changes will be put in a new revision
-/// on top. You will be asked to enter a change description for each.
+/// on top.
+///
+/// If the change you split had a description, you will be asked to enter a
+/// change description for each commit. If the change did not have a
+/// description, the second part will not get a description, and you will be
+/// asked for a description only for the first part.
 #[derive(clap::Args, Clone, Debug)]
 struct SplitArgs {
     /// The revision to split
@@ -3095,17 +3100,21 @@ don't make any changes, then the operation will be aborted.
         .set_tree(tree_id)
         .set_description(first_description)
         .write()?;
-    let second_template = description_template_for_cmd_split(
-        ui,
-        command.settings(),
-        tx.base_workspace_helper(),
-        "Enter commit description for the second part (child).",
-        commit.description(),
-        &middle_tree,
-        &commit.tree(),
-    )?;
-    let second_description =
-        edit_description(tx.base_repo(), &second_template, command.settings())?;
+    let second_description = if commit.description().is_empty() {
+        // If there was no description before, don't ask for one for the second commit.
+        "".to_string()
+    } else {
+        let second_template = description_template_for_cmd_split(
+            ui,
+            command.settings(),
+            tx.base_workspace_helper(),
+            "Enter commit description for the second part (child).",
+            commit.description(),
+            &middle_tree,
+            &commit.tree(),
+        )?;
+        edit_description(tx.base_repo(), &second_template, command.settings())?
+    };
     let second_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)

@@ -69,6 +69,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ui.default-description` option, to use when describing changes with an empty
   description.
 
+* `jj split` will now leave the description empty on the second part if the
+  description was empty on the input commit.
+
 ### Fixed bugs
 
 * `jj config set --user` and `jj config edit --user` can now be used outside of any repository.

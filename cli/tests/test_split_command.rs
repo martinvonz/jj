@@ -55,16 +55,7 @@ fn test_split_by_paths() {
 
     JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
-    insta::assert_snapshot!(
-        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
-    JJ: Enter commit description for the second part (child).
-
-    JJ: This commit contains the following changes:
-    JJ:     A file1
-    JJ:     A file3
-
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
-    "###);
+    assert!(!test_env.env_root().join("editor1").exists());
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  kkmpptxzrspx false
@@ -148,7 +139,14 @@ fn test_split_with_non_empty_description() {
     let edit_script = test_env.set_up_fake_editor();
     std::fs::write(
         edit_script,
-        ["dump editor1", "next invocation\n", "dump editor2"].join("\0"),
+        [
+            "dump editor1",
+            "write\npart 1",
+            "next invocation\n",
+            "dump editor2",
+            "write\npart 2",
+        ]
+        .join("\0"),
     )
     .unwrap();
     test_env.jj_cmd_success(&workspace_path, &["split", "file1"]);
@@ -175,6 +173,11 @@ JJ:     A file2
 JJ: Lines starting with "JJ: " (like this one) will be removed.
 "#
     );
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @  kkmpptxzrspx false part 2
+    ◉  qpvuntsmwlqt false part 1
+    ◉  zzzzzzzzzzzz true
+    "###);
 }
 
 #[test]
@@ -206,21 +209,15 @@ JJ:     A file1
 JJ: Lines starting with "JJ: " (like this one) will be removed.
 "#
     );
-    assert_eq!(
-        std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(),
-        r#"JJ: Enter commit description for the second part (child).
-
-
-TESTED=TODO
-JJ: This commit contains the following changes:
-JJ:     A file2
-
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#
-    );
+    assert!(!test_env.env_root().join("editor2").exists());
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @  rlvkpnrzqnoo false
+    ◉  qpvuntsmwlqt false TESTED=TODO
+    ◉  zzzzzzzzzzzz true
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r#"change_id.short() ++ " " ++ empty"#;
+    let template = r#"separate(" ", change_id.short(), empty, description)"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
