@@ -175,7 +175,7 @@ impl<'table> ReadonlyTableIndexEntry<'table> {
     fn new(table: &'table ReadonlyTable, pos: usize) -> Self {
         let entry_size = ReadonlyTableIndexEntry::size(table.key_size);
         let offset = entry_size * pos;
-        let data = &table.index[offset..offset + entry_size];
+        let data = &table.index[offset..][..entry_size];
         ReadonlyTableIndexEntry { data }
     }
 

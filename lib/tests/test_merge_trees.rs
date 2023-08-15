@@ -54,7 +54,7 @@ fn test_same_type(use_git: bool) {
     let write_tree = |index: usize| -> Tree {
         let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
         for path in &files {
-            let contents = &path[index..index + 1];
+            let contents = &path[index..][..1];
             if contents != "_" {
                 testutils::write_normal_file(
                     &mut tree_builder,
@@ -216,7 +216,7 @@ fn test_executable(use_git: bool) {
     fn contents_in_tree<'a>(files: &[&'a str], index: usize) -> Vec<(&'a str, bool)> {
         files
             .iter()
-            .map(|f| (*f, &f[index..index + 1] == "x"))
+            .map(|f| (*f, &f[index..][..1] == "x"))
             .collect()
     }
 
