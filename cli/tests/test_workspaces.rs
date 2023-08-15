@@ -412,12 +412,12 @@ fn test_workspaces_root() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r###"
+    let template = r#"
     separate(" ",
       commit_id,
       working_copies,
       if(divergent, "(divergent)"),
     )
-    "###;
+    "#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template, "-r", "all()"])
 }

@@ -943,7 +943,7 @@ mod tests {
             let (want_existing, want_new) = match self.want {
                 Want::None => (None, None),
                 Want::New(want) => (None, Some(want)),
-                Want::ExistingAndNew(want) => (Some(want.clone()), Some(want)),
+                Want::ExistingAndNew(want) => (Some(want), Some(want)),
             };
 
             check(

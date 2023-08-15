@@ -374,12 +374,12 @@ fn test_bad_alias_decl() {
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
-        r###"
+        r#"
     [revset-aliases]
     'my-root' = 'root'
     '"bad"' = 'root'
     'badfn(a, a)' = 'root'
-    "###,
+    "#,
     );
 
     // Invalid declaration should be warned and ignored.

@@ -666,11 +666,10 @@ impl TreeState {
             trace_span!("collecting existing files").in_scope(|| {
                 self.file_states
                     .iter()
-                    .filter_map(|(path, state)| {
-                        (fsmonitor_matcher.matches(path)
-                            && state.file_type != FileType::GitSubmodule)
-                            .then(|| path.clone())
+                    .filter(|&(path, state)| {
+                        fsmonitor_matcher.matches(path) && state.file_type != FileType::GitSubmodule
                     })
+                    .map(|(path, _state)| path.clone())
                     .collect()
             });
         trace_span!("process tree entries").in_scope(|| {

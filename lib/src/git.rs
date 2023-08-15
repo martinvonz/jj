@@ -572,7 +572,8 @@ pub fn remove_remote(
         .view()
         .git_refs()
         .keys()
-        .filter_map(|r| r.starts_with(&prefix).then(|| r.clone()))
+        .filter(|&r| r.starts_with(&prefix))
+        .cloned()
         .collect_vec();
     for branch in branches_to_delete {
         mut_repo.set_remote_branch_target(&branch, remote_name, RefTarget::absent());
@@ -679,7 +680,8 @@ pub fn fetch(
         .view()
         .branches()
         .iter()
-        .filter_map(|(branch, target)| target.local_target.is_present().then(|| branch.to_owned()))
+        .filter(|&(_branch, target)| target.local_target.is_present())
+        .map(|(branch, _target)| branch.to_owned())
         .collect();
     // TODO: Inform the user if the export failed? In most cases, export is not
     // essential for fetch to work.

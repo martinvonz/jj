@@ -429,11 +429,11 @@ fn test_templater_timestamp_method() {
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
 
     test_env.add_config(
-        r###"
+        r#"
     [template-aliases]
     'time_format' = '"%Y-%m-%d"'
     'bad_time_format' = '"%_"'
-    "###,
+    "#,
     );
 
     insta::assert_snapshot!(
@@ -815,10 +815,10 @@ fn test_templater_alias_override() {
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
-        r###"
+        r#"
     [template-aliases]
     'f(x)' = '"user"'
-    "###,
+    "#,
     );
 
     // 'f(x)' should be overridden by --config-toml 'f(a)'. If aliases were sorted

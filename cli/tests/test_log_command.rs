@@ -328,10 +328,10 @@ fn test_log_shortest_accessors() {
         )
     };
     test_env.add_config(
-        r###"
+        r#"
         [template-aliases]
         'format_id(id)' = 'id.shortest(12).prefix() ++ "[" ++ id.shortest(12).rest() ++ "]"'
-        "###,
+        "#,
     );
 
     std::fs::write(repo_path.join("file"), "original file\n").unwrap();
@@ -561,15 +561,15 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.add_config(
-        r###"
+        r#"
         [revsets]
         short-prefixes = "" # Disable short prefixes
         [template-aliases]
         'format_id(id)' = 'id.shortest(12).prefix() ++ "[" ++ id.shortest(12).rest() ++ "]"'
-        "###,
+        "#,
     );
 
-    let prefix_format = r###"
+    let prefix_format = r#"
     separate(" ",
       "Change",
       format_id(change_id),
@@ -577,7 +577,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
       format_id(commit_id),
       branches,
     )
-    "###;
+    "#;
 
     std::fs::write(repo_path.join("file"), "original file\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
