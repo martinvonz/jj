@@ -51,7 +51,7 @@ use crate::lock::FileLock;
 use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, IntersectionMatcher, Matcher, PrefixMatcher,
 };
-use crate::merge::Merge;
+use crate::merge::{Merge, MergeBuilder};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
@@ -120,7 +120,7 @@ pub struct TreeState {
     store: Arc<Store>,
     working_copy_path: PathBuf,
     state_path: PathBuf,
-    tree_id: TreeId,
+    tree_id: MergedTreeId,
     file_states: BTreeMap<RepoPath, FileState>,
     // Currently only path prefixes
     sparse_patterns: Vec<RepoPath>,
@@ -428,7 +428,7 @@ impl TreeState {
         &self.working_copy_path
     }
 
-    pub fn current_tree_id(&self) -> &TreeId {
+    pub fn current_tree_id(&self) -> &MergedTreeId {
         &self.tree_id
     }
 
@@ -462,7 +462,7 @@ impl TreeState {
             store,
             working_copy_path: working_copy_path.canonicalize().unwrap(),
             state_path,
-            tree_id,
+            tree_id: MergedTreeId::Legacy(tree_id.clone()),
             file_states: BTreeMap::new(),
             sparse_patterns: vec![RepoPath::root()],
             own_mtime: MillisSinceEpoch(0),
@@ -516,7 +516,16 @@ impl TreeState {
                 source: err,
             }
         })?;
-        self.tree_id = TreeId::new(proto.tree_id.clone());
+        if proto.tree_ids.is_empty() {
+            self.tree_id = MergedTreeId::Legacy(TreeId::new(proto.legacy_tree_id.clone()));
+        } else {
+            let tree_ids_builder: MergeBuilder<TreeId> = proto
+                .tree_ids
+                .iter()
+                .map(|id| TreeId::new(id.clone()))
+                .collect();
+            self.tree_id = MergedTreeId::Merge(tree_ids_builder.build());
+        }
         self.file_states = file_states_from_proto(&proto);
         self.sparse_patterns = sparse_patterns_from_proto(&proto);
         self.watchman_clock = proto.watchman_clock;
@@ -524,10 +533,16 @@ impl TreeState {
     }
 
     fn save(&mut self) -> Result<(), TreeStateError> {
-        let mut proto = crate::protos::working_copy::TreeState {
-            tree_id: self.tree_id.to_bytes(),
-            ..Default::default()
-        };
+        let mut proto: crate::protos::working_copy::TreeState = Default::default();
+        match &self.tree_id {
+            MergedTreeId::Legacy(tree_id) => {
+                proto.legacy_tree_id = tree_id.to_bytes();
+            }
+            MergedTreeId::Merge(tree_ids) => {
+                proto.tree_ids = tree_ids.iter().map(|id| id.to_bytes()).collect();
+            }
+        }
+
         for (file, file_state) in &self.file_states {
             proto.file_states.insert(
                 file.to_internal_file_string(),
@@ -567,8 +582,17 @@ impl TreeState {
     }
 
     fn current_tree(&self) -> Result<MergedTree, BackendError> {
-        let tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
-        Ok(MergedTree::legacy(tree))
+        match &self.tree_id {
+            MergedTreeId::Legacy(tree_id) => {
+                let current_tree = self.store.get_tree(&RepoPath::root(), tree_id)?;
+                Ok(MergedTree::legacy(current_tree))
+            }
+            MergedTreeId::Merge(tree_ids) => {
+                let tree_merge =
+                    tree_ids.try_map(|tree_id| self.store.get_tree(&RepoPath::root(), tree_id))?;
+                Ok(MergedTree::new(tree_merge))
+            }
+        }
     }
 
     fn write_file_to_store(
@@ -673,10 +697,7 @@ impl TreeState {
             )
         })?;
 
-        let mut tree_builder = MergedTreeBuilder::new(
-            self.store.clone(),
-            MergedTreeId::Legacy(self.tree_id.clone()),
-        );
+        let mut tree_builder = MergedTreeBuilder::new(self.store.clone(), self.tree_id.clone());
         let mut deleted_files: HashSet<_> =
             trace_span!("collecting existing files").in_scope(|| {
                 self.file_states
@@ -712,11 +733,7 @@ impl TreeState {
             }
         });
         trace_span!("write tree").in_scope(|| {
-            let new_tree_id = tree_builder
-                .write_tree()
-                .unwrap()
-                .as_legacy_tree_id()
-                .clone();
+            let new_tree_id = tree_builder.write_tree().unwrap();
             is_dirty |= new_tree_id != self.tree_id;
             self.tree_id = new_tree_id;
         });
@@ -1177,7 +1194,7 @@ impl TreeState {
             other => CheckoutError::InternalBackendError(other),
         })?;
         let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref(), Err)?;
-        self.tree_id = new_tree.id().to_legacy_tree_id();
+        self.tree_id = new_tree.id();
         Ok(stats)
     }
 
@@ -1333,7 +1350,7 @@ impl TreeState {
                 self.file_states.insert(path.clone(), file_state);
             }
         }
-        self.tree_id = new_tree.id().to_legacy_tree_id();
+        self.tree_id = new_tree.id();
         Ok(())
     }
 }
@@ -1461,7 +1478,7 @@ impl WorkingCopy {
         Ok(self.tree_state.get_mut().unwrap())
     }
 
-    pub fn current_tree_id(&self) -> Result<&TreeId, TreeStateError> {
+    pub fn current_tree_id(&self) -> Result<&MergedTreeId, TreeStateError> {
         Ok(self.tree_state()?.current_tree_id())
     }
 
@@ -1516,7 +1533,7 @@ impl WorkingCopy {
         // regardless, but it's probably not what  the caller wanted, so we let
         // them know.
         if let Some(old_tree_id) = old_tree_id {
-            if *old_tree_id != locked_wc.old_tree_id {
+            if *old_tree_id != locked_wc.old_tree_id.to_legacy_tree_id() {
                 locked_wc.discard();
                 return Err(CheckoutError::ConcurrentCheckout);
             }
@@ -1541,7 +1558,7 @@ pub struct LockedWorkingCopy<'a> {
     #[allow(dead_code)]
     lock: FileLock,
     old_operation_id: OperationId,
-    old_tree_id: TreeId,
+    old_tree_id: MergedTreeId,
     tree_state_dirty: bool,
     closed: bool,
 }
@@ -1553,7 +1570,7 @@ impl LockedWorkingCopy<'_> {
     }
 
     /// The tree at the time the lock was taken
-    pub fn old_tree_id(&self) -> &TreeId {
+    pub fn old_tree_id(&self) -> &MergedTreeId {
         &self.old_tree_id
     }
 
@@ -1569,7 +1586,7 @@ impl LockedWorkingCopy<'_> {
     pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<TreeId, SnapshotError> {
         let tree_state = self.wc.tree_state_mut()?;
         self.tree_state_dirty |= tree_state.snapshot(options)?;
-        Ok(tree_state.current_tree_id().clone())
+        Ok(tree_state.current_tree_id().to_legacy_tree_id())
     }
 
     pub fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {

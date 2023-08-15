@@ -22,7 +22,11 @@ pub struct SparsePatterns {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TreeState {
     #[prost(bytes = "vec", tag = "1")]
-    pub tree_id: ::prost::alloc::vec::Vec<u8>,
+    pub legacy_tree_id: ::prost::alloc::vec::Vec<u8>,
+    /// Alternating positive and negative terms if there's a conflict, otherwise a
+    /// single (positive) value
+    #[prost(bytes = "vec", repeated, tag = "5")]
+    pub tree_ids: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
     #[prost(map = "string, message", tag = "2")]
     pub file_states: ::std::collections::HashMap<
         ::prost::alloc::string::String,
