@@ -34,6 +34,7 @@ The following keywords can be used in `jj log`/`jj obslog` templates.
 * `hidden: Boolean`: True if the commit is not visible (a.k.a. abandoned).
 * `conflict: Boolean`: True if the commit contains merge conflicts.
 * `empty: Boolean`: True if the commit modifies no files.
+* `root: Boolean`: True if the commit is the root commit.
 
 ### Operation keywords
 
