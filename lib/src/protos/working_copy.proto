@@ -37,7 +37,10 @@ message SparsePatterns {
 }
 
 message TreeState {
-  bytes tree_id = 1;
+  bytes legacy_tree_id = 1;
+  // Alternating positive and negative terms if there's a conflict, otherwise a
+  // single (positive) value
+  repeated bytes tree_ids = 5;
   map<string, FileState> file_states = 2;
   SparsePatterns sparse_patterns = 3;
   WatchmanClock watchman_clock = 4;

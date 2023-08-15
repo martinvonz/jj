@@ -3603,7 +3603,7 @@ fn cmd_workspace_update_stale(
         Err(_) => {
             // The same check as start_working_copy_mutation(), but with the stale
             // working-copy commit.
-            if known_wc_commit.tree_id() != locked_wc.old_tree_id() {
+            if known_wc_commit.merged_tree_id() != locked_wc.old_tree_id() {
                 return Err(user_error("Concurrent working copy operation. Try again."));
             }
             let desired_tree = desired_wc_commit.merged_tree()?;

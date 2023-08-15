@@ -524,7 +524,7 @@ diff editing in mind and be a little inaccurate.
         progress: None,
         max_new_file_size: settings.max_new_file_size()?,
     })?;
-    Ok(output_tree_state.current_tree_id().clone())
+    Ok(output_tree_state.current_tree_id().to_legacy_tree_id())
 }
 
 /// Generates textual diff by the specified `tool`, and writes into `writer`.

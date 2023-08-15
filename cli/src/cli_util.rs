@@ -878,7 +878,7 @@ impl WorkspaceCommandHelper {
         &mut self,
     ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
         let (locked_working_copy, wc_commit) = self.unchecked_start_working_copy_mutation()?;
-        if wc_commit.tree_id() != locked_working_copy.old_tree_id() {
+        if wc_commit.merged_tree_id() != locked_working_copy.old_tree_id() {
             return Err(user_error("Concurrent working copy operation. Try again."));
         }
         Ok((locked_working_copy, wc_commit))
@@ -1661,8 +1661,8 @@ pub fn check_stale_working_copy(
     repo: &ReadonlyRepo,
 ) -> Result<Option<Operation>, StaleWorkingCopyError> {
     // Check if the working copy's tree matches the repo's view
-    let wc_tree_id = locked_wc.old_tree_id().clone();
-    if *wc_commit.tree_id() == wc_tree_id {
+    let wc_tree_id = locked_wc.old_tree_id();
+    if wc_commit.merged_tree_id() == wc_tree_id {
         // The working copy isn't stale, and no need to reload the repo.
         Ok(None)
     } else {

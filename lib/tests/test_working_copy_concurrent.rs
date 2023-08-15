@@ -81,8 +81,12 @@ fn test_concurrent_checkout() {
     let workspace3 =
         Workspace::load(&settings, &workspace1_root, &StoreFactories::default()).unwrap();
     assert_eq!(
-        workspace3.working_copy().current_tree_id().unwrap(),
-        &tree_id2
+        workspace3
+            .working_copy()
+            .current_tree_id()
+            .unwrap()
+            .to_legacy_tree_id(),
+        tree_id2
     );
 }
 
