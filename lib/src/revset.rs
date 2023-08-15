@@ -918,9 +918,9 @@ fn collect_function_names(aliases_map: &RevsetAliasesMap) -> Vec<String> {
 fn collect_similar(name: &str, candidates: &[impl AsRef<str>]) -> Vec<String> {
     candidates
         .iter()
-        .filter_map(|cand| {
+        .filter(|cand| {
             // The parameter is borrowed from clap f5540d26
-            (strsim::jaro(name, cand.as_ref()) > 0.7).then_some(cand)
+            strsim::jaro(name, cand.as_ref()) > 0.7
         })
         .map(|s| s.as_ref().to_owned())
         .collect_vec()

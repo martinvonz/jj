@@ -23,10 +23,10 @@ pub mod common;
 fn test_config_list_single() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
-        r###"
+        r#"
     [test-table]
     somekey = "some value"
-    "###,
+    "#,
     );
 
     let stdout = test_env.jj_cmd_success(
@@ -55,12 +55,12 @@ fn test_config_list_nonexistent() {
 fn test_config_list_table() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
-        r###"
+        r#"
     [test-table]
     x = true
     y.foo = "abc"
     y.bar = 123
-    "###,
+    "#,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-table"]);
     insta::assert_snapshot!(
@@ -76,9 +76,9 @@ fn test_config_list_table() {
 fn test_config_list_array() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
-        r###"
+        r#"
     test-array = [1, "b", 3.4]
-    "###,
+    "#,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-array"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -90,12 +90,12 @@ fn test_config_list_array() {
 fn test_config_list_inline_table() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
-        r###"
+        r#"
         [[test-table]]
         x = 1
         [[test-table]]
         y = ["z"]
-    "###,
+    "#,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-table"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -107,13 +107,13 @@ fn test_config_list_inline_table() {
 fn test_config_list_all() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
-        r###"
+        r#"
     test-val = [1, 2, 3]
     [test-table]
     x = true
     y.foo = "abc"
     y.bar = 123
-    "###,
+    "#,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list"]);
     insta::assert_snapshot!(
@@ -439,19 +439,19 @@ fn test_config_edit_repo_outside_repo() {
 fn test_config_get() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
-        r###"
+        r#"
     [table]
     string = "some value 1"
     int = 123
     list = ["list", "value"]
     overridden = "foo"
-    "###,
+    "#,
     );
     test_env.add_config(
-        r###"
+        r#"
     [table]
     overridden = "bar"
-    "###,
+    "#,
     );
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "nonexistent"]);

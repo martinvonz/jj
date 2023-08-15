@@ -378,7 +378,7 @@ fn test_git_colocated_squash_undo() {
 }
 
 fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    let template = r###"
+    let template = r#"
     separate(" ",
       change_id.short(),
       commit_id.short(),
@@ -387,7 +387,7 @@ fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> St
       git_head,
       if(divergent, "!divergence!"),
     )
-    "###;
+    "#;
     test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }
 
