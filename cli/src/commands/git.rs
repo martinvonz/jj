@@ -328,7 +328,7 @@ fn cmd_git_fetch(
     let mut workspace_command = command.workspace_helper(ui)?;
     let git_repo = get_git_repo(workspace_command.repo().store())?;
     let remotes = if args.remotes.is_empty() {
-        get_default_fetch_remotes(ui, command, &git_repo)?
+        get_default_fetch_remotes(ui, command.settings(), &git_repo)?
     } else {
         args.remotes.clone()
     };
@@ -369,14 +369,13 @@ const DEFAULT_REMOTE: &str = "origin";
 
 fn get_default_fetch_remotes(
     ui: &Ui,
-    command: &CommandHelper,
+    settings: &UserSettings,
     git_repo: &git2::Repository,
 ) -> Result<Vec<String>, CommandError> {
     const KEY: &str = "git.fetch";
-    let config = command.settings().config();
-    if let Ok(remotes) = config.get(KEY) {
+    if let Ok(remotes) = settings.config().get(KEY) {
         Ok(remotes)
-    } else if let Some(remote) = config.get_string(KEY).optional()? {
+    } else if let Some(remote) = settings.config().get_string(KEY).optional()? {
         Ok(vec![remote])
     } else if let Some(remote) = get_single_remote(git_repo)? {
         // if nothing was explicitly configured, try to guess
@@ -672,7 +671,7 @@ fn cmd_git_push(
     let remote = if let Some(name) = &args.remote {
         name.clone()
     } else {
-        get_default_push_remote(ui, command, &git_repo)?
+        get_default_push_remote(ui, command.settings(), &git_repo)?
     };
 
     let repo = workspace_command.repo().clone();
@@ -989,11 +988,10 @@ fn cmd_git_push(
 
 fn get_default_push_remote(
     ui: &Ui,
-    command: &CommandHelper,
+    settings: &UserSettings,
     git_repo: &git2::Repository,
 ) -> Result<String, CommandError> {
-    let config = command.settings().config();
-    if let Some(remote) = config.get_string("git.push").optional()? {
+    if let Some(remote) = settings.config().get_string("git.push").optional()? {
         Ok(remote)
     } else if let Some(remote) = get_single_remote(git_repo)? {
         // similar to get_default_fetch_remotes
