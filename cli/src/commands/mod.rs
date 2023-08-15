@@ -2989,10 +2989,7 @@ fn description_template_for_commit(
         &[DiffFormat::Summary],
     )?;
     let description = if commit.description().is_empty() {
-        settings
-            .config()
-            .get_string("ui.default-description")
-            .unwrap_or("".to_owned())
+        settings.default_description()
     } else {
         commit.description().to_owned()
     };
@@ -3023,10 +3020,7 @@ fn description_template_for_cmd_split(
         &[DiffFormat::Summary],
     )?;
     let description = if overall_commit_description.is_empty() {
-        settings
-            .config()
-            .get_string("ui.default-description")
-            .unwrap_or("".to_owned())
+        settings.default_description()
     } else {
         overall_commit_description.to_owned()
     };
