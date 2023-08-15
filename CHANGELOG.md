@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* Default template for `jj log` now does not show irrelevant information
+  (timestamp, empty, message placeholder etc.) about the root commit.
+
 * Commit templates now support the `root` keyword, which is `true` for the root
   commit and `false` for every other commit.
 

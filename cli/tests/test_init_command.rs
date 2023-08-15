@@ -321,8 +321,7 @@ fn test_init_git_external_but_git_dir_exists() {
     // The local ".git" repository is unrelated, so no commits should be imported
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz 1970-01-01 00:00:00.000 +00:00 00000000
-       (empty) (no description set)
+    ◉  zzzzzzzz root 00000000
     "###);
 
     // Check that Git HEAD is not set because this isn't a colocated repo

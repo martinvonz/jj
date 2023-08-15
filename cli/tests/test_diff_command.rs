@@ -649,8 +649,7 @@ fn test_diff_external_tool() {
     │  --
     │  file1
     │  file2
-    ◉  zzzzzzzz 1970-01-01 00:00:00.000 +00:00 00000000
-       (empty) (no description set)
+    ◉  zzzzzzzz root 00000000
        --
     "###);
 
