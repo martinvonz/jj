@@ -2009,7 +2009,8 @@ fn cmd_describe(
     } else if args.no_edit {
         commit.description().to_owned()
     } else {
-        let template = description_template_for_commit(ui, command, &workspace_command, &commit)?;
+        let template =
+            description_template_for_commit(ui, command.settings(), &workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
     if description == *commit.description() && !args.reset_author {
@@ -2042,7 +2043,8 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     let description = if !args.message_paragraphs.is_empty() {
         cli_util::join_message_paragraphs(&args.message_paragraphs)
     } else {
-        let template = description_template_for_commit(ui, command, &workspace_command, &commit)?;
+        let template =
+            description_template_for_commit(ui, command.settings(), &workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
 
@@ -2973,7 +2975,7 @@ don't make any changes, then the operation will be aborted.",
 
 fn description_template_for_commit(
     ui: &Ui,
-    command: &CommandHelper,
+    settings: &UserSettings,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
 ) -> Result<String, CommandError> {
@@ -2987,8 +2989,7 @@ fn description_template_for_commit(
         &[DiffFormat::Summary],
     )?;
     let description = if commit.description().is_empty() {
-        command
-            .settings()
+        settings
             .config()
             .get_string("ui.default-description")
             .unwrap_or("".to_owned())
@@ -3004,7 +3005,7 @@ fn description_template_for_commit(
 
 fn description_template_for_cmd_split(
     ui: &Ui,
-    command: &CommandHelper,
+    settings: &UserSettings,
     workspace_command: &WorkspaceCommandHelper,
     intro: &str,
     overall_commit_description: &str,
@@ -3022,8 +3023,7 @@ fn description_template_for_cmd_split(
         &[DiffFormat::Summary],
     )?;
     let description = if overall_commit_description.is_empty() {
-        command
-            .settings()
+        settings
             .config()
             .get_string("ui.default-description")
             .unwrap_or("".to_owned())
@@ -3087,7 +3087,7 @@ don't make any changes, then the operation will be aborted.
 
     let first_template = description_template_for_cmd_split(
         ui,
-        command,
+        command.settings(),
         tx.base_workspace_helper(),
         "Enter commit description for the first part (parent).",
         commit.description(),
@@ -3103,7 +3103,7 @@ don't make any changes, then the operation will be aborted.
         .write()?;
     let second_template = description_template_for_cmd_split(
         ui,
-        command,
+        command.settings(),
         tx.base_workspace_helper(),
         "Enter commit description for the second part (child).",
         commit.description(),
@@ -3168,13 +3168,19 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         .into_iter()
         .collect_vec();
     if let Some(rev_str) = &args.revision {
-        rebase_revision(ui, command, &mut workspace_command, &new_parents, rev_str)?;
+        rebase_revision(
+            ui,
+            command.settings(),
+            &mut workspace_command,
+            &new_parents,
+            rev_str,
+        )?;
     } else if !args.source.is_empty() {
         let source_commits =
             resolve_multiple_nonempty_revsets_default_single(&workspace_command, ui, &args.source)?;
         rebase_descendants(
             ui,
-            command,
+            command.settings(),
             &mut workspace_command,
             &new_parents,
             &source_commits,
@@ -3187,7 +3193,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         };
         rebase_branch(
             ui,
-            command,
+            command.settings(),
             &mut workspace_command,
             &new_parents,
             &branch_commits,
@@ -3198,7 +3204,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
 
 fn rebase_branch(
     ui: &mut Ui,
-    command: &CommandHelper,
+    settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     branch_commits: &IndexSet<Commit>,
@@ -3222,12 +3228,12 @@ fn rebase_branch(
         .iter()
         .commits(workspace_command.repo().store())
         .try_collect()?;
-    rebase_descendants(ui, command, workspace_command, new_parents, &root_commits)
+    rebase_descendants(ui, settings, workspace_command, new_parents, &root_commits)
 }
 
 fn rebase_descendants(
     ui: &mut Ui,
-    command: &CommandHelper,
+    settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     old_commits: &IndexSet<Commit>,
@@ -3248,9 +3254,9 @@ fn rebase_descendants(
     // `rebase_descendants` takes care of sorting in reverse topological order, so
     // no need to do it here.
     for old_commit in old_commits {
-        rebase_commit(command.settings(), tx.mut_repo(), old_commit, new_parents)?;
+        rebase_commit(settings, tx.mut_repo(), old_commit, new_parents)?;
     }
-    let num_rebased = old_commits.len() + tx.mut_repo().rebase_descendants(command.settings())?;
+    let num_rebased = old_commits.len() + tx.mut_repo().rebase_descendants(settings)?;
     writeln!(ui, "Rebased {num_rebased} commits")?;
     tx.finish(ui)?;
     Ok(())
@@ -3258,7 +3264,7 @@ fn rebase_descendants(
 
 fn rebase_revision(
     ui: &mut Ui,
-    command: &CommandHelper,
+    settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     rev_str: &str,
@@ -3278,7 +3284,7 @@ fn rebase_revision(
 
     let mut tx =
         workspace_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
-    rebase_commit(command.settings(), tx.mut_repo(), &old_commit, new_parents)?;
+    rebase_commit(settings, tx.mut_repo(), &old_commit, new_parents)?;
     // Manually rebase children because we don't want to rebase them onto the
     // rewritten commit. (But we still want to record the commit as rewritten so
     // branches and the working copy get updated to the rewritten commit.)
@@ -3317,15 +3323,10 @@ fn rebase_revision(
             .commits(tx.base_repo().store())
             .try_collect()?;
 
-        rebase_commit(
-            command.settings(),
-            tx.mut_repo(),
-            child_commit,
-            &new_child_parents,
-        )?;
+        rebase_commit(settings, tx.mut_repo(), child_commit, &new_child_parents)?;
         num_rebased_descendants += 1;
     }
-    num_rebased_descendants += tx.mut_repo().rebase_descendants(command.settings())?;
+    num_rebased_descendants += tx.mut_repo().rebase_descendants(settings)?;
     if num_rebased_descendants > 0 {
         writeln!(
             ui,
