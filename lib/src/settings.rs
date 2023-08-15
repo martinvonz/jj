@@ -146,6 +146,12 @@ impl UserSettings {
             .unwrap_or_else(|_| "push-".to_string())
     }
 
+    pub fn default_description(&self) -> String {
+        self.config()
+            .get_string("ui.default-description")
+            .unwrap_or_default()
+    }
+
     pub fn default_revset(&self) -> String {
         self.config.get_string("revsets.log").unwrap_or_else(|_| {
             // For compatibility with old config files (<0.8.0)
