@@ -945,8 +945,6 @@ impl TreeState {
         } else {
             let new_file_type = new_file_state.file_type.clone();
             let current_tree_value = current_tree.path_value(repo_path);
-            // If the file contained a conflict before and is now a normal file on disk, we
-            // try to parse any conflict markers in the file into a conflict.
             let new_tree_value =
                 self.write_path_to_store(repo_path, &disk_path, current_tree_value, new_file_type)?;
             Ok(Some(new_tree_value))
