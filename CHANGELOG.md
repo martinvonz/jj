@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* Commit templates now support the `root` keyword, which is `true` for the root
+  commit and `false` for every other commit.
+
 * `jj init --git-repo` now works with bare repositories.
 
 * `jj config edit --user` and `jj config set --user` will now pick a default

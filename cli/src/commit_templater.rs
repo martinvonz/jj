@@ -306,6 +306,9 @@ fn build_commit_keyword_opt<'repo>(
             let parent_tree = rewrite::merge_commit_trees(repo, &commit.parents()).unwrap();
             commit.tree_id() == parent_tree.id()
         })),
+        "root" => language.wrap_boolean(wrap_fn(property, move |commit| {
+            commit.id() == repo.store().root_commit_id()
+        })),
         _ => return None,
     };
     Some(property)
