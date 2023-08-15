@@ -49,8 +49,7 @@ fn test_log_legacy_range_operator() {
     insta::assert_snapshot!(stdout, @r###"
     @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
-    ◉  zzzzzzzz 1970-01-01 00:00:00.000 +00:00 00000000
-       (empty) (no description set)
+    ◉  zzzzzzzz root 00000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     The `:` revset operator is deprecated. Please switch to `::`.
@@ -59,8 +58,7 @@ fn test_log_legacy_range_operator() {
     insta::assert_snapshot!(stdout, @r###"
     @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
-    ◉  zzzzzzzz 1970-01-01 00:00:00.000 +00:00 00000000
-       (empty) (no description set)
+    ◉  zzzzzzzz root 00000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     The `:` revset operator is deprecated. Please switch to `::`.

@@ -29,50 +29,58 @@ op_log = 'builtin_op_log_compact'
 show = 'builtin_log_detailed'
 
 [template-aliases]
-'builtin_log_oneline' = '''label(if(current_working_copy, "working_copy"),
-  concat(
-    separate(" ",
-      label(
-        separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
-        separate(" ",
-          format_short_change_id(change_id) ++ if(divergent, "??"),
-          if(hidden, "hidden"))),
-      author.username(),
-      format_timestamp(committer.timestamp()),
-      branches,
-      tags,
-      working_copies,
-      git_head,
-      format_short_commit_id(commit_id),
-      if(conflict, label("conflict", "conflict")),
-      if(empty, label("empty", "(empty)")),
-      if(description, description.first_line(), description_placeholder),
-    ) ++ "\n",
-  ),
+'builtin_log_oneline' = '''
+if(root,
+  builtin_log_root(change_id, commit_id),
+  label(if(current_working_copy, "working_copy"),
+    concat(
+      separate(" ",
+        label(
+          separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
+          separate(" ",
+            format_short_change_id(change_id) ++ if(divergent, "??"),
+            if(hidden, "hidden"))),
+        author.username(),
+        format_timestamp(committer.timestamp()),
+        branches,
+        tags,
+        working_copies,
+        git_head,
+        format_short_commit_id(commit_id),
+        if(conflict, label("conflict", "conflict")),
+        if(empty, label("empty", "(empty)")),
+        if(description, description.first_line(), description_placeholder),
+      ) ++ "\n",
+    ),
+  )
 )
 '''
-'builtin_log_compact' = '''label(if(current_working_copy, "working_copy"),
-  concat(
-    separate(" ",
-      label(
-        separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
-        separate(" ",
-          format_short_change_id(change_id) ++ if(divergent, "??"),
-          if(hidden, "hidden"))),
-      format_short_signature(author),
-      format_timestamp(committer.timestamp()),
-      branches,
-      tags,
-      working_copies,
-      git_head,
-      format_short_commit_id(commit_id),
-      if(conflict, label("conflict", "conflict")),
-    ) ++ "\n",
-    separate(" ",
-      if(empty, label("empty", "(empty)")),
-      if(description, description.first_line(), description_placeholder),
-    ) ++ "\n",
-  ),
+'builtin_log_compact' = '''
+if(root,
+  builtin_log_root(change_id, commit_id),
+  label(if(current_working_copy, "working_copy"),
+    concat(
+      separate(" ",
+        label(
+          separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
+          separate(" ",
+            format_short_change_id(change_id) ++ if(divergent, "??"),
+            if(hidden, "hidden"))),
+        format_short_signature(author),
+        format_timestamp(committer.timestamp()),
+        branches,
+        tags,
+        working_copies,
+        git_head,
+        format_short_commit_id(commit_id),
+        if(conflict, label("conflict", "conflict")),
+      ) ++ "\n",
+      separate(" ",
+        if(empty, label("empty", "(empty)")),
+        if(description, description.first_line(), description_placeholder),
+      ) ++ "\n",
+    ),
+  )
 )
 '''
 builtin_log_comfortable = 'builtin_log_compact ++ "\n"'
@@ -103,6 +111,15 @@ label(if(current_operation, "current_operation"),
 )
 '''
 builtin_op_log_comfortable = 'builtin_op_log_compact ++ "\n"'
+
+'builtin_log_root(change_id, commit_id)' = '''
+separate(" ",
+  format_short_change_id(change_id),
+  label("root", "root"),
+  format_short_commit_id(commit_id),
+  branches
+)
+'''
 
 'description_placeholder' = 'label("description", "(no description set)")'
 'commit_summary_separator' = 'label("separator", " | ")'
