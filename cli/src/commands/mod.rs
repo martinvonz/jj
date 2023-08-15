@@ -3004,6 +3004,7 @@ fn description_template_for_commit(
 
 fn description_template_for_cmd_split(
     ui: &Ui,
+    command: &CommandHelper,
     workspace_command: &WorkspaceCommandHelper,
     intro: &str,
     overall_commit_description: &str,
@@ -3020,8 +3021,16 @@ fn description_template_for_cmd_split(
         &EverythingMatcher,
         &[DiffFormat::Summary],
     )?;
-    Ok(format!("JJ: {intro}\n{overall_commit_description}\n")
-        + &diff_summary_to_description(&diff_summary_bytes))
+    let description = if overall_commit_description.is_empty() {
+        command
+            .settings()
+            .config()
+            .get_string("ui.default-description")
+            .unwrap_or("".to_owned())
+    } else {
+        overall_commit_description.to_owned()
+    };
+    Ok(format!("JJ: {intro}\n{description}\n") + &diff_summary_to_description(&diff_summary_bytes))
 }
 
 fn diff_summary_to_description(bytes: &[u8]) -> String {
@@ -3078,6 +3087,7 @@ don't make any changes, then the operation will be aborted.
 
     let first_template = description_template_for_cmd_split(
         ui,
+        command,
         tx.base_workspace_helper(),
         "Enter commit description for the first part (parent).",
         commit.description(),
@@ -3093,6 +3103,7 @@ don't make any changes, then the operation will be aborted.
         .write()?;
     let second_template = description_template_for_cmd_split(
         ui,
+        command,
         tx.base_workspace_helper(),
         "Enter commit description for the second part (child).",
         commit.description(),

@@ -135,6 +135,91 @@ fn test_split_by_paths() {
     "###);
 }
 
+#[test]
+fn test_split_with_non_empty_description() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
+    let workspace_path = test_env.env_root().join("repo");
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    test_env.jj_cmd_success(&workspace_path, &["describe", "-m", "test"]);
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(
+        edit_script,
+        ["dump editor1", "next invocation\n", "dump editor2"].join("\0"),
+    )
+    .unwrap();
+    test_env.jj_cmd_success(&workspace_path, &["split", "file1"]);
+
+    assert_eq!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
+        r#"JJ: Enter commit description for the first part (parent).
+test
+
+JJ: This commit contains the following changes:
+JJ:     A file1
+
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#
+    );
+    assert_eq!(
+        std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(),
+        r#"JJ: Enter commit description for the second part (child).
+test
+
+JJ: This commit contains the following changes:
+JJ:     A file2
+
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#
+    );
+}
+
+#[test]
+fn test_split_with_default_description() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
+    let workspace_path = test_env.env_root().join("repo");
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(
+        edit_script,
+        ["dump editor1", "next invocation\n", "dump editor2"].join("\0"),
+    )
+    .unwrap();
+    test_env.jj_cmd_success(&workspace_path, &["split", "file1"]);
+
+    assert_eq!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
+        r#"JJ: Enter commit description for the first part (parent).
+
+
+TESTED=TODO
+JJ: This commit contains the following changes:
+JJ:     A file1
+
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#
+    );
+    assert_eq!(
+        std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(),
+        r#"JJ: Enter commit description for the second part (child).
+
+
+TESTED=TODO
+JJ: This commit contains the following changes:
+JJ:     A file2
+
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#
+    );
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"change_id.short() ++ " " ++ empty"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
