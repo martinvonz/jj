@@ -1,9 +1,6 @@
 [aliases]
 # Placeholder: added by user
 
-[revset-aliases]
-# Placeholder: added by user
-
 [ui]
 paginate = "auto"
 pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }

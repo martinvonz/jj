@@ -1,0 +1,12 @@
+# NOTE: ensure you update docs/revsets.md with documentation when
+# adding/updating any of these aliases
+
+[revset-aliases]
+'trunk()' = '''
+latest(
+  remote_branches(exact:"main", exact:"origin") | 
+  remote_branches(exact:"master", exact:"origin") | 
+  remote_branches(exact:"trunk", exact:"origin") |
+  root()
+)
+'''
