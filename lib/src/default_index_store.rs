@@ -305,14 +305,11 @@ impl CommitGraphEntry<'_> {
     // to better cache locality when walking it; ability to quickly find all
     // commits associated with a change id.
     fn change_id(&self) -> ChangeId {
-        ChangeId::new(self.data[20..20 + self.change_id_length].to_vec())
+        ChangeId::new(self.data[20..][..self.change_id_length].to_vec())
     }
 
     fn commit_id(&self) -> CommitId {
-        CommitId::from_bytes(
-            &self.data
-                [20 + self.change_id_length..20 + self.change_id_length + self.commit_id_length],
-        )
+        CommitId::from_bytes(&self.data[20 + self.change_id_length..][..self.commit_id_length])
     }
 }
 
@@ -337,7 +334,7 @@ impl CommitLookupEntry<'_> {
 
     fn pos(&self) -> IndexPosition {
         IndexPosition(
-            (&self.data[self.commit_id_length..self.commit_id_length + 4])
+            (&self.data[self.commit_id_length..][..4])
                 .read_u32::<LittleEndian>()
                 .unwrap(),
         )
@@ -560,7 +557,7 @@ impl MutableIndexImpl {
             buf.write_u32::<LittleEndian>(pos.0).unwrap();
         }
 
-        (&mut buf[parent_overflow_offset..parent_overflow_offset + 4])
+        (&mut buf[parent_overflow_offset..][..4])
             .write_u32::<LittleEndian>(parent_overflow.len() as u32)
             .unwrap();
         for parent_pos in parent_overflow {
@@ -1899,7 +1896,7 @@ impl ReadonlyIndexImpl {
     fn graph_entry(&self, local_pos: u32) -> CommitGraphEntry {
         let offset = (local_pos as usize) * self.commit_graph_entry_size;
         CommitGraphEntry {
-            data: &self.graph[offset..offset + self.commit_graph_entry_size],
+            data: &self.graph[offset..][..self.commit_graph_entry_size],
             commit_id_length: self.commit_id_length,
             change_id_length: self.change_id_length,
         }
@@ -1908,7 +1905,7 @@ impl ReadonlyIndexImpl {
     fn lookup_entry(&self, lookup_pos: u32) -> CommitLookupEntry {
         let offset = (lookup_pos as usize) * self.commit_lookup_entry_size;
         CommitLookupEntry {
-            data: &self.lookup[offset..offset + self.commit_lookup_entry_size],
+            data: &self.lookup[offset..][..self.commit_lookup_entry_size],
             commit_id_length: self.commit_id_length,
         }
     }
@@ -1916,7 +1913,7 @@ impl ReadonlyIndexImpl {
     fn overflow_parent(&self, overflow_pos: u32) -> IndexPosition {
         let offset = (overflow_pos as usize) * 4;
         IndexPosition(
-            (&self.overflow_parent[offset..offset + 4])
+            (&self.overflow_parent[offset..][..4])
                 .read_u32::<LittleEndian>()
                 .unwrap(),
         )
