@@ -159,6 +159,25 @@ For example:
 'user(x)' = 'author(x) | committer(x)'
 ```
 
+### Built-in Aliases
+
+The following aliases are built-in and used for certain operations. These functions
+are defined as aliases in order to allow you to overwrite them as needed. 
+See [revsets.toml](https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.toml)
+for a comprehensive list.
+
+* `trunk()`: Resolves to the head commit for the trunk branch of the `origin`
+  remote. The branches `main`, `master`, and `trunk` are tried in order.
+  If none of the branches exist, it evaluates to `root()`.
+
+  You can [override](./config.md) this as appropriate. If you do, make sure it
+  always resolves to exactly one commit. For example:
+
+  ```toml
+  [revset-aliases]
+  'trunk()' = 'latest(remote_branches(exact:"your-branch", exact:"your-remote"))'
+  ```
+
 ## Examples
 
 Show the parent(s) of the working-copy commit (like `git log -1 HEAD`):
