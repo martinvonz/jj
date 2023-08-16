@@ -1485,16 +1485,7 @@ impl WorkspaceCommandTransaction<'_> {
         matcher: &dyn Matcher,
     ) -> Result<TreeId, CommandError> {
         if interactive {
-            let base_ignores = self.helper.base_ignores();
-            let settings = &self.helper.settings;
-            Ok(crate::merge_tools::edit_diff(
-                ui,
-                left_tree,
-                right_tree,
-                instructions,
-                base_ignores,
-                settings,
-            )?)
+            self.edit_diff(ui, left_tree, right_tree, instructions)
         } else if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
             // Optimization for a common case
             Ok(right_tree.id().clone())
