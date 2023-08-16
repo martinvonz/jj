@@ -1211,8 +1211,8 @@ impl TreeState {
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
             // TODO: Check that the file has not changed before overwriting/removing it.
-            match diff {
-                Diff::Removed(_before) => {
+            match diff.into_options() {
+                (Some(_before), None) => {
                     fs::remove_file(&disk_path).ok();
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
@@ -1224,7 +1224,7 @@ impl TreeState {
                     self.file_states.remove(&path);
                     stats.removed_files += 1;
                 }
-                Diff::Added(after) => {
+                (None, Some(after)) => {
                     let file_state = match after {
                         TreeValue::File { id, executable } => {
                             self.write_file(&disk_path, &path, &id, executable)?
@@ -1242,12 +1242,12 @@ impl TreeState {
                     self.file_states.insert(path, file_state);
                     stats.added_files += 1;
                 }
-                Diff::Modified(
-                    TreeValue::File {
+                (
+                    Some(TreeValue::File {
                         id: old_id,
                         executable: old_executable,
-                    },
-                    TreeValue::File { id, executable },
+                    }),
+                    Some(TreeValue::File { id, executable }),
                 ) if id == old_id => {
                     // Optimization for when only the executable bit changed
                     assert_ne!(executable, old_executable);
@@ -1259,7 +1259,7 @@ impl TreeState {
                     }
                     stats.updated_files += 1;
                 }
-                Diff::Modified(_before, after) => {
+                (Some(_before), Some(after)) => {
                     fs::remove_file(&disk_path).ok();
                     let file_state = match after {
                         TreeValue::File { id, executable } => {
@@ -1278,6 +1278,9 @@ impl TreeState {
 
                     self.file_states.insert(path, file_state);
                     stats.updated_files += 1;
+                }
+                (None, None) => {
+                    unreachable!()
                 }
             }
             Ok(())
