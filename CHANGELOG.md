@@ -74,6 +74,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Revsets gained a new function `mine()` that aliases `author([your_email])`.
 
+* `branches()`/`remote_branches()`/`author()`/`committer()`/`description()`
+  revsets now support literal matching. For example, `branch(literal:main)`
+  selects the branch named "main", but not "maint". `description(literal:"")`
+  selects commits whose description is empty.
+
 ### Fixed bugs
 
 * `jj config set --user` and `jj config edit --user` can now be used outside of any repository.

@@ -137,6 +137,13 @@ revsets (expressions) as arguments.
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown branch name.)
 
+## String patterns
+
+Functions that perform string matching support the following pattern syntax.
+
+* `"substring"`: Matches strings that contain `substring`.
+* `literal:"string"`:  Matches strings exactly equal to `string`.
+
 ## Aliases
 
 New symbols and functions can be defined in the config file, by using any

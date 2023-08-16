@@ -212,6 +212,8 @@ pub const GENERATION_RANGE_EMPTY: Range<u64> = 0..0;
 /// branch name.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StringPattern {
+    /// Matches strings exactly equal to `string`.
+    Literal(String),
     /// Matches strings that contain `substring`.
     Substring(String),
 }
@@ -225,6 +227,7 @@ impl StringPattern {
     /// Returns true if this pattern matches the `haystack`.
     pub fn matches(&self, haystack: &str) -> bool {
         match self {
+            StringPattern::Literal(literal) => haystack == literal,
             StringPattern::Substring(needle) => haystack.contains(needle),
         }
     }
@@ -1280,8 +1283,51 @@ fn parse_function_argument_to_string_pattern(
     pair: Pair<Rule>,
     state: ParseState,
 ) -> Result<StringPattern, RevsetParseError> {
-    let needle = parse_function_argument_as_literal("string", name, pair, state)?;
-    Ok(StringPattern::Substring(needle))
+    let span = pair.as_span();
+    let make_error = |message| {
+        RevsetParseError::with_span(
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: name.to_string(),
+                message,
+            },
+            span,
+        )
+    };
+    let make_type_error = || make_error("Expected function argument of string pattern".to_owned());
+    let expression = parse_expression_rule(pair.into_inner(), state)?;
+    let pattern = match expression.as_ref() {
+        RevsetExpression::CommitRef(RevsetCommitRef::Symbol(symbol)) => {
+            let needle = symbol.to_owned();
+            StringPattern::Substring(needle)
+        }
+        // TODO: Add proper parsed node if we drop support for legacy x:y range
+        RevsetExpression::DagRange {
+            roots,
+            heads,
+            is_legacy: true,
+        } => {
+            // TODO: quoted string shouldn't be allowed as a pattern kind
+            let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(kind)) = roots.as_ref() else {
+                return Err(make_type_error());
+            };
+            let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(needle)) = heads.as_ref()
+            else {
+                return Err(make_type_error());
+            };
+            match kind.as_ref() {
+                "literal" => StringPattern::Literal(needle.clone()),
+                // TODO: maybe add explicit kind for substring match?
+                _ => {
+                    // TODO: error span can be narrowed to the lhs node
+                    return Err(make_error(format!(
+                        r#"Invalid string pattern kind "{kind}""#
+                    )));
+                }
+            }
+        }
+        _ => return Err(make_type_error()),
+    };
+    Ok(pattern)
 }
 
 fn parse_function_argument_as_literal<T: FromStr>(
@@ -2622,6 +2668,42 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_string_pattern() {
+        assert_eq!(
+            parse(r#"branches("foo")"#),
+            Ok(RevsetExpression::branches(StringPattern::Substring(
+                "foo".to_owned()
+            )))
+        );
+        assert_eq!(
+            parse(r#"branches(literal:"foo")"#),
+            Ok(RevsetExpression::branches(StringPattern::Literal(
+                "foo".to_owned()
+            )))
+        );
+        assert_eq!(
+            parse(r#"branches("literal:foo")"#),
+            Ok(RevsetExpression::branches(StringPattern::Substring(
+                "literal:foo".to_owned()
+            )))
+        );
+        assert_eq!(
+            parse(r#"branches(bad:"foo")"#),
+            Err(RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "branches".to_owned(),
+                message: r#"Invalid string pattern kind "bad""#.to_owned()
+            })
+        );
+        assert_eq!(
+            parse(r#"branches(literal::"foo")"#),
+            Err(RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "branches".to_owned(),
+                message: "Expected function argument of string pattern".to_owned()
+            })
+        );
+    }
+
+    #[test]
     fn test_parse_revset_alias_formal_parameter() {
         let mut aliases_map = RevsetAliasesMap::new();
         // Trailing comma isn't allowed for empty parameter
@@ -2743,7 +2825,7 @@ mod tests {
             parse("description(visible_heads())"),
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "description".to_string(),
-                message: "Expected function argument of type string".to_string()
+                message: "Expected function argument of string pattern".to_string()
             })
         );
         assert_eq!(
@@ -2858,8 +2940,22 @@ mod tests {
 
         // Alias can be substituted to string literal.
         assert_eq!(
+            parse_with_aliases("file(A)", [("A", "a")]).unwrap(),
+            parse("file(a)").unwrap()
+        );
+
+        // Alias can be substituted to string pattern.
+        assert_eq!(
             parse_with_aliases("author(A)", [("A", "a")]).unwrap(),
             parse("author(a)").unwrap()
+        );
+        assert_eq!(
+            parse_with_aliases("author(A)", [("A", "literal:a")]).unwrap(),
+            parse("author(literal:a)").unwrap()
+        );
+        assert_eq!(
+            parse_with_aliases("author(literal:A)", [("A", "a")]).unwrap(),
+            parse("author(literal:a)").unwrap()
         );
 
         // Multi-level substitution.
