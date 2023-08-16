@@ -141,6 +141,16 @@ fn test_bad_function_call() {
       = Invalid file pattern: Path "../out" is not in the repo
     "###);
 
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "branches(bad:pattern)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:10
+      |
+    1 | branches(bad:pattern)
+      |          ^---------^
+      |
+      = Invalid arguments to revset function "branches": Invalid string pattern kind "bad"
+    "###);
+
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root::whatever()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse revset:  --> 1:7
@@ -303,7 +313,7 @@ fn test_alias() {
     1 | author(x)
       |        ^
       |
-      = Invalid arguments to revset function "author": Expected function argument of type string
+      = Invalid arguments to revset function "author": Expected function argument of string pattern
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root & recurse"]);
