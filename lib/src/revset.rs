@@ -104,8 +104,6 @@ pub enum RevsetParseErrorKind {
     },
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
     InvalidFunctionArguments { name: String, message: String },
-    #[error("Revset function \"mine\" requires a user name")]
-    MineWithoutUserName,
     #[error("Invalid file pattern: {0}")]
     FsPathParseError(#[source] FsPathParseError),
     #[error("Cannot resolve file pattern without workspace")]
