@@ -37,6 +37,7 @@ criterion = "0.5.1"
 crossterm = { version = "0.26", default-features = false }
 digest = "0.10.7"
 dirs = "5.0.1"
+either = "1.9.0"
 esl01-renderdag = "0.3.0"
 glob = "0.3.1"
 git2 = "0.17.2"

@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::Infallible;
 use std::ops::Range;
 use std::path::Path;
@@ -23,6 +23,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::{error, fmt};
 
+use either::Either;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
@@ -229,6 +230,16 @@ impl StringPattern {
         match self {
             StringPattern::Literal(literal) => haystack == literal,
             StringPattern::Substring(needle) => haystack.contains(needle),
+        }
+    }
+
+    /// Returns a literal string if this pattern is of that kind.
+    ///
+    /// This can be used to optimize map lookup by exact key.
+    pub fn as_literal(&self) -> Option<&str> {
+        match self {
+            StringPattern::Literal(literal) => Some(literal),
+            StringPattern::Substring(_) => None,
         }
     }
 }
@@ -1784,6 +1795,21 @@ pub fn walk_revs<'index>(
         .evaluate(repo)
 }
 
+fn filter_map_values_by_key_pattern<'a: 'b, 'b, V>(
+    map: &'a BTreeMap<String, V>,
+    pattern: &'b StringPattern,
+) -> impl Iterator<Item = &'a V> + 'b {
+    if let Some(key) = pattern.as_literal() {
+        Either::Left(map.get(key).into_iter())
+    } else {
+        Either::Right(
+            map.iter()
+                .filter(|(key, _)| pattern.matches(key))
+                .map(|(_, value)| value),
+        )
+    }
+}
+
 fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
     // TODO: We should remove `refs/remotes` from this list once we have a better
@@ -2023,30 +2049,25 @@ fn resolve_commit_ref(
         RevsetCommitRef::Symbol(symbol) => symbol_resolver.resolve_symbol(symbol),
         RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
         RevsetCommitRef::Branches(pattern) => {
-            let mut commit_ids = vec![];
-            for (branch_name, branch_target) in repo.view().branches() {
-                if !pattern.matches(branch_name) {
-                    continue;
-                }
-                commit_ids.extend(branch_target.local_target.added_ids().cloned());
-            }
+            let view = repo.view();
+            let commit_ids = filter_map_values_by_key_pattern(view.branches(), pattern)
+                .flat_map(|branch_target| branch_target.local_target.added_ids())
+                .cloned()
+                .collect();
             Ok(commit_ids)
         }
         RevsetCommitRef::RemoteBranches {
             branch_pattern,
             remote_pattern,
         } => {
-            let mut commit_ids = vec![];
-            for (branch_name, branch_target) in repo.view().branches() {
-                if !branch_pattern.matches(branch_name) {
-                    continue;
-                }
-                for (remote_name, remote_target) in branch_target.remote_targets.iter() {
-                    if remote_pattern.matches(remote_name) {
-                        commit_ids.extend(remote_target.added_ids().cloned());
-                    }
-                }
-            }
+            let view = repo.view();
+            let commit_ids = filter_map_values_by_key_pattern(view.branches(), branch_pattern)
+                .flat_map(|branch_target| {
+                    filter_map_values_by_key_pattern(&branch_target.remote_targets, remote_pattern)
+                })
+                .flat_map(|remote_target| remote_target.added_ids())
+                .cloned()
+                .collect();
             Ok(commit_ids)
         }
         RevsetCommitRef::Tags => {

@@ -1031,6 +1031,7 @@ dependencies = [
  "config",
  "criterion",
  "digest",
+ "either",
  "esl01-renderdag",
  "git2",
  "hex",
