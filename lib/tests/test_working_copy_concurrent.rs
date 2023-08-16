@@ -16,6 +16,7 @@ use std::cmp::max;
 use std::thread;
 
 use assert_matches::assert_matches;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::{Repo, StoreFactories};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
@@ -50,7 +51,8 @@ fn test_concurrent_checkout() {
     // Check out tree1
     let wc1 = test_workspace1.workspace.working_copy_mut();
     // The operation ID is not correct, but that doesn't matter for this test
-    wc1.check_out(repo1.op_id().clone(), None, &tree1).unwrap();
+    wc1.check_out(repo1.op_id().clone(), None, &MergedTree::legacy(tree1))
+        .unwrap();
 
     // Check out tree2 from another process (simulated by another workspace
     // instance)
@@ -58,12 +60,20 @@ fn test_concurrent_checkout() {
         Workspace::load(&settings, &workspace1_root, &StoreFactories::default()).unwrap();
     workspace2
         .working_copy_mut()
-        .check_out(repo1.op_id().clone(), Some(&tree_id1), &tree2)
+        .check_out(
+            repo1.op_id().clone(),
+            Some(&tree_id1),
+            &MergedTree::legacy(tree2),
+        )
         .unwrap();
 
     // Checking out another tree (via the first repo instance) should now fail.
     assert_matches!(
-        wc1.check_out(repo1.op_id().clone(), Some(&tree_id1), &tree3),
+        wc1.check_out(
+            repo1.op_id().clone(),
+            Some(&tree_id1),
+            &MergedTree::legacy(tree3)
+        ),
         Err(CheckoutError::ConcurrentCheckout)
     );
 
@@ -102,7 +112,7 @@ fn test_checkout_parallel() {
     test_workspace
         .workspace
         .working_copy_mut()
-        .check_out(repo.op_id().clone(), None, &tree)
+        .check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree))
         .unwrap();
 
     thread::scope(|s| {
@@ -124,7 +134,7 @@ fn test_checkout_parallel() {
                 // The operation ID is not correct, but that doesn't matter for this test
                 let stats = workspace
                     .working_copy_mut()
-                    .check_out(op_id, None, &tree)
+                    .check_out(op_id, None, &MergedTree::legacy(tree))
                     .unwrap();
                 assert_eq!(stats.updated_files, 0);
                 assert_eq!(stats.added_files, 1);
@@ -158,7 +168,8 @@ fn test_racy_checkout() {
     let mut num_matches = 0;
     for _ in 0..100 {
         let wc = test_workspace.workspace.working_copy_mut();
-        wc.check_out(op_id.clone(), None, &tree).unwrap();
+        wc.check_out(op_id.clone(), None, &MergedTree::legacy(tree.clone()))
+            .unwrap();
         assert_eq!(
             std::fs::read(path.to_fs_path(&workspace_root)).unwrap(),
             b"1".to_vec()

@@ -1917,12 +1917,9 @@ pub fn update_working_copy(
     let stats = if Some(new_commit.tree_id()) != old_tree_id.as_ref() {
         // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
         // warning for most commands (but be an error for the checkout command)
+        let new_tree = new_commit.merged_tree()?;
         let stats = wc
-            .check_out(
-                repo.op_id().clone(),
-                old_tree_id.as_ref(),
-                &new_commit.tree(),
-            )
+            .check_out(repo.op_id().clone(), old_tree_id.as_ref(), &new_tree)
             .map_err(|err| {
                 CommandError::InternalError(format!(
                     "Failed to check out commit {}: {}",

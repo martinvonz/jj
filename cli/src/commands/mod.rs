@@ -3609,15 +3609,14 @@ fn cmd_workspace_update_stale(
             if known_wc_commit.tree_id() != locked_wc.old_tree_id() {
                 return Err(user_error("Concurrent working copy operation. Try again."));
             }
-            let stats = locked_wc
-                .check_out(&desired_wc_commit.tree())
-                .map_err(|err| {
-                    CommandError::InternalError(format!(
-                        "Failed to check out commit {}: {}",
-                        desired_wc_commit.id().hex(),
-                        err
-                    ))
-                })?;
+            let desired_tree = desired_wc_commit.merged_tree()?;
+            let stats = locked_wc.check_out(&desired_tree).map_err(|err| {
+                CommandError::InternalError(format!(
+                    "Failed to check out commit {}: {}",
+                    desired_wc_commit.id().hex(),
+                    err
+                ))
+            })?;
             locked_wc.finish(repo.op_id().clone())?;
             ui.write("Working copy now at: ")?;
             workspace_command

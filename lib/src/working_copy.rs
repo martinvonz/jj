@@ -570,6 +570,11 @@ impl TreeState {
         self.store.get_tree(&RepoPath::root(), &self.tree_id)
     }
 
+    fn current_merged_tree(&self) -> Result<MergedTree, BackendError> {
+        let tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
+        Ok(MergedTree::legacy(tree))
+    }
+
     fn write_file_to_store(
         &self,
         path: &RepoPath,
@@ -654,8 +659,7 @@ impl TreeState {
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
-            let current_tree = self.current_tree()?;
-            let current_tree = MergedTree::legacy(current_tree);
+            let current_tree = self.current_merged_tree()?;
             let directory_to_visit = DirectoryToVisit {
                 dir: RepoPath::root(),
                 disk_dir: self.working_copy_path.clone(),
@@ -1169,15 +1173,15 @@ impl TreeState {
         Ok(())
     }
 
-    pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
-        let old_tree = self.current_tree().map_err(|err| match err {
+    pub fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {
+        let old_tree = self.current_merged_tree().map_err(|err| match err {
             err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
                 source: Box::new(err),
             },
             other => CheckoutError::InternalBackendError(other),
         })?;
         let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref(), Err)?;
-        self.tree_id = new_tree.id().clone();
+        self.tree_id = new_tree.id().into_resolved().unwrap().clone();
         Ok(stats)
     }
 
@@ -1185,7 +1189,7 @@ impl TreeState {
         &mut self,
         sparse_patterns: Vec<RepoPath>,
     ) -> Result<CheckoutStats, CheckoutError> {
-        let tree = self.current_tree().map_err(|err| match err {
+        let tree = self.current_merged_tree().map_err(|err| match err {
             err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
                 source: Box::new(err),
             },
@@ -1195,7 +1199,7 @@ impl TreeState {
         let new_matcher = PrefixMatcher::new(&sparse_patterns);
         let added_matcher = DifferenceMatcher::new(&new_matcher, &old_matcher);
         let removed_matcher = DifferenceMatcher::new(&old_matcher, &new_matcher);
-        let empty_tree = Tree::null(self.store.clone(), RepoPath::root());
+        let empty_tree = MergedTree::resolved(Tree::null(self.store.clone(), RepoPath::root()));
         let added_stats = self.update(
             &empty_tree,
             &tree,
@@ -1217,8 +1221,8 @@ impl TreeState {
 
     fn update(
         &mut self,
-        old_tree: &Tree,
-        new_tree: &Tree,
+        old_tree: &MergedTree,
+        new_tree: &MergedTree,
         matcher: &dyn Matcher,
         mut handle_error: impl FnMut(CheckoutError) -> Result<(), CheckoutError>,
     ) -> Result<CheckoutStats, CheckoutError> {
@@ -1228,10 +1232,12 @@ impl TreeState {
          -> Result<(), CheckoutError> {
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
+            if before.is_present() {
+                fs::remove_file(&disk_path).ok();
+            }
             // TODO: Check that the file has not changed before overwriting/removing it.
             match after.into_resolved() {
                 Ok(None) => {
-                    fs::remove_file(&disk_path).ok();
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
                         if fs::remove_dir(parent_dir).is_err() {
@@ -1242,17 +1248,13 @@ impl TreeState {
                     self.file_states.remove(&path);
                 }
                 Ok(Some(after)) => {
-                    if before.is_present() {
-                        fs::remove_file(&disk_path).ok();
-                    }
                     let file_state = match after {
                         TreeValue::File { id, executable } => {
                             self.write_file(&disk_path, &path, &id, executable)?
                         }
                         TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id)?,
-                        TreeValue::Conflict(id) => {
-                            let conflict = self.store.read_conflict(&path, &id)?;
-                            self.write_conflict(&disk_path, &path, &conflict)?
+                        TreeValue::Conflict(_) => {
+                            panic!("unexpected conflict entry in diff at {path:?}");
                         }
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {path:?}");
@@ -1264,8 +1266,9 @@ impl TreeState {
                     };
                     self.file_states.insert(path, file_state);
                 }
-                Err(_after_conflict) => {
-                    todo!("write conflict to the working copy");
+                Err(after_conflict) => {
+                    let file_state = self.write_conflict(&disk_path, &path, &after_conflict)?;
+                    self.file_states.insert(path, file_state);
                 }
             }
             Ok(())
@@ -1276,17 +1279,15 @@ impl TreeState {
             added_files: 0,
             removed_files: 0,
         };
-        for (path, diff) in old_tree.diff(new_tree, matcher) {
-            let (before, after) = diff.into_options();
-            if after.is_none() {
+        for (path, before, after) in old_tree.diff(new_tree, matcher) {
+            if after.is_absent() {
                 stats.removed_files += 1;
-            } else if before.is_none() {
+            } else if before.is_absent() {
                 stats.added_files += 1;
             } else {
                 stats.updated_files += 1;
             }
-            apply_diff(path, Merge::resolved(before), Merge::resolved(after))
-                .or_else(&mut handle_error)?;
+            apply_diff(path, before, after).or_else(&mut handle_error)?;
         }
         Ok(stats)
     }
@@ -1509,7 +1510,7 @@ impl WorkingCopy {
         &mut self,
         operation_id: OperationId,
         old_tree_id: Option<&TreeId>,
-        new_tree: &Tree,
+        new_tree: &MergedTree,
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut locked_wc = self.start_mutation()?;
         // Check if the current working-copy commit has changed on disk compared to what
@@ -1573,7 +1574,7 @@ impl LockedWorkingCopy<'_> {
         Ok(tree_state.current_tree_id().clone())
     }
 
-    pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
+    pub fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with the new TreeId so we can
         // continue an interrupted update if we find such a file.
         let stats = self.wc.tree_state_mut()?.check_out(new_tree)?;
