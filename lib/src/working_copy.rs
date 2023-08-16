@@ -564,6 +564,10 @@ impl TreeState {
         Ok(())
     }
 
+    fn current_tree(&self) -> Result<Tree, BackendError> {
+        self.store.get_tree(&RepoPath::root(), &self.tree_id)
+    }
+
     fn write_file_to_store(
         &self,
         path: &RepoPath,
@@ -646,7 +650,7 @@ impl TreeState {
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
-            let current_tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
+            let current_tree = self.current_tree()?;
             let current_tree = MergedTree::legacy(current_tree);
             let directory_to_visit = DirectoryToVisit {
                 dir: RepoPath::root(),
@@ -710,10 +714,7 @@ impl TreeState {
             self.tree_id = tree_builder.write_tree();
         });
         if cfg!(debug_assertions) {
-            let tree = self
-                .store
-                .get_tree(&RepoPath::root(), &self.tree_id)
-                .unwrap();
+            let tree = self.current_tree().unwrap();
             let tree_paths: HashSet<_> = tree
                 .entries_matching(sparse_matcher.as_ref())
                 .map(|(path, _)| path)
@@ -1149,15 +1150,12 @@ impl TreeState {
     }
 
     pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
-        let old_tree = self
-            .store
-            .get_tree(&RepoPath::root(), &self.tree_id)
-            .map_err(|err| match err {
-                err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
-                    source: Box::new(err),
-                },
-                other => CheckoutError::InternalBackendError(other),
-            })?;
+        let old_tree = self.current_tree().map_err(|err| match err {
+            err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
+                source: Box::new(err),
+            },
+            other => CheckoutError::InternalBackendError(other),
+        })?;
         let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref(), Err)?;
         self.tree_id = new_tree.id().clone();
         Ok(stats)
@@ -1167,15 +1165,12 @@ impl TreeState {
         &mut self,
         sparse_patterns: Vec<RepoPath>,
     ) -> Result<CheckoutStats, CheckoutError> {
-        let tree = self
-            .store
-            .get_tree(&RepoPath::root(), &self.tree_id)
-            .map_err(|err| match err {
-                err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
-                    source: Box::new(err),
-                },
-                other => CheckoutError::InternalBackendError(other),
-            })?;
+        let tree = self.current_tree().map_err(|err| match err {
+            err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
+                source: Box::new(err),
+            },
+            other => CheckoutError::InternalBackendError(other),
+        })?;
         let old_matcher = PrefixMatcher::new(&self.sparse_patterns);
         let new_matcher = PrefixMatcher::new(&sparse_patterns);
         let added_matcher = DifferenceMatcher::new(&new_matcher, &old_matcher);
@@ -1295,15 +1290,12 @@ impl TreeState {
     }
 
     pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
-        let old_tree = self
-            .store
-            .get_tree(&RepoPath::root(), &self.tree_id)
-            .map_err(|err| match err {
-                err @ BackendError::ObjectNotFound { .. } => ResetError::SourceNotFound {
-                    source: Box::new(err),
-                },
-                other => ResetError::InternalBackendError(other),
-            })?;
+        let old_tree = self.current_tree().map_err(|err| match err {
+            err @ BackendError::ObjectNotFound { .. } => ResetError::SourceNotFound {
+                source: Box::new(err),
+            },
+            other => ResetError::InternalBackendError(other),
+        })?;
 
         for (path, diff) in old_tree.diff(new_tree, self.sparse_matcher().as_ref()) {
             match diff {
