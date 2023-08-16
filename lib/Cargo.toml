@@ -26,6 +26,7 @@ bytes.workspace = true
 chrono.workspace = true
 config.workspace = true
 digest.workspace = true
+either.workspace = true
 git2.workspace = true
 hex.workspace = true
 itertools.workspace = true
