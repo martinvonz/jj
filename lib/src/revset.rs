@@ -208,15 +208,37 @@ impl error::Error for RevsetParseError {
 pub const GENERATION_RANGE_FULL: Range<u64> = 0..u64::MAX;
 pub const GENERATION_RANGE_EMPTY: Range<u64> = 0..0;
 
+/// Pattern to be tested against string property like commit description or
+/// branch name.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StringPattern {
+    /// Matches strings that contain `substring`.
+    Substring(String),
+}
+
+impl StringPattern {
+    /// Pattern that matches any string.
+    pub fn everything() -> Self {
+        StringPattern::Substring(String::new())
+    }
+
+    /// Returns true if this pattern matches the `haystack`.
+    pub fn matches(&self, haystack: &str) -> bool {
+        match self {
+            StringPattern::Substring(needle) => haystack.contains(needle),
+        }
+    }
+}
+
 /// Symbol or function to be resolved to `CommitId`s.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RevsetCommitRef {
     Symbol(String),
     VisibleHeads,
-    Branches(String),
+    Branches(StringPattern),
     RemoteBranches {
-        branch_needle: String,
-        remote_needle: String,
+        branch_pattern: StringPattern,
+        remote_pattern: StringPattern,
     },
     Tags,
     GitRefs,
@@ -228,11 +250,11 @@ pub enum RevsetFilterPredicate {
     /// Commits with number of parents in the range.
     ParentCount(Range<u32>),
     /// Commits with description containing the needle.
-    Description(String),
+    Description(StringPattern),
     /// Commits with author's name or email containing the needle.
-    Author(String),
+    Author(StringPattern),
     /// Commits with committer's name or email containing the needle.
-    Committer(String),
+    Committer(StringPattern),
     /// Commits modifying the paths specified by the pattern.
     File(Option<Vec<RepoPath>>), // TODO: embed matcher expression?
     /// Commits with conflicts
@@ -309,17 +331,20 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::VisibleHeads))
     }
 
-    pub fn branches(needle: String) -> Rc<RevsetExpression> {
+    pub fn branches(pattern: StringPattern) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Branches(
-            needle,
+            pattern,
         )))
     }
 
-    pub fn remote_branches(branch_needle: String, remote_needle: String) -> Rc<RevsetExpression> {
+    pub fn remote_branches(
+        branch_pattern: StringPattern,
+        remote_pattern: StringPattern,
+    ) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::CommitRef(
             RevsetCommitRef::RemoteBranches {
-                branch_needle,
-                remote_needle,
+                branch_pattern,
+                remote_pattern,
             },
         ))
     }
@@ -986,29 +1011,29 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("branches", |name, arguments_pair, state| {
         let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
-        let needle = if let Some(arg) = opt_arg {
-            parse_function_argument_to_string(name, arg, state)?
+        let pattern = if let Some(arg) = opt_arg {
+            parse_function_argument_to_string_pattern(name, arg, state)?
         } else {
-            "".to_owned()
+            StringPattern::everything()
         };
-        Ok(RevsetExpression::branches(needle))
+        Ok(RevsetExpression::branches(pattern))
     });
     map.insert("remote_branches", |name, arguments_pair, state| {
         let ([], [branch_opt_arg, remote_opt_arg]) =
             expect_named_arguments(name, &["", "remote"], arguments_pair)?;
-        let branch_needle = if let Some(branch_arg) = branch_opt_arg {
-            parse_function_argument_to_string(name, branch_arg, state)?
+        let branch_pattern = if let Some(branch_arg) = branch_opt_arg {
+            parse_function_argument_to_string_pattern(name, branch_arg, state)?
         } else {
-            "".to_owned()
+            StringPattern::everything()
         };
-        let remote_needle = if let Some(remote_arg) = remote_opt_arg {
-            parse_function_argument_to_string(name, remote_arg, state)?
+        let remote_pattern = if let Some(remote_arg) = remote_opt_arg {
+            parse_function_argument_to_string_pattern(name, remote_arg, state)?
         } else {
-            "".to_owned()
+            StringPattern::everything()
         };
         Ok(RevsetExpression::remote_branches(
-            branch_needle,
-            remote_needle,
+            branch_pattern,
+            remote_pattern,
         ))
     });
     map.insert("tags", |name, arguments_pair, _state| {
@@ -1041,29 +1066,30 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("description", |name, arguments_pair, state| {
         let arg = expect_one_argument(name, arguments_pair)?;
-        let needle = parse_function_argument_to_string(name, arg, state)?;
+        let pattern = parse_function_argument_to_string_pattern(name, arg, state)?;
         Ok(RevsetExpression::filter(
-            RevsetFilterPredicate::Description(needle),
+            RevsetFilterPredicate::Description(pattern),
         ))
     });
     map.insert("author", |name, arguments_pair, state| {
         let arg = expect_one_argument(name, arguments_pair)?;
-        let needle = parse_function_argument_to_string(name, arg, state)?;
+        let pattern = parse_function_argument_to_string_pattern(name, arg, state)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-            needle,
+            pattern,
         )))
     });
     map.insert("mine", |name, arguments_pair, state| {
         expect_no_arguments(name, arguments_pair)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-            state.user_email.to_owned(),
+            // TODO: use exact match
+            StringPattern::Substring(state.user_email.to_owned()),
         )))
     });
     map.insert("committer", |name, arguments_pair, state| {
         let arg = expect_one_argument(name, arguments_pair)?;
-        let needle = parse_function_argument_to_string(name, arg, state)?;
+        let pattern = parse_function_argument_to_string_pattern(name, arg, state)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
-            needle,
+            pattern,
         )))
     });
     map.insert("empty", |name, arguments_pair, _state| {
@@ -1247,6 +1273,15 @@ fn parse_function_argument_to_string(
     state: ParseState,
 ) -> Result<String, RevsetParseError> {
     parse_function_argument_as_literal("string", name, pair, state)
+}
+
+fn parse_function_argument_to_string_pattern(
+    name: &str,
+    pair: Pair<Rule>,
+    state: ParseState,
+) -> Result<StringPattern, RevsetParseError> {
+    let needle = parse_function_argument_as_literal("string", name, pair, state)?;
+    Ok(StringPattern::Substring(needle))
 }
 
 fn parse_function_argument_as_literal<T: FromStr>(
@@ -1941,10 +1976,10 @@ fn resolve_commit_ref(
     match commit_ref {
         RevsetCommitRef::Symbol(symbol) => symbol_resolver.resolve_symbol(symbol),
         RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
-        RevsetCommitRef::Branches(needle) => {
+        RevsetCommitRef::Branches(pattern) => {
             let mut commit_ids = vec![];
             for (branch_name, branch_target) in repo.view().branches() {
-                if !branch_name.contains(needle) {
+                if !pattern.matches(branch_name) {
                     continue;
                 }
                 commit_ids.extend(branch_target.local_target.added_ids().cloned());
@@ -1952,16 +1987,16 @@ fn resolve_commit_ref(
             Ok(commit_ids)
         }
         RevsetCommitRef::RemoteBranches {
-            branch_needle,
-            remote_needle,
+            branch_pattern,
+            remote_pattern,
         } => {
             let mut commit_ids = vec![];
             for (branch_name, branch_target) in repo.view().branches() {
-                if !branch_name.contains(branch_needle) {
+                if !branch_pattern.matches(branch_name) {
                     continue;
                 }
                 for (remote_name, remote_target) in branch_target.remote_targets.iter() {
-                    if remote_name.contains(remote_needle) {
+                    if remote_pattern.matches(remote_name) {
                         commit_ids.extend(remote_target.added_ids().cloned());
                     }
                 }
@@ -2544,16 +2579,16 @@ mod tests {
         // Space is allowed around infix operators and function arguments
         assert_eq!(
             parse("   description(  arg1 ) ~    file(  arg1 ,   arg2 )  ~ visible_heads(  )  "),
-            Ok(
-                RevsetExpression::filter(RevsetFilterPredicate::Description("arg1".to_string()))
-                    .minus(&RevsetExpression::filter(RevsetFilterPredicate::File(
-                        Some(vec![
-                            RepoPath::from_internal_string("arg1"),
-                            RepoPath::from_internal_string("arg2"),
-                        ])
-                    )))
-                    .minus(&RevsetExpression::visible_heads())
-            )
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::Description(
+                StringPattern::Substring("arg1".to_string())
+            ))
+            .minus(&RevsetExpression::filter(RevsetFilterPredicate::File(
+                Some(vec![
+                    RepoPath::from_internal_string("arg1"),
+                    RepoPath::from_internal_string("arg2"),
+                ])
+            )))
+            .minus(&RevsetExpression::visible_heads()))
         );
         // Space is allowed around keyword arguments
         assert_eq!(
@@ -2695,13 +2730,13 @@ mod tests {
         assert_eq!(
             parse(r#"description("")"#),
             Ok(RevsetExpression::filter(
-                RevsetFilterPredicate::Description("".to_string())
+                RevsetFilterPredicate::Description(StringPattern::Substring("".to_string()))
             ))
         );
         assert_eq!(
             parse("description(foo)"),
             Ok(RevsetExpression::filter(
-                RevsetFilterPredicate::Description("foo".to_string())
+                RevsetFilterPredicate::Description(StringPattern::Substring("foo".to_string()))
             ))
         );
         assert_eq!(
@@ -2714,20 +2749,20 @@ mod tests {
         assert_eq!(
             parse("description((foo))"),
             Ok(RevsetExpression::filter(
-                RevsetFilterPredicate::Description("foo".to_string())
+                RevsetFilterPredicate::Description(StringPattern::Substring("foo".to_string()))
             ))
         );
         assert_eq!(
             parse("description(\"(foo)\")"),
             Ok(RevsetExpression::filter(
-                RevsetFilterPredicate::Description("(foo)".to_string())
+                RevsetFilterPredicate::Description(StringPattern::Substring("(foo)".to_string()))
             ))
         );
         assert!(parse("mine(foo)").is_err());
         assert_eq!(
             parse("mine()"),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-                "test.user@example.com".to_string()
+                StringPattern::Substring("test.user@example.com".to_string())
             )))
         );
         assert_eq!(
@@ -2960,42 +2995,44 @@ mod tests {
 
         assert_eq!(
             optimize(parse("parents(branches() & all())").unwrap()),
-            RevsetExpression::branches("".to_owned()).parents()
+            RevsetExpression::branches(StringPattern::everything()).parents()
         );
         assert_eq!(
             optimize(parse("children(branches() & all())").unwrap()),
-            RevsetExpression::branches("".to_owned()).children()
+            RevsetExpression::branches(StringPattern::everything()).children()
         );
         assert_eq!(
             optimize(parse("ancestors(branches() & all())").unwrap()),
-            RevsetExpression::branches("".to_owned()).ancestors()
+            RevsetExpression::branches(StringPattern::everything()).ancestors()
         );
         assert_eq!(
             optimize(parse("descendants(branches() & all())").unwrap()),
-            RevsetExpression::branches("".to_owned()).descendants()
+            RevsetExpression::branches(StringPattern::everything()).descendants()
         );
 
         assert_eq!(
             optimize(parse("(branches() & all())..(all() & tags())").unwrap()),
-            RevsetExpression::branches("".to_owned()).range(&RevsetExpression::tags())
+            RevsetExpression::branches(StringPattern::everything())
+                .range(&RevsetExpression::tags())
         );
         assert_eq!(
             optimize(parse("(branches() & all()):(all() & tags())").unwrap()),
-            RevsetExpression::branches("".to_owned()).dag_range_to(&RevsetExpression::tags())
+            RevsetExpression::branches(StringPattern::everything())
+                .dag_range_to(&RevsetExpression::tags())
         );
 
         assert_eq!(
             optimize(parse("heads(branches() & all())").unwrap()),
-            RevsetExpression::branches("".to_owned()).heads()
+            RevsetExpression::branches(StringPattern::everything()).heads()
         );
         assert_eq!(
             optimize(parse("roots(branches() & all())").unwrap()),
-            RevsetExpression::branches("".to_owned()).roots()
+            RevsetExpression::branches(StringPattern::everything()).roots()
         );
 
         assert_eq!(
             optimize(parse("latest(branches() & all(), 2)").unwrap()),
-            RevsetExpression::branches("".to_owned()).latest(2)
+            RevsetExpression::branches(StringPattern::everything()).latest(2)
         );
 
         assert_eq!(
@@ -3008,25 +3045,28 @@ mod tests {
         assert_eq!(
             optimize(parse("present(branches() & all())").unwrap()),
             Rc::new(RevsetExpression::Present(RevsetExpression::branches(
-                "".to_owned()
+                StringPattern::everything()
             )))
         );
 
         assert_eq!(
             optimize(parse("~branches() & all()").unwrap()),
-            RevsetExpression::branches("".to_owned()).negated()
+            RevsetExpression::branches(StringPattern::everything()).negated()
         );
         assert_eq!(
             optimize(parse("(branches() & all()) | (all() & tags())").unwrap()),
-            RevsetExpression::branches("".to_owned()).union(&RevsetExpression::tags())
+            RevsetExpression::branches(StringPattern::everything())
+                .union(&RevsetExpression::tags())
         );
         assert_eq!(
             optimize(parse("(branches() & all()) & (all() & tags())").unwrap()),
-            RevsetExpression::branches("".to_owned()).intersection(&RevsetExpression::tags())
+            RevsetExpression::branches(StringPattern::everything())
+                .intersection(&RevsetExpression::tags())
         );
         assert_eq!(
             optimize(parse("(branches() & all()) ~ (all() & tags())").unwrap()),
-            RevsetExpression::branches("".to_owned()).minus(&RevsetExpression::tags())
+            RevsetExpression::branches(StringPattern::everything())
+                .minus(&RevsetExpression::tags())
         );
     }
 
@@ -3059,7 +3099,7 @@ mod tests {
         let optimized = optimize(parsed.clone());
         assert_eq!(
             unwrap_union(&optimized).0.as_ref(),
-            &RevsetExpression::CommitRef(RevsetCommitRef::Branches("".to_owned()))
+            &RevsetExpression::CommitRef(RevsetCommitRef::Branches(StringPattern::everything()))
         );
         assert!(Rc::ptr_eq(
             unwrap_union(&parsed).1,
@@ -3336,7 +3376,9 @@ mod tests {
             ),
             Filter(
                 Author(
-                    "foo",
+                    Substring(
+                        "foo",
+                    ),
                 ),
             ),
         )
@@ -3355,7 +3397,9 @@ mod tests {
             ),
             Filter(
                 Author(
-                    "bar",
+                    Substring(
+                        "bar",
+                    ),
                 ),
             ),
         )
@@ -3374,7 +3418,9 @@ mod tests {
                 Union(
                     Filter(
                         Author(
-                            "bar",
+                            Substring(
+                                "bar",
+                            ),
                         ),
                     ),
                     CommitRef(
@@ -3400,7 +3446,9 @@ mod tests {
             ),
             Filter(
                 Author(
-                    "foo",
+                    Substring(
+                        "foo",
+                    ),
                 ),
             ),
         )
@@ -3412,7 +3460,9 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("author(foo)").unwrap()), @r###"
         Filter(
             Author(
-                "foo",
+                Substring(
+                    "foo",
+                ),
             ),
         )
         "###);
@@ -3426,7 +3476,9 @@ mod tests {
             ),
             Filter(
                 Description(
-                    "bar",
+                    Substring(
+                        "bar",
+                    ),
                 ),
             ),
         )
@@ -3440,7 +3492,9 @@ mod tests {
             ),
             Filter(
                 Author(
-                    "foo",
+                    Substring(
+                        "foo",
+                    ),
                 ),
             ),
         )
@@ -3450,12 +3504,16 @@ mod tests {
         Intersection(
             Filter(
                 Author(
-                    "foo",
+                    Substring(
+                        "foo",
+                    ),
                 ),
             ),
             Filter(
                 Committer(
-                    "bar",
+                    Substring(
+                        "bar",
+                    ),
                 ),
             ),
         )
@@ -3472,13 +3530,17 @@ mod tests {
                 ),
                 Filter(
                     Description(
-                        "bar",
+                        Substring(
+                            "bar",
+                        ),
                     ),
                 ),
             ),
             Filter(
                 Author(
-                    "baz",
+                    Substring(
+                        "baz",
+                    ),
                 ),
             ),
         )
@@ -3494,13 +3556,17 @@ mod tests {
                 ),
                 Filter(
                     Committer(
-                        "foo",
+                        Substring(
+                            "foo",
+                        ),
                     ),
                 ),
             ),
             Filter(
                 Author(
-                    "baz",
+                    Substring(
+                        "baz",
+                    ),
                 ),
             ),
         )
@@ -3516,7 +3582,9 @@ mod tests {
                 ),
                 Filter(
                     Committer(
-                        "foo",
+                        Substring(
+                            "foo",
+                        ),
                     ),
                 ),
             ),
@@ -3537,7 +3605,9 @@ mod tests {
             Intersection(
                 Filter(
                     Committer(
-                        "foo",
+                        Substring(
+                            "foo",
+                        ),
                     ),
                 ),
                 Filter(
@@ -3552,7 +3622,9 @@ mod tests {
             ),
             Filter(
                 Author(
-                    "baz",
+                    Substring(
+                        "baz",
+                    ),
                 ),
             ),
         )
@@ -3601,13 +3673,17 @@ mod tests {
                 ),
                 Filter(
                     Description(
-                        "bar",
+                        Substring(
+                            "bar",
+                        ),
                     ),
                 ),
             ),
             Filter(
                 Author(
-                    "baz",
+                    Substring(
+                        "baz",
+                    ),
                 ),
             ),
         )
@@ -3625,7 +3701,9 @@ mod tests {
                     Ancestors {
                         heads: Filter(
                             Author(
-                                "baz",
+                                Substring(
+                                    "baz",
+                                ),
                             ),
                         ),
                         generation: 1..2,
@@ -3640,7 +3718,9 @@ mod tests {
             ),
             Filter(
                 Description(
-                    "bar",
+                    Substring(
+                        "bar",
+                    ),
                 ),
             ),
         )
@@ -3663,7 +3743,9 @@ mod tests {
                         ),
                         Filter(
                             Author(
-                                "baz",
+                                Substring(
+                                    "baz",
+                                ),
                             ),
                         ),
                     ),
@@ -3673,7 +3755,9 @@ mod tests {
             ),
             Filter(
                 Description(
-                    "bar",
+                    Substring(
+                        "bar",
+                    ),
                 ),
             ),
         )
@@ -3706,19 +3790,25 @@ mod tests {
                     ),
                     Filter(
                         Author(
-                            "A",
+                            Substring(
+                                "A",
+                            ),
                         ),
                     ),
                 ),
                 Filter(
                     Author(
-                        "B",
+                        Substring(
+                            "B",
+                        ),
                     ),
                 ),
             ),
             Filter(
                 Author(
-                    "C",
+                    Substring(
+                        "C",
+                    ),
                 ),
             ),
         )
@@ -3757,19 +3847,25 @@ mod tests {
                     ),
                     Filter(
                         Author(
-                            "A",
+                            Substring(
+                                "A",
+                            ),
                         ),
                     ),
                 ),
                 Filter(
                     Author(
-                        "B",
+                        Substring(
+                            "B",
+                        ),
                     ),
                 ),
             ),
             Filter(
                 Author(
-                    "C",
+                    Substring(
+                        "C",
+                    ),
                 ),
             ),
         )
@@ -3788,13 +3884,17 @@ mod tests {
                 ),
                 Filter(
                     Description(
-                        "bar",
+                        Substring(
+                            "bar",
+                        ),
                     ),
                 ),
             ),
             Filter(
                 Author(
-                    "baz",
+                    Substring(
+                        "baz",
+                    ),
                 ),
             ),
         )
@@ -3815,7 +3915,9 @@ mod tests {
                 Union(
                     Filter(
                         Author(
-                            "foo",
+                            Substring(
+                                "foo",
+                            ),
                         ),
                     ),
                     CommitRef(
@@ -3846,7 +3948,9 @@ mod tests {
                         ),
                         Filter(
                             Committer(
-                                "bar",
+                                Substring(
+                                    "bar",
+                                ),
                             ),
                         ),
                     ),
@@ -3854,7 +3958,9 @@ mod tests {
             ),
             Filter(
                 Description(
-                    "baz",
+                    Substring(
+                        "baz",
+                    ),
                 ),
             ),
         )
@@ -3882,7 +3988,9 @@ mod tests {
                                         ),
                                         Filter(
                                             Author(
-                                                "foo",
+                                                Substring(
+                                                    "foo",
+                                                ),
                                             ),
                                         ),
                                     ),
@@ -3931,7 +4039,9 @@ mod tests {
                         Union(
                             Filter(
                                 Author(
-                                    "A",
+                                    Substring(
+                                        "A",
+                                    ),
                                 ),
                             ),
                             CommitRef(
@@ -3946,7 +4056,9 @@ mod tests {
                     Union(
                         Filter(
                             Author(
-                                "B",
+                                Substring(
+                                    "B",
+                                ),
                             ),
                         ),
                         CommitRef(
@@ -3961,7 +4073,9 @@ mod tests {
                 Union(
                     Filter(
                         Author(
-                            "C",
+                            Substring(
+                                "C",
+                            ),
                         ),
                     ),
                     CommitRef(
