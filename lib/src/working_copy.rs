@@ -40,7 +40,7 @@ use thiserror::Error;
 use tracing::{instrument, trace_span};
 
 use crate::backend::{
-    BackendError, ConflictId, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
+    BackendError, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
 };
 use crate::conflicts;
 #[cfg(feature = "watchman")]
@@ -1109,10 +1109,9 @@ impl TreeState {
         &self,
         disk_path: &Path,
         path: &RepoPath,
-        id: &ConflictId,
+        conflict: &Merge<Option<TreeValue>>,
     ) -> Result<FileState, CheckoutError> {
         create_parent_dirs(&self.working_copy_path, path)?;
-        let conflict = self.store.read_conflict(path, id)?;
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true) // Don't overwrite un-ignored file. Don't follow symlink.
@@ -1122,7 +1121,7 @@ impl TreeState {
                 err,
             })?;
         let mut conflict_data = vec![];
-        conflicts::materialize(&conflict, self.store.as_ref(), path, &mut conflict_data)
+        conflicts::materialize(conflict, self.store.as_ref(), path, &mut conflict_data)
             .expect("Failed to materialize conflict to in-memory buffer");
         file.write_all(&conflict_data)
             .map_err(|err| CheckoutError::IoError {
@@ -1250,7 +1249,10 @@ impl TreeState {
                             self.write_file(&disk_path, &path, &id, executable)?
                         }
                         TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id)?,
-                        TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id)?,
+                        TreeValue::Conflict(id) => {
+                            let conflict = self.store.read_conflict(&path, &id)?;
+                            self.write_conflict(&disk_path, &path, &conflict)?
+                        }
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {path:?}");
                             FileState::for_gitsubmodule()
