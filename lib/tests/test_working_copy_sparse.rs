@@ -14,6 +14,7 @@
 
 use itertools::Itertools;
 use jj_lib::matchers::EverythingMatcher;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
@@ -49,7 +50,8 @@ fn test_sparse_checkout() {
     );
 
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
+    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree))
+        .unwrap();
 
     // Set sparse patterns to only dir1/
     let mut locked_wc = wc.start_mutation().unwrap();
@@ -150,7 +152,12 @@ fn test_sparse_commit() {
     );
 
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
+    wc.check_out(
+        repo.op_id().clone(),
+        None,
+        &MergedTree::legacy(tree.clone()),
+    )
+    .unwrap();
 
     // Set sparse patterns to only dir1/
     let mut locked_wc = wc.start_mutation().unwrap();

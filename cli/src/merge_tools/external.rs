@@ -12,6 +12,7 @@ use jj_lib::conflicts::{self, materialize_merge_result};
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::{EverythingMatcher, Matcher};
 use jj_lib::merge::Merge;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
@@ -192,7 +193,8 @@ fn check_out(
     std::fs::create_dir(&state_dir).map_err(DiffCheckoutError::SetUpDir)?;
     let mut tree_state = TreeState::init(store, wc_dir, state_dir)?;
     tree_state.set_sparse_patterns(sparse_patterns)?;
-    tree_state.check_out(tree)?;
+    let tree = MergedTree::legacy(tree.clone());
+    tree_state.check_out(&tree)?;
     Ok(tree_state)
 }
 
