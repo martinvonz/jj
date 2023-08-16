@@ -831,33 +831,29 @@ fn build_predicate_fn<'index>(
             let parent_count_range = parent_count_range.clone();
             pure_predicate_fn(move |entry| parent_count_range.contains(&entry.num_parents()))
         }
-        RevsetFilterPredicate::Description(needle) => {
-            let needle = needle.clone();
+        RevsetFilterPredicate::Description(pattern) => {
+            let pattern = pattern.clone();
             pure_predicate_fn(move |entry| {
-                store
-                    .get_commit(&entry.commit_id())
-                    .unwrap()
-                    .description()
-                    .contains(needle.as_str())
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
+                pattern.matches(commit.description())
             })
         }
-        RevsetFilterPredicate::Author(needle) => {
-            let needle = needle.clone();
+        RevsetFilterPredicate::Author(pattern) => {
+            let pattern = pattern.clone();
             // TODO: Make these functions that take a needle to search for accept some
             // syntax for specifying whether it's a regex and whether it's
             // case-sensitive.
             pure_predicate_fn(move |entry| {
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
-                commit.author().name.contains(needle.as_str())
-                    || commit.author().email.contains(needle.as_str())
+                pattern.matches(&commit.author().name) || pattern.matches(&commit.author().email)
             })
         }
-        RevsetFilterPredicate::Committer(needle) => {
-            let needle = needle.clone();
+        RevsetFilterPredicate::Committer(pattern) => {
+            let pattern = pattern.clone();
             pure_predicate_fn(move |entry| {
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
-                commit.committer().name.contains(needle.as_str())
-                    || commit.committer().email.contains(needle.as_str())
+                pattern.matches(&commit.committer().name)
+                    || pattern.matches(&commit.committer().email)
             })
         }
         RevsetFilterPredicate::File(paths) => {

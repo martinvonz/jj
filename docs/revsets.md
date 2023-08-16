@@ -86,17 +86,17 @@ revsets (expressions) as arguments.
 * `all()`: All visible commits in the repo.
 * `none()`: No commits. This function is rarely useful; it is provided for
   completeness.
-* `branches([needle])`: All local branch targets. If `needle` is specified,
+* `branches([pattern])`: All local branch targets. If `pattern` is specified,
   branches whose name contains the given string are selected. For example,
   `branches(push)` would match the branches `push-123` and `repushed` but not
   the branch `main`. If a branch is in a conflicted state, all its possible
   targets are included.
-* `remote_branches([branch_needle[, [remote=]remote_needle]])`: All remote
-  branch targets across all remotes. If just the `branch_needle` is specified,
+* `remote_branches([branch_pattern[, [remote=]remote_pattern]])`: All remote
+  branch targets across all remotes. If just the `branch_pattern` is specified,
   branches whose name contains the given string across all remotes are
-  selected. If both `branch_needle` and `remote_needle` are specified, the
+  selected. If both `branch_pattern` and `remote_pattern` are specified, the
   selection is further restricted to just the remotes whose name contains
-  `remote_needle`. For example, `remote_branches(push, ri)` would match the
+  `remote_pattern`. For example, `remote_branches(push, ri)` would match the
   branches `push-123@origin` and `repushed@private` but not `push-123@upstream`
   or `main@origin` or `main@upstream`. If a branch is in a conflicted state,
   all its possible targets are included.
@@ -118,13 +118,13 @@ revsets (expressions) as arguments.
 * `latest(x[, count])`: Latest `count` commits in `x`, based on committer
   timestamp. The default `count` is 1.
 * `merges()`: Merge commits.
-* `description(needle)`: Commits with the given string in their
+* `description(pattern)`: Commits with the given string in their
   description.
-* `author(needle)`: Commits with the given string in the author's name or
+* `author(pattern)`: Commits with the given string in the author's name or
   email.
 * `mine()`: Commits where the author's email matches the email of the current
   user.
-* `committer(needle)`: Commits with the given string in the committer's
+* `committer(pattern)`: Commits with the given string in the committer's
   name or email.
 * `empty()`: Commits modifying no files. This also includes `merges()` without
   user modifications and `root`.
