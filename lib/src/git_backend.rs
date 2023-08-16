@@ -241,9 +241,21 @@ fn commit_from_git_without_root_parent(commit: &git2::Commit) -> Commit {
     }
 }
 
+const EMPTY_STRING_PLACEHOLDER: &str = "JJ_EMPTY_STRING";
+
 fn signature_from_git(signature: git2::Signature) -> Signature {
-    let name = signature.name().unwrap_or("<no name>").to_owned();
-    let email = signature.email().unwrap_or("<no email>").to_owned();
+    let name = signature.name().unwrap_or_default();
+    let name = if name != EMPTY_STRING_PLACEHOLDER {
+        name.to_owned()
+    } else {
+        "".to_string()
+    };
+    let email = signature.email().unwrap_or_default();
+    let email = if email != EMPTY_STRING_PLACEHOLDER {
+        email.to_owned()
+    } else {
+        "".to_string()
+    };
     let timestamp = MillisSinceEpoch(signature.when().seconds() * 1000);
     let tz_offset = signature.when().offset_minutes();
     Signature {
@@ -257,8 +269,17 @@ fn signature_from_git(signature: git2::Signature) -> Signature {
 }
 
 fn signature_to_git(signature: &Signature) -> git2::Signature<'static> {
-    let name = &signature.name;
-    let email = &signature.email;
+    // git does not support empty names or emails
+    let name = if !signature.name.is_empty() {
+        &signature.name
+    } else {
+        EMPTY_STRING_PLACEHOLDER
+    };
+    let email = if !signature.email.is_empty() {
+        &signature.email
+    } else {
+        EMPTY_STRING_PLACEHOLDER
+    };
     let time = git2::Time::new(
         signature.timestamp.timestamp.0.div_euclid(1000),
         signature.timestamp.tz_offset,
@@ -974,6 +995,54 @@ mod tests {
             symlink.value(),
             &TreeValue::Symlink(SymlinkId::from_bytes(blob2.as_bytes()))
         );
+    }
+
+    #[test]
+    fn read_empty_string_placeholder() {
+        let git_signature1 = git2::Signature::new(
+            EMPTY_STRING_PLACEHOLDER,
+            "git.author@example.com",
+            &git2::Time::new(1000, 60),
+        )
+        .unwrap();
+        let signature1 = signature_from_git(git_signature1);
+        assert!(signature1.name.is_empty());
+        assert_eq!(signature1.email, "git.author@example.com");
+        let git_signature2 = git2::Signature::new(
+            "git committer",
+            EMPTY_STRING_PLACEHOLDER,
+            &git2::Time::new(2000, -480),
+        )
+        .unwrap();
+        let signature2 = signature_from_git(git_signature2);
+        assert_eq!(signature2.name, "git committer");
+        assert!(signature2.email.is_empty());
+    }
+
+    #[test]
+    fn write_empty_string_placeholder() {
+        let signature1 = Signature {
+            name: "".to_string(),
+            email: "someone@example.com".to_string(),
+            timestamp: Timestamp {
+                timestamp: MillisSinceEpoch(0),
+                tz_offset: 0,
+            },
+        };
+        let git_signature1 = signature_to_git(&signature1);
+        assert_eq!(git_signature1.name().unwrap(), EMPTY_STRING_PLACEHOLDER);
+        assert_eq!(git_signature1.email().unwrap(), "someone@example.com");
+        let signature2 = Signature {
+            name: "Someone".to_string(),
+            email: "".to_string(),
+            timestamp: Timestamp {
+                timestamp: MillisSinceEpoch(0),
+                tz_offset: 0,
+            },
+        };
+        let git_signature2 = signature_to_git(&signature2);
+        assert_eq!(git_signature2.name().unwrap(), "Someone");
+        assert_eq!(git_signature2.email().unwrap(), EMPTY_STRING_PLACEHOLDER);
     }
 
     /// Test that parents get written correctly
