@@ -1241,7 +1241,10 @@ impl TreeState {
                     }
                     stats.updated_files += 1;
                 }
-                (None, Some(after)) => {
+                (before, Some(after)) => {
+                    if before.is_some() {
+                        fs::remove_file(&disk_path).ok();
+                    }
                     let file_state = match after {
                         TreeValue::File { id, executable } => {
                             self.write_file(&disk_path, &path, &id, executable)?
@@ -1257,27 +1260,11 @@ impl TreeState {
                         }
                     };
                     self.file_states.insert(path, file_state);
-                    stats.added_files += 1;
-                }
-                (Some(_before), Some(after)) => {
-                    fs::remove_file(&disk_path).ok();
-                    let file_state = match after {
-                        TreeValue::File { id, executable } => {
-                            self.write_file(&disk_path, &path, &id, executable)?
-                        }
-                        TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id)?,
-                        TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id)?,
-                        TreeValue::GitSubmodule(_id) => {
-                            println!("ignoring git submodule at {path:?}");
-                            FileState::for_gitsubmodule()
-                        }
-                        TreeValue::Tree(_id) => {
-                            panic!("unexpected tree entry in diff at {path:?}");
-                        }
-                    };
-
-                    self.file_states.insert(path, file_state);
-                    stats.updated_files += 1;
+                    if before.is_none() {
+                        stats.added_files += 1;
+                    } else {
+                        stats.updated_files += 1;
+                    }
                 }
                 (None, None) => {
                     unreachable!()
