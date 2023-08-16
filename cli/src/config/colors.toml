@@ -33,7 +33,7 @@
 "conflict" = "red"
 "empty" = "green"
 "separator" = "bright black"
-"root" = {fg = "bright green", bold = true}
+"root" = "green"
 
 "working_copy" = { bold = true }
 "working_copy commit_id" = "bright blue"
