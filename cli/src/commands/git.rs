@@ -145,6 +145,9 @@ pub struct GitPushArgs {
     /// Push branches pointing to these commits
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
+    /// Push branches to the specified refspec
+    #[arg(long)]
+    refspec: Option<String>,
     /// Push this commit by creating a branch based on its change ID (can be
     /// repeated)
     #[arg(long, short)]
@@ -861,7 +864,10 @@ fn cmd_git_push(
     let mut new_heads = vec![];
     let mut force_pushed_branches = hashset! {};
     for (branch_name, update) in &branch_updates {
-        let qualified_name = format!("refs/heads/{branch_name}");
+        let qualified_name = args
+            .refspec
+            .clone()
+            .unwrap_or(format!("refs/heads/{branch_name}"));
         if let Some(new_target) = &update.new_target {
             new_heads.push(new_target.clone());
             let force = match &update.old_target {
