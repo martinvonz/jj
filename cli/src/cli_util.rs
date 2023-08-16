@@ -1397,9 +1397,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             self.update_working_copy(ui, maybe_old_commit.as_ref())?;
         }
         let settings = &self.settings;
-        if settings.user_name() == UserSettings::user_name_placeholder()
-            || settings.user_email() == UserSettings::user_email_placeholder()
-        {
+        if settings.user_name().is_empty() || settings.user_email().is_empty() {
             writeln!(
                 ui.warning(),
                 r#"Name and email not configured. Until configured, your commits will be created with the empty identity, and can't be pushed to remotes. To configure, run:

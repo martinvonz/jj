@@ -905,10 +905,14 @@ fn cmd_git_push(
         if commit.description().is_empty() {
             reasons.push("it has no description");
         }
-        if commit.author().name == UserSettings::user_name_placeholder()
-            || commit.author().email == UserSettings::user_email_placeholder()
-            || commit.committer().name == UserSettings::user_name_placeholder()
-            || commit.committer().email == UserSettings::user_email_placeholder()
+        if commit.author().name.is_empty()
+            || commit.author().name == UserSettings::USER_NAME_PLACEHOLDER
+            || commit.author().email.is_empty()
+            || commit.author().email == UserSettings::USER_EMAIL_PLACEHOLDER
+            || commit.committer().name.is_empty()
+            || commit.committer().name == UserSettings::USER_NAME_PLACEHOLDER
+            || commit.committer().email.is_empty()
+            || commit.committer().email == UserSettings::USER_EMAIL_PLACEHOLDER
         {
             reasons.push("it has no author and/or committer set");
         }

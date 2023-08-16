@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj` will fail attempts to snapshot new files larger than 1MiB by default. This behavior
   can be customized with the `snapshot.max-new-file-size` config option.
 
+* Author and committer signatures now use empty strings to represent unset
+  names and email addresses.
+  Older binaries may not warn user when attempting to `git push` commits
+  with such signatures.
+
 
 ### New features
 
