@@ -138,7 +138,7 @@ fn test_log_default() {
     │  [1m[38;5;10m(empty)[39m description 1[0m
     ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m4[0m[38;5;8m291e264[39m
     │  add a file
-    ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [1m[38;5;10mroot[0m [1m[38;5;4m0[0m[38;5;8m0000000[39m
+    ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
 
     // Color without graph
@@ -148,7 +148,7 @@ fn test_log_default() {
     [1m[38;5;10m(empty)[39m description 1[0m
     [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m4[0m[38;5;8m291e264[39m
     add a file
-    [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [1m[38;5;10mroot[0m [1m[38;5;4m0[0m[38;5;8m0000000[39m
+    [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
 }
 
@@ -233,7 +233,7 @@ fn test_log_obslog_divergence() {
     │  description 2
     │ @  [1m[4m[38;5;1mq[24mpvuntsm[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12m7[38;5;8ma17d52e[39m[0m
     ├─╯  [1mdescription 1[0m
-    ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [1m[38;5;10mroot[0m [1m[38;5;4m0[0m[38;5;8m0000000[39m
+    ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
 
     // Obslog and hidden divergent
@@ -274,7 +274,7 @@ fn test_log_git_head() {
     │  [1minitial[0m
     ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [38;5;5mmaster[39m [38;5;2mHEAD@git[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
     │  [38;5;2m(empty)[39m (no description set)
-    ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [1m[38;5;10mroot[0m [1m[38;5;4m0[0m[38;5;8m0000000[39m
+    ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
 }
 
