@@ -105,19 +105,10 @@ fn test_init_no_config_set(use_git: bool) {
         .get_wc_commit_id(&WorkspaceId::default())
         .unwrap();
     let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
-    assert_eq!(wc_commit.author().name, "(no name configured)".to_string());
-    assert_eq!(
-        wc_commit.author().email,
-        "(no email configured)".to_string()
-    );
-    assert_eq!(
-        wc_commit.committer().name,
-        "(no name configured)".to_string()
-    );
-    assert_eq!(
-        wc_commit.committer().email,
-        "(no email configured)".to_string()
-    );
+    assert_eq!(wc_commit.author().name, "".to_string());
+    assert_eq!(wc_commit.author().email, "".to_string());
+    assert_eq!(wc_commit.committer().name, "".to_string());
+    assert_eq!(wc_commit.committer().email, "".to_string());
 }
 
 #[test_case(false ; "local backend")]

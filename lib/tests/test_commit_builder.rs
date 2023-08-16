@@ -188,8 +188,7 @@ fn test_rewrite(use_git: bool) {
     );
 }
 
-// An author field with the placeholder name/email should get filled in on
-// rewrite
+// An author field with an empty name/email should get filled in on rewrite
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
 fn test_rewrite_update_missing_user(use_git: bool) {
@@ -208,10 +207,10 @@ fn test_rewrite_update_missing_user(use_git: bool) {
         )
         .write()
         .unwrap();
-    assert_eq!(initial_commit.author().name, "(no name configured)");
-    assert_eq!(initial_commit.author().email, "(no email configured)");
-    assert_eq!(initial_commit.committer().name, "(no name configured)");
-    assert_eq!(initial_commit.committer().email, "(no email configured)");
+    assert_eq!(initial_commit.author().name, "");
+    assert_eq!(initial_commit.author().email, "");
+    assert_eq!(initial_commit.committer().name, "");
+    assert_eq!(initial_commit.committer().email, "");
 
     let config = config::Config::builder()
         .set_override("user.name", "Configured User")

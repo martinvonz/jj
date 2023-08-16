@@ -483,14 +483,14 @@ fn test_git_push_missing_author() {
         &["git", "push", "--branch", "missing-name"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 574dffd73428 since it has no author and/or committer set
+    Error: Won't push commit 944313939bbd since it has no author and/or committer set
     "###);
     run_without_var("JJ_EMAIL", &["checkout", "root", "-m=initial"]);
     run_without_var("JJ_EMAIL", &["branch", "create", "missing-email"]);
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit e6c50f13f197 since it has no author and/or committer set
+    Error: Won't push commit 59354714f789 since it has no author and/or committer set
     "###);
 }
 
@@ -509,7 +509,7 @@ fn test_git_push_missing_committer() {
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-name"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit e009726caa4a since it has no author and/or committer set
+    Error: Won't push commit 4fd190283d1a since it has no author and/or committer set
     "###);
     test_env.jj_cmd_success(&workspace_root, &["checkout", "root"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "create", "missing-email"]);
@@ -517,7 +517,7 @@ fn test_git_push_missing_committer() {
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 27ec5f0793e6 since it has no author and/or committer set
+    Error: Won't push commit eab97428a6ec since it has no author and/or committer set
     "###);
 
     // Test message when there are multiple reasons (missing committer and
@@ -526,7 +526,7 @@ fn test_git_push_missing_committer() {
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit f73024ee65ec since it has no description and it has no author and/or committer set
+    Error: Won't push commit 1143ed607f54 since it has no description and it has no author and/or committer set
     "###);
 }
 

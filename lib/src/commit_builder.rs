@@ -70,10 +70,14 @@ impl CommitBuilder<'_> {
         commit.committer = settings.signature();
         // If the user had not configured a name and email before but now they have,
         // update the author fields with the new information.
-        if commit.author.name == UserSettings::user_name_placeholder() {
+        if commit.author.name.is_empty()
+            || commit.author.name == UserSettings::USER_NAME_PLACEHOLDER
+        {
             commit.author.name = commit.committer.name.clone();
         }
-        if commit.author.email == UserSettings::user_email_placeholder() {
+        if commit.author.email.is_empty()
+            || commit.author.email == UserSettings::USER_EMAIL_PLACEHOLDER
+        {
             commit.author.email = commit.committer.email.clone();
         }
         CommitBuilder {
