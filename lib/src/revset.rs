@@ -1095,8 +1095,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("mine", |name, arguments_pair, state| {
         expect_no_arguments(name, arguments_pair)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-            // TODO: use exact match
-            StringPattern::Substring(state.user_email.to_owned()),
+            StringPattern::Literal(state.user_email.to_owned()),
         )))
     });
     map.insert("committer", |name, arguments_pair, state| {
@@ -2865,7 +2864,7 @@ mod tests {
         assert_eq!(
             parse("mine()"),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-                StringPattern::Substring("test.user@example.com".to_string())
+                StringPattern::Literal("test.user@example.com".to_string())
             )))
         );
         assert_eq!(
