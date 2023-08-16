@@ -391,7 +391,7 @@ fn test_no_user_configured() {
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     Name and email not configured. Until configured, your commits will be created with the empty identity, and can't be pushed to remotes. To configure, run:
       jj config set --user user.name "Some One"
-      jj config set --user user.email someone@example.com"
+      jj config set --user user.email "someone@example.com"
     "###);
     let assert = test_env
         .jj_cmd(&repo_path, &["describe", "-m", "without email"])
@@ -401,7 +401,7 @@ fn test_no_user_configured() {
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     Name and email not configured. Until configured, your commits will be created with the empty identity, and can't be pushed to remotes. To configure, run:
       jj config set --user user.name "Some One"
-      jj config set --user user.email someone@example.com"
+      jj config set --user user.email "someone@example.com"
     "###);
 }
 
