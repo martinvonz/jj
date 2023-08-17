@@ -1222,17 +1222,15 @@ impl TreeState {
         matcher: &dyn Matcher,
         mut handle_error: impl FnMut(CheckoutError) -> Result<(), CheckoutError>,
     ) -> Result<CheckoutStats, CheckoutError> {
-        let mut stats = CheckoutStats {
-            updated_files: 0,
-            added_files: 0,
-            removed_files: 0,
-        };
-        let mut apply_diff = |path: RepoPath, diff: Diff<TreeValue>| -> Result<(), CheckoutError> {
+        let mut apply_diff = |path: RepoPath,
+                              before: Option<TreeValue>,
+                              after: Option<TreeValue>|
+         -> Result<(), CheckoutError> {
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
             // TODO: Check that the file has not changed before overwriting/removing it.
-            match diff.into_options() {
-                (Some(_before), None) => {
+            match after {
+                None => {
                     fs::remove_file(&disk_path).ok();
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
@@ -1242,9 +1240,8 @@ impl TreeState {
                         parent_dir = parent_dir.parent().unwrap();
                     }
                     self.file_states.remove(&path);
-                    stats.removed_files += 1;
                 }
-                (before, Some(after)) => {
+                Some(after) => {
                     if before.is_some() {
                         fs::remove_file(&disk_path).ok();
                     }
@@ -1266,21 +1263,26 @@ impl TreeState {
                         }
                     };
                     self.file_states.insert(path, file_state);
-                    if before.is_none() {
-                        stats.added_files += 1;
-                    } else {
-                        stats.updated_files += 1;
-                    }
-                }
-                (None, None) => {
-                    unreachable!()
                 }
             }
             Ok(())
         };
 
+        let mut stats = CheckoutStats {
+            updated_files: 0,
+            added_files: 0,
+            removed_files: 0,
+        };
         for (path, diff) in old_tree.diff(new_tree, matcher) {
-            apply_diff(path, diff).or_else(&mut handle_error)?;
+            let (before, after) = diff.into_options();
+            if after.is_none() {
+                stats.removed_files += 1;
+            } else if before.is_none() {
+                stats.added_files += 1;
+            } else {
+                stats.updated_files += 1;
+            }
+            apply_diff(path, before, after).or_else(&mut handle_error)?;
         }
         Ok(stats)
     }
