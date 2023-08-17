@@ -146,6 +146,7 @@ impl GitIgnoreLine {
     }
 }
 
+/// Models the effective contents of multiple .gitignore files.
 #[derive(Debug)]
 pub struct GitIgnoreFile {
     parent: Option<Arc<GitIgnoreFile>>,
@@ -198,31 +199,18 @@ impl GitIgnoreFile {
         }
     }
 
-    pub fn matches_file(&self, path: &str) -> bool {
+    /// Returns whether specified path (not just file!) should be ignored. This
+    /// method does not directly define which files should not be tracked in
+    /// the repository. Instead, it performs a simple matching against the
+    /// last applicable .gitignore line. The effective set of paths
+    /// ignored in the repository should take into account that all (untracked)
+    /// files within a ignored directory should be ignored unconditionally.
+    /// The code in this file does not take that into account.
+    pub fn matches(&self, path: &str) -> bool {
         // Later lines take precedence, so check them in reverse
         for line in self.all_lines_reversed() {
             if line.matches(path) {
                 return !line.is_negative;
-            }
-        }
-        false
-    }
-
-    pub fn matches_all_files_in(&self, dir: &str) -> bool {
-        // Later lines take precedence, so check them in reverse
-        assert!(dir.is_empty() || dir.ends_with('/'));
-        for line in self.all_lines_reversed() {
-            // Let's say there's a "/target/" pattern and then a "!interesting" pattern
-            // after it, then we can't say for sure that all files in target/ match.
-            // TODO: This can be smarter. For example, if there's a pattern "/foo/" followed
-            // by "!/bar/", then we can answer "true" for "foo/". A more complex
-            // case is if a pattern "/foo/" is followed "!/foo/bar/", then we
-            // can say "false" for "foo/" and "true" for "foo/baz/".
-            if line.is_negative {
-                return false;
-            }
-            if line.matches(dir) {
-                return true;
             }
         }
         false
@@ -234,36 +222,31 @@ mod tests {
 
     use super::*;
 
-    fn matches_file(input: &[u8], path: &str) -> bool {
+    fn matches(input: &[u8], path: &str) -> bool {
         let file = GitIgnoreFile::empty().chain("", input);
-        file.matches_file(path)
-    }
-
-    fn matches_all_files_in(input: &[u8], path: &str) -> bool {
-        let file = GitIgnoreFile::empty().chain("", input);
-        file.matches_all_files_in(path)
+        file.matches(path)
     }
 
     #[test]
     fn test_gitignore_empty_file() {
         let file = GitIgnoreFile::empty();
-        assert!(!file.matches_file("foo"));
+        assert!(!file.matches("foo"));
     }
 
     #[test]
     fn test_gitignore_empty_file_with_prefix() {
         let file = GitIgnoreFile::empty().chain("dir/", b"");
-        assert!(!file.matches_file("dir/foo"));
+        assert!(!file.matches("dir/foo"));
     }
 
     #[test]
     fn test_gitignore_literal() {
         let file = GitIgnoreFile::empty().chain("", b"foo\n");
-        assert!(file.matches_file("foo"));
-        assert!(file.matches_file("dir/foo"));
-        assert!(file.matches_file("dir/subdir/foo"));
-        assert!(!file.matches_file("food"));
-        assert!(!file.matches_file("dir/food"));
+        assert!(file.matches("foo"));
+        assert!(file.matches("dir/foo"));
+        assert!(file.matches("dir/subdir/foo"));
+        assert!(!file.matches("food"));
+        assert!(!file.matches("dir/food"));
     }
 
     #[test]
@@ -271,24 +254,24 @@ mod tests {
         let file = GitIgnoreFile::empty().chain("dir/", b"foo\n");
         // I consider it undefined whether a file in a parent directory matches, but
         // let's test it anyway
-        assert!(!file.matches_file("foo"));
-        assert!(file.matches_file("dir/foo"));
-        assert!(file.matches_file("dir/subdir/foo"));
+        assert!(!file.matches("foo"));
+        assert!(file.matches("dir/foo"));
+        assert!(file.matches("dir/subdir/foo"));
     }
 
     #[test]
     fn test_gitignore_pattern_same_as_prefix() {
         let file = GitIgnoreFile::empty().chain("dir/", b"dir\n");
-        assert!(file.matches_file("dir/dir"));
+        assert!(file.matches("dir/dir"));
         // We don't want the "dir" pattern to apply to the parent directory
-        assert!(!file.matches_file("dir/foo"));
+        assert!(!file.matches("dir/foo"));
     }
 
     #[test]
     fn test_gitignore_rooted_literal() {
         let file = GitIgnoreFile::empty().chain("", b"/foo\n");
-        assert!(file.matches_file("foo"));
-        assert!(!file.matches_file("dir/foo"));
+        assert!(file.matches("foo"));
+        assert!(!file.matches("dir/foo"));
     }
 
     #[test]
@@ -296,98 +279,98 @@ mod tests {
         let file = GitIgnoreFile::empty().chain("dir/", b"/foo\n");
         // I consider it undefined whether a file in a parent directory matches, but
         // let's test it anyway
-        assert!(!file.matches_file("foo"));
-        assert!(file.matches_file("dir/foo"));
-        assert!(!file.matches_file("dir/subdir/foo"));
+        assert!(!file.matches("foo"));
+        assert!(file.matches("dir/foo"));
+        assert!(!file.matches("dir/subdir/foo"));
     }
 
     #[test]
     fn test_gitignore_deep_dir() {
         let file = GitIgnoreFile::empty().chain("", b"/dir1/dir2/dir3\n");
-        assert!(!file.matches_file("foo"));
-        assert!(!file.matches_file("dir1/foo"));
-        assert!(!file.matches_file("dir1/dir2/foo"));
-        assert!(file.matches_file("dir1/dir2/dir3/foo"));
-        assert!(file.matches_file("dir1/dir2/dir3/dir4/foo"));
+        assert!(!file.matches("foo"));
+        assert!(!file.matches("dir1/foo"));
+        assert!(!file.matches("dir1/dir2/foo"));
+        assert!(file.matches("dir1/dir2/dir3/foo"));
+        assert!(file.matches("dir1/dir2/dir3/dir4/foo"));
     }
 
     #[test]
     fn test_gitignore_match_only_dir() {
         let file = GitIgnoreFile::empty().chain("", b"/dir/\n");
-        assert!(!file.matches_file("dir"));
-        assert!(file.matches_file("dir/foo"));
-        assert!(file.matches_file("dir/subdir/foo"));
+        assert!(!file.matches("dir"));
+        assert!(file.matches("dir/foo"));
+        assert!(file.matches("dir/subdir/foo"));
     }
 
     #[test]
     fn test_gitignore_unusual_symbols() {
-        assert!(matches_file(b"\\*\n", "*"));
-        assert!(!matches_file(b"\\*\n", "foo"));
-        assert!(matches_file(b"\\\n", "\\"));
-        assert!(matches_file(b"\\!\n", "!"));
-        assert!(matches_file(b"\\?\n", "?"));
-        assert!(!matches_file(b"\\?\n", "x"));
+        assert!(matches(b"\\*\n", "*"));
+        assert!(!matches(b"\\*\n", "foo"));
+        assert!(matches(b"\\\n", "\\"));
+        assert!(matches(b"\\!\n", "!"));
+        assert!(matches(b"\\?\n", "?"));
+        assert!(!matches(b"\\?\n", "x"));
         // Invalid escapes are treated like literal backslashes
-        assert!(matches_file(b"\\w\n", "\\w"));
-        assert!(!matches_file(b"\\w\n", "w"));
+        assert!(matches(b"\\w\n", "\\w"));
+        assert!(!matches(b"\\w\n", "w"));
     }
 
     #[test]
     fn test_gitignore_whitespace() {
-        assert!(!matches_file(b" \n", " "));
-        assert!(matches_file(b"\\ \n", " "));
-        assert!(matches_file(b"\\\\ \n", "\\"));
-        assert!(!matches_file(b"\\\\ \n", " "));
-        assert!(matches_file(b"\\\\\\ \n", "\\ "));
-        assert!(matches_file(b" a\n", " a"));
-        assert!(matches_file(b"a b\n", "a b"));
-        assert!(matches_file(b"a b \n", "a b"));
-        assert!(!matches_file(b"a b \n", "a b "));
-        assert!(matches_file(b"a b\\ \\ \n", "a b  "));
+        assert!(!matches(b" \n", " "));
+        assert!(matches(b"\\ \n", " "));
+        assert!(matches(b"\\\\ \n", "\\"));
+        assert!(!matches(b"\\\\ \n", " "));
+        assert!(matches(b"\\\\\\ \n", "\\ "));
+        assert!(matches(b" a\n", " a"));
+        assert!(matches(b"a b\n", "a b"));
+        assert!(matches(b"a b \n", "a b"));
+        assert!(!matches(b"a b \n", "a b "));
+        assert!(matches(b"a b\\ \\ \n", "a b  "));
         // It's unclear how this should be interpreted, but we count spaces before
         // escaped spaces
-        assert!(matches_file(b"a b \\  \n", "a b  "));
+        assert!(matches(b"a b \\  \n", "a b  "));
         // A single CR at EOL is ignored
-        assert!(matches_file(b"a\r\n", "a"));
-        assert!(!matches_file(b"a\r\n", "a\r"));
-        assert!(matches_file(b"a\r\r\n", "a\r"));
-        assert!(!matches_file(b"a\r\r\n", "a\r\r"));
-        assert!(matches_file(b"\ra\n", "\ra"));
-        assert!(!matches_file(b"\ra\n", "a"));
+        assert!(matches(b"a\r\n", "a"));
+        assert!(!matches(b"a\r\n", "a\r"));
+        assert!(matches(b"a\r\r\n", "a\r"));
+        assert!(!matches(b"a\r\r\n", "a\r\r"));
+        assert!(matches(b"\ra\n", "\ra"));
+        assert!(!matches(b"\ra\n", "a"));
     }
 
     #[test]
     fn test_gitignore_glob() {
-        assert!(!matches_file(b"*.o\n", "foo"));
-        assert!(matches_file(b"*.o\n", "foo.o"));
-        assert!(!matches_file(b"foo.?\n", "foo"));
-        assert!(!matches_file(b"foo.?\n", "foo."));
-        assert!(matches_file(b"foo.?\n", "foo.o"));
+        assert!(!matches(b"*.o\n", "foo"));
+        assert!(matches(b"*.o\n", "foo.o"));
+        assert!(!matches(b"foo.?\n", "foo"));
+        assert!(!matches(b"foo.?\n", "foo."));
+        assert!(matches(b"foo.?\n", "foo.o"));
     }
 
     #[test]
     fn test_gitignore_range() {
-        assert!(!matches_file(b"foo.[az]\n", "foo"));
-        assert!(matches_file(b"foo.[az]\n", "foo.a"));
-        assert!(!matches_file(b"foo.[az]\n", "foo.g"));
-        assert!(matches_file(b"foo.[az]\n", "foo.z"));
-        assert!(!matches_file(b"foo.[a-z]\n", "foo"));
-        assert!(matches_file(b"foo.[a-z]\n", "foo.a"));
-        assert!(matches_file(b"foo.[a-z]\n", "foo.g"));
-        assert!(matches_file(b"foo.[a-z]\n", "foo.z"));
-        assert!(matches_file(b"foo.[0-9a-fA-F]\n", "foo.5"));
-        assert!(matches_file(b"foo.[0-9a-fA-F]\n", "foo.c"));
-        assert!(matches_file(b"foo.[0-9a-fA-F]\n", "foo.E"));
-        assert!(!matches_file(b"foo.[0-9a-fA-F]\n", "foo._"));
+        assert!(!matches(b"foo.[az]\n", "foo"));
+        assert!(matches(b"foo.[az]\n", "foo.a"));
+        assert!(!matches(b"foo.[az]\n", "foo.g"));
+        assert!(matches(b"foo.[az]\n", "foo.z"));
+        assert!(!matches(b"foo.[a-z]\n", "foo"));
+        assert!(matches(b"foo.[a-z]\n", "foo.a"));
+        assert!(matches(b"foo.[a-z]\n", "foo.g"));
+        assert!(matches(b"foo.[a-z]\n", "foo.z"));
+        assert!(matches(b"foo.[0-9a-fA-F]\n", "foo.5"));
+        assert!(matches(b"foo.[0-9a-fA-F]\n", "foo.c"));
+        assert!(matches(b"foo.[0-9a-fA-F]\n", "foo.E"));
+        assert!(!matches(b"foo.[0-9a-fA-F]\n", "foo._"));
     }
 
     #[test]
     fn test_gitignore_leading_dir_glob() {
-        assert!(matches_file(b"**/foo\n", "foo"));
-        assert!(matches_file(b"**/foo\n", "dir1/dir2/foo"));
-        assert!(matches_file(b"**/foo\n", "foo/file"));
-        assert!(matches_file(b"**/dir/foo\n", "dir/foo"));
-        assert!(matches_file(b"**/dir/foo\n", "dir1/dir2/dir/foo"));
+        assert!(matches(b"**/foo\n", "foo"));
+        assert!(matches(b"**/foo\n", "dir1/dir2/foo"));
+        assert!(matches(b"**/foo\n", "foo/file"));
+        assert!(matches(b"**/dir/foo\n", "dir/foo"));
+        assert!(matches(b"**/dir/foo\n", "dir1/dir2/dir/foo"));
     }
 
     #[test]
@@ -395,46 +378,46 @@ mod tests {
         let file = GitIgnoreFile::empty().chain("dir1/dir2/", b"**/foo\n");
         // I consider it undefined whether a file in a parent directory matches, but
         // let's test it anyway
-        assert!(!file.matches_file("foo"));
-        assert!(file.matches_file("dir1/dir2/foo"));
-        assert!(!file.matches_file("dir1/dir2/bar"));
-        assert!(file.matches_file("dir1/dir2/sub1/sub2/foo"));
-        assert!(!file.matches_file("dir1/dir2/sub1/sub2/bar"));
+        assert!(!file.matches("foo"));
+        assert!(file.matches("dir1/dir2/foo"));
+        assert!(!file.matches("dir1/dir2/bar"));
+        assert!(file.matches("dir1/dir2/sub1/sub2/foo"));
+        assert!(!file.matches("dir1/dir2/sub1/sub2/bar"));
     }
 
     #[test]
     fn test_gitignore_trailing_dir_glob() {
-        assert!(!matches_file(b"abc/**\n", "abc"));
-        assert!(matches_file(b"abc/**\n", "abc/file"));
-        assert!(matches_file(b"abc/**\n", "abc/dir/file"));
+        assert!(!matches(b"abc/**\n", "abc"));
+        assert!(matches(b"abc/**\n", "abc/file"));
+        assert!(matches(b"abc/**\n", "abc/dir/file"));
     }
 
     #[test]
     fn test_gitignore_internal_dir_glob() {
-        assert!(matches_file(b"a/**/b\n", "a/b"));
-        assert!(matches_file(b"a/**/b\n", "a/x/b"));
-        assert!(matches_file(b"a/**/b\n", "a/x/y/b"));
-        assert!(!matches_file(b"a/**/b\n", "ax/y/b"));
-        assert!(!matches_file(b"a/**/b\n", "a/x/yb"));
-        assert!(!matches_file(b"a/**/b\n", "ab"));
+        assert!(matches(b"a/**/b\n", "a/b"));
+        assert!(matches(b"a/**/b\n", "a/x/b"));
+        assert!(matches(b"a/**/b\n", "a/x/y/b"));
+        assert!(!matches(b"a/**/b\n", "ax/y/b"));
+        assert!(!matches(b"a/**/b\n", "a/x/yb"));
+        assert!(!matches(b"a/**/b\n", "ab"));
     }
 
     #[test]
     fn test_gitignore_internal_dir_glob_not_really() {
-        assert!(!matches_file(b"a/x**y/b\n", "a/b"));
-        assert!(matches_file(b"a/x**y/b\n", "a/xy/b"));
-        assert!(matches_file(b"a/x**y/b\n", "a/xzzzy/b"));
+        assert!(!matches(b"a/x**y/b\n", "a/b"));
+        assert!(matches(b"a/x**y/b\n", "a/xy/b"));
+        assert!(matches(b"a/x**y/b\n", "a/xzzzy/b"));
     }
 
     #[test]
     fn test_gitignore_line_ordering() {
-        assert!(matches_file(b"foo\n!foo/bar\n", "foo"));
-        assert!(!matches_file(b"foo\n!foo/bar\n", "foo/bar"));
-        assert!(matches_file(b"foo\n!foo/bar\n", "foo/baz"));
-        assert!(matches_file(b"foo\n!foo/bar\nfoo/bar/baz", "foo"));
-        assert!(!matches_file(b"foo\n!foo/bar\nfoo/bar/baz", "foo/bar"));
-        assert!(matches_file(b"foo\n!foo/bar\nfoo/bar/baz", "foo/bar/baz"));
-        assert!(!matches_file(b"foo\n!foo/bar\nfoo/bar/baz", "foo/bar/quux"));
+        assert!(matches(b"foo\n!foo/bar\n", "foo"));
+        assert!(!matches(b"foo\n!foo/bar\n", "foo/bar"));
+        assert!(matches(b"foo\n!foo/bar\n", "foo/baz"));
+        assert!(matches(b"foo\n!foo/bar\nfoo/bar/baz", "foo"));
+        assert!(!matches(b"foo\n!foo/bar\nfoo/bar/baz", "foo/bar"));
+        assert!(matches(b"foo\n!foo/bar\nfoo/bar/baz", "foo/bar/baz"));
+        assert!(!matches(b"foo\n!foo/bar\nfoo/bar/baz", "foo/bar/quux"));
     }
 
     #[test]
@@ -442,21 +425,11 @@ mod tests {
         let file1 = GitIgnoreFile::empty().chain("", b"foo\n");
         let file2 = file1.chain("foo/", b"!bar");
         let file3 = file2.chain("foo/bar/", b"baz");
-        assert!(file1.matches_file("foo"));
-        assert!(file1.matches_file("foo/bar"));
-        assert!(!file2.matches_file("foo/bar"));
-        assert!(file2.matches_file("foo/baz"));
-        assert!(file3.matches_file("foo/bar/baz"));
-        assert!(!file3.matches_file("foo/bar/qux"));
-    }
-
-    #[test]
-    fn test_gitignore_match_dir() {
-        assert!(matches_all_files_in(b"foo\n", "foo/"));
-        assert!(matches_all_files_in(b"foo\nbar\n", "foo/"));
-        assert!(matches_all_files_in(b"!foo\nbar\n", "bar/"));
-        assert!(!matches_all_files_in(b"foo\n!bar\n", "foo/"));
-        // This one could return true, but it doesn't currently
-        assert!(!matches_all_files_in(b"foo\n!/bar\n", "foo/"));
+        assert!(file1.matches("foo"));
+        assert!(file1.matches("foo/bar"));
+        assert!(!file2.matches("foo/bar"));
+        assert!(file2.matches("foo/baz"));
+        assert!(file3.matches("foo/bar/baz"));
+        assert!(!file3.matches("foo/bar/qux"));
     }
 }

@@ -796,7 +796,7 @@ impl TreeState {
                 }
 
                 if file_type.is_dir() {
-                    if git_ignore.matches_all_files_in(&path.to_internal_dir_string()) {
+                    if git_ignore.matches(&path.to_internal_dir_string()) {
                         // If the whole directory is ignored, visit only paths we're already
                         // tracking.
                         let tracked_paths = self
@@ -867,7 +867,7 @@ impl TreeState {
                     }
                     let maybe_current_file_state = self.file_states.get(&path);
                     if maybe_current_file_state.is_none()
-                        && git_ignore.matches_file(&path.to_internal_file_string())
+                        && git_ignore.matches(&path.to_internal_file_string())
                     {
                         // If it wasn't already tracked and it matches
                         // the ignored paths, then

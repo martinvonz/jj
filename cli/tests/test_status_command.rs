@@ -39,3 +39,28 @@ fn test_status_merge() {
     Parent commit: zsuskuln 29b991e9 right
     "###);
 }
+
+// See https://github.com/martinvonz/jj/issues/2051.
+#[test]
+fn test_status_ignored_gitignore() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::create_dir(repo_path.join("untracked")).unwrap();
+    std::fs::write(repo_path.join("untracked").join("inside_untracked"), "test").unwrap();
+    std::fs::write(
+        repo_path.join("untracked").join(".gitignore"),
+        "!inside_untracked\n",
+    )
+    .unwrap();
+    std::fs::write(repo_path.join(".gitignore"), "untracked/\n!dummy\n").unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy changes:
+    A .gitignore
+    Working copy : qpvuntsm 88a40909 (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+}
