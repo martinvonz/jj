@@ -114,13 +114,6 @@ impl FileState {
             size: 0,
         }
     }
-
-    #[cfg(unix)]
-    fn mark_executable(&mut self, executable: bool) {
-        if let FileType::Normal { .. } = &self.file_type {
-            self.file_type = FileType::Normal { executable }
-        }
-    }
 }
 
 pub struct TreeState {
@@ -1250,23 +1243,6 @@ impl TreeState {
                     }
                     self.file_states.remove(&path);
                     stats.removed_files += 1;
-                }
-                (
-                    Some(TreeValue::File {
-                        id: old_id,
-                        executable: old_executable,
-                    }),
-                    Some(TreeValue::File { id, executable }),
-                ) if id == old_id => {
-                    // Optimization for when only the executable bit changed
-                    assert_ne!(executable, old_executable);
-                    #[cfg(unix)]
-                    {
-                        self.set_executable(&disk_path, executable)?;
-                        let file_state = self.file_states.get_mut(&path).unwrap();
-                        file_state.mark_executable(executable);
-                    }
-                    stats.updated_files += 1;
                 }
                 (before, Some(after)) => {
                     if before.is_some() {
