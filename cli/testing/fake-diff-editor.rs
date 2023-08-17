@@ -28,6 +28,10 @@ struct Args {
 
     /// Path to the "after" directory
     after: PathBuf,
+
+    /// Ignored argument
+    #[arg(long)]
+    _ignore: Vec<String>,
 }
 
 fn files_recursively(dir: &Path) -> HashSet<String> {
