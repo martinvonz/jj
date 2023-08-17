@@ -1223,14 +1223,14 @@ impl TreeState {
         mut handle_error: impl FnMut(CheckoutError) -> Result<(), CheckoutError>,
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut apply_diff = |path: RepoPath,
-                              before: Option<TreeValue>,
-                              after: Option<TreeValue>|
+                              before: Merge<Option<TreeValue>>,
+                              after: Merge<Option<TreeValue>>|
          -> Result<(), CheckoutError> {
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
             // TODO: Check that the file has not changed before overwriting/removing it.
-            match after {
-                None => {
+            match after.into_resolved() {
+                Ok(None) => {
                     fs::remove_file(&disk_path).ok();
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
@@ -1241,8 +1241,8 @@ impl TreeState {
                     }
                     self.file_states.remove(&path);
                 }
-                Some(after) => {
-                    if before.is_some() {
+                Ok(Some(after)) => {
+                    if before.is_present() {
                         fs::remove_file(&disk_path).ok();
                     }
                     let file_state = match after {
@@ -1264,6 +1264,9 @@ impl TreeState {
                     };
                     self.file_states.insert(path, file_state);
                 }
+                Err(_after_conflict) => {
+                    todo!("write conflict to the working copy");
+                }
             }
             Ok(())
         };
@@ -1282,7 +1285,8 @@ impl TreeState {
             } else {
                 stats.updated_files += 1;
             }
-            apply_diff(path, before, after).or_else(&mut handle_error)?;
+            apply_diff(path, Merge::resolved(before), Merge::resolved(after))
+                .or_else(&mut handle_error)?;
         }
         Ok(stats)
     }
