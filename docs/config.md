@@ -122,7 +122,7 @@ Parts of the style that are not overridden - such as the foreground color in the
 example above - are inherited from the parent style.
 
 Which elements can be colored is not yet documented, but see
-the [default color configuration](https://github.com/martinvonz/jj/blob/main/src/config/colors.toml)
+the [default color configuration](https://github.com/martinvonz/jj/blob/main/cli/src/config/colors.toml)
 for some examples of what's possible.
 
 ### Default command
