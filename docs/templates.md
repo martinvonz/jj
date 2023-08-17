@@ -165,7 +165,7 @@ The following methods are defined.
 
 ## Configuration
 
-[The default templates and aliases](../src/config/templates.toml) are defined
+[The default templates and aliases](../cli/src/config/templates.toml) are defined
 in the `[templates]` and `[template-aliases]` sections respectively.
 
 New keywords and functions can be defined as aliases, by using any
