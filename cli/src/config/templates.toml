@@ -29,7 +29,7 @@ op_log = 'builtin_op_log_compact'
 show = 'builtin_log_detailed'
 
 [template-aliases]
-'builtin_log_oneline' = '''
+builtin_log_oneline = '''
 if(root,
   builtin_log_root(change_id, commit_id),
   label(if(current_working_copy, "working_copy"),
@@ -55,7 +55,7 @@ if(root,
   )
 )
 '''
-'builtin_log_compact' = '''
+builtin_log_compact = '''
 if(root,
   builtin_log_root(change_id, commit_id),
   label(if(current_working_copy, "working_copy"),
@@ -121,8 +121,8 @@ separate(" ",
 )
 '''
 
-'description_placeholder' = 'label("description", "(no description set)")'
-'commit_summary_separator' = 'label("separator", " | ")'
+description_placeholder = 'label("description placeholder", "(no description set)")'
+commit_summary_separator = 'label("separator", " | ")'
 
 # Hook points for users to customize the default templates:
 'format_short_id(id)' = 'id.shortest(8)'
