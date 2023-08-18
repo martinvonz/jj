@@ -76,12 +76,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj split` will now leave the description empty on the second part if the
   description was empty on the input commit.
 
-* Revsets gained a new function `mine()` that aliases `author([your_email])`.
-
 * `branches()`/`remote_branches()`/`author()`/`committer()`/`description()`
   revsets now support literal matching. For example, `branch(literal:main)`
   selects the branch named "main", but not "maint". `description(literal:"")`
   selects commits whose description is empty.
+
+* Revsets gained a new function `mine()` that aliases `author([literal:"your_email"])`.
 
 ### Fixed bugs
 
