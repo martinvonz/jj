@@ -1,0 +1,23 @@
+# The `dev-dependencies` section sets up tools for building `jj`
+# documentation. `poetry` will install these in a virtual environment.
+# The other sections are unused.
+[tool.poetry]
+name = "jj-docs"
+version = "0"
+description = ""
+authors = []
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+mkdocs = "^1.5.2"
+mkdocs-material = "^9.2.5"
+# Makes `install-and-setup.md` open by default instead of `index.md`.
+mkdocs-redirects = "^1.2.1"
+# Versioning of documentation
+mike = "^1.1.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -64,6 +64,9 @@ excellent resources at https://www.rust-lang.org/learn, we recommend the
 ["Comprehensive Rust" mini-course](https://google.github.io/comprehensive-rust/)
 for an overview, especially if you are familiar with C++.
 
+<!--- TODO: A section asking for people to report documentation bugs and
+ ---- asking them to check if the problem exists in the prerelease docs.
+ ---->
 
 ## Setting up a development environment
 
@@ -131,7 +134,60 @@ These are listed roughly in order of decreasing importance.
    use `nextest` with `insta`,
    use `cargo insta test --workspace --test-runner nextest`.
 
- ## Modifying protobuffers (this is not common)
+## Previewing the HTML documentation
+
+<!---- Short-term TODO: More docs follow in a subsequent commit ---->
+
+### Setting up the prerequisites
+
+To build the website, you must have Python and `poetry` installed. If
+your distribution packages `poetry`, something like `apt install
+python3-poetry` is likely the best way to install it. Otherwise, you
+can download Python from <https://python.org> or follow the [Python
+installation instructions]. Finally, follow the [Poetry installation
+instructions].
+
+[Python installation instructions]: https://docs.python.org/3/using/index.html
+[Poetry installation instructions]: https://python-poetry.org/docs/#installation 
+
+Once you have `poetry` installed, you should ask it to install the rest
+of the required tools into a virtual environment as follows:
+
+```shell
+poetry install
+```
+
+If you get requests to "unlock a keyring" or error messages about failing to do
+so, this is a [known `poetry`
+bug](https://github.com/python-poetry/poetry/issues/1917). The workaround is to
+run the following and then to try `poetry install` again:
+
+```shell
+# For sh-compatible shells or recent versions of `fish`
+export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring
+```
+
+### Building the HTML docs locally (with live reload)
+
+The HTML docs are built with [MkDocs](https://github.com/mkdocs/mkdocs). After
+following the above steps, you should be able to view the docs by running
+
+```shell
+# Note: this and all the commands below should be run from the root of
+# the `jj` source tree.
+poetry run -- mkdocs serve
+```
+
+and opening <http://127.0.0.1:8000> in your browser.
+
+As you edit the `md` files, the website should be rebuilt and reloaded in your
+browser automatically, unless build errors occur.
+
+You should occasionally check the terminal from which you ran `mkdocs serve` for
+any build errors or warnings. Warnings about `"GET /versions.json HTTP/1.1" code
+404` are expected and harmless.
+
+## Modifying protobuffers (this is not common)
 
  Occasionally, you may need to change the `.proto` files that define jj's data
  storage format. In this case, you will need to add a few steps to the above

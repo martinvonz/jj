@@ -1,0 +1,80 @@
+site_name: Jujutsu docs
+site_dir:  'rendered-docs'
+# Not having this (or viewing the site locally, or from any place other than the
+# site_url) leads to version switching failing to preserve the current path.
+site_url: !ENV [SITE_URL_FOR_MKDOCS, 'https://martinvonz.github.io/jj/']
+theme:
+  name: 'material'
+  language: 'en'
+  features:
+    # - navigation.top
+extra:
+  version:
+    provider: mike
+plugins:
+    - search
+    - redirects:
+        redirect_maps:
+            'index.md': 'install-and-setup.md'
+
+# Not all of these may be necessary, especially since the material
+# theme substitutes for some of them
+markdown_extensions:
+  - toc:
+      permalink: true
+  - extra
+  - sane_lists
+  - admonition
+  - codehilite:
+      guess_lang: false
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+
+# This lists all the files that become part of the documentation
+nav:
+- 'Getting started':
+      - 'Installation and Setup': 'install-and-setup.md'
+      - 'Tutorial and Birds-Eye View': 'tutorial.md'
+      - 'Working with Github': 'github.md'
+
+- FAQ: 'FAQ.md'
+
+- Concepts:
+      - 'Working Copy': 'working-copy.md'
+      - 'Branches': 'branches.md'
+      - 'Conflicts': 'conflicts.md'
+      - 'Operation Log': 'operation-log.md'
+      - 'Glossary': 'glossary.md'
+
+- 'Configuration':
+      - 'Settings': 'config.md'
+      - 'Revset language': 'revsets.md'
+      - 'Templating language': 'templates.md'
+
+- 'Comparisons':
+      - 'Git comparison': 'git-comparison.md'
+      - 'Git compatibility': 'git-compatibility.md'
+      - 'Sapling': 'sapling-comparison.md'
+      - 'Other related work': 'related-work.md'
+
+- 'Technical details':
+      - 'Architecture': 'technical/architecture.md'
+      - 'Concurrency': 'technical/concurrency.md'
+      - 'Conflicts': 'technical/conflicts.md'
+
+- Contributing:
+      - 'Guidelines and "How to...?"': 'contributing.md'
+      - 'Code of conduct': 'code-of-conduct.md'
+
+- 'Design docs': 
+    - 'git-submodules': 'design/git-submodules.md'
+    - 'git-submodule-storage': 'design/git-submodule-storage.md'
+    - 'Tracking branches': 'design/tracking-branches.md'
+
+

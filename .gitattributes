@@ -1,2 +1,3 @@
 Cargo.lock linguist-generated=true merge=binary
 flake.lock linguist-generated=true merge=binary
+poetry.lock linguist-generated=true merge=binary
