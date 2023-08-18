@@ -382,20 +382,32 @@ fn build_signature_method<'a, L: TemplateLanguage<'a>>(
         "name" => {
             template_parser::expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                signature.name
+                if !signature.name.is_empty() {
+                    signature.name
+                } else {
+                    "(no name available)".to_string()
+                }
             }))
         }
         "email" => {
             template_parser::expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                signature.email
+                if !signature.email.is_empty() {
+                    signature.email
+                } else {
+                    "(no email available)".to_string()
+                }
             }))
         }
         "username" => {
             template_parser::expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                let (username, _) = text_util::split_email(&signature.email);
-                username.to_owned()
+                if !signature.email.is_empty() {
+                    let (username, _) = text_util::split_email(&signature.email);
+                    username.to_owned()
+                } else {
+                    "(no username available)".to_string()
+                }
             }))
         }
         "timestamp" => {

@@ -57,9 +57,17 @@ impl<C, T: Template<C> + ?Sized> Template<C> for Box<T> {
 
 impl Template<()> for Signature {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        write!(formatter.labeled("name"), "{}", self.name)?;
+        if !self.name.is_empty() {
+            write!(formatter.labeled("name"), "{}", self.name)?;
+        } else {
+            write!(formatter.labeled("name"), "(no name available)")?;
+        }
         write!(formatter, " <")?;
-        write!(formatter.labeled("email"), "{}", self.email)?;
+        if !self.email.is_empty() {
+            write!(formatter.labeled("email"), "{}", self.email)?;
+        } else {
+            write!(formatter.labeled("email"), "(no email available)")?;
+        }
         write!(formatter, ">")?;
         Ok(())
     }
