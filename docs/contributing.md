@@ -71,7 +71,7 @@ To develop `jj`, the mandatory steps are simply
 to [install Rust](https://www.rust-lang.org/tools/install) (the default
 installer options are fine), clone the repository, and use `cargo build`
 , `cargo fmt`,
-`cargo clippy --workspace --all-targets`, and  
+`cargo clippy --workspace --all-targets`, and
 `cargo test --workspace`. If you are preparing a PR, there are some additional
 recommended steps.
 
@@ -92,7 +92,7 @@ During development (adapt according to your preference):
        && cargo +1.71 check --workspace --all-targets'
     cargo +nightly fmt # Occasionally
     cargo nextest run --workspace # Occasionally
-    cargo insta test --workspace # Occasionally
+    cargo insta test --workspace --test-runner nextest # Occasionally
 
 WARNING: Build artifacts from debug builds and especially from repeated
 invocations of `cargo test` can quickly take up 10s of GB of disk space.
@@ -130,15 +130,15 @@ These are listed roughly in order of decreasing importance.
 6. To run tests more quickly, use `cargo nextest run --workspace`. To
    use `nextest` with `insta`,
    use `cargo insta test --workspace --test-runner nextest`.
- 
+
  ## Modifying protobuffers (this is not common)
- 
+
  Occasionally, you may need to change the `.proto` files that define jj's data
  storage format. In this case, you will need to add a few steps to the above
  workflow.
- 
+
  - Install the `protoc` compiler. This usually means either `apt-get install
-   protobuf-compiler` or downloading [an official release]. The 
+   protobuf-compiler` or downloading [an official release]. The
    [`prost` library docs] have additional advice.
  - Run `cargo run -p gen-protos` regularly (or after every edit to a `.proto`
    file). This is the same as running `cargo run` from `lib/gen-protos`. The
