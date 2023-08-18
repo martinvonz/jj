@@ -187,8 +187,8 @@ fn test_log_builtin_templates() {
     │
     ◉  Commit ID: 0000000000000000000000000000000000000000
        Change ID: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-       Author:  <> (1970-01-01 00:00:00.000 +00:00)
-       Committer:  <> (1970-01-01 00:00:00.000 +00:00)
+       Author: (no name available) <(no email available)> (1970-01-01 00:00:00.000 +00:00)
+       Committer: (no name available) <(no email available)> (1970-01-01 00:00:00.000 +00:00)
 
            (no description set)
 

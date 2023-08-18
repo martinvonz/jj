@@ -418,6 +418,20 @@ fn test_templater_signature() {
     insta::assert_snapshot!(render(r#"author"#), @"Test User <x@y>");
     insta::assert_snapshot!(render(r#"author.email()"#), @"x@y");
     insta::assert_snapshot!(render(r#"author.username()"#), @"x");
+
+    test_env.jj_cmd_ok(&repo_path, &["--config-toml=user.name=''", "new"]);
+
+    insta::assert_snapshot!(render(r#"author"#), @"(no name available) <test.user@example.com>");
+    insta::assert_snapshot!(render(r#"author.name()"#), @"(no name available)");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@example.com");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
+
+    test_env.jj_cmd_ok(&repo_path, &["--config-toml=user.email=''", "new"]);
+
+    insta::assert_snapshot!(render(r#"author"#), @"Test User <(no email available)>");
+    insta::assert_snapshot!(render(r#"author.name()"#), @"Test User");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"(no email available)");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"(no username available)");
 }
 
 #[test]
@@ -601,7 +615,7 @@ fn test_templater_concat_function() {
     let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
     insta::assert_snapshot!(render(r#"concat()"#), @"");
-    insta::assert_snapshot!(render(r#"concat(author, empty)"#), @" <>[38;5;2mtrue[39m");
+    insta::assert_snapshot!(render(r#"concat(author, empty)"#), @"(no name available) <[38;5;3m(no email available)[39m>[38;5;2mtrue[39m");
     insta::assert_snapshot!(
         render(r#"concat(label("error", ""), label("warning", "a"), "b")"#),
         @"[38;5;3ma[39mb");
@@ -651,11 +665,11 @@ fn test_templater_separate_function() {
 
     // Separate keywords
     insta::assert_snapshot!(
-        render(r#"separate(" ", author, description, empty)"#), @" <> [38;5;2mtrue[39m");
+        render(r#"separate(" ", author, description, empty)"#), @"(no name available) <[38;5;3m(no email available)[39m> [38;5;2mtrue[39m");
 
     // Keyword as separator
     insta::assert_snapshot!(
-        render(r#"separate(author, "X", "Y", "Z")"#), @"X <>Y <>Z");
+        render(r#"separate(author, "X", "Y", "Z")"#), @"X(no name available) <[38;5;3m(no email available)[39m>Y(no name available) <[38;5;3m(no email available)[39m>Z");
 }
 
 #[test]
