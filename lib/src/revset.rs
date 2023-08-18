@@ -1324,7 +1324,7 @@ fn parse_function_argument_to_string_pattern(
             };
             match kind.as_ref() {
                 "literal" => StringPattern::Literal(needle.clone()),
-                // TODO: maybe add explicit kind for substring match?
+                "substring" => StringPattern::Substring(needle.clone()),
                 _ => {
                     // TODO: error span can be narrowed to the lhs node
                     return Err(make_error(format!(
@@ -2696,6 +2696,12 @@ mod tests {
         assert_eq!(
             parse(r#"branches(literal:"foo")"#),
             Ok(RevsetExpression::branches(StringPattern::Literal(
+                "foo".to_owned()
+            )))
+        );
+        assert_eq!(
+            parse(r#"branches(substring:"foo")"#),
+            Ok(RevsetExpression::branches(StringPattern::Substring(
                 "foo".to_owned()
             )))
         );

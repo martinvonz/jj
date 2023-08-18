@@ -141,8 +141,8 @@ revsets (expressions) as arguments.
 
 Functions that perform string matching support the following pattern syntax.
 
-* `"substring"`: Matches strings that contain `substring`.
-* `literal:"string"`:  Matches strings exactly equal to `string`.
+* `"string"`, `substring:"string"`: Matches strings that contain `string`.
+* `literal:"string"`: Matches strings exactly equal to `string`.
 
 ## Aliases
 
