@@ -575,6 +575,21 @@ fn is_remote_exists_err(err: &git2::Error) -> bool {
     )
 }
 
+pub fn add_remote(
+    git_repo: &git2::Repository,
+    remote_name: &str,
+    url: &str,
+) -> Result<(), GitRemoteManagementError> {
+    git_repo.remote(remote_name, url).map_err(|err| {
+        if is_remote_exists_err(&err) {
+            GitRemoteManagementError::RemoteAlreadyExists(remote_name.to_owned())
+        } else {
+            GitRemoteManagementError::InternalGitError(err)
+        }
+    })?;
+    Ok(())
+}
+
 pub fn remove_remote(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
