@@ -40,9 +40,7 @@ use jj_lib::merge::Merge;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
-use jj_lib::revset::{
-    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt,
-};
+use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
 use jj_lib::revset_graph::{
     ReverseRevsetGraphIterator, RevsetGraphEdgeType, TopoGroupedRevsetGraphIterator,
 };
@@ -1724,13 +1722,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                  the working copy commit, pass -r '@' instead."
             )?;
         } else if revset.is_empty()
-            && revset::parse(
-                only_path,
-                &RevsetAliasesMap::new(),
-                &command.settings().user_email(),
-                Some(&workspace_command.revset_context()),
-            )
-            .is_ok()
+            && revset::parse(only_path, &workspace_command.revset_parse_context()).is_ok()
         {
             writeln!(
                 ui.warning(),
@@ -2521,9 +2513,7 @@ from the source will be moved into the parent.
             if matches.value_source("revision").unwrap() == ValueSource::DefaultValue
                 && revset::parse(
                     only_path,
-                    &RevsetAliasesMap::new(),
-                    &command.settings().user_email(),
-                    Some(&tx.base_workspace_helper().revset_context()),
+                    &tx.base_workspace_helper().revset_parse_context(),
                 )
                 .is_ok()
             {

@@ -31,7 +31,8 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
     optimize, parse, DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetExpression,
-    RevsetFilterPredicate, RevsetResolutionError, RevsetWorkspaceContext, SymbolResolver as _,
+    RevsetFilterPredicate, RevsetParseContext, RevsetResolutionError, RevsetWorkspaceContext,
+    SymbolResolver as _,
 };
 use jj_lib::revset_graph::{ReverseRevsetGraphIterator, RevsetGraphEdge};
 use jj_lib::settings::GitSettings;
@@ -172,8 +173,13 @@ fn test_resolve_symbol_commit_id() {
     // Test present() suppresses only NoSuchRevision error
     assert_eq!(resolve_commit_ids(repo.as_ref(), "present(foo)"), []);
     let symbol_resolver = DefaultSymbolResolver::new(repo.as_ref());
+    let context = RevsetParseContext {
+        aliases_map: &RevsetAliasesMap::new(),
+        user_email: settings.user_email(),
+        workspace: None,
+    };
     assert_matches!(
-        optimize(parse("present(04)", &RevsetAliasesMap::new(), &settings.user_email(), None).unwrap()).resolve_user_expression(repo.as_ref(), &symbol_resolver),
+        optimize(parse("present(04)", &context).unwrap()).resolve_user_expression(repo.as_ref(), &symbol_resolver),
         Err(RevsetResolutionError::AmbiguousCommitIdPrefix(s)) if s == "04"
     );
     assert_eq!(
@@ -734,15 +740,12 @@ fn test_resolve_symbol_git_refs() {
 
 fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let settings = testutils::user_settings();
-    let expression = optimize(
-        parse(
-            revset_str,
-            &RevsetAliasesMap::new(),
-            &settings.user_email(),
-            None,
-        )
-        .unwrap(),
-    );
+    let context = RevsetParseContext {
+        aliases_map: &RevsetAliasesMap::new(),
+        user_email: settings.user_email(),
+        workspace: None,
+    };
+    let expression = optimize(parse(revset_str, &context).unwrap());
     let symbol_resolver = DefaultSymbolResolver::new(repo);
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)
@@ -762,15 +765,12 @@ fn resolve_commit_ids_in_workspace(
         workspace_id: workspace.workspace_id(),
         workspace_root: workspace.workspace_root(),
     };
-    let expression = optimize(
-        parse(
-            revset_str,
-            &RevsetAliasesMap::new(),
-            &settings.user_email(),
-            Some(&workspace_ctx),
-        )
-        .unwrap(),
-    );
+    let context = RevsetParseContext {
+        aliases_map: &RevsetAliasesMap::new(),
+        user_email: settings.user_email(),
+        workspace: Some(workspace_ctx),
+    };
+    let expression = optimize(parse(revset_str, &context).unwrap());
     let symbol_resolver = DefaultSymbolResolver::new(repo);
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)

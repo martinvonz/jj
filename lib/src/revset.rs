@@ -732,7 +732,7 @@ struct ParseState<'a> {
     aliases_expanding: &'a [RevsetAliasId<'a>],
     locals: &'a HashMap<&'a str, Rc<RevsetExpression>>,
     user_email: &'a str,
-    workspace_ctx: Option<&'a RevsetWorkspaceContext<'a>>,
+    workspace_ctx: &'a Option<RevsetWorkspaceContext<'a>>,
 }
 
 impl ParseState<'_> {
@@ -1387,16 +1387,14 @@ fn parse_function_argument_as_literal<T: FromStr>(
 
 pub fn parse(
     revset_str: &str,
-    aliases_map: &RevsetAliasesMap,
-    user_email: &str,
-    workspace_ctx: Option<&RevsetWorkspaceContext>,
+    context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let state = ParseState {
-        aliases_map,
+        aliases_map: context.aliases_map,
         aliases_expanding: &[],
         locals: &HashMap::new(),
-        user_email,
-        workspace_ctx,
+        user_email: &context.user_email,
+        workspace_ctx: &context.workspace,
     };
     parse_program(revset_str, state)
 }
@@ -2390,6 +2388,14 @@ impl Iterator for ReverseRevsetIterator {
     }
 }
 
+/// Information needed to parse revset expression.
+#[derive(Clone, Debug)]
+pub struct RevsetParseContext<'a> {
+    pub aliases_map: &'a RevsetAliasesMap,
+    pub user_email: String,
+    pub workspace: Option<RevsetWorkspaceContext<'a>>,
+}
+
 /// Workspace information needed to parse revset expression.
 #[derive(Clone, Debug)]
 pub struct RevsetWorkspaceContext<'a> {
@@ -2421,8 +2427,13 @@ mod tests {
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
         }
+        let context = RevsetParseContext {
+            aliases_map: &aliases_map,
+            user_email: "test.user@example.com".to_string(),
+            workspace: None,
+        };
         // Map error to comparable object
-        super::parse(revset_str, &aliases_map, "test.user@example.com", None).map_err(|e| e.kind)
+        super::parse(revset_str, &context).map_err(|e| e.kind)
     }
 
     fn parse_with_aliases_and_workspace(
@@ -2440,14 +2451,13 @@ mod tests {
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
         }
+        let context = RevsetParseContext {
+            aliases_map: &aliases_map,
+            user_email: "test.user@example.com".to_string(),
+            workspace: Some(workspace_ctx),
+        };
         // Map error to comparable object
-        super::parse(
-            revset_str,
-            &aliases_map,
-            "test.user@example.com",
-            Some(&workspace_ctx),
-        )
-        .map_err(|e| e.kind)
+        super::parse(revset_str, &context).map_err(|e| e.kind)
     }
 
     #[test]
