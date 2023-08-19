@@ -74,9 +74,9 @@ pub struct LayeredConfigs {
 
 impl LayeredConfigs {
     /// Initializes configs with infallible sources.
-    pub fn from_environment() -> Self {
+    pub fn from_environment(default: config::Config) -> Self {
         LayeredConfigs {
-            default: default_config(),
+            default,
             env_base: env_base(),
             user: None,
             repo: None,

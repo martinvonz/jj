@@ -2587,6 +2587,7 @@ pub fn handle_command_result(
 pub struct CliRunner {
     tracing_subscription: TracingSubscription,
     app: Command,
+    extra_configs: Option<config::Config>,
     store_factories: Option<StoreFactories>,
     dispatch_fn: CliDispatchFn,
     process_global_args_fns: Vec<ProcessGlobalArgsFn>,
@@ -2605,6 +2606,7 @@ impl CliRunner {
         CliRunner {
             tracing_subscription,
             app: crate::commands::default_app(),
+            extra_configs: None,
             store_factories: None,
             dispatch_fn: Box::new(crate::commands::run_command),
             process_global_args_fns: vec![],
@@ -2614,6 +2616,12 @@ impl CliRunner {
     /// Set the version to be displayed by `jj version`.
     pub fn version(mut self, version: &'static str) -> Self {
         self.app = self.app.version(version);
+        self
+    }
+
+    /// Adds default configs in addition to the normal defaults.
+    pub fn set_extra_config(mut self, extra_configs: config::Config) -> Self {
+        self.extra_configs = Some(extra_configs);
         self
     }
 
@@ -2709,8 +2717,16 @@ impl CliRunner {
 
     #[must_use]
     #[instrument(skip(self))]
-    pub fn run(self) -> ExitCode {
-        let layered_configs = LayeredConfigs::from_environment();
+    pub fn run(mut self) -> ExitCode {
+        let mut default_config = crate::config::default_config();
+        if let Some(extra_configs) = self.extra_configs.take() {
+            default_config = config::Config::builder()
+                .add_source(default_config)
+                .add_source(extra_configs)
+                .build()
+                .unwrap();
+        }
+        let layered_configs = LayeredConfigs::from_environment(default_config);
         let mut ui = Ui::with_config(&layered_configs.merge())
             .expect("default config should be valid, env vars are stringly typed");
         let result = self.run_internal(&mut ui, layered_configs);
