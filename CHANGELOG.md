@@ -53,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git push` will now push all branches in the range `remote_branches()..@`
   instead of only branches pointing to `@` or `@-`.
 
+* It's no longer allowed to create a Git remote named "git". Use `jj git remote
+  rename` to rename the existing remote.
+  [#1690](https://github.com/martinvonz/jj/issues/1690)
+
 ### New features
 
 * Default template for `jj log` now does not show irrelevant information
