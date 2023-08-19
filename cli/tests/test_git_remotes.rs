@@ -52,6 +52,35 @@ fn test_git_remotes() {
 }
 
 #[test]
+fn test_git_remote_add() {
+    let test_env = TestEnvironment::default();
+
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["git", "remote", "add", "foo", "http://example.com/repo/foo"],
+    );
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &[
+            "git",
+            "remote",
+            "add",
+            "foo",
+            "http://example.com/repo/foo2",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Git remote named 'foo' already exists
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    foo http://example.com/repo/foo
+    "###);
+}
+
+#[test]
 fn test_git_remote_rename() {
     let test_env = TestEnvironment::default();
 

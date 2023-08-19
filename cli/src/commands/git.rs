@@ -251,12 +251,7 @@ fn cmd_git_remote_add(
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    if git_repo.find_remote(&args.remote).is_ok() {
-        return Err(user_error("Remote already exists"));
-    }
-    git_repo
-        .remote(&args.remote, &args.url)
-        .map_err(|err| user_error(err.to_string()))?;
+    git::add_remote(&git_repo, &args.remote, &args.url)?;
     Ok(())
 }
 
