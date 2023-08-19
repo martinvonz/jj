@@ -180,6 +180,27 @@ pub fn get_tool_config(
     }
 }
 
+/// Finds the appropriate tool for diff editing or merges
+fn editor_args_from_settings(
+    ui: &Ui,
+    settings: &UserSettings,
+    key: &str,
+) -> Result<CommandNameAndArgs, ExternalToolError> {
+    // TODO: Make this configuration have a table of possible editors and detect the
+    // best one here.
+    if let Some(args) = settings.config().get(key).optional()? {
+        Ok(args)
+    } else {
+        let default_editor = "meld";
+        writeln!(
+            ui.hint(),
+            "Using default editor '{default_editor}'; you can change this by setting {key}"
+        )
+        .map_err(ExternalToolError::Io)?;
+        Ok(default_editor.into())
+    }
+}
+
 /// Loads merge tool options from `[merge-tools.<name>]` if `args` is of
 /// unstructured string type.
 pub fn get_tool_config_from_args(
@@ -215,27 +236,6 @@ fn get_merge_tool_from_settings(
         })
     } else {
         Ok(MergeTool::External(editor))
-    }
-}
-
-/// Finds the appropriate tool for diff editing or merges
-fn editor_args_from_settings(
-    ui: &Ui,
-    settings: &UserSettings,
-    key: &str,
-) -> Result<CommandNameAndArgs, ExternalToolError> {
-    // TODO: Make this configuration have a table of possible editors and detect the
-    // best one here.
-    if let Some(args) = settings.config().get(key).optional()? {
-        Ok(args)
-    } else {
-        let default_editor = "meld";
-        writeln!(
-            ui.hint(),
-            "Using default editor '{default_editor}'; you can change this by setting {key}"
-        )
-        .map_err(ExternalToolError::Io)?;
-        Ok(default_editor.into())
     }
 }
 
