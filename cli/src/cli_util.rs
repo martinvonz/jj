@@ -32,7 +32,7 @@ use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
 use jj_lib::commit::Commit;
-use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError};
+use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
@@ -283,6 +283,12 @@ impl From<GitExportError> for CommandError {
         CommandError::InternalError(format!(
             "Failed to export refs to underlying Git repo: {err}"
         ))
+    }
+}
+
+impl From<GitRemoteManagementError> for CommandError {
+    fn from(err: GitRemoteManagementError) -> Self {
+        user_error(format!("{err}"))
     }
 }
 

@@ -268,13 +268,9 @@ fn cmd_git_remote_remove(
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    if git_repo.find_remote(&args.remote).is_err() {
-        return Err(user_error("Remote doesn't exist"));
-    }
     let mut tx =
         workspace_command.start_transaction(&format!("remove git remote {}", &args.remote));
-    git::remove_remote(tx.mut_repo(), &git_repo, &args.remote)
-        .map_err(|err| user_error(err.to_string()))?;
+    git::remove_remote(tx.mut_repo(), &git_repo, &args.remote)?;
     if tx.mut_repo().has_changes() {
         tx.finish(ui)
     } else {
@@ -290,13 +286,9 @@ fn cmd_git_remote_rename(
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    if git_repo.find_remote(&args.old).is_err() {
-        return Err(user_error("Remote doesn't exist"));
-    }
     let mut tx = workspace_command
         .start_transaction(&format!("rename git remote {} to {}", &args.old, &args.new));
-    git::rename_remote(tx.mut_repo(), &git_repo, &args.old, &args.new)
-        .map_err(|err| user_error(err.to_string()))?;
+    git::rename_remote(tx.mut_repo(), &git_repo, &args.old, &args.new)?;
     if tx.mut_repo().has_changes() {
         tx.finish(ui)
     } else {

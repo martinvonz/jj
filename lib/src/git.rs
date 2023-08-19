@@ -548,6 +548,14 @@ pub fn export_some_refs(
     Ok(failed_branches)
 }
 
+#[derive(Debug, Error)]
+pub enum GitRemoteManagementError {
+    #[error("No git remote named '{0}'")]
+    NoSuchRemote(String),
+    #[error(transparent)]
+    InternalGitError(git2::Error),
+}
+
 fn is_remote_not_found_err(err: &git2::Error) -> bool {
     matches!(
         (err.class(), err.code()),
@@ -562,8 +570,14 @@ pub fn remove_remote(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     remote_name: &str,
-) -> Result<(), git2::Error> {
-    git_repo.remote_delete(remote_name)?;
+) -> Result<(), GitRemoteManagementError> {
+    git_repo.remote_delete(remote_name).map_err(|err| {
+        if is_remote_not_found_err(&err) {
+            GitRemoteManagementError::NoSuchRemote(remote_name.to_owned())
+        } else {
+            GitRemoteManagementError::InternalGitError(err)
+        }
+    })?;
     let mut branches_to_delete = vec![];
     for (branch, target) in mut_repo.view().branches() {
         if target.remote_targets.contains_key(remote_name) {
@@ -592,8 +606,16 @@ pub fn rename_remote(
     git_repo: &git2::Repository,
     old_remote_name: &str,
     new_remote_name: &str,
-) -> Result<(), git2::Error> {
-    git_repo.remote_rename(old_remote_name, new_remote_name)?;
+) -> Result<(), GitRemoteManagementError> {
+    git_repo
+        .remote_rename(old_remote_name, new_remote_name)
+        .map_err(|err| {
+            if is_remote_not_found_err(&err) {
+                GitRemoteManagementError::NoSuchRemote(old_remote_name.to_owned())
+            } else {
+                GitRemoteManagementError::InternalGitError(err)
+            }
+        })?;
     mut_repo.rename_remote(old_remote_name, new_remote_name);
     let prefix = format!("refs/remotes/{old_remote_name}/");
     let git_refs = mut_repo

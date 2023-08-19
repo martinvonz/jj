@@ -46,8 +46,9 @@ fn test_git_remotes() {
     insta::assert_snapshot!(stdout, @"bar http://example.com/repo/bar
 ");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["git", "remote", "remove", "nonexistent"]);
-    insta::assert_snapshot!(stderr, @"Error: Remote doesn't exist
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No git remote named 'nonexistent'
+    "###);
 }
 
 #[test]
@@ -61,7 +62,9 @@ fn test_git_remote_rename() {
         &["git", "remote", "add", "foo", "http://example.com/repo/foo"],
     );
     let stderr = test_env.jj_cmd_failure(&repo_path, &["git", "remote", "rename", "bar", "foo"]);
-    insta::assert_snapshot!(stderr, @"Error: Remote doesn't exist\n");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No git remote named 'bar'
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "rename", "foo", "bar"]);
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
