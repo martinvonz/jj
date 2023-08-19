@@ -548,6 +548,16 @@ pub fn export_some_refs(
     Ok(failed_branches)
 }
 
+fn is_remote_not_found_err(err: &git2::Error) -> bool {
+    matches!(
+        (err.class(), err.code()),
+        (
+            git2::ErrorClass::Config,
+            git2::ErrorCode::NotFound | git2::ErrorCode::InvalidSpec
+        )
+    )
+}
+
 pub fn remove_remote(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
@@ -686,18 +696,13 @@ pub fn fetch(
 
     // Perform a `git fetch` on the local git repo, updating the remote-tracking
     // branches in the git repo.
-    let mut remote =
-        git_repo
-            .find_remote(remote_name)
-            .map_err(|err| match (err.class(), err.code()) {
-                (git2::ErrorClass::Config, git2::ErrorCode::NotFound) => {
-                    GitFetchError::NoSuchRemote(remote_name.to_string())
-                }
-                (git2::ErrorClass::Config, git2::ErrorCode::InvalidSpec) => {
-                    GitFetchError::NoSuchRemote(remote_name.to_string())
-                }
-                _ => GitFetchError::InternalGitError(err),
-            })?;
+    let mut remote = git_repo.find_remote(remote_name).map_err(|err| {
+        if is_remote_not_found_err(&err) {
+            GitFetchError::NoSuchRemote(remote_name.to_string())
+        } else {
+            GitFetchError::InternalGitError(err)
+        }
+    })?;
     let mut fetch_options = git2::FetchOptions::new();
     let mut proxy_options = git2::ProxyOptions::new();
     proxy_options.auto();
@@ -832,18 +837,13 @@ fn push_refs(
     refspecs: &[String],
     callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
-    let mut remote =
-        git_repo
-            .find_remote(remote_name)
-            .map_err(|err| match (err.class(), err.code()) {
-                (git2::ErrorClass::Config, git2::ErrorCode::NotFound) => {
-                    GitPushError::NoSuchRemote(remote_name.to_string())
-                }
-                (git2::ErrorClass::Config, git2::ErrorCode::InvalidSpec) => {
-                    GitPushError::NoSuchRemote(remote_name.to_string())
-                }
-                _ => GitPushError::InternalGitError(err),
-            })?;
+    let mut remote = git_repo.find_remote(remote_name).map_err(|err| {
+        if is_remote_not_found_err(&err) {
+            GitPushError::NoSuchRemote(remote_name.to_string())
+        } else {
+            GitPushError::InternalGitError(err)
+        }
+    })?;
     let mut remaining_remote_refs: HashSet<_> = qualified_remote_refs.iter().copied().collect();
     let mut push_options = git2::PushOptions::new();
     let mut proxy_options = git2::ProxyOptions::new();
