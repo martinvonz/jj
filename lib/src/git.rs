@@ -561,6 +561,11 @@ pub enum GitRemoteManagementError {
     NoSuchRemote(String),
     #[error("Git remote named '{0}' already exists")]
     RemoteAlreadyExists(String),
+    #[error(
+        "Git remote named '{name}' is reserved for local Git repository",
+        name = REMOTE_NAME_FOR_LOCAL_GIT_REPO
+    )]
+    RemoteReservedForLocalGitRepo,
     #[error(transparent)]
     InternalGitError(git2::Error),
 }
@@ -587,6 +592,9 @@ pub fn add_remote(
     remote_name: &str,
     url: &str,
 ) -> Result<(), GitRemoteManagementError> {
+    if remote_name == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
+        return Err(GitRemoteManagementError::RemoteReservedForLocalGitRepo);
+    }
     git_repo.remote(remote_name, url).map_err(|err| {
         if is_remote_exists_err(&err) {
             GitRemoteManagementError::RemoteAlreadyExists(remote_name.to_owned())
@@ -638,6 +646,9 @@ pub fn rename_remote(
     old_remote_name: &str,
     new_remote_name: &str,
 ) -> Result<(), GitRemoteManagementError> {
+    if new_remote_name == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
+        return Err(GitRemoteManagementError::RemoteReservedForLocalGitRepo);
+    }
     git_repo
         .remote_rename(old_remote_name, new_remote_name)
         .map_err(|err| {
