@@ -552,6 +552,8 @@ pub fn export_some_refs(
 pub enum GitRemoteManagementError {
     #[error("No git remote named '{0}'")]
     NoSuchRemote(String),
+    #[error("Git remote named '{0}' already exists")]
+    RemoteAlreadyExists(String),
     #[error(transparent)]
     InternalGitError(git2::Error),
 }
@@ -563,6 +565,13 @@ fn is_remote_not_found_err(err: &git2::Error) -> bool {
             git2::ErrorClass::Config,
             git2::ErrorCode::NotFound | git2::ErrorCode::InvalidSpec
         )
+    )
+}
+
+fn is_remote_exists_err(err: &git2::Error) -> bool {
+    matches!(
+        (err.class(), err.code()),
+        (git2::ErrorClass::Config, git2::ErrorCode::Exists)
     )
 }
 
@@ -612,6 +621,8 @@ pub fn rename_remote(
         .map_err(|err| {
             if is_remote_not_found_err(&err) {
                 GitRemoteManagementError::NoSuchRemote(old_remote_name.to_owned())
+            } else if is_remote_exists_err(&err) {
+                GitRemoteManagementError::RemoteAlreadyExists(new_remote_name.to_owned())
             } else {
                 GitRemoteManagementError::InternalGitError(err)
             }

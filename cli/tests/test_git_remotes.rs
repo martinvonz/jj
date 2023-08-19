@@ -61,12 +61,23 @@ fn test_git_remote_rename() {
         &repo_path,
         &["git", "remote", "add", "foo", "http://example.com/repo/foo"],
     );
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["git", "remote", "add", "baz", "http://example.com/repo/baz"],
+    );
     let stderr = test_env.jj_cmd_failure(&repo_path, &["git", "remote", "rename", "bar", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: No git remote named 'bar'
     "###);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["git", "remote", "rename", "foo", "baz"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Git remote named 'baz' already exists
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "rename", "foo", "bar"]);
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
-    insta::assert_snapshot!(stdout, @"bar http://example.com/repo/foo");
+    insta::assert_snapshot!(stdout, @r###"
+    bar http://example.com/repo/foo
+    baz http://example.com/repo/baz
+    "###);
 }
