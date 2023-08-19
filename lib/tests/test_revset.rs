@@ -1717,13 +1717,13 @@ fn test_evaluate_expression_branches(use_git: bool) {
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches(literal:branch1)"),
+        resolve_commit_ids(mut_repo, "branches(exact:branch1)"),
         vec![commit1.id().clone()]
     );
     // Can silently resolve to an empty set if there's no matches
     assert_eq!(resolve_commit_ids(mut_repo, "branches(branch3)"), vec![]);
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches(literal:ranch1)"),
+        resolve_commit_ids(mut_repo, "branches(exact:ranch1)"),
         vec![]
     );
     // Two branches pointing to the same commit does not result in a duplicate in
@@ -1797,7 +1797,7 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "remote_branches(literal:branch1)"),
+        resolve_commit_ids(mut_repo, "remote_branches(exact:branch1)"),
         vec![commit1.id().clone()]
     );
     // Can get branches from matching remotes
@@ -1810,7 +1810,7 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, r#"remote_branches("", literal:origin)"#),
+        resolve_commit_ids(mut_repo, r#"remote_branches("", exact:origin)"#),
         vec![commit1.id().clone()]
     );
     // Can get branches with matching names from matching remotes
@@ -1823,10 +1823,7 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
         vec![commit2.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo,
-            r#"remote_branches(literal:branch1, literal:origin)"#
-        ),
+        resolve_commit_ids(mut_repo, r#"remote_branches(exact:branch1, exact:origin)"#),
         vec![commit1.id().clone()]
     );
     // Can silently resolve to an empty set if there's no matches
@@ -1843,17 +1840,11 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo,
-            r#"remote_branches(literal:ranch1, literal:origin)"#
-        ),
+        resolve_commit_ids(mut_repo, r#"remote_branches(exact:ranch1, exact:origin)"#),
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo,
-            r#"remote_branches(literal:branch1, literal:orig)"#
-        ),
+        resolve_commit_ids(mut_repo, r#"remote_branches(exact:branch1, exact:orig)"#),
         vec![]
     );
     // Two branches pointing to the same commit does not result in a duplicate in

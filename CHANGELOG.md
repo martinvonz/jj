@@ -82,11 +82,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   description was empty on the input commit.
 
 * `branches()`/`remote_branches()`/`author()`/`committer()`/`description()`
-  revsets now support literal matching. For example, `branch(literal:main)`
-  selects the branch named "main", but not "maint". `description(literal:"")`
+  revsets now support exact matching. For example, `branch(exact:main)`
+  selects the branch named "main", but not "maint". `description(exact:"")`
   selects commits whose description is empty.
 
-* Revsets gained a new function `mine()` that aliases `author([literal:"your_email"])`.
+* Revsets gained a new function `mine()` that aliases `author(exact:"your_email")`.
 
 ### Fixed bugs
 

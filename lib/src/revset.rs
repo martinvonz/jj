@@ -212,7 +212,7 @@ pub const GENERATION_RANGE_EMPTY: Range<u64> = 0..0;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StringPattern {
     /// Matches strings exactly equal to `string`.
-    Literal(String),
+    Exact(String),
     /// Matches strings that contain `substring`.
     Substring(String),
 }
@@ -226,17 +226,17 @@ impl StringPattern {
     /// Returns true if this pattern matches the `haystack`.
     pub fn matches(&self, haystack: &str) -> bool {
         match self {
-            StringPattern::Literal(literal) => haystack == literal,
+            StringPattern::Exact(literal) => haystack == literal,
             StringPattern::Substring(needle) => haystack.contains(needle),
         }
     }
 
-    /// Returns a literal string if this pattern is of that kind.
+    /// Returns a literal pattern if this should match input strings exactly.
     ///
     /// This can be used to optimize map lookup by exact key.
-    pub fn as_literal(&self) -> Option<&str> {
+    pub fn as_exact(&self) -> Option<&str> {
         match self {
-            StringPattern::Literal(literal) => Some(literal),
+            StringPattern::Exact(literal) => Some(literal),
             StringPattern::Substring(_) => None,
         }
     }
@@ -1093,7 +1093,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("mine", |name, arguments_pair, state| {
         expect_no_arguments(name, arguments_pair)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-            StringPattern::Literal(state.user_email.to_owned()),
+            StringPattern::Exact(state.user_email.to_owned()),
         )))
     });
     map.insert("committer", |name, arguments_pair, state| {
@@ -1323,7 +1323,7 @@ fn parse_function_argument_to_string_pattern(
                 return Err(make_type_error());
             };
             match kind.as_ref() {
-                "literal" => StringPattern::Literal(needle.clone()),
+                "exact" => StringPattern::Exact(needle.clone()),
                 "substring" => StringPattern::Substring(needle.clone()),
                 _ => {
                     // TODO: error span can be narrowed to the lhs node
@@ -1796,7 +1796,7 @@ fn filter_map_values_by_key_pattern<'a: 'b, 'b, V>(
     map: &'a BTreeMap<String, V>,
     pattern: &'b StringPattern,
 ) -> impl Iterator<Item = &'a V> + 'b {
-    if let Some(key) = pattern.as_literal() {
+    if let Some(key) = pattern.as_exact() {
         Either::Left(map.get(key).into_iter())
     } else {
         Either::Right(
@@ -2694,8 +2694,8 @@ mod tests {
             )))
         );
         assert_eq!(
-            parse(r#"branches(literal:"foo")"#),
-            Ok(RevsetExpression::branches(StringPattern::Literal(
+            parse(r#"branches(exact:"foo")"#),
+            Ok(RevsetExpression::branches(StringPattern::Exact(
                 "foo".to_owned()
             )))
         );
@@ -2706,9 +2706,9 @@ mod tests {
             )))
         );
         assert_eq!(
-            parse(r#"branches("literal:foo")"#),
+            parse(r#"branches("exact:foo")"#),
             Ok(RevsetExpression::branches(StringPattern::Substring(
-                "literal:foo".to_owned()
+                "exact:foo".to_owned()
             )))
         );
         assert_eq!(
@@ -2719,7 +2719,7 @@ mod tests {
             })
         );
         assert_eq!(
-            parse(r#"branches(literal::"foo")"#),
+            parse(r#"branches(exact::"foo")"#),
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "branches".to_owned(),
                 message: "Expected function argument of string pattern".to_owned()
@@ -2868,7 +2868,7 @@ mod tests {
         assert_eq!(
             parse("mine()"),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-                StringPattern::Literal("test.user@example.com".to_string())
+                StringPattern::Exact("test.user@example.com".to_string())
             )))
         );
         assert_eq!(
@@ -2974,12 +2974,12 @@ mod tests {
             parse("author(a)").unwrap()
         );
         assert_eq!(
-            parse_with_aliases("author(A)", [("A", "literal:a")]).unwrap(),
-            parse("author(literal:a)").unwrap()
+            parse_with_aliases("author(A)", [("A", "exact:a")]).unwrap(),
+            parse("author(exact:a)").unwrap()
         );
         assert_eq!(
-            parse_with_aliases("author(literal:A)", [("A", "a")]).unwrap(),
-            parse("author(literal:a)").unwrap()
+            parse_with_aliases("author(exact:A)", [("A", "a")]).unwrap(),
+            parse("author(exact:a)").unwrap()
         );
 
         // Multi-level substitution.
