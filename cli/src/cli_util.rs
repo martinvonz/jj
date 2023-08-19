@@ -48,8 +48,8 @@ use jj_lib::repo::{
 use jj_lib::repo_path::{FsPathParseError, RepoPath};
 use jj_lib::revset::{
     DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression,
-    RevsetIteratorExt, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
-    RevsetWorkspaceContext,
+    RevsetIteratorExt, RevsetParseContext, RevsetParseError, RevsetParseErrorKind,
+    RevsetResolutionError, RevsetWorkspaceContext,
 };
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::transaction::Transaction;
@@ -1051,12 +1051,7 @@ impl WorkspaceCommandHelper {
         revision_str: &str,
         ui: Option<&mut Ui>,
     ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-        let expression = revset::parse(
-            revision_str,
-            &self.revset_aliases_map,
-            &self.settings.user_email(),
-            Some(&self.revset_context()),
-        )?;
+        let expression = revset::parse(revision_str, &self.revset_parse_context())?;
         if let Some(ui) = ui {
             fn has_legacy_rule(expression: &Rc<RevsetExpression>) -> bool {
                 match expression.as_ref() {
@@ -1125,15 +1120,16 @@ impl WorkspaceCommandHelper {
         Ok(revset_expression.evaluate(self.repo().as_ref())?)
     }
 
-    pub(crate) fn revset_aliases_map(&self) -> &RevsetAliasesMap {
-        &self.revset_aliases_map
-    }
-
-    pub(crate) fn revset_context(&self) -> RevsetWorkspaceContext {
-        RevsetWorkspaceContext {
+    pub(crate) fn revset_parse_context(&self) -> RevsetParseContext {
+        let workspace_context = RevsetWorkspaceContext {
             cwd: &self.cwd,
             workspace_id: self.workspace_id(),
             workspace_root: self.workspace.workspace_root(),
+        };
+        RevsetParseContext {
+            aliases_map: &self.revset_aliases_map,
+            user_email: self.settings.user_email(),
+            workspace: Some(workspace_context),
         }
     }
 
