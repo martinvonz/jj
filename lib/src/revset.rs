@@ -894,17 +894,15 @@ fn parse_symbol_rule(
                 Ok(RevsetExpression::symbol(name.to_owned()))
             }
         }
-        Rule::literal_string => {
-            return Ok(RevsetExpression::symbol(
-                first
-                    .as_str()
-                    .strip_prefix('"')
-                    .unwrap()
-                    .strip_suffix('"')
-                    .unwrap()
-                    .to_owned(),
-            ));
-        }
+        Rule::literal_string => Ok(RevsetExpression::symbol(
+            first
+                .as_str()
+                .strip_prefix('"')
+                .unwrap()
+                .strip_suffix('"')
+                .unwrap()
+                .to_owned(),
+        )),
         _ => {
             panic!("unexpected symbol parse rule: {:?}", first.as_str());
         }
