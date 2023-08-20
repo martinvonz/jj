@@ -363,12 +363,6 @@ fn pinned_commit_ids(view: &View) -> impl Iterator<Item = &CommitId> {
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitExportError {
-    #[error("Cannot export conflicted branch '{0}'")]
-    ConflictedBranch(String),
-    #[error("Failed to read export state: {0}")]
-    ReadStateError(String),
-    #[error("Failed to write export state: {0}")]
-    WriteStateError(String),
     #[error("Git error: {0}")]
     InternalGitError(#[from] git2::Error),
 }
