@@ -473,7 +473,7 @@ impl Backend for GitBackend {
             BackendError::InvalidUtf8 {
                 object_type: id.object_type(),
                 hash: id.hex(),
-                source: err,
+                source: Box::new(err),
             }
         })?;
         Ok(target)
