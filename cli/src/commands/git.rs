@@ -668,13 +668,6 @@ fn cmd_git_push(
         .iter()
         .map(|change_str| workspace_command.resolve_single_rev(change_str, ui))
         .try_collect()?;
-    // TODO: Narrow search space to local target commits.
-    // TODO: Remove redundant CommitId -> Commit -> CommitId round trip.
-    let revision_commit_ids: HashSet<_> =
-        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?
-            .iter()
-            .map(|commit| commit.id().clone())
-            .collect();
 
     fn find_branches_targeting<'a>(
         view: &'a View,
@@ -778,6 +771,13 @@ fn cmd_git_push(
             }
         }
 
+        // TODO: Narrow search space to local target commits.
+        // TODO: Remove redundant CommitId -> Commit -> CommitId round trip.
+        let revision_commit_ids: HashSet<_> =
+            resolve_multiple_nonempty_revsets(&args.revisions, tx.base_workspace_helper(), ui)?
+                .iter()
+                .map(|commit| commit.id().clone())
+                .collect();
         let branches_targeted =
             find_branches_targeting(repo.view(), |id| revision_commit_ids.contains(id));
         for &(branch_name, branch_target) in &branches_targeted {
