@@ -222,6 +222,12 @@ impl TestEnvironment {
         self.env_vars.insert(key.to_string(), val.to_string());
     }
 
+    pub fn current_operation_id(&self, repo_path: &Path) -> String {
+        let id_and_newline =
+            self.jj_cmd_success(repo_path, &["debug", "operation", "--display=id"]);
+        id_and_newline.trim_end().to_owned()
+    }
+
     /// Sets up the fake editor to read an edit script from the returned path
     /// Also sets up the fake editor as a merge tool named "fake-editor"
     pub fn set_up_fake_editor(&mut self) -> PathBuf {
