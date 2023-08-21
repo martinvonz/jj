@@ -44,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   function parameter. For example, `author(foo@)` is now an error, and
   a revset alias `'revset-aliases.foo@' = '@'` will be ignored. 
 
+* `jj git push` will now push all branches in the range `remote_branches()..@`
+  instead of only branches pointing to `@` or `@-`.
+
 ### New features
 
 * Default template for `jj log` now does not show irrelevant information
