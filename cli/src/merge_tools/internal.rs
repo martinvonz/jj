@@ -6,7 +6,7 @@ use itertools::Itertools;
 use jj_lib::backend::{BackendError, FileId, ObjectId, SymlinkId, TreeId, TreeValue};
 use jj_lib::diff::{find_line_ranges, Diff, DiffHunk};
 use jj_lib::files::{self, ContentHunk, MergeResult};
-use jj_lib::matchers::EverythingMatcher;
+use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::store::Store;
@@ -434,10 +434,11 @@ pub fn apply_diff_internal(
 pub fn edit_diff_internal(
     left_tree: &Tree,
     right_tree: &Tree,
+    matcher: &dyn Matcher,
 ) -> Result<TreeId, InternalToolError> {
     let store = left_tree.store().clone();
     let changed_files = left_tree
-        .diff(right_tree, &EverythingMatcher)
+        .diff(right_tree, matcher)
         .map(|(path, _value)| path)
         .collect_vec();
     let files = make_diff_files(&store, left_tree, right_tree, &changed_files)?;

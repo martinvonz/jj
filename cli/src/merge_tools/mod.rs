@@ -21,6 +21,7 @@ use config::ConfigError;
 use jj_lib::backend::{TreeId, TreeValue};
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::gitignore::GitIgnoreFile;
+use jj_lib::matchers::Matcher;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::tree::Tree;
@@ -131,6 +132,7 @@ pub fn edit_diff(
     ui: &Ui,
     left_tree: &Tree,
     right_tree: &Tree,
+    matcher: &dyn Matcher,
     instructions: &str,
     base_ignores: Arc<GitIgnoreFile>,
     settings: &UserSettings,
@@ -139,13 +141,14 @@ pub fn edit_diff(
     let editor = get_diff_editor_from_settings(ui, settings)?;
     match editor {
         MergeTool::Internal => {
-            let tree_id = edit_diff_internal(left_tree, right_tree).map_err(Box::new)?;
+            let tree_id = edit_diff_internal(left_tree, right_tree, matcher).map_err(Box::new)?;
             Ok(tree_id)
         }
         MergeTool::External(editor) => edit_diff_external(
             editor,
             left_tree,
             right_tree,
+            matcher,
             instructions,
             base_ignores,
             settings,
