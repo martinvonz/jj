@@ -416,11 +416,12 @@ this file will be ignored. To suppress the creation of this file, set
 
 Using `ui.diff-editor = "vimdiff"` is possible but not recommended. For a better
 experience, you can follow these [instructions] to configure
-the [`DirDiff` Vim plugin].
+the [`DirDiff` Vim plugin] and/or the [`vimtabdiff` Python script].
 
 [instructions]: https://gist.github.com/ilyagr/5d6339fb7dac5e7ab06fe1561ec62d45
 
 [`DirDiff` Vim plugin]: https://github.com/will133/vim-dirdiff
+[`vimtabdiff` Python script]: https://github.com/balki/vimtabdiff
 
 ## 3-way merge tools for conflict resolution
 
