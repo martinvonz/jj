@@ -50,13 +50,6 @@ fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["branch", "list"])
 }
 
-fn current_operation_id(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    let mut id = test_env.jj_cmd_success(repo_path, &["debug", "operation", "--display=id"]);
-    let len_trimmed = id.trim_end().len();
-    id.truncate(len_trimmed);
-    id
-}
-
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
     let descr = format!("descr_for_{name}");
     if parents.is_empty() {
@@ -711,7 +704,7 @@ fn test_fetch_undo_what() {
     // Initial state we will try to return to after `op restore`. There are no
     // branches.
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
-    let base_operation_id = current_operation_id(&test_env, &repo_path);
+    let base_operation_id = test_env.current_operation_id(&repo_path);
 
     // Fetch a branch
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--branch", "b"]);

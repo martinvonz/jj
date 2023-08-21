@@ -135,7 +135,7 @@ fn test_git_import_undo() {
 
     // Initial state we will return to after `undo`. There are no branches.
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
-    let base_operation_id = current_operation_id(&test_env, &repo_path);
+    let base_operation_id = test_env.current_operation_id(&repo_path);
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
@@ -217,7 +217,7 @@ fn test_git_import_move_export_with_default_undo() {
     // Initial state we will try to return to after `op restore`. There are no
     // branches.
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
-    let base_operation_id = current_operation_id(&test_env, &repo_path);
+    let base_operation_id = test_env.current_operation_id(&repo_path);
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
@@ -265,13 +265,6 @@ fn test_git_import_move_export_with_default_undo() {
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["branch", "list"])
-}
-
-fn current_operation_id(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    let mut id = test_env.jj_cmd_success(repo_path, &["debug", "operation", "--display=id"]);
-    let len_trimmed = id.trim_end().len();
-    id.truncate(len_trimmed);
-    id
 }
 
 fn get_git_repo_refs(git_repo: &git2::Repository) -> Vec<(String, CommitId)> {

@@ -73,7 +73,7 @@ fn test_git_push_undo() {
     main: qpvuntsm 8c05de15 (empty) BB
       @origin (ahead by 1 commits, behind by 1 commits): qpvuntsm 0cffb614 (empty) AA
     "###);
-    let pre_push_opid = current_operation_id(&test_env, &repo_path);
+    let pre_push_opid = test_env.current_operation_id(&repo_path);
     test_env.jj_cmd_success(&repo_path, &["git", "push"]);
     //                     | jj refs | jj's   | git
     //                     |         | git    | repo
@@ -144,7 +144,7 @@ fn test_git_push_undo_with_import() {
     main: qpvuntsm 8c05de15 (empty) BB
       @origin (ahead by 1 commits, behind by 1 commits): qpvuntsm 0cffb614 (empty) AA
     "###);
-    let pre_push_opid = current_operation_id(&test_env, &repo_path);
+    let pre_push_opid = test_env.current_operation_id(&repo_path);
     test_env.jj_cmd_success(&repo_path, &["git", "push"]);
     //                     | jj refs | jj's   | git
     //                     |         | git    | repo
@@ -221,7 +221,7 @@ fn test_git_push_undo_colocated() {
     main: qpvuntsm 8c05de15 (empty) BB
       @origin (ahead by 1 commits, behind by 1 commits): qpvuntsm 0cffb614 (empty) AA
     "###);
-    let pre_push_opid = current_operation_id(&test_env, &repo_path);
+    let pre_push_opid = test_env.current_operation_id(&repo_path);
     test_env.jj_cmd_success(&repo_path, &["git", "push"]);
     //                     | jj refs | jj's   | git
     //                     |         | git    | repo
@@ -292,7 +292,7 @@ fn test_git_push_undo_repo_only() {
     main: qpvuntsm 8c05de15 (empty) BB
       @origin (ahead by 1 commits, behind by 1 commits): qpvuntsm 0cffb614 (empty) AA
     "###);
-    let pre_push_opid = current_operation_id(&test_env, &repo_path);
+    let pre_push_opid = test_env.current_operation_id(&repo_path);
     test_env.jj_cmd_success(&repo_path, &["git", "push"]);
 
     // Undo the push, but keep both the git_refs and the remote-tracking branches
@@ -311,13 +311,6 @@ fn test_git_push_undo_repo_only() {
     main: qpvuntsm 0a3e99f0 (empty) CC
       @origin (ahead by 1 commits, behind by 1 commits): qpvuntsm 8c05de15 (empty) BB
     "###);
-}
-
-fn current_operation_id(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    let mut id = test_env.jj_cmd_success(repo_path, &["debug", "operation", "--display=id"]);
-    let len_trimmed = id.trim_end().len();
-    id.truncate(len_trimmed);
-    id
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
