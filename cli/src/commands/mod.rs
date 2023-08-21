@@ -2042,14 +2042,15 @@ fn cmd_describe(
 
 #[instrument(skip_all)]
 fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result<(), CommandError> {
+    let CommitArgs { message_paragraphs } = args;
     let mut workspace_command = command.workspace_helper(ui)?;
 
     let commit_id = workspace_command
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
-    let description = if !args.message_paragraphs.is_empty() {
-        cli_util::join_message_paragraphs(&args.message_paragraphs)
+    let description = if !message_paragraphs.is_empty() {
+        cli_util::join_message_paragraphs(message_paragraphs)
     } else {
         let template =
             description_template_for_commit(ui, command.settings(), &workspace_command, &commit)?;
