@@ -42,6 +42,7 @@ fn test_rebase_branch_with_merge() {
     create_commit(&test_env, &repo_path, "d", &["c"]);
     create_commit(&test_env, &repo_path, "e", &["a", "d"]);
     // Test the setup
+    let base_operation_id = test_env.current_operation_id(&repo_path);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
@@ -76,7 +77,7 @@ fn test_rebase_branch_with_merge() {
     ◉
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon"] /* abandons `e` */);
     insta::assert_snapshot!(stdout, @r###"
@@ -96,7 +97,7 @@ fn test_rebase_branch_with_merge() {
     ◉
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "descendants(c)"]);
     // TODO(ilyagr): Minor Bug: The branch `e` should be shown next
@@ -122,7 +123,7 @@ fn test_rebase_branch_with_merge() {
     "###);
 
     // Test abandoning the same commit twice directly
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "b", "b"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -139,7 +140,7 @@ fn test_rebase_branch_with_merge() {
     "###);
 
     // Test abandoning the same commit twice indirectly
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d::", "a::"]);
     insta::assert_snapshot!(stdout, @r###"

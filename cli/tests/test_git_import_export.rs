@@ -94,6 +94,7 @@ fn test_git_export_undo() {
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
+    let base_operation_id = test_env.current_operation_id(&repo_path);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
@@ -101,7 +102,7 @@ fn test_git_export_undo() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
 
     // "git export" can't be undone.
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "undo"]), @r###"
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]), @r###"
     "###);
     insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
     [

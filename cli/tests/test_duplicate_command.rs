@@ -40,6 +40,7 @@ fn test_duplicate() {
     create_commit(&test_env, &repo_path, "b", &[]);
     create_commit(&test_env, &repo_path, "c", &["a", "b"]);
     // Test the setup
+    let base_operation_id = test_env.current_operation_id(&repo_path);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    17a00fc21654   c
@@ -71,7 +72,7 @@ fn test_duplicate() {
     ◉  000000000000
     "###);
 
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["undo"]), @"");
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]), @"");
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate" /* duplicates `c` */]);
     insta::assert_snapshot!(stdout, @r###"
@@ -100,7 +101,7 @@ fn test_duplicate_many() {
     create_commit(&test_env, &repo_path, "c", &["a"]);
     create_commit(&test_env, &repo_path, "d", &["c"]);
     create_commit(&test_env, &repo_path, "e", &["b", "d"]);
-
+    let base_operation_id = test_env.current_operation_id(&repo_path);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -136,7 +137,7 @@ fn test_duplicate_many() {
     "###);
 
     // Try specifying the same commit twice directly
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b", "b"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -156,7 +157,7 @@ fn test_duplicate_many() {
     "###);
 
     // Try specifying the same commit twice indirectly
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b::", "d::"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -181,7 +182,7 @@ fn test_duplicate_many() {
     ◉  000000000000
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     // Reminder of the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -218,7 +219,7 @@ fn test_duplicate_many() {
     "###);
 
     // Check for BUG -- makes too many 'a'-s, etc.
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a::"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -261,6 +262,7 @@ fn test_undo_after_duplicate() {
     ◉  000000000000
     "###);
 
+    let base_operation_id = test_env.current_operation_id(&repo_path);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -273,7 +275,7 @@ fn test_undo_after_duplicate() {
     ◉  000000000000
     "###);
 
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["undo"]), @"");
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]), @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  2443ea76b0b1   a
     ◉  000000000000

@@ -362,6 +362,7 @@ fn test_git_colocated_squash_undo() {
     ◉  zzzzzzzzzzzz 000000000000
     "###);
 
+    let pre_squash_opid = test_env.current_operation_id(&repo_path);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
     test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
@@ -369,7 +370,7 @@ fn test_git_colocated_squash_undo() {
     ◉  qpvuntsmwlqt d61bed40569c A master HEAD@git
     ◉  zzzzzzzzzzzz 000000000000
     "###);
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &pre_squash_opid]);
     // TODO: There should be no divergence here; 2f376ea1478c should be hidden
     // (#922)
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"

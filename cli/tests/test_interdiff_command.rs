@@ -32,6 +32,8 @@ fn test_interdiff_basic() {
     test_env.jj_cmd_success(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file2"), "foo\nbar\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "right"]);
+
+    let base_operation_id = test_env.current_operation_id(&repo_path);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
 
     // implicit --to
@@ -54,7 +56,7 @@ fn test_interdiff_basic() {
        1    1: foo
             2: bar
     "###);
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
 
     // formats specifiers
     test_env.advance_test_rng_seed_to_multiple_of(200_000);

@@ -637,6 +637,8 @@ fn test_git_fetch_undo() {
     ◉  ff36dc55760e descr_for_trunk1 master trunk1
     ◉  000000000000
     "###);
+
+    let base_operation_id = test_env.current_operation_id(&target_jj_repo_path);
     test_env.advance_test_rng_seed_to_multiple_of(200_000);
 
     // Fetch 2 branches
@@ -654,7 +656,7 @@ fn test_git_fetch_undo() {
     ├─╯
     ◉  000000000000
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&target_jj_repo_path, &["undo"]), @"");
+    insta::assert_snapshot!(test_env.jj_cmd_success(&target_jj_repo_path, &["op", "restore", &base_operation_id]), @"");
     // The undo works as expected
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     @  230dd059e1b0
