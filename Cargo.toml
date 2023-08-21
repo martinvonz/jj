@@ -25,7 +25,7 @@ blake2 = "0.10.6"
 byteorder = "1.4.3"
 bytes = "1.4.0"
 cargo_metadata = "0.17.0"
-clap = { version = "4.3.22", features = ["derive", "deprecated"] }
+clap = { version = "4.3.23", features = ["derive", "deprecated"] }
 clap_complete = "4.3.2"
 clap_mangen = "0.2.10"
 chrono = { version = "0.4.26", default-features = false, features = [
@@ -68,7 +68,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.105"
 slab = "0.4.8"
 strsim = "0.10.0"
-tempfile = "3.7.1"
+tempfile = "3.8.0"
 test-case = "3.1.0"
 textwrap = "0.16.0"
 thiserror = "1.0.47"
