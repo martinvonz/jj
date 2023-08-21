@@ -16,7 +16,7 @@ use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::revset::{self, RevsetIteratorExt as _};
+use jj_lib::revset::{self, RevsetExpression, RevsetIteratorExt as _, StringPattern};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
 use jj_lib::view::View;
@@ -122,10 +122,10 @@ pub struct GitCloneArgs {
 
 /// Push to a Git remote
 ///
-/// By default, pushes any branches pointing to `@`, or `@-` if no branches
-/// point to `@`. Use `--branch` to push specific branches. Use `--all` to push
-/// all branches. Use `--change` to generate branch names based on the change
-/// IDs of specific commits.
+/// By default, pushes any branches pointing to
+/// `remote_branches(remote=<remote>)..@`. Use `--branch` to push specific
+/// branches. Use `--all` to push all branches. Use `--change` to generate
+/// branch names based on the change IDs of specific commits.
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(ArgGroup::new("specific").args(&["branch", "change", "revisions"]).multiple(true)))]
 #[command(group(ArgGroup::new("what").args(&["all", "deleted"]).conflicts_with("specific")))]
@@ -703,7 +703,7 @@ fn cmd_git_push(
             }
         }
         tx_description = format!("push all deleted branches to git remote {remote}");
-    } else if !args.branch.is_empty() || !args.change.is_empty() || !args.revisions.is_empty() {
+    } else {
         let mut seen_branches = hashset! {};
         for branch_name in &args.branch {
             if !seen_branches.insert(branch_name.clone()) {
@@ -771,13 +771,30 @@ fn cmd_git_push(
             }
         }
 
-        // TODO: Narrow search space to local target commits.
-        // TODO: Remove redundant CommitId -> Commit -> CommitId round trip.
-        let revision_commit_ids: HashSet<_> =
+        let use_default_revset =
+            args.branch.is_empty() && args.change.is_empty() && args.revisions.is_empty();
+        let revision_commit_ids: HashSet<_> = if use_default_revset {
+            let Some(wc_commit_id) = wc_commit_id else {
+                return Err(user_error("Nothing checked out in this workspace"));
+            };
+            let current_branches_expression = RevsetExpression::remote_branches(
+                StringPattern::everything(),
+                StringPattern::Exact(remote.to_owned()),
+            )
+            .range(&RevsetExpression::commit(wc_commit_id))
+            .intersection(&RevsetExpression::branches(StringPattern::everything()));
+            let current_branches_revset = tx
+                .base_workspace_helper()
+                .evaluate_revset(current_branches_expression)?;
+            current_branches_revset.iter().collect()
+        } else {
+            // TODO: Narrow search space to local target commits.
+            // TODO: Remove redundant CommitId -> Commit -> CommitId round trip.
             resolve_multiple_nonempty_revsets(&args.revisions, tx.base_workspace_helper(), ui)?
                 .iter()
                 .map(|commit| commit.id().clone())
-                .collect();
+                .collect()
+        };
         let branches_targeted =
             find_branches_targeting(repo.view(), |id| revision_commit_ids.contains(id));
         for &(branch_name, branch_target) in &branches_targeted {
@@ -790,7 +807,7 @@ fn cmd_git_push(
                 Err(message) => writeln!(ui.warning(), "{message}")?,
             }
         }
-        if !args.revisions.is_empty() && branches_targeted.is_empty() {
+        if (!args.revisions.is_empty() || use_default_revset) && branches_targeted.is_empty() {
             writeln!(
                 ui.warning(),
                 "No branches point to the specified revisions."
@@ -807,39 +824,7 @@ fn cmd_git_push(
             ),
             &remote
         );
-    } else {
-        match wc_commit_id {
-            None => {
-                return Err(user_error("Nothing checked out in this workspace"));
-            }
-            Some(wc_commit) => {
-                // Search for branches targeting @
-                let mut branches = find_branches_targeting(repo.view(), |id| id == &wc_commit);
-                if branches.is_empty() {
-                    // Try @- instead if @ is discardable
-                    let commit = repo.store().get_commit(&wc_commit)?;
-                    if commit.is_discardable() {
-                        if let [parent_commit_id] = commit.parent_ids() {
-                            branches =
-                                find_branches_targeting(repo.view(), |id| id == parent_commit_id);
-                        }
-                    }
-                }
-                if branches.is_empty() {
-                    return Err(user_error("No current branch."));
-                }
-                for (branch_name, branch_target) in branches {
-                    match classify_branch_update(branch_name, branch_target, &remote) {
-                        Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
-                        Ok(None) => {}
-                        Err(message) => return Err(user_error(message)),
-                    }
-                }
-            }
-        }
-        tx_description = format!("push current branch(es) to git remote {}", &remote);
     }
-
     if branch_updates.is_empty() {
         writeln!(ui, "Nothing changed.")?;
         return Ok(());

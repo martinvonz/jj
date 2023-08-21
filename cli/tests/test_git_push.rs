@@ -110,7 +110,8 @@ fn test_git_push_parent_branch() {
         &workspace_root,
         &["describe", "-m", "modified branch1 commit"],
     );
-    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "non-empty description"]);
+    std::fs::write(workspace_root.join("file"), "file").unwrap();
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
@@ -119,54 +120,79 @@ fn test_git_push_parent_branch() {
 }
 
 #[test]
-fn test_git_no_push_parent_branch_non_empty_commit() {
-    let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["edit", "branch1"]);
-    test_env.jj_cmd_success(
-        &workspace_root,
-        &["describe", "-m", "modified branch1 commit"],
-    );
-    test_env.jj_cmd_success(&workspace_root, &["new"]);
-    std::fs::write(workspace_root.join("file"), "file").unwrap();
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: No current branch.
-    "###);
-}
-
-#[test]
-fn test_git_no_push_parent_branch_description() {
-    let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["edit", "branch1"]);
-    test_env.jj_cmd_success(
-        &workspace_root,
-        &["describe", "-m", "modified branch1 commit"],
-    );
-    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "non-empty description"]);
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: No current branch.
-    "###);
-}
-
-#[test]
-fn test_git_push_no_current_branch() {
+fn test_git_push_no_matching_branch() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_success(&workspace_root, &["new"]);
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: No current branch.
-    "###);
-}
-
-#[test]
-fn test_git_push_current_branch_unchanged() {
-    let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["co", "branch1"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @r###"
+    No branches point to the specified revisions.
+    "###);
+}
+
+#[test]
+fn test_git_push_matching_branch_unchanged() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["co", "branch1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    No branches point to the specified revisions.
+    "###);
+}
+
+/// Test that `jj git push` without arguments pushes a branch to the specified
+/// remote even if it's already up to date on another remote
+/// (`remote_branches(remote=<remote>)..@` vs. `remote_branches()..@`).
+#[test]
+fn test_git_push_other_remote_has_branch() {
+    let (test_env, workspace_root) = set_up();
+    // Create another remote (but actually the same)
+    let other_remote_path = test_env
+        .env_root()
+        .join("origin")
+        .join(".jj")
+        .join("repo")
+        .join("store")
+        .join("git");
+    test_env.jj_cmd_success(
+        &workspace_root,
+        &[
+            "git",
+            "remote",
+            "add",
+            "other",
+            other_remote_path.to_str().unwrap(),
+        ],
+    );
+    // Modify branch1 and push it to `origin`
+    test_env.jj_cmd_success(&workspace_root, &["edit", "branch1"]);
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m=modified"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Force branch branch1 from 45a3aa29e907 to 50421a29358a
+    "###);
+    insta::assert_snapshot!(stderr, @"");
+    // Since it's already pushed to origin, nothing will happen if push again
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    No branches point to the specified revisions.
+    "###);
+    // But it will still get pushed to another remote
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--remote=other"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to other:
+      Add branch branch1 to 50421a29358a
+    "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -582,9 +608,12 @@ fn test_git_push_conflicting_branches() {
     };
 
     // Conflicting branch at @
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Branch branch2 is conflicted
+    Branch branch2 is conflicted
     "###);
 
     // --branch should be blocked by conflicting branch
