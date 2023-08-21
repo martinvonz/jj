@@ -3046,14 +3046,15 @@ fn diff_summary_to_description(bytes: &[u8]) -> String {
 
 #[instrument(skip_all)]
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(), CommandError> {
+    let SplitArgs { revision, paths } = args;
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let commit = workspace_command.resolve_single_rev(revision, ui)?;
     workspace_command.check_rewritable(&commit)?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = workspace_command.matcher_from_values(paths)?;
     let mut tx =
         workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
     let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
-    let interactive = args.paths.is_empty();
+    let interactive = paths.is_empty();
     let instructions = format!(
         "\
 You are splitting a commit in two: {}
@@ -3083,7 +3084,7 @@ don't make any changes, then the operation will be aborted.
         writeln!(
             ui.warning(),
             "The given paths do not match any file: {}",
-            args.paths.join(" ")
+            paths.join(" ")
         )?;
     }
 
