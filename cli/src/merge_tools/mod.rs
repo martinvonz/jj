@@ -13,6 +13,7 @@
 // limitations under the License.
 
 mod external;
+mod internal;
 
 use std::sync::Arc;
 
@@ -28,11 +29,14 @@ use thiserror::Error;
 
 use self::external::{edit_diff_external, DiffCheckoutError, ExternalToolError};
 pub use self::external::{generate_diff, ExternalMergeTool};
+use self::internal::{edit_diff_internal, InternalToolError};
 use crate::config::CommandNameAndArgs;
 use crate::ui::Ui;
 
 #[derive(Debug, Error)]
 pub enum DiffEditError {
+    #[error(transparent)]
+    InternalTool(#[from] Box<InternalToolError>),
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
     #[error(transparent)]
@@ -53,6 +57,8 @@ pub enum DiffGenerateError {
 
 #[derive(Debug, Error)]
 pub enum ConflictResolveError {
+    #[error(transparent)]
+    InternalTool(#[from] Box<InternalToolError>),
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
     #[error("Couldn't find the path {0:?} in this revision")]
@@ -126,7 +132,10 @@ pub fn edit_diff(
     // Start a diff editor on the two directories.
     let editor = get_diff_editor_from_settings(ui, settings)?;
     match editor {
-        MergeTool::Internal => unimplemented!("run_mergetool with internal mergetool"),
+        MergeTool::Internal => {
+            let tree_id = edit_diff_internal(left_tree, right_tree).map_err(Box::new)?;
+            Ok(tree_id)
+        }
         MergeTool::External(editor) => edit_diff_external(
             editor,
             left_tree,

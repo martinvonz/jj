@@ -49,6 +49,7 @@ pest.workspace = true
 pest_derive.workspace = true
 regex.workspace = true
 rpassword.workspace = true
+scm-record.workspace = true
 serde.workspace = true
 slab.workspace = true
 tempfile.workspace = true
