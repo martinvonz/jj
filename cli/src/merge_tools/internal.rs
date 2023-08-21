@@ -5,7 +5,9 @@ use std::sync::Arc;
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, FileId, ObjectId, SymlinkId, TreeId, TreeValue};
 use jj_lib::diff::{find_line_ranges, Diff, DiffHunk};
+use jj_lib::files::{self, ContentHunk, MergeResult};
 use jj_lib::matchers::EverythingMatcher;
+use jj_lib::merge::Merge;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::store::Store;
 use jj_lib::tree::Tree;
@@ -452,8 +454,133 @@ pub fn edit_diff_internal(
     Ok(tree_id)
 }
 
+fn make_merge_sections(
+    merge_result: MergeResult,
+    file_merge: Merge<Option<FileId>>,
+) -> Result<Vec<scm_record::Section<'static>>, InternalToolError> {
+    let mut sections = Vec::new();
+    match merge_result {
+        MergeResult::Resolved(ContentHunk(buf)) => {
+            let right_id = file_merge.adds().get(1).and_then(|side| side.clone());
+            let contents = buf_to_file_contents(right_id.map(|id| id.hex()), buf);
+            let section = match contents {
+                FileContents::Absent => None,
+                FileContents::Text {
+                    contents,
+                    hash: _,
+                    num_bytes: _,
+                } => Some(scm_record::Section::Unchanged {
+                    lines: contents
+                        .split_inclusive('\n')
+                        .map(|line| Cow::Owned(line.to_owned()))
+                        .collect(),
+                }),
+                FileContents::Binary { hash, num_bytes } => Some(scm_record::Section::Binary {
+                    is_checked: false,
+                    old_description: None,
+                    new_description: Some(Cow::Owned(describe_binary(hash.as_deref(), num_bytes))),
+                }),
+            };
+            if let Some(section) = section {
+                sections.push(section);
+            }
+        }
+        MergeResult::Conflict(hunks) => {
+            for hunk in hunks {
+                let (removes, adds) = hunk.take();
+                sections.push(match adds.as_slice() {
+                    [ContentHunk(contents)] => {
+                        let contents = std::str::from_utf8(contents).map_err(|err| {
+                            InternalToolError::DecodeUtf8 {
+                                source: err,
+                                item: "unchanged hunk",
+                            }
+                        })?;
+                        scm_record::Section::Unchanged {
+                            lines: contents
+                                .split_inclusive('\n')
+                                .map(|line| Cow::Owned(line.to_owned()))
+                                .collect(),
+                        }
+                    }
+                    _ => {
+                        let lines: Vec<scm_record::SectionChangedLine> = adds
+                            .into_iter()
+                            .interleave(removes)
+                            .zip(
+                                [
+                                    scm_record::ChangeType::Added,
+                                    scm_record::ChangeType::Removed,
+                                ]
+                                .into_iter()
+                                .cycle(),
+                            )
+                            .map(|(contents, change_type)| -> Result<_, InternalToolError> {
+                                let ContentHunk(contents) = contents;
+                                let contents = std::str::from_utf8(&contents).map_err(|err| {
+                                    InternalToolError::DecodeUtf8 {
+                                        source: err,
+                                        item: "conflicting hunk",
+                                    }
+                                })?;
+                                let changed_lines =
+                                    make_section_changed_lines(contents, change_type);
+                                Ok(changed_lines)
+                            })
+                            .flatten_ok()
+                            .try_collect()?;
+                        scm_record::Section::Changed { lines }
+                    }
+                });
+            }
+        }
+    }
+    Ok(sections)
+}
+
+pub fn edit_merge_internal(
+    tree: &Tree,
+    path: &RepoPath,
+    file_merge: Merge<Option<FileId>>,
+    content: Merge<ContentHunk>,
+) -> Result<TreeId, InternalToolError> {
+    let (removes, adds) = content.take();
+    let removed_slices = removes
+        .iter()
+        .map(|ContentHunk(v)| v.as_slice())
+        .collect_vec();
+    let added_slices = adds.iter().map(|ContentHunk(v)| v.as_slice()).collect_vec();
+    let merge_result = files::merge(&removed_slices, &added_slices);
+
+    let sections = make_merge_sections(merge_result, file_merge)?;
+    let recorder = scm_record::Recorder::new(
+        scm_record::RecordState {
+            is_read_only: false,
+            files: vec![scm_record::File {
+                old_path: None,
+                path: Cow::Owned(path.to_fs_path(Path::new(""))),
+                file_mode: None,
+                sections,
+            }],
+        },
+        scm_record::EventSource::Crossterm,
+    );
+    let state = recorder.run()?;
+
+    let file = state.files.into_iter().exactly_one().unwrap();
+    apply_diff_internal(
+        tree.store().clone(),
+        tree,
+        tree,
+        vec![path.clone()],
+        &[file],
+    )
+    .map_err(InternalToolError::BackendError)
+}
+
 #[cfg(test)]
 mod tests {
+    use jj_lib::conflicts::extract_as_single_hunk;
     use jj_lib::matchers::EverythingMatcher;
     use jj_lib::repo::Repo;
     use testutils::TestRepo;
@@ -606,5 +733,106 @@ mod tests {
             "all-changes tree was different: {:?}",
             all_changes_tree.diff_summary(&right_tree, &EverythingMatcher)
         );
+    }
+
+    #[test]
+    fn test_make_merge_sections() {
+        let test_repo = TestRepo::init(false);
+        let store = test_repo.repo.store();
+
+        let path = RepoPath::from_internal_string("file");
+        let base_tree = testutils::create_tree(
+            &test_repo.repo,
+            &[(&path, "base 1\nbase 2\nbase 3\nbase 4\nbase 5\n")],
+        );
+        let left_tree = testutils::create_tree(
+            &test_repo.repo,
+            &[(&path, "left 1\nbase 2\nbase 3\nbase 4\nleft 5\n")],
+        );
+        let right_tree = testutils::create_tree(
+            &test_repo.repo,
+            &[(&path, "right 1\nbase 2\nbase 3\nbase 4\nright 5\n")],
+        );
+
+        fn file_id(tree_value: TreeValue) -> FileId {
+            match tree_value {
+                TreeValue::File { id, executable: _ } => id,
+                other @ (TreeValue::Symlink(_)
+                | TreeValue::Tree(_)
+                | TreeValue::GitSubmodule(_)
+                | TreeValue::Conflict(_)) => {
+                    panic!("tree value should have been a FileId: {other:?}")
+                }
+            }
+        }
+        let merge = Merge::new(
+            vec![base_tree.path_value(&path).map(file_id)],
+            vec![
+                left_tree.path_value(&path).map(file_id),
+                right_tree.path_value(&path).map(file_id),
+            ],
+        );
+        let content = extract_as_single_hunk(&merge, store, &path);
+        let removes = content
+            .removes()
+            .iter()
+            .map(|ContentHunk(buf)| buf.as_slice())
+            .collect_vec();
+        let adds = content
+            .adds()
+            .iter()
+            .map(|ContentHunk(buf)| buf.as_slice())
+            .collect_vec();
+        let merge_result = files::merge(&removes, &adds);
+        let sections = make_merge_sections(merge_result, merge).unwrap();
+        insta::assert_debug_snapshot!(sections, @r###"
+        [
+            Changed {
+                lines: [
+                    SectionChangedLine {
+                        is_checked: false,
+                        change_type: Added,
+                        line: "left 1\n",
+                    },
+                    SectionChangedLine {
+                        is_checked: false,
+                        change_type: Removed,
+                        line: "base 1\n",
+                    },
+                    SectionChangedLine {
+                        is_checked: false,
+                        change_type: Added,
+                        line: "right 1\n",
+                    },
+                ],
+            },
+            Unchanged {
+                lines: [
+                    "base 2\n",
+                    "base 3\n",
+                    "base 4\n",
+                ],
+            },
+            Changed {
+                lines: [
+                    SectionChangedLine {
+                        is_checked: false,
+                        change_type: Added,
+                        line: "left 5\n",
+                    },
+                    SectionChangedLine {
+                        is_checked: false,
+                        change_type: Removed,
+                        line: "base 5\n",
+                    },
+                    SectionChangedLine {
+                        is_checked: false,
+                        change_type: Added,
+                        line: "right 5\n",
+                    },
+                ],
+            },
+        ]
+        "###);
     }
 }

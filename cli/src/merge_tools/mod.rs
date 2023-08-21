@@ -29,7 +29,7 @@ use thiserror::Error;
 
 use self::external::{edit_diff_external, DiffCheckoutError, ExternalToolError};
 pub use self::external::{generate_diff, ExternalMergeTool};
-use self::internal::{edit_diff_internal, InternalToolError};
+use self::internal::{edit_diff_internal, edit_merge_internal, InternalToolError};
 use crate::config::CommandNameAndArgs;
 use crate::ui::Ui;
 
@@ -114,7 +114,11 @@ pub fn run_mergetool(
 
     let editor = get_merge_tool_from_settings(ui, settings)?;
     match editor {
-        MergeTool::Internal => unimplemented!("run_mergetool with internal mergetool"),
+        MergeTool::Internal => {
+            let tree_id =
+                edit_merge_internal(tree, repo_path, file_merge, content).map_err(Box::new)?;
+            Ok(tree_id)
+        }
         MergeTool::External(editor) => external::run_mergetool_external(
             &editor, file_merge, content, repo_path, conflict, tree,
         ),

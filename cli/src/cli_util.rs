@@ -247,7 +247,7 @@ impl From<DiffGenerateError> for CommandError {
 
 impl From<ConflictResolveError> for CommandError {
     fn from(err: ConflictResolveError) -> Self {
-        user_error(format!("Failed to use external tool to resolve: {err}"))
+        user_error(format!("Failed to resolve conflicts: {err}"))
     }
 }
 
