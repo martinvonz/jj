@@ -637,6 +637,7 @@ fn test_git_fetch_undo() {
     ◉  ff36dc55760e descr_for_trunk1 master trunk1
     ◉  000000000000
     "###);
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
 
     // Fetch 2 branches
     let stdout = test_env.jj_cmd_success(
@@ -660,6 +661,7 @@ fn test_git_fetch_undo() {
     ◉  000000000000
     "###);
     // Now try to fetch just one branch
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"

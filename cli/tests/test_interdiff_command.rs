@@ -32,6 +32,7 @@ fn test_interdiff_basic() {
     test_env.jj_cmd_success(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file2"), "foo\nbar\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "right"]);
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
 
     // implicit --to
     let stdout = test_env.jj_cmd_success(&repo_path, &["interdiff", "--from", "left"]);
@@ -42,6 +43,7 @@ fn test_interdiff_basic() {
     "###);
 
     // explicit --to
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     test_env.jj_cmd_success(&repo_path, &["checkout", "@-"]);
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -55,6 +57,7 @@ fn test_interdiff_basic() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
 
     // formats specifiers
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(
         &repo_path,
         &["interdiff", "--from", "left", "--to", "right", "-s"],

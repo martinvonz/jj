@@ -94,6 +94,7 @@ fn test_git_export_undo() {
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
     "###);

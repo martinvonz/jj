@@ -40,6 +40,7 @@ fn test_duplicate() {
     create_commit(&test_env, &repo_path, "b", &[]);
     create_commit(&test_env, &repo_path, "c", &["a", "b"]);
     // Test the setup
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    17a00fc21654   c
     ├─╮
@@ -54,12 +55,13 @@ fn test_duplicate() {
     Error: Cannot rewrite the root commit
     "###);
 
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a"]);
     insta::assert_snapshot!(stdout, @r###"
-    Duplicated 2443ea76b0b1 as znkkpsqq 2f6dc5a1 a
+    Duplicated 2443ea76b0b1 as snltkkzs fc15166f a
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  2f6dc5a1ffc2   a
+    ◉  fc15166fed23   a
     │ @    17a00fc21654   c
     │ ├─╮
     │ │ ◉  d370aee184ba   b
@@ -70,12 +72,13 @@ fn test_duplicate() {
     "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["undo"]), @"");
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate" /* duplicates `c` */]);
     insta::assert_snapshot!(stdout, @r###"
-    Duplicated 17a00fc21654 as wqnwkozp 1dd099ea c
+    Duplicated 17a00fc21654 as rupkowyz fe5b2a8f c
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    1dd099ea963c   c
+    ◉    fe5b2a8fbc39   c
     ├─╮
     │ │ @  17a00fc21654   c
     ╭─┬─╯
@@ -97,6 +100,8 @@ fn test_duplicate_many() {
     create_commit(&test_env, &repo_path, "c", &["a"]);
     create_commit(&test_env, &repo_path, "d", &["c"]);
     create_commit(&test_env, &repo_path, "e", &["b", "d"]);
+
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    921dde6e55c0   e
@@ -109,15 +114,16 @@ fn test_duplicate_many() {
     ◉  000000000000
     "###);
 
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b::"]);
     insta::assert_snapshot!(stdout, @r###"
-    Duplicated 1394f625cbbd as wqnwkozp 3b74d969 b
-    Duplicated 921dde6e55c0 as mouksmqu 8348ddce e
+    Duplicated 1394f625cbbd as snltkkzs 528b626f b
+    Duplicated 921dde6e55c0 as vwpvxnxt 6f523f94 e
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    8348ddcec733   e
+    ◉    6f523f94081b   e
     ├─╮
-    ◉ │  3b74d9691015   b
+    ◉ │  528b626f3460   b
     │ │ @  921dde6e55c0   e
     │ ╭─┤
     │ ◉ │  ebd06dba20ec   d
@@ -131,12 +137,13 @@ fn test_duplicate_many() {
 
     // Try specifying the same commit twice directly
     test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b", "b"]);
     insta::assert_snapshot!(stdout, @r###"
-    Duplicated 1394f625cbbd as nkmrtpmo 0276d3d7 b
+    Duplicated 1394f625cbbd as rupkowyz a674a5ee b
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  0276d3d7c24d   b
+    ◉  a674a5ee9a9f   b
     │ @    921dde6e55c0   e
     │ ├─╮
     │ │ ◉  ebd06dba20ec   d
@@ -150,17 +157,18 @@ fn test_duplicate_many() {
 
     // Try specifying the same commit twice indirectly
     test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b::", "d::"]);
     insta::assert_snapshot!(stdout, @r###"
-    Duplicated 1394f625cbbd as xtnwkqum fa167d18 b
-    Duplicated ebd06dba20ec as pqrnrkux 2181781b d
-    Duplicated 921dde6e55c0 as ztxkyksq 0f7430f2 e
+    Duplicated 1394f625cbbd as lulsmzln 451f6198 b
+    Duplicated ebd06dba20ec as pnsnxuxl 4b8937cf d
+    Duplicated 921dde6e55c0 as xlvlvppo 47cf3da3 e
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    0f7430f2727a   e
+    ◉    47cf3da3a0e2   e
     ├─╮
-    │ ◉  2181781b4f81   d
-    ◉ │  fa167d18a83a   b
+    │ ◉  4b8937cf8736   d
+    ◉ │  451f619834bf   b
     │ │ @    921dde6e55c0   e
     │ │ ├─╮
     │ │ │ ◉  ebd06dba20ec   d
@@ -174,6 +182,7 @@ fn test_duplicate_many() {
     "###);
 
     test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     // Reminder of the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    921dde6e55c0   e
@@ -187,14 +196,14 @@ fn test_duplicate_many() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "d::", "a"]);
     insta::assert_snapshot!(stdout, @r###"
-    Duplicated 2443ea76b0b1 as nlrtlrxv c6f7f8c4 a
-    Duplicated ebd06dba20ec as plymsszl d94e4c55 d
-    Duplicated 921dde6e55c0 as urrlptpw 9bd4389f e
+    Duplicated 2443ea76b0b1 as zxlqlsry fc054cc3 a
+    Duplicated ebd06dba20ec as tkmsxyoo 506910c9 d
+    Duplicated 921dde6e55c0 as sntoynvw 3a94bbb4 e
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    9bd4389f5d47   e
+    ◉    3a94bbb4d36b   e
     ├─╮
-    │ ◉  d94e4c55a68b   d
+    │ ◉  506910c99bdb   d
     │ │ @  921dde6e55c0   e
     ╭───┤
     │ │ ◉  ebd06dba20ec   d
@@ -203,29 +212,30 @@ fn test_duplicate_many() {
     ◉ │  1394f625cbbd   b
     ├─╯
     ◉  2443ea76b0b1   a
-    │ ◉  c6f7f8c4512e   a
+    │ ◉  fc054cc36761   a
     ├─╯
     ◉  000000000000
     "###);
 
     // Check for BUG -- makes too many 'a'-s, etc.
     test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a::"]);
     insta::assert_snapshot!(stdout, @r###"
-    Duplicated 2443ea76b0b1 as uuuvxpvw 0fe67a05 a
-    Duplicated 1394f625cbbd as nmpuuozl e13ac0ad b
-    Duplicated c0cb3a0b73e7 as kzpokyyw df53fa58 c
-    Duplicated ebd06dba20ec as yxrlprzz 2f2442db d
-    Duplicated 921dde6e55c0 as mvkzkxrl ee8fe64e e
+    Duplicated 2443ea76b0b1 as lyntwxtv 38574b0a a
+    Duplicated 1394f625cbbd as pympstqw edc5436d b
+    Duplicated c0cb3a0b73e7 as zyzynvxr 0ee42c3f c
+    Duplicated ebd06dba20ec as tknxwlno 0be0769b d
+    Duplicated 921dde6e55c0 as yqtrmkok 9d48ed7d e
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    ee8fe64ed254   e
+    ◉    9d48ed7d40b0   e
     ├─╮
-    │ ◉  2f2442db08eb   d
-    │ ◉  df53fa589286   c
-    ◉ │  e13ac0adabdf   b
+    │ ◉  0be0769bcabe   d
+    │ ◉  0ee42c3fc967   c
+    ◉ │  edc5436dbeec   b
     ├─╯
-    ◉  0fe67a05989e   a
+    ◉  38574b0af5eb   a
     │ @    921dde6e55c0   e
     │ ├─╮
     │ │ ◉  ebd06dba20ec   d
@@ -251,12 +261,13 @@ fn test_undo_after_duplicate() {
     ◉  000000000000
     "###);
 
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a"]);
     insta::assert_snapshot!(stdout, @r###"
-    Duplicated 2443ea76b0b1 as mzvwutvl f5cefcbb a
+    Duplicated 2443ea76b0b1 as vorwnozm e22f2d74 a
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  f5cefcbb65a4   a
+    ◉  e22f2d74a67d   a
     │ @  2443ea76b0b1   a
     ├─╯
     ◉  000000000000

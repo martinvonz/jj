@@ -354,6 +354,7 @@ fn test_git_colocated_squash_undo() {
     git2::Repository::init(&repo_path).unwrap();
     test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
     test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     // Test the setup
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
     @  rlvkpnrzqnoo 8f71e3b6a3be
@@ -361,10 +362,11 @@ fn test_git_colocated_squash_undo() {
     ◉  zzzzzzzzzzzz 000000000000
     "###);
 
+    test_env.advance_test_rng_seed_to_multiple_of(200_000);
     test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    @  zsuskulnrvyr f0c12b0396d9
-    ◉  qpvuntsmwlqt 2f376ea1478c A master HEAD@git
+    @  snltkkzswkpz 6b61bdd29f7d
+    ◉  qpvuntsmwlqt d61bed40569c A master HEAD@git
     ◉  zzzzzzzzzzzz 000000000000
     "###);
     test_env.jj_cmd_success(&repo_path, &["undo"]);
