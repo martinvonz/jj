@@ -799,10 +799,14 @@ struct DiffeditArgs {
 /// asked for a description only for the first part.
 #[derive(clap::Args, Clone, Debug)]
 struct SplitArgs {
+    /// Interactively choose which parts to split. This is the default if no
+    /// paths are provided.
+    #[arg(long, short)]
+    interactive: bool,
     /// The revision to split
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
-    /// Put these paths in the first commit and don't run the diff editor
+    /// Put these paths in the first commit
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
@@ -3058,7 +3062,11 @@ fn diff_summary_to_description(bytes: &[u8]) -> String {
 
 #[instrument(skip_all)]
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(), CommandError> {
-    let SplitArgs { revision, paths } = args;
+    let SplitArgs {
+        interactive,
+        revision,
+        paths,
+    } = args;
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(revision, ui)?;
     workspace_command.check_rewritable(&commit)?;
@@ -3066,7 +3074,7 @@ fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(
     let mut tx =
         workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
     let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
-    let interactive = paths.is_empty();
+    let interactive = *interactive || paths.is_empty();
     let instructions = format!(
         "\
 You are splitting a commit in two: {}
