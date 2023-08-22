@@ -145,30 +145,18 @@ fn resolve_git_ref_to_commit_id(
 }
 
 /// Builds a map of branches which also includes pseudo `@git` remote.
-///
-/// If there's an existing remote named `git`, a list of conflicting branch
-/// names will be returned.
-pub fn build_unified_branches_map(view: &View) -> (BTreeMap<String, BranchTarget>, Vec<String>) {
+pub fn build_unified_branches_map(view: &View) -> BTreeMap<String, BranchTarget> {
     let mut all_branches = view.branches().clone();
-    let mut bad_branch_names = Vec::new();
     for (branch_name, git_tracking_target) in local_branch_git_tracking_refs(view) {
+        // There may be a "git" remote if the view has been stored by older jj versions,
+        // but we override it anyway.
         let branch_target = all_branches.entry(branch_name.to_owned()).or_default();
-        if branch_target
-            .remote_targets
-            .contains_key(REMOTE_NAME_FOR_LOCAL_GIT_REPO)
-        {
-            // TODO(#1690): There should be a mechanism to prevent importing a
-            // remote named "git" in `jj git import`.
-            bad_branch_names.push(branch_name.to_owned());
-        } else {
-            // TODO: `BTreeMap::try_insert` could be used here once that's stabilized.
-            branch_target.remote_targets.insert(
-                REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned(),
-                git_tracking_target.clone(),
-            );
-        }
+        branch_target.remote_targets.insert(
+            REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned(),
+            git_tracking_target.clone(),
+        );
     }
-    (all_branches, bad_branch_names)
+    all_branches
 }
 
 fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &RefTarget)> {

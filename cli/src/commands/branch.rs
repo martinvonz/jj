@@ -322,19 +322,7 @@ fn cmd_branch_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let (mut all_branches, bad_branch_names) = git::build_unified_branches_map(repo.view());
-    if !bad_branch_names.is_empty() {
-        // TODO: This is not currently tested
-        writeln!(
-            ui.warning(),
-            "WARNING: Branch {branch_name} has a remote-tracking branch for a remote named `git`. \
-             Local-git tracking branches for it will not be shown.\nIt is recommended to rename \
-             that remote, as jj normally reserves the `@git` suffix to denote local-git tracking \
-             branches.",
-            branch_name = bad_branch_names.join(", "),
-        )?;
-    }
-
+    let mut all_branches = git::build_unified_branches_map(repo.view());
     if !args.revisions.is_empty() {
         // Match against local targets only, which is consistent with "jj git push".
         fn local_targets(branch_target: &BranchTarget) -> impl Iterator<Item = &CommitId> {

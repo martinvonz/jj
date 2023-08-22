@@ -355,7 +355,7 @@ impl RefNamesIndex {
 
 fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
-    let (all_branches, _) = git::build_unified_branches_map(repo.view());
+    let all_branches = git::build_unified_branches_map(repo.view());
     for (branch_name, branch_target) in &all_branches {
         let local_target = &branch_target.local_target;
         let mut unsynced_remote_targets = branch_target
