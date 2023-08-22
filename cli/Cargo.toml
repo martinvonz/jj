@@ -3,14 +3,14 @@ name = "jj-cli"
 description = "Jujutsu - an experimental version control system"
 default-run = "jj"
 
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
-documentation.workspace = true
-keywords.workspace = true
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+documentation = { workspace = true }
+keywords = { workspace = true }
 
 [[bin]]
 name = "jj"
@@ -25,51 +25,51 @@ name = "fake-diff-editor"
 path = "testing/fake-diff-editor.rs"
 
 [build-dependencies]
-cargo_metadata.workspace = true
+cargo_metadata = { workspace = true }
 
 [dependencies]
-chrono.workspace = true
-clap.workspace = true
-clap_complete.workspace = true
-clap_mangen.workspace = true
-config.workspace = true
+chrono = { workspace = true }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+clap_mangen = { workspace = true }
+config = { workspace = true }
 criterion = { workspace = true, optional = true }
-crossterm.workspace = true
-dirs.workspace = true
-esl01-renderdag.workspace = true
-git2.workspace = true
-glob.workspace = true
-hex.workspace = true
-indexmap.workspace = true
-itertools.workspace = true
-jj-lib.workspace = true
-maplit.workspace = true
-once_cell.workspace = true
-pest.workspace = true
-pest_derive.workspace = true
-regex.workspace = true
-rpassword.workspace = true
-serde.workspace = true
-slab.workspace = true
-tempfile.workspace = true
-textwrap.workspace = true
-thiserror.workspace = true
-timeago.workspace = true
-toml_edit.workspace = true
-tracing.workspace = true
-tracing-chrome.workspace = true
-tracing-subscriber.workspace = true
+crossterm = { workspace = true }
+dirs = { workspace = true }
+esl01-renderdag = { workspace = true }
+git2 = { workspace = true }
+glob = { workspace = true }
+hex = { workspace = true }
+indexmap = { workspace = true }
+itertools = { workspace = true }
+jj-lib = { workspace = true }
+maplit = { workspace = true }
+once_cell = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+regex = { workspace = true }
+rpassword = { workspace = true }
+serde = { workspace = true }
+slab = { workspace = true }
+tempfile = { workspace = true }
+textwrap = { workspace = true }
+thiserror = { workspace = true }
+timeago = { workspace = true }
+toml_edit = { workspace = true }
+tracing = { workspace = true }
+tracing-chrome = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
-libc.workspace = true
+libc = { workspace = true }
 
 [dev-dependencies]
-anyhow.workspace = true
-assert_cmd.workspace = true
-assert_matches.workspace = true
-insta.workspace = true
-test-case.workspace = true
-testutils.workspace = true
+anyhow = { workspace = true }
+assert_cmd = { workspace = true }
+assert_matches = { workspace = true }
+insta = { workspace = true }
+test-case = { workspace = true }
+testutils = { workspace = true }
 
 [features]
 default = []

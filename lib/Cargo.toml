@@ -2,66 +2,66 @@
 name = "jj-lib"
 description = "Library for Jujutsu - an experimental version control system"
 
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
-documentation.workspace = true
-readme.workspace = true
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
 
 [[bench]]
 name = "diff_bench"
 harness = false
 
 [build-dependencies]
-version_check.workspace = true
+version_check = { workspace = true }
 
 [dependencies]
-backoff.workspace = true
-blake2.workspace = true
-byteorder.workspace = true
-bytes.workspace = true
-chrono.workspace = true
-config.workspace = true
-digest.workspace = true
-either.workspace = true
-git2.workspace = true
-hex.workspace = true
-itertools.workspace = true
-maplit.workspace = true
-once_cell.workspace = true
-pest.workspace = true
-pest_derive.workspace = true
-prost.workspace = true
-rand.workspace = true
-rand_chacha.workspace = true
-rayon.workspace = true
-regex.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-smallvec.workspace = true
-strsim.workspace = true
-tempfile.workspace = true
-thiserror.workspace = true
+backoff = { workspace = true }
+blake2 = { workspace = true }
+byteorder = { workspace = true }
+bytes = { workspace = true }
+chrono = { workspace = true }
+config = { workspace = true }
+digest = { workspace = true }
+either = { workspace = true }
+git2 = { workspace = true }
+hex = { workspace = true }
+itertools = { workspace = true }
+maplit = { workspace = true }
+once_cell = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+prost = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+smallvec = { workspace = true }
+strsim = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, optional = true }
-tracing.workspace = true
+tracing = { workspace = true }
 watchman_client = { workspace = true, optional = true }
-whoami.workspace = true
-zstd.workspace = true
+whoami = { workspace = true }
+zstd = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
-rustix.workspace = true
+rustix = { workspace = true }
 
 [dev-dependencies]
-assert_matches.workspace = true
-criterion.workspace = true
-esl01-renderdag.workspace = true
-insta.workspace = true
-num_cpus.workspace = true
-test-case.workspace = true
-testutils.workspace = true
+assert_matches = { workspace = true }
+criterion = { workspace = true }
+esl01-renderdag = { workspace = true }
+insta = { workspace = true }
+num_cpus = { workspace = true }
+test-case = { workspace = true }
+testutils = { workspace = true }
 
 [features]
 default = []

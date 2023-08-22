@@ -3,21 +3,21 @@ name = "testutils"
 description = "Integration test utils for the jj-lib crate"
 publish = false
 
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
-documentation.workspace = true
-readme.workspace = true
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-config.workspace = true
-git2.workspace = true
-itertools.workspace = true
-jj-lib.workspace = true
-rand.workspace = true
-tempfile.workspace = true
+config = { workspace = true }
+git2 = { workspace = true }
+itertools = { workspace = true }
+jj-lib = { workspace = true }
+rand = { workspace = true }
+tempfile = { workspace = true }
