@@ -645,6 +645,7 @@ impl TreeState {
         let sparse_matcher = self.sparse_matcher();
 
         let fsmonitor_clock_needs_save = fsmonitor_kind.is_some();
+        let mut is_dirty = fsmonitor_clock_needs_save;
         let FsmonitorMatcher {
             matcher: fsmonitor_matcher,
             watchman_clock,
@@ -706,6 +707,7 @@ impl TreeState {
         })?;
         trace_span!("process file states").in_scope(|| {
             while let Ok((path, file_state)) = file_states_rx.recv() {
+                is_dirty = true;
                 self.file_states.insert(path, file_state);
             }
         });
@@ -716,12 +718,13 @@ impl TreeState {
         });
         trace_span!("process deleted files").in_scope(|| {
             for file in &deleted_files {
+                is_dirty = true;
                 self.file_states.remove(file);
                 tree_builder.remove(file.clone());
             }
         });
-        let has_changes = tree_builder.has_overrides();
         trace_span!("write tree").in_scope(|| {
+            is_dirty |= tree_builder.has_overrides();
             self.tree_id = tree_builder.write_tree();
         });
         if cfg!(debug_assertions) {
@@ -734,7 +737,7 @@ impl TreeState {
             assert_eq!(state_paths, tree_paths);
         }
         self.watchman_clock = watchman_clock;
-        Ok(has_changes || fsmonitor_clock_needs_save)
+        Ok(is_dirty)
     }
 
     #[allow(clippy::too_many_arguments)]
