@@ -836,7 +836,9 @@ impl TreeState {
                                         .send((tracked_path.clone(), tree_value))
                                         .ok();
                                 }
-                                file_states_tx.send((tracked_path, new_file_state)).ok();
+                                if new_file_state != current_file_state {
+                                    file_states_tx.send((tracked_path, new_file_state)).ok();
+                                }
                             }
                         }
                     } else {
@@ -892,7 +894,9 @@ impl TreeState {
                             if let Some(tree_value) = update {
                                 tree_entries_tx.send((path.clone(), tree_value)).ok();
                             }
-                            file_states_tx.send((path, new_file_state)).ok();
+                            if Some(&new_file_state) != maybe_current_file_state {
+                                file_states_tx.send((path, new_file_state)).ok();
+                            }
                         }
                     }
                 }
