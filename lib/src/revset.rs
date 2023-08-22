@@ -1885,26 +1885,19 @@ fn resolve_local_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> 
 
 fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
-    let target = view.get_remote_branch(name, remote);
-    if target.is_present() {
-        return Some(target.added_ids().cloned().collect());
-    }
-    // A remote with name "git" will shadow local-git tracking branches
-    if remote == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO {
-        let target = match name {
-            "HEAD" => view.git_head(),
-            _ => get_local_git_tracking_branch(view, name),
-        };
-        if target.is_present() {
-            return Some(target.added_ids().cloned().collect());
-        }
-    }
-    None
+    let target = match (name, remote) {
+        ("HEAD", git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => view.git_head(),
+        (name, git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => get_local_git_tracking_branch(view, name),
+        (name, remote) => view.get_remote_branch(name, remote),
+    };
+    target
+        .is_present()
+        .then(|| target.added_ids().cloned().collect())
 }
 
 fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<String> {
     let view = repo.view();
-    let (all_branches, _) = git::build_unified_branches_map(view);
+    let all_branches = git::build_unified_branches_map(view);
     all_branches
         .iter()
         .flat_map(|(name, branch_target)| {
