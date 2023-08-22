@@ -804,7 +804,10 @@ fn cmd_git_push(
             }
         }
         if !args.revisions.is_empty() && branches_targeted.is_empty() {
-            return Err(user_error("No branches point to the specified revisions."));
+            writeln!(
+                ui.warning(),
+                "No branches point to the specified revisions."
+            )?;
         }
 
         tx_description = format!(
