@@ -25,8 +25,8 @@ raw_literal = @{ literal_char+ }
 literal = { "\"" ~ (raw_literal | escape)* ~ "\"" }
 
 integer_literal = {
-  ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*
-  | "0"
+  "-"? ~ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*
+  | "-"? ~ "0"
 }
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
