@@ -289,6 +289,8 @@ fn test_templater_list_method() {
     insta::assert_snapshot!(
         render(r#""a\nb\nc".lines().map(|s| "x\ny".lines().map(|t| s ++ t).join(",")).join(";")"#),
         @"ax,ay;bx,by;cx,cy");
+    // Nested string operations
+    insta::assert_snapshot!(render(r#""!a\n!b\nc\nend".remove_suffix("end").lines().map(|s| s.remove_prefix("!"))"#), @"a b c");
 
     // Lambda expression in alias
     insta::assert_snapshot!(render(r#""a\nb\nc".lines().map(identity)"#), @"a b c");
@@ -364,6 +366,36 @@ fn test_templater_string_method() {
 
     insta::assert_snapshot!(render(r#""".lines()"#), @"");
     insta::assert_snapshot!(render(r#""a\nb\nc\n".lines()"#), @"a b c");
+
+    insta::assert_snapshot!(render(r#""".starts_with("")"#), @"true");
+    insta::assert_snapshot!(render(r#""everything".starts_with("")"#), @"true");
+    insta::assert_snapshot!(render(r#""".starts_with("foo")"#), @"false");
+    insta::assert_snapshot!(render(r#""foo".starts_with("foo")"#), @"true");
+    insta::assert_snapshot!(render(r#""foobar".starts_with("foo")"#), @"true");
+    insta::assert_snapshot!(render(r#""foobar".starts_with("bar")"#), @"false");
+
+    insta::assert_snapshot!(render(r#""".ends_with("")"#), @"true");
+    insta::assert_snapshot!(render(r#""everything".ends_with("")"#), @"true");
+    insta::assert_snapshot!(render(r#""".ends_with("foo")"#), @"false");
+    insta::assert_snapshot!(render(r#""foo".ends_with("foo")"#), @"true");
+    insta::assert_snapshot!(render(r#""foobar".ends_with("foo")"#), @"false");
+    insta::assert_snapshot!(render(r#""foobar".ends_with("bar")"#), @"true");
+
+    insta::assert_snapshot!(render(r#""".remove_prefix("wip: ")"#), @"");
+    insta::assert_snapshot!(render(r#""wip: testing".remove_prefix("wip: ")"#), @"testing");
+
+    insta::assert_snapshot!(render(r#""bar@my.example.com".remove_suffix("@other.example.com")"#), @"bar@my.example.com");
+    insta::assert_snapshot!(render(r#""bar@other.example.com".remove_suffix("@other.example.com")"#), @"bar");
+
+    insta::assert_snapshot!(render(r#""foo".substr(0, 0)"#), @"");
+    insta::assert_snapshot!(render(r#""foo".substr(0, 1)"#), @"f");
+    insta::assert_snapshot!(render(r#""foo".substr(0, 99)"#), @"foo");
+    insta::assert_snapshot!(render(r#""abcdef".substr(2, -1)"#), @"cde");
+    insta::assert_snapshot!(render(r#""abcdef".substr(-3, 99)"#), @"def");
+
+    // ranges with end > start are empty
+    insta::assert_snapshot!(render(r#""abcdef".substr(4, 2)"#), @"");
+    insta::assert_snapshot!(render(r#""abcdef".substr(-2, -4)"#), @"");
 }
 
 #[test]

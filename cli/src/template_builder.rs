@@ -329,6 +329,76 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
                 |(haystack, needle)| haystack.contains(&needle),
             ))
         }
+        "starts_with" => {
+            let [needle_node] = template_parser::expect_exact_arguments(function)?;
+            let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
+            language.wrap_boolean(TemplateFunction::new(
+                (self_property, needle_property),
+                move |(haystack, needle)| haystack.starts_with(&needle),
+            ))
+        }
+        "ends_with" => {
+            let [needle_node] = template_parser::expect_exact_arguments(function)?;
+            let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
+            language.wrap_boolean(TemplateFunction::new(
+                (self_property, needle_property),
+                move |(haystack, needle)| haystack.ends_with(&needle),
+            ))
+        }
+        "remove_prefix" => {
+            let [needle_node] = template_parser::expect_exact_arguments(function)?;
+            let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
+            language.wrap_string(TemplateFunction::new(
+                (self_property, needle_property),
+                move |(haystack, needle)| {
+                    haystack
+                        .strip_prefix(&needle)
+                        .map(ToOwned::to_owned)
+                        .unwrap_or(haystack)
+                },
+            ))
+        }
+        "remove_suffix" => {
+            let [needle_node] = template_parser::expect_exact_arguments(function)?;
+            let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
+            language.wrap_string(TemplateFunction::new(
+                (self_property, needle_property),
+                move |(haystack, needle)| {
+                    haystack
+                        .strip_suffix(&needle)
+                        .map(ToOwned::to_owned)
+                        .unwrap_or(haystack)
+                },
+            ))
+        }
+        "substr" => {
+            let [start_idx, end_idx] = template_parser::expect_exact_arguments(function)?;
+            let start_idx_property = expect_integer_expression(language, build_ctx, start_idx)?;
+            let end_idx_property = expect_integer_expression(language, build_ctx, end_idx)?;
+            language.wrap_string(TemplateFunction::new(
+                (self_property, start_idx_property, end_idx_property),
+                |(s, start_idx, end_idx)| {
+                    let to_idx = |i: i64| -> usize {
+                        let magnitude = usize::try_from(i.unsigned_abs()).unwrap_or(usize::MAX);
+                        if i < 0 {
+                            s.len().saturating_sub(magnitude)
+                        } else {
+                            magnitude
+                        }
+                    };
+                    let start_idx = to_idx(start_idx);
+                    let end_idx = to_idx(end_idx);
+                    if start_idx >= end_idx {
+                        String::new()
+                    } else {
+                        s.chars()
+                            .skip(start_idx)
+                            .take(end_idx - start_idx)
+                            .collect()
+                    }
+                },
+            ))
+        }
         "first_line" => {
             template_parser::expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |s| {
