@@ -164,6 +164,14 @@ fn test_templater_parse_error() {
       |
       = Method "foo" doesn't exist for type "Integer"
     "###);
+    insta::assert_snapshot!(render_err(r#"(-empty)"#), @r###"
+    Error: Failed to parse template:  --> 1:2
+      |
+    1 | (-empty)
+      |  ^---
+      |
+      = expected template
+    "###);
 
     insta::assert_snapshot!(render_err(r#"("foo" ++ "bar").baz()"#), @r###"
     Error: Failed to parse template:  --> 1:18
@@ -514,6 +522,66 @@ fn test_templater_fill_function() {
         @r###"
     The quick fox jumps
     over the [38;5;1mlazy[39m dog
+    "###);
+
+    // A low value will not chop words, but can chop a label by words
+    insta::assert_snapshot!(
+        render(r#"fill(9, "Longlonglongword an some short words " ++
+                       label("error", "longlonglongword and short words") ++ " back out\n")"#),
+        @r###"
+    Longlonglongword
+    an some
+    short
+    words
+    [38;5;1mlonglonglongword[39m
+    [38;5;1mand short[39m
+    [38;5;1mwords[39m
+    back out
+    "###);
+
+    // Filling to 0 means breaking at every word
+    insta::assert_snapshot!(
+        render(r#"fill(0, "The quick fox jumps over the " ++
+                       label("error", "lazy") ++ " dog\n")"#),
+        @r###"
+    The
+    quick
+    fox
+    jumps
+    over
+    the
+    [38;5;1mlazy[39m
+    dog
+    "###);
+
+    // Filling to -0 is the same as 0
+    insta::assert_snapshot!(
+        render(r#"fill(-0, "The quick fox jumps over the " ++
+                       label("error", "lazy") ++ " dog\n")"#),
+        @r###"
+    The
+    quick
+    fox
+    jumps
+    over
+    the
+    [38;5;1mlazy[39m
+    dog
+    "###);
+
+    // Filling to negatives are clamped to the same as zero
+    insta::assert_snapshot!(
+        render(r#"fill(-10, "The quick fox jumps over the " ++
+                       label("error", "lazy") ++ " dog\n")"#),
+        @r###"
+    The
+    quick
+    fox
+    jumps
+    over
+    the
+    [38;5;1mlazy[39m
+    dog
     "###);
 
     // Word-wrap, then indent

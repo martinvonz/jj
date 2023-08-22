@@ -633,6 +633,16 @@ fn test_log_shortest_length_parameter() {
     ◉  0
     "###);
     insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.shortest(-0)"]), @r###"
+    @  2
+    ◉  0
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.shortest(-100)"]), @r###"
+    @  2
+    ◉  0
+    "###);
+    insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.shortest(100)"]), @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
     ◉  0000000000000000000000000000000000000000
