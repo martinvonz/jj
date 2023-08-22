@@ -102,6 +102,9 @@ pub struct GitFetchArgs {
     /// repeated)
     #[arg(long = "remote", value_name = "remote")]
     remotes: Vec<String>,
+    /// Fetch from all remotes
+    #[arg(long, conflicts_with = "remotes")]
+    all_remotes: bool,
 }
 
 /// Create a new repo backed by a clone of a Git repo
@@ -327,7 +330,9 @@ fn cmd_git_fetch(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let git_repo = get_git_repo(workspace_command.repo().store())?;
-    let remotes = if args.remotes.is_empty() {
+    let remotes = if args.all_remotes {
+        get_all_remotes(&git_repo)?
+    } else if args.remotes.is_empty() {
         get_default_fetch_remotes(ui, command.settings(), &git_repo)?
     } else {
         args.remotes.clone()
@@ -390,6 +395,14 @@ fn get_default_fetch_remotes(
     } else {
         Ok(vec![DEFAULT_REMOTE.to_owned()])
     }
+}
+
+fn get_all_remotes(git_repo: &git2::Repository) -> Result<Vec<String>, CommandError> {
+    let git_remotes = git_repo.remotes()?;
+    Ok(git_remotes
+        .iter()
+        .filter_map(|x| x.map(ToOwned::to_owned))
+        .collect())
 }
 
 fn absolute_git_source(cwd: &Path, source: &str) -> String {

@@ -106,6 +106,22 @@ fn test_git_fetch_single_remote() {
 }
 
 #[test]
+fn test_git_fetch_single_remote_all_remotes_flag() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "rem1");
+
+    test_env
+        .jj_cmd(&repo_path, &["git", "fetch", "--all-remotes"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    rem1: qxosxrvv 6a211027 message
+    "###);
+}
+
+#[test]
 fn test_git_fetch_single_remote_from_arg() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
@@ -144,6 +160,21 @@ fn test_git_fetch_multiple_remotes() {
         &repo_path,
         &["git", "fetch", "--remote", "rem1", "--remote", "rem2"],
     );
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    rem1: qxosxrvv 6a211027 message
+    rem2: yszkquru 2497a8a0 message
+    "###);
+}
+
+#[test]
+fn test_git_fetch_all_remotes() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "rem1");
+    add_git_remote(&test_env, &repo_path, "rem2");
+
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--all-remotes"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: qxosxrvv 6a211027 message
     rem2: yszkquru 2497a8a0 message
