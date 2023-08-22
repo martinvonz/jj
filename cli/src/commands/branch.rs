@@ -407,7 +407,10 @@ fn cmd_branch_list(
 
     for (name, branch_target) in all_branches {
         let found_non_git_remote = {
-            let pseudo_remote_count = branch_target.remote_targets.contains_key("git") as usize;
+            let pseudo_remote_count = branch_target
+                .remote_targets
+                .contains_key(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO)
+                as usize;
             branch_target.remote_targets.len() - pseudo_remote_count > 0
         };
 

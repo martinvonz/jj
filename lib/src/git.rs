@@ -33,6 +33,9 @@ use crate::revset;
 use crate::settings::GitSettings;
 use crate::view::{RefName, View};
 
+/// Reserved remote name for the backing Git repo.
+pub const REMOTE_NAME_FOR_LOCAL_GIT_REPO: &str = "git";
+
 #[derive(Error, Debug)]
 pub enum GitImportError {
     #[error("Failed to read Git HEAD target commit {id}: {err}", id=id.hex())]
@@ -136,15 +139,19 @@ pub fn build_unified_branches_map(view: &View) -> (BTreeMap<String, BranchTarget
     let mut bad_branch_names = Vec::new();
     for (branch_name, git_tracking_target) in local_branch_git_tracking_refs(view) {
         let branch_target = all_branches.entry(branch_name.to_owned()).or_default();
-        if branch_target.remote_targets.contains_key("git") {
+        if branch_target
+            .remote_targets
+            .contains_key(REMOTE_NAME_FOR_LOCAL_GIT_REPO)
+        {
             // TODO(#1690): There should be a mechanism to prevent importing a
             // remote named "git" in `jj git import`.
             bad_branch_names.push(branch_name.to_owned());
         } else {
             // TODO: `BTreeMap::try_insert` could be used here once that's stabilized.
-            branch_target
-                .remote_targets
-                .insert("git".to_owned(), git_tracking_target.clone());
+            branch_target.remote_targets.insert(
+                REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned(),
+                git_tracking_target.clone(),
+            );
         }
     }
     (all_branches, bad_branch_names)

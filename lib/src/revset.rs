@@ -1890,7 +1890,7 @@ fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Ve
         return Some(target.added_ids().cloned().collect());
     }
     // A remote with name "git" will shadow local-git tracking branches
-    if remote == "git" {
+    if remote == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO {
         let target = match name {
             "HEAD" => view.git_head(),
             _ => get_local_git_tracking_branch(view, name),
