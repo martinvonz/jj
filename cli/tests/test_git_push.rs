@@ -341,9 +341,12 @@ fn test_git_push_revisions() {
     Error: Empty revision set
     "###);
     // Push a revision with no branches
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "-r=@--"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-r=@--"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
     insta::assert_snapshot!(stderr, @r###"
-    Error: No branches point to the specified revisions.
+    No branches point to the specified revisions.
     "###);
     // Push a revision with a single branch
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "-r=@-", "--dry-run"]);
