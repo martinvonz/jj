@@ -3,9 +3,9 @@ name = "gen-protos"
 description = "Generate Protocol Buffers definitions for the jj-lib crate"
 publish = false
 
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
 
 [dependencies]
-prost-build.workspace = true
+prost-build = { workspace = true }
