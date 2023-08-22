@@ -409,11 +409,14 @@ fn interpolate_variables<V: AsRef<str>>(
 }
 
 /// Return all variable names found in the args, without the dollar sign
-fn find_all_variables(args: &[String]) -> Vec<String> {
+fn find_all_variables(args: &[String]) -> impl Iterator<Item = &str> {
+    let regex = &*VARIABLE_REGEX;
     args.iter()
-        .flat_map(|arg| VARIABLE_REGEX.find_iter(arg))
-        .map(|single_match| single_match.as_str()[1..].to_owned())
-        .collect()
+        .flat_map(|arg| regex.find_iter(arg))
+        .map(|single_match| {
+            let s = single_match.as_str();
+            &s[1..]
+        })
 }
 
 pub fn edit_diff_external(
@@ -424,7 +427,7 @@ pub fn edit_diff_external(
     base_ignores: Arc<GitIgnoreFile>,
     settings: &UserSettings,
 ) -> Result<TreeId, DiffEditError> {
-    let got_output_field = find_all_variables(&editor.edit_args).contains(&"output".to_owned());
+    let got_output_field = find_all_variables(&editor.edit_args).contains(&"output");
     let store = left_tree.store();
     let diff_wc = check_out_trees(
         store,
@@ -632,7 +635,8 @@ mod tests {
                     "--can-repeat=$right"
                 ]
                 .map(ToOwned::to_owned),
-            ),
+            )
+            .collect_vec(),
             ["left", "right", "1", "2", "output", "right"],
         );
     }
