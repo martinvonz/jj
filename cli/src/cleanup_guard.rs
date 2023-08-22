@@ -1,12 +1,11 @@
 use std::io;
 use std::sync::{Mutex, Once};
 
-use once_cell::sync::Lazy;
 use slab::Slab;
 use tracing::instrument;
 
 /// Contains the callbacks passed to currently-live [`CleanupGuard`]s
-static LIVE_GUARDS: Lazy<Mutex<GuardTable>> = Lazy::new(|| Mutex::new(Slab::new()));
+static LIVE_GUARDS: Mutex<GuardTable> = Mutex::new(Slab::new());
 
 type GuardTable = Slab<Box<dyn FnOnce() + Send>>;
 
