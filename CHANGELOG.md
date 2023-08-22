@@ -105,6 +105,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Revsets gained a new function `mine()` that aliases `author(exact:"your_email")`.
 
 * `jj log` timestamp format now accepts `.utc()` to convert a timestamp to UTC.
+ 
+* templates now support additional string methods `.starts_with(x)`, `.ends_with(x)`
+  `.remove_prefix(x)`, `.remove_suffix(x)`, and `.substr(start, end)`.
 
 ### Fixed bugs
 

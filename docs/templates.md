@@ -142,6 +142,11 @@ defined.
 * `.lines() -> List<String>`: Split into lines excluding newline characters.
 * `.upper() -> String`
 * `.lower() -> String`
+* `.starts_with(needle: Template) -> Boolean`
+* `.ends_with(needle: Template) -> Boolean`
+* `.remove_prefix(needle: Template) -> String`: Removes the passed prefix, if present
+* `.remove_suffix(needle: Template) -> String`: Removes the passed suffix, if present
+* `.substr(start: Integer, end: Integer) -> String`: Extract substring. Negative values count from the end.
 
 ### Template type
 
