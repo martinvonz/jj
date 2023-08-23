@@ -566,11 +566,7 @@ impl TreeState {
         Ok(())
     }
 
-    fn current_tree(&self) -> Result<Tree, BackendError> {
-        self.store.get_tree(&RepoPath::root(), &self.tree_id)
-    }
-
-    fn current_merged_tree(&self) -> Result<MergedTree, BackendError> {
+    fn current_tree(&self) -> Result<MergedTree, BackendError> {
         let tree = self.store.get_tree(&RepoPath::root(), &self.tree_id)?;
         Ok(MergedTree::legacy(tree))
     }
@@ -659,7 +655,7 @@ impl TreeState {
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
-            let current_tree = self.current_merged_tree()?;
+            let current_tree = self.current_tree()?;
             let directory_to_visit = DirectoryToVisit {
                 dir: RepoPath::root(),
                 disk_dir: self.working_copy_path.clone(),
@@ -1174,7 +1170,7 @@ impl TreeState {
     }
 
     pub fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {
-        let old_tree = self.current_merged_tree().map_err(|err| match err {
+        let old_tree = self.current_tree().map_err(|err| match err {
             err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
                 source: Box::new(err),
             },
@@ -1189,7 +1185,7 @@ impl TreeState {
         &mut self,
         sparse_patterns: Vec<RepoPath>,
     ) -> Result<CheckoutStats, CheckoutError> {
-        let tree = self.current_merged_tree().map_err(|err| match err {
+        let tree = self.current_tree().map_err(|err| match err {
             err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
                 source: Box::new(err),
             },
@@ -1293,7 +1289,7 @@ impl TreeState {
     }
 
     pub fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
-        let old_tree = self.current_merged_tree().map_err(|err| match err {
+        let old_tree = self.current_tree().map_err(|err| match err {
             err @ BackendError::ObjectNotFound { .. } => ResetError::SourceNotFound {
                 source: Box::new(err),
             },
