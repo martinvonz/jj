@@ -20,8 +20,8 @@ mod git;
 mod operation;
 
 use std::collections::{BTreeMap, HashSet};
-use std::fmt::Debug;
-use std::io::{BufRead, Read, Seek, SeekFrom, Write};
+use std::fmt::{Debug, Display, Write as _};
+use std::io::{BufRead, Read, Seek, SeekFrom, Write as _};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io};
@@ -66,6 +66,32 @@ use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{get_graphlog, Edge};
 use crate::text_util;
 use crate::ui::Ui;
+
+/// Helper struct for [`comment_lines()`] which avoids allocations.
+struct CommentLines<'a> {
+    prefix: &'a str,
+    content: &'a str,
+}
+
+impl<'a> Display for CommentLines<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for line in self.content.lines() {
+            writeln!(f, "{}{line}", self.prefix)?;
+        }
+        Ok(())
+    }
+}
+
+const EDIT_COMMENT_MARKER: &str = "JJ: ";
+
+/// Prefixes each line of the passed string with the comment marker. Always
+/// ensures a trailing newline.
+fn comment_lines(s: &str) -> impl Display + '_ {
+    CommentLines {
+        prefix: EDIT_COMMENT_MARKER,
+        content: s,
+    }
+}
 
 #[derive(clap::Parser, Clone, Debug)]
 enum Commands {
@@ -1897,8 +1923,14 @@ fn edit_description(
             .prefix("editor-")
             .suffix(".jjdescription")
             .tempfile_in(repo.repo_path())?;
-        file.write_all(description.as_bytes())?;
-        file.write_all(b"\nJJ: Lines starting with \"JJ: \" (like this one) will be removed.\n")?;
+        writeln!(file, "{description}")?;
+        write!(
+            file,
+            "{}",
+            comment_lines(&format!(
+                "Lines starting with \"{EDIT_COMMENT_MARKER}\" (like this one) will be removed."
+            ))
+        )?;
         let (_, path) = file.keep().map_err(|e| e.error)?;
         Ok(path)
     })()
@@ -1923,7 +1955,7 @@ fn edit_description(
     // Normalize line ending, remove leading and trailing blank lines.
     let description = description
         .lines()
-        .filter(|line| !line.starts_with("JJ: "))
+        .filter(|line| !line.starts_with(EDIT_COMMENT_MARKER))
         .join("\n");
     Ok(text_util::complete_newline(description.trim_matches('\n')))
 }
@@ -1976,7 +2008,7 @@ fn edit_sparse(
         .lines()
         .filter(|line| {
             line.as_ref()
-                .map(|line| !line.starts_with("JJ: ") && !line.trim().is_empty())
+                .map(|line| !line.starts_with(EDIT_COMMENT_MARKER) && !line.trim().is_empty())
                 .unwrap_or(true)
         })
         .map(|line| {
@@ -2363,11 +2395,22 @@ fn combine_messages(
         } else if destination.description().is_empty() {
             source.description().to_string()
         } else {
-            let combined = "JJ: Enter a description for the combined commit.\n".to_string()
-                + "JJ: Description from the destination commit:\n"
-                + destination.description()
-                + "\nJJ: Description from the source commit:\n"
-                + source.description();
+            let mut combined =
+                comment_lines("Enter a description for the combined commit.").to_string();
+            writeln!(
+                combined,
+                "{}{}",
+                comment_lines("Description from the destination commit:"),
+                destination.description()
+            )
+            .unwrap();
+            write!(
+                combined,
+                "{}{}",
+                comment_lines("Description from the source commit:"),
+                source.description()
+            )
+            .unwrap();
             edit_description(repo, &combined, settings)?
         }
     } else {
@@ -3025,7 +3068,8 @@ fn description_template_for_cmd_split(
     } else {
         overall_commit_description.to_owned()
     };
-    Ok(format!("JJ: {intro}\n{description}\n") + &diff_summary_to_description(&diff_summary_bytes))
+    Ok(format!("{}{description}\n", comment_lines(intro))
+        + &diff_summary_to_description(&diff_summary_bytes))
 }
 
 fn diff_summary_to_description(bytes: &[u8]) -> String {
@@ -3033,8 +3077,11 @@ fn diff_summary_to_description(bytes: &[u8]) -> String {
         "Summary diffs and repo paths must always be valid UTF8.",
         // Double-check this assumption for diffs that include file content.
     );
-    "JJ: This commit contains the following changes:\n".to_owned()
-        + &textwrap::indent(text, "JJ:     ")
+    format!(
+        "{}{}",
+        comment_lines("This commit contains the following changes:"),
+        comment_lines(&textwrap::indent(text, "    "))
+    )
 }
 
 #[instrument(skip_all)]
