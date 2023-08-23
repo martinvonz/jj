@@ -879,13 +879,36 @@ fn parse_primary_rule(
             let arguments_pair = pairs.next().unwrap();
             parse_function_expression(first, arguments_pair, state, span)
         }
-        Rule::symbol => parse_symbol_rule(first.into_inner(), state),
+        // Symbol without "@" may be substituted by aliases. Primary expression including "@"
+        // is considered an indecomposable unit, and no alias substitution would be made.
+        Rule::symbol if pairs.peek().is_none() => parse_symbol_rule(first.into_inner(), state),
+        Rule::symbol => {
+            let name = parse_symbol_rule_as_literal(first.into_inner())?;
+            assert_eq!(pairs.next().unwrap().as_rule(), Rule::at_op);
+            if let Some(second) = pairs.next() {
+                // infix "<name>@<remote>"
+                assert_eq!(second.as_rule(), Rule::symbol);
+                let remote = parse_symbol_rule_as_literal(second.into_inner())?;
+                Ok(RevsetExpression::symbol(format!("{name}@{remote}"))) // TODO
+            } else {
+                // postfix "<workspace_id>@"
+                Ok(RevsetExpression::working_copy(WorkspaceId::new(name)))
+            }
+        }
+        Rule::at_op => {
+            // unary "@"
+            let ctx = state.workspace_ctx.as_ref().ok_or_else(|| {
+                RevsetParseError::new(RevsetParseErrorKind::WorkingCopyWithoutWorkspace)
+            })?;
+            Ok(RevsetExpression::working_copy(ctx.workspace_id.clone()))
+        }
         _ => {
             panic!("unexpected revset parse rule: {:?}", first.as_str());
         }
     }
 }
 
+/// Parses symbol to expression, expands aliases as needed.
 fn parse_symbol_rule(
     mut pairs: Pairs<Rule>,
     state: ParseState,
@@ -894,20 +917,7 @@ fn parse_symbol_rule(
     match first.as_rule() {
         Rule::identifier => {
             let name = first.as_str();
-            if name.ends_with('@') {
-                let workspace_id = if name == "@" {
-                    if let Some(ctx) = state.workspace_ctx {
-                        ctx.workspace_id.clone()
-                    } else {
-                        return Err(RevsetParseError::new(
-                            RevsetParseErrorKind::WorkingCopyWithoutWorkspace,
-                        ));
-                    }
-                } else {
-                    WorkspaceId::new(name.strip_suffix('@').unwrap().to_string())
-                };
-                Ok(RevsetExpression::working_copy(workspace_id))
-            } else if let Some(expr) = state.locals.get(name) {
+            if let Some(expr) = state.locals.get(name) {
                 Ok(expr.clone())
             } else if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
                 let locals = HashMap::new(); // Don't spill out the current scope
@@ -919,6 +929,18 @@ fn parse_symbol_rule(
             }
         }
         Rule::literal_string => parse_string_literal(first).map(RevsetExpression::symbol),
+        _ => {
+            panic!("unexpected symbol parse rule: {:?}", first.as_str());
+        }
+    }
+}
+
+/// Parses part of compound symbol to string without alias substitution.
+fn parse_symbol_rule_as_literal(mut pairs: Pairs<Rule>) -> Result<String, RevsetParseError> {
+    let first = pairs.next().unwrap();
+    match first.as_rule() {
+        Rule::identifier => Ok(first.as_str().to_owned()),
+        Rule::literal_string => parse_string_literal(first),
         _ => {
             panic!("unexpected symbol parse rule: {:?}", first.as_str());
         }
@@ -2634,10 +2656,37 @@ mod tests {
             parse_with_workspace("main@", &other_workspace_id),
             Ok(main_wc)
         );
-        // Quoted "@" is not interpreted as a working copy
+        assert_eq!(
+            parse("main@origin"),
+            Ok(RevsetExpression::symbol("main@origin".to_string()))
+        );
+        // Quoted component in @ expression
+        assert_eq!(
+            parse(r#""foo bar"@"#),
+            Ok(RevsetExpression::working_copy(WorkspaceId::new(
+                "foo bar".to_string()
+            )))
+        );
+        assert_eq!(
+            parse(r#""foo bar"@origin"#),
+            Ok(RevsetExpression::symbol("foo bar@origin".to_string()))
+        );
+        assert_eq!(
+            parse(r#"main@"foo bar""#),
+            Ok(RevsetExpression::symbol("main@foo bar".to_string()))
+        );
+        // Quoted "@" is not interpreted as a working copy or remote symbol
         assert_eq!(
             parse(r#""@""#),
             Ok(RevsetExpression::symbol("@".to_string()))
+        );
+        assert_eq!(
+            parse(r#""main@""#),
+            Ok(RevsetExpression::symbol("main@".to_string()))
+        );
+        assert_eq!(
+            parse(r#""main@origin""#),
+            Ok(RevsetExpression::symbol("main@origin".to_string()))
         );
         // "@" in function argument must be quoted
         assert_eq!(
@@ -2811,8 +2860,21 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_revset_alias_symbol_decl() {
+        let mut aliases_map = RevsetAliasesMap::new();
+        // Working copy or remote symbol cannot be used as an alias name.
+        assert!(aliases_map.insert("@", "none()").is_err());
+        assert!(aliases_map.insert("a@", "none()").is_err());
+        assert!(aliases_map.insert("a@b", "none()").is_err());
+    }
+
+    #[test]
     fn test_parse_revset_alias_formal_parameter() {
         let mut aliases_map = RevsetAliasesMap::new();
+        // Working copy or remote symbol cannot be used as an parameter name.
+        assert!(aliases_map.insert("f(@)", "none()").is_err());
+        assert!(aliases_map.insert("f(a@)", "none()").is_err());
+        assert!(aliases_map.insert("f(a@b)", "none()").is_err());
         // Trailing comma isn't allowed for empty parameter
         assert!(aliases_map.insert("f(,)", "none()").is_err());
         // Trailing comma is allowed for the last parameter
@@ -3044,12 +3106,6 @@ mod tests {
             parse_with_aliases(r#"A|"A""#, [("A", "a")]).unwrap(),
             parse("a|A").unwrap()
         );
-        // Working copy symbol should not be substituted with alias.
-        // TODO: Make it an error instead of being ignored
-        assert_eq!(
-            parse_with_aliases(r#"a@"#, [("a@", "a")]).unwrap(),
-            parse("a@").unwrap()
-        );
 
         // Alias can be substituted to string literal.
         assert_eq!(
@@ -3067,9 +3123,24 @@ mod tests {
             parse_with_aliases("author(A)", [("A", "exact:a")]).unwrap(),
             parse("author(exact:a)").unwrap()
         );
+        // TODO: Substitution of part of a string pattern seems confusing. Disable it.
         assert_eq!(
             parse_with_aliases("author(exact:A)", [("A", "a")]).unwrap(),
             parse("author(exact:a)").unwrap()
+        );
+
+        // Part of @ symbol cannot be substituted.
+        assert_eq!(
+            parse_with_aliases("A@", [("A", "a")]).unwrap(),
+            parse("A@").unwrap()
+        );
+        assert_eq!(
+            parse_with_aliases("A@b", [("A", "a")]).unwrap(),
+            parse("A@b").unwrap()
+        );
+        assert_eq!(
+            parse_with_aliases("a@B", [("B", "b")]).unwrap(),
+            parse("a@B").unwrap()
         );
 
         // Multi-level substitution.
@@ -3124,13 +3195,6 @@ mod tests {
         assert_eq!(
             parse_with_aliases("F(G(a))", [("F(x)", "G(x)&y"), ("G(y)", "x|y")]).unwrap(),
             parse("(x|(x|a))&y").unwrap()
-        );
-
-        // Working copy symbol cannot be used as parameter name
-        // TODO: Make it an error instead of being ignored
-        assert_eq!(
-            parse_with_aliases("F(x)", [("F(a@)", "a@|y")]).unwrap(),
-            parse("a@|y").unwrap()
         );
 
         // Function parameter should precede the symbol alias.
