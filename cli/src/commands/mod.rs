@@ -37,6 +37,7 @@ use jj_lib::dag_walk::topo_order_reverse;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merge::Merge;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
@@ -1328,6 +1329,7 @@ fn cmd_untrack(
     }
     let new_tree_id = tree_builder.write_tree();
     let new_tree = store.get_tree(&RepoPath::root(), &new_tree_id)?;
+    let new_tree = MergedTree::legacy(new_tree);
     // Reset the working copy to the new tree
     locked_working_copy.reset(&new_tree)?;
     // Commit the working copy again so we can inform the user if paths couldn't be

@@ -57,7 +57,7 @@ use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::settings::HumanByteSize;
 use crate::store::Store;
-use crate::tree::{Diff, Tree};
+use crate::tree::Tree;
 
 #[cfg(unix)]
 type FileExecutableFlag = bool;
@@ -1292,31 +1292,27 @@ impl TreeState {
         Ok(stats)
     }
 
-    pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
-        let old_tree = self.current_tree().map_err(|err| match err {
+    pub fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
+        let old_tree = self.current_merged_tree().map_err(|err| match err {
             err @ BackendError::ObjectNotFound { .. } => ResetError::SourceNotFound {
                 source: Box::new(err),
             },
             other => ResetError::InternalBackendError(other),
         })?;
 
-        for (path, diff) in old_tree.diff(new_tree, self.sparse_matcher().as_ref()) {
-            match diff {
-                Diff::Removed(_before) => {
-                    self.file_states.remove(&path);
-                }
-                Diff::Added(after) | Diff::Modified(_, after) => {
-                    let file_type = match after {
+        for (path, _before, after) in old_tree.diff(new_tree, self.sparse_matcher().as_ref()) {
+            if after.is_absent() {
+                self.file_states.remove(&path);
+            } else {
+                let file_type = match after.into_resolved() {
+                    Ok(value) => match value.unwrap() {
                         #[cfg(unix)]
                         TreeValue::File { id: _, executable } => FileType::Normal { executable },
                         #[cfg(windows)]
                         TreeValue::File { .. } => FileType::Normal { executable: () },
                         TreeValue::Symlink(_id) => FileType::Symlink,
                         TreeValue::Conflict(_id) => {
-                            // TODO: Try to set the executable bit based on the conflict
-                            FileType::Normal {
-                                executable: FileExecutableFlag::default(),
-                            }
+                            panic!("unexpected conflict entry in diff at {path:?}");
                         }
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {path:?}");
@@ -1325,17 +1321,23 @@ impl TreeState {
                         TreeValue::Tree(_id) => {
                             panic!("unexpected tree entry in diff at {path:?}");
                         }
-                    };
-                    let file_state = FileState {
-                        file_type,
-                        mtime: MillisSinceEpoch(0),
-                        size: 0,
-                    };
-                    self.file_states.insert(path.clone(), file_state);
-                }
+                    },
+                    Err(_values) => {
+                        // TODO: Try to set the executable bit based on the conflict
+                        FileType::Normal {
+                            executable: FileExecutableFlag::default(),
+                        }
+                    }
+                };
+                let file_state = FileState {
+                    file_type,
+                    mtime: MillisSinceEpoch(0),
+                    size: 0,
+                };
+                self.file_states.insert(path.clone(), file_state);
             }
         }
-        self.tree_id = new_tree.id().clone();
+        self.tree_id = new_tree.id().into_resolved().unwrap().clone();
         Ok(())
     }
 }
@@ -1582,7 +1584,7 @@ impl LockedWorkingCopy<'_> {
         Ok(stats)
     }
 
-    pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
+    pub fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
         self.wc.tree_state_mut()?.reset(new_tree)?;
         self.tree_state_dirty = true;
         Ok(())
