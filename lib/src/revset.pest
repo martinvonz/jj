@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-identifier_part = @{ (ASCII_ALPHANUMERIC | "_" | "@" | "/")+ }
+identifier_part = @{ (ASCII_ALPHANUMERIC | "_" | "/")+ }
 identifier = @{
   identifier_part ~ ("." | "-" | "+" ) ~ identifier
   | identifier_part
@@ -23,6 +23,8 @@ symbol = {
 }
 literal_string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
+
+at_op = { "@" }
 
 parents_op = { "-" }
 children_op = { "+" }
@@ -65,7 +67,11 @@ formal_parameters = {
 primary = {
   function_name ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")"
   | "(" ~ whitespace* ~ expression ~ whitespace* ~ ")"
+  // "@" operator cannot be nested
+  | symbol ~ at_op ~ symbol
+  | symbol ~ at_op
   | symbol
+  | at_op
 }
 
 neighbors_expression = _{ primary ~ (parents_op | children_op | compat_parents_op)* }

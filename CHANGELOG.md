@@ -42,10 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Older binaries may not warn user when attempting to `git push` commits
   with such signatures.
 
-* In revsets, the working-copy symbols (such as `@` and `workspace_id@`) can
-  no longer be quoted and will not be resolved as a revset aliases or revset 
-  function parameter. For example, `author(foo@)` is now an error, and
-  a revset alias `'revset-aliases.foo@' = '@'` will be ignored. 
+* In revsets, the working-copy or remote symbols (such as `@`, `workspace_id@`,
+  and `branch@remote`) can no longer be quoted as a unit. If a workspace or
+  branch name contains whitespace, quote the name like `"branch name"@remote`.
+  Also, these symbols will not be resolved as revset aliases or function
+  parameters. For example, `author(foo@)` is now an error, and the revset alias
+  `'revset-aliases.foo@' = '@'` will be failed to parse.
 
 * `jj git push` will now push all branches in the range `remote_branches()..@`
   instead of only branches pointing to `@` or `@-`.
