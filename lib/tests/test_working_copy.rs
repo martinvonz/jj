@@ -325,19 +325,18 @@ fn test_reset() {
     let ignored_path = RepoPath::from_internal_string("ignored");
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
 
-    let tree_without_file = testutils::create_tree(repo, &[(&gitignore_path, "ignored\n")]);
-    let tree_with_file = testutils::create_tree(
+    let tree_without_file = MergedTree::legacy(testutils::create_tree(
+        repo,
+        &[(&gitignore_path, "ignored\n")],
+    ));
+    let tree_with_file = MergedTree::legacy(testutils::create_tree(
         repo,
         &[(&gitignore_path, "ignored\n"), (&ignored_path, "code")],
-    );
+    ));
 
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(
-        repo.op_id().clone(),
-        None,
-        &MergedTree::legacy(tree_with_file.clone()),
-    )
-    .unwrap();
+    wc.check_out(repo.op_id().clone(), None, &tree_with_file)
+        .unwrap();
 
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
@@ -352,7 +351,10 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().unwrap().contains_key(&ignored_path));
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(new_tree.id(), tree_without_file.id());
+    assert_eq!(
+        new_tree.id(),
+        tree_without_file.id().into_resolved().unwrap()
+    );
 
     // Now test the opposite direction: resetting to a commit where the file is
     // tracked. The file should become tracked (even though it's ignored).
@@ -363,7 +365,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(wc.file_states().unwrap().contains_key(&ignored_path));
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(new_tree.id(), tree_with_file.id());
+    assert_eq!(new_tree.id(), tree_with_file.id().into_resolved().unwrap());
 }
 
 #[test]
@@ -602,7 +604,7 @@ fn test_gitignores_in_ignored_dir(use_git: bool) {
     );
     let wc = test_workspace.workspace.working_copy_mut();
     let mut locked_wc = wc.start_mutation().unwrap();
-    locked_wc.reset(&tree2).unwrap();
+    locked_wc.reset(&MergedTree::legacy(tree2.clone())).unwrap();
     locked_wc.finish(OperationId::from_hex("abc123")).unwrap();
 
     let new_tree = test_workspace.snapshot().unwrap();

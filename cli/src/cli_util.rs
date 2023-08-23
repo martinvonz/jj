@@ -796,7 +796,8 @@ impl WorkspaceCommandHelper {
                     // The working copy was presumably updated by the git command that updated
                     // HEAD, so we just need to reset our working copy
                     // state to it without updating working copy files.
-                    locked_working_copy.reset(&new_git_head_commit.tree())?;
+                    let new_git_head_tree = new_git_head_commit.merged_tree()?;
+                    locked_working_copy.reset(&new_git_head_tree)?;
                     tx.mut_repo().rebase_descendants(&self.settings)?;
                     self.user_repo = ReadonlyUserRepo::new(tx.commit());
                     locked_working_copy.finish(op_id)?;
