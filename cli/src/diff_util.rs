@@ -43,7 +43,7 @@ pub struct DiffFormatArgs {
     /// For each path, show only whether it was modified, added, or removed
     #[arg(long, short)]
     pub summary: bool,
-    // Show a histogram of the changes
+    /// Show a histogram of the changes
     #[arg(long)]
     pub stat: bool,
     /// For each path, show only its type before and after
