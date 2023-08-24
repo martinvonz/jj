@@ -40,7 +40,7 @@ use thiserror::Error;
 use tracing::{instrument, trace_span};
 
 use crate::backend::{
-    BackendError, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
+    BackendError, FileId, MergedTreeId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
 };
 use crate::conflicts;
 #[cfg(feature = "watchman")]
@@ -52,7 +52,7 @@ use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, IntersectionMatcher, Matcher, PrefixMatcher,
 };
 use crate::merge::Merge;
-use crate::merged_tree::MergedTree;
+use crate::merged_tree::{MergedTree, MergedTreeBuilder};
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::settings::HumanByteSize;
@@ -673,7 +673,10 @@ impl TreeState {
             )
         })?;
 
-        let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
+        let mut tree_builder = MergedTreeBuilder::new(
+            self.store.clone(),
+            MergedTreeId::Legacy(self.tree_id.clone()),
+        );
         let mut deleted_files: HashSet<_> =
             trace_span!("collecting existing files").in_scope(|| {
                 self.file_states
@@ -686,15 +689,7 @@ impl TreeState {
             });
         trace_span!("process tree entries").in_scope(|| -> Result<(), SnapshotError> {
             while let Ok((path, tree_values)) = tree_entries_rx.recv() {
-                match tree_values.into_resolved() {
-                    Ok(tree_value) => {
-                        tree_builder.set(path, tree_value.unwrap());
-                    }
-                    Err(conflict) => {
-                        let conflict_id = self.store.write_conflict(&path, &conflict)?;
-                        tree_builder.set(path, TreeValue::Conflict(conflict_id));
-                    }
-                }
+                tree_builder.set_or_remove(path, tree_values);
             }
             Ok(())
         })?;
@@ -713,11 +708,15 @@ impl TreeState {
             for file in &deleted_files {
                 is_dirty = true;
                 self.file_states.remove(file);
-                tree_builder.remove(file.clone());
+                tree_builder.set_or_remove(file.clone(), Merge::absent());
             }
         });
         trace_span!("write tree").in_scope(|| {
-            let new_tree_id = tree_builder.write_tree();
+            let new_tree_id = tree_builder
+                .write_tree()
+                .unwrap()
+                .as_legacy_tree_id()
+                .clone();
             is_dirty |= new_tree_id != self.tree_id;
             self.tree_id = new_tree_id;
         });
