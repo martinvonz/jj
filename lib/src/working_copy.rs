@@ -717,8 +717,9 @@ impl TreeState {
             }
         });
         trace_span!("write tree").in_scope(|| {
-            is_dirty |= tree_builder.has_overrides();
-            self.tree_id = tree_builder.write_tree();
+            let new_tree_id = tree_builder.write_tree();
+            is_dirty |= new_tree_id != self.tree_id;
+            self.tree_id = new_tree_id;
         });
         if cfg!(debug_assertions) {
             let tree = self.current_tree().unwrap();

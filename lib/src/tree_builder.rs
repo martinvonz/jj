@@ -50,10 +50,6 @@ impl TreeBuilder {
         self.store.as_ref()
     }
 
-    pub fn has_overrides(&self) -> bool {
-        !self.overrides.is_empty()
-    }
-
     pub fn set(&mut self, path: RepoPath, value: TreeValue) {
         assert!(!path.is_root());
         self.overrides.insert(path, Override::Replace(value));
