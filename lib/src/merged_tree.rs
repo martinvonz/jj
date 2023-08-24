@@ -15,13 +15,14 @@
 //! A lazily merged view of a set of trees.
 
 use std::cmp::max;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::{iter, vec};
 
 use itertools::Itertools;
 
 use crate::backend;
-use crate::backend::{ConflictId, TreeId, TreeValue};
+use crate::backend::{BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::Matcher;
 use crate::merge::Merge;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
@@ -817,5 +818,74 @@ impl Iterator for TreeDiffIterator<'_> {
             }
         }
         None
+    }
+}
+
+/// Helps with writing trees with conflicts. You start by creating an instance
+/// of this type with one or more base trees. You then add overrides on top. The
+/// overrides may be conflicts. Then you can write the result as a legacy tree
+/// (allowing path-level conflicts) or as multiple conflict-free trees.
+pub struct MergedTreeBuilder {
+    store: Arc<Store>,
+    base_tree_id: MergedTreeId,
+    overrides: BTreeMap<RepoPath, Merge<Option<TreeValue>>>,
+}
+
+impl MergedTreeBuilder {
+    /// Create a new builder with the given trees as base.
+    pub fn new(store: Arc<Store>, base_tree_id: MergedTreeId) -> Self {
+        MergedTreeBuilder {
+            store,
+            base_tree_id,
+            overrides: BTreeMap::new(),
+        }
+    }
+
+    /// Set an override compared to  the base tree. The `values` merge must
+    /// either be resolved (i.e. have 1 side) or have the same number of
+    /// sides as the `base_tree_ids` used to construct this builder. Use
+    /// `Merge::absent()` to remove a value from the tree. When the base tree is
+    /// a legacy tree, conflicts can be written either as a multi-way `Merge`
+    /// value or as a resolved `Merge` value using `TreeValue::Conflict`.
+    pub fn set_or_remove(&mut self, path: RepoPath, values: Merge<Option<TreeValue>>) {
+        if let MergedTreeId::Merge(base_tree_ids) = &self.base_tree_id {
+            if !values.is_resolved() {
+                assert_eq!(values.num_sides(), base_tree_ids.num_sides());
+            }
+            assert!(!values
+                .iter()
+                .flatten()
+                .any(|value| matches!(value, TreeValue::Conflict(_))));
+        }
+        self.overrides.insert(path, values);
+    }
+
+    /// Create new tree(s) from the base tree(s) and overrides.
+    ///
+    /// When the base tree was a legacy tree, then the result will be another
+    /// legacy tree. Overrides with conflicts will result in conflict objects
+    /// being written to the store.
+    pub fn write_tree(self) -> BackendResult<MergedTreeId> {
+        match self.base_tree_id {
+            MergedTreeId::Legacy(base_tree_id) => {
+                let mut tree_builder = TreeBuilder::new(self.store.clone(), base_tree_id);
+                for (path, values) in self.overrides {
+                    let values = values.simplify();
+                    match values.into_resolved() {
+                        Ok(value) => {
+                            tree_builder.set_or_remove(path, value);
+                        }
+                        Err(values) => {
+                            let conflict_id = self.store.write_conflict(&path, &values)?;
+                            tree_builder.set(path, TreeValue::Conflict(conflict_id));
+                        }
+                    }
+                }
+                Ok(MergedTreeId::Legacy(tree_builder.write_tree()))
+            }
+            MergedTreeId::Merge(_) => {
+                todo!()
+            }
+        }
     }
 }
