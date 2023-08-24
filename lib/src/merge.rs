@@ -215,11 +215,16 @@ impl<T> Merge<T> {
         trivial_merge(&self.removes, &self.adds)
     }
 
-    /// Returns an iterator over the terms. The items will alternate between
-    /// positive and negative terms, starting with positive (since there's one
-    /// more of those).
+    /// Returns an iterator over references to the terms. The items will
+    /// alternate between positive and negative terms, starting with
+    /// positive (since there's one more of those).
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         itertools::interleave(&self.adds, &self.removes)
+    }
+
+    /// A version of `Merge::iter()` that iterates over mutable references.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        itertools::interleave(self.adds.iter_mut(), self.removes.iter_mut())
     }
 
     /// Creates a new merge by applying `f` to each remove and add.
@@ -265,6 +270,15 @@ impl<T> MergeBuilder<T> {
     /// this builder.
     pub fn build(self) -> Merge<T> {
         Merge::new(self.removes, self.adds)
+    }
+}
+
+impl<T> IntoIterator for Merge<T> {
+    type Item = T;
+    type IntoIter = itertools::Interleave<std::vec::IntoIter<T>, std::vec::IntoIter<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        itertools::interleave(self.adds, self.removes)
     }
 }
 
