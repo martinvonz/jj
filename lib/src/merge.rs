@@ -154,6 +154,11 @@ impl<T> Merge<T> {
         &self.adds
     }
 
+    /// The number of positive terms in the conflict.
+    pub fn num_sides(&self) -> usize {
+        self.adds.len()
+    }
+
     /// Whether this merge is resolved. Does not resolve trivial merges.
     pub fn is_resolved(&self) -> bool {
         self.removes.is_empty()

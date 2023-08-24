@@ -299,7 +299,7 @@ line 5 right
 
     // The first add should always be from the left side
     insta::assert_debug_snapshot!(
-        parse_conflict(materialized.as_bytes(), conflict.adds().len()),
+        parse_conflict(materialized.as_bytes(), conflict.num_sides()),
         @r###"
     Some(
         [
