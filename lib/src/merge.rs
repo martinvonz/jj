@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(missing_docs)]
+//! Generic algorithms for working with merged values, plus specializations for
+//! some common types of merged values.
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -110,6 +111,7 @@ pub struct Merge<T> {
 }
 
 impl<T> Merge<T> {
+    /// Creates a new merge object from the given removes and adds.
     pub fn new(removes: Vec<T>, adds: Vec<T>) -> Self {
         assert_eq!(adds.len(), removes.len() + 1);
         Merge { removes, adds }
@@ -142,10 +144,12 @@ impl<T> Merge<T> {
         (self.removes, self.adds)
     }
 
+    /// The removed values, also called negative terms.
     pub fn removes(&self) -> &[T] {
         &self.removes
     }
 
+    /// The removed values, also called positive terms.
     pub fn adds(&self) -> &[T] {
         &self.adds
     }
@@ -197,6 +201,8 @@ impl<T> Merge<T> {
         self
     }
 
+    /// If this merge can be trivially resolved, returns the value it resolves
+    /// to.
     pub fn resolve_trivial(&self) -> Option<&T>
     where
         T: Eq + Hash,
@@ -235,6 +241,7 @@ impl<T> Merge<T> {
     }
 }
 
+/// Iterator over the terms in a merge. See `Merge::iter()`.
 pub struct Iter<'a, T> {
     merge: &'a Merge<T>,
     i: usize,
@@ -311,10 +318,12 @@ impl<T> Merge<Option<T>> {
         Self::resolved(Some(value))
     }
 
+    /// Whether this represents a resolved value of `None`.
     pub fn is_absent(&self) -> bool {
         matches!(self.as_resolved(), Some(None))
     }
 
+    /// The opposite of `is_absent()`.
     pub fn is_present(&self) -> bool {
         !self.is_absent()
     }
@@ -372,17 +381,16 @@ impl<T: ContentHash> ContentHash for Merge<T> {
 }
 
 impl Merge<TreeId> {
-    // Creates a resolved merge for a legacy tree id (same as
-    // `Merge::resolved()`).
+    /// Creates a resolved merge for a legacy tree id (same as
+    /// `Merge::resolved()`).
     // TODO(#1624): delete when all callers have been updated to support tree-level
     // conflicts
     pub fn from_legacy_tree_id(value: TreeId) -> Self {
-        Merge {
-            removes: vec![],
-            adds: vec![value],
-        }
+        Merge::resolved(value)
     }
 
+    /// Assumes that this merge is resolved and returns a reference to the
+    /// value. Panics otherwise.
     // TODO(#1624): delete when all callers have been updated to support tree-level
     // conflicts
     pub fn as_legacy_tree_id(&self) -> &TreeId {
@@ -423,6 +431,8 @@ impl Merge<Option<TreeValue>> {
                 .all(|value| matches!(value, Some(TreeValue::Tree(_)) | None))
     }
 
+    /// If this merge contains only non-executable files or absent entries,
+    /// returns a merge of the `FileId`s`.
     pub fn to_file_merge(&self) -> Option<Merge<Option<FileId>>> {
         self.maybe_map(|term| match term {
             None => Some(None),
