@@ -16,15 +16,16 @@
 
 use std::cmp::max;
 use std::collections::BTreeMap;
+use std::iter::zip;
 use std::sync::Arc;
 use std::{iter, vec};
 
 use itertools::Itertools;
 
 use crate::backend;
-use crate::backend::{BackendResult, ConflictId, MergedTreeId, TreeValue};
+use crate::backend::{BackendError, BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
-use crate::merge::Merge;
+use crate::merge::{Merge, MergeBuilder};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{try_resolve_file_conflict, Tree, TreeMergeError};
@@ -874,7 +875,7 @@ impl MergedTreeBuilder {
     /// legacy tree. Overrides with conflicts will result in conflict objects
     /// being written to the store.
     pub fn write_tree(self) -> BackendResult<MergedTreeId> {
-        match self.base_tree_id {
+        match self.base_tree_id.clone() {
             MergedTreeId::Legacy(base_tree_id) => {
                 let mut tree_builder = TreeBuilder::new(self.store.clone(), base_tree_id);
                 for (path, values) in self.overrides {
@@ -891,9 +892,45 @@ impl MergedTreeBuilder {
                 }
                 Ok(MergedTreeId::Legacy(tree_builder.write_tree()))
             }
-            MergedTreeId::Merge(_) => {
-                todo!()
+            MergedTreeId::Merge(base_tree_ids) => {
+                let new_tree_ids = self.write_merged_trees(base_tree_ids)?;
+                Ok(MergedTreeId::Merge(new_tree_ids.simplify()))
             }
         }
+    }
+
+    fn write_merged_trees(
+        self,
+        base_tree_ids: Merge<TreeId>,
+    ) -> Result<Merge<TreeId>, BackendError> {
+        // Create a single-tree builder for each base tree
+        let mut tree_builders = base_tree_ids
+            .map(|base_tree_id| TreeBuilder::new(self.store.clone(), base_tree_id.clone()));
+        for (path, values) in self.overrides {
+            match values.into_resolved() {
+                Ok(value) => {
+                    // This path was overridden with a resolved value. Apply that to all
+                    // builders.
+                    for builder in tree_builders.iter_mut() {
+                        builder.set_or_remove(path.clone(), value.clone());
+                    }
+                }
+                Err(values) => {
+                    // This path was overridden with a conflicted value. Apply each term to
+                    // its corresponding builder.
+                    for (builder, value) in zip(tree_builders.iter_mut(), values) {
+                        builder.set_or_remove(path.clone(), value);
+                    }
+                }
+            }
+        }
+        // TODO: This can be made more efficient. If there's a single resolved conflict
+        // in `dir/file`, we shouldn't have to write the `dir/` and root trees more than
+        // once.
+        let merge_builder: MergeBuilder<TreeId> = tree_builders
+            .into_iter()
+            .map(|builder| builder.write_tree())
+            .collect();
+        Ok(merge_builder.build())
     }
 }
