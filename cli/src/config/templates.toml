@@ -121,7 +121,8 @@ separate(" ",
 )
 '''
 
-description_placeholder = 'label("description placeholder", "(no description set)")'
+description_placeholder = '''
+  label(if(empty, "empty ") ++ "description placeholder", "(no description set)")'''
 commit_summary_separator = 'label("separator", " | ")'
 
 # Hook points for users to customize the default templates:
