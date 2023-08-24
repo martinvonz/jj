@@ -218,8 +218,8 @@ impl<T> Merge<T> {
     /// Returns an iterator over the terms. The items will alternate between
     /// positive and negative terms, starting with positive (since there's one
     /// more of those).
-    pub fn iter(&self) -> Iter<'_, T> {
-        Iter::new(self)
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        itertools::interleave(&self.adds, &self.removes)
     }
 
     /// Creates a new merge by applying `f` to each remove and add.
@@ -243,36 +243,6 @@ impl<T> Merge<T> {
     ) -> Result<Merge<U>, E> {
         let builder: MergeBuilder<U> = self.iter().map(f).try_collect()?;
         Ok(builder.build())
-    }
-}
-
-/// Iterator over the terms in a merge. See `Merge::iter()`.
-pub struct Iter<'a, T> {
-    merge: &'a Merge<T>,
-    i: usize,
-}
-
-impl<'a, T> Iter<'a, T> {
-    fn new(merge: &'a Merge<T>) -> Self {
-        Self { merge, i: 0 }
-    }
-}
-
-impl<'a, T> Iterator for Iter<'a, T> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.i > 2 * self.merge.removes.len() {
-            None
-        } else {
-            let item = if self.i % 2 == 0 {
-                &self.merge.adds[self.i / 2]
-            } else {
-                &self.merge.removes[self.i / 2]
-            };
-            self.i += 1;
-            Some(item)
-        }
     }
 }
 
