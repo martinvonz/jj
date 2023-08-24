@@ -1498,14 +1498,7 @@ impl WorkspaceCommandTransaction<'_> {
         } else {
             let mut tree_builder = self.repo().store().tree_builder(left_tree.id().clone());
             for (repo_path, diff) in left_tree.diff(right_tree, matcher) {
-                match diff.into_options().1 {
-                    Some(value) => {
-                        tree_builder.set(repo_path, value);
-                    }
-                    None => {
-                        tree_builder.remove(repo_path);
-                    }
-                }
+                tree_builder.set_or_remove(repo_path, diff.into_options().1);
             }
             Ok(tree_builder.write_tree())
         }
