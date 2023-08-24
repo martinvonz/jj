@@ -369,24 +369,6 @@ impl<T: ContentHash> ContentHash for Merge<T> {
     }
 }
 
-impl Merge<TreeId> {
-    /// Creates a resolved merge for a legacy tree id (same as
-    /// `Merge::resolved()`).
-    // TODO(#1624): delete when all callers have been updated to support tree-level
-    // conflicts
-    pub fn from_legacy_tree_id(value: TreeId) -> Self {
-        Merge::resolved(value)
-    }
-
-    /// Assumes that this merge is resolved and returns a reference to the
-    /// value. Panics otherwise.
-    // TODO(#1624): delete when all callers have been updated to support tree-level
-    // conflicts
-    pub fn as_legacy_tree_id(&self) -> &TreeId {
-        self.as_resolved().unwrap()
-    }
-}
-
 impl Merge<Option<TreeValue>> {
     /// Create a `Merge` from a `backend::Conflict`, padding with `None` to
     /// make sure that there is exactly one more `adds()` than `removes()`.

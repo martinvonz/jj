@@ -16,9 +16,8 @@
 
 use std::sync::Arc;
 
-use crate::backend::{self, BackendResult, ChangeId, CommitId, Signature, TreeId};
+use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature, TreeId};
 use crate::commit::Commit;
-use crate::merge::Merge;
 use crate::repo::{MutableRepo, Repo};
 use crate::settings::{JJRng, UserSettings};
 
@@ -44,9 +43,8 @@ impl CommitBuilder<'_> {
         let commit = backend::Commit {
             parents,
             predecessors: vec![],
-            // TODO(#1624): set this when appropriate
-            root_tree: Merge::from_legacy_tree_id(tree_id),
-            uses_tree_conflict_format: false,
+            // TODO(#1624): use the Merge variant when appropriate
+            root_tree: MergedTreeId::Legacy(tree_id),
             change_id,
             description: String::new(),
             author: signature.clone(),
@@ -112,7 +110,7 @@ impl CommitBuilder<'_> {
     }
 
     pub fn set_tree(mut self, tree_id: TreeId) -> Self {
-        self.commit.root_tree = Merge::from_legacy_tree_id(tree_id);
+        self.commit.root_tree = MergedTreeId::Legacy(tree_id);
         self
     }
 

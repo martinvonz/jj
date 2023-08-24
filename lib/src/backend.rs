@@ -143,19 +143,57 @@ content_hash! {
     }
 }
 
+/// Identifies a single legacy tree, which may have path-level conflicts, or a
+/// merge of multiple trees, where the individual trees do not have conflicts.
+// TODO(#1624): Delete this type at some point in the future, when we decide to drop
+// support for conflicts in older repos, or maybe after we have provided an upgrade
+// mechanism.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum MergedTreeId {
+    /// The tree id of a legacy tree
+    Legacy(TreeId),
+    /// The tree id(s) of a merge tree
+    Merge(Merge<TreeId>),
+}
+
+impl ContentHash for MergedTreeId {
+    fn hash(&self, state: &mut impl digest::Update) {
+        match self {
+            MergedTreeId::Legacy(tree_id) => {
+                state.update(b"0");
+                ContentHash::hash(tree_id, state);
+            }
+            MergedTreeId::Merge(tree_ids) => {
+                state.update(b"1");
+                ContentHash::hash(tree_ids, state);
+            }
+        }
+    }
+}
+
+impl MergedTreeId {
+    /// Create a resolved `MergedTreeId` from a single regular tree.  
+    pub fn resolved(tree_id: TreeId) -> Self {
+        MergedTreeId::Merge(Merge::resolved(tree_id))
+    }
+
+    /// If this is a legacy tree, gets its tree id
+    // TODO(#1624): delete when all callers have been updated to support tree-level
+    // conflicts
+    pub fn as_legacy_tree_id(&self) -> &TreeId {
+        match &self {
+            MergedTreeId::Legacy(tree_id) => tree_id,
+            MergedTreeId::Merge(_) => panic!(),
+        }
+    }
+}
+
 content_hash! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct Commit {
         pub parents: Vec<CommitId>,
         pub predecessors: Vec<CommitId>,
-        pub root_tree: Merge<TreeId>,
-        /// Indicates that there this commit uses the new tree-level conflict format, which means
-        /// that if `root_tree` is not a conflict, we know that we won't have to walk it to
-        /// determine if there are conflicts.
-        // TODO(#1624): Delete this field at some point in the future, when we decide to drop
-        // support for conflicts in older repos, or maybe after we have provided an upgrade
-        // mechanism.
-        pub uses_tree_conflict_format: bool,
+        pub root_tree: MergedTreeId,
         pub change_id: ChangeId,
         pub description: String,
         pub author: Signature,
@@ -399,8 +437,7 @@ pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Comm
     Commit {
         parents: vec![],
         predecessors: vec![],
-        root_tree: Merge::resolved(empty_tree_id),
-        uses_tree_conflict_format: false,
+        root_tree: MergedTreeId::Legacy(empty_tree_id),
         change_id: root_change_id,
         description: String::new(),
         author: signature.clone(),
