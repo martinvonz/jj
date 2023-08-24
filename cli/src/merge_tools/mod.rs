@@ -98,10 +98,10 @@ pub fn run_mergetool(
         )
     })?;
     // We only support conflicts with 2 sides (3-way conflicts)
-    if file_merge.adds().len() > 2 {
+    if file_merge.num_sides() > 2 {
         return Err(ConflictResolveError::ConflictTooComplicated {
             path: repo_path.clone(),
-            sides: file_merge.adds().len(),
+            sides: file_merge.num_sides(),
         });
     };
     let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path);

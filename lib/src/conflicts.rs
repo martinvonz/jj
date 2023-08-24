@@ -206,7 +206,7 @@ pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<Conten
         } else if conflict_start.is_some() && line == CONFLICT_END_LINE {
             let conflict_body = &input[conflict_start.unwrap() + CONFLICT_START_LINE.len()..pos];
             let hunk = parse_conflict_hunk(conflict_body);
-            if hunk.adds().len() == num_sides {
+            if hunk.num_sides() == num_sides {
                 let resolved_slice = &input[resolved_start..conflict_start.unwrap()];
                 if !resolved_slice.is_empty() {
                     hunks.push(Merge::resolved(ContentHunk(resolved_slice.to_vec())));
@@ -314,7 +314,7 @@ pub fn update_from_content(
 
     let mut removed_content = vec![vec![]; file_ids.removes().len()];
     let mut added_content = vec![vec![]; file_ids.adds().len()];
-    let Some(hunks) = parse_conflict(content, file_ids.adds().len()) else {
+    let Some(hunks) = parse_conflict(content, file_ids.num_sides()) else {
         // Either there are no self markers of they don't have the expected arity
         let file_id = store.write_file(path, &mut &content[..])?;
         return Ok(Merge::normal(file_id));
