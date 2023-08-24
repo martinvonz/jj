@@ -27,8 +27,8 @@ use tempfile::NamedTempFile;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictTerm, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
-    Tree, TreeId, TreeValue,
+    ConflictId, ConflictTerm, FileId, MergedTreeId, MillisSinceEpoch, ObjectId, Signature,
+    SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
@@ -279,22 +279,23 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.to_bytes());
     }
-    proto.uses_tree_conflict_format = commit.uses_tree_conflict_format;
-    let conflict = crate::protos::local_store::TreeConflict {
-        removes: commit
-            .root_tree
-            .removes()
-            .iter()
-            .map(|id| id.to_bytes())
-            .collect(),
-        adds: commit
-            .root_tree
-            .adds()
-            .iter()
-            .map(|id| id.to_bytes())
-            .collect(),
-    };
-    proto.root_tree = Some(conflict);
+    match &commit.root_tree {
+        MergedTreeId::Legacy(tree_id) => {
+            let conflict = crate::protos::local_store::TreeConflict {
+                removes: vec![],
+                adds: vec![tree_id.to_bytes()],
+            };
+            proto.root_tree = Some(conflict);
+        }
+        MergedTreeId::Merge(tree_ids) => {
+            proto.uses_tree_conflict_format = true;
+            let conflict = crate::protos::local_store::TreeConflict {
+                removes: tree_ids.removes().iter().map(|id| id.to_bytes()).collect(),
+                adds: tree_ids.adds().iter().map(|id| id.to_bytes()).collect(),
+            };
+            proto.root_tree = Some(conflict);
+        }
+    }
     proto.change_id = commit.change_id.to_bytes();
     proto.description = commit.description.clone();
     proto.author = Some(signature_to_proto(&commit.author));
@@ -305,17 +306,22 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
 fn commit_from_proto(proto: crate::protos::local_store::Commit) -> Commit {
     let parents = proto.parents.into_iter().map(CommitId::new).collect();
     let predecessors = proto.predecessors.into_iter().map(CommitId::new).collect();
-    let conflict = proto.root_tree.unwrap();
-    let root_tree = Merge::new(
-        conflict.removes.into_iter().map(TreeId::new).collect(),
-        conflict.adds.into_iter().map(TreeId::new).collect(),
-    );
+    let root_tree = proto.root_tree.unwrap();
+    let root_tree = if proto.uses_tree_conflict_format {
+        MergedTreeId::Merge(Merge::new(
+            root_tree.removes.into_iter().map(TreeId::new).collect(),
+            root_tree.adds.into_iter().map(TreeId::new).collect(),
+        ))
+    } else {
+        assert!(root_tree.removes.is_empty());
+        assert_eq!(root_tree.adds.len(), 1);
+        MergedTreeId::Legacy(TreeId::new(root_tree.adds[0].to_vec()))
+    };
     let change_id = ChangeId::new(proto.change_id);
     Commit {
         parents,
         predecessors,
         root_tree,
-        uses_tree_conflict_format: proto.uses_tree_conflict_format,
         change_id,
         description: proto.description,
         author: signature_from_proto(proto.author.unwrap_or_default()),

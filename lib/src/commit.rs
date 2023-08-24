@@ -20,7 +20,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::backend;
-use crate::backend::{BackendError, ChangeId, CommitId, Signature, TreeId};
+use crate::backend::{BackendError, ChangeId, CommitId, MergedTreeId, Signature, TreeId};
 use crate::merged_tree::MergedTree;
 use crate::repo_path::RepoPath;
 use crate::store::Store;
@@ -110,19 +110,20 @@ impl Commit {
     }
 
     pub fn merged_tree(&self) -> Result<MergedTree, BackendError> {
-        if self.data.uses_tree_conflict_format {
-            let tree_conflict = self
-                .data
-                .root_tree
-                .try_map(|tree_id| self.store.get_tree(&RepoPath::root(), tree_id))?;
-            Ok(MergedTree::new(tree_conflict))
-        } else {
-            let tree_id = self.data.root_tree.as_legacy_tree_id();
-            let tree = self.store.get_tree(&RepoPath::root(), tree_id)?;
-            Ok(MergedTree::legacy(tree))
+        match &self.data.root_tree {
+            MergedTreeId::Legacy(id) => {
+                let tree = self.store.get_tree(&RepoPath::root(), id)?;
+                Ok(MergedTree::Legacy(tree))
+            }
+            MergedTreeId::Merge(ids) => {
+                let trees = ids.try_map(|id| self.store.get_tree(&RepoPath::root(), id))?;
+                Ok(MergedTree::Merge(trees))
+            }
         }
     }
 
+    // TODO(#1624): delete when all callers have been updated to support tree-level
+    // conflicts
     pub fn tree_id(&self) -> &TreeId {
         self.data.root_tree.as_legacy_tree_id()
     }
