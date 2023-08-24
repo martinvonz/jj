@@ -32,6 +32,8 @@
 "divergent change_id"="red"
 "conflict" = "red"
 "empty" = "green"
+"description placeholder" = "yellow"
+"empty description placeholder" = "green"
 "separator" = "bright black"
 "root" = "green"
 
@@ -51,6 +53,8 @@
 "working_copy divergent change_id" = "bright red"
 "working_copy conflict" = "bright red"
 "working_copy empty" = "bright green"
+"working_copy description placeholder" = "yellow"
+"working_copy empty description placeholder" = "bright green"
 "diff header" = "yellow"
 "diff empty" = "cyan"
 "diff file_header" = { bold = true }
