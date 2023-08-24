@@ -251,6 +251,10 @@ impl StringPattern {
 pub enum RevsetCommitRef {
     WorkingCopy(WorkspaceId),
     Symbol(String),
+    RemoteSymbol {
+        name: String,
+        remote: String,
+    },
     VisibleHeads,
     Branches(StringPattern),
     RemoteBranches {
@@ -340,6 +344,11 @@ impl RevsetExpression {
 
     pub fn symbol(value: String) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Symbol(value)))
+    }
+
+    pub fn remote_symbol(name: String, remote: String) -> Rc<RevsetExpression> {
+        let commit_ref = RevsetCommitRef::RemoteSymbol { name, remote };
+        Rc::new(RevsetExpression::CommitRef(commit_ref))
     }
 
     pub fn commit(commit_id: CommitId) -> Rc<RevsetExpression> {
@@ -889,7 +898,7 @@ fn parse_primary_rule(
                 // infix "<name>@<remote>"
                 assert_eq!(second.as_rule(), Rule::symbol);
                 let remote = parse_symbol_rule_as_literal(second.into_inner())?;
-                Ok(RevsetExpression::symbol(format!("{name}@{remote}"))) // TODO
+                Ok(RevsetExpression::remote_symbol(name, remote))
             } else {
                 // postfix "<workspace_id>@"
                 Ok(RevsetExpression::working_copy(WorkspaceId::new(name)))
@@ -1866,26 +1875,28 @@ fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     None
 }
 
-fn resolve_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
+fn resolve_local_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
     let target = view.get_local_branch(symbol);
+    target
+        .is_present()
+        .then(|| target.added_ids().cloned().collect())
+}
+
+fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Vec<CommitId>> {
+    let view = repo.view();
+    let target = view.get_remote_branch(name, remote);
     if target.is_present() {
         return Some(target.added_ids().cloned().collect());
     }
-    if let Some((name, remote_name)) = symbol.split_once('@') {
-        let target = view.get_remote_branch(name, remote_name);
+    // A remote with name "git" will shadow local-git tracking branches
+    if remote == "git" {
+        let target = match name {
+            "HEAD" => view.git_head(),
+            _ => get_local_git_tracking_branch(view, name),
+        };
         if target.is_present() {
             return Some(target.added_ids().cloned().collect());
-        }
-        // A remote with name "git" will shadow local-git tracking branches
-        if remote_name == "git" {
-            let target = match name {
-                "HEAD" => view.git_head(),
-                _ => get_local_git_tracking_branch(view, name),
-            };
-            if target.is_present() {
-                return Some(target.added_ids().cloned().collect());
-            }
         }
     }
     None
@@ -1915,6 +1926,8 @@ fn make_no_such_symbol_error(repo: &dyn Repo, name: impl Into<String>) -> Revset
     // TODO: include tags?
     let mut branch_names = collect_branch_symbols(repo, name.contains('@'));
     branch_names.sort_unstable();
+    // Remote branch "x"@"y" may conflict with local "x@y" in unquoted form.
+    branch_names.dedup();
     let candidates = collect_similar(&name, &branch_names);
     RevsetResolutionError::NoSuchRevision { name, candidates }
 }
@@ -2008,7 +2021,7 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             }
 
             // Try to resolve as a branch
-            if let Some(ids) = resolve_branch(self.repo, symbol) {
+            if let Some(ids) = resolve_local_branch(self.repo, symbol) {
                 return Ok(ids);
             }
 
@@ -2068,6 +2081,8 @@ fn resolve_commit_ref(
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
     match commit_ref {
         RevsetCommitRef::Symbol(symbol) => symbol_resolver.resolve_symbol(symbol),
+        RevsetCommitRef::RemoteSymbol { name, remote } => resolve_remote_branch(repo, name, remote)
+            .ok_or_else(|| make_no_such_symbol_error(repo, format!("{name}@{remote}"))),
         RevsetCommitRef::WorkingCopy(workspace_id) => {
             if let Some(commit_id) = repo.view().get_wc_commit_id(workspace_id) {
                 Ok(vec![commit_id.clone()])
@@ -2658,7 +2673,10 @@ mod tests {
         );
         assert_eq!(
             parse("main@origin"),
-            Ok(RevsetExpression::symbol("main@origin".to_string()))
+            Ok(RevsetExpression::remote_symbol(
+                "main".to_string(),
+                "origin".to_string()
+            ))
         );
         // Quoted component in @ expression
         assert_eq!(
@@ -2669,11 +2687,17 @@ mod tests {
         );
         assert_eq!(
             parse(r#""foo bar"@origin"#),
-            Ok(RevsetExpression::symbol("foo bar@origin".to_string()))
+            Ok(RevsetExpression::remote_symbol(
+                "foo bar".to_string(),
+                "origin".to_string()
+            ))
         );
         assert_eq!(
             parse(r#"main@"foo bar""#),
-            Ok(RevsetExpression::symbol("main@foo bar".to_string()))
+            Ok(RevsetExpression::remote_symbol(
+                "main".to_string(),
+                "foo bar".to_string()
+            ))
         );
         // Quoted "@" is not interpreted as a working copy or remote symbol
         assert_eq!(
