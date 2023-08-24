@@ -205,6 +205,14 @@ impl UserSettings {
             e @ Err(_) => e,
         }
     }
+
+    pub fn comment_prefix(&self) -> String {
+        self.config
+            .get_string("ui.editor-comment-prefix")
+            .ok()
+            .filter(|p| !p.is_empty())
+            .unwrap_or_else(|| "JJ: ".to_owned())
+    }
 }
 
 /// This Rng uses interior mutability to allow generating random values using an

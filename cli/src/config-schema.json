@@ -124,6 +124,11 @@
                     "type": "string",
                     "description": "Editor to use for commands that involve editing text"
                 },
+                "editor-comment-prefix": {
+                    "type": "string",
+                    "description": "Prefix that marks lines in editor prompts as comments",
+                    "default": "JJ: "
+                },
                 "diff-editor": {
                     "type": "string",
                     "description": "Editor tool to use for editing diffs",

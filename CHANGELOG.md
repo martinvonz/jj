@@ -109,6 +109,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * templates now support additional string methods `.starts_with(x)`, `.ends_with(x)`
   `.remove_prefix(x)`, `.remove_suffix(x)`, and `.substr(start, end)`.
 
+* The comment marker in editor prompts (e.g. `jj describe`) can now be customized
+  using the `ui.editor-comment-prefix` config option. The default remains `JJ: `.
+
 ### Fixed bugs
 
 * Fix issues related to .gitignore handling of untracked directories
