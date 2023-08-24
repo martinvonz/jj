@@ -412,6 +412,10 @@ fn test_resolve_symbol_branches() {
         "origin",
         RefTarget::normal(commit4.id().clone()),
     );
+    mut_repo.set_local_branch_target(
+        "local-remote@origin", // not a remote branch
+        RefTarget::normal(commit5.id().clone()),
+    );
     mut_repo.set_remote_branch_target(
         "local-remote",
         "mirror",
@@ -481,6 +485,10 @@ fn test_resolve_symbol_branches() {
     assert_eq!(
         resolve_symbol(mut_repo, "local-remote@origin").unwrap(),
         vec![commit4.id().clone()],
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo, r#""local-remote@origin""#).unwrap(),
+        vec![commit5.id().clone()],
     );
     assert_eq!(
         resolve_symbol(mut_repo, "local-remote@mirror").unwrap(),
