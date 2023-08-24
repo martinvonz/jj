@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jj_lib::backend::{FileId, TreeValue};
+use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
 use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
-use jj_lib::merge::Merge;
-use jj_lib::merged_tree::{MergedTree, MergedTreeValue};
+use jj_lib::merge::{Merge, MergeBuilder};
+use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder, MergedTreeValue};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::tree::merge_trees;
@@ -181,6 +181,31 @@ fn test_from_legacy_tree() {
         merged_tree.value(&dir1_basename),
         MergedTreeValue::Resolved(tree.value(&dir1_basename))
     );
+
+    // Also test that MergedTreeBuilder can create the same tree by starting from an
+    // empty legacy tree.
+    let mut tree_builder = MergedTreeBuilder::new(
+        store.clone(),
+        MergedTreeId::Legacy(store.empty_tree_id().clone()),
+    );
+    for (path, value) in tree.entries() {
+        tree_builder.set_or_remove(path, Merge::normal(value));
+    }
+    let recreated_legacy_id = tree_builder.write_tree().unwrap();
+    assert_eq!(recreated_legacy_id, MergedTreeId::Legacy(tree_id.clone()));
+
+    // Create the merged tree by starting from an empty merged tree.
+    let empty_merged_id_builder: MergeBuilder<_> = std::iter::repeat(store.empty_tree_id())
+        .take(5)
+        .cloned()
+        .collect();
+    let empty_merged_id = MergedTreeId::Merge(empty_merged_id_builder.build());
+    let mut tree_builder = MergedTreeBuilder::new(store.clone(), empty_merged_id);
+    for (path, value) in merged_tree.entries() {
+        tree_builder.set_or_remove(path, value);
+    }
+    let recreated_merged_id = tree_builder.write_tree().unwrap();
+    assert_eq!(recreated_merged_id, merged_tree.id());
 }
 
 #[test]
