@@ -64,6 +64,15 @@ impl TreeBuilder {
         self.overrides.insert(path, Override::Tombstone);
     }
 
+    pub fn set_or_remove(&mut self, path: RepoPath, value: Option<TreeValue>) {
+        assert!(!path.is_root());
+        if let Some(value) = value {
+            self.overrides.insert(path, Override::Replace(value));
+        } else {
+            self.overrides.insert(path, Override::Tombstone);
+        }
+    }
+
     pub fn write_tree(self) -> TreeId {
         if self.overrides.is_empty() {
             return self.base_tree_id;
