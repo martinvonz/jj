@@ -312,32 +312,23 @@ pub fn update_from_content(
         return Ok(file_ids.clone());
     }
 
-    let mut removed_content = vec![vec![]; file_ids.removes().len()];
-    let mut added_content = vec![vec![]; file_ids.adds().len()];
     let Some(hunks) = parse_conflict(content, file_ids.num_sides()) else {
         // Either there are no self markers of they don't have the expected arity
         let file_id = store.write_file(path, &mut &content[..])?;
         return Ok(Merge::normal(file_id));
     };
+    let mut contents = file_ids.map(|_| vec![]);
     for hunk in hunks {
         if let Some(slice) = hunk.as_resolved() {
-            for buf in &mut removed_content {
-                buf.extend_from_slice(&slice.0);
-            }
-            for buf in &mut added_content {
-                buf.extend_from_slice(&slice.0);
+            for content in contents.iter_mut() {
+                content.extend_from_slice(&slice.0);
             }
         } else {
-            let (removes, adds) = hunk.take();
-            for (i, buf) in removes.into_iter().enumerate() {
-                removed_content[i].extend(buf.0);
-            }
-            for (i, buf) in adds.into_iter().enumerate() {
-                added_content[i].extend(buf.0);
+            for (content, slice) in zip(contents.iter_mut(), hunk.into_iter()) {
+                content.extend(slice.0);
             }
         }
     }
-    let contents = Merge::new(removed_content, added_content);
 
     // If the user edited the empty placeholder for an absent side, we consider the
     // conflict resolved.
