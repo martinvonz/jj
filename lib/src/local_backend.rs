@@ -32,7 +32,7 @@ use crate::backend::{
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::merge::Merge;
+use crate::merge::MergeBuilder;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
 const COMMIT_ID_LENGTH: usize = 64;
@@ -281,19 +281,11 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
     }
     match &commit.root_tree {
         MergedTreeId::Legacy(tree_id) => {
-            let conflict = crate::protos::local_store::TreeConflict {
-                removes: vec![],
-                adds: vec![tree_id.to_bytes()],
-            };
-            proto.root_tree = Some(conflict);
+            proto.root_tree = vec![tree_id.to_bytes()];
         }
         MergedTreeId::Merge(tree_ids) => {
             proto.uses_tree_conflict_format = true;
-            let conflict = crate::protos::local_store::TreeConflict {
-                removes: tree_ids.removes().iter().map(|id| id.to_bytes()).collect(),
-                adds: tree_ids.adds().iter().map(|id| id.to_bytes()).collect(),
-            };
-            proto.root_tree = Some(conflict);
+            proto.root_tree = tree_ids.iter().map(|id| id.to_bytes()).collect();
         }
     }
     proto.change_id = commit.change_id.to_bytes();
@@ -306,16 +298,12 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
 fn commit_from_proto(proto: crate::protos::local_store::Commit) -> Commit {
     let parents = proto.parents.into_iter().map(CommitId::new).collect();
     let predecessors = proto.predecessors.into_iter().map(CommitId::new).collect();
-    let root_tree = proto.root_tree.unwrap();
     let root_tree = if proto.uses_tree_conflict_format {
-        MergedTreeId::Merge(Merge::new(
-            root_tree.removes.into_iter().map(TreeId::new).collect(),
-            root_tree.adds.into_iter().map(TreeId::new).collect(),
-        ))
+        let merge_builder: MergeBuilder<_> = proto.root_tree.into_iter().map(TreeId::new).collect();
+        MergedTreeId::Merge(merge_builder.build())
     } else {
-        assert!(root_tree.removes.is_empty());
-        assert_eq!(root_tree.adds.len(), 1);
-        MergedTreeId::Legacy(TreeId::new(root_tree.adds[0].to_vec()))
+        assert_eq!(proto.root_tree.len(), 1);
+        MergedTreeId::Legacy(TreeId::new(proto.root_tree[0].to_vec()))
     };
     let change_id = ChangeId::new(proto.change_id);
     Commit {
