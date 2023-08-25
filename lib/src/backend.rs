@@ -186,6 +186,13 @@ impl MergedTreeId {
             MergedTreeId::Merge(_) => panic!(),
         }
     }
+
+    /// If this is a legacy tree, gets its tree id
+    // TODO(#1624): delete when all callers have been updated to support tree-level
+    // conflicts
+    pub fn to_legacy_tree_id(&self) -> TreeId {
+        self.as_legacy_tree_id().clone()
+    }
 }
 
 content_hash! {

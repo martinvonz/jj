@@ -1177,7 +1177,7 @@ impl TreeState {
             other => CheckoutError::InternalBackendError(other),
         })?;
         let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref(), Err)?;
-        self.tree_id = new_tree.id().into_resolved().unwrap().clone();
+        self.tree_id = new_tree.id().to_legacy_tree_id();
         Ok(stats)
     }
 
@@ -1333,7 +1333,7 @@ impl TreeState {
                 self.file_states.insert(path.clone(), file_state);
             }
         }
-        self.tree_id = new_tree.id().into_resolved().unwrap().clone();
+        self.tree_id = new_tree.id().to_legacy_tree_id();
         Ok(())
     }
 }

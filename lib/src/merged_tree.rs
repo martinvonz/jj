@@ -22,7 +22,7 @@ use std::{iter, vec};
 use itertools::Itertools;
 
 use crate::backend;
-use crate::backend::{BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
+use crate::backend::{BackendResult, ConflictId, MergedTreeId, TreeValue};
 use crate::matchers::Matcher;
 use crate::merge::Merge;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
@@ -258,17 +258,20 @@ impl MergedTree {
                 None => Merge::absent(),
                 Some(tree) => tree.value(basename).to_merge(),
             },
-            None => self
-                .id()
-                .map(|tree_id| Some(TreeValue::Tree((*tree_id).clone()))),
+            None => match self {
+                MergedTree::Legacy(tree) => Merge::normal(TreeValue::Tree(tree.id().clone())),
+                MergedTree::Merge(trees) => {
+                    trees.map(|tree| Some(TreeValue::Tree(tree.id().clone())))
+                }
+            },
         }
     }
 
-    /// The tree's id(s). May be a legacy tree's id.
-    pub fn id(&self) -> Merge<&TreeId> {
+    /// The tree's id
+    pub fn id(&self) -> MergedTreeId {
         match self {
-            MergedTree::Legacy(tree) => Merge::resolved(tree.id()),
-            MergedTree::Merge(merge) => merge.map(|tree| tree.id()),
+            MergedTree::Legacy(tree) => MergedTreeId::Legacy(tree.id().clone()),
+            MergedTree::Merge(merge) => MergedTreeId::Merge(merge.map(|tree| tree.id().clone())),
         }
     }
 
