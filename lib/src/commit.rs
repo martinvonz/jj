@@ -128,6 +128,10 @@ impl Commit {
         self.data.root_tree.as_legacy_tree_id()
     }
 
+    pub fn merged_tree_id(&self) -> &MergedTreeId {
+        &self.data.root_tree
+    }
+
     pub fn change_id(&self) -> &ChangeId {
         &self.data.change_id
     }
