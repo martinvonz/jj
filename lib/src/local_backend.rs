@@ -279,6 +279,7 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.to_bytes());
     }
+    proto.uses_tree_conflict_format = commit.uses_tree_conflict_format;
     let conflict = crate::protos::local_store::TreeConflict {
         removes: commit
             .root_tree
@@ -314,7 +315,7 @@ fn commit_from_proto(proto: crate::protos::local_store::Commit) -> Commit {
         parents,
         predecessors,
         root_tree,
-        uses_tree_conflict_format: true,
+        uses_tree_conflict_format: proto.uses_tree_conflict_format,
         change_id,
         description: proto.description,
         author: signature_from_proto(proto.author.unwrap_or_default()),
