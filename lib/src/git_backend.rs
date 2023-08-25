@@ -34,7 +34,7 @@ use crate::backend::{
 };
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
-use crate::merge::Merge;
+use crate::merge::{Merge, MergeBuilder};
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::stacked_table::{
     MutableTable, ReadonlyTable, TableSegment, TableStore, TableStoreError,
@@ -294,13 +294,7 @@ fn serialize_extras(commit: &Commit) -> Vec<u8> {
     if let MergedTreeId::Merge(tree_ids) = &commit.root_tree {
         proto.uses_tree_conflict_format = true;
         if !tree_ids.is_resolved() {
-            let removes = tree_ids
-                .removes()
-                .iter()
-                .map(|r| r.to_bytes())
-                .collect_vec();
-            let adds = tree_ids.adds().iter().map(|r| r.to_bytes()).collect_vec();
-            proto.root_tree = Some(crate::protos::git_store::TreeConflict { removes, adds });
+            proto.root_tree = tree_ids.iter().map(|r| r.to_bytes()).collect();
         }
     }
     for predecessor in &commit.predecessors {
@@ -313,20 +307,13 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
     let proto = crate::protos::git_store::Commit::decode(bytes).unwrap();
     commit.change_id = ChangeId::new(proto.change_id);
     if proto.uses_tree_conflict_format {
-        if let Some(proto_conflict) = proto.root_tree {
-            let tree_id_merge = Merge::new(
-                proto_conflict
-                    .removes
-                    .iter()
-                    .map(|id_bytes| TreeId::from_bytes(id_bytes))
-                    .collect(),
-                proto_conflict
-                    .adds
-                    .iter()
-                    .map(|id_bytes| TreeId::from_bytes(id_bytes))
-                    .collect(),
-            );
-            commit.root_tree = MergedTreeId::Merge(tree_id_merge);
+        if !proto.root_tree.is_empty() {
+            let merge_builder: MergeBuilder<_> = proto
+                .root_tree
+                .iter()
+                .map(|id_bytes| TreeId::from_bytes(id_bytes))
+                .collect();
+            commit.root_tree = MergedTreeId::Merge(merge_builder.build());
         } else {
             // uses_tree_conflict_format was set but there was no root_tree override in the
             // proto, which means we should just promote the tree id from the
