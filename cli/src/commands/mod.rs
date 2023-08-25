@@ -2657,7 +2657,7 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
         },
         commit.id().hex(),
     ));
-    let tree = commit.tree();
+    let tree = commit.merged_tree()?;
     let store = tree.store();
     let mut tree_builder = MergedTreeBuilder::new(store.clone(), commit.merged_tree_id().clone());
     for repo_path in repo_paths {
@@ -2667,37 +2667,33 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
                 tx.base_workspace_helper().format_file_path(&repo_path)
             ))
         };
-        let new_tree_value = match tree.path_value(&repo_path) {
-            None => return Err(user_error_with_path("No such path")),
-            Some(TreeValue::File { id, executable: _ }) => Merge::normal(TreeValue::File {
-                id,
+        let tree_value = tree.path_value(&repo_path);
+        if tree_value.is_absent() {
+            return Err(user_error_with_path("No such path"));
+        }
+        let all_files = tree_value
+            .adds()
+            .iter()
+            .flatten()
+            .all(|tree_value| matches!(tree_value, TreeValue::File { .. }));
+        if !all_files {
+            let message = if tree_value.is_resolved() {
+                "Found neither a file nor a conflict"
+            } else {
+                "Some of the sides of the conflict are not files"
+            };
+            return Err(user_error_with_path(message));
+        }
+        let new_tree_value = tree_value.map(|value| match value {
+            Some(TreeValue::File { id, executable: _ }) => Some(TreeValue::File {
+                id: id.clone(),
                 executable: executable_bit,
             }),
-            Some(TreeValue::Conflict(id)) => {
-                let conflict = tree.store().read_conflict(&repo_path, &id)?;
-                let all_files = conflict
-                    .adds()
-                    .iter()
-                    .flatten()
-                    .all(|tree_value| matches!(tree_value, TreeValue::File { .. }));
-                if !all_files {
-                    return Err(user_error_with_path(
-                        "Some of the sides of the conflict are not files",
-                    ));
-                }
-                conflict.map(|value| match value {
-                    Some(TreeValue::File { id, executable: _ }) => Some(TreeValue::File {
-                        id: id.clone(),
-                        executable: executable_bit,
-                    }),
-                    Some(TreeValue::Conflict(_)) => {
-                        panic!("Conflict sides must not themselves be conflicts")
-                    }
-                    value => value.clone(),
-                })
+            Some(TreeValue::Conflict(_)) => {
+                panic!("Conflict sides must not themselves be conflicts")
             }
-            Some(_) => return Err(user_error_with_path("Found neither a file nor a conflict")),
-        };
+            value => value.clone(),
+        });
         tree_builder.set_or_remove(repo_path, new_tree_value);
     }
 
