@@ -480,7 +480,7 @@ fn build_commit_or_change_id_method<'repo>(
             let len_property = parse_optional_integer(function)?;
             language.wrap_string(TemplateFunction::new(
                 (self_property, len_property),
-                |(id, len)| id.short(len.and_then(|l| l.try_into().ok()).unwrap_or(12)),
+                |(id, len)| id.short(len.map_or(12, |l| l.try_into().unwrap_or(0))),
             ))
         }
         "shortest" => {
