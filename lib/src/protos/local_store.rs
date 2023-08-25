@@ -61,6 +61,9 @@ pub struct Commit {
     pub predecessors: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
     #[prost(message, optional, tag = "3")]
     pub root_tree: ::core::option::Option<TreeConflict>,
+    /// TODO(#1624): delete when all code paths can handle this format
+    #[prost(bool, tag = "8")]
+    pub uses_tree_conflict_format: bool,
     #[prost(bytes = "vec", tag = "4")]
     pub change_id: ::prost::alloc::vec::Vec<u8>,
     #[prost(string, tag = "5")]
