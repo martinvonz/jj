@@ -372,10 +372,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().unwrap().contains_key(&ignored_path));
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(
-        new_tree.id(),
-        tree_without_file.id().into_resolved().unwrap()
-    );
+    assert_eq!(new_tree.id(), tree_without_file.id().as_legacy_tree_id());
 
     // Now test the opposite direction: resetting to a commit where the file is
     // tracked. The file should become tracked (even though it's ignored).
@@ -386,7 +383,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(wc.file_states().unwrap().contains_key(&ignored_path));
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(new_tree.id(), tree_with_file.id().into_resolved().unwrap());
+    assert_eq!(new_tree.id(), tree_with_file.id().as_legacy_tree_id());
 }
 
 #[test]
