@@ -392,6 +392,8 @@ fn test_templater_string_method() {
     insta::assert_snapshot!(render(r#""foo".substr(0, 99)"#), @"foo");
     insta::assert_snapshot!(render(r#""abcdef".substr(2, -1)"#), @"cde");
     insta::assert_snapshot!(render(r#""abcdef".substr(-3, 99)"#), @"def");
+    insta::assert_snapshot!(render(r#""abc💩".substr(2, -1)"#), @"c");
+    insta::assert_snapshot!(render(r#""abc💩".substr(-1, 99)"#), @"💩");
 
     // ranges with end > start are empty
     insta::assert_snapshot!(render(r#""abcdef".substr(4, 2)"#), @"");
