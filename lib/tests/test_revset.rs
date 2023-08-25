@@ -30,9 +30,9 @@ use jj_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
-    optimize, parse, DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetExpression,
-    RevsetFilterPredicate, RevsetParseContext, RevsetResolutionError, RevsetWorkspaceContext,
-    SymbolResolver as _,
+    optimize, parse, DefaultSymbolResolver, ResolvedExpression, Revset, RevsetAliasesMap,
+    RevsetExpression, RevsetFilterPredicate, RevsetParseContext, RevsetResolutionError,
+    RevsetWorkspaceContext,
 };
 use jj_lib::revset_graph::{ReverseRevsetGraphIterator, RevsetGraphEdge};
 use jj_lib::settings::GitSettings;
@@ -44,7 +44,18 @@ use testutils::{
 };
 
 fn resolve_symbol(repo: &dyn Repo, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
-    DefaultSymbolResolver::new(repo).resolve_symbol(symbol)
+    let context = RevsetParseContext {
+        aliases_map: &RevsetAliasesMap::new(),
+        user_email: String::new(),
+        workspace: None,
+    };
+    let expression = parse(symbol, &context).unwrap();
+    assert_matches!(*expression, RevsetExpression::CommitRef(_));
+    let symbol_resolver = DefaultSymbolResolver::new(repo);
+    match expression.resolve_user_expression(repo, &symbol_resolver)? {
+        ResolvedExpression::Commits(commits) => Ok(commits),
+        expression => panic!("symbol resolved to compound expression: {expression:?}"),
+    }
 }
 
 fn revset_for_commits<'index>(
@@ -77,7 +88,7 @@ fn test_resolve_symbol_empty_string() {
     let repo = &test_repo.repo;
 
     assert_matches!(
-        resolve_symbol(repo.as_ref(), ""),
+        resolve_symbol(repo.as_ref(), r#""""#),
         Err(RevsetResolutionError::EmptyString)
     );
 }
