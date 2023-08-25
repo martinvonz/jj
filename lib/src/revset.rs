@@ -918,19 +918,23 @@ fn parse_symbol_rule(
                 Ok(RevsetExpression::symbol(name.to_owned()))
             }
         }
-        Rule::literal_string => Ok(RevsetExpression::symbol(
-            first
-                .as_str()
-                .strip_prefix('"')
-                .unwrap()
-                .strip_suffix('"')
-                .unwrap()
-                .to_owned(),
-        )),
+        Rule::literal_string => parse_string_literal(first).map(RevsetExpression::symbol),
         _ => {
             panic!("unexpected symbol parse rule: {:?}", first.as_str());
         }
     }
+}
+
+// TODO: Add support for \-escape syntax
+fn parse_string_literal(pair: Pair<Rule>) -> Result<String, RevsetParseError> {
+    assert_eq!(pair.as_rule(), Rule::literal_string);
+    Ok(pair
+        .as_str()
+        .strip_prefix('"')
+        .unwrap()
+        .strip_suffix('"')
+        .unwrap()
+        .to_owned())
 }
 
 fn parse_function_expression(
@@ -1884,6 +1888,15 @@ fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<
         .collect()
 }
 
+fn make_no_such_symbol_error(repo: &dyn Repo, name: impl Into<String>) -> RevsetResolutionError {
+    let name = name.into();
+    // TODO: include tags?
+    let mut branch_names = collect_branch_symbols(repo, name.contains('@'));
+    branch_names.sort_unstable();
+    let candidates = collect_similar(&name, &branch_names);
+    RevsetResolutionError::NoSuchRevision { name, candidates }
+}
+
 fn resolve_full_commit_id(
     repo: &dyn Repo,
     symbol: &str,
@@ -2021,15 +2034,7 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
                 }
             }
 
-            Err(RevsetResolutionError::NoSuchRevision {
-                name: symbol.to_owned(),
-                candidates: {
-                    // TODO: include tags?
-                    let mut branch_names = collect_branch_symbols(self.repo, symbol.contains('@'));
-                    branch_names.sort_unstable();
-                    collect_similar(symbol, &branch_names)
-                },
-            })
+            Err(make_no_such_symbol_error(self.repo, symbol))
         }
     }
 }
