@@ -293,7 +293,7 @@ fn serialize_extras(commit: &Commit) -> Vec<u8> {
         uses_tree_conflict_format: commit.uses_tree_conflict_format,
         ..Default::default()
     };
-    if commit.root_tree.as_resolved().is_none() {
+    if !commit.root_tree.is_resolved() {
         assert!(commit.uses_tree_conflict_format);
         let removes = commit
             .root_tree
@@ -307,10 +307,7 @@ fn serialize_extras(commit: &Commit) -> Vec<u8> {
             .iter()
             .map(|r| r.to_bytes())
             .collect_vec();
-        let conflict = crate::protos::git_store::TreeConflict { removes, adds };
-        proto.root_tree = Some(crate::protos::git_store::commit::RootTree::Conflict(
-            conflict,
-        ));
+        proto.root_tree = Some(crate::protos::git_store::TreeConflict { removes, adds });
     }
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.to_bytes());
@@ -322,26 +319,20 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
     let proto = crate::protos::git_store::Commit::decode(bytes).unwrap();
     commit.change_id = ChangeId::new(proto.change_id);
     commit.uses_tree_conflict_format = proto.uses_tree_conflict_format;
-    match proto.root_tree {
-        Some(crate::protos::git_store::commit::RootTree::Conflict(proto_conflict)) => {
-            assert!(commit.uses_tree_conflict_format);
-            commit.root_tree = Merge::new(
-                proto_conflict
-                    .removes
-                    .iter()
-                    .map(|id_bytes| TreeId::from_bytes(id_bytes))
-                    .collect(),
-                proto_conflict
-                    .adds
-                    .iter()
-                    .map(|id_bytes| TreeId::from_bytes(id_bytes))
-                    .collect(),
-            );
-        }
-        Some(crate::protos::git_store::commit::RootTree::Resolved(_)) => {
-            panic!("found resolved root tree in extras (should only be written to git metadata)");
-        }
-        None => {}
+    if let Some(proto_conflict) = proto.root_tree {
+        assert!(commit.uses_tree_conflict_format);
+        commit.root_tree = Merge::new(
+            proto_conflict
+                .removes
+                .iter()
+                .map(|id_bytes| TreeId::from_bytes(id_bytes))
+                .collect(),
+            proto_conflict
+                .adds
+                .iter()
+                .map(|id_bytes| TreeId::from_bytes(id_bytes))
+                .collect(),
+        );
     }
     for predecessor in &proto.predecessors {
         commit.predecessors.push(CommitId::from_bytes(predecessor));
