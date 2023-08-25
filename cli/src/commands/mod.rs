@@ -37,7 +37,7 @@ use jj_lib::dag_walk::topo_order_reverse;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merge::Merge;
-use jj_lib::merged_tree::MergedTree;
+use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
@@ -2659,7 +2659,7 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
     ));
     let tree = commit.tree();
     let store = tree.store();
-    let mut tree_builder = store.tree_builder(tree.id().clone());
+    let mut tree_builder = MergedTreeBuilder::new(store.clone(), commit.merged_tree_id().clone());
     for repo_path in repo_paths {
         let user_error_with_path = |msg: &str| {
             user_error(format!(
@@ -2669,10 +2669,10 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
         };
         let new_tree_value = match tree.path_value(&repo_path) {
             None => return Err(user_error_with_path("No such path")),
-            Some(TreeValue::File { id, executable: _ }) => TreeValue::File {
+            Some(TreeValue::File { id, executable: _ }) => Merge::normal(TreeValue::File {
                 id,
                 executable: executable_bit,
-            },
+            }),
             Some(TreeValue::Conflict(id)) => {
                 let conflict = tree.store().read_conflict(&repo_path, &id)?;
                 let all_files = conflict
@@ -2685,7 +2685,7 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
                         "Some of the sides of the conflict are not files",
                     ));
                 }
-                let new_conflict = conflict.map(|value| match value {
+                conflict.map(|value| match value {
                     Some(TreeValue::File { id, executable: _ }) => Some(TreeValue::File {
                         id: id.clone(),
                         executable: executable_bit,
@@ -2694,18 +2694,17 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
                         panic!("Conflict sides must not themselves be conflicts")
                     }
                     value => value.clone(),
-                });
-                let new_conflict_id = store.write_conflict(&repo_path, &new_conflict)?;
-                TreeValue::Conflict(new_conflict_id)
+                })
             }
             Some(_) => return Err(user_error_with_path("Found neither a file nor a conflict")),
         };
-        tree_builder.set(repo_path, new_tree_value);
+        tree_builder.set_or_remove(repo_path, new_tree_value);
     }
 
+    let new_tree_id = tree_builder.write_tree()?;
     tx.mut_repo()
         .rewrite_commit(command.settings(), &commit)
-        .set_tree(tree_builder.write_tree())
+        .set_tree_id(new_tree_id)
         .write()?;
     tx.finish(ui)
 }

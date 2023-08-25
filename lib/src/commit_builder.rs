@@ -109,8 +109,15 @@ impl CommitBuilder<'_> {
         self.commit.root_tree.as_legacy_tree_id()
     }
 
+    // TODO(#1624): delete when all callers have been updated to support tree-level
+    // conflicts
     pub fn set_tree(mut self, tree_id: TreeId) -> Self {
         self.commit.root_tree = MergedTreeId::Legacy(tree_id);
+        self
+    }
+
+    pub fn set_tree_id(mut self, tree_id: MergedTreeId) -> Self {
+        self.commit.root_tree = tree_id;
         self
     }
 
