@@ -176,7 +176,7 @@ fn build_operation_id_method(
                 (self_property, len_property),
                 |(id, len)| {
                     let mut hex = id.hex();
-                    hex.truncate(len.and_then(|l| l.try_into().ok()).unwrap_or(12));
+                    hex.truncate(len.map_or(12, |l| l.try_into().unwrap_or(0)));
                     hex
                 },
             ))

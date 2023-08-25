@@ -147,6 +147,14 @@ fn test_op_log_template() {
     @  19b80 true test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
     ◉  f1c46 false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
     "###);
+
+    // Negative length shouldn't cause panic (and is clamped.)
+    // TODO: If we add runtime error, this will probably error out.
+    insta::assert_snapshot!(render(r#"id.short(-1) ++ "|""#), @r###"
+    @  |
+    ◉  |
+    "###);
+
     // Test the default template, i.e. with relative start time and duration. We
     // don't generally use that template because it depends on the current time,
     // so we need to reset the time range format here.

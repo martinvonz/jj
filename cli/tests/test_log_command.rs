@@ -622,30 +622,31 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
 }
 
 #[test]
-fn test_log_shortest_length_parameter() {
+fn test_log_short_shortest_length_parameter() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    let render = |template| test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
 
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.shortest(0)"]), @r###"
-    @  2
-    ◉  0
+        render(r#"commit_id.short(0) ++ "|" ++ commit_id.shortest(0)"#), @r###"
+    @  |2
+    ◉  |0
     "###);
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.shortest(-0)"]), @r###"
-    @  2
-    ◉  0
+        render(r#"commit_id.short(-0) ++ "|" ++ commit_id.shortest(-0)"#), @r###"
+    @  |2
+    ◉  |0
     "###);
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.shortest(-100)"]), @r###"
-    @  2
-    ◉  0
+        render(r#"commit_id.short(-100) ++ "|" ++ commit_id.shortest(-100)"#), @r###"
+    @  |2
+    ◉  |0
     "###);
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.shortest(100)"]), @r###"
-    @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    ◉  0000000000000000000000000000000000000000
+        render(r#"commit_id.short(100) ++ "|" ++ commit_id.shortest(100)"#), @r###"
+    @  230dd059e1b059aefc0da06a2e5a7dbf22362f22|230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ◉  0000000000000000000000000000000000000000|0000000000000000000000000000000000000000
     "###);
 }
 
