@@ -378,10 +378,14 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
             language.wrap_string(TemplateFunction::new(
                 (self_property, start_idx_property, end_idx_property),
                 |(s, start_idx, end_idx)| {
+                    // TODO: If we add .len() method, we'll expose bytes-based and char-based APIs.
+                    // Having different index units would be confusing, so we might want to change
+                    // .substr() to bytes-based and round up/down towards char or grapheme-cluster
+                    // boundary.
                     let to_idx = |i: i64| -> usize {
                         let magnitude = usize::try_from(i.unsigned_abs()).unwrap_or(usize::MAX);
                         if i < 0 {
-                            s.len().saturating_sub(magnitude)
+                            s.chars().count().saturating_sub(magnitude)
                         } else {
                             magnitude
                         }
