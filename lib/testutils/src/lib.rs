@@ -170,13 +170,13 @@ impl TestWorkspace {
         let tree_id = locked_wc.snapshot(SnapshotOptions {
             max_new_file_size: self.settings.max_new_file_size().unwrap(),
             ..SnapshotOptions::empty_for_test()
-        });
+        })?;
         // arbitrary operation id
         locked_wc.finish(self.repo.op_id().clone()).unwrap();
         Ok(self
             .repo
             .store()
-            .get_tree(&RepoPath::root(), &tree_id?)
+            .get_tree(&RepoPath::root(), &tree_id.to_legacy_tree_id())
             .unwrap())
     }
 }
