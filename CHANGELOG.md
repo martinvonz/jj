@@ -38,7 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can be customized with the `snapshot.max-new-file-size` config option.
 
 * Author and committer signatures now use empty strings to represent unset
-  names and email addresses.
+  names and email addresses. The `author`/`committer` template keywords and
+  methods also return empty strings.
   Older binaries may not warn user when attempting to `git push` commits
   with such signatures.
 

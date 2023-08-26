@@ -463,17 +463,17 @@ fn test_templater_signature() {
 
     test_env.jj_cmd_ok(&repo_path, &["--config-toml=user.name=''", "new"]);
 
-    insta::assert_snapshot!(render(r#"author"#), @"(no name available) <test.user@example.com>");
-    insta::assert_snapshot!(render(r#"author.name()"#), @"(no name available)");
+    insta::assert_snapshot!(render(r#"author"#), @"<test.user@example.com>");
+    insta::assert_snapshot!(render(r#"author.name()"#), @"");
     insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@example.com");
     insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
 
     test_env.jj_cmd_ok(&repo_path, &["--config-toml=user.email=''", "new"]);
 
-    insta::assert_snapshot!(render(r#"author"#), @"Test User <(no email available)>");
+    insta::assert_snapshot!(render(r#"author"#), @"Test User");
     insta::assert_snapshot!(render(r#"author.name()"#), @"Test User");
-    insta::assert_snapshot!(render(r#"author.email()"#), @"(no email available)");
-    insta::assert_snapshot!(render(r#"author.username()"#), @"(no username available)");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"");
 
     test_env.jj_cmd_ok(
         &repo_path,
@@ -484,10 +484,10 @@ fn test_templater_signature() {
         ],
     );
 
-    insta::assert_snapshot!(render(r#"author"#), @"(no name available) <(no email available)>");
-    insta::assert_snapshot!(render(r#"author.name()"#), @"(no name available)");
-    insta::assert_snapshot!(render(r#"author.email()"#), @"(no email available)");
-    insta::assert_snapshot!(render(r#"author.username()"#), @"(no username available)");
+    insta::assert_snapshot!(render(r#"author"#), @"");
+    insta::assert_snapshot!(render(r#"author.name()"#), @"");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"");
 }
 
 #[test]
