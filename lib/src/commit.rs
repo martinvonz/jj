@@ -110,16 +110,7 @@ impl Commit {
     }
 
     pub fn merged_tree(&self) -> Result<MergedTree, BackendError> {
-        match &self.data.root_tree {
-            MergedTreeId::Legacy(id) => {
-                let tree = self.store.get_tree(&RepoPath::root(), id)?;
-                Ok(MergedTree::Legacy(tree))
-            }
-            MergedTreeId::Merge(ids) => {
-                let trees = ids.try_map(|id| self.store.get_tree(&RepoPath::root(), id))?;
-                Ok(MergedTree::Merge(trees))
-            }
-        }
+        self.store.get_root_tree(&self.data.root_tree)
     }
 
     // TODO(#1624): delete when all callers have been updated to support tree-level
