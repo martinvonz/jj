@@ -146,13 +146,12 @@ fn test_racy_checkout() {
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     let path = RepoPath::from_internal_string("file");
-    let tree = testutils::create_tree(repo, &[(&path, "1")]);
+    let tree = MergedTree::legacy(testutils::create_tree(repo, &[(&path, "1")]));
 
     let mut num_matches = 0;
     for _ in 0..100 {
         let wc = test_workspace.workspace.working_copy_mut();
-        wc.check_out(op_id.clone(), None, &MergedTree::legacy(tree.clone()))
-            .unwrap();
+        wc.check_out(op_id.clone(), None, &tree).unwrap();
         assert_eq!(
             std::fs::read(path.to_fs_path(&workspace_root)).unwrap(),
             b"1".to_vec()
