@@ -123,8 +123,8 @@ separate(" ",
 
 description_placeholder = '''
   label(if(empty, "empty ") ++ "description placeholder", "(no description set)")'''
-email_placeholder = 'label("email placeholder", "(no email available)")'
-name_placeholder = 'label("name placeholder", "(no name available)")'
+email_placeholder = 'label("email placeholder", "(no email set)")'
+name_placeholder = 'label("name placeholder", "(no name set)")'
 commit_summary_separator = 'label("separator", " | ")'
 
 # Hook points for users to customize the default templates:
