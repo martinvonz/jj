@@ -309,7 +309,7 @@ impl MergedTree {
         other: &MergedTree,
         matcher: &'matcher dyn Matcher,
     ) -> TreeDiffIterator<'matcher> {
-        TreeDiffIterator::new(self.store().clone(), self.clone(), other.clone(), matcher)
+        TreeDiffIterator::new(self.clone(), other.clone(), matcher)
     }
 }
 
@@ -692,7 +692,6 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
 
 /// Iterator over the differences between two trees.
 pub struct TreeDiffIterator<'matcher> {
-    store: Arc<Store>,
     stack: Vec<TreeDiffItem>,
     matcher: &'matcher dyn Matcher,
 }
@@ -702,8 +701,8 @@ struct TreeDiffDirItem {
     // Iterator over the diffs between tree1 and tree2
     entry_iterator: TreeEntryDiffIterator<'static>,
     // On drop, tree1 and tree2 must outlive entry_iterator
-    _tree1: Box<MergedTree>,
-    _tree2: Box<MergedTree>,
+    tree1: Box<MergedTree>,
+    tree2: Box<MergedTree>,
 }
 
 enum TreeDiffItem {
@@ -715,12 +714,7 @@ enum TreeDiffItem {
 }
 
 impl<'matcher> TreeDiffIterator<'matcher> {
-    fn new(
-        store: Arc<Store>,
-        tree1: MergedTree,
-        tree2: MergedTree,
-        matcher: &'matcher dyn Matcher,
-    ) -> Self {
+    fn new(tree1: MergedTree, tree2: MergedTree, matcher: &'matcher dyn Matcher) -> Self {
         let root_dir = RepoPath::root();
         let mut stack = Vec::new();
         if !matcher.visit(&root_dir).is_nothing() {
@@ -728,26 +722,22 @@ impl<'matcher> TreeDiffIterator<'matcher> {
                 root_dir, tree1, tree2,
             )));
         };
-        Self {
-            store,
-            stack,
-            matcher,
-        }
+        Self { stack, matcher }
     }
 
-    fn single_tree(&self, dir: &RepoPath, value: Option<&TreeValue>) -> Tree {
+    fn single_tree(store: &Arc<Store>, dir: &RepoPath, value: Option<&TreeValue>) -> Tree {
         match value {
-            Some(TreeValue::Tree(tree_id)) => self.store.get_tree(dir, tree_id).unwrap(),
-            _ => Tree::null(self.store.clone(), dir.clone()),
+            Some(TreeValue::Tree(tree_id)) => store.get_tree(dir, tree_id).unwrap(),
+            _ => Tree::null(store.clone(), dir.clone()),
         }
     }
 
     /// Gets the given tree if `value` is a tree, otherwise an empty tree.
-    fn tree(&self, dir: &RepoPath, values: &Merge<Option<TreeValue>>) -> MergedTree {
+    fn tree(tree: &MergedTree, dir: &RepoPath, values: &Merge<Option<TreeValue>>) -> MergedTree {
         let trees = if values.is_tree() {
-            values.map(|value| self.single_tree(dir, value.as_ref()))
+            values.map(|value| Self::single_tree(tree.store(), dir, value.as_ref()))
         } else {
-            Merge::resolved(Tree::null(self.store.clone(), dir.clone()))
+            Merge::resolved(Tree::null(tree.store().clone(), dir.clone()))
         };
         // We return a `MergedTree::Merge` variant here even if `self` is a
         // `MergedTree::Legacy`. That's fine since we don't expose the
@@ -765,8 +755,8 @@ impl TreeDiffDirItem {
         Self {
             path,
             entry_iterator: iter,
-            _tree1: tree1,
-            _tree2: tree2,
+            tree1,
+            tree2,
         }
     }
 }
@@ -799,8 +789,8 @@ impl Iterator for TreeDiffIterator<'_> {
             let tree_after = after.is_tree();
             let post_subdir =
                 if (tree_before || tree_after) && !self.matcher.visit(&path).is_nothing() {
-                    let before_tree = self.tree(&path, &before);
-                    let after_tree = self.tree(&path, &after);
+                    let before_tree = Self::tree(dir.tree1.as_ref(), &path, &before);
+                    let after_tree = Self::tree(dir.tree2.as_ref(), &path, &after);
                     let subdir = TreeDiffDirItem::new(path.clone(), before_tree, after_tree);
                     self.stack.push(TreeDiffItem::Dir(subdir));
                     self.stack.len() - 1
