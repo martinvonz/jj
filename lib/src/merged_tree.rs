@@ -23,7 +23,7 @@ use itertools::Itertools;
 
 use crate::backend;
 use crate::backend::{BackendResult, ConflictId, MergedTreeId, TreeValue};
-use crate::matchers::Matcher;
+use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::Merge;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
@@ -297,6 +297,11 @@ impl MergedTree {
     /// (i.e. the subdirectory was replaced by symlink in one side of the
     /// conflict), then the entry for `foo` itself will be emitted, but no
     /// entries from inside `foo/` from either of the trees will be.
+    pub fn entries(&self) -> TreeEntriesIterator<'static> {
+        TreeEntriesIterator::new(self.clone(), &EverythingMatcher)
+    }
+
+    /// Like `entries()` but restricted by a matcher.
     pub fn entries_matching<'matcher>(
         &self,
         matcher: &'matcher dyn Matcher,
