@@ -271,8 +271,6 @@ fn test_checkout_file_transitions(use_git: bool) {
 
 // Test case for issue #2165
 #[test]
-// TODO(#2165): Shouldn't actually panic
-#[should_panic]
 fn test_conflict_subdirectory() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings, true);
