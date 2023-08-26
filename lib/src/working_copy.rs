@@ -1524,7 +1524,7 @@ impl WorkingCopy {
     pub fn check_out(
         &mut self,
         operation_id: OperationId,
-        old_tree_id: Option<&TreeId>,
+        old_tree_id: Option<&MergedTreeId>,
         new_tree: &MergedTree,
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut locked_wc = self.start_mutation()?;
@@ -1533,7 +1533,7 @@ impl WorkingCopy {
         // regardless, but it's probably not what  the caller wanted, so we let
         // them know.
         if let Some(old_tree_id) = old_tree_id {
-            if *old_tree_id != locked_wc.old_tree_id.to_legacy_tree_id() {
+            if *old_tree_id != locked_wc.old_tree_id {
                 locked_wc.discard();
                 return Err(CheckoutError::ConcurrentCheckout);
             }
