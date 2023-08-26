@@ -1,0 +1,34 @@
+name: website
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  prerelease-docs-build-deploy:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - run:  "git fetch origin gh-pages --depth=1"
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: latest
+      - name: Install dependencies, compile and deploy docs
+        run: |
+          git config user.name jj-docs-bot
+          git config user.email jj-docs-bot@users.noreply.github.io
+          .github/scripts/docs-build-deploy 'https://martinvonz.github.io/jj' prerelease main --push
+      - name: "Show `git diff --stat`"
+        run: git diff --stat gh-pages^ gh-pages || echo "(No diffs)"

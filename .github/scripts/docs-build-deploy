@@ -1,0 +1,15 @@
+#!/bin/sh
+# Set up a virtual environment with the required tools, build, and deploy the docs.
+#
+# Run from the root directory of the project as
+# .github/scripts/docs-build-deploy 'https://martinvonz.github.io' prerelease main
+# All arguments after the first are passed to `mike deploy`, run
+# `poetry run -- mike deploy --help` for options. Note that `mike deploy`
+# creates a commit directly on the `gh-pages` branch.
+set -ev
+
+export "SITE_URL_FOR_MKDOCS=$1"; shift
+# https://github.com/python-poetry/poetry/issues/1917
+export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring
+poetry install  # Only really needed once per environment unless there are updates
+poetry run -- mike deploy "$@"

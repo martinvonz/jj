@@ -136,7 +136,12 @@ These are listed roughly in order of decreasing importance.
 
 ## Previewing the HTML documentation
 
-<!---- Short-term TODO: More docs follow in a subsequent commit ---->
+The documentation for `jj` is automatically published to the website
+<https://martinvonz.github.io/jj/>. At the moment, this is experimental,
+but we hope to advertise this website to our users soon.
+
+When editing documentation, we'd appreciate it if you checked that the
+result will look as expected when published to the website.
 
 ### Setting up the prerequisites
 
@@ -186,6 +191,88 @@ browser automatically, unless build errors occur.
 You should occasionally check the terminal from which you ran `mkdocs serve` for
 any build errors or warnings. Warnings about `"GET /versions.json HTTP/1.1" code
 404` are expected and harmless.
+
+### How to build the entire website (not usually necessary)
+
+The full `jj` website includes the documentation for several `jj` versions
+(`prerelease`, latest release, and the older releases). The top-level
+URL <https://martinvonz.github.io/jj> redirects to
+<https://martinvonz.github.io/jj/latest>, which in turn redirects to
+the docs for the last stable version.
+
+The different versions of documentation are managed and deployed with
+[`mike`](https://github.com/jimporter/mike), which can be run with
+`poetry run -- mike`.
+
+On a POSIX system or WSL, one way to build the entire website is as follows (on
+Windows, you'll need to understand and adapt the shell script):
+
+1. Check out `jj` as a co-located `jj + git` repository (`jj clone --colocate`),
+cloned from your fork of `jj` (e.g. `jjfan.github.com/jj`). You can also use a
+pure Git repo if you prefer.
+
+2. Make sure `jjfan.github.com/jj` includes the `gh-pages` branch of the jj repo
+and run `git fetch origin gh-pages`.
+
+3. Go to the Github repository settings, enable Github Pages, and configure them
+to use the `gh-pages` branch (this is usually the default).
+
+4. Run the same `sh` script that is used in Github CI (details below):
+
+    ```shell
+    .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/'\
+        prerelease main --push
+    ```
+
+    This should build the version of the docs from the current commit,
+    deploy it as a new commit to the `gh-pages` branch,
+    and push the `gh-pages` branch to the origin.
+
+5. Now, you should be able to see the full website, including your latest changes
+to the `prerelease` version, at `https://jjfan.github.io/jj/prerelease/`.
+
+6. (Optional) The previous steps actually only rebuild
+`https://jjfan.github.io/jj/prerelease/` and its alias
+`https://jjfan.github.io/jj/main/`. If you'd like to test out version switching
+back and forth, you can also rebuild the docs for the latest release as follows.
+
+    ```shell
+    jj new v1.33.1  # Let's say `jj 1.33.1` is the currently the latest release
+    .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/'\
+        v1.33.1 latest --push
+    ```
+
+7. (Optional) When you are done, you may want to reset the `gh-branches` to the
+same spot as it is in the upstream. If you configured the `upstream` remote,
+this can be done with:
+
+    ```shell
+    # This will LOSE any changes you made to `gh-pages`
+    jj git fetch --remote upstream
+    jj branch set gh-pages -r gh-pages@upstream
+    jj git push --remote origin --branch gh-pages
+    ```
+
+    If you want to preserve some of the changes you made, you can do `jj branch
+    set my-changes -r gh-pages` BEFORE running the above commands.
+
+#### Explanation of the `docs-build-deploy` script
+
+The script sets up the `site_url` mkdocs config to
+`'https://jjfan.github.io/jj/'`. If this config does not match the URL
+where you loaded the website, some minor website features (like the
+version switching widget) will have reduced functionality.
+
+Then, the script passes the rest of its arguments to `potery run -- mike
+deploy`, which does the rest of the job. Run `poetry run -- mike help deploy` to
+find out what the arguments do.
+
+If you need to do something more complicated, you can use `poetry run -- mike
+...` commands. You can also edit the `gh-pages` branch directly, but take care
+to avoid files that will be overwritten by future invocations of `mike`. Then,
+you can submit a PR based on the `gh-pages` branch of
+<https://martinvonz.github.com/jj> (instead of the usual `main` branch).
+
 
 ## Modifying protobuffers (this is not common)
 
