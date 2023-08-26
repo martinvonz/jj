@@ -352,12 +352,6 @@ fn diff_content(
             let target = repo.store().read_symlink(path, id)?;
             Ok(target.into_bytes())
         }
-        TreeValue::Tree(_) => {
-            panic!(
-                "Got an unexpected tree in a diff of path {}",
-                path.to_internal_file_string()
-            );
-        }
         TreeValue::GitSubmodule(id) => {
             Ok(format!("Git submodule checked out at {}", id.hex()).into_bytes())
         }
@@ -366,6 +360,9 @@ fn diff_content(
             let mut content = vec![];
             conflicts::materialize(&conflict, repo.store(), path, &mut content).unwrap();
             Ok(content)
+        }
+        TreeValue::Tree(_) => {
+            panic!("Unexpected {value:?} in diff at path {path:?}",);
         }
     }
 }
@@ -506,12 +503,6 @@ fn git_diff_part(
             let target = repo.store().read_symlink(path, id)?;
             content = target.into_bytes();
         }
-        TreeValue::Tree(_) => {
-            panic!(
-                "Got an unexpected tree in a diff of path {}",
-                path.to_internal_file_string()
-            );
-        }
         TreeValue::GitSubmodule(id) => {
             // TODO: What should we actually do here?
             mode = "040000".to_string();
@@ -522,6 +513,9 @@ fn git_diff_part(
             hash = id.hex();
             let conflict = repo.store().read_conflict(path, id).unwrap();
             conflicts::materialize(&conflict, repo.store(), path, &mut content).unwrap();
+        }
+        TreeValue::Tree(_) => {
+            panic!("Unexpected {value:?} in diff at path {path:?}");
         }
     }
     let hash = hash[0..10].to_string();
@@ -896,6 +890,6 @@ fn diff_summary_char(value: Option<&TreeValue>) -> char {
         Some(TreeValue::Symlink(_)) => 'L',
         Some(TreeValue::GitSubmodule(_)) => 'G',
         Some(TreeValue::Conflict(_)) => 'C',
-        Some(TreeValue::Tree(_)) => panic!("unexpected tree entry in diff"),
+        Some(TreeValue::Tree(_)) => panic!("Unexpected {value:?} in diff"),
     }
 }
