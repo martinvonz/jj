@@ -40,7 +40,7 @@ if(root,
           separate(" ",
             format_short_change_id(change_id) ++ if(divergent, "??"),
             if(hidden, "hidden"))),
-        author.username(),
+        if(author.email(), author.username(), email_placeholder),
         format_timestamp(committer.timestamp()),
         branches,
         tags,
@@ -89,8 +89,8 @@ builtin_log_comfortable = 'builtin_log_compact ++ "\n"'
 concat(
   "Commit ID: " ++ commit_id ++ "\n",
   "Change ID: " ++ change_id ++ "\n",
-  "Author: " ++ author ++ " (" ++ format_timestamp(author.timestamp()) ++ ")\n",
-  "Committer: " ++ committer ++ " (" ++ format_timestamp(committer.timestamp()) ++ ")\n",
+  "Author: " ++ format_detailed_signature(author) ++ "\n",
+  "Committer: " ++ format_detailed_signature(committer)  ++ "\n",
   "\n",
   indent("    ", if(description, description, description_placeholder ++ "\n")),
   "\n",
@@ -123,13 +123,20 @@ separate(" ",
 
 description_placeholder = '''
   label(if(empty, "empty ") ++ "description placeholder", "(no description set)")'''
+email_placeholder = 'label("email placeholder", "(no email available)")'
+name_placeholder = 'label("name placeholder", "(no name available)")'
 commit_summary_separator = 'label("separator", " | ")'
 
 # Hook points for users to customize the default templates:
 'format_short_id(id)' = 'id.shortest(8)'
 'format_short_change_id(id)' = 'format_short_id(id)'
 'format_short_commit_id(id)' = 'format_short_id(id)'
-'format_short_signature(signature)' = 'signature.email()'
+'format_short_signature(signature)' = '''
+  if(signature.email(), signature.email(), email_placeholder)'''
+'format_detailed_signature(signature)' = '''
+  if(signature.name(), signature.name(), name_placeholder)
+  ++ " <" ++ if(signature.email(), signature.email(), email_placeholder) ++ ">"
+  ++ " (" ++ format_timestamp(signature.timestamp()) ++ ")"'''
 'format_time_range(time_range)' = '''
   time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp'

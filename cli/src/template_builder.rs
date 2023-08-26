@@ -456,32 +456,20 @@ fn build_signature_method<'a, L: TemplateLanguage<'a>>(
         "name" => {
             template_parser::expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                if !signature.name.is_empty() {
-                    signature.name
-                } else {
-                    "(no name available)".to_string()
-                }
+                signature.name
             }))
         }
         "email" => {
             template_parser::expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                if !signature.email.is_empty() {
-                    signature.email
-                } else {
-                    "(no email available)".to_string()
-                }
+                signature.email
             }))
         }
         "username" => {
             template_parser::expect_no_arguments(function)?;
             language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                if !signature.email.is_empty() {
-                    let (username, _) = text_util::split_email(&signature.email);
-                    username.to_owned()
-                } else {
-                    "(no username available)".to_string()
-                }
+                let (username, _) = text_util::split_email(&signature.email);
+                username.to_owned()
             }))
         }
         "timestamp" => {

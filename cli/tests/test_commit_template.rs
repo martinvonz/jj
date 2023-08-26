@@ -182,7 +182,7 @@ fn test_log_builtin_templates() {
     );
 
     insta::assert_snapshot!(render(r#"builtin_log_oneline"#), @r###"
-    @  rlvkpnrz (no username available) 2001-02-03 04:05:08.000 +07:00 dc315397 (empty) (no description set)
+    @  rlvkpnrz (no email available) 2001-02-03 04:05:08.000 +07:00 dc315397 (empty) (no description set)
     ◉  qpvuntsm test.user 2001-02-03 04:05:07.000 +07:00 230dd059 (empty) (no description set)
     ◉  zzzzzzzz root 00000000
     "###);
