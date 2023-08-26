@@ -24,12 +24,12 @@ use jj_lib::commit::Commit;
 use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::DiffLine;
 use jj_lib::matchers::Matcher;
-use jj_lib::merged_tree::MergedTree;
+use jj_lib::merge::Merge;
+use jj_lib::merged_tree::{MergedTree, TreeDiffIterator};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
-use jj_lib::tree::{Tree, TreeDiffIterator};
-use jj_lib::{conflicts, diff, files, rewrite, tree};
+use jj_lib::{conflicts, diff, files, rewrite};
 use tracing::instrument;
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
@@ -159,8 +159,8 @@ pub fn show_diff(
     ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
-    from_tree: &Tree,
-    to_tree: &Tree,
+    from_tree: &MergedTree,
+    to_tree: &MergedTree,
     matcher: &dyn Matcher,
     formats: &[DiffFormat],
 ) -> Result<(), CommandError> {
@@ -187,14 +187,7 @@ pub fn show_diff(
                 show_color_words_diff(formatter, workspace_command, tree_diff)?;
             }
             DiffFormat::Tool(tool) => {
-                merge_tools::generate_diff(
-                    ui,
-                    formatter.raw(),
-                    &MergedTree::Legacy(from_tree.clone()),
-                    &MergedTree::Legacy(to_tree.clone()),
-                    matcher,
-                    tool,
-                )?;
+                merge_tools::generate_diff(ui, formatter.raw(), from_tree, to_tree, matcher, tool)?;
             }
         }
     }
@@ -210,8 +203,11 @@ pub fn show_patch(
     formats: &[DiffFormat],
 ) -> Result<(), CommandError> {
     let parents = commit.parents();
-    let from_tree = rewrite::merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
-    let to_tree = commit.tree();
+    let from_tree = MergedTree::legacy(rewrite::merge_commit_trees(
+        workspace_command.repo().as_ref(),
+        &parents,
+    )?);
+    let to_tree = commit.merged_tree()?;
     show_diff(
         ui,
         formatter,
@@ -339,48 +335,53 @@ fn show_color_words_diff_line(
 fn diff_content(
     repo: &Arc<ReadonlyRepo>,
     path: &RepoPath,
-    value: Option<&TreeValue>,
+    value: &Merge<Option<TreeValue>>,
 ) -> Result<Vec<u8>, CommandError> {
-    match value {
-        None => Ok(vec![]),
-        Some(TreeValue::File { id, .. }) => {
+    match value.as_resolved() {
+        Some(None) => Ok(vec![]),
+        Some(Some(TreeValue::File { id, .. })) => {
             let mut file_reader = repo.store().read_file(path, id).unwrap();
             let mut content = vec![];
             file_reader.read_to_end(&mut content)?;
             Ok(content)
         }
-        Some(TreeValue::Symlink(id)) => {
+        Some(Some(TreeValue::Symlink(id))) => {
             let target = repo.store().read_symlink(path, id)?;
             Ok(target.into_bytes())
         }
-        Some(TreeValue::GitSubmodule(id)) => {
+        Some(Some(TreeValue::GitSubmodule(id))) => {
             Ok(format!("Git submodule checked out at {}", id.hex()).into_bytes())
         }
-        Some(TreeValue::Conflict(id)) => {
-            let conflict = repo.store().read_conflict(path, id).unwrap();
+        None => {
             let mut content = vec![];
-            conflicts::materialize(&conflict, repo.store(), path, &mut content).unwrap();
+            conflicts::materialize(value, repo.store(), path, &mut content).unwrap();
             Ok(content)
         }
-        Some(TreeValue::Tree(_)) => {
+        Some(Some(TreeValue::Tree(_))) | Some(Some(TreeValue::Conflict(_))) => {
             panic!("Unexpected {value:?} in diff at path {path:?}",);
         }
     }
 }
 
-fn basic_diff_file_type(value: &TreeValue) -> String {
-    match value {
-        TreeValue::File { executable, .. } => {
+fn basic_diff_file_type(values: &Merge<Option<TreeValue>>) -> String {
+    match values.as_resolved() {
+        Some(None) => {
+            panic!("absent path in diff");
+        }
+        Some(Some(TreeValue::File { executable, .. })) => {
             if *executable {
                 "executable file".to_string()
             } else {
                 "regular file".to_string()
             }
         }
-        TreeValue::Symlink(_) => "symlink".to_string(),
-        TreeValue::Tree(_) => "tree".to_string(),
-        TreeValue::GitSubmodule(_) => "Git submodule".to_string(),
-        TreeValue::Conflict(_) => "conflict".to_string(),
+        Some(Some(TreeValue::Symlink(_))) => "symlink".to_string(),
+        Some(Some(TreeValue::Tree(_))) => "tree".to_string(),
+        Some(Some(TreeValue::GitSubmodule(_))) => "Git submodule".to_string(),
+        Some(Some(TreeValue::Conflict(_))) => {
+            panic!("conflict in diff");
+        }
+        None => "conflict".to_string(),
     }
 }
 
@@ -391,81 +392,75 @@ pub fn show_color_words_diff(
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
     formatter.push_label("diff")?;
-    for (path, diff) in tree_diff {
+    for (path, left_value, right_value) in tree_diff {
         let ui_path = workspace_command.format_file_path(&path);
-        match diff {
-            tree::Diff::Added(right_value) => {
-                let right_content = diff_content(repo, &path, Some(&right_value))?;
-                let description = basic_diff_file_type(&right_value);
-                writeln!(
-                    formatter.labeled("header"),
-                    "Added {description} {ui_path}:"
-                )?;
-                if right_content.is_empty() {
-                    writeln!(formatter.labeled("empty"), "    (empty)")?;
-                } else {
-                    show_color_words_diff_hunks(&[], &right_content, formatter)?;
-                }
+        if left_value.is_absent() {
+            let right_content = diff_content(repo, &path, &right_value)?;
+            let description = basic_diff_file_type(&right_value);
+            writeln!(
+                formatter.labeled("header"),
+                "Added {description} {ui_path}:"
+            )?;
+            if right_content.is_empty() {
+                writeln!(formatter.labeled("empty"), "    (empty)")?;
+            } else {
+                show_color_words_diff_hunks(&[], &right_content, formatter)?;
             }
-            tree::Diff::Modified(left_value, right_value) => {
-                let left_content = diff_content(repo, &path, Some(&left_value))?;
-                let right_content = diff_content(repo, &path, Some(&right_value))?;
-                let description = match (left_value, right_value) {
-                    (
-                        TreeValue::File {
-                            executable: left_executable,
-                            ..
-                        },
-                        TreeValue::File {
-                            executable: right_executable,
-                            ..
-                        },
-                    ) => {
-                        if left_executable && right_executable {
-                            "Modified executable file".to_string()
-                        } else if left_executable {
-                            "Executable file became non-executable at".to_string()
-                        } else if right_executable {
-                            "Non-executable file became executable at".to_string()
-                        } else {
-                            "Modified regular file".to_string()
-                        }
+        } else if right_value.is_present() {
+            let left_content = diff_content(repo, &path, &left_value)?;
+            let right_content = diff_content(repo, &path, &right_value)?;
+            let description = match (left_value.into_resolved(), right_value.into_resolved()) {
+                (
+                    Ok(Some(TreeValue::File {
+                        executable: left_executable,
+                        ..
+                    })),
+                    Ok(Some(TreeValue::File {
+                        executable: right_executable,
+                        ..
+                    })),
+                ) => {
+                    if left_executable && right_executable {
+                        "Modified executable file".to_string()
+                    } else if left_executable {
+                        "Executable file became non-executable at".to_string()
+                    } else if right_executable {
+                        "Non-executable file became executable at".to_string()
+                    } else {
+                        "Modified regular file".to_string()
                     }
-                    (TreeValue::Conflict(_), TreeValue::Conflict(_)) => {
-                        "Modified conflict in".to_string()
-                    }
-                    (TreeValue::Conflict(_), _) => "Resolved conflict in".to_string(),
-                    (_, TreeValue::Conflict(_)) => "Created conflict in".to_string(),
-                    (TreeValue::Symlink(_), TreeValue::Symlink(_)) => {
-                        "Symlink target changed at".to_string()
-                    }
-                    (left_value, right_value) => {
-                        let left_type = basic_diff_file_type(&left_value);
-                        let right_type = basic_diff_file_type(&right_value);
-                        let (first, rest) = left_type.split_at(1);
-                        format!(
-                            "{}{} became {} at",
-                            first.to_ascii_uppercase(),
-                            rest,
-                            right_type
-                        )
-                    }
-                };
-                writeln!(formatter.labeled("header"), "{description} {ui_path}:")?;
-                show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
-            }
-            tree::Diff::Removed(left_value) => {
-                let left_content = diff_content(repo, &path, Some(&left_value))?;
-                let description = basic_diff_file_type(&left_value);
-                writeln!(
-                    formatter.labeled("header"),
-                    "Removed {description} {ui_path}:"
-                )?;
-                if left_content.is_empty() {
-                    writeln!(formatter.labeled("empty"), "    (empty)")?;
-                } else {
-                    show_color_words_diff_hunks(&left_content, &[], formatter)?;
                 }
+                (Err(_), Err(_)) => "Modified conflict in".to_string(),
+                (Err(_), _) => "Resolved conflict in".to_string(),
+                (_, Err(_)) => "Created conflict in".to_string(),
+                (Ok(Some(TreeValue::Symlink(_))), Ok(Some(TreeValue::Symlink(_)))) => {
+                    "Symlink target changed at".to_string()
+                }
+                (Ok(left_value), Ok(right_value)) => {
+                    let left_type = basic_diff_file_type(&Merge::resolved(left_value));
+                    let right_type = basic_diff_file_type(&Merge::resolved(right_value));
+                    let (first, rest) = left_type.split_at(1);
+                    format!(
+                        "{}{} became {} at",
+                        first.to_ascii_uppercase(),
+                        rest,
+                        right_type
+                    )
+                }
+            };
+            writeln!(formatter.labeled("header"), "{description} {ui_path}:")?;
+            show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
+        } else {
+            let left_content = diff_content(repo, &path, &left_value)?;
+            let description = basic_diff_file_type(&left_value);
+            writeln!(
+                formatter.labeled("header"),
+                "Removed {description} {ui_path}:"
+            )?;
+            if left_content.is_empty() {
+                writeln!(formatter.labeled("empty"), "    (empty)")?;
+            } else {
+                show_color_words_diff_hunks(&left_content, &[], formatter)?;
             }
         }
     }
@@ -482,13 +477,13 @@ struct GitDiffPart {
 fn git_diff_part(
     repo: &Arc<ReadonlyRepo>,
     path: &RepoPath,
-    value: &TreeValue,
+    value: &Merge<Option<TreeValue>>,
 ) -> Result<GitDiffPart, CommandError> {
     let mode;
     let hash;
     let mut content = vec![];
-    match value {
-        TreeValue::File { id, executable } => {
+    match value.as_resolved() {
+        Some(Some(TreeValue::File { id, executable })) => {
             mode = if *executable {
                 "100755".to_string()
             } else {
@@ -498,24 +493,23 @@ fn git_diff_part(
             let mut file_reader = repo.store().read_file(path, id).unwrap();
             file_reader.read_to_end(&mut content)?;
         }
-        TreeValue::Symlink(id) => {
+        Some(Some(TreeValue::Symlink(id))) => {
             mode = "120000".to_string();
             hash = id.hex();
             let target = repo.store().read_symlink(path, id)?;
             content = target.into_bytes();
         }
-        TreeValue::GitSubmodule(id) => {
+        Some(Some(TreeValue::GitSubmodule(id))) => {
             // TODO: What should we actually do here?
             mode = "040000".to_string();
             hash = id.hex();
         }
-        TreeValue::Conflict(id) => {
+        None => {
             mode = "100644".to_string();
-            hash = id.hex();
-            let conflict = repo.store().read_conflict(path, id).unwrap();
-            conflicts::materialize(&conflict, repo.store(), path, &mut content).unwrap();
+            hash = "0000000000".to_string();
+            conflicts::materialize(value, repo.store(), path, &mut content).unwrap();
         }
-        TreeValue::Tree(_) => {
+        Some(Some(TreeValue::Tree(_))) | Some(Some(TreeValue::Conflict(_))) | Some(None) => {
             panic!("Unexpected {value:?} in diff at path {path:?}");
         }
     }
@@ -670,57 +664,53 @@ pub fn show_git_diff(
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
     formatter.push_label("diff")?;
-    for (path, diff) in tree_diff {
+    for (path, left_value, right_value) in tree_diff {
         let path_string = path.to_internal_file_string();
-        match diff {
-            tree::Diff::Added(right_value) => {
-                let right_part = git_diff_part(repo, &path, &right_value)?;
-                formatter.with_label("file_header", |formatter| {
-                    writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
-                    writeln!(formatter, "new file mode {}", &right_part.mode)?;
-                    writeln!(formatter, "index 0000000000..{}", &right_part.hash)?;
-                    writeln!(formatter, "--- /dev/null")?;
-                    writeln!(formatter, "+++ b/{path_string}")
-                })?;
-                show_unified_diff_hunks(formatter, &[], &right_part.content)?;
-            }
-            tree::Diff::Modified(left_value, right_value) => {
-                let left_part = git_diff_part(repo, &path, &left_value)?;
-                let right_part = git_diff_part(repo, &path, &right_value)?;
-                formatter.with_label("file_header", |formatter| {
-                    writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
-                    if left_part.mode != right_part.mode {
-                        writeln!(formatter, "old mode {}", &left_part.mode)?;
-                        writeln!(formatter, "new mode {}", &right_part.mode)?;
-                        if left_part.hash != right_part.hash {
-                            writeln!(formatter, "index {}...{}", &left_part.hash, right_part.hash)?;
-                        }
-                    } else if left_part.hash != right_part.hash {
-                        writeln!(
-                            formatter,
-                            "index {}...{} {}",
-                            &left_part.hash, right_part.hash, left_part.mode
-                        )?;
+        if left_value.is_absent() {
+            let right_part = git_diff_part(repo, &path, &right_value)?;
+            formatter.with_label("file_header", |formatter| {
+                writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
+                writeln!(formatter, "new file mode {}", &right_part.mode)?;
+                writeln!(formatter, "index 0000000000..{}", &right_part.hash)?;
+                writeln!(formatter, "--- /dev/null")?;
+                writeln!(formatter, "+++ b/{path_string}")
+            })?;
+            show_unified_diff_hunks(formatter, &[], &right_part.content)?;
+        } else if right_value.is_present() {
+            let left_part = git_diff_part(repo, &path, &left_value)?;
+            let right_part = git_diff_part(repo, &path, &right_value)?;
+            formatter.with_label("file_header", |formatter| {
+                writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
+                if left_part.mode != right_part.mode {
+                    writeln!(formatter, "old mode {}", &left_part.mode)?;
+                    writeln!(formatter, "new mode {}", &right_part.mode)?;
+                    if left_part.hash != right_part.hash {
+                        writeln!(formatter, "index {}...{}", &left_part.hash, right_part.hash)?;
                     }
-                    if left_part.content != right_part.content {
-                        writeln!(formatter, "--- a/{path_string}")?;
-                        writeln!(formatter, "+++ b/{path_string}")?;
-                    }
-                    Ok(())
-                })?;
-                show_unified_diff_hunks(formatter, &left_part.content, &right_part.content)?;
-            }
-            tree::Diff::Removed(left_value) => {
-                let left_part = git_diff_part(repo, &path, &left_value)?;
-                formatter.with_label("file_header", |formatter| {
-                    writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
-                    writeln!(formatter, "deleted file mode {}", &left_part.mode)?;
-                    writeln!(formatter, "index {}..0000000000", &left_part.hash)?;
+                } else if left_part.hash != right_part.hash {
+                    writeln!(
+                        formatter,
+                        "index {}...{} {}",
+                        &left_part.hash, right_part.hash, left_part.mode
+                    )?;
+                }
+                if left_part.content != right_part.content {
                     writeln!(formatter, "--- a/{path_string}")?;
-                    writeln!(formatter, "+++ /dev/null")
-                })?;
-                show_unified_diff_hunks(formatter, &left_part.content, &[])?;
-            }
+                    writeln!(formatter, "+++ b/{path_string}")?;
+                }
+                Ok(())
+            })?;
+            show_unified_diff_hunks(formatter, &left_part.content, &right_part.content)?;
+        } else {
+            let left_part = git_diff_part(repo, &path, &left_value)?;
+            formatter.with_label("file_header", |formatter| {
+                writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
+                writeln!(formatter, "deleted file mode {}", &left_part.mode)?;
+                writeln!(formatter, "index {}..0000000000", &left_part.hash)?;
+                writeln!(formatter, "--- a/{path_string}")?;
+                writeln!(formatter, "+++ /dev/null")
+            })?;
+            show_unified_diff_hunks(formatter, &left_part.content, &[])?;
         }
     }
     formatter.pop_label()?;
@@ -734,29 +724,25 @@ pub fn show_diff_summary(
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
     formatter.with_label("diff", |formatter| {
-        for (repo_path, diff) in tree_diff {
-            match diff {
-                tree::Diff::Modified(_, _) => {
-                    writeln!(
-                        formatter.labeled("modified"),
-                        "M {}",
-                        workspace_command.format_file_path(&repo_path)
-                    )?;
-                }
-                tree::Diff::Added(_) => {
-                    writeln!(
-                        formatter.labeled("added"),
-                        "A {}",
-                        workspace_command.format_file_path(&repo_path)
-                    )?;
-                }
-                tree::Diff::Removed(_) => {
-                    writeln!(
-                        formatter.labeled("removed"),
-                        "R {}",
-                        workspace_command.format_file_path(&repo_path)
-                    )?;
-                }
+        for (repo_path, before, after) in tree_diff {
+            if before.is_present() && after.is_present() {
+                writeln!(
+                    formatter.labeled("modified"),
+                    "M {}",
+                    workspace_command.format_file_path(&repo_path)
+                )?;
+            } else if before.is_absent() {
+                writeln!(
+                    formatter.labeled("added"),
+                    "A {}",
+                    workspace_command.format_file_path(&repo_path)
+                )?;
+            } else {
+                writeln!(
+                    formatter.labeled("removed"),
+                    "R {}",
+                    workspace_command.format_file_path(&repo_path)
+                )?;
             }
         }
         Ok(())
@@ -798,12 +784,10 @@ pub fn show_diff_stat(
     let mut stats: Vec<DiffStat> = vec![];
     let mut max_path_length = 0;
     let mut max_diffs = 0;
-    for (repo_path, diff) in tree_diff {
+    for (repo_path, left, right) in tree_diff {
         let path = workspace_command.format_file_path(&repo_path);
-        let (left_value, right_value) = diff.into_options();
-        let left_content = diff_content(workspace_command.repo(), &repo_path, left_value.as_ref())?;
-        let right_content =
-            diff_content(workspace_command.repo(), &repo_path, right_value.as_ref())?;
+        let left_content = diff_content(workspace_command.repo(), &repo_path, &left)?;
+        let right_content = diff_content(workspace_command.repo(), &repo_path, &right)?;
         max_path_length = max(max_path_length, path.len());
         let stat = get_diff_stat(path, &left_content, &right_content);
         max_diffs = max(max_diffs, stat.added + stat.removed);
@@ -860,13 +844,12 @@ pub fn show_types(
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
     formatter.with_label("diff", |formatter| {
-        for (repo_path, diff) in tree_diff {
-            let (before, after) = diff.into_options();
+        for (repo_path, before, after) in tree_diff {
             writeln!(
                 formatter.labeled("modified"),
                 "{}{} {}",
-                diff_summary_char(before.as_ref()),
-                diff_summary_char(after.as_ref()),
+                diff_summary_char(&before),
+                diff_summary_char(&after),
                 workspace_command.format_file_path(&repo_path)
             )?;
         }
@@ -874,13 +857,15 @@ pub fn show_types(
     })
 }
 
-fn diff_summary_char(value: Option<&TreeValue>) -> char {
-    match value {
-        None => '-',
-        Some(TreeValue::File { .. }) => 'F',
-        Some(TreeValue::Symlink(_)) => 'L',
-        Some(TreeValue::GitSubmodule(_)) => 'G',
-        Some(TreeValue::Conflict(_)) => 'C',
-        Some(TreeValue::Tree(_)) => panic!("Unexpected {value:?} in diff"),
+fn diff_summary_char(value: &Merge<Option<TreeValue>>) -> char {
+    match value.as_resolved() {
+        Some(None) => '-',
+        Some(Some(TreeValue::File { .. })) => 'F',
+        Some(Some(TreeValue::Symlink(_))) => 'L',
+        Some(Some(TreeValue::GitSubmodule(_))) => 'G',
+        None => 'C',
+        Some(Some(TreeValue::Tree(_))) | Some(Some(TreeValue::Conflict(_))) => {
+            panic!("Unexpected {value:?} in diff")
+        }
     }
 }

@@ -1430,15 +1430,18 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
     let to_tree;
     if args.from.is_some() || args.to.is_some() {
         let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
-        from_tree = from.tree();
+        from_tree = from.merged_tree()?;
         let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
-        to_tree = to.tree();
+        to_tree = to.merged_tree()?;
     } else {
         let commit =
             workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
         let parents = commit.parents();
-        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
-        to_tree = commit.tree()
+        from_tree = MergedTree::legacy(merge_commit_trees(
+            workspace_command.repo().as_ref(),
+            &parents,
+        )?);
+        to_tree = commit.merged_tree()?
     }
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
@@ -1494,8 +1497,9 @@ fn cmd_status(
     let formatter = formatter.as_mut();
 
     if let Some(wc_commit) = &maybe_wc_commit {
-        let parent_tree = merge_commit_trees(repo.as_ref(), &wc_commit.parents())?;
-        let tree = wc_commit.tree();
+        let parent_tree =
+            MergedTree::legacy(merge_commit_trees(repo.as_ref(), &wc_commit.parents())?);
+        let tree = wc_commit.merged_tree()?;
         if tree.id() == parent_tree.id() {
             formatter.write_str("The working copy is clean\n")?;
         } else {
@@ -1833,13 +1837,18 @@ fn show_predecessor_patch(
         Some(predecessor) => predecessor,
         None => return Ok(()),
     };
-    let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
+    let predecessor_tree = MergedTree::legacy(rebase_to_dest_parent(
+        workspace_command,
+        predecessor,
+        commit,
+    )?);
+    let tree = commit.merged_tree()?;
     diff_util::show_diff(
         ui,
         formatter,
         workspace_command,
         &predecessor_tree,
-        &commit.tree(),
+        &tree,
         &EverythingMatcher,
         diff_formats,
     )
@@ -1855,7 +1864,8 @@ fn cmd_interdiff(
     let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
     let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
 
-    let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
+    let from_tree = MergedTree::legacy(rebase_to_dest_parent(&workspace_command, &from, &to)?);
+    let to_tree = to.merged_tree()?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
     ui.request_pager();
@@ -1864,7 +1874,7 @@ fn cmd_interdiff(
         ui.stdout_formatter().as_mut(),
         &workspace_command,
         &from_tree,
-        &to.tree(),
+        &to_tree,
         matcher.as_ref(),
         &diff_formats,
     )
@@ -3014,8 +3024,8 @@ fn description_template_for_cmd_split(
         ui,
         &mut PlainTextFormatter::new(&mut diff_summary_bytes),
         workspace_command,
-        from_tree,
-        to_tree,
+        &MergedTree::legacy(from_tree.clone()),
+        &MergedTree::legacy(to_tree.clone()),
         &EverythingMatcher,
         &[DiffFormat::Summary],
     )?;

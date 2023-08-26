@@ -151,7 +151,7 @@ fn test_interdiff_conflicting() {
     );
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file b/file
-    index f845ab93f0...24c5735c3e 100644
+    index 0000000000...24c5735c3e 100644
     --- a/file
     +++ b/file
     @@ -1,7 +1,1 @@

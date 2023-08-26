@@ -108,7 +108,7 @@ fn test_obslog_with_or_without_diff() {
     rlvkpnrz test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad3
     my description
     diff --git a/file1 b/file1
-    index e155302a24...2ab19ae607 100644
+    index 0000000000...2ab19ae607 100644
     --- a/file1
     +++ b/file1
     @@ -1,6 +1,1 @@
