@@ -24,6 +24,7 @@ use jj_lib::commit::Commit;
 use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::DiffLine;
 use jj_lib::matchers::Matcher;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
@@ -186,7 +187,14 @@ pub fn show_diff(
                 show_color_words_diff(formatter, workspace_command, tree_diff)?;
             }
             DiffFormat::Tool(tool) => {
-                merge_tools::generate_diff(ui, formatter.raw(), from_tree, to_tree, matcher, tool)?;
+                merge_tools::generate_diff(
+                    ui,
+                    formatter.raw(),
+                    &MergedTree::Legacy(from_tree.clone()),
+                    &MergedTree::Legacy(to_tree.clone()),
+                    matcher,
+                    tool,
+                )?;
             }
         }
     }
