@@ -182,13 +182,13 @@ fn test_log_builtin_templates() {
     );
 
     insta::assert_snapshot!(render(r#"builtin_log_oneline"#), @r###"
-    @  rlvkpnrz (no email available) 2001-02-03 04:05:08.000 +07:00 dc315397 (empty) (no description set)
+    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 dc315397 (empty) (no description set)
     ◉  qpvuntsm test.user 2001-02-03 04:05:07.000 +07:00 230dd059 (empty) (no description set)
     ◉  zzzzzzzz root 00000000
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_compact"#), @r###"
-    @  rlvkpnrz (no email available) 2001-02-03 04:05:08.000 +07:00 dc315397
+    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 dc315397
     │  (empty) (no description set)
     ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
@@ -196,7 +196,7 @@ fn test_log_builtin_templates() {
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_comfortable"#), @r###"
-    @  rlvkpnrz (no email available) 2001-02-03 04:05:08.000 +07:00 dc315397
+    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 dc315397
     │  (empty) (no description set)
     │
     ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
@@ -208,8 +208,8 @@ fn test_log_builtin_templates() {
     insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r###"
     @  Commit ID: dc31539712c7294d1d712cec63cef4504b94ca74
     │  Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    │  Author: (no name available) <(no email available)> (2001-02-03 04:05:08.000 +07:00)
-    │  Committer: (no name available) <(no email available)> (2001-02-03 04:05:08.000 +07:00)
+    │  Author: (no name set) <(no email set)> (2001-02-03 04:05:08.000 +07:00)
+    │  Committer: (no name set) <(no email set)> (2001-02-03 04:05:08.000 +07:00)
     │
     │      (no description set)
     │
@@ -222,8 +222,8 @@ fn test_log_builtin_templates() {
     │
     ◉  Commit ID: 0000000000000000000000000000000000000000
        Change ID: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-       Author: (no name available) <(no email available)> (1970-01-01 00:00:00.000 +00:00)
-       Committer: (no name available) <(no email available)> (1970-01-01 00:00:00.000 +00:00)
+       Author: (no name set) <(no email set)> (1970-01-01 00:00:00.000 +00:00)
+       Committer: (no name set) <(no email set)> (1970-01-01 00:00:00.000 +00:00)
 
            (no description set)
 
