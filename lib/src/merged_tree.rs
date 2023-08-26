@@ -739,10 +739,12 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         } else {
             Merge::resolved(Tree::null(tree.store().clone(), dir.clone()))
         };
-        // We return a `MergedTree::Merge` variant here even if `self` is a
-        // `MergedTree::Legacy`. That's fine since we don't expose the
-        // `MergedTree` to the caller.
-        MergedTree::Merge(trees)
+        // Maintain the type of tree, so we resolve `TreeValue::Conflict` as necessary
+        // in the subtree
+        match tree {
+            MergedTree::Legacy(_) => MergedTree::Legacy(trees.into_resolved().unwrap()),
+            MergedTree::Merge(_) => MergedTree::Merge(trees),
+        }
     }
 }
 
