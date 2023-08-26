@@ -277,10 +277,8 @@ fn test_path_value_and_entries() {
         Merge::resolved(tree3.path_value(&file_dir_conflict_sub_path)),
     );
 
-    // Test entries_matching()
-    let actual_entries = merged_tree
-        .entries_matching(&EverythingMatcher)
-        .collect_vec();
+    // Test entries()
+    let actual_entries = merged_tree.entries().collect_vec();
     // missing_path, resolved_dir_path, and file_dir_conflict_sub_path should not
     // appear
     let expected_entries = [
