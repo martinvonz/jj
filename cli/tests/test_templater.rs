@@ -717,7 +717,7 @@ fn test_templater_concat_function() {
     let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
     insta::assert_snapshot!(render(r#"concat()"#), @"");
-    insta::assert_snapshot!(render(r#"concat(author, empty)"#), @"(no name available) <[38;5;3m(no email available)[39m>[38;5;2mtrue[39m");
+    insta::assert_snapshot!(render(r#"concat(hidden, empty)"#), @"false[38;5;2mtrue[39m");
     insta::assert_snapshot!(
         render(r#"concat(label("error", ""), label("warning", "a"), "b")"#),
         @"[38;5;3ma[39mb");
@@ -767,11 +767,11 @@ fn test_templater_separate_function() {
 
     // Separate keywords
     insta::assert_snapshot!(
-        render(r#"separate(" ", author, description, empty)"#), @"(no name available) <[38;5;3m(no email available)[39m> [38;5;2mtrue[39m");
+        render(r#"separate(" ", hidden, description, empty)"#), @"false [38;5;2mtrue[39m");
 
     // Keyword as separator
     insta::assert_snapshot!(
-        render(r#"separate(author, "X", "Y", "Z")"#), @"X(no name available) <[38;5;3m(no email available)[39m>Y(no name available) <[38;5;3m(no email available)[39m>Z");
+        render(r#"separate(hidden, "X", "Y", "Z")"#), @"XfalseYfalseZ");
 }
 
 #[test]
