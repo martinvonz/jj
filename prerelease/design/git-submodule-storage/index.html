@@ -1,0 +1,1390 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ilyagr.github.io/jj/prerelease/design/git-submodule-storage/">
+      
+      
+        <link rel="prev" href="../git-submodules/">
+      
+      
+        <link rel="next" href="../tracking-branches/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.3">
+    
+    
+      
+        <title>git-submodule-storage - Jujutsu docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.0e669242.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#git-submodule-storage" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Jujutsu docs" class="md-header__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Jujutsu docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              git-submodule-storage
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Jujutsu docs" class="md-nav__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Jujutsu docs
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Getting started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install-and-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation and Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tutorial and Birds-Eye View
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../github/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with Github
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../FAQ/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FAQ
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../working-copy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working Copy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operation-log/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Operation Log
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../glossary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Glossary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Settings
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../revsets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Revset language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../templates/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Templating language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Comparisons
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Comparisons
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../git-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git comparison
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../git-compatibility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git compatibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sapling-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sapling
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../related-work/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Other related work
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Technical details
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Technical details
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../technical/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../technical/concurrency/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Concurrency
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../technical/conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Contributing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Guidelines and Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../code-of-conduct/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Code of conduct
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Design docs
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Design docs
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-submodules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    git-submodule-storage
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    git-submodule-storage
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#objective" class="md-nav__link">
+    Objective
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-cases-to-consider" class="md-nav__link">
+    Use cases to consider
+  </a>
+  
+    <nav class="md-nav" aria-label="Use cases to consider">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fetching-submodule-commits" class="md-nav__link">
+    Fetching submodule commits
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jj-op-restore-and-operation-log-format" class="md-nav__link">
+    "jj op restore" and operation log format
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nested-submodules" class="md-nav__link">
+    Nested submodules
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supporting-future-extensions" class="md-nav__link">
+    Supporting future extensions
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proposed-design" class="md-nav__link">
+    Proposed design
+  </a>
+  
+    <nav class="md-nav" aria-label="Proposed design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fetching-submodule-commits_1" class="md-nav__link">
+    Fetching submodule commits
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jj-op-restore-and-operation-log-format_1" class="md-nav__link">
+    "jj op restore" and operation log format
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nested-submodules_1" class="md-nav__link">
+    Nested submodules
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extending-to-colocated-git-repos" class="md-nav__link">
+    Extending to colocated Git repos
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-considered" class="md-nav__link">
+    Alternatives considered
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternatives considered">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#git-repos-in-the-main-git-backend" class="md-nav__link">
+    Git repos in the main Git backend
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store-git-submodules-as-alternate-git-backends" class="md-nav__link">
+    Store Git submodules as alternate Git backends
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking-branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tracking branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#objective" class="md-nav__link">
+    Objective
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-cases-to-consider" class="md-nav__link">
+    Use cases to consider
+  </a>
+  
+    <nav class="md-nav" aria-label="Use cases to consider">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fetching-submodule-commits" class="md-nav__link">
+    Fetching submodule commits
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jj-op-restore-and-operation-log-format" class="md-nav__link">
+    "jj op restore" and operation log format
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nested-submodules" class="md-nav__link">
+    Nested submodules
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supporting-future-extensions" class="md-nav__link">
+    Supporting future extensions
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proposed-design" class="md-nav__link">
+    Proposed design
+  </a>
+  
+    <nav class="md-nav" aria-label="Proposed design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fetching-submodule-commits_1" class="md-nav__link">
+    Fetching submodule commits
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jj-op-restore-and-operation-log-format_1" class="md-nav__link">
+    "jj op restore" and operation log format
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nested-submodules_1" class="md-nav__link">
+    Nested submodules
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extending-to-colocated-git-repos" class="md-nav__link">
+    Extending to colocated Git repos
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-considered" class="md-nav__link">
+    Alternatives considered
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternatives considered">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#git-repos-in-the-main-git-backend" class="md-nav__link">
+    Git repos in the main Git backend
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store-git-submodules-as-alternate-git-backends" class="md-nav__link">
+    Store Git submodules as alternate Git backends
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="git-submodule-storage">Git submodule storage</h1>
+<h2 id="objective">Objective</h2>
+<p>Decide what approach(es) to Git submodule storage we should pursue.
+The decision will be recorded in <a href="../git-submodules/">./git-submodules.md</a>.</p>
+<h2 id="use-cases-to-consider">Use cases to consider</h2>
+<p>The submodule storage format should support the workflows specified in the
+<a href="../git-submodules/">submodules roadmap</a>. It should be obvious how "Phase 1"
+requirements will be supported, and we should have an idea of how "Phases 2,3,X"
+might be supported.</p>
+<p>Notable use cases and workflows are noted below.</p>
+<h3 id="fetching-submodule-commits">Fetching submodule commits</h3>
+<p>Git's protocol is designed for communicating between copies of the same
+repository. Notably, a Git fetch calculates the list of required objects by
+performing reachability checks between the refs on the local and the remote
+side. We should expect that this will only work well if the submodule repository
+is stored as a local Git repository.</p>
+<p>Rolling our own Git fetch is too complex to be worth the effort.</p>
+<h3 id="jj-op-restore-and-operation-log-format">"jj op restore" and operation log format</h3>
+<p>We want <code>jj op restore</code> to restore to an "expected" state in the submodule.
+There is a potential distinction between running <code>jj op restore</code> in the
+superproject vs in the submodule, and the expected behavior may be different in
+each case, e.g. in the superproject, it might be enough to restore the submodule
+working copy, but in the submodule, refs also need to be restored.</p>
+<p>Currently, the operation log only references objects and refs in the
+superproject, so it is likely that proposed approaches will need to extend this
+format. It is also worth considering that submodules may be added, updated or
+removed in superproject commits, thus the list of submodules is likely to change
+over the repository's lifetime.</p>
+<h3 id="nested-submodules">Nested submodules</h3>
+<p>Git submodules may contain submodules themselves, so our chosen storage schemes
+should support that.</p>
+<p>We should consider limiting the recursion depth to avoid nasty edge cases (e.g.
+cyclical submodules.) that might surprise users.</p>
+<h3 id="supporting-future-extensions">Supporting future extensions</h3>
+<p>There are certain extensions we may want to make in the future, but we don't
+have a timeline for them today. Proposed approaches should take these
+extensions into account (e.g. the approach should be theoretically extensible),
+but a full proposal for implementing them is not necessary.</p>
+<p>These extensions are:</p>
+<ul>
+<li>Non-git subrepos</li>
+<li>Colocated Git repos</li>
+<li>The superproject using a non-git backend</li>
+</ul>
+<h2 id="proposed-design">Proposed design</h2>
+<p>Git submodules will be stored as full jj repos. In the code, jj commands will
+only interact with the submodule's repo as an entire unit, e.g. it cannot query
+the submodule's commit backend directly. A well-abstracted submodule will extend
+well to non-git backends and non-git subrepos.</p>
+<p>The main challenge with this approach is that the submodule repo can be in a
+state that is internally valid (when considering only the submodule's repo), but
+invalid when considering the superproject-submodule system. This will be managed
+by requiring all submodule interactions go through the superproject so that
+superproject-submodule coordination can occur. For example, jj will not allow
+the user to work on the submodule's repo without going through the superproject
+(unlike Git).</p>
+<p>The notable workflows could be addressed like so:</p>
+<h3 id="fetching-submodule-commits_1">Fetching submodule commits</h3>
+<p>The submodule would fetch using the equivalent of <code>jj git fetch</code>. It remains to
+be decided how a "recursive" fetch should work, especially if a newly fetched
+superproject commit references an unfetched submodule commit. A reasonable
+approximation would be to fetch all branches in the submodule, and then, if the
+submodule commit is still missing, gracefully handle it.</p>
+<h3 id="jj-op-restore-and-operation-log-format_1">"jj op restore" and operation log format</h3>
+<p>As full repos, each submodule will have its own operation log. We will continue
+to use the existing operation log format, where each operation log tracks their
+own repo's commits. As commands are run in the superproject, corresponding
+commands will be run in the submodule as necessary, e.g. checking out a
+superproject commit will cause a submodule commit to also be checked out.</p>
+<p>Since there is no association between a superproject operation and a submodule
+operation, <code>jj op restore</code> in the superproject will not restore the submodule to
+a previous operation. Instead, the appropriate submodule operation(s) will be
+created. This is sufficient to preserve the superproject-submodule relationship;
+it precludes "recursive" restore (e.g. restoring branches in the superproject
+and submodules) but it seems unlikely that we will need such a thing.</p>
+<h3 id="nested-submodules_1">Nested submodules</h3>
+<p>Since submodules are full repos, they can contain submodules themselves. Nesting
+is unlikely to complicate any of the core features, since the top-level
+superproject/submodule relationship is almost identical to the submodule/nested
+submodule relationship.</p>
+<h3 id="extending-to-colocated-git-repos">Extending to colocated Git repos</h3>
+<p>Git expects submodules to be in <code>.git/modules</code>, so it will not understand this
+storage format. To support colocated Git repos, we will have to change Git to
+allow a submodule's gitdir to be in an alternate location (e.g. we could add a
+new <code>submodule.&lt;name&gt;.gitdir</code> config option). This is a simple change, so it
+should be feasible.</p>
+<h2 id="alternatives-considered">Alternatives considered</h2>
+<h3 id="git-repos-in-the-main-git-backend">Git repos in the main Git backend</h3>
+<p>Since the Git backend contains a Git repository, an 'obvious' default would be
+to store them in the Git superproject the same way Git does, i.e. in
+<code>.git/modules</code>. Since Git submodules are full repositories that can have
+submodules, this storage scheme naturally extends to nested submodules.</p>
+<p>Most of the work in storing submodules and querying them would be well-isolated
+to the Git backend, which gives us a lot of flexibility to make changes without
+affecting the rest of jj. However, the operation log will need a significant
+rework since it isn't designed to reference submodules, and handling edge cases
+(e.g. a submodule being added/removed, nested submodules) will be tricky.</p>
+<p>This is rejected because handling that operation log complexity isn't worth it
+when very little of the work extends to non-Git backends.</p>
+<h3 id="store-git-submodules-as-alternate-git-backends">Store Git submodules as alternate Git backends</h3>
+<p>Teach jj to use multiple commit backends and store Git submodules as Git
+backends. Since submodules are separate from the 'main' backend, a repository
+can use whatever backend it wants as its 'main' one, while still having Git
+submodules in the 'alternate' Git backends.</p>
+<p>This approach extends fairly well to non-Git submodules (which would be stored
+in non-Git commit backends). However, this requires significantly reworking the
+operation log to account for multiple commit backends. It is also not clear how
+nested submodules will be supported since there isn't an obvious way to
+represent a nested submodule's relationship to its superproject.</p>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.dfff1995.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.78eede0e.min.js"></script>
+      
+    
+  </body>
+</html>
