@@ -33,6 +33,7 @@ use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::settings::UserSettings;
+use jj_lib::tree::merge_trees;
 use jj_lib::tree_builder::TreeBuilder;
 use jj_lib::working_copy::{LockedWorkingCopy, SnapshotError, SnapshotOptions, WorkingCopy};
 use test_case::test_case;
@@ -266,6 +267,28 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
         };
     }
+}
+
+// Test case for issue #2165
+#[test]
+// TODO(#2165): Shouldn't actually panic
+#[should_panic]
+fn test_conflict_subdirectory() {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings, true);
+    let repo = &test_workspace.repo;
+
+    let path = RepoPath::from_internal_string("sub/file");
+    let empty_tree = create_tree(repo, &[]);
+    let tree1 = create_tree(repo, &[(&path, "0")]);
+    let tree2 = create_tree(repo, &[(&path, "1")]);
+    let merged_tree = merge_trees(&tree1, &empty_tree, &tree2).unwrap();
+    let repo = &test_workspace.repo;
+    let wc = test_workspace.workspace.working_copy_mut();
+    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree1))
+        .unwrap();
+    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(merged_tree))
+        .unwrap();
 }
 
 #[test_case(false ; "local backend")]
