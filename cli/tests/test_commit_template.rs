@@ -172,26 +172,48 @@ fn test_log_builtin_templates() {
     let repo_path = test_env.env_root().join("repo");
     let render = |template| test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
 
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "--config-toml=user.email=''",
+            "--config-toml=user.name=''",
+            "new",
+        ],
+    );
+
     insta::assert_snapshot!(render(r#"builtin_log_oneline"#), @r###"
-    @  qpvuntsm test.user 2001-02-03 04:05:07.000 +07:00 230dd059 (empty) (no description set)
+    @  rlvkpnrz (no username available) 2001-02-03 04:05:08.000 +07:00 dc315397 (empty) (no description set)
+    ◉  qpvuntsm test.user 2001-02-03 04:05:07.000 +07:00 230dd059 (empty) (no description set)
     ◉  zzzzzzzz root 00000000
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_compact"#), @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+    @  rlvkpnrz (no email available) 2001-02-03 04:05:08.000 +07:00 dc315397
+    │  (empty) (no description set)
+    ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
     ◉  zzzzzzzz root 00000000
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_comfortable"#), @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+    @  rlvkpnrz (no email available) 2001-02-03 04:05:08.000 +07:00 dc315397
+    │  (empty) (no description set)
+    │
+    ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
     │
     ◉  zzzzzzzz root 00000000
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r###"
-    @  Commit ID: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    @  Commit ID: dc31539712c7294d1d712cec63cef4504b94ca74
+    │  Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    │  Author: (no name available) <(no email available)> (2001-02-03 04:05:08.000 +07:00)
+    │  Committer: (no name available) <(no email available)> (2001-02-03 04:05:08.000 +07:00)
+    │
+    │      (no description set)
+    │
+    ◉  Commit ID: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  Change ID: qpvuntsmwlqtpsluzzsnyyzlmlwvmlnu
     │  Author: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
     │  Committer: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
