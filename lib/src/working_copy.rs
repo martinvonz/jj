@@ -1583,10 +1583,10 @@ impl LockedWorkingCopy<'_> {
     // The base_ignores are passed in here rather than being set on the TreeState
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
-    pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<TreeId, SnapshotError> {
+    pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
         let tree_state = self.wc.tree_state_mut()?;
         self.tree_state_dirty |= tree_state.snapshot(options)?;
-        Ok(tree_state.current_tree_id().to_legacy_tree_id())
+        Ok(tree_state.current_tree_id().clone())
     }
 
     pub fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {

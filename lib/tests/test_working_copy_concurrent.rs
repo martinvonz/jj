@@ -16,6 +16,7 @@ use std::cmp::max;
 use std::thread;
 
 use assert_matches::assert_matches;
+use jj_lib::backend::MergedTreeId;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::{Repo, StoreFactories};
 use jj_lib::repo_path::RepoPath;
@@ -104,7 +105,7 @@ fn test_checkout_parallel() {
     for i in 0..num_threads {
         let path = RepoPath::from_internal_string(format!("file{i}").as_str());
         let tree = testutils::create_tree(repo, &[(&path, "contents")]);
-        tree_ids.push(tree.id().clone());
+        tree_ids.push(MergedTreeId::Legacy(tree.id().clone()));
     }
 
     // Create another tree just so we can test the update stats reliably from the
@@ -133,12 +134,12 @@ fn test_checkout_parallel() {
                 let tree = workspace
                     .repo_loader()
                     .store()
-                    .get_tree(&RepoPath::root(), &tree_id)
+                    .get_root_tree(&tree_id)
                     .unwrap();
                 // The operation ID is not correct, but that doesn't matter for this test
                 let stats = workspace
                     .working_copy_mut()
-                    .check_out(op_id, None, &MergedTree::legacy(tree))
+                    .check_out(op_id, None, &tree)
                     .unwrap();
                 assert_eq!(stats.updated_files, 0);
                 assert_eq!(stats.added_files, 1);

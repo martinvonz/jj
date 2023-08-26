@@ -1295,7 +1295,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             max_new_file_size: self.settings.max_new_file_size()?,
         })?;
         drop(progress);
-        if new_tree_id != *wc_commit.tree_id() {
+        if new_tree_id != *wc_commit.merged_tree_id() {
             let mut tx = start_repo_transaction(
                 &self.user_repo.repo,
                 &self.settings,
@@ -1305,7 +1305,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             let mut_repo = tx.mut_repo();
             let commit = mut_repo
                 .rewrite_commit(&self.settings, &wc_commit)
-                .set_tree(new_tree_id)
+                .set_tree_id(new_tree_id)
                 .write()?;
             mut_repo.set_wc_commit(workspace_id, commit.id().clone())?;
 
