@@ -38,6 +38,7 @@ use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jj_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jj_lib::operation::Operation;
@@ -1474,12 +1475,13 @@ impl WorkspaceCommandTransaction<'_> {
         let settings = &self.helper.settings;
         Ok(crate::merge_tools::edit_diff(
             ui,
-            left_tree,
-            right_tree,
+            &MergedTree::Legacy(left_tree.clone()),
+            &MergedTree::Legacy(right_tree.clone()),
             instructions,
             base_ignores,
             settings,
-        )?)
+        )?
+        .to_legacy_tree_id())
     }
 
     pub fn select_diff(

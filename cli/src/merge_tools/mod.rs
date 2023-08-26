@@ -17,7 +17,7 @@ mod external;
 use std::sync::Arc;
 
 use config::ConfigError;
-use jj_lib::backend::{TreeId, TreeValue};
+use jj_lib::backend::{MergedTreeId, TreeId, TreeValue};
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::merged_tree::MergedTree;
@@ -126,12 +126,12 @@ pub fn run_mergetool(
 
 pub fn edit_diff(
     ui: &Ui,
-    left_tree: &Tree,
-    right_tree: &Tree,
+    left_tree: &MergedTree,
+    right_tree: &MergedTree,
     instructions: &str,
     base_ignores: Arc<GitIgnoreFile>,
     settings: &UserSettings,
-) -> Result<TreeId, DiffEditError> {
+) -> Result<MergedTreeId, DiffEditError> {
     // Start a diff editor on the two directories.
     let editor = get_diff_editor_from_settings(ui, settings)?;
     match editor {

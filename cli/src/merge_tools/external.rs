@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use config::ConfigError;
 use itertools::Itertools;
-use jj_lib::backend::{FileId, MergedTreeId, TreeId, TreeValue};
+use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
 use jj_lib::conflicts::{self, materialize_merge_result};
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::{EverythingMatcher, Matcher};
@@ -16,7 +16,6 @@ use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
-use jj_lib::tree::Tree;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions, TreeState, TreeStateError};
 use regex::{Captures, Regex};
 use tempfile::TempDir;
@@ -186,15 +185,14 @@ fn check_out(
     store: Arc<Store>,
     wc_dir: PathBuf,
     state_dir: PathBuf,
-    tree: &Tree,
+    tree: &MergedTree,
     sparse_patterns: Vec<RepoPath>,
 ) -> Result<TreeState, DiffCheckoutError> {
     std::fs::create_dir(&wc_dir).map_err(DiffCheckoutError::SetUpDir)?;
     std::fs::create_dir(&state_dir).map_err(DiffCheckoutError::SetUpDir)?;
     let mut tree_state = TreeState::init(store, wc_dir, state_dir)?;
     tree_state.set_sparse_patterns(sparse_patterns)?;
-    let tree = MergedTree::legacy(tree.clone());
-    tree_state.check_out(&tree)?;
+    tree_state.check_out(tree)?;
     Ok(tree_state)
 }
 
@@ -233,14 +231,14 @@ enum DiffSide {
 /// in the sparse checkout patterns.
 fn check_out_trees(
     store: &Arc<Store>,
-    left_tree: &Tree,
-    right_tree: &Tree,
+    left_tree: &MergedTree,
+    right_tree: &MergedTree,
     output_is: Option<DiffSide>,
     matcher: &dyn Matcher,
 ) -> Result<DiffWorkingCopies, DiffCheckoutError> {
     let changed_files = left_tree
         .diff(right_tree, matcher)
-        .map(|(path, _value)| path)
+        .map(|(path, _left, _right)| path)
         .collect_vec();
 
     let temp_dir = new_utf8_temp_dir("jj-diff-").map_err(DiffCheckoutError::SetUpDir)?;
@@ -420,12 +418,12 @@ fn find_all_variables(args: &[String]) -> impl Iterator<Item = &str> {
 
 pub fn edit_diff_external(
     editor: ExternalMergeTool,
-    left_tree: &Tree,
-    right_tree: &Tree,
+    left_tree: &MergedTree,
+    right_tree: &MergedTree,
     instructions: &str,
     base_ignores: Arc<GitIgnoreFile>,
     settings: &UserSettings,
-) -> Result<TreeId, DiffEditError> {
+) -> Result<MergedTreeId, DiffEditError> {
     let got_output_field = find_all_variables(&editor.edit_args).contains(&"output");
     let store = left_tree.store();
     let diff_wc = check_out_trees(
@@ -521,15 +519,15 @@ diff editing in mind and be a little inaccurate.
         progress: None,
         max_new_file_size: settings.max_new_file_size()?,
     })?;
-    Ok(output_tree_state.current_tree_id().to_legacy_tree_id())
+    Ok(output_tree_state.current_tree_id().clone())
 }
 
 /// Generates textual diff by the specified `tool`, and writes into `writer`.
 pub fn generate_diff(
     ui: &Ui,
     writer: &mut dyn Write,
-    left_tree: &Tree,
-    right_tree: &Tree,
+    left_tree: &MergedTree,
+    right_tree: &MergedTree,
     matcher: &dyn Matcher,
     tool: &ExternalMergeTool,
 ) -> Result<(), DiffGenerateError> {
