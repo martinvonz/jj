@@ -23,6 +23,7 @@ use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::local_backend::LocalBackend;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::rewrite::RebasedDescendant;
@@ -165,7 +166,7 @@ impl TestWorkspace {
     /// Snapshots the working copy and returns the tree. Updates the working
     /// copy state on disk, but does not update the working-copy commit (no
     /// new operation).
-    pub fn snapshot(&mut self) -> Result<Tree, SnapshotError> {
+    pub fn snapshot(&mut self) -> Result<MergedTree, SnapshotError> {
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation().unwrap();
         let tree_id = locked_wc.snapshot(SnapshotOptions {
             max_new_file_size: self.settings.max_new_file_size().unwrap(),
@@ -173,11 +174,7 @@ impl TestWorkspace {
         })?;
         // arbitrary operation id
         locked_wc.finish(self.repo.op_id().clone()).unwrap();
-        Ok(self
-            .repo
-            .store()
-            .get_tree(&RepoPath::root(), &tree_id.to_legacy_tree_id())
-            .unwrap())
+        Ok(self.repo.store().get_root_tree(&tree_id).unwrap())
     }
 }
 

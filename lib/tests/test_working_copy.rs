@@ -55,8 +55,11 @@ fn test_root(use_git: bool) {
         .get_wc_commit_id(&WorkspaceId::default())
         .unwrap();
     let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
-    assert_eq!(new_tree.id(), wc_commit.tree_id());
-    assert_eq!(new_tree.id(), repo.store().empty_tree_id());
+    assert_eq!(new_tree.id(), *wc_commit.merged_tree_id());
+    assert_eq!(
+        new_tree.id().as_legacy_tree_id(),
+        repo.store().empty_tree_id()
+    );
 }
 
 #[test_case(false ; "local backend")]
@@ -193,20 +196,20 @@ fn test_checkout_file_transitions(use_git: bool) {
             files.push((*left_kind, *right_kind, path));
         }
     }
-    let left_tree_id = left_tree_builder.write_tree();
-    let right_tree_id = right_tree_builder.write_tree();
-    let left_tree = store.get_tree(&RepoPath::root(), &left_tree_id).unwrap();
-    let right_tree = store.get_tree(&RepoPath::root(), &right_tree_id).unwrap();
+    let left_tree_id = MergedTreeId::Legacy(left_tree_builder.write_tree());
+    let right_tree_id = MergedTreeId::Legacy(right_tree_builder.write_tree());
+    let left_tree = store.get_root_tree(&left_tree_id).unwrap();
+    let right_tree = store.get_root_tree(&right_tree_id).unwrap();
 
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(left_tree))
+    wc.check_out(repo.op_id().clone(), None, &left_tree)
         .unwrap();
-    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(right_tree))
+    wc.check_out(repo.op_id().clone(), None, &right_tree)
         .unwrap();
 
     // Check that the working copy is clean.
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(*new_tree.id(), right_tree_id);
+    assert_eq!(new_tree.id(), right_tree_id);
 
     for (_left_kind, right_kind, path) in &files {
         let wc_path = workspace_root.join(path.to_internal_file_string());
@@ -372,7 +375,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().unwrap().contains_key(&ignored_path));
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(new_tree.id(), tree_without_file.id().as_legacy_tree_id());
+    assert_eq!(new_tree.id(), tree_without_file.id());
 
     // Now test the opposite direction: resetting to a commit where the file is
     // tracked. The file should become tracked (even though it's ignored).
@@ -383,7 +386,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(wc.file_states().unwrap().contains_key(&ignored_path));
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(new_tree.id(), tree_with_file.id().as_legacy_tree_id());
+    assert_eq!(new_tree.id(), tree_with_file.id());
 }
 
 #[test]
@@ -598,10 +601,12 @@ fn test_gitignores_in_ignored_dir(use_git: bool) {
     let nested_gitignore_path = RepoPath::from_internal_string("ignored/.gitignore");
     let ignored_path = RepoPath::from_internal_string("ignored/file");
 
-    let tree1 = create_tree(&test_workspace.repo, &[(&gitignore_path, "ignored\n")]);
+    let tree1 = MergedTree::legacy(create_tree(
+        &test_workspace.repo,
+        &[(&gitignore_path, "ignored\n")],
+    ));
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(op_id.clone(), None, &MergedTree::legacy(tree1.clone()))
-        .unwrap();
+    wc.check_out(op_id.clone(), None, &tree1).unwrap();
 
     testutils::write_working_copy_file(&workspace_root, &nested_gitignore_path, "!file\n");
     testutils::write_working_copy_file(&workspace_root, &ignored_path, "contents");
@@ -613,16 +618,16 @@ fn test_gitignores_in_ignored_dir(use_git: bool) {
     );
 
     // The nested .gitignore is ignored even if it's tracked
-    let tree2 = create_tree(
+    let tree2 = MergedTree::resolved(create_tree(
         &test_workspace.repo,
         &[
             (&gitignore_path, "ignored\n"),
             (&nested_gitignore_path, "!file\n"),
         ],
-    );
+    ));
     let wc = test_workspace.workspace.working_copy_mut();
     let mut locked_wc = wc.start_mutation().unwrap();
-    locked_wc.reset(&MergedTree::legacy(tree2.clone())).unwrap();
+    locked_wc.reset(&tree2).unwrap();
     locked_wc.finish(OperationId::from_hex("abc123")).unwrap();
 
     let new_tree = test_workspace.snapshot().unwrap();
@@ -702,14 +707,14 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     std::fs::write(modified_path.to_fs_path(&workspace_root), "modified").unwrap();
     std::fs::remove_file(deleted_path.to_fs_path(&workspace_root)).unwrap();
     let new_tree = test_workspace.snapshot().unwrap();
-    let expected_tree = create_tree(
+    let expected_tree = MergedTree::Legacy(create_tree(
         &repo,
         &[
             (&gitignore_path, "/ignored/\n"),
             (&unchanged_path, "contents"),
             (&modified_path, "modified"),
         ],
-    );
+    ));
     assert_eq!(
         new_tree.entries().collect_vec(),
         expected_tree.entries().collect_vec()
@@ -737,7 +742,7 @@ fn test_dotgit_ignored(use_git: bool) {
         "contents",
     );
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(new_tree.id(), store.empty_tree_id());
+    assert_eq!(new_tree.id().as_legacy_tree_id(), store.empty_tree_id());
     std::fs::remove_dir_all(&dotgit_path).unwrap();
 
     // Test with a .git file
@@ -747,7 +752,7 @@ fn test_dotgit_ignored(use_git: bool) {
         "contents",
     );
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(new_tree.id(), store.empty_tree_id());
+    assert_eq!(new_tree.id().as_legacy_tree_id(), store.empty_tree_id());
 }
 
 #[test]
@@ -783,11 +788,10 @@ fn test_gitsubmodule() {
         TreeValue::GitSubmodule(submodule_id),
     );
 
-    let tree_id = tree_builder.write_tree();
-    let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
+    let tree_id = MergedTreeId::Legacy(tree_builder.write_tree());
+    let tree = store.get_root_tree(&tree_id).unwrap();
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree))
-        .unwrap();
+    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
     std::fs::create_dir(submodule_path.to_fs_path(&workspace_root)).unwrap();
 
@@ -800,7 +804,7 @@ fn test_gitsubmodule() {
     // Check that the files present in the submodule are not tracked
     // when we snapshot
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(*new_tree.id(), tree_id);
+    assert_eq!(new_tree.id(), tree_id);
 
     // Check that the files in the submodule are not deleted
     let file_in_submodule_path = added_submodule_path.to_fs_path(&workspace_root);
