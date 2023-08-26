@@ -474,6 +474,20 @@ fn test_templater_signature() {
     insta::assert_snapshot!(render(r#"author.name()"#), @"Test User");
     insta::assert_snapshot!(render(r#"author.email()"#), @"(no email available)");
     insta::assert_snapshot!(render(r#"author.username()"#), @"(no username available)");
+
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "--config-toml=user.email=''",
+            "--config-toml=user.name=''",
+            "new",
+        ],
+    );
+
+    insta::assert_snapshot!(render(r#"author"#), @"(no name available) <(no email available)>");
+    insta::assert_snapshot!(render(r#"author.name()"#), @"(no name available)");
+    insta::assert_snapshot!(render(r#"author.email()"#), @"(no email available)");
+    insta::assert_snapshot!(render(r#"author.username()"#), @"(no username available)");
 }
 
 #[test]
