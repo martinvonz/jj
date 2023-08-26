@@ -1914,8 +1914,8 @@ pub fn update_working_copy(
     old_commit: Option<&Commit>,
     new_commit: &Commit,
 ) -> Result<Option<CheckoutStats>, CommandError> {
-    let old_tree_id = old_commit.map(|commit| commit.tree_id().clone());
-    let stats = if Some(new_commit.tree_id()) != old_tree_id.as_ref() {
+    let old_tree_id = old_commit.map(|commit| commit.merged_tree_id().clone());
+    let stats = if Some(new_commit.merged_tree_id()) != old_tree_id.as_ref() {
         // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
         // warning for most commands (but be an error for the checkout command)
         let new_tree = new_commit.merged_tree()?;
