@@ -21,10 +21,12 @@ use std::sync::{Arc, RwLock};
 
 use crate::backend;
 use crate::backend::{
-    Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, SymlinkId, TreeId, TreeValue,
+    Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, MergedTreeId, SymlinkId,
+    TreeId, TreeValue,
 };
 use crate::commit::Commit;
 use crate::merge::Merge;
+use crate::merged_tree::MergedTree;
 use crate::repo_path::RepoPath;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
@@ -123,6 +125,19 @@ impl Store {
         let mut write_locked_cache = self.tree_cache.write().unwrap();
         write_locked_cache.insert(key, data.clone());
         Ok(data)
+    }
+
+    pub fn get_root_tree(self: &Arc<Self>, id: &MergedTreeId) -> BackendResult<MergedTree> {
+        match &id {
+            MergedTreeId::Legacy(id) => {
+                let tree = self.get_tree(&RepoPath::root(), id)?;
+                Ok(MergedTree::Legacy(tree))
+            }
+            MergedTreeId::Merge(ids) => {
+                let trees = ids.try_map(|id| self.get_tree(&RepoPath::root(), id))?;
+                Ok(MergedTree::Merge(trees))
+            }
+        }
     }
 
     pub fn write_tree(
