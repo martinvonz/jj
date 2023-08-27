@@ -30,7 +30,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
 use git2::{Oid, Repository};
 use indexmap::IndexSet;
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
+use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId, TreeId};
 use jj_lib::commit::Commit;
 use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError};
 use jj_lib::git_backend::GitBackend;
@@ -1455,9 +1455,9 @@ impl WorkspaceCommandTransaction<'_> {
     pub fn run_mergetool(
         &self,
         ui: &Ui,
-        tree: &Tree,
+        tree: &MergedTree,
         repo_path: &RepoPath,
-    ) -> Result<TreeId, CommandError> {
+    ) -> Result<MergedTreeId, CommandError> {
         let settings = &self.helper.settings;
         Ok(crate::merge_tools::run_mergetool(
             ui, tree, repo_path, settings,
