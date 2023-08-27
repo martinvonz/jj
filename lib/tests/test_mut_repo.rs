@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jj_lib::backend::MergedTreeId;
 use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
 use maplit::hashset;
@@ -103,7 +104,7 @@ fn test_checkout_previous_empty(use_git: bool) {
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
-            repo.store().empty_tree_id().clone(),
+            MergedTreeId::Legacy(repo.store().empty_tree_id().clone()),
         )
         .write()
         .unwrap();
@@ -134,7 +135,7 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
-            repo.store().empty_tree_id().clone(),
+            MergedTreeId::Legacy(repo.store().empty_tree_id().clone()),
         )
         .set_description("not empty")
         .write()
@@ -166,7 +167,7 @@ fn test_checkout_previous_empty_with_local_branch(use_git: bool) {
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
-            repo.store().empty_tree_id().clone(),
+            MergedTreeId::Legacy(repo.store().empty_tree_id().clone()),
         )
         .write()
         .unwrap();
@@ -198,7 +199,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
-            repo.store().empty_tree_id().clone(),
+            MergedTreeId::Legacy(repo.store().empty_tree_id().clone()),
         )
         .write()
         .unwrap();
@@ -206,7 +207,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
         .new_commit(
             &settings,
             vec![old_wc_commit.id().clone()],
-            old_wc_commit.tree_id().clone(),
+            old_wc_commit.merged_tree_id().clone(),
         )
         .write()
         .unwrap();

@@ -862,7 +862,7 @@ fn test_rebase_descendants_contents(use_git: bool) {
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
-            tree1.id().clone(),
+            tree1.legacy_id(),
         )
         .write()
         .unwrap();
@@ -870,21 +870,21 @@ fn test_rebase_descendants_contents(use_git: bool) {
     let tree2 = testutils::create_tree(repo, &[(&path2, "content")]);
     let commit_b = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_a.id().clone()], tree2.id().clone())
+        .new_commit(&settings, vec![commit_a.id().clone()], tree2.legacy_id())
         .write()
         .unwrap();
     let path3 = RepoPath::from_internal_string("file3");
     let tree3 = testutils::create_tree(repo, &[(&path3, "content")]);
     let commit_c = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_b.id().clone()], tree3.id().clone())
+        .new_commit(&settings, vec![commit_b.id().clone()], tree3.legacy_id())
         .write()
         .unwrap();
     let path4 = RepoPath::from_internal_string("file4");
     let tree4 = testutils::create_tree(repo, &[(&path4, "content")]);
     let commit_d = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_a.id().clone()], tree4.id().clone())
+        .new_commit(&settings, vec![commit_a.id().clone()], tree4.legacy_id())
         .write()
         .unwrap();
 

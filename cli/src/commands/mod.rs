@@ -1298,7 +1298,7 @@ fn cmd_checkout(
         .new_commit(
             command.settings(),
             vec![target.id().clone()],
-            target.tree_id().clone(),
+            target.merged_tree_id().clone(),
         )
         .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs));
     let new_commit = commit_builder.write()?;
@@ -2082,7 +2082,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
             .new_commit(
                 command.settings(),
                 vec![new_commit.id().clone()],
-                new_commit.tree_id().clone(),
+                new_commit.merged_tree_id().clone(),
             )
             .write()?;
         for workspace_id in workspace_ids {
@@ -2298,7 +2298,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             .new_commit(
                 command.settings(),
                 new_parents_commit_id,
-                merged_tree.id().clone(),
+                merged_tree.legacy_id(),
             )
             .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs))
             .write()?;
@@ -2318,7 +2318,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             .new_commit(
                 command.settings(),
                 target_ids.clone(),
-                merged_tree.id().clone(),
+                merged_tree.legacy_id(),
             )
             .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs))
             .write()?;

@@ -21,7 +21,9 @@ use std::path::Path;
 
 use assert_matches::assert_matches;
 use itertools::Itertools;
-use jj_lib::backend::{ChangeId, CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
+use jj_lib::backend::{
+    ChangeId, CommitId, MergedTreeId, MillisSinceEpoch, ObjectId, Signature, Timestamp,
+};
 use jj_lib::commit::Commit;
 use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
@@ -117,7 +119,7 @@ fn test_resolve_symbol_commit_id() {
             .new_commit(
                 &settings,
                 vec![repo.store().root_commit_id().clone()],
-                repo.store().empty_tree_id().clone(),
+                MergedTreeId::Legacy(repo.store().empty_tree_id().clone()),
             )
             .set_description(format!("test {i}"))
             .set_author(signature.clone())
@@ -2537,20 +2539,20 @@ fn test_evaluate_expression_file(use_git: bool) {
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
-            tree1.id().clone(),
+            tree1.legacy_id(),
         )
         .write()
         .unwrap();
     let commit2 = mut_repo
-        .new_commit(&settings, vec![commit1.id().clone()], tree2.id().clone())
+        .new_commit(&settings, vec![commit1.id().clone()], tree2.legacy_id())
         .write()
         .unwrap();
     let commit3 = mut_repo
-        .new_commit(&settings, vec![commit2.id().clone()], tree3.id().clone())
+        .new_commit(&settings, vec![commit2.id().clone()], tree3.legacy_id())
         .write()
         .unwrap();
     let commit4 = mut_repo
-        .new_commit(&settings, vec![commit3.id().clone()], tree3.id().clone())
+        .new_commit(&settings, vec![commit3.id().clone()], tree3.legacy_id())
         .write()
         .unwrap();
 
@@ -2633,11 +2635,11 @@ fn test_evaluate_expression_conflict(use_git: bool) {
     };
     let commit1 = create_commit(
         vec![repo.store().root_commit_id().clone()],
-        tree1.id().clone(),
+        MergedTreeId::Legacy(tree1.id().clone()),
     );
-    let commit2 = create_commit(vec![commit1.id().clone()], tree2.id().clone());
-    let commit3 = create_commit(vec![commit2.id().clone()], tree3.id().clone());
-    let commit4 = create_commit(vec![commit3.id().clone()], tree4.id().clone());
+    let commit2 = create_commit(vec![commit1.id().clone()], tree2.legacy_id());
+    let commit3 = create_commit(vec![commit2.id().clone()], tree3.legacy_id());
+    let commit4 = create_commit(vec![commit3.id().clone()], tree4.legacy_id());
 
     // Only commit4 has a conflict
     assert_eq!(
@@ -2727,7 +2729,7 @@ fn test_change_id_index() {
             .new_commit(
                 &settings,
                 vec![root_commit.id().clone()],
-                root_commit.tree_id().clone(),
+                root_commit.merged_tree_id().clone(),
             )
             .set_change_id(ChangeId::from_hex(change_id))
             .set_description(format!("commit {commit_number}"))

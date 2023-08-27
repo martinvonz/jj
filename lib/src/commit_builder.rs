@@ -34,7 +34,7 @@ impl CommitBuilder<'_> {
         mut_repo: &'repo mut MutableRepo,
         settings: &UserSettings,
         parents: Vec<CommitId>,
-        tree_id: TreeId,
+        tree_id: MergedTreeId,
     ) -> CommitBuilder<'repo> {
         let signature = settings.signature();
         assert!(!parents.is_empty());
@@ -43,8 +43,7 @@ impl CommitBuilder<'_> {
         let commit = backend::Commit {
             parents,
             predecessors: vec![],
-            // TODO(#1624): use the Merge variant when appropriate
-            root_tree: MergedTreeId::Legacy(tree_id),
+            root_tree: tree_id,
             change_id,
             description: String::new(),
             author: signature.clone(),

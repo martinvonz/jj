@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jj_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
+use jj_lib::backend::{CommitId, MergedTreeId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::index::HexPrefix;
 use jj_lib::index::PrefixResolution::{AmbiguousMatch, NoMatch, SingleMatch};
@@ -43,7 +43,7 @@ fn test_id_prefix() {
             .new_commit(
                 &settings,
                 vec![parent_id.clone()],
-                repo.store().empty_tree_id().clone(),
+                MergedTreeId::Legacy(repo.store().empty_tree_id().clone()),
             )
             .set_author(signature.clone())
             .set_committer(signature)
