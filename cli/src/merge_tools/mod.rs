@@ -107,7 +107,7 @@ pub fn run_mergetool(
 
     let editor = get_merge_tool_from_settings(ui, settings)?;
     match editor {
-        MergeTool::Internal => unimplemented!("run_mergetool with internal mergetool"),
+        MergeTool::Builtin => unimplemented!("run_mergetool with internal mergetool"),
         MergeTool::External(editor) => external::run_mergetool_external(
             &editor, file_merge, content, repo_path, conflict, tree,
         ),
@@ -125,7 +125,7 @@ pub fn edit_diff(
     // Start a diff editor on the two directories.
     let editor = get_diff_editor_from_settings(ui, settings)?;
     match editor {
-        MergeTool::Internal => unimplemented!("run_mergetool with internal mergetool"),
+        MergeTool::Builtin => unimplemented!("run_mergetool with internal mergetool"),
         MergeTool::External(editor) => edit_diff_external(
             editor,
             left_tree,
@@ -139,7 +139,7 @@ pub fn edit_diff(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MergeTool {
-    Internal,
+    Builtin,
     External(ExternalMergeTool),
 }
 
