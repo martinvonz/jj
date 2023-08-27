@@ -60,6 +60,17 @@ impl MergedTreeValue<'_> {
     }
 }
 
+/// Summary of the changes between two trees.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct DiffSummary {
+    /// Modified files
+    pub modified: Vec<RepoPath>,
+    /// Added files
+    pub added: Vec<RepoPath>,
+    /// Removed files
+    pub removed: Vec<RepoPath>,
+}
+
 impl MergedTree {
     /// Creates a new `MergedTree` representing a single tree without conflicts.
     pub fn resolved(tree: Tree) -> Self {
@@ -320,6 +331,31 @@ impl MergedTree {
         matcher: &'matcher dyn Matcher,
     ) -> TreeDiffIterator<'matcher> {
         TreeDiffIterator::new(self.clone(), other.clone(), matcher)
+    }
+
+    /// Collects lists of modified, added, and removed files between this tree
+    /// and another tree.
+    pub fn diff_summary(&self, other: &MergedTree, matcher: &dyn Matcher) -> DiffSummary {
+        let mut modified = vec![];
+        let mut added = vec![];
+        let mut removed = vec![];
+        for (file, before, after) in self.diff(other, matcher) {
+            if before.is_absent() {
+                added.push(file);
+            } else if after.is_absent() {
+                removed.push(file);
+            } else {
+                modified.push(file);
+            }
+        }
+        modified.sort();
+        added.sort();
+        removed.sort();
+        DiffSummary {
+            modified,
+            added,
+            removed,
+        }
     }
 
     /// Merges this tree with `other`, using `base` as base.
