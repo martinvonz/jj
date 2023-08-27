@@ -7,12 +7,12 @@ use std::sync::Arc;
 
 use config::ConfigError;
 use itertools::Itertools;
-use jj_lib::backend::{FileId, TreeId, TreeValue};
+use jj_lib::backend::{FileId, MergedTreeId, TreeId, TreeValue};
 use jj_lib::conflicts::{self, materialize_merge_result};
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::{EverythingMatcher, Matcher};
 use jj_lib::merge::Merge;
-use jj_lib::merged_tree::MergedTree;
+use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
@@ -289,11 +289,11 @@ fn check_out_trees(
 pub fn run_mergetool_external(
     editor: &ExternalMergeTool,
     file_merge: Merge<Option<FileId>>,
-    content: jj_lib::merge::Merge<jj_lib::files::ContentHunk>,
+    content: Merge<jj_lib::files::ContentHunk>,
     repo_path: &RepoPath,
-    conflict: jj_lib::merge::Merge<Option<TreeValue>>,
-    tree: &Tree,
-) -> Result<TreeId, ConflictResolveError> {
+    conflict: Merge<Option<TreeValue>>,
+    tree: &MergedTree,
+) -> Result<MergedTreeId, ConflictResolveError> {
     let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {
         let mut materialized_conflict = vec![];
         materialize_merge_result(&content, &mut materialized_conflict)
@@ -371,19 +371,16 @@ pub fn run_mergetool_external(
         Merge::normal(new_file_id)
     };
     let new_tree_value = match new_file_ids.into_resolved() {
-        Ok(new_file_id) => TreeValue::File {
+        Ok(new_file_id) => Merge::normal(TreeValue::File {
             id: new_file_id.unwrap(),
             executable: false,
-        },
-        Err(new_file_ids) => {
-            let new_conflict = conflict.with_new_file_ids(&new_file_ids);
-            let new_conflict_id = tree.store().write_conflict(repo_path, &new_conflict)?;
-            TreeValue::Conflict(new_conflict_id)
-        }
+        }),
+        Err(new_file_ids) => conflict.with_new_file_ids(&new_file_ids),
     };
-    let mut tree_builder = tree.store().tree_builder(tree.id().clone());
-    tree_builder.set(repo_path.clone(), new_tree_value);
-    Ok(tree_builder.write_tree())
+    let mut tree_builder = MergedTreeBuilder::new(tree.store().clone(), tree.id());
+    tree_builder.set_or_remove(repo_path.clone(), new_tree_value);
+    let new_tree = tree_builder.write_tree()?;
+    Ok(new_tree)
 }
 
 // Not interested in $UPPER_CASE_VARIABLES
