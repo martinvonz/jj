@@ -339,29 +339,30 @@ fn show_color_words_diff_line(
 fn diff_content(
     repo: &Arc<ReadonlyRepo>,
     path: &RepoPath,
-    value: &TreeValue,
+    value: Option<&TreeValue>,
 ) -> Result<Vec<u8>, CommandError> {
     match value {
-        TreeValue::File { id, .. } => {
+        None => Ok(vec![]),
+        Some(TreeValue::File { id, .. }) => {
             let mut file_reader = repo.store().read_file(path, id).unwrap();
             let mut content = vec![];
             file_reader.read_to_end(&mut content)?;
             Ok(content)
         }
-        TreeValue::Symlink(id) => {
+        Some(TreeValue::Symlink(id)) => {
             let target = repo.store().read_symlink(path, id)?;
             Ok(target.into_bytes())
         }
-        TreeValue::GitSubmodule(id) => {
+        Some(TreeValue::GitSubmodule(id)) => {
             Ok(format!("Git submodule checked out at {}", id.hex()).into_bytes())
         }
-        TreeValue::Conflict(id) => {
+        Some(TreeValue::Conflict(id)) => {
             let conflict = repo.store().read_conflict(path, id).unwrap();
             let mut content = vec![];
             conflicts::materialize(&conflict, repo.store(), path, &mut content).unwrap();
             Ok(content)
         }
-        TreeValue::Tree(_) => {
+        Some(TreeValue::Tree(_)) => {
             panic!("Unexpected {value:?} in diff at path {path:?}",);
         }
     }
@@ -394,7 +395,7 @@ pub fn show_color_words_diff(
         let ui_path = workspace_command.format_file_path(&path);
         match diff {
             tree::Diff::Added(right_value) => {
-                let right_content = diff_content(repo, &path, &right_value)?;
+                let right_content = diff_content(repo, &path, Some(&right_value))?;
                 let description = basic_diff_file_type(&right_value);
                 writeln!(
                     formatter.labeled("header"),
@@ -407,8 +408,8 @@ pub fn show_color_words_diff(
                 }
             }
             tree::Diff::Modified(left_value, right_value) => {
-                let left_content = diff_content(repo, &path, &left_value)?;
-                let right_content = diff_content(repo, &path, &right_value)?;
+                let left_content = diff_content(repo, &path, Some(&left_value))?;
+                let right_content = diff_content(repo, &path, Some(&right_value))?;
                 let description = match (left_value, right_value) {
                     (
                         TreeValue::File {
@@ -454,7 +455,7 @@ pub fn show_color_words_diff(
                 show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
             }
             tree::Diff::Removed(left_value) => {
-                let left_content = diff_content(repo, &path, &left_value)?;
+                let left_content = diff_content(repo, &path, Some(&left_value))?;
                 let description = basic_diff_file_type(&left_value);
                 writeln!(
                     formatter.labeled("header"),
@@ -799,20 +800,10 @@ pub fn show_diff_stat(
     let mut max_diffs = 0;
     for (repo_path, diff) in tree_diff {
         let path = workspace_command.format_file_path(&repo_path);
-        let mut left_content: Vec<u8> = vec![];
-        let mut right_content: Vec<u8> = vec![];
-        match diff {
-            tree::Diff::Modified(left, right) => {
-                left_content = diff_content(workspace_command.repo(), &repo_path, &left)?;
-                right_content = diff_content(workspace_command.repo(), &repo_path, &right)?;
-            }
-            tree::Diff::Added(right) => {
-                right_content = diff_content(workspace_command.repo(), &repo_path, &right)?;
-            }
-            tree::Diff::Removed(left) => {
-                left_content = diff_content(workspace_command.repo(), &repo_path, &left)?;
-            }
-        }
+        let (left_value, right_value) = diff.into_options();
+        let left_content = diff_content(workspace_command.repo(), &repo_path, left_value.as_ref())?;
+        let right_content =
+            diff_content(workspace_command.repo(), &repo_path, right_value.as_ref())?;
         max_path_length = max(max_path_length, path.len());
         let stat = get_diff_stat(path, &left_content, &right_content);
         max_diffs = max(max_diffs, stat.added + stat.removed);
