@@ -2407,8 +2407,8 @@ fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(),
         source.id().hex(),
         destination.id().hex()
     ));
-    let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
-    let source_tree = source.tree();
+    let parent_tree = MergedTree::legacy(merge_commit_trees(tx.repo(), &source.parents())?);
+    let source_tree = source.merged_tree()?;
     let instructions = format!(
         "\
 You are moving changes from: {}
@@ -2425,32 +2425,27 @@ from the source will be moved into the destination.
         tx.format_commit_summary(&source),
         tx.format_commit_summary(&destination)
     );
-    let new_parent_tree_id = tx
-        .select_diff(
-            ui,
-            &MergedTree::Legacy(parent_tree.clone()),
-            &MergedTree::Legacy(source_tree.clone()),
-            &instructions,
-            args.interactive,
-            matcher.as_ref(),
-        )?
-        .to_legacy_tree_id();
-    if args.interactive && &new_parent_tree_id == parent_tree.id() {
+    let new_parent_tree_id = tx.select_diff(
+        ui,
+        &parent_tree,
+        &source_tree,
+        &instructions,
+        args.interactive,
+        matcher.as_ref(),
+    )?;
+    if args.interactive && new_parent_tree_id == parent_tree.id() {
         return Err(user_error("No changes to move"));
     }
-    let new_parent_tree = tx
-        .repo()
-        .store()
-        .get_tree(&RepoPath::root(), &new_parent_tree_id)?;
+    let new_parent_tree = tx.repo().store().get_root_tree(&new_parent_tree_id)?;
     // Apply the reverse of the selected changes onto the source
-    let new_source_tree = merge_trees(&source_tree, &new_parent_tree, &parent_tree)?;
+    let new_source_tree = source_tree.merge(&new_parent_tree, &parent_tree)?;
     let abandon_source = new_source_tree.id() == parent_tree.id();
     if abandon_source {
         tx.mut_repo().record_abandoned_commit(source.id().clone());
     } else {
         tx.mut_repo()
             .rewrite_commit(command.settings(), &source)
-            .set_tree(new_source_tree.id().clone())
+            .set_tree_id(new_source_tree.id().clone())
             .write()?;
     }
     if tx.repo().index().is_ancestor(source.id(), destination.id()) {
@@ -2464,7 +2459,8 @@ from the source will be moved into the destination.
         destination = tx.mut_repo().store().get_commit(&rebased_destination_id)?;
     }
     // Apply the selected changes onto the destination
-    let new_destination_tree = merge_trees(&destination.tree(), &parent_tree, &new_parent_tree)?;
+    let destination_tree = destination.merged_tree()?;
+    let new_destination_tree = destination_tree.merge(&parent_tree, &new_parent_tree)?;
     let description = combine_messages(
         tx.base_repo(),
         &source,
@@ -2474,7 +2470,7 @@ from the source will be moved into the destination.
     )?;
     tx.mut_repo()
         .rewrite_commit(command.settings(), &destination)
-        .set_tree(new_destination_tree.id().clone())
+        .set_tree_id(new_destination_tree.id().clone())
         .set_description(description)
         .write()?;
     tx.finish(ui)?;
