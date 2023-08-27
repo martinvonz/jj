@@ -14,10 +14,10 @@
 
 use jj_lib::backend::{ChangeId, MergedTreeId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jj_lib::matchers::EverythingMatcher;
+use jj_lib::merged_tree::DiffSummary;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
-use jj_lib::tree::DiffSummary;
 use test_case::test_case;
 use testutils::{assert_rebased, CommitGraphBuilder, TestRepo};
 
@@ -85,8 +85,9 @@ fn test_initial(use_git: bool) {
     assert_eq!(
         store
             .root_commit()
-            .tree()
-            .diff_summary(&commit.tree(), &EverythingMatcher),
+            .merged_tree()
+            .unwrap()
+            .diff_summary(&commit.merged_tree().unwrap(), &EverythingMatcher),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path, root_file_path],
@@ -168,8 +169,9 @@ fn test_rewrite(use_git: bool) {
     assert_eq!(
         store
             .root_commit()
-            .tree()
-            .diff_summary(&rewritten_commit.tree(), &EverythingMatcher),
+            .merged_tree()
+            .unwrap()
+            .diff_summary(&rewritten_commit.merged_tree().unwrap(), &EverythingMatcher),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path.clone(), root_file_path],
@@ -178,8 +180,9 @@ fn test_rewrite(use_git: bool) {
     );
     assert_eq!(
         initial_commit
-            .tree()
-            .diff_summary(&rewritten_commit.tree(), &EverythingMatcher),
+            .merged_tree()
+            .unwrap()
+            .diff_summary(&rewritten_commit.merged_tree().unwrap(), &EverythingMatcher),
         DiffSummary {
             modified: vec![dir_file_path],
             added: vec![],

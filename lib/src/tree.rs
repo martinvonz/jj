@@ -77,13 +77,6 @@ impl Hash for Tree {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct DiffSummary {
-    pub modified: Vec<RepoPath>,
-    pub added: Vec<RepoPath>,
-    pub removed: Vec<RepoPath>,
-}
-
 impl Tree {
     pub fn new(store: Arc<Store>, dir: RepoPath, id: TreeId, data: Arc<backend::Tree>) -> Self {
         Tree {
@@ -189,27 +182,6 @@ impl Tree {
         matcher: &'matcher dyn Matcher,
     ) -> TreeDiffIterator<'matcher> {
         TreeDiffIterator::new(self.clone(), other.clone(), matcher)
-    }
-
-    pub fn diff_summary(&self, other: &Tree, matcher: &dyn Matcher) -> DiffSummary {
-        let mut modified = vec![];
-        let mut added = vec![];
-        let mut removed = vec![];
-        for (file, diff) in self.diff(other, matcher) {
-            match diff {
-                Diff::Modified(_, _) => modified.push(file.clone()),
-                Diff::Added(_) => added.push(file.clone()),
-                Diff::Removed(_) => removed.push(file.clone()),
-            }
-        }
-        modified.sort();
-        added.sort();
-        removed.sort();
-        DiffSummary {
-            modified,
-            added,
-            removed,
-        }
     }
 
     pub fn conflicts_matching(&self, matcher: &dyn Matcher) -> Vec<(RepoPath, ConflictId)> {
