@@ -47,7 +47,6 @@ use jj_lib::revset_graph::{
 };
 use jj_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jj_lib::settings::UserSettings;
-use jj_lib::tree::{merge_trees, Tree};
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::Workspace;
 use jj_lib::{conflicts, file_util, revset};
@@ -1837,11 +1836,7 @@ fn show_predecessor_patch(
         Some(predecessor) => predecessor,
         None => return Ok(()),
     };
-    let predecessor_tree = MergedTree::legacy(rebase_to_dest_parent(
-        workspace_command,
-        predecessor,
-        commit,
-    )?);
+    let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
     let tree = commit.merged_tree()?;
     diff_util::show_diff(
         ui,
@@ -1864,7 +1859,7 @@ fn cmd_interdiff(
     let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
     let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
 
-    let from_tree = MergedTree::legacy(rebase_to_dest_parent(&workspace_command, &from, &to)?);
+    let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
     let to_tree = to.merged_tree()?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
@@ -1884,19 +1879,20 @@ fn rebase_to_dest_parent(
     workspace_command: &WorkspaceCommandHelper,
     source: &Commit,
     destination: &Commit,
-) -> Result<Tree, CommandError> {
+) -> Result<MergedTree, CommandError> {
     if source.parent_ids() == destination.parent_ids() {
-        Ok(source.tree())
+        Ok(source.merged_tree()?)
     } else {
-        let destination_parent_tree =
-            merge_commit_trees(workspace_command.repo().as_ref(), &destination.parents())?;
-        let source_parent_tree =
-            merge_commit_trees(workspace_command.repo().as_ref(), &source.parents())?;
-        let rebased_tree = merge_trees(
-            &destination_parent_tree,
-            &source_parent_tree,
-            &source.tree(),
-        )?;
+        let destination_parent_tree = MergedTree::legacy(merge_commit_trees(
+            workspace_command.repo().as_ref(),
+            &destination.parents(),
+        )?);
+        let source_parent_tree = MergedTree::legacy(merge_commit_trees(
+            workspace_command.repo().as_ref(),
+            &source.parents(),
+        )?);
+        let source_tree = source.merged_tree()?;
+        let rebased_tree = destination_parent_tree.merge(&source_parent_tree, &source_tree)?;
         Ok(rebased_tree)
     }
 }
