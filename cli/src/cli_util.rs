@@ -30,7 +30,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
 use git2::{Oid, Repository};
 use indexmap::IndexSet;
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId, TreeId};
+use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId};
 use jj_lib::commit::Commit;
 use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError};
 use jj_lib::git_backend::GitBackend;
@@ -38,7 +38,7 @@ use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
-use jj_lib::merged_tree::MergedTree;
+use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jj_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jj_lib::operation::Operation;
@@ -54,7 +54,7 @@ use jj_lib::revset::{
 };
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::transaction::Transaction;
-use jj_lib::tree::{Tree, TreeMergeError};
+use jj_lib::tree::TreeMergeError;
 use jj_lib::view::RefName;
 use jj_lib::working_copy::{
     CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions, TreeStateError,
@@ -1467,43 +1467,43 @@ impl WorkspaceCommandTransaction<'_> {
     pub fn edit_diff(
         &self,
         ui: &Ui,
-        left_tree: &Tree,
-        right_tree: &Tree,
+        left_tree: &MergedTree,
+        right_tree: &MergedTree,
         instructions: &str,
-    ) -> Result<TreeId, CommandError> {
+    ) -> Result<MergedTreeId, CommandError> {
         let base_ignores = self.helper.base_ignores();
         let settings = &self.helper.settings;
         Ok(crate::merge_tools::edit_diff(
             ui,
-            &MergedTree::Legacy(left_tree.clone()),
-            &MergedTree::Legacy(right_tree.clone()),
+            left_tree,
+            right_tree,
             instructions,
             base_ignores,
             settings,
-        )?
-        .to_legacy_tree_id())
+        )?)
     }
 
     pub fn select_diff(
         &self,
         ui: &Ui,
-        left_tree: &Tree,
-        right_tree: &Tree,
+        left_tree: &MergedTree,
+        right_tree: &MergedTree,
         instructions: &str,
         interactive: bool,
         matcher: &dyn Matcher,
-    ) -> Result<TreeId, CommandError> {
+    ) -> Result<MergedTreeId, CommandError> {
         if interactive {
             self.edit_diff(ui, left_tree, right_tree, instructions)
         } else if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
             // Optimization for a common case
             Ok(right_tree.id().clone())
         } else {
-            let mut tree_builder = self.repo().store().tree_builder(left_tree.id().clone());
-            for (repo_path, diff) in left_tree.diff(right_tree, matcher) {
-                tree_builder.set_or_remove(repo_path, diff.into_options().1);
+            let mut tree_builder =
+                MergedTreeBuilder::new(self.repo().store().clone(), left_tree.id().clone());
+            for (repo_path, _left, right) in left_tree.diff(right_tree, matcher) {
+                tree_builder.set_or_remove(repo_path, right);
             }
-            Ok(tree_builder.write_tree())
+            Ok(tree_builder.write_tree()?)
         }
     }
 

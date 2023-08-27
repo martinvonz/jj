@@ -2425,14 +2425,16 @@ from the source will be moved into the destination.
         tx.format_commit_summary(&source),
         tx.format_commit_summary(&destination)
     );
-    let new_parent_tree_id = tx.select_diff(
-        ui,
-        &parent_tree,
-        &source_tree,
-        &instructions,
-        args.interactive,
-        matcher.as_ref(),
-    )?;
+    let new_parent_tree_id = tx
+        .select_diff(
+            ui,
+            &MergedTree::Legacy(parent_tree.clone()),
+            &MergedTree::Legacy(source_tree.clone()),
+            &instructions,
+            args.interactive,
+            matcher.as_ref(),
+        )?
+        .to_legacy_tree_id();
     if args.interactive && &new_parent_tree_id == parent_tree.id() {
         return Err(user_error("No changes to move"));
     }
@@ -2509,15 +2511,17 @@ from the source will be moved into the parent.
         tx.format_commit_summary(&commit),
         tx.format_commit_summary(parent)
     );
+    let parent_tree = parent.merged_tree()?;
+    let tree = commit.merged_tree()?;
     let new_parent_tree_id = tx.select_diff(
         ui,
-        &parent.tree(),
-        &commit.tree(),
+        &parent_tree,
+        &tree,
         &instructions,
         args.interactive,
         matcher.as_ref(),
     )?;
-    if &new_parent_tree_id == parent.tree_id() {
+    if &new_parent_tree_id == parent.merged_tree_id() {
         if args.interactive {
             return Err(user_error("No changes selected"));
         }
@@ -2541,7 +2545,7 @@ from the source will be moved into the parent.
     }
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
-    let abandon_child = &new_parent_tree_id == commit.tree_id();
+    let abandon_child = &new_parent_tree_id == commit.merged_tree_id();
     let description = if !args.message_paragraphs.is_empty() {
         cli_util::join_message_paragraphs(&args.message_paragraphs)
     } else {
@@ -2556,7 +2560,7 @@ from the source will be moved into the parent.
     let mut_repo = tx.mut_repo();
     let new_parent = mut_repo
         .rewrite_commit(command.settings(), parent)
-        .set_tree(new_parent_tree_id)
+        .set_tree_id(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
         .set_description(description)
         .write()?;
@@ -2590,7 +2594,7 @@ fn cmd_unsquash(
     workspace_command.check_rewritable(parent)?;
     let mut tx =
         workspace_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
-    let parent_base_tree = merge_commit_trees(tx.repo(), &parent.parents())?;
+    let parent_base_tree = MergedTree::legacy(merge_commit_trees(tx.repo(), &parent.parents())?);
     let new_parent_tree_id;
     if args.interactive {
         let instructions = format!(
@@ -2608,8 +2612,9 @@ aborted.
             tx.format_commit_summary(parent),
             tx.format_commit_summary(&commit)
         );
-        new_parent_tree_id = tx.edit_diff(ui, &parent_base_tree, &parent.tree(), &instructions)?;
-        if &new_parent_tree_id == parent_base_tree.id() {
+        let parent_tree = parent.merged_tree()?;
+        new_parent_tree_id = tx.edit_diff(ui, &parent_base_tree, &parent_tree, &instructions)?;
+        if new_parent_tree_id == parent_base_tree.id() {
             return Err(user_error("No changes selected"));
         }
     } else {
@@ -2617,7 +2622,7 @@ aborted.
     }
     // Abandon the parent if it is now empty (always the case in the non-interactive
     // case).
-    if &new_parent_tree_id == parent_base_tree.id() {
+    if new_parent_tree_id == parent_base_tree.id() {
         tx.mut_repo().record_abandoned_commit(parent.id().clone());
         let description =
             combine_messages(tx.base_repo(), parent, &commit, command.settings(), true)?;
@@ -2631,7 +2636,7 @@ aborted.
         let new_parent = tx
             .mut_repo()
             .rewrite_commit(command.settings(), parent)
-            .set_tree(new_parent_tree_id)
+            .set_tree_id(new_parent_tree_id)
             .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
             .write()?;
         // Commit the new child on top of the new parent.
@@ -2965,15 +2970,16 @@ Adjust the right side until it shows the contents you want. If you
 don't make any changes, then the operation will be aborted.",
         tx.format_commit_summary(&target_commit),
     );
-    let base_tree = merge_commit_trees(tx.repo(), base_commits.as_slice())?;
-    let tree_id = tx.edit_diff(ui, &base_tree, &target_commit.tree(), &instructions)?;
-    if &tree_id == target_commit.tree_id() {
+    let base_tree = MergedTree::legacy(merge_commit_trees(tx.repo(), base_commits.as_slice())?);
+    let tree = target_commit.merged_tree()?;
+    let tree_id = tx.edit_diff(ui, &base_tree, &tree, &instructions)?;
+    if tree_id == *target_commit.merged_tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
         let mut_repo = tx.mut_repo();
         let new_commit = mut_repo
             .rewrite_commit(command.settings(), &target_commit)
-            .set_tree(tree_id)
+            .set_tree_id(tree_id)
             .write()?;
         ui.write("Created ")?;
         tx.write_commit_summary(ui.stdout_formatter().as_mut(), &new_commit)?;
@@ -3016,16 +3022,16 @@ fn description_template_for_cmd_split(
     workspace_command: &WorkspaceCommandHelper,
     intro: &str,
     overall_commit_description: &str,
-    from_tree: &Tree,
-    to_tree: &Tree,
+    from_tree: &MergedTree,
+    to_tree: &MergedTree,
 ) -> Result<String, CommandError> {
     let mut diff_summary_bytes = Vec::new();
     diff_util::show_diff(
         ui,
         &mut PlainTextFormatter::new(&mut diff_summary_bytes),
         workspace_command,
-        &MergedTree::legacy(from_tree.clone()),
-        &MergedTree::legacy(to_tree.clone()),
+        from_tree,
+        to_tree,
         &EverythingMatcher,
         &[DiffFormat::Summary],
     )?;
@@ -3054,7 +3060,8 @@ fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut tx =
         workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
-    let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
+    let end_tree = commit.merged_tree()?;
+    let base_tree = MergedTree::legacy(merge_commit_trees(tx.repo(), &commit.parents())?);
     let interactive = args.paths.is_empty();
     let instructions = format!(
         "\
@@ -3071,16 +3078,16 @@ don't make any changes, then the operation will be aborted.
     let tree_id = tx.select_diff(
         ui,
         &base_tree,
-        &commit.tree(),
+        &end_tree,
         &instructions,
         interactive,
         matcher.as_ref(),
     )?;
-    if &tree_id == commit.tree_id() && interactive {
+    if &tree_id == commit.merged_tree_id() && interactive {
         ui.write("Nothing changed.\n")?;
         return Ok(());
     }
-    let middle_tree = tx.repo().store().get_tree(&RepoPath::root(), &tree_id)?;
+    let middle_tree = tx.repo().store().get_root_tree(&tree_id)?;
     if middle_tree.id() == base_tree.id() {
         writeln!(
             ui.warning(),
@@ -3102,7 +3109,7 @@ don't make any changes, then the operation will be aborted.
     let first_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
-        .set_tree(tree_id)
+        .set_tree_id(tree_id)
         .set_description(first_description)
         .write()?;
     let second_description = if commit.description().is_empty() {
@@ -3116,7 +3123,7 @@ don't make any changes, then the operation will be aborted.
             "Enter commit description for the second part (child).",
             commit.description(),
             &middle_tree,
-            &commit.tree(),
+            &end_tree,
         )?;
         edit_description(tx.base_repo(), &second_template, command.settings())?
     };
