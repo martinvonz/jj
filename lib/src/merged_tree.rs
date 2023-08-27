@@ -712,8 +712,6 @@ impl Iterator for ConflictIterator {
     }
 }
 
-// TODO: Much of this code can probably be shared with
-// `tree::TreeEntryDiffIterator` by adding some traits with associated types.
 struct TreeEntryDiffIterator<'a> {
     before: &'a MergedTree,
     after: &'a MergedTree,
