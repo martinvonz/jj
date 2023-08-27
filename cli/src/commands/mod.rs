@@ -1323,27 +1323,26 @@ fn cmd_untrack(
     let base_ignores = workspace_command.base_ignores();
     let (mut locked_working_copy, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
-    let mut tree_builder = store.tree_builder(wc_commit.tree_id().clone());
-    for (path, _value) in wc_commit.tree().entries_matching(matcher.as_ref()) {
-        tree_builder.remove(path);
+    let mut tree_builder =
+        MergedTreeBuilder::new(store.clone(), wc_commit.merged_tree_id().clone());
+    let wc_tree = wc_commit.merged_tree()?;
+    for (path, _value) in wc_tree.entries_matching(matcher.as_ref()) {
+        tree_builder.set_or_remove(path, Merge::absent());
     }
-    let new_tree_id = tree_builder.write_tree();
-    let new_tree = store.get_tree(&RepoPath::root(), &new_tree_id)?;
-    let new_tree = MergedTree::legacy(new_tree);
+    let new_tree_id = tree_builder.write_tree()?;
+    let new_tree = store.get_root_tree(&new_tree_id)?;
     // Reset the working copy to the new tree
     locked_working_copy.reset(&new_tree)?;
     // Commit the working copy again so we can inform the user if paths couldn't be
     // untracked because they're not ignored.
-    let wc_tree_id = locked_working_copy
-        .snapshot(SnapshotOptions {
-            base_ignores,
-            fsmonitor_kind: command.settings().fsmonitor_kind()?,
-            progress: None,
-            max_new_file_size: command.settings().max_new_file_size()?,
-        })?
-        .to_legacy_tree_id();
+    let wc_tree_id = locked_working_copy.snapshot(SnapshotOptions {
+        base_ignores,
+        fsmonitor_kind: command.settings().fsmonitor_kind()?,
+        progress: None,
+        max_new_file_size: command.settings().max_new_file_size()?,
+    })?;
     if wc_tree_id != new_tree_id {
-        let wc_tree = store.get_tree(&RepoPath::root(), &wc_tree_id)?;
+        let wc_tree = store.get_root_tree(&wc_tree_id)?;
         let added_back = wc_tree.entries_matching(matcher.as_ref()).collect_vec();
         if !added_back.is_empty() {
             locked_working_copy.discard();
@@ -1371,7 +1370,7 @@ Make sure they're ignored, then try again.",
     }
     tx.mut_repo()
         .rewrite_commit(command.settings(), &wc_commit)
-        .set_tree(new_tree_id)
+        .set_tree_id(new_tree_id)
         .write()?;
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
