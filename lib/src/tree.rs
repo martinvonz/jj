@@ -175,15 +175,6 @@ impl Tree {
         }
     }
 
-    #[instrument(skip(matcher))]
-    pub fn diff<'matcher>(
-        &self,
-        other: &Tree,
-        matcher: &'matcher dyn Matcher,
-    ) -> TreeDiffIterator<'matcher> {
-        TreeDiffIterator::new(self.clone(), other.clone(), matcher)
-    }
-
     pub fn conflicts_matching(&self, matcher: &dyn Matcher) -> Vec<(RepoPath, ConflictId)> {
         let mut conflicts = vec![];
         for (name, value) in self.entries_matching(matcher) {
@@ -268,32 +259,6 @@ impl Iterator for TreeEntriesIterator<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Diff<T> {
-    Modified(T, T),
-    Added(T),
-    Removed(T),
-}
-
-impl<T> Diff<T> {
-    pub fn from_options(left: Option<T>, right: Option<T>) -> Self {
-        match (left, right) {
-            (Some(left), Some(right)) => Diff::Modified(left, right),
-            (None, Some(right)) => Diff::Added(right),
-            (Some(left), None) => Diff::Removed(left),
-            (None, None) => panic!("left and right cannot both be None"),
-        }
-    }
-
-    pub fn into_options(self) -> (Option<T>, Option<T>) {
-        match self {
-            Diff::Modified(left, right) => (Some(left), Some(right)),
-            Diff::Added(right) => (None, Some(right)),
-            Diff::Removed(left) => (Some(left), None),
-        }
-    }
-}
-
 struct TreeEntryDiffIterator<'trees> {
     tree1: &'trees Tree,
     tree2: &'trees Tree,
@@ -324,128 +289,6 @@ impl<'trees> Iterator for TreeEntryDiffIterator<'trees> {
             let value2 = self.tree2.value(basename);
             if value1 != value2 {
                 return Some((basename, value1, value2));
-            }
-        }
-        None
-    }
-}
-
-pub struct TreeDiffIterator<'matcher> {
-    stack: Vec<TreeDiffItem>,
-    matcher: &'matcher dyn Matcher,
-}
-
-struct TreeDiffDirItem {
-    path: RepoPath,
-    // Iterator over the diffs between tree1 and tree2
-    entry_iterator: TreeEntryDiffIterator<'static>,
-    // On drop, tree1 and tree2 must outlive entry_iterator
-    tree1: Box<Tree>,
-    tree2: Box<Tree>,
-}
-
-enum TreeDiffItem {
-    Dir(TreeDiffDirItem),
-    // This is used for making sure that when a directory gets replaced by a file, we
-    // yield the value for the addition of the file after we yield the values
-    // for removing files in the directory.
-    File(RepoPath, Diff<TreeValue>),
-}
-
-impl<'matcher> TreeDiffIterator<'matcher> {
-    fn new(tree1: Tree, tree2: Tree, matcher: &'matcher dyn Matcher) -> Self {
-        let root_dir = RepoPath::root();
-        let mut stack = Vec::new();
-        if !matcher.visit(&root_dir).is_nothing() {
-            stack.push(TreeDiffItem::Dir(TreeDiffDirItem::new(
-                root_dir, tree1, tree2,
-            )));
-        };
-        Self { stack, matcher }
-    }
-}
-
-impl TreeDiffDirItem {
-    fn new(path: RepoPath, tree1: Tree, tree2: Tree) -> Self {
-        let tree1 = Box::new(tree1);
-        let tree2 = Box::new(tree2);
-        let iter: TreeEntryDiffIterator = TreeEntryDiffIterator::new(&tree1, &tree2);
-        let iter: TreeEntryDiffIterator<'static> = unsafe { std::mem::transmute(iter) };
-        Self {
-            path,
-            entry_iterator: iter,
-            tree1,
-            tree2,
-        }
-    }
-
-    fn subdir(
-        &self,
-        subdir_path: &RepoPath,
-        before: Option<&TreeValue>,
-        after: Option<&TreeValue>,
-    ) -> Self {
-        let before_tree = match before {
-            Some(TreeValue::Tree(id_before)) => self.tree1.known_sub_tree(subdir_path, id_before),
-            _ => Tree::null(self.tree1.store().clone(), subdir_path.clone()),
-        };
-        let after_tree = match after {
-            Some(TreeValue::Tree(id_after)) => self.tree2.known_sub_tree(subdir_path, id_after),
-            _ => Tree::null(self.tree2.store().clone(), subdir_path.clone()),
-        };
-        Self::new(subdir_path.clone(), before_tree, after_tree)
-    }
-}
-
-impl Iterator for TreeDiffIterator<'_> {
-    type Item = (RepoPath, Diff<TreeValue>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some(top) = self.stack.last_mut() {
-            let (dir, (name, before, after)) = match top {
-                TreeDiffItem::Dir(dir) => {
-                    if let Some(entry) = dir.entry_iterator.next() {
-                        (dir, entry)
-                    } else {
-                        self.stack.pop().unwrap();
-                        continue;
-                    }
-                }
-                TreeDiffItem::File(..) => {
-                    if let TreeDiffItem::File(name, diff) = self.stack.pop().unwrap() {
-                        return Some((name, diff));
-                    } else {
-                        unreachable!();
-                    }
-                }
-            };
-
-            let path = dir.path.join(name);
-            let tree_before = matches!(before, Some(TreeValue::Tree(_)));
-            let tree_after = matches!(after, Some(TreeValue::Tree(_)));
-            let post_subdir =
-                if (tree_before || tree_after) && !self.matcher.visit(&path).is_nothing() {
-                    let subdir = dir.subdir(&path, before, after);
-                    self.stack.push(TreeDiffItem::Dir(subdir));
-                    self.stack.len() - 1
-                } else {
-                    self.stack.len()
-                };
-            if self.matcher.matches(&path) {
-                if !tree_before && tree_after {
-                    if let Some(value_before) = before {
-                        return Some((path, Diff::Removed(value_before.clone())));
-                    }
-                } else if tree_before && !tree_after {
-                    if let Some(value_after) = after {
-                        self.stack.insert(
-                            post_subdir,
-                            TreeDiffItem::File(path, Diff::Added(value_after.clone())),
-                        );
-                    }
-                } else if !tree_before && !tree_after {
-                    return Some((path, Diff::from_options(before.cloned(), after.cloned())));
-                }
             }
         }
         None
