@@ -1049,13 +1049,14 @@ fn cmd_git_submodule_print_gitmodules(
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let commit = workspace_command.resolve_single_rev(&args.revisions, ui)?;
+    let tree = commit.merged_tree()?;
     let gitmodules_path = RepoPath::from_internal_string(".gitmodules");
-    let mut gitmodules_file = match commit.tree().path_value(&gitmodules_path) {
-        None => {
+    let mut gitmodules_file = match tree.path_value(&gitmodules_path).into_resolved() {
+        Ok(None) => {
             writeln!(ui, "No submodules!")?;
             return Ok(());
         }
-        Some(TreeValue::File { id, .. }) => repo.store().read_file(&gitmodules_path, &id)?,
+        Ok(Some(TreeValue::File { id, .. })) => repo.store().read_file(&gitmodules_path, &id)?,
         _ => {
             return Err(user_error(".gitmodules is not a file."));
         }
