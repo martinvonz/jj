@@ -1436,10 +1436,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
         let commit =
             workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
         let parents = commit.parents();
-        from_tree = MergedTree::legacy(merge_commit_trees(
-            workspace_command.repo().as_ref(),
-            &parents,
-        )?);
+        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
         to_tree = commit.merged_tree()?
     }
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
@@ -1496,8 +1493,7 @@ fn cmd_status(
     let formatter = formatter.as_mut();
 
     if let Some(wc_commit) = &maybe_wc_commit {
-        let parent_tree =
-            MergedTree::legacy(merge_commit_trees(repo.as_ref(), &wc_commit.parents())?);
+        let parent_tree = merge_commit_trees(repo.as_ref(), &wc_commit.parents())?;
         let tree = wc_commit.merged_tree()?;
         if tree.id() == parent_tree.id() {
             formatter.write_str("The working copy is clean\n")?;
@@ -1883,14 +1879,10 @@ fn rebase_to_dest_parent(
     if source.parent_ids() == destination.parent_ids() {
         Ok(source.merged_tree()?)
     } else {
-        let destination_parent_tree = MergedTree::legacy(merge_commit_trees(
-            workspace_command.repo().as_ref(),
-            &destination.parents(),
-        )?);
-        let source_parent_tree = MergedTree::legacy(merge_commit_trees(
-            workspace_command.repo().as_ref(),
-            &source.parents(),
-        )?);
+        let destination_parent_tree =
+            merge_commit_trees(workspace_command.repo().as_ref(), &destination.parents())?;
+        let source_parent_tree =
+            merge_commit_trees(workspace_command.repo().as_ref(), &source.parents())?;
         let source_tree = source.merged_tree()?;
         let rebased_tree = destination_parent_tree.merge(&source_parent_tree, &source_tree)?;
         Ok(rebased_tree)
@@ -2291,11 +2283,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         let new_parents_commit_id = new_parents_commits.iter().map(|c| c.id().clone()).collect();
         new_commit = tx
             .mut_repo()
-            .new_commit(
-                command.settings(),
-                new_parents_commit_id,
-                merged_tree.legacy_id(),
-            )
+            .new_commit(command.settings(), new_parents_commit_id, merged_tree.id())
             .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs))
             .write()?;
         num_rebased = target_ids.len();
@@ -2311,11 +2299,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         let merged_tree = merge_commit_trees(tx.repo(), &target_commits)?;
         new_commit = tx
             .mut_repo()
-            .new_commit(
-                command.settings(),
-                target_ids.clone(),
-                merged_tree.legacy_id(),
-            )
+            .new_commit(command.settings(), target_ids.clone(), merged_tree.id())
             .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs))
             .write()?;
         if args.insert_after {
@@ -2403,7 +2387,7 @@ fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(),
         source.id().hex(),
         destination.id().hex()
     ));
-    let parent_tree = MergedTree::legacy(merge_commit_trees(tx.repo(), &source.parents())?);
+    let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
     let source_tree = source.merged_tree()?;
     let instructions = format!(
         "\
@@ -2586,7 +2570,7 @@ fn cmd_unsquash(
     workspace_command.check_rewritable(parent)?;
     let mut tx =
         workspace_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
-    let parent_base_tree = MergedTree::legacy(merge_commit_trees(tx.repo(), &parent.parents())?);
+    let parent_base_tree = merge_commit_trees(tx.repo(), &parent.parents())?;
     let new_parent_tree_id;
     if args.interactive {
         let instructions = format!(
@@ -2889,10 +2873,7 @@ fn cmd_restore(
     } else {
         to_commit =
             workspace_command.resolve_single_rev(args.changes_in.as_deref().unwrap_or("@"), ui)?;
-        from_tree = MergedTree::legacy(merge_commit_trees(
-            workspace_command.repo().as_ref(),
-            &to_commit.parents(),
-        )?);
+        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &to_commit.parents())?;
     }
     workspace_command.check_rewritable(&to_commit)?;
 
@@ -2966,7 +2947,7 @@ Adjust the right side until it shows the contents you want. If you
 don't make any changes, then the operation will be aborted.",
         tx.format_commit_summary(&target_commit),
     );
-    let base_tree = MergedTree::legacy(merge_commit_trees(tx.repo(), base_commits.as_slice())?);
+    let base_tree = merge_commit_trees(tx.repo(), base_commits.as_slice())?;
     let tree = target_commit.merged_tree()?;
     let tree_id = tx.edit_diff(ui, &base_tree, &tree, &instructions)?;
     if tree_id == *target_commit.merged_tree_id() {
@@ -3057,7 +3038,7 @@ fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(
     let mut tx =
         workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
     let end_tree = commit.merged_tree()?;
-    let base_tree = MergedTree::legacy(merge_commit_trees(tx.repo(), &commit.parents())?);
+    let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
     let interactive = args.paths.is_empty();
     let instructions = format!(
         "\

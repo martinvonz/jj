@@ -203,10 +203,7 @@ pub fn show_patch(
     formats: &[DiffFormat],
 ) -> Result<(), CommandError> {
     let parents = commit.parents();
-    let from_tree = MergedTree::legacy(rewrite::merge_commit_trees(
-        workspace_command.repo().as_ref(),
-        &parents,
-    )?);
+    let from_tree = rewrite::merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
     let to_tree = commit.merged_tree()?;
     show_diff(
         ui,

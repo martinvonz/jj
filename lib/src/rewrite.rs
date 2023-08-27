@@ -24,6 +24,7 @@ use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::index::Index;
+use crate::merged_tree::MergedTree;
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
@@ -34,8 +35,15 @@ use crate::tree::{merge_trees, Tree, TreeMergeError};
 use crate::view::RefName;
 
 #[instrument(skip(repo))]
-pub fn merge_commit_trees(repo: &dyn Repo, commits: &[Commit]) -> Result<Tree, TreeMergeError> {
-    merge_commit_trees_without_repo(repo.store(), repo.index(), commits)
+pub fn merge_commit_trees(
+    repo: &dyn Repo,
+    commits: &[Commit],
+) -> Result<MergedTree, TreeMergeError> {
+    Ok(MergedTree::legacy(merge_commit_trees_without_repo(
+        repo.store(),
+        repo.index(),
+        commits,
+    )?))
 }
 
 #[instrument(skip(index))]
@@ -82,12 +90,13 @@ pub fn rebase_commit(
         .collect_vec();
     let new_tree_id = if new_parent_trees == old_parent_trees {
         // Optimization
-        old_commit.tree_id().clone()
+        old_commit.merged_tree_id().clone()
     } else {
         let old_base_tree = merge_commit_trees(mut_repo, &old_parents)?;
         let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
-        let merged_tree = merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree())?;
-        merged_tree.id().clone()
+        let old_tree = old_commit.merged_tree()?;
+        let merged_tree = new_base_tree.merge(&old_base_tree, &old_tree)?;
+        merged_tree.id()
     };
     let new_parent_ids = new_parents
         .iter()
@@ -96,7 +105,7 @@ pub fn rebase_commit(
     Ok(mut_repo
         .rewrite_commit(settings, old_commit)
         .set_parents(new_parent_ids)
-        .set_tree(new_tree_id)
+        .set_tree_id(new_tree_id)
         .write()?)
 }
 
@@ -108,14 +117,15 @@ pub fn back_out_commit(
 ) -> Result<Commit, TreeMergeError> {
     let old_base_tree = merge_commit_trees(mut_repo, &old_commit.parents())?;
     let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
-    let new_tree = merge_trees(&new_base_tree, &old_commit.tree(), &old_base_tree)?;
+    let old_tree = old_commit.merged_tree()?;
+    let new_tree = new_base_tree.merge(&old_tree, &old_base_tree)?;
     let new_parent_ids = new_parents
         .iter()
         .map(|commit| commit.id().clone())
         .collect();
     // TODO: i18n the description based on repo language
     Ok(mut_repo
-        .new_commit(settings, new_parent_ids, new_tree.legacy_id())
+        .new_commit(settings, new_parent_ids, new_tree.id())
         .set_description(format!("backout of commit {}", &old_commit.id().hex()))
         .write()?)
 }
