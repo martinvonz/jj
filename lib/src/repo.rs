@@ -31,7 +31,7 @@ use tracing::instrument;
 use self::dirty_cell::DirtyCell;
 use crate::backend::{
     Backend, BackendError, BackendInitError, BackendLoadError, BackendResult, ChangeId, CommitId,
-    ObjectId, TreeId,
+    MergedTreeId, ObjectId,
 };
 use crate::commit::{Commit, CommitByCommitterTimestamp};
 use crate::commit_builder::CommitBuilder;
@@ -750,7 +750,7 @@ impl MutableRepo {
         &mut self,
         settings: &UserSettings,
         parents: Vec<CommitId>,
-        tree_id: TreeId,
+        tree_id: MergedTreeId,
     ) -> CommitBuilder {
         CommitBuilder::for_new_commit(self, settings, parents, tree_id)
     }
@@ -856,7 +856,7 @@ impl MutableRepo {
             .new_commit(
                 settings,
                 vec![commit.id().clone()],
-                commit.tree_id().clone(),
+                commit.merged_tree_id().clone(),
             )
             .write()?;
         self.edit(workspace_id, &wc_commit)?;

@@ -18,7 +18,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
 
 use itertools::Itertools;
-use jj_lib::backend::{Backend, BackendInitError, FileId, ObjectId, TreeId, TreeValue};
+use jj_lib::backend::{
+    Backend, BackendInitError, FileId, MergedTreeId, ObjectId, TreeId, TreeValue,
+};
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git_backend::GitBackend;
@@ -276,7 +278,7 @@ pub fn create_random_commit<'repo>(
         .new_commit(
             settings,
             vec![mut_repo.store().root_commit_id().clone()],
-            tree_id,
+            MergedTreeId::Legacy(tree_id),
         )
         .set_description(format!("random commit {number}"))
 }

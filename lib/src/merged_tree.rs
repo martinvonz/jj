@@ -271,7 +271,7 @@ impl MergedTree {
     /// The tree's id
     pub fn id(&self) -> MergedTreeId {
         match self {
-            MergedTree::Legacy(tree) => MergedTreeId::Legacy(tree.id().clone()),
+            MergedTree::Legacy(tree) => tree.legacy_id(),
             MergedTree::Merge(merge) => MergedTreeId::Merge(merge.map(|tree| tree.id().clone())),
         }
     }

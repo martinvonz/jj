@@ -115,7 +115,7 @@ pub fn back_out_commit(
         .collect();
     // TODO: i18n the description based on repo language
     Ok(mut_repo
-        .new_commit(settings, new_parent_ids, new_tree.id().clone())
+        .new_commit(settings, new_parent_ids, new_tree.legacy_id())
         .set_description(format!("backout of commit {}", &old_commit.id().hex()))
         .write()?)
 }
@@ -352,7 +352,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 .new_commit(
                     self.settings,
                     vec![new_commit.id().clone()],
-                    new_commit.tree_id().clone(),
+                    new_commit.merged_tree_id().clone(),
                 )
                 .write()?
         };

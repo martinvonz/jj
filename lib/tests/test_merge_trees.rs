@@ -578,26 +578,26 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
-            tree_a.id().clone(),
+            tree_a.legacy_id(),
         )
         .write()
         .unwrap();
     let tree_b = testutils::create_tree(repo, &[(&path, "Abc\ndef\nghi\n")]);
     let commit_b = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_a.id().clone()], tree_b.id().clone())
+        .new_commit(&settings, vec![commit_a.id().clone()], tree_b.legacy_id())
         .write()
         .unwrap();
     let tree_c = testutils::create_tree(repo, &[(&path, "Abc\ndef\nGhi\n")]);
     let commit_c = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_b.id().clone()], tree_c.id().clone())
+        .new_commit(&settings, vec![commit_b.id().clone()], tree_c.legacy_id())
         .write()
         .unwrap();
     let tree_d = testutils::create_tree(repo, &[(&path, "abC\ndef\nghi\n")]);
     let commit_d = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_a.id().clone()], tree_d.id().clone())
+        .new_commit(&settings, vec![commit_a.id().clone()], tree_d.legacy_id())
         .write()
         .unwrap();
 
