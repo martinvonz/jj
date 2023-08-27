@@ -20,6 +20,7 @@ use config::ConfigError;
 use jj_lib::backend::{TreeId, TreeValue};
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::gitignore::GitIgnoreFile;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::tree::Tree;
@@ -109,9 +110,17 @@ pub fn run_mergetool(
     let editor = get_merge_tool_from_settings(ui, settings)?;
     match editor {
         MergeTool::Internal => unimplemented!("run_mergetool with internal mergetool"),
-        MergeTool::External(editor) => external::run_mergetool_external(
-            &editor, file_merge, content, repo_path, conflict, tree,
-        ),
+        MergeTool::External(editor) => {
+            let new_tree_id = external::run_mergetool_external(
+                &editor,
+                file_merge,
+                content,
+                repo_path,
+                conflict,
+                &MergedTree::Legacy(tree.clone()),
+            )?;
+            Ok(new_tree_id.to_legacy_tree_id())
+        }
     }
 }
 
