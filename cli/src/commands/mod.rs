@@ -3108,7 +3108,7 @@ don't make any changes, then the operation will be aborted.
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
         .set_parents(vec![first_commit.id().clone()])
-        .set_tree(commit.tree_id().clone())
+        .set_tree_id(commit.merged_tree_id().clone())
         .generate_new_change_id()
         .set_description(second_description)
         .write()?;
