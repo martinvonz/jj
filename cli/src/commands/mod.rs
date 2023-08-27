@@ -2894,11 +2894,14 @@ fn cmd_restore(
         to_commit = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
         from_tree = workspace_command
             .resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?
-            .tree();
+            .merged_tree()?;
     } else {
         to_commit =
             workspace_command.resolve_single_rev(args.changes_in.as_deref().unwrap_or("@"), ui)?;
-        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &to_commit.parents())?;
+        from_tree = MergedTree::legacy(merge_commit_trees(
+            workspace_command.repo().as_ref(),
+            &to_commit.parents(),
+        )?);
     }
     workspace_command.check_rewritable(&to_commit)?;
 
@@ -2906,16 +2909,17 @@ fn cmd_restore(
         from_tree.id().clone()
     } else {
         let matcher = workspace_command.matcher_from_values(&args.paths)?;
-        let mut tree_builder = workspace_command
-            .repo()
-            .store()
-            .tree_builder(to_commit.tree_id().clone());
-        for (repo_path, diff) in from_tree.diff(&to_commit.tree(), matcher.as_ref()) {
-            tree_builder.set_or_remove(repo_path, diff.into_options().0);
+        let mut tree_builder = MergedTreeBuilder::new(
+            workspace_command.repo().store().clone(),
+            to_commit.merged_tree_id().clone(),
+        );
+        let to_tree = to_commit.merged_tree()?;
+        for (repo_path, before, _after) in from_tree.diff(&to_tree, matcher.as_ref()) {
+            tree_builder.set_or_remove(repo_path, before);
         }
-        tree_builder.write_tree()
+        tree_builder.write_tree()?
     };
-    if &new_tree_id == to_commit.tree_id() {
+    if &new_tree_id == to_commit.merged_tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
         let mut tx = workspace_command
@@ -2923,7 +2927,7 @@ fn cmd_restore(
         let mut_repo = tx.mut_repo();
         let new_commit = mut_repo
             .rewrite_commit(command.settings(), &to_commit)
-            .set_tree(new_tree_id)
+            .set_tree_id(new_tree_id)
             .write()?;
         ui.write("Created ")?;
         tx.write_commit_summary(ui.stdout_formatter().as_mut(), &new_commit)?;
