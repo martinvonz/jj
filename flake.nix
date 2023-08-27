@@ -128,6 +128,9 @@
           cargo-insta
           cargo-nextest
           cargo-watch
+
+          # For building the documentation website
+          poetry
         ];
 
         shellHook = ''
