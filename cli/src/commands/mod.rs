@@ -2745,11 +2745,11 @@ fn cmd_resolve(
         "Resolve conflicts in commit {}",
         commit.id().hex()
     ));
-    let new_tree_id = tx.run_mergetool(ui, &commit.tree(), repo_path)?;
+    let new_tree_id = tx.run_mergetool(ui, &tree, repo_path)?;
     let new_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
-        .set_tree(new_tree_id)
+        .set_tree_id(new_tree_id)
         .write()?;
     tx.finish(ui)?;
 
