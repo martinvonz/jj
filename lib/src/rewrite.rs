@@ -20,18 +20,17 @@ use std::sync::Arc;
 use itertools::{process_results, Itertools};
 use tracing::instrument;
 
-use crate::backend::{BackendError, CommitId, ObjectId};
+use crate::backend::{BackendError, CommitId, MergedTreeId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::index::Index;
 use crate::merged_tree::MergedTree;
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
-use crate::repo_path::RepoPath;
 use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
 use crate::store::Store;
-use crate::tree::{merge_trees, Tree, TreeMergeError};
+use crate::tree::TreeMergeError;
 use crate::view::RefName;
 
 #[instrument(skip(repo))]
@@ -39,11 +38,7 @@ pub fn merge_commit_trees(
     repo: &dyn Repo,
     commits: &[Commit],
 ) -> Result<MergedTree, TreeMergeError> {
-    Ok(MergedTree::legacy(merge_commit_trees_without_repo(
-        repo.store(),
-        repo.index(),
-        commits,
-    )?))
+    merge_commit_trees_without_repo(repo.store(), repo.index(), commits)
 }
 
 #[instrument(skip(index))]
@@ -51,11 +46,11 @@ pub fn merge_commit_trees_without_repo(
     store: &Arc<Store>,
     index: &dyn Index,
     commits: &[Commit],
-) -> Result<Tree, TreeMergeError> {
+) -> Result<MergedTree, TreeMergeError> {
     if commits.is_empty() {
-        Ok(store.get_tree(&RepoPath::root(), store.empty_tree_id())?)
+        Ok(store.get_root_tree(&MergedTreeId::Legacy(store.empty_tree_id().clone()))?)
     } else {
-        let mut new_tree = commits[0].tree();
+        let mut new_tree = commits[0].merged_tree()?;
         let commit_ids = commits
             .iter()
             .map(|commit| commit.id().clone())
@@ -67,7 +62,8 @@ pub fn merge_commit_trees_without_repo(
                 .map(|id| store.get_commit(id))
                 .try_collect()?;
             let ancestor_tree = merge_commit_trees_without_repo(store, index, &ancestors)?;
-            new_tree = merge_trees(&new_tree, &ancestor_tree, &other_commit.tree())?;
+            let other_tree = other_commit.merged_tree()?;
+            new_tree = new_tree.merge(&ancestor_tree, &other_tree)?;
         }
         Ok(new_tree)
     }

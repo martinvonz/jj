@@ -892,7 +892,7 @@ fn has_diff_from_parent(
         }
     }
     let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents).unwrap();
-    let to_tree = commit.tree();
+    let to_tree = commit.merged_tree().unwrap();
     from_tree.diff(&to_tree, matcher).next().is_some()
 }
 
