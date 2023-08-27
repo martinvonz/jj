@@ -20,7 +20,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::backend;
-use crate::backend::{BackendError, ChangeId, CommitId, MergedTreeId, Signature, TreeId};
+use crate::backend::{BackendError, ChangeId, CommitId, MergedTreeId, Signature};
 use crate::merged_tree::MergedTree;
 use crate::repo_path::RepoPath;
 use crate::store::Store;
@@ -113,12 +113,6 @@ impl Commit {
         self.store.get_root_tree(&self.data.root_tree)
     }
 
-    // TODO(#1624): delete when all callers have been updated to support tree-level
-    // conflicts
-    pub fn tree_id(&self) -> &TreeId {
-        self.data.root_tree.as_legacy_tree_id()
-    }
-
     pub fn merged_tree_id(&self) -> &MergedTreeId {
         &self.data.root_tree
     }
@@ -148,7 +142,7 @@ impl Commit {
     pub fn is_discardable(&self) -> bool {
         if self.description().is_empty() {
             if let [parent_commit] = &*self.parents() {
-                return self.tree_id() == parent_commit.tree_id();
+                return self.merged_tree_id() == parent_commit.merged_tree_id();
             }
         }
         false

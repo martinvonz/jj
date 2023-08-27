@@ -58,7 +58,10 @@ fn test_checkout(use_git: bool) {
         .mut_repo()
         .check_out(ws_id.clone(), &settings, &wc_commit_parent)
         .unwrap();
-    assert_eq!(wc_commit.tree_id(), wc_commit_parent.tree_id());
+    assert_eq!(
+        wc_commit.merged_tree_id(),
+        wc_commit_parent.merged_tree_id()
+    );
     assert_eq!(wc_commit.parents().len(), 1);
     assert_eq!(wc_commit.parents()[0].id(), wc_commit_parent.id());
     let repo = tx.commit();
