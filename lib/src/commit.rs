@@ -22,9 +22,7 @@ use std::sync::Arc;
 use crate::backend;
 use crate::backend::{BackendError, ChangeId, CommitId, MergedTreeId, Signature};
 use crate::merged_tree::MergedTree;
-use crate::repo_path::RepoPath;
 use crate::store::Store;
-use crate::tree::Tree;
 
 #[derive(Clone)]
 pub struct Commit {
@@ -100,13 +98,6 @@ impl Commit {
             .iter()
             .map(|id| self.store.get_commit(id).unwrap())
             .collect()
-    }
-
-    // TODO(#1624): Delete when all callers use `merged_tree()`
-    pub fn tree(&self) -> Tree {
-        self.store
-            .get_tree(&RepoPath::root(), self.data.root_tree.as_legacy_tree_id())
-            .unwrap()
     }
 
     pub fn merged_tree(&self) -> Result<MergedTree, BackendError> {

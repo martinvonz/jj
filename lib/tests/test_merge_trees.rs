@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use assert_matches::assert_matches;
 use itertools::Itertools;
-use jj_lib::backend::TreeValue;
+use jj_lib::backend::{MergedTreeId, TreeValue};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent};
 use jj_lib::rewrite::rebase_commit;
@@ -606,21 +605,17 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
         rebase_commit(&settings, tx.mut_repo(), &commit_c, &[commit_b2.clone()]).unwrap();
 
     // Test the setup: Both B and C should have conflicts.
-    assert_matches!(
-        commit_b2.tree().path_value(&path),
-        Some(TreeValue::Conflict(_))
-    );
-    assert_matches!(
-        commit_c2.tree().path_value(&path),
-        Some(TreeValue::Conflict(_))
-    );
+    let tree_b2 = commit_b2.merged_tree().unwrap();
+    let tree_c2 = commit_b2.merged_tree().unwrap();
+    assert!(!tree_b2.path_value(&path).is_resolved());
+    assert!(!tree_c2.path_value(&path).is_resolved());
 
     // Create the resolved B and rebase C on top.
     let tree_b3 = testutils::create_tree(repo, &[(&path, "AbC\ndef\nghi\n")]);
     let commit_b3 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_b2)
-        .set_tree(tree_b3.id().clone())
+        .set_tree_id(MergedTreeId::Legacy(tree_b3.id().clone()))
         .write()
         .unwrap();
     let commit_c3 = rebase_commit(&settings, tx.mut_repo(), &commit_c2, &[commit_b3]).unwrap();
@@ -628,12 +623,13 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     let repo = tx.commit();
 
     // The conflict should now be resolved.
-    let resolved_value = commit_c3.tree().path_value(&path);
-    match resolved_value {
-        Some(TreeValue::File {
+    let tree_c2 = commit_c3.merged_tree().unwrap();
+    let resolved_value = tree_c2.path_value(&path);
+    match resolved_value.into_resolved() {
+        Ok(Some(TreeValue::File {
             id,
             executable: false,
-        }) => {
+        })) => {
             assert_eq!(
                 testutils::read_file(repo.store(), &path, &id),
                 b"AbC\ndef\nGhi\n"

@@ -904,18 +904,13 @@ fn test_rebase_descendants_contents(use_git: bool) {
         .get_commit(rebased.get(commit_c.id()).unwrap())
         .unwrap();
 
-    assert_eq!(
-        new_commit_c.tree().path_value(&path3),
-        commit_c.tree().path_value(&path3)
-    );
-    assert_eq!(
-        new_commit_c.tree().path_value(&path4),
-        commit_d.tree().path_value(&path4)
-    );
-    assert_ne!(
-        new_commit_c.tree().path_value(&path2),
-        commit_b.tree().path_value(&path2)
-    );
+    let tree_b = commit_b.merged_tree().unwrap();
+    let tree_c = commit_c.merged_tree().unwrap();
+    let tree_d = commit_d.merged_tree().unwrap();
+    let new_tree_c = new_commit_c.merged_tree().unwrap();
+    assert_eq!(new_tree_c.path_value(&path3), tree_c.path_value(&path3));
+    assert_eq!(new_tree_c.path_value(&path4), tree_d.path_value(&path4));
+    assert_ne!(new_tree_c.path_value(&path2), tree_b.path_value(&path2));
 }
 
 #[test]
