@@ -1386,9 +1386,10 @@ Make sure they're ignored, then try again.",
 fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let tree = commit.merged_tree()?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     ui.request_pager();
-    for (name, _value) in commit.tree().entries_matching(matcher.as_ref()) {
+    for (name, _value) in tree.entries_matching(matcher.as_ref()) {
         writeln!(ui, "{}", &workspace_command.format_file_path(&name))?;
     }
     Ok(())
@@ -1398,19 +1399,19 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
 fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let tree = commit.merged_tree()?;
     let path = workspace_command.parse_file_path(&args.path)?;
     let repo = workspace_command.repo();
-    match commit.tree().path_value(&path) {
-        None => {
+    match tree.path_value(&path).into_resolved() {
+        Ok(None) => {
             return Err(user_error("No such path"));
         }
-        Some(TreeValue::File { id, .. }) => {
+        Ok(Some(TreeValue::File { id, .. })) => {
             let mut contents = repo.store().read_file(&path, &id)?;
             ui.request_pager();
             std::io::copy(&mut contents, &mut ui.stdout_formatter().as_mut())?;
         }
-        Some(TreeValue::Conflict(id)) => {
-            let conflict = repo.store().read_conflict(&path, &id)?;
+        Err(conflict) => {
             let mut contents = vec![];
             conflicts::materialize(&conflict, repo.store(), &path, &mut contents).unwrap();
             ui.request_pager();
