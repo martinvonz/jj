@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature, TreeId};
+use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature};
 use crate::commit::Commit;
 use crate::repo::{MutableRepo, Repo};
 use crate::settings::{JJRng, UserSettings};
@@ -104,15 +104,8 @@ impl CommitBuilder<'_> {
         self
     }
 
-    pub fn tree(&self) -> &TreeId {
-        self.commit.root_tree.as_legacy_tree_id()
-    }
-
-    // TODO(#1624): delete when all callers have been updated to support tree-level
-    // conflicts
-    pub fn set_tree(mut self, tree_id: TreeId) -> Self {
-        self.commit.root_tree = MergedTreeId::Legacy(tree_id);
-        self
+    pub fn tree_id(&self) -> &MergedTreeId {
+        &self.commit.root_tree
     }
 
     pub fn set_tree_id(mut self, tree_id: MergedTreeId) -> Self {

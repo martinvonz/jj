@@ -14,7 +14,7 @@
 
 use jj_lib::backend::{ChangeId, MergedTreeId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jj_lib::matchers::EverythingMatcher;
-use jj_lib::merged_tree::DiffSummary;
+use jj_lib::merged_tree::{DiffSummary, MergedTree};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
@@ -31,13 +31,13 @@ fn test_initial(use_git: bool) {
 
     let root_file_path = RepoPath::from_internal_string("file");
     let dir_file_path = RepoPath::from_internal_string("dir/file");
-    let tree = testutils::create_tree(
+    let tree = MergedTree::Legacy(testutils::create_tree(
         repo,
         &[
             (&root_file_path, "file contents"),
             (&dir_file_path, "dir/file contents"),
         ],
-    );
+    ));
 
     let mut tx = repo.start_transaction(&settings, "test");
     let author_signature = Signature {
@@ -59,18 +59,14 @@ fn test_initial(use_git: bool) {
     let change_id = ChangeId::new(vec![100u8; 16]);
     let builder = tx
         .mut_repo()
-        .new_commit(
-            &settings,
-            vec![store.root_commit_id().clone()],
-            tree.legacy_id(),
-        )
+        .new_commit(&settings, vec![store.root_commit_id().clone()], tree.id())
         .set_change_id(change_id.clone())
         .set_description("description")
         .set_author(author_signature.clone())
         .set_committer(committer_signature.clone());
     assert_eq!(builder.parents(), &[store.root_commit_id().clone()]);
     assert_eq!(builder.predecessors(), &[]);
-    assert_eq!(builder.tree(), tree.id());
+    assert_eq!(builder.tree_id(), &tree.id());
     assert_eq!(builder.change_id(), &change_id);
     assert_eq!(builder.author(), &author_signature);
     assert_eq!(builder.committer(), &committer_signature);
@@ -126,13 +122,13 @@ fn test_rewrite(use_git: bool) {
         .unwrap();
     let repo = tx.commit();
 
-    let rewritten_tree = testutils::create_tree(
+    let rewritten_tree = MergedTree::Legacy(testutils::create_tree(
         &repo,
         &[
             (&root_file_path, "file contents"),
             (&dir_file_path, "updated dir/file contents"),
         ],
-    );
+    ));
 
     let config = config::Config::builder()
         .set_override("user.name", "Rewrite User")
@@ -146,7 +142,7 @@ fn test_rewrite(use_git: bool) {
     let rewritten_commit = tx
         .mut_repo()
         .rewrite_commit(&rewrite_settings, &initial_commit)
-        .set_tree(rewritten_tree.id().clone())
+        .set_tree_id(rewritten_tree.id().clone())
         .write()
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
