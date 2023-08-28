@@ -375,9 +375,9 @@ pub fn run_mergetool_external(
         }),
         Err(new_file_ids) => conflict.with_new_file_ids(&new_file_ids),
     };
-    let mut tree_builder = MergedTreeBuilder::new(tree.store().clone(), tree.id());
+    let mut tree_builder = MergedTreeBuilder::new(tree.id());
     tree_builder.set_or_remove(repo_path.clone(), new_tree_value);
-    let new_tree = tree_builder.write_tree()?;
+    let new_tree = tree_builder.write_tree(tree.store())?;
     Ok(new_tree)
 }
 
