@@ -1507,12 +1507,11 @@ impl WorkspaceCommandTransaction<'_> {
             // Optimization for a common case
             Ok(right_tree.id().clone())
         } else {
-            let mut tree_builder =
-                MergedTreeBuilder::new(self.repo().store().clone(), left_tree.id().clone());
+            let mut tree_builder = MergedTreeBuilder::new(left_tree.id().clone());
             for (repo_path, _left, right) in left_tree.diff(right_tree, matcher) {
                 tree_builder.set_or_remove(repo_path, right);
             }
-            Ok(tree_builder.write_tree()?)
+            Ok(tree_builder.write_tree(self.repo().store())?)
         }
     }
 

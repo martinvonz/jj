@@ -904,16 +904,14 @@ impl Iterator for TreeDiffIterator<'_> {
 /// overrides may be conflicts. Then you can write the result as a legacy tree
 /// (allowing path-level conflicts) or as multiple conflict-free trees.
 pub struct MergedTreeBuilder {
-    store: Arc<Store>,
     base_tree_id: MergedTreeId,
     overrides: BTreeMap<RepoPath, Merge<Option<TreeValue>>>,
 }
 
 impl MergedTreeBuilder {
     /// Create a new builder with the given trees as base.
-    pub fn new(store: Arc<Store>, base_tree_id: MergedTreeId) -> Self {
+    pub fn new(base_tree_id: MergedTreeId) -> Self {
         MergedTreeBuilder {
-            store,
             base_tree_id,
             overrides: BTreeMap::new(),
         }
@@ -943,10 +941,10 @@ impl MergedTreeBuilder {
     /// When the base tree was a legacy tree, then the result will be another
     /// legacy tree. Overrides with conflicts will result in conflict objects
     /// being written to the store.
-    pub fn write_tree(self) -> BackendResult<MergedTreeId> {
+    pub fn write_tree(self, store: &Arc<Store>) -> BackendResult<MergedTreeId> {
         match self.base_tree_id.clone() {
             MergedTreeId::Legacy(base_tree_id) => {
-                let mut tree_builder = TreeBuilder::new(self.store.clone(), base_tree_id);
+                let mut tree_builder = TreeBuilder::new(store.clone(), base_tree_id);
                 for (path, values) in self.overrides {
                     let values = values.simplify();
                     match values.into_resolved() {
@@ -954,7 +952,7 @@ impl MergedTreeBuilder {
                             tree_builder.set_or_remove(path, value);
                         }
                         Err(values) => {
-                            let conflict_id = self.store.write_conflict(&path, &values)?;
+                            let conflict_id = store.write_conflict(&path, &values)?;
                             tree_builder.set(path, TreeValue::Conflict(conflict_id));
                         }
                     }
@@ -962,7 +960,7 @@ impl MergedTreeBuilder {
                 Ok(MergedTreeId::Legacy(tree_builder.write_tree()))
             }
             MergedTreeId::Merge(base_tree_ids) => {
-                let new_tree_ids = self.write_merged_trees(base_tree_ids)?;
+                let new_tree_ids = self.write_merged_trees(base_tree_ids, store)?;
                 Ok(MergedTreeId::Merge(new_tree_ids.simplify()))
             }
         }
@@ -971,10 +969,11 @@ impl MergedTreeBuilder {
     fn write_merged_trees(
         self,
         base_tree_ids: Merge<TreeId>,
+        store: &Arc<Store>,
     ) -> Result<Merge<TreeId>, BackendError> {
         // Create a single-tree builder for each base tree
-        let mut tree_builders = base_tree_ids
-            .map(|base_tree_id| TreeBuilder::new(self.store.clone(), base_tree_id.clone()));
+        let mut tree_builders =
+            base_tree_ids.map(|base_tree_id| TreeBuilder::new(store.clone(), base_tree_id.clone()));
         for (path, values) in self.overrides {
             match values.into_resolved() {
                 Ok(value) => {

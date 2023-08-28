@@ -697,7 +697,7 @@ impl TreeState {
             )
         })?;
 
-        let mut tree_builder = MergedTreeBuilder::new(self.store.clone(), self.tree_id.clone());
+        let mut tree_builder = MergedTreeBuilder::new(self.tree_id.clone());
         let mut deleted_files: HashSet<_> =
             trace_span!("collecting existing files").in_scope(|| {
                 self.file_states
@@ -733,7 +733,7 @@ impl TreeState {
             }
         });
         trace_span!("write tree").in_scope(|| {
-            let new_tree_id = tree_builder.write_tree().unwrap();
+            let new_tree_id = tree_builder.write_tree(&self.store).unwrap();
             is_dirty |= new_tree_id != self.tree_id;
             self.tree_id = new_tree_id;
         });

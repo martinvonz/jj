@@ -1327,13 +1327,12 @@ fn cmd_untrack(
     let base_ignores = workspace_command.base_ignores();
     let (mut locked_working_copy, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
-    let mut tree_builder =
-        MergedTreeBuilder::new(store.clone(), wc_commit.merged_tree_id().clone());
+    let mut tree_builder = MergedTreeBuilder::new(wc_commit.merged_tree_id().clone());
     let wc_tree = wc_commit.merged_tree()?;
     for (path, _value) in wc_tree.entries_matching(matcher.as_ref()) {
         tree_builder.set_or_remove(path, Merge::absent());
     }
-    let new_tree_id = tree_builder.write_tree()?;
+    let new_tree_id = tree_builder.write_tree(&store)?;
     let new_tree = store.get_root_tree(&new_tree_id)?;
     // Reset the working copy to the new tree
     locked_working_copy.reset(&new_tree)?;
@@ -2657,7 +2656,7 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
     ));
     let tree = commit.merged_tree()?;
     let store = tree.store();
-    let mut tree_builder = MergedTreeBuilder::new(store.clone(), commit.merged_tree_id().clone());
+    let mut tree_builder = MergedTreeBuilder::new(commit.merged_tree_id().clone());
     for repo_path in repo_paths {
         let user_error_with_path = |msg: &str| {
             user_error(format!(
@@ -2695,7 +2694,7 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
         tree_builder.set_or_remove(repo_path, new_tree_value);
     }
 
-    let new_tree_id = tree_builder.write_tree()?;
+    let new_tree_id = tree_builder.write_tree(store)?;
     tx.mut_repo()
         .rewrite_commit(command.settings(), &commit)
         .set_tree_id(new_tree_id)
@@ -2886,15 +2885,12 @@ fn cmd_restore(
         from_tree.id().clone()
     } else {
         let matcher = workspace_command.matcher_from_values(&args.paths)?;
-        let mut tree_builder = MergedTreeBuilder::new(
-            workspace_command.repo().store().clone(),
-            to_commit.merged_tree_id().clone(),
-        );
+        let mut tree_builder = MergedTreeBuilder::new(to_commit.merged_tree_id().clone());
         let to_tree = to_commit.merged_tree()?;
         for (repo_path, before, _after) in from_tree.diff(&to_tree, matcher.as_ref()) {
             tree_builder.set_or_remove(repo_path, before);
         }
-        tree_builder.write_tree()?
+        tree_builder.write_tree(workspace_command.repo().store())?
     };
     if &new_tree_id == to_commit.merged_tree_id() {
         ui.write("Nothing changed.\n")?;
