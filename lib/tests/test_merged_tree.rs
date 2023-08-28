@@ -116,7 +116,7 @@ fn test_from_legacy_tree() {
     let tree_id = tree_builder.write_tree();
     let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
 
-    let merged_tree = MergedTree::from_legacy_tree(tree.clone());
+    let merged_tree = MergedTree::from_legacy_tree(tree.clone()).unwrap();
     assert_eq!(
         merged_tree.value(&RepoPathComponent::from("missing")),
         MergedTreeValue::Resolved(None)
