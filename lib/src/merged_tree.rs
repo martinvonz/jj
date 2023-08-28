@@ -99,10 +99,10 @@ impl MergedTree {
     /// Takes a tree in the legacy format (with path-level conflicts in the
     /// tree) and returns a `MergedTree` with any conflicts converted to
     /// tree-level conflicts.
-    pub fn from_legacy_tree(tree: Tree) -> Self {
+    pub fn from_legacy_tree(tree: Tree) -> BackendResult<Self> {
         let conflict_ids = tree.conflicts();
         if conflict_ids.is_empty() {
-            return MergedTree::resolved(tree);
+            return Ok(MergedTree::resolved(tree));
         }
         // Find the number of removes in the most complex conflict. We will then
         // build `2*num_removes + 1` trees
@@ -110,7 +110,7 @@ impl MergedTree {
         let store = tree.store();
         let mut conflicts: Vec<(&RepoPath, Merge<Option<TreeValue>>)> = vec![];
         for (path, conflict_id) in &conflict_ids {
-            let conflict = store.read_conflict(path, conflict_id).unwrap();
+            let conflict = store.read_conflict(path, conflict_id)?;
             max_num_removes = max(max_num_removes, conflict.removes().len());
             conflicts.push((path, conflict));
         }
@@ -140,13 +140,12 @@ impl MergedTree {
 
         let write_tree = |builder: TreeBuilder| {
             let tree_id = builder.write_tree();
-            store.get_tree(&RepoPath::root(), &tree_id).unwrap()
+            store.get_tree(&RepoPath::root(), &tree_id)
         };
 
-        MergedTree::Merge(Merge::new(
-            removes.into_iter().map(write_tree).collect(),
-            adds.into_iter().map(write_tree).collect(),
-        ))
+        let removed_trees = removes.into_iter().map(write_tree).try_collect()?;
+        let added_trees = adds.into_iter().map(write_tree).try_collect()?;
+        Ok(MergedTree::Merge(Merge::new(removed_trees, added_trees)))
     }
 
     /// This tree's directory
@@ -371,19 +370,22 @@ impl MergedTree {
             Ok(MergedTree::legacy(merged_tree))
         } else {
             // Convert legacy trees to merged trees and unwrap to `Merge<Tree>`
-            let to_merge = |tree: &MergedTree| -> Merge<Tree> {
+            let to_merge = |tree: &MergedTree| -> Result<Merge<Tree>, TreeMergeError> {
                 match tree {
                     MergedTree::Legacy(tree) => {
-                        let MergedTree::Merge(tree) = MergedTree::from_legacy_tree(tree.clone())
+                        let MergedTree::Merge(tree) = MergedTree::from_legacy_tree(tree.clone())?
                         else {
                             unreachable!();
                         };
-                        tree
+                        Ok(tree)
                     }
-                    MergedTree::Merge(conflict) => conflict.clone(),
+                    MergedTree::Merge(conflict) => Ok(conflict.clone()),
                 }
             };
-            let nested = Merge::new(vec![to_merge(base)], vec![to_merge(self), to_merge(other)]);
+            let nested = Merge::new(
+                vec![to_merge(base)?],
+                vec![to_merge(self)?, to_merge(other)?],
+            );
             let tree = merge_trees(&nested.flatten().simplify())?;
             // If the result can be resolved, then `merge_trees()` above would have returned
             // a resolved merge. However, that function will always preserve the arity of
