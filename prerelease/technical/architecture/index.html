@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.3">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
     
     
       
@@ -115,6 +115,43 @@
     </div>
     
     
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
     
     
   </nav>
@@ -237,7 +274,7 @@
         
   
   <span class="md-ellipsis">
-    Working with Github
+    Working with GitHub
   </span>
   
 
@@ -989,7 +1026,7 @@
         
   
   <span class="md-ellipsis">
-    Guidelines and Setup
+    Guidelines and "How to...?"
   </span>
   
 
@@ -1334,12 +1371,12 @@
                   
 
 
-<h1 id="architecture">Architecture</h1>
-<h2 id="data-model">Data model</h2>
+<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
+<h2 id="data-model">Data model<a class="headerlink" href="#data-model" title="Permanent link">&para;</a></h2>
 <p>The commit data model is similar
 to <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-Objects">Git's object model</a>
 , but with some differences.</p>
-<h2 id="separation-of-library-from-ui">Separation of library from UI</h2>
+<h2 id="separation-of-library-from-ui">Separation of library from UI<a class="headerlink" href="#separation-of-library-from-ui" title="Permanent link">&para;</a></h2>
 <p>The <code>jj</code> binary consists of two Rust crates: the library crate (<code>jj-lib</code>) and
 the CLI crate (<code>jj-cli</code>). The library crate is currently only used by the CLI
 crate, but it is meant to also be usable from a GUI or TUI, or in a server
@@ -1351,7 +1388,7 @@ directory, or from user-specific environment variables.</p>
 <p>A lot of thought has gone into making the library crate's API easy to use, but
 not much has gone into "details" such as which collection types are used, or
 which symbols are exposed in the API.</p>
-<h2 id="storage-independent-apis">Storage-independent APIs</h2>
+<h2 id="storage-independent-apis">Storage-independent APIs<a class="headerlink" href="#storage-independent-apis" title="Permanent link">&para;</a></h2>
 <p>One overarching principle in the design is that it should be easy to change
 where data is stored. The goal was to be able to put storage on local-disk by
 default but also be able to move storage to the cloud at Google
@@ -1366,11 +1403,11 @@ needed.</p>
 <p>The commit backend to use when loading a repo is specified in
 the <code>.jj/repo/store/type</code> file. There are similar files for the other backends
 (<code>.jj/repo/index/type</code>, <code>.jj/repo/op_store/type</code>, <code>.jj/repo/op_heads/type</code>).</p>
-<h2 id="design-of-the-library-crate">Design of the library crate</h2>
-<h3 id="overview">Overview</h3>
+<h2 id="design-of-the-library-crate">Design of the library crate<a class="headerlink" href="#design-of-the-library-crate" title="Permanent link">&para;</a></h2>
+<h3 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h3>
 <p>Here's a diagram showing some important types in the library crate. The
 following sections describe each component.</p>
-<div class="codehilite"><pre><span></span><code>graph TD;
+<div class="highlight"><pre><span></span><code>graph TD;
     ReadonlyRepo--&gt;Store;
     ReadonlyRepo--&gt;OpStore;
     ReadonlyRepo--&gt;OpHeadsStore;
@@ -1393,15 +1430,14 @@ following sections describe each component.</p>
     Git--&gt;GitBackend;
     GitBackend--&gt;StackedTable;
 </code></pre></div>
-
-<h3 id="backend">Backend</h3>
+<h3 id="backend">Backend<a class="headerlink" href="#backend" title="Permanent link">&para;</a></h3>
 <p>The <code>Backend</code> trait defines the interface each
 commit backend needs to implement. The current in-tree commit backends
 are <code>GitBackend</code>
 and <code>LocalBackend</code>.</p>
 <p>Since there are non-commit backends, the <code>Backend</code> trait should probably be
 renamed to <code>CommitBackend</code>.</p>
-<h3 id="gitbackend">GitBackend</h3>
+<h3 id="gitbackend">GitBackend<a class="headerlink" href="#gitbackend" title="Permanent link">&para;</a></h3>
 <p>The <code>GitBackend</code> stores commits in a Git repository. It uses <code>libgit2</code> to read
 and write commits and refs.</p>
 <p>To prevent GC from deleting commits that are still reachable from the operation
@@ -1415,36 +1451,36 @@ predecessors, and the bit-reversed commit ID as change ID.</p>
 <p>Because we use the Git Object ID as commit ID, two commits that differ only in
 their change ID, for example, will get the same commit ID, so we error out when
 trying to write the second one of them.</p>
-<h3 id="localbackend">LocalBackend</h3>
+<h3 id="localbackend">LocalBackend<a class="headerlink" href="#localbackend" title="Permanent link">&para;</a></h3>
 <p>The <code>LocalBackend</code> is just a proof of concept. It stores objects addressed by
 their hash, with one file per object.</p>
-<h3 id="store">Store</h3>
+<h3 id="store">Store<a class="headerlink" href="#store" title="Permanent link">&para;</a></h3>
 <p>The <code>Store</code> type wraps the <code>Backend</code> and returns wrapped types for commits and
 trees to make them easier to use. The wrapped objects have a reference to
 the <code>Store</code> itself, so you can do e.g. <code>commit.parents()</code> without having to
 provide the <code>Store</code> as an argument.</p>
 <p>The <code>Store</code> type also provides caching of commits and trees.</p>
-<h3 id="readonlyrepo">ReadonlyRepo</h3>
+<h3 id="readonlyrepo">ReadonlyRepo<a class="headerlink" href="#readonlyrepo" title="Permanent link">&para;</a></h3>
 <p>A <code>ReadonlyRepo</code> represents the state of a repo at a specific operation. It
 keeps the view object associated with that operation.</p>
 <p>The repository doesn't know where on disk any working copies live. It knows, via
 the view object, which commit is supposed to be the current working-copy commit
 in each workspace.</p>
-<h3 id="mutablerepo">MutableRepo</h3>
+<h3 id="mutablerepo">MutableRepo<a class="headerlink" href="#mutablerepo" title="Permanent link">&para;</a></h3>
 <p>A <code>MutableRepo</code> is a mutable version of <code>ReadonlyRepo</code>. It has a reference to
 its base <code>ReadonlyRepo</code>, but it has its own copy of the view object and lets the
 caller modify it.</p>
-<h3 id="transaction">Transaction</h3>
+<h3 id="transaction">Transaction<a class="headerlink" href="#transaction" title="Permanent link">&para;</a></h3>
 <p>The <code>Transaction</code> object has a <code>MutableRepo</code> and metadata that will go into the
 operation log. When the transaction commits, the <code>MutableRepo</code> becomes a view
 object in the operation log on disk, and the <code>Transaction</code> object becomes an
 operation object. In memory, <code>Transaction::commit()</code> returns a
 new <code>ReadonlyRepo</code>.</p>
-<h3 id="repoloader">RepoLoader</h3>
+<h3 id="repoloader">RepoLoader<a class="headerlink" href="#repoloader" title="Permanent link">&para;</a></h3>
 <p>The <code>RepoLoader</code> represents a repository at an unspecified operation. You can
 think of as a pointer to the <code>.jj/repo/</code> directory. It can create
 a <code>ReadonlyRepo</code> given an operation ID.</p>
-<h3 id="treestate">TreeState</h3>
+<h3 id="treestate">TreeState<a class="headerlink" href="#treestate" title="Permanent link">&para;</a></h3>
 <p>The <code>TreeState</code> type represents the state of the files in a working copy. It
 keep track of the mtime and size for each tracked file. It knows the <code>TreeId</code>
 that the working copy represents. It has a <code>snapshot()</code> method that will use the
@@ -1453,10 +1489,10 @@ changed, it will return a new <code>TreeId</code>. It also has <code>checkout()<
 the files on disk to match a requested <code>TreeId</code>.</p>
 <p>The <code>TreeState</code> type supports sparse checkouts. In fact, all working copies are
 sparse; they simply track the full repo in most cases.</p>
-<h3 id="workingcopy">WorkingCopy</h3>
+<h3 id="workingcopy">WorkingCopy<a class="headerlink" href="#workingcopy" title="Permanent link">&para;</a></h3>
 <p>The <code>WorkingCopy</code> type has a <code>TreeState</code> but also knows which <code>WorkspaceId</code> it
 has and at which operation it was most recently updated.</p>
-<h3 id="workspace">Workspace</h3>
+<h3 id="workspace">Workspace<a class="headerlink" href="#workspace" title="Permanent link">&para;</a></h3>
 <p>The <code>Workspace</code> type represents the combination of a repo and a working copy (
 like Git's 'worktree' concept).</p>
 <p>The repo view at the current operation determines the desired working-copy
@@ -1464,14 +1500,14 @@ commit in each workspace. The <code>WorkingCopy</code> determines what is actual
 working copy. The working copy can become stale if the working-copy commit was
 changed from another workspace (or if the process updating the working copy
 crashed, for example).</p>
-<h3 id="git">Git</h3>
+<h3 id="git">Git<a class="headerlink" href="#git" title="Permanent link">&para;</a></h3>
 <p>The <code>git</code> module contains functionality for interoperating with a Git repo, at a
 higher level than the <code>GitBackend</code>. The <code>GitBackend</code> is restricted by
 the <code>Backend</code> trait; the <code>git</code> module is specifically for Git-backed repos. It
 has functionality for importing refs from the Git repo and for exporting to refs
 in the Git repo. It also has functionality for pushing and pulling to/from Git
 remotes.</p>
-<h3 id="revsets">Revsets</h3>
+<h3 id="revsets">Revsets<a class="headerlink" href="#revsets" title="Permanent link">&para;</a></h3>
 <p>A user-provided revset expression string goes through a few different stages to
 be evaluated:</p>
 <ol>
@@ -1487,7 +1523,7 @@ be evaluated:</p>
 the <code>Revset</code> implementation to leverage the specifics of a custom index
 implementation. The first three steps are independent of the index
 implementation.</p>
-<h3 id="stackedtable">StackedTable</h3>
+<h3 id="stackedtable">StackedTable<a class="headerlink" href="#stackedtable" title="Permanent link">&para;</a></h3>
 <p><code>StackedTable</code> (actually <code>ReadonlyTable</code> and <code>MutableTable</code>) is a simple disk
 format for storing key-value pairs sorted by key. The keys have to have the same
 size but the values can have different sizes. We use our own format because we
@@ -1508,13 +1544,13 @@ results in O(log N) amortized insertion time and lookup time.</p>
 <p>The tables are named by their hash. We keep a separate directory of pointers to
 the current leaf tables, in the same way as we
 do <a href="../concurrency/#storage">for the operation log</a>.</p>
-<h2 id="design-of-the-cli-crate">Design of the CLI crate</h2>
-<h3 id="templates">Templates</h3>
+<h2 id="design-of-the-cli-crate">Design of the CLI crate<a class="headerlink" href="#design-of-the-cli-crate" title="Permanent link">&para;</a></h2>
+<h3 id="templates">Templates<a class="headerlink" href="#templates" title="Permanent link">&para;</a></h3>
 <p>The concept is copied from Mercurial, but the syntax is different. The main
 difference is that the top-level expression is a template expression, not a
 string like in Mercurial. There is also no string interpolation (e.g.
 <code>"Commit ID: {node}"</code> in Mercurial).</p>
-<h3 id="diff-editing">Diff-editing</h3>
+<h3 id="diff-editing">Diff-editing<a class="headerlink" href="#diff-editing" title="Permanent link">&para;</a></h3>
 <p>Diff-editing works by creating two very sparse working copies, containing only
 the files we want the user to edit. We then let the user edit the right-hand
 side of the diff. Then we simply snapshot that working copy to create the new

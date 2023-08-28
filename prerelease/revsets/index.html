@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.3">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
     
     
       
@@ -115,6 +115,43 @@
     </div>
     
     
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
     
     
   </nav>
@@ -237,7 +274,7 @@
         
   
   <span class="md-ellipsis">
-    Working with Github
+    Working with GitHub
   </span>
   
 
@@ -878,7 +915,7 @@
         
   
   <span class="md-ellipsis">
-    Guidelines and Setup
+    Guidelines and "How to...?"
   </span>
   
 
@@ -1112,7 +1149,7 @@
                   
 
 
-<h1 id="revsets">Revsets</h1>
+<h1 id="revsets">Revsets<a class="headerlink" href="#revsets" title="Permanent link">&para;</a></h1>
 <p>Jujutsu supports a functional language for selecting a set of revisions.
 Expressions in this language are called "revsets" (the idea comes from
 <a href="https://www.mercurial-scm.org/repo/hg/help/revsets">Mercurial</a>). The language
@@ -1125,7 +1162,7 @@ commits) to such commands.</p>
 <p>The commits listed by <code>jj log</code> without arguments are called "visible commits".
 Other commits are only included if you explicitly mention them (e.g. by commit
 ID or a Git ref pointing to them).</p>
-<h2 id="symbols">Symbols</h2>
+<h2 id="symbols">Symbols<a class="headerlink" href="#symbols" title="Permanent link">&para;</a></h2>
 <p>The symbol <code>root</code> refers to the virtual commit that is the oldest ancestor of
 all other commits.</p>
 <p>The symbol <code>@</code> refers to the working copy commit in the current workspace. Use
@@ -1139,7 +1176,7 @@ the full change ID can also be used. It is an error to use a non-unique prefix.<
 For example, <code>"x-"</code> is the symbol <code>x-</code>, not the parents of symbol <code>x</code>.
 Taking shell quoting into account, you may need to use something like
 <code>jj log -r '"x-"'</code>.</p>
-<h3 id="priority">Priority</h3>
+<h3 id="priority">Priority<a class="headerlink" href="#priority" title="Permanent link">&para;</a></h3>
 <p>Jujutsu attempts to resolve a symbol in the following order:</p>
 <ol>
 <li><code>@</code></li>
@@ -1149,7 +1186,7 @@ Taking shell quoting into account, you may need to use something like
 <li>Git ref</li>
 <li>Commit ID or change ID</li>
 </ol>
-<h2 id="operators">Operators</h2>
+<h2 id="operators">Operators<a class="headerlink" href="#operators" title="Permanent link">&para;</a></h2>
 <p>The following operators are supported. <code>x</code> and <code>y</code> below can be any revset, not
 only symbols.</p>
 <ul>
@@ -1173,7 +1210,7 @@ only symbols.</p>
 </ul>
 <p>You can use parentheses to control evaluation order, such as <code>(x &amp; y) | z</code> or
 <code>x &amp; (y | z)</code>.</p>
-<h2 id="functions">Functions</h2>
+<h2 id="functions">Functions<a class="headerlink" href="#functions" title="Permanent link">&para;</a></h2>
 <p>You can also specify revisions by using functions. Some functions take other
 revsets (expressions) as arguments.</p>
 <ul>
@@ -1236,54 +1273,46 @@ revsets (expressions) as arguments.</p>
 <li><code>present(x)</code>: Same as <code>x</code>, but evaluated to <code>none()</code> if any of the commits
   in <code>x</code> doesn't exist (e.g. is an unknown branch name.)</li>
 </ul>
-<h2 id="string-patterns">String patterns</h2>
+<h2 id="string-patterns">String patterns<a class="headerlink" href="#string-patterns" title="Permanent link">&para;</a></h2>
 <p>Functions that perform string matching support the following pattern syntax.</p>
 <ul>
 <li><code>"string"</code>, <code>substring:"string"</code>: Matches strings that contain <code>string</code>.</li>
 <li><code>exact:"string"</code>: Matches strings exactly equal to <code>string</code>.</li>
 </ul>
-<h2 id="aliases">Aliases</h2>
+<h2 id="aliases">Aliases<a class="headerlink" href="#aliases" title="Permanent link">&para;</a></h2>
 <p>New symbols and functions can be defined in the config file, by using any
 combination of the predefined symbols/functions and other aliases.</p>
 <p>For example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[revset-aliases]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
 <span class="s">&#39;mine&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#39;author(martinvonz)&#39;</span>
 <span class="s">&#39;user(x)&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#39;author(x) | committer(x)&#39;</span>
 </code></pre></div>
-
-<h2 id="examples">Examples</h2>
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Show the parent(s) of the working-copy commit (like <code>git log -1 HEAD</code>):</p>
-<div class="codehilite"><pre><span></span><code>jj log -r @-
+<div class="highlight"><pre><span></span><code>jj log -r @-
 </code></pre></div>
-
 <p>Show commits not on any remote branch:</p>
-<div class="codehilite"><pre><span></span><code>jj log -r &#39;remote_branches()..&#39;
+<div class="highlight"><pre><span></span><code>jj log -r &#39;remote_branches()..&#39;
 </code></pre></div>
-
 <p>Show commits not on <code>origin</code> (if you have other remotes like <code>fork</code>):</p>
-<div class="codehilite"><pre><span></span><code>jj log -r &#39;remote_branches(remote=origin)..&#39;
+<div class="highlight"><pre><span></span><code>jj log -r &#39;remote_branches(remote=origin)..&#39;
 </code></pre></div>
-
 <p>Show all ancestors of the working copy (almost like plain <code>git log</code>)</p>
-<div class="codehilite"><pre><span></span><code>jj log -r :@
+<div class="highlight"><pre><span></span><code>jj log -r :@
 </code></pre></div>
-
 <p>Show the initial commits in the repo (the ones Git calls "root commits"):</p>
-<div class="codehilite"><pre><span></span><code>jj log -r root+
+<div class="highlight"><pre><span></span><code>jj log -r root+
 </code></pre></div>
-
 <p>Show some important commits (like <code>git --simplify-by-decoration</code>):</p>
-<div class="codehilite"><pre><span></span><code>jj log -r &#39;tags() | branches()&#39;
+<div class="highlight"><pre><span></span><code>jj log -r &#39;tags() | branches()&#39;
 </code></pre></div>
-
 <p>Show local commits leading up to the working copy, as well as descendants of
 those commits:</p>
-<div class="codehilite"><pre><span></span><code>jj log -r &#39;(remote_branches()..@):&#39;
+<div class="highlight"><pre><span></span><code>jj log -r &#39;(remote_branches()..@):&#39;
 </code></pre></div>
-
 <p>Show commits authored by "martinvonz" and containing the word "reset" in the
 description:</p>
-<div class="codehilite"><pre><span></span><code>jj log -r &#39;author(martinvonz) &amp; description(reset)&#39;
+<div class="highlight"><pre><span></span><code>jj log -r &#39;author(martinvonz) &amp; description(reset)&#39;
 </code></pre></div>
 
 

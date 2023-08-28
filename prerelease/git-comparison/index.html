@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.3">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
     
     
       
@@ -115,6 +115,43 @@
     </div>
     
     
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
     
     
   </nav>
@@ -237,7 +274,7 @@
         
   
   <span class="md-ellipsis">
-    Working with Github
+    Working with GitHub
   </span>
   
 
@@ -851,7 +888,7 @@
         
   
   <span class="md-ellipsis">
-    Guidelines and Setup
+    Guidelines and "How to...?"
   </span>
   
 
@@ -1058,12 +1095,12 @@
                   
 
 
-<h1 id="comparison-with-git">Comparison with Git</h1>
-<h2 id="introduction">Introduction</h2>
+<h1 id="comparison-with-git">Comparison with Git<a class="headerlink" href="#comparison-with-git" title="Permanent link">&para;</a></h1>
+<h2 id="introduction">Introduction<a class="headerlink" href="#introduction" title="Permanent link">&para;</a></h2>
 <p>This document attempts to describe how Jujutsu is different from Git. See
 <a href="../git-compatibility/">the Git-compatibility doc</a> for information about how
 the <code>jj</code> command interoperates with Git repos.</p>
-<h2 id="overview">Overview</h2>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Here is a list of conceptual differences between Jujutsu and Git, along with
 links to more details where applicable and available. There's a
 <a href="#command-equivalence-table">table further down</a> explaining how to achieve
@@ -1113,7 +1150,7 @@ various use cases.</p>
   state (which is the state a newly initialized Git repo is in), and related
   command-line flags (e.g. <code>git rebase --root</code>, <code>git checkout --orphan</code>).</li>
 </ul>
-<h2 id="the-index">The index</h2>
+<h2 id="the-index">The index<a class="headerlink" href="#the-index" title="Permanent link">&para;</a></h2>
 <p>Git's <a href="https://git-scm.com/book/en/v2/Git-Tools-Reset-Demystified">"index"</a> has
 multiple roles. One role is as a cache of file system information. Jujutsu has
 something similar. Unfortunately, Git exposes the index to the user, which makes
@@ -1130,7 +1167,7 @@ changes into the parent commit, which you might normally use
 <code>git add -p; git commit --amend</code> for, you can instead use <code>jj squash -i</code> to
 choose which changes to move into the parent commit, or <code>jj squash &lt;file&gt;</code> to
 move a specific file.</p>
-<h2 id="command-equivalence-table">Command equivalence table</h2>
+<h2 id="command-equivalence-table">Command equivalence table<a class="headerlink" href="#command-equivalence-table" title="Permanent link">&para;</a></h2>
 <p>Note that all <code>jj</code> commands can be run on any commit (not just the working-copy
 commit), but that's left out of the table to keep it simple. For example,
 <code>jj squash/amend -r &lt;revision&gt;</code> will move the diff from that revision into its

@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.3">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
     
     
       
@@ -115,6 +115,43 @@
     </div>
     
     
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
     
     
   </nav>
@@ -237,7 +274,7 @@
         
   
   <span class="md-ellipsis">
-    Working with Github
+    Working with GitHub
   </span>
   
 
@@ -781,7 +818,7 @@
         
   
   <span class="md-ellipsis">
-    Guidelines and Setup
+    Guidelines and "How to...?"
   </span>
   
 
@@ -1324,13 +1361,13 @@
                   
 
 
-<h1 id="git-submodules">Git submodules</h1>
+<h1 id="git-submodules">Git submodules<a class="headerlink" href="#git-submodules" title="Permanent link">&para;</a></h1>
 <p>This is an aspirational document that describes how jj <em>will</em> support Git
 submodules. Readers are assumed to have some familiarity with Git and Git
 submodules.</p>
 <p>This document is a work in progress; submodules are a big feature, and relevant
 details will be filled in incrementally.</p>
-<h2 id="objective">Objective</h2>
+<h2 id="objective">Objective<a class="headerlink" href="#objective" title="Permanent link">&para;</a></h2>
 <p>This proposal aims to replicate the workflows users are used to with Git
 submodules, e.g.:</p>
 <ul>
@@ -1341,19 +1378,19 @@ submodules, e.g.:</p>
 </ul>
 <p>When it is convenient, this proposal will also aim to make submodules easier to
 use than Git's implementation.</p>
-<h3 id="non-goals">Non-goals</h3>
+<h3 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Non-Git 'submodules' (e.g. native jj submodules, other VCSes)</li>
 <li>Non-Git backends (e.g. Google internal backend)</li>
 <li>Changing how Git submodules are implemented in Git</li>
 </ul>
-<h2 id="background">Background</h2>
+<h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
 <p>We mainly want to support Git submodules for feature parity, since Git
 submodules are a standard feature in Git and are popular enough that we have
 received user requests for them. Secondarily (and distantly so), Git submodules
 are notoriously difficult to use, so there is an opportunity to improve the UX
 over Git's implementation.</p>
-<h3 id="intro-to-git-submodules">Intro to Git Submodules</h3>
+<h3 id="intro-to-git-submodules">Intro to Git Submodules<a class="headerlink" href="#intro-to-git-submodules" title="Permanent link">&para;</a></h3>
 <p><a href="https://git-scm.com/docs/gitsubmodules">Git submodules</a> are a feature of Git
 that allow a repository (submodule) to be embedded inside another repository
 (the superproject). Notably, a submodule is a full repository, complete with its
@@ -1386,7 +1423,7 @@ submodule's actual Git directory (an "old-form" submodule), or a <code>.git</cod
 pointing to <code>&lt;superproject-git-directory&gt;/modules/&lt;submodule-name&gt;</code>. The latter
 is sometimes called the "absorbed form", and is Git's preferred mode of
 operation.</p>
-<h2 id="roadmap">Roadmap</h2>
+<h2 id="roadmap">Roadmap<a class="headerlink" href="#roadmap" title="Permanent link">&para;</a></h2>
 <p>Git submodules should be implemented in an order that supports an increasing set
 of workflows, with the goal of getting feedback early and often. When support is
 incomplete, jj should not crash, but instead provide fallback behavior and warn
@@ -1395,11 +1432,11 @@ the user where needed.</p>
 repositories will be supported when convenient.</p>
 <p>This section should be treated as a set of guidelines, not a strict order of
 work.</p>
-<h3 id="phase-1-readonly-submodules">Phase 1: Readonly submodules</h3>
+<h3 id="phase-1-readonly-submodules">Phase 1: Readonly submodules<a class="headerlink" href="#phase-1-readonly-submodules" title="Permanent link">&para;</a></h3>
 <p>This includes work that inspects submodule contents but does not create new
 objects in the submodule. This requires a way to store submodules in a jj
 repository that supports readonly operations.</p>
-<h4 id="outcomes">Outcomes</h4>
+<h4 id="outcomes">Outcomes<a class="headerlink" href="#outcomes" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Submodules can be cloned anew</li>
 <li>New submodule commits can be fetched</li>
@@ -1409,21 +1446,21 @@ repository that supports readonly operations.</p>
 <li>Conflicts in the superproject gitlink can be resolved to an existing submodule
   commit</li>
 </ul>
-<h3 id="phase-2-snapshotting-new-changes">Phase 2: Snapshotting new changes</h3>
+<h3 id="phase-2-snapshotting-new-changes">Phase 2: Snapshotting new changes<a class="headerlink" href="#phase-2-snapshotting-new-changes" title="Permanent link">&para;</a></h3>
 <p>This allows a user to write new contents to a submodule and its remote.</p>
-<h4 id="outcomes_1">Outcomes</h4>
+<h4 id="outcomes_1">Outcomes<a class="headerlink" href="#outcomes_1" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Changes in the working copy can be recorded in a submodule commit</li>
 <li>Submodule branches can be modified</li>
 <li>Submodules and their branches can be pushed to their remote</li>
 </ul>
-<h3 id="phase-3-mergingrebasingconflicts">Phase 3: Merging/rebasing/conflicts</h3>
+<h3 id="phase-3-mergingrebasingconflicts">Phase 3: Merging/rebasing/conflicts<a class="headerlink" href="#phase-3-mergingrebasingconflicts" title="Permanent link">&para;</a></h3>
 <p>This allows merging and rebasing of superproject commits in a content-aware way
 (in contrast to Git, where only the gitlink commit ids are compared), as well as
 workflows that make resolving conflicts easy and sensible.</p>
 <p>This can be done in tandem with Phase 2, but will likely require a significant
 amount of design work on its own.</p>
-<h4 id="outcomes_2">Outcomes</h4>
+<h4 id="outcomes_2">Outcomes<a class="headerlink" href="#outcomes_2" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Merged/rebased submodules result in merged/rebased working copy content</li>
 <li>Merged/rebased working copy content can be committed, possibly by creating
@@ -1431,7 +1468,7 @@ amount of design work on its own.</p>
 <li>Merge/rebase between submodule and non-submodule gives a sensible result</li>
 <li>Merge/rebase between submodule A and submodule B gives a sensible result</li>
 </ul>
-<h3 id="phase-an-ideal-world">Phase ?: An ideal world</h3>
+<h3 id="phase-an-ideal-world">Phase ?: An ideal world<a class="headerlink" href="#phase-an-ideal-world" title="Permanent link">&para;</a></h3>
 <p>I.e. outcomes we would like to see if there were no constraints whatsoever.</p>
 <ul>
 <li>Rewriting submodule commits rewrites descendants correctly and updates
@@ -1442,15 +1479,15 @@ amount of design work on its own.</p>
 <li>Nested submodules are as easy to work with as non-nested submodules.</li>
 <li>The operation log captures changes in the submodule.</li>
 </ul>
-<h2 id="design">Design</h2>
-<h3 id="guiding-principles">Guiding principles</h3>
+<h2 id="design">Design<a class="headerlink" href="#design" title="Permanent link">&para;</a></h2>
+<h3 id="guiding-principles">Guiding principles<a class="headerlink" href="#guiding-principles" title="Permanent link">&para;</a></h3>
 <p>TODO</p>
-<h3 id="storing-submodules">Storing submodules</h3>
+<h3 id="storing-submodules">Storing submodules<a class="headerlink" href="#storing-submodules" title="Permanent link">&para;</a></h3>
 <p>Possible approaches under discussion. See
 <a href="../git-submodule-storage/">./git-submodule-storage.md</a>.</p>
-<h3 id="snapshotting-new-submodule-changes">Snapshotting new submodule changes</h3>
+<h3 id="snapshotting-new-submodule-changes">Snapshotting new submodule changes<a class="headerlink" href="#snapshotting-new-submodule-changes" title="Permanent link">&para;</a></h3>
 <p>TODO</p>
-<h3 id="mergingrebasing-with-submodules">Merging/rebasing with submodules</h3>
+<h3 id="mergingrebasing-with-submodules">Merging/rebasing with submodules<a class="headerlink" href="#mergingrebasing-with-submodules" title="Permanent link">&para;</a></h3>
 <p>TODO</p>
 
 

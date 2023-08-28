@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.3">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
     
     
       
@@ -115,6 +115,43 @@
     </div>
     
     
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
     
     
   </nav>
@@ -237,7 +274,7 @@
         
   
   <span class="md-ellipsis">
-    Working with Github
+    Working with GitHub
   </span>
   
 
@@ -998,7 +1035,7 @@
         
   
   <span class="md-ellipsis">
-    Guidelines and Setup
+    Guidelines and "How to...?"
   </span>
   
 
@@ -1352,14 +1389,14 @@
                   
 
 
-<h1 id="glossary">Glossary</h1>
-<h2 id="anonymous-branch">Anonymous branch</h2>
+<h1 id="glossary">Glossary<a class="headerlink" href="#glossary" title="Permanent link">&para;</a></h1>
+<h2 id="anonymous-branch">Anonymous branch<a class="headerlink" href="#anonymous-branch" title="Permanent link">&para;</a></h2>
 <p>An anonymous branch is a chain of commits that doesn't have any
 <a href="#branch">named branches</a> pointing to it or to any of its descendants. Unlike
 Git, Jujutsu keeps commits on anonymous branches around until they are
 explicitly abandoned. Visible anonymous branches are tracked by the
 <a href="#view">view</a>, which stores a list of <a href="#head">heads</a> of such branches.</p>
-<h2 id="backend">Backend</h2>
+<h2 id="backend">Backend<a class="headerlink" href="#backend" title="Permanent link">&para;</a></h2>
 <p>A backend is an implementation of the storage layer. There are currently two
 builtin commit backends: the Git backend and the native backend. The Git backend
 stores commits in a Git repository. The native backend is used for testing
@@ -1368,7 +1405,7 @@ wanted to use jj with a humongous monorepo (as Google does).</p>
 <p>There are also pluggable backends for storing other information than commits,
 such as the "operation store backend" for storing
 <a href="#operation-log">the operation log</a>.</p>
-<h2 id="branch">Branch</h2>
+<h2 id="branch">Branch<a class="headerlink" href="#branch" title="Permanent link">&para;</a></h2>
 <p>A branch is a named pointer to a <a href="#commit">commit</a>. They automatically follow
 the commit if it gets <a href="#rewrite">rewritten</a>. Branches are sometimes called
 "named branches" to distinguish them from
@@ -1376,14 +1413,14 @@ the commit if it gets <a href="#rewrite">rewritten</a>. Branches are sometimes c
 to Git's branches than to
 <a href="https://www.mercurial-scm.org/wiki/Branch#Named_branches">Mercurial's named branches</a>.
 See <a href="../branches/">here</a> for details.</p>
-<h2 id="change">Change</h2>
+<h2 id="change">Change<a class="headerlink" href="#change" title="Permanent link">&para;</a></h2>
 <p>A change is a commit as it <a href="#rewrite">evolves over time</a>.</p>
-<h2 id="change-id">Change ID</h2>
+<h2 id="change-id">Change ID<a class="headerlink" href="#change-id" title="Permanent link">&para;</a></h2>
 <p>A change ID is a unique identifier for a <a href="#change">change</a>. They are typically
 16 bytes long and are often randomly generated. By default, <code>jj log</code> presents
 them as a sequence of 12 letters in the k-z range, at the beginning of a line.
 These are actually hexadecimal numbers that use "digits" z-k instead of 0-9a-f.</p>
-<h2 id="commit">Commit</h2>
+<h2 id="commit">Commit<a class="headerlink" href="#commit" title="Permanent link">&para;</a></h2>
 <p>A snapshot of the files in the repository at a given point in time (technically
 a <a href="#tree">tree object</a>), together with some metadata. The metadata includes the
 author, the date, and pointers to the commit's parents. Through the pointers to
@@ -1397,18 +1434,18 @@ result of merging the parents. For example, <code>jj diff</code> will show the d
 introduced by a commit compared to its parent(s), and <code>jj rebase</code> will apply
 those changes onto another base commit.</p>
 <p>The word "revision" is used as a synonym for "commit".</p>
-<h2 id="commit-id">Commit ID</h2>
+<h2 id="commit-id">Commit ID<a class="headerlink" href="#commit-id" title="Permanent link">&para;</a></h2>
 <p>A commit ID is a unique identifier for a <a href="#commit">commit</a>. They are 20 bytes
 long when using the Git backend. They are presented in regular hexadecimal
 format at the end of the line in <code>jj log</code>, using 12 hexadecimal digits by
 default. When using the Git backend, the commit ID is the Git commit ID.</p>
-<h2 id="co-located-repos">Co-located repos</h2>
+<h2 id="co-located-repos">Co-located repos<a class="headerlink" href="#co-located-repos" title="Permanent link">&para;</a></h2>
 <p>When using the Git <a href="#backend">backend</a> and the backing Git repository's <code>.git/</code>
 directory is a sibling of <code>.jj/</code>, we call the repository "co-located". Most
 tools designed for Git can be easily used on such repositories. <code>jj</code> and <code>git</code>
 commands can be used interchangeably.</p>
 <p>See <a href="../git-compatibility/#co-located-jujutsugit-repos">here</a> for details.</p>
-<h2 id="conflict">Conflict</h2>
+<h2 id="conflict">Conflict<a class="headerlink" href="#conflict" title="Permanent link">&para;</a></h2>
 <p>Conflicts can occur in many places. The most common type is conflicts in files.
 Those are the conflicts that users coming from other VCSs are usually familiar
 with. You can see them in <code>jj status</code> and in <code>jj log</code> (the red "conflict"
@@ -1420,10 +1457,10 @@ See <a href="../branches/#conflicts">here</a> for details.</p>
 <p>Similar to a branch conflict, when a <a href="#change">change</a> is rewritten locally
 and remotely, for example, then the change will be in a conflicted state. We
 call that a <a href="#divergent-change">divergent change</a>.</p>
-<h2 id="divergent-change">Divergent change</h2>
+<h2 id="divergent-change">Divergent change<a class="headerlink" href="#divergent-change" title="Permanent link">&para;</a></h2>
 <p>A divergent change is a <a href="#change">change</a> that has more than one
 <a href="#visible-commits">visible commit</a>.</p>
-<h2 id="head">Head</h2>
+<h2 id="head">Head<a class="headerlink" href="#head" title="Permanent link">&para;</a></h2>
 <p>A head is a commit with no descendants. The context in which it has no
 descendants varies. For example, the <code>heads(X)</code>
 <a href="../revsets/#functions">revset function</a> returns commits that have no descendants
@@ -1431,60 +1468,60 @@ within the set <code>X</code> itself. The <a href="#view">view</a> records which
 anonymous heads (heads without a branch pointing to them) are visible at a
 given <a href="#operation">operation</a>. Note that this is quite different from Git's
 <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-References#ref_the_ref">HEAD</a>.</p>
-<h2 id="operation">Operation</h2>
+<h2 id="operation">Operation<a class="headerlink" href="#operation" title="Permanent link">&para;</a></h2>
 <p>A snapshot of the <a href="#visible-commits">visible commits</a> and <a href="#branches">branches</a>
 at a given point in time (technically a <a href="#view">view object</a>), together with
 some metadata. The metadata includes the username, hostname, timestamps, and
 pointers to the operation's parents.</p>
-<h2 id="operation-log">Operation log</h2>
+<h2 id="operation-log">Operation log<a class="headerlink" href="#operation-log" title="Permanent link">&para;</a></h2>
 <p>The operation log is the
 <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">DAG</a> formed by
 <a href="#operation">operation</a> objects, much in the same way that commits form a DAG,
 which is sometimes called the "commit history". When operations happen in
 sequence, they form a single line in the graph. Operations that happen
 concurrently from jj's perspective result in forks and merges in the DAG.</p>
-<h2 id="repository">Repository</h2>
+<h2 id="repository">Repository<a class="headerlink" href="#repository" title="Permanent link">&para;</a></h2>
 <p>Basically everything under <code>.jj/</code>, i.e. the full set of <a href="#operation">operations</a>
 and <a href="#commit">commits</a>.</p>
-<h2 id="remote">Remote</h2>
+<h2 id="remote">Remote<a class="headerlink" href="#remote" title="Permanent link">&para;</a></h2>
 <p>TODO</p>
-<h2 id="revision">Revision</h2>
+<h2 id="revision">Revision<a class="headerlink" href="#revision" title="Permanent link">&para;</a></h2>
 <p>A synonym for <a href="#commit">Commit</a>.</p>
-<h2 id="revset">Revset</h2>
+<h2 id="revset">Revset<a class="headerlink" href="#revset" title="Permanent link">&para;</a></h2>
 <p>Jujutsu supports a functional language for selecting a set of revisions.
 Expressions in this language are called "revsets". See <a href="../revsets/">here</a> for
 details. We also often use the term "revset" for the set of revisions selected
 by a revset.</p>
-<h2 id="rewrite">Rewrite</h2>
+<h2 id="rewrite">Rewrite<a class="headerlink" href="#rewrite" title="Permanent link">&para;</a></h2>
 <p>To "rewrite" a commit means to create a new version of that commit with
 different contents, metadata (including parent pointers), or both. Rewriting a
 commit results in a new commit, and thus a new <a href="#commit-id">commit ID</a>, but the
 <a href="#change-id">change ID</a> generally remains the same. Some examples of rewriting a
 commit would be changing its description or rebasing it. Modifying the working
 copy rewrites the working copy commit.</p>
-<h2 id="root-commit">Root commit</h2>
+<h2 id="root-commit">Root commit<a class="headerlink" href="#root-commit" title="Permanent link">&para;</a></h2>
 <p>The root commit is a virtual commit at the root of every repository. It has a
 commit ID consisting of all '0's (<code>00000000...</code>) and a change ID consisting of
 all 'z's (<code>zzzzzzzz...</code>). It can be referred to in <a href="#revset">revsets</a> by the
 special name <code>root</code>. Note that our definition of "root commit" is different from
 Git's; Git's "root commits" are the first commit(s) in the repository, i.e. the
 commits <code>jj log -r root+</code> will show.</p>
-<h2 id="tree">Tree</h2>
+<h2 id="tree">Tree<a class="headerlink" href="#tree" title="Permanent link">&para;</a></h2>
 <p>A tree object represents a snapshot of a directory in the repository. Tree
 objects are defined recursively; each tree object only has the files and
 directories contained directly in the directory it represents.</p>
-<h2 id="visible-commits">Visible commits</h2>
+<h2 id="visible-commits">Visible commits<a class="headerlink" href="#visible-commits" title="Permanent link">&para;</a></h2>
 <p>Visible commits are the commits you see in <code>jj log -r 'all()'</code>. They are the
 commits that are reachable from an anonymous head in the <a href="#view">view</a>.
 Ancestors of a visible commit are implicitly visible.</p>
-<h2 id="view">View</h2>
+<h2 id="view">View<a class="headerlink" href="#view" title="Permanent link">&para;</a></h2>
 <p>A view is a snapshot of branches and their targets, anonymous heads,
 and working-copy commits. The anonymous heads define which commits
 are <a href="#visible-commits">visible</a>.</p>
 <p>A view object is similar to a <a href="#tree">tree</a> object in that it represents a
 snapshot without history, and an <a href="#operation">operation</a> object is similar to a
 <a href="#commit">commit</a> object in that it adds metadata and history.</p>
-<h2 id="workspace">Workspace</h2>
+<h2 id="workspace">Workspace<a class="headerlink" href="#workspace" title="Permanent link">&para;</a></h2>
 <p>A workspace is a <a href="#working-copy">working copy</a> and an
 associated <a href="#repository">repository</a>. There can be multiple workspaces for a
 single repository. Each workspace has a <code>.jj/</code> directory, but the
@@ -1492,7 +1529,7 @@ single repository. Each workspace has a <code>.jj/</code> directory, but the
 workspace; the other workspaces will have pointers to the initial workspace. See
 <a href="../working-copy/#workspaces">here</a> for details.</p>
 <p>This is what Git calls a "worktree".</p>
-<h2 id="working-copy">Working copy</h2>
+<h2 id="working-copy">Working copy<a class="headerlink" href="#working-copy" title="Permanent link">&para;</a></h2>
 <p>The working copy contains the files you're currently working on. It is
 automatically snapshot at the beginning of almost every <code>jj</code> command, thus
 creating a new <a href="#working-copy-commit">working-copy commit</a> if any changes had
@@ -1500,7 +1537,7 @@ been made in the working copy. Conversely, the working copy is automatically
 updated to the state of the working-copy commit at the end of almost every <code>jj</code>
 command. See <a href="../working-copy/">here</a> for details.</p>
 <p>This is what Git calls a "working tree".</p>
-<h2 id="working-copy-commit">Working-copy commit</h2>
+<h2 id="working-copy-commit">Working-copy commit<a class="headerlink" href="#working-copy-commit" title="Permanent link">&para;</a></h2>
 <p>A commit that corresponds to the current state of the working copy. There is
 one working-copy commit per <a href="#workspace">workspace</a>. The current working-copy
 commits are tracked in the <a href="#operation-log">operation log</a>.</p>
