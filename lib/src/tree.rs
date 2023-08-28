@@ -24,8 +24,8 @@ use thiserror::Error;
 use tracing::instrument;
 
 use crate::backend::{
-    BackendError, ConflictId, FileId, MergedTreeId, ObjectId, TreeEntriesNonRecursiveIterator,
-    TreeEntry, TreeId, TreeValue,
+    BackendError, ConflictId, FileId, ObjectId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId,
+    TreeValue,
 };
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
@@ -106,10 +106,6 @@ impl Tree {
 
     pub fn id(&self) -> &TreeId {
         &self.id
-    }
-
-    pub fn legacy_id(&self) -> MergedTreeId {
-        MergedTreeId::Legacy(self.id.clone())
     }
 
     pub fn data(&self) -> &backend::Tree {
