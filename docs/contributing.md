@@ -114,7 +114,7 @@ These are listed roughly in order of decreasing importance.
    The `--workspace` flag is needed to run the tests on all crates; by default,
    only the crate in the current directory is tested.
 
-2. Github CI checks require that the code is formatted with the *nightly*
+2. GitHub CI checks require that the code is formatted with the *nightly*
    version of `rustfmt`. To do this on your computer, install the nightly
    toolchain and use `cargo +nightly fmt`.
 
@@ -214,10 +214,10 @@ pure Git repo if you prefer.
 2. Make sure `jjfan.github.com/jj` includes the `gh-pages` branch of the jj repo
 and run `git fetch origin gh-pages`.
 
-3. Go to the Github repository settings, enable Github Pages, and configure them
+3. Go to the GitHub repository settings, enable GitHub Pages, and configure them
 to use the `gh-pages` branch (this is usually the default).
 
-4. Run the same `sh` script that is used in Github CI (details below):
+4. Run the same `sh` script that is used in GitHub CI (details below):
 
     ```shell
     .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/'\
@@ -294,4 +294,4 @@ you can submit a PR based on the `gh-pages` branch of
 [library docs]: https://docs.rs/prost-build/latest/prost_build/#sourcing-protoc
 
  The `.rs` files generated from `.proto` files are included in the repository,
- and there is a Github CI check that will complain if they do not match.
+ and there is a GitHub CI check that will complain if they do not match.
