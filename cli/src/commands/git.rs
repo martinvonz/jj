@@ -905,7 +905,7 @@ fn cmd_git_push(
         {
             reasons.push("it has no author and/or committer set");
         }
-        if commit.merged_tree()?.has_conflict() {
+        if commit.tree()?.has_conflict() {
             reasons.push("it has conflicts");
         }
         if !reasons.is_empty() {
@@ -1050,7 +1050,7 @@ fn cmd_git_submodule_print_gitmodules(
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let commit = workspace_command.resolve_single_rev(&args.revisions, ui)?;
-    let tree = commit.merged_tree()?;
+    let tree = commit.tree()?;
     let gitmodules_path = RepoPath::from_internal_string(".gitmodules");
     let mut gitmodules_file = match tree.path_value(&gitmodules_path).into_resolved() {
         Ok(None) => {

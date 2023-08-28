@@ -869,7 +869,7 @@ fn build_predicate_fn<'index>(
         }
         RevsetFilterPredicate::HasConflict => pure_predicate_fn(move |entry| {
             let commit = store.get_commit(&entry.commit_id()).unwrap();
-            commit.merged_tree().unwrap().has_conflict()
+            commit.tree().unwrap().has_conflict()
         }),
     }
 }
@@ -884,7 +884,7 @@ fn has_diff_from_parent(
     let parents = commit.parents();
     if let [parent] = parents.as_slice() {
         // Fast path: no need to load the root tree
-        let unchanged = commit.merged_tree_id() == parent.merged_tree_id();
+        let unchanged = commit.tree_id() == parent.tree_id();
         if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
             return !unchanged;
         } else if unchanged {
@@ -892,7 +892,7 @@ fn has_diff_from_parent(
         }
     }
     let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents).unwrap();
-    let to_tree = commit.merged_tree().unwrap();
+    let to_tree = commit.tree().unwrap();
     from_tree.diff(&to_tree, matcher).next().is_some()
 }
 

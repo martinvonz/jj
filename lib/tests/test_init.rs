@@ -125,7 +125,7 @@ fn test_init_checkout(use_git: bool) {
         .unwrap();
     let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
     assert_eq!(
-        *wc_commit.merged_tree_id(),
+        *wc_commit.tree_id(),
         MergedTreeId::Legacy(repo.store().empty_tree_id().clone())
     );
     assert_eq!(

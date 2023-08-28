@@ -806,7 +806,7 @@ impl WorkspaceCommandHelper {
                     // The working copy was presumably updated by the git command that updated
                     // HEAD, so we just need to reset our working copy
                     // state to it without updating working copy files.
-                    let new_git_head_tree = new_git_head_commit.merged_tree()?;
+                    let new_git_head_tree = new_git_head_commit.tree()?;
                     locked_working_copy.reset(&new_git_head_tree)?;
                     tx.mut_repo().rebase_descendants(&self.settings)?;
                     self.user_repo = ReadonlyUserRepo::new(tx.commit());
@@ -888,7 +888,7 @@ impl WorkspaceCommandHelper {
         &mut self,
     ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
         let (locked_working_copy, wc_commit) = self.unchecked_start_working_copy_mutation()?;
-        if wc_commit.merged_tree_id() != locked_working_copy.old_tree_id() {
+        if wc_commit.tree_id() != locked_working_copy.old_tree_id() {
             return Err(user_error("Concurrent working copy operation. Try again."));
         }
         Ok((locked_working_copy, wc_commit))
@@ -1305,7 +1305,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             max_new_file_size: self.settings.max_new_file_size()?,
         })?;
         drop(progress);
-        if new_tree_id != *wc_commit.merged_tree_id() {
+        if new_tree_id != *wc_commit.tree_id() {
             let mut tx = start_repo_transaction(
                 &self.user_repo.repo,
                 &self.settings,
@@ -1672,7 +1672,7 @@ pub fn check_stale_working_copy(
 ) -> Result<Option<Operation>, StaleWorkingCopyError> {
     // Check if the working copy's tree matches the repo's view
     let wc_tree_id = locked_wc.old_tree_id();
-    if wc_commit.merged_tree_id() == wc_tree_id {
+    if wc_commit.tree_id() == wc_tree_id {
         // The working copy isn't stale, and no need to reload the repo.
         Ok(None)
     } else {
@@ -1924,11 +1924,11 @@ pub fn update_working_copy(
     old_commit: Option<&Commit>,
     new_commit: &Commit,
 ) -> Result<Option<CheckoutStats>, CommandError> {
-    let old_tree_id = old_commit.map(|commit| commit.merged_tree_id().clone());
-    let stats = if Some(new_commit.merged_tree_id()) != old_tree_id.as_ref() {
+    let old_tree_id = old_commit.map(|commit| commit.tree_id().clone());
+    let stats = if Some(new_commit.tree_id()) != old_tree_id.as_ref() {
         // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
         // warning for most commands (but be an error for the checkout command)
-        let new_tree = new_commit.merged_tree()?;
+        let new_tree = new_commit.tree()?;
         let stats = wc
             .check_out(repo.op_id().clone(), old_tree_id.as_ref(), &new_tree)
             .map_err(|err| {

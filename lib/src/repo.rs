@@ -856,7 +856,7 @@ impl MutableRepo {
             .new_commit(
                 settings,
                 vec![commit.id().clone()],
-                commit.merged_tree_id().clone(),
+                commit.tree_id().clone(),
             )
             .write()?;
         self.edit(workspace_id, &wc_commit)?;

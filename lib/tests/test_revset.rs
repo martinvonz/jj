@@ -2726,7 +2726,7 @@ fn test_change_id_index() {
             .new_commit(
                 &settings,
                 vec![root_commit.id().clone()],
-                root_commit.merged_tree_id().clone(),
+                root_commit.tree_id().clone(),
             )
             .set_change_id(ChangeId::from_hex(change_id))
             .set_description(format!("commit {commit_number}"))
