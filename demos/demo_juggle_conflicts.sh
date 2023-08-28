@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-. "$(dirname "$0")"/demo_helpers.sh
+. "$(dirname "$0")"/helpers.sh
 
 new_tmp_dir
 jj init --config-toml ui.allow-init-native=true
