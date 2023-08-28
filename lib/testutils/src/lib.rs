@@ -18,9 +18,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
 
 use itertools::Itertools;
-use jj_lib::backend::{
-    Backend, BackendInitError, FileId, MergedTreeId, ObjectId, TreeId, TreeValue,
-};
+use jj_lib::backend::{Backend, BackendInitError, FileId, MergedTreeId, ObjectId, TreeValue};
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git_backend::GitBackend;
@@ -287,14 +285,23 @@ pub fn create_random_commit<'repo>(
         .set_description(format!("random commit {number}"))
 }
 
-pub fn dump_tree(store: &Arc<Store>, tree_id: &TreeId) -> String {
+pub fn dump_tree(store: &Arc<Store>, tree_id: &MergedTreeId) -> String {
     use std::fmt::Write;
     let mut buf = String::new();
-    writeln!(&mut buf, "tree {}", tree_id.hex()).unwrap();
-    let tree = store.get_tree(&RepoPath::root(), tree_id).unwrap();
+    writeln!(
+        &mut buf,
+        "tree {}",
+        tree_id
+            .to_merge()
+            .iter()
+            .map(|tree_id| tree_id.hex())
+            .join("&")
+    )
+    .unwrap();
+    let tree = store.get_root_tree(tree_id).unwrap();
     for (path, value) in tree.entries() {
-        match value {
-            TreeValue::File { id, executable: _ } => {
+        match value.into_resolved() {
+            Ok(Some(TreeValue::File { id, executable: _ })) => {
                 let file_buf = read_file(store, &path, &id);
                 let file_contents = String::from_utf8_lossy(&file_buf);
                 writeln!(
@@ -304,13 +311,10 @@ pub fn dump_tree(store: &Arc<Store>, tree_id: &TreeId) -> String {
                 )
                 .unwrap();
             }
-            TreeValue::Symlink(id) => {
+            Ok(Some(TreeValue::Symlink(id))) => {
                 writeln!(&mut buf, "  symlink {path:?} ({})", id.hex()).unwrap();
             }
-            TreeValue::Conflict(id) => {
-                writeln!(&mut buf, "  conflict {path:?} ({})", id.hex()).unwrap();
-            }
-            TreeValue::GitSubmodule(id) => {
+            Ok(Some(TreeValue::GitSubmodule(id))) => {
                 writeln!(&mut buf, "  submodule {path:?} ({})", id.hex()).unwrap();
             }
             entry => {
