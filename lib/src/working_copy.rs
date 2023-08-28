@@ -582,17 +582,7 @@ impl TreeState {
     }
 
     fn current_tree(&self) -> Result<MergedTree, BackendError> {
-        match &self.tree_id {
-            MergedTreeId::Legacy(tree_id) => {
-                let current_tree = self.store.get_tree(&RepoPath::root(), tree_id)?;
-                Ok(MergedTree::legacy(current_tree))
-            }
-            MergedTreeId::Merge(tree_ids) => {
-                let tree_merge =
-                    tree_ids.try_map(|tree_id| self.store.get_tree(&RepoPath::root(), tree_id))?;
-                Ok(MergedTree::new(tree_merge))
-            }
-        }
+        self.store.get_root_tree(&self.tree_id)
     }
 
     fn write_file_to_store(
