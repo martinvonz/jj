@@ -885,7 +885,7 @@ fn test_fsmonitor() {
     {
         let mut locked_wc = wc.start_mutation().unwrap();
         let tree_id = snapshot(&mut locked_wc, &[&foo_path]);
-        insta::assert_snapshot!(testutils::dump_tree(repo.store(), tree_id.as_legacy_tree_id()), @r###"
+        insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
         tree 205f6b799e7d5c2524468ca006a0131aa57ecce7
           file "foo" (257cc5642cb1a054f08cc83f2d943e56fd3ebe99): "foo\n"
         "###);
@@ -898,7 +898,7 @@ fn test_fsmonitor() {
             &mut locked_wc,
             &[&foo_path, &bar_path, &nested_path, &ignored_path],
         );
-        insta::assert_snapshot!(testutils::dump_tree(repo.store(), tree_id.as_legacy_tree_id()), @r###"
+        insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
         tree ab5a0465cc71725a723f28b685844a5bc0f5b599
           file "bar" (5716ca5987cbf97d6bb54920bea6adde242d87e6): "bar\n"
           file "foo" (257cc5642cb1a054f08cc83f2d943e56fd3ebe99): "foo\n"
@@ -912,7 +912,7 @@ fn test_fsmonitor() {
         testutils::write_working_copy_file(&workspace_root, &bar_path, "updated bar\n");
         let mut locked_wc = wc.start_mutation().unwrap();
         let tree_id = snapshot(&mut locked_wc, &[&foo_path]);
-        insta::assert_snapshot!(testutils::dump_tree(repo.store(), tree_id.as_legacy_tree_id()), @r###"
+        insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
         tree 2f57ab8f48ae62e3137079f2add9878dfa1d1bcc
           file "bar" (5716ca5987cbf97d6bb54920bea6adde242d87e6): "bar\n"
           file "foo" (9d053d7c8a18a286dce9b99a59bb058be173b463): "updated foo\n"
@@ -925,7 +925,7 @@ fn test_fsmonitor() {
         std::fs::remove_file(foo_path.to_fs_path(&workspace_root)).unwrap();
         let mut locked_wc = wc.start_mutation().unwrap();
         let tree_id = snapshot(&mut locked_wc, &[&foo_path]);
-        insta::assert_snapshot!(testutils::dump_tree(repo.store(), tree_id.as_legacy_tree_id()), @r###"
+        insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
         tree 34b83765131477e1a7d72160079daec12c6144e3
           file "bar" (5716ca5987cbf97d6bb54920bea6adde242d87e6): "bar\n"
           file "path/to/nested" (79c53955ef856f16f2107446bc721c8879a1bd2e): "nested\n"

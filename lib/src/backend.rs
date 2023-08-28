@@ -177,6 +177,14 @@ impl MergedTreeId {
         MergedTreeId::Merge(Merge::resolved(tree_id))
     }
 
+    /// Return this id as `Merge<TreeId>`
+    pub fn to_merge(&self) -> Merge<TreeId> {
+        match self {
+            MergedTreeId::Legacy(tree_id) => Merge::resolved(tree_id.clone()),
+            MergedTreeId::Merge(tree_ids) => tree_ids.clone(),
+        }
+    }
+
     /// If this is a legacy tree, gets its tree id
     // TODO(#1624): delete when all callers have been updated to support tree-level
     // conflicts
