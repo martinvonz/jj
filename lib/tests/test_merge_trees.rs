@@ -604,8 +604,8 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
         rebase_commit(&settings, tx.mut_repo(), &commit_c, &[commit_b2.clone()]).unwrap();
 
     // Test the setup: Both B and C should have conflicts.
-    let tree_b2 = commit_b2.merged_tree().unwrap();
-    let tree_c2 = commit_b2.merged_tree().unwrap();
+    let tree_b2 = commit_b2.tree().unwrap();
+    let tree_c2 = commit_b2.tree().unwrap();
     assert!(!tree_b2.path_value(&path).is_resolved());
     assert!(!tree_c2.path_value(&path).is_resolved());
 
@@ -622,7 +622,7 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     let repo = tx.commit();
 
     // The conflict should now be resolved.
-    let tree_c2 = commit_c3.merged_tree().unwrap();
+    let tree_c2 = commit_c3.tree().unwrap();
     let resolved_value = tree_c2.path_value(&path);
     match resolved_value.into_resolved() {
         Ok(Some(TreeValue::File {

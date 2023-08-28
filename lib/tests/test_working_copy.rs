@@ -54,7 +54,7 @@ fn test_root(use_git: bool) {
         .get_wc_commit_id(&WorkspaceId::default())
         .unwrap();
     let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
-    assert_eq!(new_tree.id(), *wc_commit.merged_tree_id());
+    assert_eq!(new_tree.id(), *wc_commit.tree_id());
     assert_eq!(
         new_tree.id().as_legacy_tree_id(),
         repo.store().empty_tree_id()

@@ -204,7 +204,7 @@ pub fn show_patch(
 ) -> Result<(), CommandError> {
     let parents = commit.parents();
     let from_tree = rewrite::merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
-    let to_tree = commit.merged_tree()?;
+    let to_tree = commit.tree()?;
     show_diff(
         ui,
         formatter,

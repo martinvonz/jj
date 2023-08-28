@@ -100,11 +100,11 @@ impl Commit {
             .collect()
     }
 
-    pub fn merged_tree(&self) -> Result<MergedTree, BackendError> {
+    pub fn tree(&self) -> Result<MergedTree, BackendError> {
         self.store.get_root_tree(&self.data.root_tree)
     }
 
-    pub fn merged_tree_id(&self) -> &MergedTreeId {
+    pub fn tree_id(&self) -> &MergedTreeId {
         &self.data.root_tree
     }
 
@@ -133,7 +133,7 @@ impl Commit {
     pub fn is_discardable(&self) -> bool {
         if self.description().is_empty() {
             if let [parent_commit] = &*self.parents() {
-                return self.merged_tree_id() == parent_commit.merged_tree_id();
+                return self.tree_id() == parent_commit.tree_id();
             }
         }
         false

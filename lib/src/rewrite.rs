@@ -50,7 +50,7 @@ pub fn merge_commit_trees_without_repo(
     if commits.is_empty() {
         Ok(store.get_root_tree(&MergedTreeId::Legacy(store.empty_tree_id().clone()))?)
     } else {
-        let mut new_tree = commits[0].merged_tree()?;
+        let mut new_tree = commits[0].tree()?;
         let commit_ids = commits
             .iter()
             .map(|commit| commit.id().clone())
@@ -62,7 +62,7 @@ pub fn merge_commit_trees_without_repo(
                 .map(|id| store.get_commit(id))
                 .try_collect()?;
             let ancestor_tree = merge_commit_trees_without_repo(store, index, &ancestors)?;
-            let other_tree = other_commit.merged_tree()?;
+            let other_tree = other_commit.tree()?;
             new_tree = new_tree.merge(&ancestor_tree, &other_tree)?;
         }
         Ok(new_tree)
@@ -86,11 +86,11 @@ pub fn rebase_commit(
         .collect_vec();
     let new_tree_id = if new_parent_trees == old_parent_trees {
         // Optimization
-        old_commit.merged_tree_id().clone()
+        old_commit.tree_id().clone()
     } else {
         let old_base_tree = merge_commit_trees(mut_repo, &old_parents)?;
         let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
-        let old_tree = old_commit.merged_tree()?;
+        let old_tree = old_commit.tree()?;
         let merged_tree = new_base_tree.merge(&old_base_tree, &old_tree)?;
         merged_tree.id()
     };
@@ -113,7 +113,7 @@ pub fn back_out_commit(
 ) -> Result<Commit, TreeMergeError> {
     let old_base_tree = merge_commit_trees(mut_repo, &old_commit.parents())?;
     let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
-    let old_tree = old_commit.merged_tree()?;
+    let old_tree = old_commit.tree()?;
     let new_tree = new_base_tree.merge(&old_tree, &old_base_tree)?;
     let new_parent_ids = new_parents
         .iter()
@@ -358,7 +358,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 .new_commit(
                     self.settings,
                     vec![new_commit.id().clone()],
-                    new_commit.merged_tree_id().clone(),
+                    new_commit.tree_id().clone(),
                 )
                 .write()?
         };

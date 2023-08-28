@@ -81,9 +81,9 @@ fn test_initial(use_git: bool) {
     assert_eq!(
         store
             .root_commit()
-            .merged_tree()
+            .tree()
             .unwrap()
-            .diff_summary(&commit.merged_tree().unwrap(), &EverythingMatcher),
+            .diff_summary(&commit.tree().unwrap(), &EverythingMatcher),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path, root_file_path],
@@ -165,9 +165,9 @@ fn test_rewrite(use_git: bool) {
     assert_eq!(
         store
             .root_commit()
-            .merged_tree()
+            .tree()
             .unwrap()
-            .diff_summary(&rewritten_commit.merged_tree().unwrap(), &EverythingMatcher),
+            .diff_summary(&rewritten_commit.tree().unwrap(), &EverythingMatcher),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path.clone(), root_file_path],
@@ -176,9 +176,9 @@ fn test_rewrite(use_git: bool) {
     );
     assert_eq!(
         initial_commit
-            .merged_tree()
+            .tree()
             .unwrap()
-            .diff_summary(&rewritten_commit.merged_tree().unwrap(), &EverythingMatcher),
+            .diff_summary(&rewritten_commit.tree().unwrap(), &EverythingMatcher),
         DiffSummary {
             modified: vec![dir_file_path],
             added: vec![],

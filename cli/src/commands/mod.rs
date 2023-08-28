@@ -1302,7 +1302,7 @@ fn cmd_checkout(
         .new_commit(
             command.settings(),
             vec![target.id().clone()],
-            target.merged_tree_id().clone(),
+            target.tree_id().clone(),
         )
         .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs));
     let new_commit = commit_builder.write()?;
@@ -1327,8 +1327,8 @@ fn cmd_untrack(
     let base_ignores = workspace_command.base_ignores();
     let (mut locked_working_copy, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
-    let mut tree_builder = MergedTreeBuilder::new(wc_commit.merged_tree_id().clone());
-    let wc_tree = wc_commit.merged_tree()?;
+    let mut tree_builder = MergedTreeBuilder::new(wc_commit.tree_id().clone());
+    let wc_tree = wc_commit.tree()?;
     for (path, _value) in wc_tree.entries_matching(matcher.as_ref()) {
         tree_builder.set_or_remove(path, Merge::absent());
     }
@@ -1388,7 +1388,7 @@ Make sure they're ignored, then try again.",
 fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    let tree = commit.merged_tree()?;
+    let tree = commit.tree()?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     ui.request_pager();
     for (name, _value) in tree.entries_matching(matcher.as_ref()) {
@@ -1401,7 +1401,7 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
 fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    let tree = commit.merged_tree()?;
+    let tree = commit.tree()?;
     let path = workspace_command.parse_file_path(&args.path)?;
     let repo = workspace_command.repo();
     match tree.path_value(&path).into_resolved() {
@@ -1433,15 +1433,15 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
     let to_tree;
     if args.from.is_some() || args.to.is_some() {
         let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
-        from_tree = from.merged_tree()?;
+        from_tree = from.tree()?;
         let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
-        to_tree = to.merged_tree()?;
+        to_tree = to.tree()?;
     } else {
         let commit =
             workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
         let parents = commit.parents();
         from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
-        to_tree = commit.merged_tree()?
+        to_tree = commit.tree()?
     }
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
@@ -1498,7 +1498,7 @@ fn cmd_status(
 
     if let Some(wc_commit) = &maybe_wc_commit {
         let parent_tree = merge_commit_trees(repo.as_ref(), &wc_commit.parents())?;
-        let tree = wc_commit.merged_tree()?;
+        let tree = wc_commit.tree()?;
         if tree.id() == parent_tree.id() {
             formatter.write_str("The working copy is clean\n")?;
         } else {
@@ -1510,7 +1510,7 @@ fn cmd_status(
             )?;
         }
 
-        let conflicts = wc_commit.merged_tree()?.conflicts().collect_vec();
+        let conflicts = wc_commit.tree()?.conflicts().collect_vec();
         if !conflicts.is_empty() {
             writeln!(
                 formatter.labeled("conflict"),
@@ -1837,7 +1837,7 @@ fn show_predecessor_patch(
         None => return Ok(()),
     };
     let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
-    let tree = commit.merged_tree()?;
+    let tree = commit.tree()?;
     diff_util::show_diff(
         ui,
         formatter,
@@ -1860,7 +1860,7 @@ fn cmd_interdiff(
     let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
 
     let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
-    let to_tree = to.merged_tree()?;
+    let to_tree = to.tree()?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
     ui.request_pager();
@@ -1881,13 +1881,13 @@ fn rebase_to_dest_parent(
     destination: &Commit,
 ) -> Result<MergedTree, CommandError> {
     if source.parent_ids() == destination.parent_ids() {
-        Ok(source.merged_tree()?)
+        Ok(source.tree()?)
     } else {
         let destination_parent_tree =
             merge_commit_trees(workspace_command.repo().as_ref(), &destination.parents())?;
         let source_parent_tree =
             merge_commit_trees(workspace_command.repo().as_ref(), &source.parents())?;
-        let source_tree = source.merged_tree()?;
+        let source_tree = source.tree()?;
         let rebased_tree = destination_parent_tree.merge(&source_parent_tree, &source_tree)?;
         Ok(rebased_tree)
     }
@@ -2074,7 +2074,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
             .new_commit(
                 command.settings(),
                 vec![new_commit.id().clone()],
-                new_commit.merged_tree_id().clone(),
+                new_commit.tree_id().clone(),
             )
             .write()?;
         for workspace_id in workspace_ids {
@@ -2392,7 +2392,7 @@ fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(),
         destination.id().hex()
     ));
     let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
-    let source_tree = source.merged_tree()?;
+    let source_tree = source.tree()?;
     let instructions = format!(
         "\
 You are moving changes from: {}
@@ -2443,7 +2443,7 @@ from the source will be moved into the destination.
         destination = tx.mut_repo().store().get_commit(&rebased_destination_id)?;
     }
     // Apply the selected changes onto the destination
-    let destination_tree = destination.merged_tree()?;
+    let destination_tree = destination.tree()?;
     let new_destination_tree = destination_tree.merge(&parent_tree, &new_parent_tree)?;
     let description = combine_messages(
         tx.base_repo(),
@@ -2491,8 +2491,8 @@ from the source will be moved into the parent.
         tx.format_commit_summary(&commit),
         tx.format_commit_summary(parent)
     );
-    let parent_tree = parent.merged_tree()?;
-    let tree = commit.merged_tree()?;
+    let parent_tree = parent.tree()?;
+    let tree = commit.tree()?;
     let new_parent_tree_id = tx.select_diff(
         ui,
         &parent_tree,
@@ -2501,7 +2501,7 @@ from the source will be moved into the parent.
         args.interactive,
         matcher.as_ref(),
     )?;
-    if &new_parent_tree_id == parent.merged_tree_id() {
+    if &new_parent_tree_id == parent.tree_id() {
         if args.interactive {
             return Err(user_error("No changes selected"));
         }
@@ -2525,7 +2525,7 @@ from the source will be moved into the parent.
     }
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
-    let abandon_child = &new_parent_tree_id == commit.merged_tree_id();
+    let abandon_child = &new_parent_tree_id == commit.tree_id();
     let description = if !args.message_paragraphs.is_empty() {
         cli_util::join_message_paragraphs(&args.message_paragraphs)
     } else {
@@ -2592,7 +2592,7 @@ aborted.
             tx.format_commit_summary(parent),
             tx.format_commit_summary(&commit)
         );
-        let parent_tree = parent.merged_tree()?;
+        let parent_tree = parent.tree()?;
         new_parent_tree_id = tx.edit_diff(ui, &parent_base_tree, &parent_tree, &instructions)?;
         if new_parent_tree_id == parent_base_tree.id() {
             return Err(user_error("No changes selected"));
@@ -2654,9 +2654,9 @@ fn cmd_chmod(ui: &mut Ui, command: &CommandHelper, args: &ChmodArgs) -> Result<(
         },
         commit.id().hex(),
     ));
-    let tree = commit.merged_tree()?;
+    let tree = commit.tree()?;
     let store = tree.store();
-    let mut tree_builder = MergedTreeBuilder::new(commit.merged_tree_id().clone());
+    let mut tree_builder = MergedTreeBuilder::new(commit.tree_id().clone());
     for repo_path in repo_paths {
         let user_error_with_path = |msg: &str| {
             user_error(format!(
@@ -2711,7 +2711,7 @@ fn cmd_resolve(
     let mut workspace_command = command.workspace_helper(ui)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    let tree = commit.merged_tree()?;
+    let tree = commit.tree()?;
     let conflicts = tree
         .conflicts()
         .filter(|path| matcher.matches(&path.0))
@@ -2749,7 +2749,7 @@ fn cmd_resolve(
     tx.finish(ui)?;
 
     if !args.quiet {
-        let new_tree = new_commit.merged_tree()?;
+        let new_tree = new_commit.tree()?;
         let new_conflicts = new_tree.conflicts().collect_vec();
         if !new_conflicts.is_empty() {
             ui.write("After this operation, some files at this revision still have conflicts:\n")?;
@@ -2873,7 +2873,7 @@ fn cmd_restore(
         to_commit = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
         from_tree = workspace_command
             .resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?
-            .merged_tree()?;
+            .tree()?;
     } else {
         to_commit =
             workspace_command.resolve_single_rev(args.changes_in.as_deref().unwrap_or("@"), ui)?;
@@ -2885,14 +2885,14 @@ fn cmd_restore(
         from_tree.id().clone()
     } else {
         let matcher = workspace_command.matcher_from_values(&args.paths)?;
-        let mut tree_builder = MergedTreeBuilder::new(to_commit.merged_tree_id().clone());
-        let to_tree = to_commit.merged_tree()?;
+        let mut tree_builder = MergedTreeBuilder::new(to_commit.tree_id().clone());
+        let to_tree = to_commit.tree()?;
         for (repo_path, before, _after) in from_tree.diff(&to_tree, matcher.as_ref()) {
             tree_builder.set_or_remove(repo_path, before);
         }
         tree_builder.write_tree(workspace_command.repo().store())?
     };
-    if &new_tree_id == to_commit.merged_tree_id() {
+    if &new_tree_id == to_commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
         let mut tx = workspace_command
@@ -2949,9 +2949,9 @@ don't make any changes, then the operation will be aborted.",
         tx.format_commit_summary(&target_commit),
     );
     let base_tree = merge_commit_trees(tx.repo(), base_commits.as_slice())?;
-    let tree = target_commit.merged_tree()?;
+    let tree = target_commit.tree()?;
     let tree_id = tx.edit_diff(ui, &base_tree, &tree, &instructions)?;
-    if tree_id == *target_commit.merged_tree_id() {
+    if tree_id == *target_commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
         let mut_repo = tx.mut_repo();
@@ -3038,7 +3038,7 @@ fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut tx =
         workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
-    let end_tree = commit.merged_tree()?;
+    let end_tree = commit.tree()?;
     let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
     let interactive = args.paths.is_empty();
     let instructions = format!(
@@ -3061,7 +3061,7 @@ don't make any changes, then the operation will be aborted.
         interactive,
         matcher.as_ref(),
     )?;
-    if &tree_id == commit.merged_tree_id() && interactive {
+    if &tree_id == commit.tree_id() && interactive {
         ui.write("Nothing changed.\n")?;
         return Ok(());
     }
@@ -3109,7 +3109,7 @@ don't make any changes, then the operation will be aborted.
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
         .set_parents(vec![first_commit.id().clone()])
-        .set_tree_id(commit.merged_tree_id().clone())
+        .set_tree_id(commit.tree_id().clone())
         .generate_new_change_id()
         .set_description(second_description)
         .write()?;
@@ -3600,10 +3600,10 @@ fn cmd_workspace_update_stale(
         Err(_) => {
             // The same check as start_working_copy_mutation(), but with the stale
             // working-copy commit.
-            if known_wc_commit.merged_tree_id() != locked_wc.old_tree_id() {
+            if known_wc_commit.tree_id() != locked_wc.old_tree_id() {
                 return Err(user_error("Concurrent working copy operation. Try again."));
             }
-            let desired_tree = desired_wc_commit.merged_tree()?;
+            let desired_tree = desired_wc_commit.tree()?;
             let stats = locked_wc.check_out(&desired_tree).map_err(|err| {
                 CommandError::InternalError(format!(
                     "Failed to check out commit {}: {}",

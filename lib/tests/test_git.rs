@@ -2100,7 +2100,7 @@ fn test_rewrite_imported_commit() {
         .new_commit(
             &settings,
             imported_commit.parent_ids().to_vec(),
-            imported_commit.merged_tree_id().clone(),
+            imported_commit.tree_id().clone(),
         )
         .set_author(imported_commit.author().clone())
         .set_committer(imported_commit.committer().clone())

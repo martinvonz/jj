@@ -300,11 +300,11 @@ fn build_commit_keyword_opt<'repo>(
             maybe_entries.map_or(true, |entries| !entries.contains(commit.id()))
         })),
         "conflict" => language.wrap_boolean(wrap_fn(property, |commit| {
-            commit.merged_tree().unwrap().has_conflict()
+            commit.tree().unwrap().has_conflict()
         })),
         "empty" => language.wrap_boolean(wrap_fn(property, |commit| {
             let parent_tree = rewrite::merge_commit_trees(repo, &commit.parents()).unwrap();
-            *commit.merged_tree_id() == parent_tree.id()
+            *commit.tree_id() == parent_tree.id()
         })),
         "root" => language.wrap_boolean(wrap_fn(property, move |commit| {
             commit.id() == repo.store().root_commit_id()
