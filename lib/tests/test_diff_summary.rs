@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
-use jj_lib::merged_tree::{DiffSummary, MergedTree};
+use jj_lib::merged_tree::DiffSummary;
 use jj_lib::repo_path::RepoPath;
 use test_case::test_case;
-use testutils::TestRepo;
+use testutils::{create_tree, TestRepo};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -29,7 +29,7 @@ fn test_types(use_git: bool) {
     let added_path = RepoPath::from_internal_string("added");
     let removed_path = RepoPath::from_internal_string("removed");
 
-    let tree1 = testutils::create_tree(
+    let tree1 = create_tree(
         repo,
         &[
             (&clean_path, "clean"),
@@ -38,7 +38,7 @@ fn test_types(use_git: bool) {
         ],
     );
 
-    let tree2 = testutils::create_tree(
+    let tree2 = create_tree(
         repo,
         &[
             (&clean_path, "clean"),
@@ -48,7 +48,7 @@ fn test_types(use_git: bool) {
     );
 
     assert_eq!(
-        MergedTree::Legacy(tree1).diff_summary(&MergedTree::Legacy(tree2), &EverythingMatcher),
+        tree1.diff_summary(&tree2, &EverythingMatcher),
         DiffSummary {
             modified: vec![modified_path],
             added: vec![added_path],
@@ -66,12 +66,11 @@ fn test_tree_file_transition(use_git: bool) {
     let dir_file_path = RepoPath::from_internal_string("dir/file");
     let dir_path = RepoPath::from_internal_string("dir");
 
-    let tree1 = testutils::create_tree(repo, &[(&dir_file_path, "contents")]);
-    let tree2 = testutils::create_tree(repo, &[(&dir_path, "contents")]);
+    let tree1 = create_tree(repo, &[(&dir_file_path, "contents")]);
+    let tree2 = create_tree(repo, &[(&dir_path, "contents")]);
 
     assert_eq!(
-        MergedTree::Legacy(tree1.clone())
-            .diff_summary(&MergedTree::Legacy(tree2.clone()), &EverythingMatcher),
+        tree1.diff_summary(&tree2, &EverythingMatcher),
         DiffSummary {
             modified: vec![],
             added: vec![dir_path.clone()],
@@ -79,7 +78,7 @@ fn test_tree_file_transition(use_git: bool) {
         }
     );
     assert_eq!(
-        MergedTree::Legacy(tree2).diff_summary(&MergedTree::Legacy(tree1), &EverythingMatcher),
+        tree2.diff_summary(&tree1, &EverythingMatcher),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path],
@@ -104,7 +103,7 @@ fn test_sorting(use_git: bool) {
     let s_b_path = RepoPath::from_internal_string("s/b");
     let z_path = RepoPath::from_internal_string("z");
 
-    let tree1 = testutils::create_tree(
+    let tree1 = create_tree(
         repo,
         &[
             (&a_path, "before"),
@@ -113,7 +112,7 @@ fn test_sorting(use_git: bool) {
         ],
     );
 
-    let tree2 = testutils::create_tree(
+    let tree2 = create_tree(
         repo,
         &[
             (&a_path, "after"),
@@ -129,8 +128,7 @@ fn test_sorting(use_git: bool) {
     );
 
     assert_eq!(
-        MergedTree::Legacy(tree1.clone())
-            .diff_summary(&MergedTree::Legacy(tree2.clone()), &EverythingMatcher),
+        tree1.diff_summary(&tree2, &EverythingMatcher),
         DiffSummary {
             modified: vec![a_path.clone(), f_a_path.clone(), f_f_a_path.clone()],
             added: vec![
@@ -145,7 +143,7 @@ fn test_sorting(use_git: bool) {
         }
     );
     assert_eq!(
-        MergedTree::Legacy(tree2).diff_summary(&MergedTree::Legacy(tree1), &EverythingMatcher),
+        tree2.diff_summary(&tree1, &EverythingMatcher),
         DiffSummary {
             modified: vec![a_path, f_a_path, f_f_a_path],
             added: vec![],
@@ -163,13 +161,12 @@ fn test_matcher_dir_file_transition(use_git: bool) {
     let a_path = RepoPath::from_internal_string("a");
     let a_a_path = RepoPath::from_internal_string("a/a");
 
-    let tree1 = testutils::create_tree(repo, &[(&a_path, "before")]);
-    let tree2 = testutils::create_tree(repo, &[(&a_a_path, "after")]);
+    let tree1 = create_tree(repo, &[(&a_path, "before")]);
+    let tree2 = create_tree(repo, &[(&a_a_path, "after")]);
 
     let matcher = FilesMatcher::new(&[a_path.clone()]);
     assert_eq!(
-        MergedTree::Legacy(tree1.clone())
-            .diff_summary(&MergedTree::Legacy(tree2.clone()), &matcher),
+        tree1.diff_summary(&tree2, &matcher),
         DiffSummary {
             modified: vec![],
             added: vec![],
@@ -177,8 +174,7 @@ fn test_matcher_dir_file_transition(use_git: bool) {
         }
     );
     assert_eq!(
-        MergedTree::Legacy(tree2.clone())
-            .diff_summary(&MergedTree::Legacy(tree1.clone()), &matcher),
+        tree2.diff_summary(&tree1, &matcher),
         DiffSummary {
             modified: vec![],
             added: vec![a_path.clone()],
@@ -188,8 +184,7 @@ fn test_matcher_dir_file_transition(use_git: bool) {
 
     let matcher = FilesMatcher::new(&[a_a_path.clone()]);
     assert_eq!(
-        MergedTree::Legacy(tree1.clone())
-            .diff_summary(&MergedTree::Legacy(tree2.clone()), &matcher),
+        tree1.diff_summary(&tree2, &matcher),
         DiffSummary {
             modified: vec![],
             added: vec![a_a_path.clone()],
@@ -197,8 +192,7 @@ fn test_matcher_dir_file_transition(use_git: bool) {
         }
     );
     assert_eq!(
-        MergedTree::Legacy(tree2.clone())
-            .diff_summary(&MergedTree::Legacy(tree1.clone()), &matcher),
+        tree2.diff_summary(&tree1, &matcher),
         DiffSummary {
             modified: vec![],
             added: vec![],
@@ -208,8 +202,7 @@ fn test_matcher_dir_file_transition(use_git: bool) {
 
     let matcher = FilesMatcher::new(&[a_path.clone(), a_a_path.clone()]);
     assert_eq!(
-        MergedTree::Legacy(tree1.clone())
-            .diff_summary(&MergedTree::Legacy(tree2.clone()), &matcher),
+        tree1.diff_summary(&tree2, &matcher),
         DiffSummary {
             modified: vec![],
             added: vec![a_a_path.clone()],
@@ -217,7 +210,7 @@ fn test_matcher_dir_file_transition(use_git: bool) {
         }
     );
     assert_eq!(
-        MergedTree::Legacy(tree2).diff_summary(&MergedTree::Legacy(tree1), &matcher),
+        tree2.diff_summary(&tree1, &matcher),
         DiffSummary {
             modified: vec![],
             added: vec![a_path],
@@ -237,12 +230,12 @@ fn test_matcher_normal_cases(use_git: bool) {
     let dir2_b_path = RepoPath::from_internal_string("dir2/b");
     let z_path = RepoPath::from_internal_string("z");
 
-    let tree1 = testutils::create_tree(repo, &[(&a_path, "before"), (&dir1_a_path, "before")]);
+    let tree1 = create_tree(repo, &[(&a_path, "before"), (&dir1_a_path, "before")]);
     // File "a" gets modified
     // File "dir1/a" gets modified
     // File "dir2/b" gets created
     // File "z" gets created
-    let tree2 = testutils::create_tree(
+    let tree2 = create_tree(
         repo,
         &[
             (&a_path, "after"),
@@ -254,8 +247,7 @@ fn test_matcher_normal_cases(use_git: bool) {
 
     let matcher = FilesMatcher::new(&[a_path.clone(), z_path.clone()]);
     assert_eq!(
-        MergedTree::Legacy(tree1.clone())
-            .diff_summary(&MergedTree::Legacy(tree2.clone()), &matcher),
+        tree1.diff_summary(&tree2, &matcher),
         DiffSummary {
             modified: vec![a_path.clone()],
             added: vec![z_path.clone()],
@@ -263,8 +255,7 @@ fn test_matcher_normal_cases(use_git: bool) {
         }
     );
     assert_eq!(
-        MergedTree::Legacy(tree2.clone())
-            .diff_summary(&MergedTree::Legacy(tree1.clone()), &matcher),
+        tree2.diff_summary(&tree1, &matcher),
         DiffSummary {
             modified: vec![a_path],
             added: vec![],
@@ -274,8 +265,7 @@ fn test_matcher_normal_cases(use_git: bool) {
 
     let matcher = FilesMatcher::new(&[dir1_a_path.clone(), dir2_b_path.clone()]);
     assert_eq!(
-        MergedTree::Legacy(tree1.clone())
-            .diff_summary(&MergedTree::Legacy(tree2.clone()), &matcher),
+        tree1.diff_summary(&tree2, &matcher),
         DiffSummary {
             modified: vec![dir1_a_path.clone()],
             added: vec![dir2_b_path.clone()],
@@ -283,7 +273,7 @@ fn test_matcher_normal_cases(use_git: bool) {
         }
     );
     assert_eq!(
-        MergedTree::Legacy(tree2).diff_summary(&MergedTree::Legacy(tree1), &matcher),
+        tree2.diff_summary(&tree1, &matcher),
         DiffSummary {
             modified: vec![dir1_a_path],
             added: vec![],

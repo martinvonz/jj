@@ -38,11 +38,11 @@ use jj_lib::revset::{
 };
 use jj_lib::revset_graph::{ReverseRevsetGraphIterator, RevsetGraphEdge};
 use jj_lib::settings::GitSettings;
-use jj_lib::tree::merge_trees;
 use jj_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::{
-    create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo, TestWorkspace,
+    create_random_commit, create_tree, write_random_commit, CommitGraphBuilder, TestRepo,
+    TestWorkspace,
 };
 
 fn resolve_symbol(repo: &dyn Repo, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
@@ -2511,7 +2511,7 @@ fn test_evaluate_expression_file(use_git: bool) {
     let added_clean_clean = RepoPath::from_internal_string("added_clean_clean");
     let added_modified_clean = RepoPath::from_internal_string("added_modified_clean");
     let added_modified_removed = RepoPath::from_internal_string("added_modified_removed");
-    let tree1 = testutils::create_tree(
+    let tree1 = create_tree(
         repo,
         &[
             (&added_clean_clean, "1"),
@@ -2519,7 +2519,7 @@ fn test_evaluate_expression_file(use_git: bool) {
             (&added_modified_removed, "1"),
         ],
     );
-    let tree2 = testutils::create_tree(
+    let tree2 = create_tree(
         repo,
         &[
             (&added_clean_clean, "1"),
@@ -2527,7 +2527,7 @@ fn test_evaluate_expression_file(use_git: bool) {
             (&added_modified_removed, "2"),
         ],
     );
-    let tree3 = testutils::create_tree(
+    let tree3 = create_tree(
         repo,
         &[
             (&added_clean_clean, "1"),
@@ -2539,20 +2539,20 @@ fn test_evaluate_expression_file(use_git: bool) {
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
-            tree1.legacy_id(),
+            tree1.id(),
         )
         .write()
         .unwrap();
     let commit2 = mut_repo
-        .new_commit(&settings, vec![commit1.id().clone()], tree2.legacy_id())
+        .new_commit(&settings, vec![commit1.id().clone()], tree2.id())
         .write()
         .unwrap();
     let commit3 = mut_repo
-        .new_commit(&settings, vec![commit2.id().clone()], tree3.legacy_id())
+        .new_commit(&settings, vec![commit2.id().clone()], tree3.id())
         .write()
         .unwrap();
     let commit4 = mut_repo
-        .new_commit(&settings, vec![commit3.id().clone()], tree3.legacy_id())
+        .new_commit(&settings, vec![commit3.id().clone()], tree3.id())
         .write()
         .unwrap();
 
@@ -2622,10 +2622,10 @@ fn test_evaluate_expression_conflict(use_git: bool) {
     // Create a few trees, including one with a conflict in `file1`
     let file_path1 = RepoPath::from_internal_string("file1");
     let file_path2 = RepoPath::from_internal_string("file2");
-    let tree1 = testutils::create_tree(repo, &[(&file_path1, "1"), (&file_path2, "1")]);
-    let tree2 = testutils::create_tree(repo, &[(&file_path1, "2"), (&file_path2, "2")]);
-    let tree3 = testutils::create_tree(repo, &[(&file_path1, "3"), (&file_path2, "1")]);
-    let tree4 = merge_trees(&tree2, &tree1, &tree3).unwrap();
+    let tree1 = create_tree(repo, &[(&file_path1, "1"), (&file_path2, "1")]);
+    let tree2 = create_tree(repo, &[(&file_path1, "2"), (&file_path2, "2")]);
+    let tree3 = create_tree(repo, &[(&file_path1, "3"), (&file_path2, "1")]);
+    let tree4 = tree2.merge(&tree1, &tree3).unwrap();
 
     let mut create_commit = |parent_ids, tree_id| {
         mut_repo
@@ -2633,13 +2633,10 @@ fn test_evaluate_expression_conflict(use_git: bool) {
             .write()
             .unwrap()
     };
-    let commit1 = create_commit(
-        vec![repo.store().root_commit_id().clone()],
-        MergedTreeId::Legacy(tree1.id().clone()),
-    );
-    let commit2 = create_commit(vec![commit1.id().clone()], tree2.legacy_id());
-    let commit3 = create_commit(vec![commit2.id().clone()], tree3.legacy_id());
-    let commit4 = create_commit(vec![commit3.id().clone()], tree4.legacy_id());
+    let commit1 = create_commit(vec![repo.store().root_commit_id().clone()], tree1.id());
+    let commit2 = create_commit(vec![commit1.id().clone()], tree2.id());
+    let commit3 = create_commit(vec![commit2.id().clone()], tree3.id());
+    let commit4 = create_commit(vec![commit3.id().clone()], tree4.id());
 
     // Only commit4 has a conflict
     assert_eq!(

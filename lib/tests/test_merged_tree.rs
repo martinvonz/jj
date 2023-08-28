@@ -21,7 +21,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::tree::merge_trees;
 use pretty_assertions::assert_eq;
-use testutils::{create_tree, write_file, write_normal_file, TestRepo};
+use testutils::{create_single_tree, write_file, write_normal_file, TestRepo};
 
 fn file_value(file_id: &FileId) -> TreeValue {
     TreeValue::File {
@@ -221,7 +221,7 @@ fn test_path_value_and_entries() {
     let modify_delete_path = RepoPath::from_internal_string("dir2/modify_delete");
     let file_dir_conflict_path = RepoPath::from_internal_string("file_dir");
     let file_dir_conflict_sub_path = RepoPath::from_internal_string("file_dir/file");
-    let tree1 = create_tree(
+    let tree1 = create_single_tree(
         repo,
         &[
             (&resolved_file_path, "unchanged"),
@@ -230,7 +230,7 @@ fn test_path_value_and_entries() {
             (&file_dir_conflict_path, "1"),
         ],
     );
-    let tree2 = create_tree(
+    let tree2 = create_single_tree(
         repo,
         &[
             (&resolved_file_path, "unchanged"),
@@ -239,7 +239,7 @@ fn test_path_value_and_entries() {
             (&file_dir_conflict_path, "2"),
         ],
     );
-    let tree3 = create_tree(
+    let tree3 = create_single_tree(
         repo,
         &[
             (&resolved_file_path, "unchanged"),
@@ -347,7 +347,7 @@ fn test_resolve_success() {
     let emptied_dir_path = RepoPath::from_internal_string("to-become-empty");
     let emptied_dir_file1_path = emptied_dir_path.join(&RepoPathComponent::from("file1"));
     let emptied_dir_file2_path = emptied_dir_path.join(&RepoPathComponent::from("file2"));
-    let base1 = create_tree(
+    let base1 = create_single_tree(
         repo,
         &[
             (&unchanged_path, "unchanged"),
@@ -357,7 +357,7 @@ fn test_resolve_success() {
             (&emptied_dir_file2_path, "base1"),
         ],
     );
-    let side1 = create_tree(
+    let side1 = create_single_tree(
         repo,
         &[
             (&unchanged_path, "unchanged"),
@@ -367,7 +367,7 @@ fn test_resolve_success() {
             (&emptied_dir_file2_path, "base1"),
         ],
     );
-    let side2 = create_tree(
+    let side2 = create_single_tree(
         repo,
         &[
             (&unchanged_path, "unchanged"),
@@ -377,7 +377,7 @@ fn test_resolve_success() {
             (&emptied_dir_file1_path, "base1"),
         ],
     );
-    let expected = create_tree(
+    let expected = create_single_tree(
         repo,
         &[
             (&unchanged_path, "unchanged"),
@@ -408,9 +408,9 @@ fn test_resolve_root_becomes_empty() {
 
     let path1 = RepoPath::from_internal_string("dir1/file");
     let path2 = RepoPath::from_internal_string("dir2/file");
-    let base1 = create_tree(repo, &[(&path1, "base1"), (&path2, "base1")]);
-    let side1 = create_tree(repo, &[(&path2, "base1")]);
-    let side2 = create_tree(repo, &[(&path1, "base1")]);
+    let base1 = create_single_tree(repo, &[(&path1, "base1"), (&path2, "base1")]);
+    let side1 = create_single_tree(repo, &[(&path2, "base1")]);
+    let side2 = create_single_tree(repo, &[(&path1, "base1")]);
 
     let tree = MergedTree::new(Merge::new(vec![base1], vec![side1, side2]));
     let resolved = tree.resolve().unwrap();
@@ -426,12 +426,15 @@ fn test_resolve_with_conflict() {
     // cannot)
     let trivial_path = RepoPath::from_internal_string("dir1/trivial");
     let conflict_path = RepoPath::from_internal_string("dir2/file_conflict");
-    let base1 = create_tree(repo, &[(&trivial_path, "base1"), (&conflict_path, "base1")]);
-    let side1 = create_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side1")]);
-    let side2 = create_tree(repo, &[(&trivial_path, "base1"), (&conflict_path, "side2")]);
-    let expected_base1 = create_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "base1")]);
-    let expected_side1 = create_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side1")]);
-    let expected_side2 = create_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side2")]);
+    let base1 = create_single_tree(repo, &[(&trivial_path, "base1"), (&conflict_path, "base1")]);
+    let side1 = create_single_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side1")]);
+    let side2 = create_single_tree(repo, &[(&trivial_path, "base1"), (&conflict_path, "side2")]);
+    let expected_base1 =
+        create_single_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "base1")]);
+    let expected_side1 =
+        create_single_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side1")]);
+    let expected_side2 =
+        create_single_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side2")]);
 
     let tree = MergedTree::new(Merge::new(vec![base1], vec![side1, side2]));
     let resolved_tree = tree.resolve().unwrap();
@@ -456,7 +459,7 @@ fn test_conflict_iterator() {
     let dir_file_path = RepoPath::from_internal_string("dir/subdir/dir_file");
     let added_dir_path = RepoPath::from_internal_string("dir/new_dir");
     let modify_delete_dir_path = RepoPath::from_internal_string("dir/modify_delete_dir");
-    let base1 = create_tree(
+    let base1 = create_single_tree(
         repo,
         &[
             (&unchanged_path, "unchanged"),
@@ -474,7 +477,7 @@ fn test_conflict_iterator() {
             ),
         ],
     );
-    let side1 = create_tree(
+    let side1 = create_single_tree(
         repo,
         &[
             (&unchanged_path, "unchanged"),
@@ -495,7 +498,7 @@ fn test_conflict_iterator() {
             ),
         ],
     );
-    let side2 = create_tree(
+    let side2 = create_single_tree(
         repo,
         &[
             (&unchanged_path, "unchanged"),
@@ -564,23 +567,23 @@ fn test_conflict_iterator_higher_arity() {
 
     let two_sided_path = RepoPath::from_internal_string("dir/2-sided");
     let three_sided_path = RepoPath::from_internal_string("dir/3-sided");
-    let base1 = create_tree(
+    let base1 = create_single_tree(
         repo,
         &[(&two_sided_path, "base1"), (&three_sided_path, "base1")],
     );
-    let base2 = create_tree(
+    let base2 = create_single_tree(
         repo,
         &[(&two_sided_path, "base2"), (&three_sided_path, "base2")],
     );
-    let side1 = create_tree(
+    let side1 = create_single_tree(
         repo,
         &[(&two_sided_path, "side1"), (&three_sided_path, "side1")],
     );
-    let side2 = create_tree(
+    let side2 = create_single_tree(
         repo,
         &[(&two_sided_path, "base1"), (&three_sided_path, "side2")],
     );
-    let side3 = create_tree(
+    let side3 = create_single_tree(
         repo,
         &[(&two_sided_path, "side3"), (&three_sided_path, "side3")],
     );
@@ -643,7 +646,7 @@ fn test_diff_resolved() {
     let modified_path = RepoPath::from_internal_string("dir2/file");
     let removed_path = RepoPath::from_internal_string("dir3/file");
     let added_path = RepoPath::from_internal_string("dir4/file");
-    let before = create_tree(
+    let before = create_single_tree(
         repo,
         &[
             (&clean_path, "clean"),
@@ -651,7 +654,7 @@ fn test_diff_resolved() {
             (&removed_path, "before"),
         ],
     );
-    let after = create_tree(
+    let after = create_single_tree(
         repo,
         &[
             (&clean_path, "clean"),
@@ -706,7 +709,7 @@ fn test_diff_conflicted() {
     let path2 = RepoPath::from_internal_string("dir2/file");
     let path3 = RepoPath::from_internal_string("dir4/file");
     let path4 = RepoPath::from_internal_string("dir6/file");
-    let left_base = create_tree(
+    let left_base = create_single_tree(
         repo,
         &[
             (&path1, "clean-base"),
@@ -714,7 +717,7 @@ fn test_diff_conflicted() {
             (&path3, "left"),
         ],
     );
-    let left_side1 = create_tree(
+    let left_side1 = create_single_tree(
         repo,
         &[
             (&path1, "clean-side1"),
@@ -722,7 +725,7 @@ fn test_diff_conflicted() {
             (&path3, "left"),
         ],
     );
-    let left_side2 = create_tree(
+    let left_side2 = create_single_tree(
         repo,
         &[
             (&path1, "clean-side2"),
@@ -730,7 +733,7 @@ fn test_diff_conflicted() {
             (&path3, "left"),
         ],
     );
-    let right_base = create_tree(
+    let right_base = create_single_tree(
         repo,
         &[
             (&path1, "clean-base"),
@@ -739,7 +742,7 @@ fn test_diff_conflicted() {
             (&path4, "right-base"),
         ],
     );
-    let right_side1 = create_tree(
+    let right_side1 = create_single_tree(
         repo,
         &[
             (&path1, "clean-side1"),
@@ -748,7 +751,7 @@ fn test_diff_conflicted() {
             (&path4, "right-side1"),
         ],
     );
-    let right_side2 = create_tree(
+    let right_side2 = create_single_tree(
         repo,
         &[
             (&path1, "clean-side2"),
@@ -816,7 +819,7 @@ fn test_diff_dir_file() {
     let path5 = RepoPath::from_internal_string("path5");
     let path6 = RepoPath::from_internal_string("path6");
     let file = RepoPathComponent::from("file");
-    let left_base = create_tree(
+    let left_base = create_single_tree(
         repo,
         &[
             (&path1, "left"),
@@ -827,7 +830,7 @@ fn test_diff_dir_file() {
             (&path6.join(&file), "left"),
         ],
     );
-    let left_side1 = create_tree(
+    let left_side1 = create_single_tree(
         repo,
         &[
             (&path1, "left"),
@@ -838,7 +841,7 @@ fn test_diff_dir_file() {
             (&path6.join(&file), "left"),
         ],
     );
-    let left_side2 = create_tree(
+    let left_side2 = create_single_tree(
         repo,
         &[
             (&path1, "left"),
@@ -849,7 +852,7 @@ fn test_diff_dir_file() {
             (&path6.join(&file), "left"),
         ],
     );
-    let right_base = create_tree(
+    let right_base = create_single_tree(
         repo,
         &[
             (&path1.join(&file), "right"),
@@ -860,7 +863,7 @@ fn test_diff_dir_file() {
             // path6 is absent
         ],
     );
-    let right_side1 = create_tree(
+    let right_side1 = create_single_tree(
         repo,
         &[
             (&path1.join(&file), "right"),
@@ -871,7 +874,7 @@ fn test_diff_dir_file() {
             (&path6, "right"),
         ],
     );
-    let right_side2 = create_tree(
+    let right_side2 = create_single_tree(
         repo,
         &[
             (&path1.join(&file), "right"),
@@ -1037,10 +1040,10 @@ fn test_merge_simple() {
 
     let path1 = RepoPath::from_internal_string("dir1/file");
     let path2 = RepoPath::from_internal_string("dir2/file");
-    let base1 = testutils::create_tree(repo, &[(&path1, "base"), (&path2, "base")]);
-    let side1 = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "base")]);
-    let side2 = testutils::create_tree(repo, &[(&path1, "base"), (&path2, "side2")]);
-    let expected = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "side2")]);
+    let base1 = create_single_tree(repo, &[(&path1, "base"), (&path2, "base")]);
+    let side1 = create_single_tree(repo, &[(&path1, "side1"), (&path2, "base")]);
+    let side2 = create_single_tree(repo, &[(&path1, "base"), (&path2, "side2")]);
+    let expected = create_single_tree(repo, &[(&path1, "side1"), (&path2, "side2")]);
     let base1_merged = MergedTree::new(Merge::resolved(base1));
     let side1_merged = MergedTree::new(Merge::resolved(side1));
     let side2_merged = MergedTree::new(Merge::resolved(side2));
@@ -1059,12 +1062,12 @@ fn test_merge_partial_resolution() {
     // path1 can be resolved, path2 cannot
     let path1 = RepoPath::from_internal_string("dir1/file");
     let path2 = RepoPath::from_internal_string("dir2/file");
-    let base1 = testutils::create_tree(repo, &[(&path1, "base"), (&path2, "base")]);
-    let side1 = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "side1")]);
-    let side2 = testutils::create_tree(repo, &[(&path1, "base"), (&path2, "side2")]);
-    let expected_base1 = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "base")]);
-    let expected_side1 = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "side1")]);
-    let expected_side2 = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "side2")]);
+    let base1 = create_single_tree(repo, &[(&path1, "base"), (&path2, "base")]);
+    let side1 = create_single_tree(repo, &[(&path1, "side1"), (&path2, "side1")]);
+    let side2 = create_single_tree(repo, &[(&path1, "base"), (&path2, "side2")]);
+    let expected_base1 = create_single_tree(repo, &[(&path1, "side1"), (&path2, "base")]);
+    let expected_side1 = create_single_tree(repo, &[(&path1, "side1"), (&path2, "side1")]);
+    let expected_side2 = create_single_tree(repo, &[(&path1, "side1"), (&path2, "side2")]);
     let base1_merged = MergedTree::new(Merge::resolved(base1));
     let side1_merged = MergedTree::new(Merge::resolved(side1));
     let side2_merged = MergedTree::new(Merge::resolved(side2));
@@ -1089,9 +1092,9 @@ fn test_merge_with_empty_legacy_tree() {
         .store()
         .get_tree(&RepoPath::root(), repo.store().empty_tree_id())
         .unwrap();
-    let side1 = testutils::create_tree(repo, &[(&path1, "side1")]);
-    let side2 = testutils::create_tree(repo, &[(&path2, "side2")]);
-    let expected = testutils::create_tree(repo, &[(&path1, "side1"), (&path2, "side2")]);
+    let side1 = create_single_tree(repo, &[(&path1, "side1")]);
+    let side2 = create_single_tree(repo, &[(&path2, "side2")]);
+    let expected = create_single_tree(repo, &[(&path1, "side1"), (&path2, "side2")]);
     let base1_merged = MergedTree::legacy(base1);
     let side1_merged = MergedTree::new(Merge::resolved(side1));
     let side2_merged = MergedTree::new(Merge::resolved(side2));
@@ -1109,11 +1112,11 @@ fn test_merge_simplify_only() {
     let repo = &test_repo.repo;
 
     let path = RepoPath::from_internal_string("dir1/file");
-    let tree1 = testutils::create_tree(repo, &[(&path, "1")]);
-    let tree2 = testutils::create_tree(repo, &[(&path, "2")]);
-    let tree3 = testutils::create_tree(repo, &[(&path, "3")]);
-    let tree4 = testutils::create_tree(repo, &[(&path, "4")]);
-    let tree5 = testutils::create_tree(repo, &[(&path, "5")]);
+    let tree1 = create_single_tree(repo, &[(&path, "1")]);
+    let tree2 = create_single_tree(repo, &[(&path, "2")]);
+    let tree3 = create_single_tree(repo, &[(&path, "3")]);
+    let tree4 = create_single_tree(repo, &[(&path, "4")]);
+    let tree5 = create_single_tree(repo, &[(&path, "5")]);
     let expected = tree5.clone();
     let base1_merged = MergedTree::new(Merge::new(
         vec![tree1.clone()],
@@ -1144,14 +1147,14 @@ fn test_merge_simplify_result() {
     // The conflict in path1 cannot be resolved, but the conflict in path2 can.
     let path1 = RepoPath::from_internal_string("dir1/file");
     let path2 = RepoPath::from_internal_string("dir2/file");
-    let tree1 = testutils::create_tree(repo, &[(&path1, "1"), (&path2, "1")]);
-    let tree2 = testutils::create_tree(repo, &[(&path1, "2"), (&path2, "2")]);
-    let tree3 = testutils::create_tree(repo, &[(&path1, "3"), (&path2, "3")]);
-    let tree4 = testutils::create_tree(repo, &[(&path1, "4"), (&path2, "2")]);
-    let tree5 = testutils::create_tree(repo, &[(&path1, "4"), (&path2, "1")]);
-    let expected_base1 = testutils::create_tree(repo, &[(&path1, "1"), (&path2, "3")]);
-    let expected_side1 = testutils::create_tree(repo, &[(&path1, "2"), (&path2, "3")]);
-    let expected_side2 = testutils::create_tree(repo, &[(&path1, "3"), (&path2, "3")]);
+    let tree1 = create_single_tree(repo, &[(&path1, "1"), (&path2, "1")]);
+    let tree2 = create_single_tree(repo, &[(&path1, "2"), (&path2, "2")]);
+    let tree3 = create_single_tree(repo, &[(&path1, "3"), (&path2, "3")]);
+    let tree4 = create_single_tree(repo, &[(&path1, "4"), (&path2, "2")]);
+    let tree5 = create_single_tree(repo, &[(&path1, "4"), (&path2, "1")]);
+    let expected_base1 = create_single_tree(repo, &[(&path1, "1"), (&path2, "3")]);
+    let expected_side1 = create_single_tree(repo, &[(&path1, "2"), (&path2, "3")]);
+    let expected_side2 = create_single_tree(repo, &[(&path1, "3"), (&path2, "3")]);
     let side1_merged = MergedTree::new(Merge::new(
         vec![tree1.clone()],
         vec![tree2.clone(), tree3.clone()],

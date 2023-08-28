@@ -20,7 +20,8 @@ use jj_lib::rewrite::DescendantRebaser;
 use maplit::{hashmap, hashset};
 use test_case::test_case;
 use testutils::{
-    assert_rebased, create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo,
+    assert_rebased, create_random_commit, create_tree, write_random_commit, CommitGraphBuilder,
+    TestRepo,
 };
 
 #[test_case(false ; "local backend")]
@@ -856,35 +857,35 @@ fn test_rebase_descendants_contents(use_git: bool) {
     // A
     let mut tx = repo.start_transaction(&settings, "test");
     let path1 = RepoPath::from_internal_string("file1");
-    let tree1 = testutils::create_tree(repo, &[(&path1, "content")]);
+    let tree1 = create_tree(repo, &[(&path1, "content")]);
     let commit_a = tx
         .mut_repo()
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
-            tree1.legacy_id(),
+            tree1.id(),
         )
         .write()
         .unwrap();
     let path2 = RepoPath::from_internal_string("file2");
-    let tree2 = testutils::create_tree(repo, &[(&path2, "content")]);
+    let tree2 = create_tree(repo, &[(&path2, "content")]);
     let commit_b = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_a.id().clone()], tree2.legacy_id())
+        .new_commit(&settings, vec![commit_a.id().clone()], tree2.id())
         .write()
         .unwrap();
     let path3 = RepoPath::from_internal_string("file3");
-    let tree3 = testutils::create_tree(repo, &[(&path3, "content")]);
+    let tree3 = create_tree(repo, &[(&path3, "content")]);
     let commit_c = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_b.id().clone()], tree3.legacy_id())
+        .new_commit(&settings, vec![commit_b.id().clone()], tree3.id())
         .write()
         .unwrap();
     let path4 = RepoPath::from_internal_string("file4");
-    let tree4 = testutils::create_tree(repo, &[(&path4, "content")]);
+    let tree4 = create_tree(repo, &[(&path4, "content")]);
     let commit_d = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_a.id().clone()], tree4.legacy_id())
+        .new_commit(&settings, vec![commit_a.id().clone()], tree4.id())
         .write()
         .unwrap();
 

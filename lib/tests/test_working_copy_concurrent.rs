@@ -16,13 +16,11 @@ use std::cmp::max;
 use std::thread;
 
 use assert_matches::assert_matches;
-use jj_lib::backend::MergedTreeId;
-use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::{Repo, StoreFactories};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
 use jj_lib::workspace::Workspace;
-use testutils::{write_working_copy_file, TestWorkspace};
+use testutils::{create_tree, write_working_copy_file, TestWorkspace};
 
 #[test]
 fn test_concurrent_checkout() {
@@ -82,20 +80,20 @@ fn test_checkout_parallel() {
     let mut tree_ids = vec![];
     for i in 0..num_threads {
         let path = RepoPath::from_internal_string(format!("file{i}").as_str());
-        let tree = testutils::create_tree(repo, &[(&path, "contents")]);
-        tree_ids.push(MergedTreeId::Legacy(tree.id().clone()));
+        let tree = create_tree(repo, &[(&path, "contents")]);
+        tree_ids.push(tree.id());
     }
 
     // Create another tree just so we can test the update stats reliably from the
     // first update
-    let tree = testutils::create_tree(
+    let tree = create_tree(
         repo,
         &[(&RepoPath::from_internal_string("other file"), "contents")],
     );
     test_workspace
         .workspace
         .working_copy_mut()
-        .check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree))
+        .check_out(repo.op_id().clone(), None, &tree)
         .unwrap();
 
     thread::scope(|s| {
@@ -146,7 +144,7 @@ fn test_racy_checkout() {
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     let path = RepoPath::from_internal_string("file");
-    let tree = MergedTree::legacy(testutils::create_tree(repo, &[(&path, "1")]));
+    let tree = create_tree(repo, &[(&path, "1")]);
 
     let mut num_matches = 0;
     for _ in 0..100 {

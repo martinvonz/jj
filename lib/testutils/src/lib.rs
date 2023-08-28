@@ -247,7 +247,7 @@ pub fn write_symlink(tree_builder: &mut TreeBuilder, path: &RepoPath, target: &s
     tree_builder.set(path.clone(), TreeValue::Symlink(id));
 }
 
-pub fn create_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]) -> Tree {
+pub fn create_single_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]) -> Tree {
     let store = repo.store();
     let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
     for (path, contents) in path_contents {
@@ -255,6 +255,10 @@ pub fn create_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]
     }
     let id = tree_builder.write_tree();
     store.get_tree(&RepoPath::root(), &id).unwrap()
+}
+
+pub fn create_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]) -> MergedTree {
+    MergedTree::legacy(create_single_tree(repo, path_contents))
 }
 
 #[must_use]
