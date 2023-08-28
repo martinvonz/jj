@@ -4,7 +4,7 @@ This guide assumes a basic understanding of either Git or Mercurial.
 
 ## Set up an SSH key
 
-As of December 2022 it's recommended to set up an SSH key to work with Github
+As of December 2022 it's recommended to set up an SSH key to work with GitHub
 projects. See [GitHub's Tutorial][gh]. This restriction may be lifted in the
 future, see [issue #469][http-auth] for more information and progress on
 authenticated http.
