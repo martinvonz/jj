@@ -33,7 +33,6 @@ use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::settings::UserSettings;
-use jj_lib::tree::merge_trees;
 use jj_lib::tree_builder::TreeBuilder;
 use jj_lib::working_copy::{LockedWorkingCopy, SnapshotError, SnapshotOptions, WorkingCopy};
 use test_case::test_case;
@@ -283,12 +282,11 @@ fn test_conflict_subdirectory() {
     let empty_tree = create_tree(repo, &[]);
     let tree1 = create_tree(repo, &[(&path, "0")]);
     let tree2 = create_tree(repo, &[(&path, "1")]);
-    let merged_tree = merge_trees(&tree1, &empty_tree, &tree2).unwrap();
+    let merged_tree = tree1.merge(&empty_tree, &tree2).unwrap();
     let repo = &test_workspace.repo;
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree1))
-        .unwrap();
-    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(merged_tree))
+    wc.check_out(repo.op_id().clone(), None, &tree1).unwrap();
+    wc.check_out(repo.op_id().clone(), None, &merged_tree)
         .unwrap();
 }
 
@@ -349,14 +347,11 @@ fn test_reset() {
     let ignored_path = RepoPath::from_internal_string("ignored");
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
 
-    let tree_without_file = MergedTree::legacy(testutils::create_tree(
-        repo,
-        &[(&gitignore_path, "ignored\n")],
-    ));
-    let tree_with_file = MergedTree::legacy(testutils::create_tree(
+    let tree_without_file = create_tree(repo, &[(&gitignore_path, "ignored\n")]);
+    let tree_with_file = create_tree(
         repo,
         &[(&gitignore_path, "ignored\n"), (&ignored_path, "code")],
-    ));
+    );
 
     let wc = test_workspace.workspace.working_copy_mut();
     wc.check_out(repo.op_id().clone(), None, &tree_with_file)
@@ -403,13 +398,12 @@ fn test_checkout_discard() {
     let file2_path = RepoPath::from_internal_string("file2");
 
     let store = repo.store();
-    let tree1 = testutils::create_tree(&repo, &[(&file1_path, "contents")]);
-    let tree2 = testutils::create_tree(&repo, &[(&file2_path, "contents")]);
+    let tree1 = create_tree(&repo, &[(&file1_path, "contents")]);
+    let tree2 = create_tree(&repo, &[(&file2_path, "contents")]);
 
     let wc = test_workspace.workspace.working_copy_mut();
     let state_path = wc.state_path().to_path_buf();
-    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree1))
-        .unwrap();
+    wc.check_out(repo.op_id().clone(), None, &tree1).unwrap();
 
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(file1_path.to_fs_path(&workspace_root).is_file());
@@ -417,7 +411,7 @@ fn test_checkout_discard() {
 
     // Start a checkout
     let mut locked_wc = wc.start_mutation().unwrap();
-    locked_wc.check_out(&MergedTree::legacy(tree2)).unwrap();
+    locked_wc.check_out(&tree2).unwrap();
     // The change should be reflected in the working copy but not saved
     assert!(!file1_path.to_fs_path(&workspace_root).is_file());
     assert!(file2_path.to_fs_path(&workspace_root).is_file());
@@ -601,10 +595,7 @@ fn test_gitignores_in_ignored_dir(use_git: bool) {
     let nested_gitignore_path = RepoPath::from_internal_string("ignored/.gitignore");
     let ignored_path = RepoPath::from_internal_string("ignored/file");
 
-    let tree1 = MergedTree::legacy(create_tree(
-        &test_workspace.repo,
-        &[(&gitignore_path, "ignored\n")],
-    ));
+    let tree1 = create_tree(&test_workspace.repo, &[(&gitignore_path, "ignored\n")]);
     let wc = test_workspace.workspace.working_copy_mut();
     wc.check_out(op_id.clone(), None, &tree1).unwrap();
 
@@ -618,13 +609,13 @@ fn test_gitignores_in_ignored_dir(use_git: bool) {
     );
 
     // The nested .gitignore is ignored even if it's tracked
-    let tree2 = MergedTree::resolved(create_tree(
+    let tree2 = create_tree(
         &test_workspace.repo,
         &[
             (&gitignore_path, "ignored\n"),
             (&nested_gitignore_path, "!file\n"),
         ],
-    ));
+    );
     let wc = test_workspace.workspace.working_copy_mut();
     let mut locked_wc = wc.start_mutation().unwrap();
     locked_wc.reset(&tree2).unwrap();
@@ -661,9 +652,7 @@ fn test_gitignores_checkout_never_overwrites_ignored(use_git: bool) {
     // "contents". The exiting contents ("garbage") shouldn't be replaced in the
     // working copy.
     let wc = test_workspace.workspace.working_copy_mut();
-    assert!(wc
-        .check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree))
-        .is_err());
+    assert!(wc.check_out(repo.op_id().clone(), None, &tree).is_err());
 
     // Check that the old contents are in the working copy
     let path = workspace_root.join("modified");
@@ -698,8 +687,7 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
 
     // Check out the tree with the files in `ignored/`
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree))
-        .unwrap();
+    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
     // Make some changes inside the ignored directory and check that they are
     // detected when we snapshot. The files that are still there should not be
@@ -707,14 +695,14 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     std::fs::write(modified_path.to_fs_path(&workspace_root), "modified").unwrap();
     std::fs::remove_file(deleted_path.to_fs_path(&workspace_root)).unwrap();
     let new_tree = test_workspace.snapshot().unwrap();
-    let expected_tree = MergedTree::Legacy(create_tree(
+    let expected_tree = create_tree(
         &repo,
         &[
             (&gitignore_path, "/ignored/\n"),
             (&unchanged_path, "contents"),
             (&modified_path, "modified"),
         ],
-    ));
+    );
     assert_eq!(
         new_tree.entries().collect_vec(),
         expected_tree.entries().collect_vec()

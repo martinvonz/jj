@@ -14,12 +14,12 @@
 
 use jj_lib::backend::{ChangeId, MergedTreeId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jj_lib::matchers::EverythingMatcher;
-use jj_lib::merged_tree::{DiffSummary, MergedTree};
+use jj_lib::merged_tree::DiffSummary;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
 use test_case::test_case;
-use testutils::{assert_rebased, CommitGraphBuilder, TestRepo};
+use testutils::{assert_rebased, create_tree, CommitGraphBuilder, TestRepo};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -31,13 +31,13 @@ fn test_initial(use_git: bool) {
 
     let root_file_path = RepoPath::from_internal_string("file");
     let dir_file_path = RepoPath::from_internal_string("dir/file");
-    let tree = MergedTree::Legacy(testutils::create_tree(
+    let tree = create_tree(
         repo,
         &[
             (&root_file_path, "file contents"),
             (&dir_file_path, "dir/file contents"),
         ],
-    ));
+    );
 
     let mut tx = repo.start_transaction(&settings, "test");
     let author_signature = Signature {
@@ -102,7 +102,7 @@ fn test_rewrite(use_git: bool) {
 
     let root_file_path = RepoPath::from_internal_string("file");
     let dir_file_path = RepoPath::from_internal_string("dir/file");
-    let initial_tree = testutils::create_tree(
+    let initial_tree = create_tree(
         repo,
         &[
             (&root_file_path, "file contents"),
@@ -116,19 +116,19 @@ fn test_rewrite(use_git: bool) {
         .new_commit(
             &settings,
             vec![store.root_commit_id().clone()],
-            initial_tree.legacy_id(),
+            initial_tree.id(),
         )
         .write()
         .unwrap();
     let repo = tx.commit();
 
-    let rewritten_tree = MergedTree::Legacy(testutils::create_tree(
+    let rewritten_tree = create_tree(
         &repo,
         &[
             (&root_file_path, "file contents"),
             (&dir_file_path, "updated dir/file contents"),
         ],
-    ));
+    );
 
     let config = config::Config::builder()
         .set_override("user.name", "Rewrite User")

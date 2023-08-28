@@ -14,11 +14,10 @@
 
 use itertools::Itertools;
 use jj_lib::matchers::EverythingMatcher;
-use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
-use testutils::TestWorkspace;
+use testutils::{create_tree, TestWorkspace};
 
 #[test]
 fn test_sparse_checkout() {
@@ -37,7 +36,7 @@ fn test_sparse_checkout() {
     let dir2_path = RepoPath::from_internal_string("dir2");
     let dir2_file1_path = RepoPath::from_internal_string("dir2/file1");
 
-    let tree = testutils::create_tree(
+    let tree = create_tree(
         repo,
         &[
             (&root_file1_path, "contents"),
@@ -50,8 +49,7 @@ fn test_sparse_checkout() {
     );
 
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree))
-        .unwrap();
+    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
     // Set sparse patterns to only dir1/
     let mut locked_wc = wc.start_mutation().unwrap();
@@ -142,14 +140,14 @@ fn test_sparse_commit() {
     let dir2_path = RepoPath::from_internal_string("dir2");
     let dir2_file1_path = RepoPath::from_internal_string("dir2/file1");
 
-    let tree = MergedTree::resolved(testutils::create_tree(
+    let tree = create_tree(
         repo,
         &[
             (&root_file1_path, "contents"),
             (&dir1_file1_path, "contents"),
             (&dir2_file1_path, "contents"),
         ],
-    ));
+    );
 
     let wc = test_workspace.workspace.working_copy_mut();
     wc.check_out(repo.op_id().clone(), None, &tree).unwrap();

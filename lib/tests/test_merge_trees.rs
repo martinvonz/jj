@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jj_lib::backend::{MergedTreeId, TreeValue};
+use jj_lib::backend::TreeValue;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent};
 use jj_lib::rewrite::rebase_commit;
 use jj_lib::tree::{merge_trees, Tree};
 use test_case::test_case;
-use testutils::TestRepo;
+use testutils::{create_single_tree, create_tree, TestRepo};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -475,8 +475,7 @@ fn test_simplify_conflict(use_git: bool) {
 
     let component = RepoPathComponent::from("file");
     let path = RepoPath::from_internal_string("file");
-    let write_tree =
-        |contents: &str| -> Tree { testutils::create_tree(repo, &[(&path, contents)]) };
+    let write_tree = |contents: &str| -> Tree { create_single_tree(repo, &[(&path, contents)]) };
 
     let base_tree = write_tree("base contents");
     let branch_tree = write_tree("branch contents");
@@ -571,32 +570,32 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     // a conflict since it changed an unrelated line.
     let path = RepoPath::from_internal_string("dir/file");
     let mut tx = repo.start_transaction(&settings, "test");
-    let tree_a = testutils::create_tree(repo, &[(&path, "abc\ndef\nghi\n")]);
+    let tree_a = create_tree(repo, &[(&path, "abc\ndef\nghi\n")]);
     let commit_a = tx
         .mut_repo()
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
-            tree_a.legacy_id(),
+            tree_a.id(),
         )
         .write()
         .unwrap();
-    let tree_b = testutils::create_tree(repo, &[(&path, "Abc\ndef\nghi\n")]);
+    let tree_b = create_tree(repo, &[(&path, "Abc\ndef\nghi\n")]);
     let commit_b = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_a.id().clone()], tree_b.legacy_id())
+        .new_commit(&settings, vec![commit_a.id().clone()], tree_b.id())
         .write()
         .unwrap();
-    let tree_c = testutils::create_tree(repo, &[(&path, "Abc\ndef\nGhi\n")]);
+    let tree_c = create_tree(repo, &[(&path, "Abc\ndef\nGhi\n")]);
     let commit_c = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_b.id().clone()], tree_c.legacy_id())
+        .new_commit(&settings, vec![commit_b.id().clone()], tree_c.id())
         .write()
         .unwrap();
-    let tree_d = testutils::create_tree(repo, &[(&path, "abC\ndef\nghi\n")]);
+    let tree_d = create_tree(repo, &[(&path, "abC\ndef\nghi\n")]);
     let commit_d = tx
         .mut_repo()
-        .new_commit(&settings, vec![commit_a.id().clone()], tree_d.legacy_id())
+        .new_commit(&settings, vec![commit_a.id().clone()], tree_d.id())
         .write()
         .unwrap();
 
@@ -611,11 +610,11 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     assert!(!tree_c2.path_value(&path).is_resolved());
 
     // Create the resolved B and rebase C on top.
-    let tree_b3 = testutils::create_tree(repo, &[(&path, "AbC\ndef\nghi\n")]);
+    let tree_b3 = create_tree(repo, &[(&path, "AbC\ndef\nghi\n")]);
     let commit_b3 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_b2)
-        .set_tree_id(MergedTreeId::Legacy(tree_b3.id().clone()))
+        .set_tree_id(tree_b3.id())
         .write()
         .unwrap();
     let commit_c3 = rebase_commit(&settings, tx.mut_repo(), &commit_c2, &[commit_b3]).unwrap();
