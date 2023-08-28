@@ -33,9 +33,9 @@ fn test_concurrent_checkout() {
     let repo1 = test_workspace1.repo.clone();
     let workspace1_root = test_workspace1.workspace.workspace_root().clone();
 
-    let tree_id1 = MergedTreeId::Legacy(testutils::create_random_tree(&repo1));
-    let tree_id2 = MergedTreeId::Legacy(testutils::create_random_tree(&repo1));
-    let tree_id3 = MergedTreeId::Legacy(testutils::create_random_tree(&repo1));
+    let tree_id1 = testutils::create_random_tree(&repo1);
+    let tree_id2 = testutils::create_random_tree(&repo1);
+    let tree_id3 = testutils::create_random_tree(&repo1);
     let tree1 = repo1.store().get_root_tree(&tree_id1).unwrap();
     let tree2 = repo1.store().get_root_tree(&tree_id2).unwrap();
     let tree3 = repo1.store().get_root_tree(&tree_id3).unwrap();
