@@ -15,7 +15,17 @@
 #![allow(missing_docs)]
 
 use std::fmt::Debug;
+use std::path::PathBuf;
 
 pub trait SubmoduleStore: Send + Sync + Debug {
     fn name(&self) -> &str;
+    // FIXME This is a quick hack to experiment with git clone. Now we just pass
+    // the path to the high level git clone machinery, but in the long run,
+    // we're more likely to move git clone machinery into the SubmoduleStore
+    // implementation and replace this function with something like
+    // clone_submodule().
+    //
+    // Given the name of a submodule, return the path that it should be cloned
+    // to (for consumption by the `jj git clone` machinery).
+    fn get_submodule_path(&self, submodule: &str) -> PathBuf;
 }
