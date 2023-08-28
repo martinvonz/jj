@@ -318,7 +318,10 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
             // uses_tree_conflict_format was set but there was no root_tree override in the
             // proto, which means we should just promote the tree id from the
             // git commit to be a known-conflict-free tree
-            commit.root_tree = MergedTreeId::resolved(commit.root_tree.as_legacy_tree_id().clone());
+            let MergedTreeId::Legacy(legacy_tree_id) = &commit.root_tree else {
+                panic!("root tree should have been initialized to a legacy id");
+            };
+            commit.root_tree = MergedTreeId::resolved(legacy_tree_id.clone());
         }
     }
     for predecessor in &proto.predecessors {
@@ -917,8 +920,8 @@ mod tests {
         assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(
-            commit.root_tree.as_legacy_tree_id().as_bytes(),
-            root_tree_id.as_bytes()
+            commit.root_tree,
+            MergedTreeId::Legacy(TreeId::from_bytes(root_tree_id.as_bytes()))
         );
         assert_eq!(commit.description, "git commit message");
         assert_eq!(commit.author.name, "git author");

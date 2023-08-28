@@ -56,8 +56,8 @@ fn test_root(use_git: bool) {
     let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
     assert_eq!(new_tree.id(), *wc_commit.tree_id());
     assert_eq!(
-        new_tree.id().as_legacy_tree_id(),
-        repo.store().empty_tree_id()
+        new_tree.id(),
+        MergedTreeId::Legacy(repo.store().empty_tree_id().clone())
     );
 }
 
@@ -730,7 +730,8 @@ fn test_dotgit_ignored(use_git: bool) {
         "contents",
     );
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(new_tree.id().as_legacy_tree_id(), store.empty_tree_id());
+    let empty_tree_id = MergedTreeId::Legacy(store.empty_tree_id().clone());
+    assert_eq!(new_tree.id(), empty_tree_id);
     std::fs::remove_dir_all(&dotgit_path).unwrap();
 
     // Test with a .git file
@@ -740,7 +741,7 @@ fn test_dotgit_ignored(use_git: bool) {
         "contents",
     );
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(new_tree.id().as_legacy_tree_id(), store.empty_tree_id());
+    assert_eq!(new_tree.id(), empty_tree_id);
 }
 
 #[test]
