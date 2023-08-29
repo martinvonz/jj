@@ -17,8 +17,8 @@ use crate::common::TestEnvironment;
 
 pub mod common;
 
-/// Add a remote containing a branch with the same name
-fn add_git_remote(test_env: &TestEnvironment, repo_path: &Path, remote: &str) {
+/// Creates a remote Git repo containing a branch with the same name
+fn init_git_remote(test_env: &TestEnvironment, remote: &str) {
     let git_repo_path = test_env.env_root().join(remote);
     let git_repo = git2::Repository::init(git_repo_path).unwrap();
     let signature =
@@ -40,6 +40,11 @@ fn add_git_remote(test_env: &TestEnvironment, repo_path: &Path, remote: &str) {
             &[],
         )
         .unwrap();
+}
+
+/// Add a remote containing a branch with the same name
+fn add_git_remote(test_env: &TestEnvironment, repo_path: &Path, remote: &str) {
+    init_git_remote(test_env, remote);
     test_env.jj_cmd_success(
         repo_path,
         &["git", "remote", "add", remote, &format!("../{remote}")],
@@ -222,6 +227,43 @@ fn test_git_fetch_nonexistent_remote_from_config() {
     "###);
     // No remote should have been fetched as part of the failing transaction
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+}
+
+#[test]
+fn test_git_fetch_from_remote_named_git() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    init_git_remote(&test_env, "git");
+    let git_repo = git2::Repository::init(&repo_path).unwrap();
+    git_repo.remote("git", "../git").unwrap();
+
+    // Existing remote named 'git' shouldn't block the repo initialization.
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+
+    // Try fetching from the remote named 'git'.
+    let stderr = &test_env.jj_cmd_failure(&repo_path, &["git", "fetch", "--remote=git"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to import refs from underlying Git repo: Git remote named 'git' is reserved for local Git repository
+    Hint: Run `jj git remote rename` to give different name.
+    "###);
+
+    // Implicit import shouldn't fail because of the remote ref.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @"");
+
+    // Explicit import is an error.
+    // (This could be warning if we add mechanism to report ignored refs.)
+    insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["git", "import"]), @r###"
+    Error: Failed to import refs from underlying Git repo: Git remote named 'git' is reserved for local Git repository
+    Hint: Run `jj git remote rename` to give different name.
+    "###);
+
+    // The remote can be renamed, and the ref can be imported.
+    test_env.jj_cmd_success(&repo_path, &["git", "remote", "rename", "git", "bar"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    git: mrylzrtu 76fc7466 message
+    "###);
 }
 
 #[test]

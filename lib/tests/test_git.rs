@@ -701,6 +701,21 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
 }
 
 #[test]
+fn test_import_refs_reserved_remote_name() {
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+    let git_repo = get_git_repo(repo);
+
+    empty_git_commit(&git_repo, "refs/remotes/git/main", &[]);
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let result = git::import_refs(tx.mut_repo(), &git_repo, &git_settings);
+    assert_matches!(result, Err(GitImportError::RemoteReservedForLocalGitRepo));
+}
+
+#[test]
 fn test_import_some_refs() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
@@ -717,6 +732,8 @@ fn test_import_some_refs() {
     let commit_feat4 =
         empty_git_commit(&git_repo, "refs/remotes/origin/feature4", &[&commit_feat3]);
     let commit_ign = empty_git_commit(&git_repo, "refs/remotes/origin/ignored", &[]);
+    // No error should be reported for the refs excluded by git_ref_filter.
+    empty_git_commit(&git_repo, "refs/remotes/git/main", &[]);
 
     fn get_remote_branch(ref_name: &RefName) -> Option<&str> {
         match ref_name {

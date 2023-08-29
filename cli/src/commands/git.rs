@@ -341,6 +341,7 @@ fn cmd_git_fetch(
             )
         })
         .map_err(|err| match err {
+            GitFetchError::GitImportError(err) => err.into(),
             GitFetchError::InternalGitError(err) => map_git_error(err),
             _ => user_error(err.to_string()),
         })?;
