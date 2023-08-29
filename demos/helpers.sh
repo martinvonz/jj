@@ -11,7 +11,9 @@ new_tmp_dir() {
 
 run_command() {
   echo "\$ $@"
-  eval "$@"
+  # `bash` often resets $COLUMNS, so we also
+  # allow $RUN_COMMAND_COLUMNS
+  COLUMNS=${RUN_COMMAND_COLUMNS-${COLUMNS-80}} eval "$@"
 }
 
 run_command_allow_broken_pipe() {
