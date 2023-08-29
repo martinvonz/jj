@@ -152,7 +152,7 @@ impl ReadonlyRepo {
         let backend = backend_factory(&store_path)?;
         let backend_path = store_path.join("type");
         fs::write(&backend_path, backend.name()).context(&backend_path)?;
-        let store = Store::new(backend);
+        let store = Store::new(backend, user_settings.use_tree_conflict_format());
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
 
         let op_store_path = repo_path.join("op_store");
@@ -585,7 +585,10 @@ impl RepoLoader {
         repo_path: &Path,
         store_factories: &StoreFactories,
     ) -> Result<Self, StoreLoadError> {
-        let store = Store::new(store_factories.load_backend(&repo_path.join("store"))?);
+        let store = Store::new(
+            store_factories.load_backend(&repo_path.join("store"))?,
+            user_settings.use_tree_conflict_format(),
+        );
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
         let op_store = Arc::from(store_factories.load_op_store(&repo_path.join("op_store"))?);
         let op_heads_store =

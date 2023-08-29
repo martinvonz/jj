@@ -38,19 +38,26 @@ pub struct Store {
     backend: Box<dyn Backend>,
     commit_cache: RwLock<HashMap<CommitId, Arc<backend::Commit>>>,
     tree_cache: RwLock<HashMap<(RepoPath, TreeId), Arc<backend::Tree>>>,
+    use_tree_conflict_format: bool,
 }
 
 impl Store {
-    pub fn new(backend: Box<dyn Backend>) -> Arc<Self> {
+    pub fn new(backend: Box<dyn Backend>, use_tree_conflict_format: bool) -> Arc<Self> {
         Arc::new(Store {
             backend,
             commit_cache: Default::default(),
             tree_cache: Default::default(),
+            use_tree_conflict_format,
         })
     }
 
     pub fn backend_impl(&self) -> &dyn Any {
         self.backend.as_any()
+    }
+
+    /// Whether new tree should be written using the tree-level format.
+    pub fn use_tree_conflict_format(&self) -> bool {
+        self.use_tree_conflict_format
     }
 
     pub fn commit_id_length(&self) -> usize {
