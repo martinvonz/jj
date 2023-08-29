@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod builtin;
 mod external;
 
 use std::sync::Arc;
@@ -26,6 +27,7 @@ use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::working_copy::SnapshotError;
 use thiserror::Error;
 
+use self::builtin::{edit_diff_builtin, BuiltinToolError};
 use self::external::{edit_diff_external, DiffCheckoutError, ExternalToolError};
 pub use self::external::{generate_diff, ExternalMergeTool};
 use crate::config::CommandNameAndArgs;
@@ -33,6 +35,8 @@ use crate::ui::Ui;
 
 #[derive(Debug, Error)]
 pub enum DiffEditError {
+    #[error(transparent)]
+    InternalTool(#[from] Box<BuiltinToolError>),
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
     #[error(transparent)]
@@ -53,6 +57,8 @@ pub enum DiffGenerateError {
 
 #[derive(Debug, Error)]
 pub enum ConflictResolveError {
+    #[error(transparent)]
+    InternalTool(#[from] Box<BuiltinToolError>),
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
     #[error("Couldn't find the path {0:?} in this revision")]
@@ -125,7 +131,10 @@ pub fn edit_diff(
     // Start a diff editor on the two directories.
     let editor = get_diff_editor_from_settings(ui, settings)?;
     match editor {
-        MergeTool::Builtin => unimplemented!("run_mergetool with builtin mergetool"),
+        MergeTool::Builtin => {
+            let tree_id = edit_diff_builtin(left_tree, right_tree).map_err(Box::new)?;
+            Ok(tree_id)
+        }
         MergeTool::External(editor) => edit_diff_external(
             editor,
             left_tree,
