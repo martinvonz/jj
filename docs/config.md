@@ -346,8 +346,9 @@ Obviously, you would only set one line, don't copy them all in!
 
 ## Editing diffs
 
-The `ui.diff-editor` setting affects the tool used for editing diffs (e.g.
-`jj split`, `jj amend -i`). The default is `meld`.
+The `ui.diff-editor` setting affects the tool used for editing diffs (e.g.  `jj
+split`, `jj amend -i`). The default is the special value `:builtin`, which
+launches a TUI tool to edit the diff in your terminal.
 
 `jj` makes the following substitutions:
 
@@ -387,23 +388,6 @@ and `$right` in `merge-tools.TOOL.edit-args`. `jj` will replace `$output` with
 the directory where the diff editor will be expected to put the result of the
 user's edits. Initially, the contents of `$output` will be the same as the
 contents of `$right`.
-
-### Setting up `scm-diff-editor`
-
-`scm-diff-editor` is a terminal-based diff editor that is part of
-the [git-branchless](https://github.com/arxanas/git-branchless) suite of tools.
-It's a good alternative to Meld, especially if you don't have a graphical
-environment (e.g. when using SSH). To install it:
-
-```shell
-cargo install --git https://github.com/arxanas/git-branchless scm-record --features scm-diff-editor
-```
-
-Then config it as follows:
-
-```toml
-ui.diff-editor = ["scm-diff-editor", "--dir-diff", "$left", "$right"]
-```
 
 ### `JJ-INSTRUCTIONS`
 
