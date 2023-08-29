@@ -28,12 +28,11 @@ use itertools::Itertools;
 use jj_lib::backend::{MergedTreeId, ObjectId, TreeId, TreeValue};
 use jj_lib::fsmonitor::FsmonitorKind;
 use jj_lib::merge::Merge;
-use jj_lib::merged_tree::MergedTree;
+use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::settings::UserSettings;
-use jj_lib::tree_builder::TreeBuilder;
 use jj_lib::working_copy::{LockedWorkingCopy, SnapshotError, SnapshotOptions, WorkingCopy};
 use test_case::test_case;
 use testutils::{create_tree, write_random_commit, TestWorkspace};
@@ -91,41 +90,39 @@ fn test_checkout_file_transitions(use_git: bool) {
     fn write_path(
         settings: &UserSettings,
         repo: &Arc<ReadonlyRepo>,
-        tree_builder: &mut TreeBuilder,
+        tree_builder: &mut MergedTreeBuilder,
         kind: Kind,
         path: &RepoPath,
     ) {
         let store = repo.store();
         let value = match kind {
-            Kind::Missing => {
-                return;
-            }
+            Kind::Missing => Merge::absent(),
             Kind::Normal => {
                 let id = testutils::write_file(store, path, "normal file contents");
-                TreeValue::File {
+                Merge::normal(TreeValue::File {
                     id,
                     executable: false,
-                }
+                })
             }
             Kind::Executable => {
                 let id = testutils::write_file(store, path, "executable file contents");
-                TreeValue::File {
+                Merge::normal(TreeValue::File {
                     id,
                     executable: true,
-                }
+                })
             }
             Kind::ExecutableNormalContent => {
                 let id = testutils::write_file(store, path, "normal file contents");
-                TreeValue::File {
+                Merge::normal(TreeValue::File {
                     id,
                     executable: true,
-                }
+                })
             }
             Kind::Conflict => {
                 let base_file_id = testutils::write_file(store, path, "base file contents");
                 let left_file_id = testutils::write_file(store, path, "left file contents");
                 let right_file_id = testutils::write_file(store, path, "right file contents");
-                let conflict = Merge::new(
+                Merge::new(
                     vec![Some(TreeValue::File {
                         id: base_file_id,
                         executable: false,
@@ -140,13 +137,11 @@ fn test_checkout_file_transitions(use_git: bool) {
                             executable: false,
                         }),
                     ],
-                );
-                let conflict_id = store.write_conflict(path, &conflict).unwrap();
-                TreeValue::Conflict(conflict_id)
+                )
             }
             Kind::Symlink => {
                 let id = store.write_symlink(path, "target").unwrap();
-                TreeValue::Symlink(id)
+                Merge::normal(TreeValue::Symlink(id))
             }
             Kind::Tree => {
                 let file_path = path.join(&RepoPathComponent::from("file"));
@@ -155,17 +150,17 @@ fn test_checkout_file_transitions(use_git: bool) {
                     id,
                     executable: false,
                 };
-                tree_builder.set(file_path, value);
+                tree_builder.set_or_remove(file_path, Merge::normal(value));
                 return;
             }
             Kind::GitSubmodule => {
                 let mut tx = repo.start_transaction(settings, "test");
                 let id = write_random_commit(tx.mut_repo(), settings).id().clone();
                 tx.commit();
-                TreeValue::GitSubmodule(id)
+                Merge::normal(TreeValue::GitSubmodule(id))
             }
         };
-        tree_builder.set(path.clone(), value);
+        tree_builder.set_or_remove(path.clone(), value);
     }
 
     let mut kinds = vec![
@@ -181,8 +176,10 @@ fn test_checkout_file_transitions(use_git: bool) {
     if use_git {
         kinds.push(Kind::GitSubmodule);
     }
-    let mut left_tree_builder = store.tree_builder(store.empty_tree_id().clone());
-    let mut right_tree_builder = store.tree_builder(store.empty_tree_id().clone());
+    let mut left_tree_builder =
+        MergedTreeBuilder::new(MergedTreeId::Legacy(store.empty_tree_id().clone()));
+    let mut right_tree_builder =
+        MergedTreeBuilder::new(MergedTreeId::Legacy(store.empty_tree_id().clone()));
     let mut files = vec![];
     for left_kind in &kinds {
         for right_kind in &kinds {
@@ -192,8 +189,8 @@ fn test_checkout_file_transitions(use_git: bool) {
             files.push((*left_kind, *right_kind, path));
         }
     }
-    let left_tree_id = MergedTreeId::Legacy(left_tree_builder.write_tree());
-    let right_tree_id = MergedTreeId::Legacy(right_tree_builder.write_tree());
+    let left_tree_id = left_tree_builder.write_tree(&store).unwrap();
+    let right_tree_id = right_tree_builder.write_tree(&store).unwrap();
     let left_tree = store.get_root_tree(&left_tree_id).unwrap();
     let right_tree = store.get_root_tree(&right_tree_id).unwrap();
 
