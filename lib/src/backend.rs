@@ -289,6 +289,18 @@ pub enum TreeValue {
     Conflict(ConflictId),
 }
 
+impl TreeValue {
+    pub fn hex(&self) -> String {
+        match self {
+            TreeValue::File { id, .. } => id.hex(),
+            TreeValue::Symlink(id) => id.hex(),
+            TreeValue::Tree(id) => id.hex(),
+            TreeValue::GitSubmodule(id) => id.hex(),
+            TreeValue::Conflict(id) => id.hex(),
+        }
+    }
+}
+
 impl ContentHash for TreeValue {
     fn hash(&self, state: &mut impl digest::Update) {
         use TreeValue::*;
