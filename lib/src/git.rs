@@ -50,6 +50,11 @@ pub enum GitImportError {
         #[source]
         err: BackendError,
     },
+    #[error(
+        "Git remote named '{name}' is reserved for local Git repository",
+        name = REMOTE_NAME_FOR_LOCAL_GIT_REPO
+    )]
+    RemoteReservedForLocalGitRepo,
     #[error("Unexpected git error when importing refs: {0}")]
     InternalGitError(#[from] git2::Error),
 }
@@ -90,6 +95,15 @@ fn to_remote_branch<'a>(parsed_ref: &'a RefName, remote_name: &str) -> Option<&'
         RefName::RemoteBranch { branch, remote } => (remote == remote_name).then_some(branch),
         RefName::LocalBranch(..) | RefName::Tag(..) | RefName::GitRef(..) => None,
     }
+}
+
+/// Returns true if the `parsed_ref` won't be imported because its remote name
+/// is reserved.
+///
+/// Use this as a negative `git_ref_filter` to be passed in to
+/// `import_some_refs()`.
+pub fn is_reserved_git_remote_ref(parsed_ref: &RefName) -> bool {
+    to_remote_branch(parsed_ref, REMOTE_NAME_FOR_LOCAL_GIT_REPO).is_some()
 }
 
 /// Checks if `git_ref` points to a Git commit object, and returns its id.
@@ -219,6 +233,9 @@ pub fn import_some_refs(
         old_git_head.is_present().then(RefTarget::absent)
     };
     let changed_git_refs = diff_refs_to_import(mut_repo.view(), git_repo, git_ref_filter)?;
+    if changed_git_refs.keys().any(is_reserved_git_remote_ref) {
+        return Err(GitImportError::RemoteReservedForLocalGitRepo);
+    }
 
     // Import new heads
     let store = mut_repo.store();

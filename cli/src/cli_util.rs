@@ -261,20 +261,23 @@ impl From<git2::Error> for CommandError {
 impl From<GitImportError> for CommandError {
     fn from(err: GitImportError) -> Self {
         let message = format!("Failed to import refs from underlying Git repo: {err}");
-        let missing_object = matches!(
-            err,
-            GitImportError::MissingHeadTarget { .. } | GitImportError::MissingRefAncestor { .. }
-        );
-        let hint = missing_object.then(|| {
-            "\
+        let hint = match &err {
+            GitImportError::MissingHeadTarget { .. }
+            | GitImportError::MissingRefAncestor { .. } => Some(
+                "\
 Is this Git repository a shallow or partial clone (cloned with the --depth or --filter \
-             argument)?
-jj currently does not support shallow/partial clones. To use jj with this repository, \
-             try
+                 argument)?
+jj currently does not support shallow/partial clones. To use jj with this \
+                 repository, try
 unshallowing the repository (https://stackoverflow.com/q/6802145) or re-cloning with the full
 repository contents."
-                .to_string()
-        });
+                    .to_string(),
+            ),
+            GitImportError::RemoteReservedForLocalGitRepo => {
+                Some("Run `jj git remote rename` to give different name.".to_string())
+            }
+            GitImportError::InternalGitError(_) => None,
+        };
         CommandError::UserError { message, hint }
     }
 }
@@ -773,7 +776,13 @@ impl WorkspaceCommandHelper {
         git_repo: &Repository,
     ) -> Result<(), CommandError> {
         let mut tx = self.start_transaction("import git refs").into_inner();
-        git::import_refs(tx.mut_repo(), git_repo, &self.settings.git_settings())?;
+        // Automated import shouldn't fail because of reserved remote name.
+        git::import_some_refs(
+            tx.mut_repo(),
+            git_repo,
+            &self.settings.git_settings(),
+            |ref_name| !git::is_reserved_git_remote_ref(ref_name),
+        )?;
         if tx.mut_repo().has_changes() {
             let old_git_head = self.repo().view().git_head().clone();
             let new_git_head = tx.mut_repo().view().git_head().clone();
