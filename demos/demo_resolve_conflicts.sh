@@ -3,7 +3,7 @@ set -euo pipefail
 . "$(dirname "$0")"/helpers.sh
 
 new_tmp_dir
-jj git clone https://github.com/octocat/Hello-World
+jj git clone https://github.com/octocat/Hello-World > /dev/null
 cd Hello-World
 
 comment "We are on the master branch of the
