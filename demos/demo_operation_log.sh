@@ -27,10 +27,10 @@ comment "The repo now looks like this:"
 run_command "jj log"
 comment "The most recent portion of the operation log
 is:"
-run_command "jj op log --color=always | head"
+run_command_allow_broken_pipe "jj op log | head"
 
 comment "Let's undo that rebase operation:"
-rebase_op=$(jj --color=never op log | grep '^◉  ' | sed '2q;d' | cut -b4-15)
+rebase_op=$(jj --color=never op log --no-graph -T 'id.short(5)' --limit 1 --at-op @--)
 run_command "jj undo $rebase_op"
 
 comment "Note that only the rebase was undone, and the
