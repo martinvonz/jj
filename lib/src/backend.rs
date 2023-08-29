@@ -148,13 +148,23 @@ content_hash! {
 // TODO(#1624): Delete this type at some point in the future, when we decide to drop
 // support for conflicts in older repos, or maybe after we have provided an upgrade
 // mechanism.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone)]
 pub enum MergedTreeId {
     /// The tree id of a legacy tree
     Legacy(TreeId),
     /// The tree id(s) of a merge tree
     Merge(Merge<TreeId>),
 }
+
+impl PartialEq for MergedTreeId {
+    /// Overridden to make conflict-free trees be considered equal even if their
+    /// `MergedTreeId` variant is different.
+    fn eq(&self, other: &Self) -> bool {
+        self.to_merge() == other.to_merge()
+    }
+}
+
+impl Eq for MergedTreeId {}
 
 impl ContentHash for MergedTreeId {
     fn hash(&self, state: &mut impl digest::Update) {

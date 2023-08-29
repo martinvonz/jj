@@ -71,13 +71,13 @@ fn test_enable_tree_level_conflicts() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
     insta::assert_snapshot!(stdout, @"");
 
-    // If we create new commit off of an unconflicted commit, it also appears
-    // non-empty
+    // If we create new commit off of an unconflicted commit, it correctly appears
+    // empty
     test_env.jj_cmd_success(&repo_path, &["new", "k"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r=@"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  yostqsxw test.user@example.com 2001-02-03 04:05:16.000 +07:00 f5e911f1
-    │  (no description set)
+    @  yostqsxw test.user@example.com 2001-02-03 04:05:15.000 +07:00 112f0ac2
+    │  (empty) (no description set)
     ~
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
