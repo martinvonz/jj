@@ -10,7 +10,7 @@ use itertools::Itertools;
 use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
 use jj_lib::conflicts::{self, materialize_merge_result};
 use jj_lib::gitignore::GitIgnoreFile;
-use jj_lib::matchers::{EverythingMatcher, Matcher};
+use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::repo_path::RepoPath;
@@ -233,8 +233,8 @@ fn check_out_trees(
     store: &Arc<Store>,
     left_tree: &MergedTree,
     right_tree: &MergedTree,
-    output_is: Option<DiffSide>,
     matcher: &dyn Matcher,
+    output_is: Option<DiffSide>,
 ) -> Result<DiffWorkingCopies, DiffCheckoutError> {
     let changed_files = left_tree
         .diff(right_tree, matcher)
@@ -420,6 +420,7 @@ pub fn edit_diff_external(
     editor: ExternalMergeTool,
     left_tree: &MergedTree,
     right_tree: &MergedTree,
+    matcher: &dyn Matcher,
     instructions: &str,
     base_ignores: Arc<GitIgnoreFile>,
     settings: &UserSettings,
@@ -430,8 +431,8 @@ pub fn edit_diff_external(
         store,
         left_tree,
         right_tree,
+        matcher,
         got_output_field.then_some(DiffSide::Right),
-        &EverythingMatcher,
     )?;
     set_readonly_recursively(diff_wc.left_working_copy_path())
         .map_err(ExternalToolError::SetUpDir)?;
@@ -532,7 +533,7 @@ pub fn generate_diff(
     tool: &ExternalMergeTool,
 ) -> Result<(), DiffGenerateError> {
     let store = left_tree.store();
-    let diff_wc = check_out_trees(store, left_tree, right_tree, None, matcher)?;
+    let diff_wc = check_out_trees(store, left_tree, right_tree, matcher, None)?;
     set_readonly_recursively(diff_wc.left_working_copy_path())
         .map_err(ExternalToolError::SetUpDir)?;
     set_readonly_recursively(diff_wc.right_working_copy_path())
