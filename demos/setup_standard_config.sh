@@ -17,6 +17,7 @@ username = "jjfan"
 [ui]
 color="always"
 paginate="never"
+log-word-wrap=true  # Need to set COLUMNS for this to work
 EOF
 
 GIT_CONFIG_GLOBAL=$(mktemp --tmpdir gitconfig-XXXX)
