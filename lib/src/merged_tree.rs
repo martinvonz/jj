@@ -940,9 +940,13 @@ impl MergedTreeBuilder {
 
     /// Create new tree(s) from the base tree(s) and overrides.
     ///
-    /// When the base tree was a legacy tree, then the result will be another
-    /// legacy tree. Overrides with conflicts will result in conflict objects
-    /// being written to the store.
+    /// When the base tree was a legacy tree and the
+    /// `format.tree-level-conflicts` config is disabled, then the result will
+    /// be another legacy tree. Overrides with conflicts will result in
+    /// conflict objects being written to the store. If
+    /// `format.tree-tree-level-conflicts` is enabled, then a legacy tree will
+    /// still be written and immediately converted and returned as a merged
+    /// tree.
     pub fn write_tree(self, store: &Arc<Store>) -> BackendResult<MergedTreeId> {
         match self.base_tree_id.clone() {
             MergedTreeId::Legacy(base_tree_id) => {
@@ -959,7 +963,14 @@ impl MergedTreeBuilder {
                         }
                     }
                 }
-                Ok(MergedTreeId::Legacy(tree_builder.write_tree()))
+                let legacy_id = tree_builder.write_tree();
+                if store.use_tree_conflict_format() {
+                    let legacy_tree = store.get_tree(&RepoPath::root(), &legacy_id)?;
+                    let merged_tree = MergedTree::from_legacy_tree(legacy_tree)?;
+                    Ok(merged_tree.id())
+                } else {
+                    Ok(MergedTreeId::Legacy(legacy_id))
+                }
             }
             MergedTreeId::Merge(base_tree_ids) => {
                 let new_tree_ids = self.write_merged_trees(base_tree_ids, store)?;
