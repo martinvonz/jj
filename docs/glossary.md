@@ -41,6 +41,9 @@ A change ID is a unique identifier for a [change](#change). They are typically
 them as a sequence of 12 letters in the k-z range, at the beginning of a line.
 These are actually hexadecimal numbers that use "digits" z-k instead of 0-9a-f.
 
+For the git backend, Change IDs are currently maintained only locally and not
+exchanged via push/fetch operations.
+
 ## Commit
 
 A snapshot of the files in the repository at a given point in time (technically
