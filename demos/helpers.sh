@@ -14,6 +14,21 @@ run_command() {
   eval "$@"
 }
 
+run_command_allow_broken_pipe() {
+  run_command "$@" || {
+    EXITCODE="$?"
+    case $EXITCODE in
+    3)
+      # `jj` exits with error coded 3 on broken pipe,
+      # which can happen simply because of running
+      # `jj|head`.
+      return 0;;
+    *)
+      return $EXITCODE;;
+    esac
+  }
+}
+
 blank() {
   echo ""
 }
