@@ -288,8 +288,8 @@ fn check_resolve_produces_input_file(
     // in the future. See also https://github.com/mitsuhiko/insta/issues/313.
     assert_eq!(
         &test_env.jj_cmd_failure(repo_path, &["resolve", "--config-toml", &merge_arg_config]),
-        "Error: Failed to use external tool to resolve: The output file is either unchanged or \
-         empty after the editor quit (run with --verbose to see the exact invocation).\n"
+        "Error: Failed to resolve conflicts: The output file is either unchanged or empty after \
+         the editor quit (run with --verbose to see the exact invocation).\n"
     );
 }
 
@@ -397,7 +397,7 @@ fn test_too_many_parents() {
 
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
-    Error: Failed to use external tool to resolve: The conflict at "file" has 3 sides. At most 2 sides are supported.
+    Error: Failed to resolve conflicts: The conflict at "file" has 3 sides. At most 2 sides are supported.
     "###);
 }
 
@@ -472,7 +472,7 @@ fn test_file_vs_dir() {
     "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
-    Error: Failed to use external tool to resolve: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
+    Error: Failed to resolve conflicts: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
     Conflict:
       Removing file with id df967b96a579e45a18b8251732d16804b2e56a55
       Adding file with id 78981922613b2afb6025042ff6bd878ac1994e85
@@ -526,7 +526,7 @@ fn test_description_with_dir_and_deletion() {
     "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
-    Error: Failed to use external tool to resolve: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
+    Error: Failed to resolve conflicts: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
     Conflict:
       Removing file with id df967b96a579e45a18b8251732d16804b2e56a55
       Removing file with id df967b96a579e45a18b8251732d16804b2e56a55

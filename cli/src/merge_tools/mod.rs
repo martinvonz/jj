@@ -27,7 +27,7 @@ use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::working_copy::SnapshotError;
 use thiserror::Error;
 
-use self::builtin::{edit_diff_builtin, BuiltinToolError};
+use self::builtin::{edit_diff_builtin, edit_merge_builtin, BuiltinToolError};
 use self::external::{edit_diff_external, DiffCheckoutError, ExternalToolError};
 pub use self::external::{generate_diff, ExternalMergeTool};
 use crate::config::CommandNameAndArgs;
@@ -113,7 +113,10 @@ pub fn run_mergetool(
 
     let editor = get_merge_tool_from_settings(ui, settings)?;
     match editor {
-        MergeTool::Builtin => unimplemented!("run_mergetool with builtin mergetool"),
+        MergeTool::Builtin => {
+            let tree_id = edit_merge_builtin(tree, repo_path, content).map_err(Box::new)?;
+            Ok(tree_id)
+        }
         MergeTool::External(editor) => external::run_mergetool_external(
             &editor, file_merge, content, repo_path, conflict, tree,
         ),
