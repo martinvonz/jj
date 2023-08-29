@@ -149,17 +149,14 @@ fn test_checkout_file_transitions(use_git: bool) {
                 TreeValue::Symlink(id)
             }
             Kind::Tree => {
-                let mut sub_tree_builder = store.tree_builder(store.empty_tree_id().clone());
                 let file_path = path.join(&RepoPathComponent::from("file"));
-                write_path(
-                    settings,
-                    repo,
-                    &mut sub_tree_builder,
-                    Kind::Normal,
-                    &file_path,
-                );
-                let id = sub_tree_builder.write_tree();
-                TreeValue::Tree(id)
+                let id = testutils::write_file(store, &file_path, "normal file contents");
+                let value = TreeValue::File {
+                    id,
+                    executable: false,
+                };
+                tree_builder.set(file_path, value);
+                return;
             }
             Kind::GitSubmodule => {
                 let mut tx = repo.start_transaction(settings, "test");
