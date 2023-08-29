@@ -689,7 +689,7 @@ pub enum GitFetchError {
     NoSuchRemote(String),
     #[error("Invalid glob provided. Globs may not contain the characters `:` or `^`.")]
     InvalidGlob,
-    #[error("Failec to import Git refs: {0}")]
+    #[error("Failed to import Git refs: {0}")]
     GitImportError(#[from] GitImportError),
     // TODO: I'm sure there are other errors possible, such as transport-level errors.
     #[error("Unexpected git error when fetching: {0}")]
