@@ -2624,9 +2624,9 @@ from the source will be moved into the destination.
         ui,
         &parent_tree,
         &source_tree,
+        matcher.as_ref(),
         &instructions,
         args.interactive,
-        matcher.as_ref(),
     )?;
     if args.interactive && new_parent_tree_id == parent_tree.id() {
         return Err(user_error("No changes to move"));
@@ -2708,9 +2708,9 @@ from the source will be moved into the parent.
         ui,
         &parent_tree,
         &tree,
+        matcher.as_ref(),
         &instructions,
         args.interactive,
-        matcher.as_ref(),
     )?;
     if &new_parent_tree_id == parent.tree_id() {
         if args.interactive {
@@ -2804,7 +2804,13 @@ aborted.
             tx.format_commit_summary(&commit)
         );
         let parent_tree = parent.tree()?;
-        new_parent_tree_id = tx.edit_diff(ui, &parent_base_tree, &parent_tree, &instructions)?;
+        new_parent_tree_id = tx.edit_diff(
+            ui,
+            &parent_base_tree,
+            &parent_tree,
+            &EverythingMatcher,
+            &instructions,
+        )?;
         if new_parent_tree_id == parent_base_tree.id() {
             return Err(user_error("No changes selected"));
         }
@@ -3161,7 +3167,7 @@ don't make any changes, then the operation will be aborted.",
     );
     let base_tree = merge_commit_trees(tx.repo(), base_commits.as_slice())?;
     let tree = target_commit.tree()?;
-    let tree_id = tx.edit_diff(ui, &base_tree, &tree, &instructions)?;
+    let tree_id = tx.edit_diff(ui, &base_tree, &tree, &EverythingMatcher, &instructions)?;
     if tree_id == *target_commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
@@ -3268,9 +3274,9 @@ don't make any changes, then the operation will be aborted.
         ui,
         &base_tree,
         &end_tree,
+        matcher.as_ref(),
         &instructions,
         interactive,
-        matcher.as_ref(),
     )?;
     if &tree_id == commit.tree_id() && interactive {
         ui.write("Nothing changed.\n")?;

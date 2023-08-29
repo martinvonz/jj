@@ -6,7 +6,7 @@ use itertools::Itertools;
 use jj_lib::backend::{BackendError, FileId, MergedTreeId, ObjectId, TreeValue};
 use jj_lib::diff::{find_line_ranges, Diff, DiffHunk};
 use jj_lib::files::{self, ContentHunk, MergeResult};
-use jj_lib::matchers::EverythingMatcher;
+use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::repo_path::RepoPath;
@@ -405,10 +405,11 @@ pub fn apply_diff_builtin(
 pub fn edit_diff_builtin(
     left_tree: &MergedTree,
     right_tree: &MergedTree,
+    matcher: &dyn Matcher,
 ) -> Result<MergedTreeId, BuiltinToolError> {
     let store = left_tree.store().clone();
     let changed_files = left_tree
-        .diff(right_tree, &EverythingMatcher)
+        .diff(right_tree, matcher)
         .map(|(path, _left, _right)| path)
         .collect_vec();
     let files = make_diff_files(&store, left_tree, right_tree, &changed_files)?;
