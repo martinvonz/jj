@@ -25,6 +25,15 @@ which convert > /dev/null \
 echo "jj --version: (set PATH to change)"
 jj --version
 
+# Make `jj` wrap text as opposed to `term-transcript`. `term-transcript` wraps
+# at 80 columns. Also, 80 seems to be the maximum number of columns that's
+# somewhat readable on mobile devices.
+#
+# Note that `bash` likes to reset the value of $COLUMNS, so we use a different
+# variable here that is interpreted by `run_command()` in `helpers.sh`.
+RUN_COMMAND_COLUMNS=80
+export RUN_COMMAND_COLUMNS
+
 run_script_through_term_transcript_and_pipe_result_to_stderr() {
   script="$1"
   script_base="${script%.sh}"
