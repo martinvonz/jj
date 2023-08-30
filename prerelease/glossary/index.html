@@ -1420,6 +1420,8 @@ See <a href="../branches/">here</a> for details.</p>
 16 bytes long and are often randomly generated. By default, <code>jj log</code> presents
 them as a sequence of 12 letters in the k-z range, at the beginning of a line.
 These are actually hexadecimal numbers that use "digits" z-k instead of 0-9a-f.</p>
+<p>For the git backend, Change IDs are currently maintained only locally and not
+exchanged via push/fetch operations.</p>
 <h2 id="commit">Commit<a class="headerlink" href="#commit" title="Permanent link">&para;</a></h2>
 <p>A snapshot of the files in the repository at a given point in time (technically
 a <a href="#tree">tree object</a>), together with some metadata. The metadata includes the
