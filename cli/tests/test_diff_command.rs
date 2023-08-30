@@ -783,3 +783,57 @@ fn test_diff_stat() {
     1 file changed, 0 insertions(+), 1 deletion(-)
     "###);
 }
+
+#[test]
+fn test_diff_stat_long_name_or_stat() {
+    let mut test_env = TestEnvironment::default();
+    test_env.add_env_var("COLUMNS", "50");
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let get_stat = |path_length: usize, stat_size: usize| {
+        test_env.jj_cmd_success(&repo_path, &["new", "root"]);
+        let mut name = "abcdefghij".repeat(path_length / 10 + 1);
+        name.truncate(path_length);
+        let content = "content line\n".repeat(stat_size);
+        std::fs::write(repo_path.join(name), content).unwrap();
+        test_env.jj_cmd_success(&repo_path, &["diff", "--stat"])
+    };
+
+    insta::assert_snapshot!(get_stat(1, 1), @r###"
+    a | 1 +
+    1 file changed, 1 insertion(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(1, 10), @r###"
+    a | 10 ++++++++++
+    1 file changed, 10 insertions(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(1, 100), @r###"
+    a | 100 ++++++++++++++++++++++++++++++++++++++
+    1 file changed, 100 insertions(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(10, 1), @r###"
+    abcdefghij | 1 +
+    1 file changed, 1 insertion(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(10, 10), @r###"
+    abcdefghij | 10 ++++++++++
+    1 file changed, 10 insertions(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(10, 100), @r###"
+    abcdefghij | 100 +++++++++++++++++++++++++++++
+    1 file changed, 100 insertions(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(100, 1), @r###"
+    abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | 1
+    1 file changed, 1 insertion(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(100, 10), @r###"
+    abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | 10
+    1 file changed, 10 insertions(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(100, 100), @r###"
+    abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | 100
+    1 file changed, 100 insertions(+), 0 deletions(-)
+    "###);
+}
