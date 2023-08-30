@@ -231,6 +231,72 @@ fn test_log_builtin_templates() {
 }
 
 #[test]
+fn test_log_builtin_templates_colored() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render =
+        |template| test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T", template]);
+
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "--config-toml=user.email=''",
+            "--config-toml=user.name=''",
+            "new",
+        ],
+    );
+
+    insta::assert_snapshot!(render(r#"builtin_log_oneline"#), @r###"
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12md[38;5;8mc315397[39m [38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
+    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
+    ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
+    "###);
+
+    insta::assert_snapshot!(render(r#"builtin_log_compact"#), @r###"
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12md[38;5;8mc315397[39m[0m
+    │  [1m[38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
+    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
+    │  [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
+    ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
+    "###);
+
+    insta::assert_snapshot!(render(r#"builtin_log_comfortable"#), @r###"
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12md[38;5;8mc315397[39m[0m
+    │  [1m[38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
+    │
+    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
+    │  [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
+    │
+    ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
+    "###);
+
+    insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r###"
+    @  Commit ID: [38;5;4mdc31539712c7294d1d712cec63cef4504b94ca74[39m
+    │  Change ID: [38;5;5mrlvkpnrzqnoowoytxnquwvuryrwnrmlp[39m
+    │  Author: (no name set) <[38;5;3m(no email set)[39m> ([38;5;6m2001-02-03 04:05:08.000 +07:00[39m)
+    │  Committer: (no name set) <[38;5;3m(no email set)[39m> ([38;5;6m2001-02-03 04:05:08.000 +07:00[39m)
+    │
+    │  [38;5;2m    (no description set)[39m
+    │
+    ◉  Commit ID: [38;5;4m230dd059e1b059aefc0da06a2e5a7dbf22362f22[39m
+    │  Change ID: [38;5;5mqpvuntsmwlqtpsluzzsnyyzlmlwvmlnu[39m
+    │  Author: Test User <[38;5;3mtest.user@example.com[39m> ([38;5;6m2001-02-03 04:05:07.000 +07:00[39m)
+    │  Committer: Test User <[38;5;3mtest.user@example.com[39m> ([38;5;6m2001-02-03 04:05:07.000 +07:00[39m)
+    │
+    │  [38;5;2m    (no description set)[39m
+    │
+    ◉  Commit ID: [38;5;4m0000000000000000000000000000000000000000[39m
+       Change ID: [38;5;5mzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz[39m
+       Author: (no name set) <[38;5;3m(no email set)[39m> ([38;5;6m1970-01-01 00:00:00.000 +00:00[39m)
+       Committer: (no name set) <[38;5;3m(no email set)[39m> ([38;5;6m1970-01-01 00:00:00.000 +00:00[39m)
+
+       [38;5;2m    (no description set)[39m
+
+    "###);
+}
+
+#[test]
 fn test_log_obslog_divergence() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
