@@ -21,8 +21,7 @@ use assert_matches::assert_matches;
 use git2::Oid;
 use itertools::Itertools;
 use jj_lib::backend::{
-    BackendError, ChangeId, CommitId, MergedTreeId, MillisSinceEpoch, ObjectId, Signature,
-    Timestamp,
+    BackendError, ChangeId, CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp,
 };
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
@@ -2304,7 +2303,7 @@ fn create_rooted_commit<'repo>(
         .new_commit(
             settings,
             vec![mut_repo.store().root_commit_id().clone()],
-            MergedTreeId::Legacy(mut_repo.store().empty_tree_id().clone()),
+            mut_repo.store().empty_merged_tree_id(),
         )
         .set_author(signature.clone())
         .set_committer(signature)

@@ -54,10 +54,7 @@ fn test_root(use_git: bool) {
         .unwrap();
     let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
     assert_eq!(new_tree.id(), *wc_commit.tree_id());
-    assert_eq!(
-        new_tree.id(),
-        MergedTreeId::Legacy(repo.store().empty_tree_id().clone())
-    );
+    assert_eq!(new_tree.id(), repo.store().empty_merged_tree_id());
 }
 
 #[test_case(false ; "local backend")]
@@ -176,10 +173,8 @@ fn test_checkout_file_transitions(use_git: bool) {
     if use_git {
         kinds.push(Kind::GitSubmodule);
     }
-    let mut left_tree_builder =
-        MergedTreeBuilder::new(MergedTreeId::Legacy(store.empty_tree_id().clone()));
-    let mut right_tree_builder =
-        MergedTreeBuilder::new(MergedTreeId::Legacy(store.empty_tree_id().clone()));
+    let mut left_tree_builder = MergedTreeBuilder::new(store.empty_merged_tree_id());
+    let mut right_tree_builder = MergedTreeBuilder::new(store.empty_merged_tree_id());
     let mut files = vec![];
     for left_kind in &kinds {
         for right_kind in &kinds {
@@ -435,7 +430,7 @@ fn test_snapshot_racy_timestamps(use_git: bool) {
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     let file_path = workspace_root.join("file");
-    let mut previous_tree_id = MergedTreeId::Legacy(repo.store().empty_tree_id().clone());
+    let mut previous_tree_id = repo.store().empty_merged_tree_id();
     let wc = test_workspace.workspace.working_copy_mut();
     for i in 0..100 {
         {
@@ -724,7 +719,7 @@ fn test_dotgit_ignored(use_git: bool) {
         "contents",
     );
     let new_tree = test_workspace.snapshot().unwrap();
-    let empty_tree_id = MergedTreeId::Legacy(store.empty_tree_id().clone());
+    let empty_tree_id = store.empty_merged_tree_id();
     assert_eq!(new_tree.id(), empty_tree_id);
     std::fs::remove_dir_all(&dotgit_path).unwrap();
 
@@ -870,10 +865,7 @@ fn test_fsmonitor() {
     {
         let mut locked_wc = wc.start_mutation().unwrap();
         let tree_id = snapshot(&mut locked_wc, &[]);
-        assert_eq!(
-            tree_id,
-            MergedTreeId::Legacy(repo.store().empty_tree_id().clone())
-        );
+        assert_eq!(tree_id, repo.store().empty_merged_tree_id());
         locked_wc.discard();
     }
 
