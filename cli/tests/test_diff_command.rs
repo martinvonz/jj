@@ -809,7 +809,7 @@ fn test_diff_stat_long_name_or_stat() {
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(1, 100), @r###"
-    a | 100 ++++++++++++++++++++++++++++++++++++++
+    a | 100 +++++++++++++++++++++++++++++++++++++++
     1 file changed, 100 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(10, 1), @r###"
@@ -821,7 +821,7 @@ fn test_diff_stat_long_name_or_stat() {
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(10, 100), @r###"
-    abcdefghij | 100 +++++++++++++++++++++++++++++
+    abcdefghij | 100 ++++++++++++++++++++++++++++++
     1 file changed, 100 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(100, 1), @r###"
