@@ -261,13 +261,9 @@ pub fn create_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]
 
 #[must_use]
 pub fn create_random_tree(repo: &Arc<ReadonlyRepo>) -> MergedTreeId {
-    let mut tree_builder = repo
-        .store()
-        .tree_builder(repo.store().empty_tree_id().clone());
     let number = rand::random::<u32>();
     let path = RepoPath::from_internal_string(format!("file{number}").as_str());
-    write_normal_file(&mut tree_builder, &path, "contents");
-    MergedTreeId::Legacy(tree_builder.write_tree())
+    create_tree(repo, &[(&path, "contents")]).id()
 }
 
 pub fn create_random_commit<'repo>(
