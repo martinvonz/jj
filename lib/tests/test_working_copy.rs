@@ -804,22 +804,12 @@ fn test_existing_directory_symlink(use_git: bool) {
     // Creates a symlink in working directory, and a tree that will add a file under
     // the symlinked directory.
     std::os::unix::fs::symlink("..", workspace_root.join("parent")).unwrap();
-    let mut tree_builder = repo
-        .store()
-        .tree_builder(repo.store().empty_tree_id().clone());
-    testutils::write_normal_file(
-        &mut tree_builder,
-        &RepoPath::from_internal_string("parent/escaped"),
-        "contents",
-    );
-    let tree_id = tree_builder.write_tree();
-    let tree = repo.store().get_tree(&RepoPath::root(), &tree_id).unwrap();
+    let file_path = RepoPath::from_internal_string("parent/escaped");
+    let tree = create_tree(repo, &[(&file_path, "contents")]);
 
     // Checkout should fail because "parent" already exists and is a symlink.
     let wc = test_workspace.workspace.working_copy_mut();
-    assert!(wc
-        .check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree))
-        .is_err());
+    assert!(wc.check_out(repo.op_id().clone(), None, &tree).is_err());
 
     // Therefore, "../escaped" shouldn't be created.
     assert!(!workspace_root.parent().unwrap().join("escaped").exists());
