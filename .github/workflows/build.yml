@@ -62,6 +62,23 @@ jobs:
           components: rustfmt
       - run: cargo +nightly fmt --all -- --check
 
+  mkdocs:
+    name: Check that MkDocs can build the docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: latest
+      - name: Install dependencies
+        run: poetry install
+      - name: Check that `mkdocs` can build the docs
+        run: poetry run -- mkdocs build --strict
+
   cargo-deny:
     runs-on: ubuntu-latest
     strategy:
