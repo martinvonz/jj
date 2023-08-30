@@ -71,11 +71,8 @@ jobs:
         asset_name: ${{ env.ASSET }}
         asset_content_type: application/octet-stream
 
-  docs-build-deploy:
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+  docs-deploy-website-latest-release:
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
@@ -89,7 +86,7 @@ jobs:
         uses: abatilo/actions-poetry@v2
         with:
           poetry-version: latest
-      - name: Install dependencies, compile and deploy docs
+      - name: Install dependencies, compile and deploy docs to the "latest release" section of the website
         run: |
           git config user.name jj-docs-bot
           git config user.email jj-docs-bot@users.noreply.github.io
