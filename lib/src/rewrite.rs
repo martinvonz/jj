@@ -20,7 +20,7 @@ use std::sync::Arc;
 use itertools::{process_results, Itertools};
 use tracing::instrument;
 
-use crate::backend::{BackendError, CommitId, MergedTreeId, ObjectId};
+use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::index::Index;
@@ -48,7 +48,7 @@ pub fn merge_commit_trees_without_repo(
     commits: &[Commit],
 ) -> Result<MergedTree, TreeMergeError> {
     if commits.is_empty() {
-        Ok(store.get_root_tree(&MergedTreeId::Legacy(store.empty_tree_id().clone()))?)
+        Ok(store.get_root_tree(&store.empty_merged_tree_id())?)
     } else {
         let mut new_tree = commits[0].tree()?;
         let commit_ids = commits

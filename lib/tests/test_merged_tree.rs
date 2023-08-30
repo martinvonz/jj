@@ -184,8 +184,7 @@ fn test_from_legacy_tree() {
 
     // Also test that MergedTreeBuilder can create the same tree by starting from an
     // empty legacy tree.
-    let mut tree_builder =
-        MergedTreeBuilder::new(MergedTreeId::Legacy(store.empty_tree_id().clone()));
+    let mut tree_builder = MergedTreeBuilder::new(store.empty_merged_tree_id());
     for (path, value) in tree.entries() {
         tree_builder.set_or_remove(path, Merge::normal(value));
     }

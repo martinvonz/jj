@@ -21,9 +21,7 @@ use std::path::Path;
 
 use assert_matches::assert_matches;
 use itertools::Itertools;
-use jj_lib::backend::{
-    ChangeId, CommitId, MergedTreeId, MillisSinceEpoch, ObjectId, Signature, Timestamp,
-};
+use jj_lib::backend::{ChangeId, CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jj_lib::commit::Commit;
 use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
@@ -119,7 +117,7 @@ fn test_resolve_symbol_commit_id() {
             .new_commit(
                 &settings,
                 vec![repo.store().root_commit_id().clone()],
-                MergedTreeId::Legacy(repo.store().empty_tree_id().clone()),
+                repo.store().empty_merged_tree_id(),
             )
             .set_description(format!("test {i}"))
             .set_author(signature.clone())

@@ -14,7 +14,6 @@
 
 use std::path::{Path, PathBuf};
 
-use jj_lib::backend::MergedTreeId;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
@@ -124,10 +123,7 @@ fn test_init_checkout(use_git: bool) {
         .get_wc_commit_id(&WorkspaceId::default())
         .unwrap();
     let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
-    assert_eq!(
-        *wc_commit.tree_id(),
-        MergedTreeId::Legacy(repo.store().empty_tree_id().clone())
-    );
+    assert_eq!(*wc_commit.tree_id(), repo.store().empty_merged_tree_id());
     assert_eq!(
         wc_commit.store_commit().parents,
         vec![repo.store().root_commit_id().clone()]

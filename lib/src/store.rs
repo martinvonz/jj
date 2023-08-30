@@ -72,6 +72,10 @@ impl Store {
         self.backend.empty_tree_id()
     }
 
+    pub fn empty_merged_tree_id(&self) -> MergedTreeId {
+        MergedTreeId::Legacy(self.backend.empty_tree_id().clone())
+    }
+
     pub fn root_commit_id(&self) -> &CommitId {
         self.backend.root_commit_id()
     }

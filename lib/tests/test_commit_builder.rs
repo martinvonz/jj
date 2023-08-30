@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::backend::{ChangeId, MergedTreeId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
+use jj_lib::backend::{ChangeId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merged_tree::DiffSummary;
 use jj_lib::repo::Repo;
@@ -202,7 +202,7 @@ fn test_rewrite_update_missing_user(use_git: bool) {
         .new_commit(
             &missing_user_settings,
             vec![repo.store().root_commit_id().clone()],
-            MergedTreeId::Legacy(repo.store().empty_tree_id().clone()),
+            repo.store().empty_merged_tree_id(),
         )
         .write()
         .unwrap();
@@ -258,7 +258,7 @@ fn test_commit_builder_descendants(use_git: bool) {
         .new_commit(
             &settings,
             vec![store.root_commit_id().clone()],
-            MergedTreeId::Legacy(store.empty_tree_id().clone()),
+            store.empty_merged_tree_id(),
         )
         .write()
         .unwrap();
