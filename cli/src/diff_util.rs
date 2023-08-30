@@ -792,8 +792,8 @@ pub fn show_diff_stat(
     }
 
     let display_width = usize::from(ui.term_width().unwrap_or(80)) - 4; // padding
-    let max_bar_length = display_width
-        .saturating_sub(max_path_length + " | ".len() + max_diffs.to_string().len() + 1);
+    let max_bar_length =
+        display_width.saturating_sub(max_path_length + " | ".len() + max_diffs.to_string().len());
     let factor = if max_diffs < max_bar_length {
         1.0
     } else {
