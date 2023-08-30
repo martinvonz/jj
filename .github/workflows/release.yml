@@ -71,6 +71,41 @@ jobs:
         asset_name: ${{ env.ASSET }}
         asset_content_type: application/octet-stream
 
+  docs-release-archive:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Install packages (Ubuntu)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool musl-tools
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: latest
+      - name: Compile docs and zip them up
+        run: |
+          poetry install
+          poetry run -- mkdocs build --no-directory-urls
+          archive="jj-${{ github.event.release.tag_name }}-docs-html.tar.gz"
+          tar czf "$archive" -C "rendered-docs" .
+          echo "ASSET=$archive" >> $GITHUB_ENV
+      - name: Upload release archive
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream
+
   docs-deploy-website-latest-release:
     runs-on: ubuntu-latest
     permissions:
