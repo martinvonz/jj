@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use common::TestEnvironment;
+use itertools::Itertools;
 
 pub mod common;
 
@@ -787,65 +788,68 @@ fn test_diff_stat() {
 #[test]
 fn test_diff_stat_long_name_or_stat() {
     let mut test_env = TestEnvironment::default();
-    test_env.add_env_var("COLUMNS", "50");
+    test_env.add_env_var("COLUMNS", "30");
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let get_stat = |test_env: &TestEnvironment, path_length: usize, stat_size: usize| {
         test_env.jj_cmd_success(&repo_path, &["new", "root"]);
-        let mut name = "abcdefghij".repeat(path_length / 10 + 1);
-        name.truncate(path_length);
+        let name = "一二三四五六七八九十"
+            .chars()
+            .cycle()
+            .take(path_length)
+            .join("");
         let content = "content line\n".repeat(stat_size);
         std::fs::write(repo_path.join(name), content).unwrap();
         test_env.jj_cmd_success(&repo_path, &["diff", "--stat"])
     };
 
     insta::assert_snapshot!(get_stat(&test_env, 1, 1), @r###"
-    a | 1 +
+    一   | 1 +
     1 file changed, 1 insertion(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 1, 10), @r###"
-    a | 10 ++++++++++
+    一   | 10 ++++++++++
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 1, 100), @r###"
-    a | 100 +++++++++++++++++++++++++++++++++++++++
+    一   | 100 +++++++++++++++++
     1 file changed, 100 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 10, 1), @r###"
-    abcdefghij | 1 +
+    一二三四五六七八九十                     | 1
     1 file changed, 1 insertion(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 10, 10), @r###"
-    abcdefghij | 10 ++++++++++
+    一二三四五六七八九十                     | 10
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 10, 100), @r###"
-    abcdefghij | 100 ++++++++++++++++++++++++++++++
+    一二三四五六七八九十                     | 100
     1 file changed, 100 insertions(+), 0 deletions(-)
     "###);
-    insta::assert_snapshot!(get_stat(&test_env, 100, 1), @r###"
-    abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | 1
+    insta::assert_snapshot!(get_stat(&test_env, 50, 1), @r###"
+    一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十                                                                                                     | 1
     1 file changed, 1 insertion(+), 0 deletions(-)
     "###);
-    insta::assert_snapshot!(get_stat(&test_env, 100, 10), @r###"
-    abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | 10
+    insta::assert_snapshot!(get_stat(&test_env, 50, 10), @r###"
+    一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十                                                                                                     | 10
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
-    insta::assert_snapshot!(get_stat(&test_env, 100, 100), @r###"
-    abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | 100
+    insta::assert_snapshot!(get_stat(&test_env, 50, 100), @r###"
+    一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十                                                                                                     | 100
     1 file changed, 100 insertions(+), 0 deletions(-)
     "###);
 
     // Very narrow terminal (doesn't have to fit, just don't crash)
     test_env.add_env_var("COLUMNS", "10");
     insta::assert_snapshot!(get_stat(&test_env, 10, 10), @r###"
-    abcdefghij | 10
+    一二三四五六七八九十                     | 10
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
     test_env.add_env_var("COLUMNS", "3");
     insta::assert_snapshot!(get_stat(&test_env, 10, 10), @r###"
-    abcdefghij | 10
+    一二三四五六七八九十                     | 10
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
 }
