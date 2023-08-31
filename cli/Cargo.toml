@@ -60,6 +60,7 @@ toml_edit = { workspace = true }
 tracing = { workspace = true }
 tracing-chrome = { workspace = true }
 tracing-subscriber = { workspace = true }
+unicode-width = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

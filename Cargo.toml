@@ -85,6 +85,7 @@ tracing-subscriber = { version = "0.3.17", default-features = false, features = 
     "fmt",
 ] }
 tokio = { version = "1.32.0" }
+unicode-width = "0.1.10"
 watchman_client = { version = "0.8.0" }
 whoami = "1.4.1"
 version_check = "0.9.4"
