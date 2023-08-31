@@ -785,7 +785,7 @@ pub fn show_diff_stat(
         let path = workspace_command.format_file_path(&repo_path);
         let left_content = diff_content(workspace_command.repo(), &repo_path, &left)?;
         let right_content = diff_content(workspace_command.repo(), &repo_path, &right)?;
-        max_path_length = max(max_path_length, path.len());
+        max_path_length = max(max_path_length, path.chars().count());
         let stat = get_diff_stat(path, &left_content, &right_content);
         max_diffs = max(max_diffs, stat.added + stat.removed);
         stats.push(stat);
