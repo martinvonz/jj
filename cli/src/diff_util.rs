@@ -792,14 +792,14 @@ pub fn show_diff_stat(
     }
 
     let display_width = usize::from(ui.term_width().unwrap_or(80)) - 4; // padding
+    let number_padding = max_diffs.to_string().len();
     let max_bar_length =
-        display_width.saturating_sub(max_path_length + " | ".len() + max_diffs.to_string().len());
+        display_width.saturating_sub(max_path_length + " | ".len() + number_padding);
     let factor = if max_diffs < max_bar_length {
         1.0
     } else {
         max_bar_length as f64 / max_diffs as f64
     };
-    let number_padding = max_diffs.to_string().len();
 
     formatter.with_label("diff", |formatter| {
         let mut total_added = 0;
