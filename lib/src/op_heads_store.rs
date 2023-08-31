@@ -89,7 +89,7 @@ pub fn resolve_op_heads<E>(
 
     if op_heads.len() == 1 {
         let operation_id = op_heads.pop().unwrap();
-        let operation = op_store.read_operation(&operation_id).unwrap();
+        let operation = op_store.read_operation(&operation_id)?;
         return Ok(Operation::new(op_store.clone(), operation_id, operation));
     }
 
@@ -110,17 +110,17 @@ pub fn resolve_op_heads<E>(
 
     if op_head_ids.len() == 1 {
         let op_head_id = op_head_ids[0].clone();
-        let op_head = op_store.read_operation(&op_head_id).unwrap();
+        let op_head = op_store.read_operation(&op_head_id)?;
         return Ok(Operation::new(op_store.clone(), op_head_id, op_head));
     }
 
     let op_heads = op_head_ids
         .iter()
-        .map(|op_id: &OperationId| {
-            let data = op_store.read_operation(op_id).unwrap();
-            Operation::new(op_store.clone(), op_id.clone(), data)
+        .map(|op_id: &OperationId| -> Result<Operation, OpStoreError> {
+            let data = op_store.read_operation(op_id)?;
+            Ok(Operation::new(op_store.clone(), op_id.clone(), data))
         })
-        .collect_vec();
+        .try_collect()?;
     let mut op_heads = op_heads_store.handle_ancestor_ops(op_heads);
 
     // Return without creating a merge operation
