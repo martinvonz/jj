@@ -805,15 +805,15 @@ fn test_diff_stat_long_name_or_stat() {
     };
 
     insta::assert_snapshot!(get_stat(&test_env, 1, 1), @r###"
-    一 | 1 +
+    一   | 1 +
     1 file changed, 1 insertion(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 1, 10), @r###"
-    一 | 10 ++++++++++
+    一   | 10 ++++++++++
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 1, 100), @r###"
-    一 | 100 +++++++++++++++++++
+    一   | 100 +++++++++++++++++
     1 file changed, 100 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 10, 1), @r###"
@@ -829,27 +829,49 @@ fn test_diff_stat_long_name_or_stat() {
     1 file changed, 100 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 50, 1), @r###"
-    一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十 | 1
+    ...九十一二三四五六七八九十 | 1 +
     1 file changed, 1 insertion(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 50, 10), @r###"
-    一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十 | 10
+    ...十一二三四五六七八九十 | 10 +++++++
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 50, 100), @r###"
-    一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十 | 100
+    ...十一二三四五六七八九十 | 100 ++++++
+    1 file changed, 100 insertions(+), 0 deletions(-)
+    "###);
+
+    // Lengths around where we introduce the ellipsis
+    insta::assert_snapshot!(get_stat(&test_env, 13, 100), @r###"
+    一二三四五六七八九十一二三 | 100 ++++++++
+    1 file changed, 100 insertions(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(&test_env, 14, 100), @r###"
+    一二三四五六七八九十一二三四 | 100 ++++++
+    1 file changed, 100 insertions(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(&test_env, 15, 100), @r###"
+    ...五六七八九十一二三四五 | 100 ++++++
+    1 file changed, 100 insertions(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(&test_env, 16, 100), @r###"
+    ...六七八九十一二三四五六 | 100 ++++++
     1 file changed, 100 insertions(+), 0 deletions(-)
     "###);
 
     // Very narrow terminal (doesn't have to fit, just don't crash)
     test_env.add_env_var("COLUMNS", "10");
     insta::assert_snapshot!(get_stat(&test_env, 10, 10), @r###"
-    一二三四五六七八九十 | 10
+    ... | 10 ++
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
     test_env.add_env_var("COLUMNS", "3");
     insta::assert_snapshot!(get_stat(&test_env, 10, 10), @r###"
-    一二三四五六七八九十 | 10
+    ... | 10 ++
+    1 file changed, 10 insertions(+), 0 deletions(-)
+    "###);
+    insta::assert_snapshot!(get_stat(&test_env, 3, 10), @r###"
+    一二三 | 10 ++
     1 file changed, 10 insertions(+), 0 deletions(-)
     "###);
 }
