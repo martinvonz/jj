@@ -791,7 +791,7 @@ pub fn show_diff_stat(
         stats.push(stat);
     }
 
-    let display_width = usize::from(ui.term_width().unwrap_or(80)) - 4; // padding
+    let display_width = usize::from(ui.term_width().unwrap_or(80)).saturating_sub(4); // padding
     let number_padding = max_diffs.to_string().len();
     let max_bar_length =
         display_width.saturating_sub(max_path_length + " | ".len() + number_padding);
