@@ -21,7 +21,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::tree::merge_trees;
 use pretty_assertions::assert_eq;
-use testutils::{create_single_tree, write_file, write_normal_file, TestRepo};
+use testutils::{create_single_tree, write_file, TestRepo};
 
 fn file_value(file_id: &FileId) -> TreeValue {
     TreeValue::File {
@@ -40,7 +40,8 @@ fn test_from_legacy_tree() {
 
     // file1: regular file without conflicts
     let file1_path = RepoPath::from_internal_string("no_conflict");
-    let file1_id = write_normal_file(&mut tree_builder, &file1_path, "foo");
+    let file1_id = write_file(store.as_ref(), &file1_path, "foo");
+    tree_builder.set(file1_path.clone(), file_value(&file1_id));
 
     // file2: 3-way conflict
     let file2_path = RepoPath::from_internal_string("3way");
@@ -105,13 +106,11 @@ fn test_from_legacy_tree() {
 
     // dir1: directory without conflicts
     let dir1_basename = RepoPathComponent::from("dir1");
-    write_normal_file(
-        &mut tree_builder,
-        &RepoPath::root()
-            .join(&dir1_basename)
-            .join(&RepoPathComponent::from("file")),
-        "foo",
-    );
+    let dir1_filename = RepoPath::root()
+        .join(&dir1_basename)
+        .join(&RepoPathComponent::from("file"));
+    let dir1_filename_id = write_file(store.as_ref(), &dir1_filename, "file5_v2");
+    tree_builder.set(dir1_filename.clone(), file_value(&dir1_filename_id));
 
     let tree_id = tree_builder.write_tree();
     let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
@@ -125,7 +124,7 @@ fn test_from_legacy_tree() {
     assert_eq!(
         merged_tree.value(&file1_path.components()[0]),
         MergedTreeValue::Resolved(Some(&TreeValue::File {
-            id: file1_id,
+            id: file1_id.clone(),
             executable: false,
         }))
     );
@@ -191,7 +190,8 @@ fn test_from_legacy_tree() {
     let recreated_legacy_id = tree_builder.write_tree(store).unwrap();
     assert_eq!(recreated_legacy_id, MergedTreeId::Legacy(tree_id.clone()));
 
-    // Create the merged tree by starting from an empty merged tree.
+    // Create the merged tree by starting from an empty merged tree and adding
+    // entries from the merged tree we created before
     let empty_merged_id_builder: MergeBuilder<_> = std::iter::repeat(store.empty_tree_id())
         .take(5)
         .cloned()
@@ -201,6 +201,22 @@ fn test_from_legacy_tree() {
     for (path, value) in merged_tree.entries() {
         tree_builder.set_or_remove(path, value);
     }
+    let recreated_merged_id = tree_builder.write_tree(store).unwrap();
+    assert_eq!(recreated_merged_id, merged_tree.id());
+
+    // Create the merged tree by adding the same (variable-arity) entries as we
+    // added to the single-tree TreeBuilder.
+    let mut tree_builder = MergedTreeBuilder::new(MergedTreeId::Merge(Merge::resolved(
+        store.empty_tree_id().clone(),
+    )));
+    // Add the entries out of order, so we test both increasing and reducing the
+    // arity (going up from 1-way to 3-way to 5-way, then to 3-way again)
+    tree_builder.set_or_remove(file1_path, Merge::normal(file_value(&file1_id)));
+    tree_builder.set_or_remove(file2_path, file2_conflict);
+    tree_builder.set_or_remove(file5_path, file5_conflict);
+    tree_builder.set_or_remove(file3_path, file3_conflict);
+    tree_builder.set_or_remove(file4_path, file4_conflict);
+    tree_builder.set_or_remove(dir1_filename, Merge::normal(file_value(&dir1_filename_id)));
     let recreated_merged_id = tree_builder.write_tree(store).unwrap();
     assert_eq!(recreated_merged_id, merged_tree.id());
 }
