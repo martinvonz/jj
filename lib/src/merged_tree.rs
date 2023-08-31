@@ -926,10 +926,7 @@ impl MergedTreeBuilder {
     /// a legacy tree, conflicts can be written either as a multi-way `Merge`
     /// value or as a resolved `Merge` value using `TreeValue::Conflict`.
     pub fn set_or_remove(&mut self, path: RepoPath, values: Merge<Option<TreeValue>>) {
-        if let MergedTreeId::Merge(base_tree_ids) = &self.base_tree_id {
-            if !values.is_resolved() {
-                assert_eq!(values.num_sides(), base_tree_ids.num_sides());
-            }
+        if let MergedTreeId::Merge(_) = &self.base_tree_id {
             assert!(!values
                 .iter()
                 .flatten()
@@ -981,9 +978,16 @@ impl MergedTreeBuilder {
 
     fn write_merged_trees(
         self,
-        base_tree_ids: Merge<TreeId>,
+        mut base_tree_ids: Merge<TreeId>,
         store: &Arc<Store>,
     ) -> Result<Merge<TreeId>, BackendError> {
+        let num_sides = self
+            .overrides
+            .values()
+            .map(|value| value.num_sides())
+            .max()
+            .unwrap_or(0);
+        base_tree_ids.pad_to(num_sides, store.empty_tree_id());
         // Create a single-tree builder for each base tree
         let mut tree_builders =
             base_tree_ids.map(|base_tree_id| TreeBuilder::new(store.clone(), base_tree_id.clone()));
@@ -996,7 +1000,8 @@ impl MergedTreeBuilder {
                         builder.set_or_remove(path.clone(), value.clone());
                     }
                 }
-                Err(values) => {
+                Err(mut values) => {
+                    values.pad_to(num_sides, &None);
                     // This path was overridden with a conflicted value. Apply each term to
                     // its corresponding builder.
                     for (builder, value) in zip(tree_builders.iter_mut(), values) {
