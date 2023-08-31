@@ -110,10 +110,10 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
     insta::assert_snapshot!(stdout, @r###"
-     file1 | 1 -
-     file2 | 1 +
-     file3 | 1 +
-     3 files changed, 2 insertions(+), 1 deletion(-)
+    file1 | 1 -
+    file2 | 1 +
+    file3 | 1 +
+    3 files changed, 2 insertions(+), 1 deletion(-)
     "###);
 }
 
@@ -356,19 +356,19 @@ fn test_diff_relative_paths() {
     let stdout = test_env.jj_cmd_success(&repo_path.join("dir1"), &["diff", "--stat"]);
     #[cfg(unix)]
     insta::assert_snapshot!(stdout, @r###"
-     file2         | 2 +-
-     subdir1/file3 | 2 +-
-     ../dir2/file4 | 2 +-
-     ../file1      | 2 +-
-     4 files changed, 4 insertions(+), 4 deletions(-)
+    file2         | 2 +-
+    subdir1/file3 | 2 +-
+    ../dir2/file4 | 2 +-
+    ../file1      | 2 +-
+    4 files changed, 4 insertions(+), 4 deletions(-)
     "###);
     #[cfg(windows)]
     insta::assert_snapshot!(stdout, @r###"
-     file2         | 2 +-
-     subdir1\file3 | 2 +-
-     ..\dir2\file4 | 2 +-
-     ..\file1      | 2 +-
-     4 files changed, 4 insertions(+), 4 deletions(-)
+    file2         | 2 +-
+    subdir1\file3 | 2 +-
+    ..\dir2\file4 | 2 +-
+    ..\file1      | 2 +-
+    4 files changed, 4 insertions(+), 4 deletions(-)
     "###);
 }
 
