@@ -1055,6 +1055,7 @@ dependencies = [
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
+ "unicode-width",
 ]
 
 [[package]]
