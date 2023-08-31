@@ -791,10 +791,14 @@ pub fn show_diff_stat(
         stats.push(stat);
     }
 
-    let display_width = usize::from(ui.term_width().unwrap_or(80)).saturating_sub(4); // padding
     let number_padding = max_diffs.to_string().len();
-    let max_bar_length =
-        display_width.saturating_sub(max_path_length + " | ".len() + number_padding);
+    // 4 characters padding for the graph
+    let available_width =
+        usize::from(ui.term_width().unwrap_or(80)).saturating_sub(4 + " | ".len() + number_padding);
+    // Always give at least a tiny bit of room
+    let available_width = max(available_width, 5);
+    let max_path_length = max_path_length.clamp(3, (0.7 * available_width as f64) as usize);
+    let max_bar_length = available_width.saturating_sub(max_path_length);
     let factor = if max_diffs < max_bar_length {
         1.0
     } else {
@@ -804,11 +808,27 @@ pub fn show_diff_stat(
     formatter.with_label("diff", |formatter| {
         let mut total_added = 0;
         let mut total_removed = 0;
-        for stat in &stats {
+        let total_files = stats.len();
+        for mut stat in stats {
             total_added += stat.added;
             total_removed += stat.removed;
             let bar_added = (stat.added as f64 * factor).ceil() as usize;
             let bar_removed = (stat.removed as f64 * factor).ceil() as usize;
+            // replace start of path with ellipsis if the path is too long
+            if stat.path.chars().count() > max_path_length {
+                stat.path = if max_path_length <= 3 {
+                    "...".to_string()
+                } else {
+                    let start_index = stat
+                        .path
+                        .char_indices()
+                        .rev()
+                        .nth(max_path_length - 4)
+                        .unwrap()
+                        .0;
+                    format!("...{}", &stat.path[start_index..])
+                }
+            }
             // pad to max_path_length
             write!(
                 formatter,
@@ -823,8 +843,8 @@ pub fn show_diff_stat(
         writeln!(
             formatter.labeled("stat-summary"),
             "{} file{} changed, {} insertion{}(+), {} deletion{}(-)",
-            stats.len(),
-            if stats.len() == 1 { "" } else { "s" },
+            total_files,
+            if total_files == 1 { "" } else { "s" },
             total_added,
             if total_added == 1 { "" } else { "s" },
             total_removed,
