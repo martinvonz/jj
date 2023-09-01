@@ -8,19 +8,25 @@
       
       
       
+        <link rel="canonical" href="https://martinvonz.github.io/jj/prerelease/technical/concurrency.html">
       
       
+        <link rel="prev" href="architecture.html">
       
-      <link rel="icon" href="/jj/prerelease/assets/images/favicon.png">
+      
+        <link rel="next" href="conflicts.html">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
     
     
       
-        <title>Jujutsu docs</title>
+        <title>Concurrency - Jujutsu docs</title>
       
     
     
-      <link rel="stylesheet" href="/jj/prerelease/assets/stylesheets/main.0e669242.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.0e669242.min.css">
       
       
 
@@ -41,7 +47,7 @@
       
     
     
-    <script>__md_scope=new URL("/jj/prerelease",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -62,6 +68,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#concurrency" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -78,7 +89,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="/jj/prerelease/." title="Jujutsu docs" class="md-header__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+    <a href=".." title="Jujutsu docs" class="md-header__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
@@ -98,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              
+              Concurrency
             
           </span>
         </div>
@@ -170,7 +181,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="/jj/prerelease/." title="Jujutsu docs" class="md-nav__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+    <a href=".." title="Jujutsu docs" class="md-nav__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
@@ -221,7 +232,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/install-and-setup.html" class="md-nav__link">
+      <a href="../install-and-setup.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -241,7 +252,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/tutorial.html" class="md-nav__link">
+      <a href="../tutorial.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -261,7 +272,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/github.html" class="md-nav__link">
+      <a href="../github.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -288,7 +299,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/FAQ.html" class="md-nav__link">
+      <a href="../FAQ.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -341,7 +352,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/working-copy.html" class="md-nav__link">
+      <a href="../working-copy.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -361,7 +372,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/branches.html" class="md-nav__link">
+      <a href="../branches.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -381,7 +392,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/conflicts.html" class="md-nav__link">
+      <a href="../conflicts.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -401,7 +412,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/operation-log.html" class="md-nav__link">
+      <a href="../operation-log.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -421,7 +432,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/glossary.html" class="md-nav__link">
+      <a href="../glossary.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -482,7 +493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/config.html" class="md-nav__link">
+      <a href="../config.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -502,7 +513,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/revsets.html" class="md-nav__link">
+      <a href="../revsets.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -522,7 +533,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/templates.html" class="md-nav__link">
+      <a href="../templates.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -583,7 +594,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/git-comparison.html" class="md-nav__link">
+      <a href="../git-comparison.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -603,7 +614,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/git-compatibility.html" class="md-nav__link">
+      <a href="../git-compatibility.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -623,7 +634,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/sapling-comparison.html" class="md-nav__link">
+      <a href="../sapling-comparison.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -643,7 +654,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/related-work.html" class="md-nav__link">
+      <a href="../related-work.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -668,17 +679,19 @@
       
   
   
+    
+  
   
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
@@ -691,7 +704,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Technical details
@@ -704,7 +717,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/technical/architecture.html" class="md-nav__link">
+      <a href="architecture.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -722,9 +735,29 @@
                 
   
   
+    
   
-    <li class="md-nav__item">
-      <a href="/jj/prerelease/technical/concurrency.html" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Concurrency
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="concurrency.html" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -733,6 +766,60 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    Introduction
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operation-log" class="md-nav__link">
+    Operation log
+  </a>
+  
+    <nav class="md-nav" aria-label="Operation log">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#merging-concurrent-operations" class="md-nav__link">
+    Merging concurrent operations
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storage" class="md-nav__link">
+    Storage
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -744,7 +831,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/technical/conflicts.html" class="md-nav__link">
+      <a href="conflicts.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -805,7 +892,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/contributing.html" class="md-nav__link">
+      <a href="../contributing.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -825,7 +912,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/code-of-conduct.html" class="md-nav__link">
+      <a href="../code-of-conduct.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -886,7 +973,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/design/git-submodules.html" class="md-nav__link">
+      <a href="../design/git-submodules.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -906,7 +993,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/design/git-submodule-storage.html" class="md-nav__link">
+      <a href="../design/git-submodule-storage.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -926,7 +1013,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/jj/prerelease/design/tracking-branches.html" class="md-nav__link">
+      <a href="../design/tracking-branches.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -964,6 +1051,50 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    Introduction
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operation-log" class="md-nav__link">
+    Operation log
+  </a>
+  
+    <nav class="md-nav" aria-label="Operation log">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#merging-concurrent-operations" class="md-nav__link">
+    Merging concurrent operations
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storage" class="md-nav__link">
+    Storage
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -975,8 +1106,109 @@
             <div class="md-content" data-md-component="content">
               <article class="md-content__inner md-typeset">
                 
-  <h1>404 - Not found</h1>
+                  
 
+
+<h1 id="concurrency">Concurrency<a class="headerlink" href="#concurrency" title="Permanent link">&para;</a></h1>
+<h2 id="introduction">Introduction<a class="headerlink" href="#introduction" title="Permanent link">&para;</a></h2>
+<p>Concurrent editing is a key feature of DVCSs -- that's why they're called
+<em>Distributed</em> Version Control Systems. A DVCS that didn't let users edit files
+and create commits on separate machines at the same time wouldn't be much
+of a distributed VCS.</p>
+<p>When conflicting changes are made in different clones, a DVCS will have to deal
+with that when you push or pull. For example, when using Mercurial, if the
+remote has updated a bookmark called <code>main</code> (Mercurial's bookmarks are similar
+to a Git's branches) and you had updated the same bookmark locally but made it
+point to a different target, Mercurial would add a bookmark called <code>main@origin</code>
+to indicate the conflict. Git instead prevents the conflict by renaming pulled
+branches to <code>origin/main</code> whether or not there was a conflict. However, most
+DVCSs treat local concurrency quite differently, typically by using lock files
+to prevent concurrent edits. Unlike those DVCSs, Jujutsu treats concurrent edits
+the same whether they're made locally or remotely.</p>
+<p>One problem with using lock files is that they don't work when the clone is in a
+distributed file system. Most clones are of course not stored in distributed
+file systems, but it is a <em>big</em> problem when they are (Mercurial repos
+frequently get corrupted, for example).</p>
+<p>Another problem with using lock files is related to complexity of
+implementation. The simplest way of using lock files is to take coarse-grained
+locks early: every command that may modify the repo takes a lock at the very
+beginning. However, that means that operations that wouldn't actually conflict
+would still have to wait for each other. The user experience can be improved by
+using finer-grained locks and/or taking the locks later. The drawback of that is
+complexity. For example, you need to verify that any assumptions you made before
+locking are still valid after you take the lock.</p>
+<p>To avoid depending on lock files, Jujutsu takes a different approach by
+accepting that concurrent changes can always happen. It instead exposes any
+conflicting changes to the user, much like other DVCSs do for conflicting
+changes made remotely.</p>
+<p>Jujutsu's lock-free concurrency means that it's possible to update copies of the
+clone on different machines and then let <code>rsync</code> (or Dropbox, or NFS, etc.)
+merge them. The working copy may mismatch what's supposed to be checked out, but
+no changes to the repo will be lost (added commits, moved branches, etc.). If
+conflicting changes were made, they will appear as conflicts. For example, if a
+branch was moved to two different locations, they will appear in <code>jj log</code> in
+both locations but with a "?" after the name, and <code>jj status</code> will also inform
+the user about the conflict.</p>
+<p>The most important piece in the lock-free design is the "operation log". That is
+what allows us to detect and merge concurrent operations.</p>
+<h2 id="operation-log">Operation log<a class="headerlink" href="#operation-log" title="Permanent link">&para;</a></h2>
+<p>The operation log is similar to a commit DAG (such as in
+<a href="https://git-scm.com/book/en/v2/Git-Internals-Git-Objects">Git's object model</a>),
+but each commit object is instead an "operation" and each tree object is instead
+a "view". The view object contains the set of visible head commits, branches,
+tags, and the working-copy commit in each workspace. The operation object
+contains a pointer to the view object (like how commit objects point to tree
+objects), pointers to parent operation(s) (like how commit objects point to
+parent commit(s)), and metadata about the operation. These types are defined
+in <code>op_store.proto</code> The operation log is normally linear.
+It becomes non-linear if there are concurrent operations.</p>
+<p>When a command starts, it loads the repo at the latest operation. Because the
+associated view object completely defines the repo state, the running command
+will not see any changes made by other processes thereafter. When the operation
+completes, it is written with the start operation as parent. The operation
+cannot fail to commit (except for disk failures and such). It is left for the
+next command to notice if there were concurrent operations. It will have to be
+able to do that anyway since the concurrent operation could have arrived via a
+distributed file system. This model -- where each operation sees a consistent
+view of the repo and is guaranteed to be able to commit their changes -- greatly
+simplifies the implementation of commands.</p>
+<p>It is possible to load the repo at a particular operation with
+<code>jj --at-operation=&lt;operation ID&gt; &lt;command&gt;</code>. If the command is mutational, that
+will result in a fork in the operation log. That works exactly the same as if
+any later operations had not existed when the command started. In other words,
+running commands on a repo loaded at an earlier operation works the same way as
+if the operations had been concurrent. This can be useful for simulating
+concurrent operations.</p>
+<h3 id="merging-concurrent-operations">Merging concurrent operations<a class="headerlink" href="#merging-concurrent-operations" title="Permanent link">&para;</a></h3>
+<p>If Jujutsu tries to load the repo and finds multiple heads in the operation log,
+it will do a 3-way merge of the view objects based on their common ancestor
+(possibly several 3-way merges if there were more than two heads). Conflicts
+are recorded in the resulting view object. For example, if branch <code>main</code> was
+moved from commit A to commit B in one operation and moved to commit C in a
+concurrent operation, then <code>main</code> will be recorded as "moved from A to B or C".
+See the <code>RefTarget</code> definition in <code>op_store.proto</code>.</p>
+<p>Because we allow branches (etc.) to be in a conflicted state rather than just
+erroring out when there are multiple heads, the user can continue to use the
+repo, including performing further operations on the repo. Of course, some
+commands will fail when using a conflicted branch. For example,
+<code>jj checkout main</code> when <code>main</code> is in a conflicted state will result in an error
+telling you that <code>main</code> resolved to multiple revisions.</p>
+<h3 id="storage">Storage<a class="headerlink" href="#storage" title="Permanent link">&para;</a></h3>
+<p>The operation objects and view objects are stored in content-addressed storage
+just like Git commits are. That makes them safe to write without locking.</p>
+<p>We also need a way of finding the current head of the operation log. We do that
+by keeping the ID of the current head(s) as a file in a directory. The ID is the
+name of the file; it has no contents. When an operation completes, we add a file
+pointing to the new operation and then remove the file pointing to the old
+operation. Writing the new file is what makes the operation visible (if the old
+file didn't get properly deleted, then future readers will take care of that).
+This scheme ensures that transactions are atomic.</p>
+
+
+
+
+
+                
               </article>
             </div>
           
@@ -1008,10 +1240,10 @@
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "/jj/prerelease", "features": [], "search": "/jj/prerelease/assets/javascripts/workers/search.dfff1995.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.dfff1995.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="/jj/prerelease/assets/javascripts/bundle.78eede0e.min.js"></script>
+      <script src="../assets/javascripts/bundle.78eede0e.min.js"></script>
       
     
   </body>
