@@ -206,7 +206,16 @@ impl From<OpHeadResolutionError<CommandError>> for CommandError {
 
 impl From<SnapshotError> for CommandError {
     fn from(err: SnapshotError) -> Self {
-        CommandError::InternalError(format!("Failed to snapshot the working copy: {err}"))
+        match err {
+            SnapshotError::NewFileTooLarge { .. } => user_error_with_hint(
+                format!("Failed to snapshot the working copy: {err}"),
+                r#"Increase the value of the `snapshot.max-new-file-size` config option if you
+want this file to be snapshotted. Otherwise add it to your `.gitignore` file."#,
+            ),
+            err => {
+                CommandError::InternalError(format!("Failed to snapshot the working copy: {err}"))
+            }
+        }
     }
 }
 
