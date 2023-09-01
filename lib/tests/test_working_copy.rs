@@ -407,7 +407,7 @@ fn test_checkout_discard() {
     let reloaded_wc = WorkingCopy::load(store.clone(), workspace_root.clone(), state_path.clone());
     assert!(reloaded_wc.file_states().unwrap().contains_key(&file1_path));
     assert!(!reloaded_wc.file_states().unwrap().contains_key(&file2_path));
-    locked_wc.discard();
+    drop(locked_wc);
 
     // The change should remain in the working copy, but not in memory and not saved
     assert!(wc.file_states().unwrap().contains_key(&file1_path));
@@ -447,7 +447,6 @@ fn test_snapshot_racy_timestamps(use_git: bool) {
         let new_tree_id = locked_wc
             .snapshot(SnapshotOptions::empty_for_test())
             .unwrap();
-        locked_wc.discard();
         assert_ne!(new_tree_id, previous_tree_id);
         previous_tree_id = new_tree_id;
     }
@@ -856,7 +855,6 @@ fn test_fsmonitor() {
         let mut locked_wc = wc.start_mutation().unwrap();
         let tree_id = snapshot(&mut locked_wc, &[]);
         assert_eq!(tree_id, repo.store().empty_merged_tree_id());
-        locked_wc.discard();
     }
 
     {
@@ -866,7 +864,6 @@ fn test_fsmonitor() {
         tree 205f6b799e7d5c2524468ca006a0131aa57ecce7
           file "foo" (257cc5642cb1a054f08cc83f2d943e56fd3ebe99): "foo\n"
         "###);
-        locked_wc.discard();
     }
 
     {
@@ -895,7 +892,6 @@ fn test_fsmonitor() {
           file "foo" (9d053d7c8a18a286dce9b99a59bb058be173b463): "updated foo\n"
           file "path/to/nested" (79c53955ef856f16f2107446bc721c8879a1bd2e): "nested\n"
         "###);
-        locked_wc.discard();
     }
 
     {

@@ -26,7 +26,6 @@ fn test_snapshot_large_file() {
     std::fs::write(repo_path.join("large"), "a lot of text").unwrap();
     let stderr = test_env.jj_cmd_failure(&repo_path, &["files"]);
     insta::assert_snapshot!(stderr, @r###"
-    BUG: Working copy lock was dropped without being closed.
     Error: Failed to snapshot the working copy: New file $TEST_ENV/repo/large of size ~13.0B exceeds snapshot.max-new-file-size (10.0B)
     Hint: Increase the value of the `snapshot.max-new-file-size` config option if you
     want this file to be snapshotted. Otherwise add it to your `.gitignore` file.

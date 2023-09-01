@@ -1524,7 +1524,6 @@ impl WorkingCopy {
         // them know.
         if let Some(old_tree_id) = old_tree_id {
             if *old_tree_id != locked_wc.old_tree_id {
-                locked_wc.discard();
                 return Err(CheckoutError::ConcurrentCheckout);
             }
         }
@@ -1626,19 +1625,13 @@ impl LockedWorkingCopy<'_> {
         self.closed = true;
         Ok(())
     }
-
-    pub fn discard(mut self) {
-        // Undo the changes in memory
-        self.wc.tree_state.take();
-        self.tree_state_dirty = false;
-        self.closed = true;
-    }
 }
 
 impl Drop for LockedWorkingCopy<'_> {
     fn drop(&mut self) {
-        if !self.closed && !std::thread::panicking() {
-            eprintln!("BUG: Working copy lock was dropped without being closed.");
+        if !self.closed {
+            // Undo the changes in memory
+            self.wc.tree_state.take();
         }
     }
 }
