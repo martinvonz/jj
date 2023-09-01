@@ -794,84 +794,102 @@ fn test_diff_stat_long_name_or_stat() {
 
     let get_stat = |test_env: &TestEnvironment, path_length: usize, stat_size: usize| {
         test_env.jj_cmd_success(&repo_path, &["new", "root"]);
-        let name = "一二三四五六七八九十"
+        let ascii_name = "1234567890".chars().cycle().take(path_length).join("");
+        let han_name = "一二三四五六七八九十"
             .chars()
             .cycle()
             .take(path_length)
             .join("");
         let content = "content line\n".repeat(stat_size);
-        std::fs::write(repo_path.join(name), content).unwrap();
+        std::fs::write(repo_path.join(ascii_name), &content).unwrap();
+        std::fs::write(repo_path.join(han_name), &content).unwrap();
         test_env.jj_cmd_success(&repo_path, &["diff", "--stat"])
     };
 
     insta::assert_snapshot!(get_stat(&test_env, 1, 1), @r###"
+    1   | 1 +
     一   | 1 +
-    1 file changed, 1 insertion(+), 0 deletions(-)
+    2 files changed, 2 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 1, 10), @r###"
+    1   | 10 ++++++++++
     一   | 10 ++++++++++
-    1 file changed, 10 insertions(+), 0 deletions(-)
+    2 files changed, 20 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 1, 100), @r###"
+    1   | 100 +++++++++++++++++
     一   | 100 +++++++++++++++++
-    1 file changed, 100 insertions(+), 0 deletions(-)
+    2 files changed, 200 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 10, 1), @r###"
+    1234567890 | 1 +
     一二三四五六七八九十 | 1 +
-    1 file changed, 1 insertion(+), 0 deletions(-)
+    2 files changed, 2 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 10, 10), @r###"
+    1234567890 | 10 ++++++++++
     一二三四五六七八九十 | 10 ++++++++++
-    1 file changed, 10 insertions(+), 0 deletions(-)
+    2 files changed, 20 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 10, 100), @r###"
+    1234567890 | 100 ++++++++++
     一二三四五六七八九十 | 100 ++++++++++
-    1 file changed, 100 insertions(+), 0 deletions(-)
+    2 files changed, 200 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 50, 1), @r###"
+    ...901234567890 | 1 +
     ...九十一二三四五六七八九十 | 1 +
-    1 file changed, 1 insertion(+), 0 deletions(-)
+    2 files changed, 2 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 50, 10), @r###"
+    ...01234567890 | 10 +++++++
     ...十一二三四五六七八九十 | 10 +++++++
-    1 file changed, 10 insertions(+), 0 deletions(-)
+    2 files changed, 20 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 50, 100), @r###"
+    ...01234567890 | 100 ++++++
     ...十一二三四五六七八九十 | 100 ++++++
-    1 file changed, 100 insertions(+), 0 deletions(-)
+    2 files changed, 200 insertions(+), 0 deletions(-)
     "###);
 
     // Lengths around where we introduce the ellipsis
     insta::assert_snapshot!(get_stat(&test_env, 13, 100), @r###"
+    1234567890123 | 100 ++++++++
     一二三四五六七八九十一二三 | 100 ++++++++
-    1 file changed, 100 insertions(+), 0 deletions(-)
+    2 files changed, 200 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 14, 100), @r###"
+    12345678901234 | 100 ++++++
     一二三四五六七八九十一二三四 | 100 ++++++
-    1 file changed, 100 insertions(+), 0 deletions(-)
+    2 files changed, 200 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 15, 100), @r###"
+    ...56789012345 | 100 ++++++
     ...五六七八九十一二三四五 | 100 ++++++
-    1 file changed, 100 insertions(+), 0 deletions(-)
+    2 files changed, 200 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 16, 100), @r###"
+    ...67890123456 | 100 ++++++
     ...六七八九十一二三四五六 | 100 ++++++
-    1 file changed, 100 insertions(+), 0 deletions(-)
+    2 files changed, 200 insertions(+), 0 deletions(-)
     "###);
 
     // Very narrow terminal (doesn't have to fit, just don't crash)
     test_env.add_env_var("COLUMNS", "10");
     insta::assert_snapshot!(get_stat(&test_env, 10, 10), @r###"
     ... | 10 ++
-    1 file changed, 10 insertions(+), 0 deletions(-)
+    ... | 10 ++
+    2 files changed, 20 insertions(+), 0 deletions(-)
     "###);
     test_env.add_env_var("COLUMNS", "3");
     insta::assert_snapshot!(get_stat(&test_env, 10, 10), @r###"
     ... | 10 ++
-    1 file changed, 10 insertions(+), 0 deletions(-)
+    ... | 10 ++
+    2 files changed, 20 insertions(+), 0 deletions(-)
     "###);
     insta::assert_snapshot!(get_stat(&test_env, 3, 10), @r###"
+    123 | 10 ++
     一二三 | 10 ++
-    1 file changed, 10 insertions(+), 0 deletions(-)
+    2 files changed, 20 insertions(+), 0 deletions(-)
     "###);
 }
