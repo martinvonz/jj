@@ -9,6 +9,7 @@ use jj_lib::git;
 use jj_lib::repo_path::RepoPath;
 
 use crate::cleanup_guard::CleanupGuard;
+use crate::text_util;
 use crate::ui::{OutputGuard, ProgressOutput, Ui};
 
 pub struct Progress {
@@ -193,14 +194,15 @@ pub fn snapshot_progress(ui: &Ui) -> Option<impl Fn(&RepoPath) + '_> {
         }
 
         let line_width = state.output.term_width().map(usize::from).unwrap_or(80);
-        let path_width = line_width.saturating_sub(13); // Account for "Snapshotting "
+        let max_path_width = line_width.saturating_sub(13); // Account for "Snapshotting "
+        let fs_path = path.to_fs_path(Path::new(""));
+        let (display_path, _) =
+            text_util::elide_start(fs_path.to_str().unwrap(), "...", max_path_width);
 
         _ = write!(
             state.output,
-            "\r{}Snapshotting {:.*}",
+            "\r{}Snapshotting {display_path}",
             Clear(ClearType::CurrentLine),
-            path_width,
-            path.to_fs_path(Path::new("")).display()
         );
         _ = state.output.flush();
     })
