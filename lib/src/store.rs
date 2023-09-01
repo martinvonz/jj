@@ -16,6 +16,7 @@
 
 use std::any::Any;
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::io::Read;
 use std::sync::{Arc, RwLock};
 
@@ -33,12 +34,19 @@ use crate::tree_builder::TreeBuilder;
 
 /// Wraps the low-level backend and makes it return more convenient types. Also
 /// adds caching.
-#[derive(Debug)]
 pub struct Store {
     backend: Box<dyn Backend>,
     commit_cache: RwLock<HashMap<CommitId, Arc<backend::Commit>>>,
     tree_cache: RwLock<HashMap<(RepoPath, TreeId), Arc<backend::Tree>>>,
     use_tree_conflict_format: bool,
+}
+
+impl Debug for Store {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        f.debug_struct("Store")
+            .field("backend", &self.backend)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Store {
