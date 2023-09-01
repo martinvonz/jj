@@ -1348,7 +1348,7 @@ fn cmd_untrack(
         let wc_tree = store.get_root_tree(&wc_tree_id)?;
         let added_back = wc_tree.entries_matching(matcher.as_ref()).collect_vec();
         if !added_back.is_empty() {
-            locked_working_copy.discard();
+            drop(locked_working_copy);
             let path = &added_back[0].0;
             let ui_path = workspace_command.format_file_path(path);
             let message = if added_back.len() > 1 {
@@ -3594,7 +3594,6 @@ fn cmd_workspace_update_stale(
         workspace_command.unchecked_start_working_copy_mutation()?;
     match check_stale_working_copy(&locked_wc, &desired_wc_commit, &repo) {
         Ok(_) => {
-            locked_wc.discard();
             ui.write("Nothing to do (the working copy is not stale).\n")?;
         }
         Err(_) => {

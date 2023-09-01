@@ -1275,7 +1275,6 @@ impl WorkspaceCommandHelper {
                 (repo, wc_commit)
             }
             Err(StaleWorkingCopyError::WorkingCopyStale) => {
-                locked_wc.discard();
                 return Err(user_error_with_hint(
                     format!(
                         "The working copy is stale (not updated since operation {}).",
@@ -1287,7 +1286,6 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                 ));
             }
             Err(StaleWorkingCopyError::SiblingOperation) => {
-                locked_wc.discard();
                 return Err(CommandError::InternalError(format!(
                     "The repo was loaded at operation {}, which seems to be a sibling of the \
                      working copy's operation {}",
@@ -1296,7 +1294,6 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                 )));
             }
             Err(StaleWorkingCopyError::UnrelatedOperation) => {
-                locked_wc.discard();
                 return Err(CommandError::InternalError(format!(
                     "The repo was loaded at operation {}, which seems unrelated to the working \
                      copy's operation {}",
