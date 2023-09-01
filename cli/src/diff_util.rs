@@ -31,10 +31,12 @@ use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::{conflicts, diff, files, rewrite};
 use tracing::instrument;
+use unicode_width::UnicodeWidthStr as _;
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
 use crate::formatter::Formatter;
 use crate::merge_tools::{self, ExternalMergeTool};
+use crate::text_util;
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
@@ -779,13 +781,13 @@ pub fn show_diff_stat(
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
     let mut stats: Vec<DiffStat> = vec![];
-    let mut max_path_length = 0;
+    let mut max_path_width = 0;
     let mut max_diffs = 0;
     for (repo_path, left, right) in tree_diff {
         let path = workspace_command.format_file_path(&repo_path);
         let left_content = diff_content(workspace_command.repo(), &repo_path, &left)?;
         let right_content = diff_content(workspace_command.repo(), &repo_path, &right)?;
-        max_path_length = max(max_path_length, path.chars().count());
+        max_path_width = max(max_path_width, path.width());
         let stat = get_diff_stat(path, &left_content, &right_content);
         max_diffs = max(max_diffs, stat.added + stat.removed);
         stats.push(stat);
@@ -797,8 +799,8 @@ pub fn show_diff_stat(
         usize::from(ui.term_width().unwrap_or(80)).saturating_sub(4 + " | ".len() + number_padding);
     // Always give at least a tiny bit of room
     let available_width = max(available_width, 5);
-    let max_path_length = max_path_length.clamp(3, (0.7 * available_width as f64) as usize);
-    let max_bar_length = available_width.saturating_sub(max_path_length);
+    let max_path_width = max_path_width.clamp(3, (0.7 * available_width as f64) as usize);
+    let max_bar_length = available_width.saturating_sub(max_path_width);
     let factor = if max_diffs < max_bar_length {
         1.0
     } else {
@@ -809,31 +811,18 @@ pub fn show_diff_stat(
         let mut total_added = 0;
         let mut total_removed = 0;
         let total_files = stats.len();
-        for mut stat in stats {
+        for stat in &stats {
             total_added += stat.added;
             total_removed += stat.removed;
             let bar_added = (stat.added as f64 * factor).ceil() as usize;
             let bar_removed = (stat.removed as f64 * factor).ceil() as usize;
             // replace start of path with ellipsis if the path is too long
-            if stat.path.chars().count() > max_path_length {
-                stat.path = if max_path_length <= 3 {
-                    "...".to_string()
-                } else {
-                    let start_index = stat
-                        .path
-                        .char_indices()
-                        .rev()
-                        .nth(max_path_length - 4)
-                        .unwrap()
-                        .0;
-                    format!("...{}", &stat.path[start_index..])
-                }
-            }
-            // pad to max_path_length
+            let (path, path_width) = text_util::elide_start(&stat.path, "...", max_path_width);
+            let path_pad_width = max_path_width - path_width;
             write!(
                 formatter,
-                "{:<max_path_length$} | {:>number_padding$}{}",
-                stat.path,
+                "{path}{:path_pad_width$} | {:>number_padding$}{}",
+                "", // pad to max_path_width
                 stat.added + stat.removed,
                 if bar_added + bar_removed > 0 { " " } else { "" },
             )?;
