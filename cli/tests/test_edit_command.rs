@@ -117,5 +117,7 @@ fn test_edit_root() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "root()"]);
-    insta::assert_snapshot!(stderr, @"Error: Cannot rewrite the root commit");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot rewrite commit 000000000000
+    "###);
 }
