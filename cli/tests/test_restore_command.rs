@@ -71,7 +71,7 @@ fn test_restore() {
     // Cannot restore the root revision
     let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-c=root()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot rewrite the root commit
+    Error: Cannot rewrite commit 000000000000
     "###);
 
     // Can restore this revision from another revision

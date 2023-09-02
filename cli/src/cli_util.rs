@@ -1249,10 +1249,28 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         template.format(commit, formatter)
     }
 
-    pub fn check_rewritable(&self, commit: &Commit) -> Result<(), CommandError> {
-        if commit.id() == self.repo().store().root_commit_id() {
-            return Err(user_error("Cannot rewrite the root commit"));
+    pub fn check_rewritable<'a>(
+        &self,
+        commits: impl IntoIterator<Item = &'a Commit>,
+    ) -> Result<(), CommandError> {
+        let to_rewrite_revset = RevsetExpression::commits(
+            commits
+                .into_iter()
+                .map(|commit| commit.id().clone())
+                .collect(),
+        );
+        let immutable_revset =
+            RevsetExpression::commit(self.repo().store().root_commit_id().clone());
+        let invalid_revset = to_rewrite_revset.intersection(&immutable_revset);
+        let revset = self.evaluate_revset(invalid_revset)?;
+        if let Some(commit) = revset.iter().commits(self.repo().store()).next() {
+            let commit = commit?;
+            return Err(user_error(format!(
+                "Cannot rewrite commit {}",
+                short_commit_hash(commit.id()),
+            )));
         }
+
         Ok(())
     }
 
