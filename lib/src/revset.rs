@@ -783,11 +783,11 @@ impl RevsetAliasesMap {
         Ok(())
     }
 
-    fn get_symbol(&self, name: &str) -> Option<&str> {
+    pub fn get_symbol(&self, name: &str) -> Option<&str> {
         self.symbol_aliases.get(name).map(|defn| defn.as_ref())
     }
 
-    fn get_function(&self, name: &str) -> Option<(&[String], &str)> {
+    pub fn get_function(&self, name: &str) -> Option<(&[String], &str)> {
         self.function_aliases
             .get(name)
             .map(|(params, defn)| (params.as_ref(), defn.as_ref()))

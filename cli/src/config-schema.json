@@ -309,6 +309,13 @@
         "revset-aliases": {
             "type": "object",
             "description": "Custom symbols/function aliases that can used in revset expressions",
+            "properties": {
+                "immutable_heads()": {
+                    "type": "string",
+                    "description": "Revisions to consider immutable. Ancestors of these are also considered immutable. The root commit is always considered immutable.",
+                    "default": "trunk() | tags()"
+                }
+            },
             "additionalProperties": {
                 "type": "string"
             }
@@ -335,7 +342,10 @@
             "description": "Parameters governing automatic capture of files into the working copy commit",
             "properties": {
                 "max-new-file-size": {
-                    "type": ["integer", "string"],
+                    "type": [
+                        "integer",
+                        "string"
+                    ],
                     "description": "New files with a size in bytes above this threshold are not snapshotted, unless the threshold is 0",
                     "default": "1MiB"
                 }

@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Support for the Watchman filesystem monitor is now bundled by default. Set
   `core.fsmonitor = "watchman"` in your repo to enable.
 
+* You can now configure the set of immutable commits via
+  `revset-aliases.immutable_heads()`. For example, set it to
+  `"remote_branches() | tags()"` to prevent rewriting those those. Their
+  ancestors are implicitly also immutable.
+
 * `jj op log` now supports `--no-graph`.
 
 * Templates now support an additional escape: `\0`. This will output a literal
