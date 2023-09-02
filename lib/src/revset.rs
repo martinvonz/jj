@@ -1171,9 +1171,15 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(expression.children())
     });
     map.insert("ancestors", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
-        let expression = parse_expression_rule(arg.into_inner(), state)?;
-        Ok(expression.ancestors())
+        let ([heads_arg], [depth_opt_arg]) = expect_arguments(name, arguments_pair)?;
+        let heads = parse_expression_rule(heads_arg.into_inner(), state)?;
+        let generation = if let Some(depth_arg) = depth_opt_arg {
+            let depth = parse_function_argument_as_literal("integer", name, depth_arg, state)?;
+            0..depth
+        } else {
+            GENERATION_RANGE_FULL
+        };
+        Ok(heads.ancestors_range(generation))
     });
     map.insert("descendants", |name, arguments_pair, state| {
         let arg = expect_one_argument(name, arguments_pair)?;

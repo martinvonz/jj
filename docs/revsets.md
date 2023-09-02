@@ -79,7 +79,9 @@ revsets (expressions) as arguments.
 
 * `parents(x)`: Same as `x-`.
 * `children(x)`: Same as `x+`.
-* `ancestors(x)`: Same as `:x`.
+* `ancestors(x[, depth])`: `ancestors(x)` is the same as `::x`. 
+  `ancestors(x, depth)` returns the ancestors of `x` limited to the given 
+  `depth`.
 * `descendants(x)`: Same as `x::`.
 * `connected(x)`: Same as `x::x`. Useful when `x` includes several commits.
 * `all()`: All visible commits in the repo.

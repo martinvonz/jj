@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* The `ancestors()` revset function now takes an optional `depth` argument 
+  to limit the depth of the ancestor set. For example, use `jj log -r 
+  'ancestors(@, 5)` to view the last 5 commits.
+
 ### Fixed bugs
 
 ## [0.9.0] - 2023-09-06
