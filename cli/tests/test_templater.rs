@@ -21,6 +21,7 @@ pub mod common;
 #[test]
 fn test_templater_branches() {
     let test_env = TestEnvironment::default();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
 
     test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "origin"]);
     let origin_path = test_env.env_root().join("origin");

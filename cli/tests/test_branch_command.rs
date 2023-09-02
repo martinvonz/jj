@@ -449,6 +449,7 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
 #[test]
 fn test_branch_list_filtered_by_revset() {
     let test_env = TestEnvironment::default();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
 
     // Initialize remote refs
     test_env.jj_cmd_success(test_env.env_root(), &["init", "remote", "--git"]);

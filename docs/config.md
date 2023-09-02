@@ -176,13 +176,29 @@ diff-args = ["--color=always", "$left", "$right"]
 - `$left` and `$right` are replaced with the paths to the left and right
   directories to diff respectively.
 
+### Set of immutable commits
+
+You can configure the set of immutable commits via `revset-aliases."immutable_heads()"`.
+The default set of immutable heads is `trunk() | tags()`. For example, to
+prevent rewriting commits on `main@origin` and commits authored by other
+users:
+
+```toml
+# The `main.. &` bit is an optimization to scan for non-`mine()` commits only
+# among commits that are not in `main`.
+revset-aliases."immutable_heads()" = "main@origin | (main@origin.. & ~mine())"
+```
+
+Ancestors of the configured set are also immutable. The root commit always
+immutable even if the set is empty.
+
 ### Default revisions to log
 
 You can configure the revisions `jj log` without `-r` should show.
 
 ```toml
-# Show commits that are not in `main`
-revsets.log = "main.."
+# Show commits that are not in `main@origin`
+revsets.log = "main@origin.."
 ```
 
 ### Graph style

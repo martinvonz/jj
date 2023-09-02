@@ -60,6 +60,7 @@ fn test_git_push_nothing() {
 #[test]
 fn test_git_push_current_branch() {
     let (test_env, workspace_root) = set_up();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     // Update some branches. `branch1` is not a current branch, but `branch2` and
     // `my-branch` are.
     test_env.jj_cmd_success(
@@ -105,6 +106,7 @@ fn test_git_push_current_branch() {
 #[test]
 fn test_git_push_parent_branch() {
     let (test_env, workspace_root) = set_up();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     test_env.jj_cmd_success(&workspace_root, &["edit", "branch1"]);
     test_env.jj_cmd_success(
         &workspace_root,
@@ -151,6 +153,7 @@ fn test_git_push_matching_branch_unchanged() {
 #[test]
 fn test_git_push_other_remote_has_branch() {
     let (test_env, workspace_root) = set_up();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     // Create another remote (but actually the same)
     let other_remote_path = test_env
         .env_root()

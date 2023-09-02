@@ -51,6 +51,7 @@ fn test_undo_rewrite_with_child() {
 #[test]
 fn test_git_push_undo() {
     let test_env = TestEnvironment::default();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     let git_repo_path = test_env.env_root().join("git-repo");
     git2::Repository::init_bare(git_repo_path).unwrap();
     test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "git-repo", "repo"]);
@@ -122,6 +123,7 @@ fn test_git_push_undo() {
 #[test]
 fn test_git_push_undo_with_import() {
     let test_env = TestEnvironment::default();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     let git_repo_path = test_env.env_root().join("git-repo");
     git2::Repository::init_bare(git_repo_path).unwrap();
     test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "git-repo", "repo"]);
@@ -198,6 +200,7 @@ fn test_git_push_undo_with_import() {
 #[test]
 fn test_git_push_undo_colocated() {
     let test_env = TestEnvironment::default();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     let git_repo_path = test_env.env_root().join("git-repo");
     git2::Repository::init_bare(git_repo_path.clone()).unwrap();
     let repo_path = test_env.env_root().join("clone");
@@ -274,6 +277,7 @@ fn test_git_push_undo_colocated() {
 #[test]
 fn test_git_push_undo_repo_only() {
     let test_env = TestEnvironment::default();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     let git_repo_path = test_env.env_root().join("git-repo");
     git2::Repository::init_bare(git_repo_path).unwrap();
     test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "git-repo", "repo"]);

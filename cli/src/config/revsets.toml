@@ -13,3 +13,5 @@ latest(
   root()
 )
 '''
+
+'immutable_heads()' = 'trunk() | tags()'

@@ -110,14 +110,3 @@ fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"commit_id.short() ++ " " ++ description"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
-
-#[test]
-fn test_edit_root() {
-    let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
-    let repo_path = test_env.env_root().join("repo");
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "root()"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot rewrite commit 000000000000
-    "###);
-}

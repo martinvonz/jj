@@ -382,6 +382,7 @@ fn create_trunk2_and_rebase_branches(test_env: &TestEnvironment, repo_path: &Pat
 #[test]
 fn test_git_fetch_all() {
     let test_env = TestEnvironment::default();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     let source_git_repo_path = test_env.env_root().join("source");
     let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
 
@@ -505,6 +506,7 @@ fn test_git_fetch_all() {
 #[test]
 fn test_git_fetch_some_of_many_branches() {
     let test_env = TestEnvironment::default();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     let source_git_repo_path = test_env.env_root().join("source");
     let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
 

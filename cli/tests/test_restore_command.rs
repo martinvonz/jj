@@ -68,18 +68,12 @@ fn test_restore() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r=@-"]);
     insta::assert_snapshot!(stdout, @"");
 
-    // Cannot restore the root revision
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-c=root()"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot rewrite commit 000000000000
-    "###);
-
     // Can restore this revision from another revision
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created kkmpptxz 237116e2 (no description set)
-    Working copy now at: kkmpptxz 237116e2 (no description set)
+    Created kkmpptxz 1dd6eb63 (no description set)
+    Working copy now at: kkmpptxz 1dd6eb63 (no description set)
     Parent commit      : rlvkpnrz 1a986a27 (no description set)
     Added 1 files, modified 0 files, removed 2 files
     "###);
@@ -92,10 +86,10 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created rlvkpnrz 887f8f96 (no description set)
+    Created rlvkpnrz ec9d5b59 (no description set)
     Rebased 1 descendant commits
-    Working copy now at: kkmpptxz d2725e6e (empty) (no description set)
-    Parent commit      : rlvkpnrz 887f8f96 (no description set)
+    Working copy now at: kkmpptxz d6f3c681 (empty) (no description set)
+    Parent commit      : rlvkpnrz ec9d5b59 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -110,10 +104,10 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created rlvkpnrz 50c1fe09 (no description set)
+    Created rlvkpnrz 5f6eb3d5 (no description set)
     Rebased 1 descendant commits
-    Working copy now at: kkmpptxz c63aab8e (empty) (no description set)
-    Parent commit      : rlvkpnrz 50c1fe09 (no description set)
+    Working copy now at: kkmpptxz 525afd5d (empty) (no description set)
+    Parent commit      : rlvkpnrz 5f6eb3d5 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -128,8 +122,8 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "file2", "file3"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created kkmpptxz 48f89f52 (no description set)
-    Working copy now at: kkmpptxz 48f89f52 (no description set)
+    Created kkmpptxz 569ce73d (no description set)
+    Working copy now at: kkmpptxz 569ce73d (no description set)
     Parent commit      : rlvkpnrz 1a986a27 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);
