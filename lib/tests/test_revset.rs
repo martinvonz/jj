@@ -1205,6 +1205,24 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
             root_commit.id().clone(),
         ]
     );
+
+    // Can find last n ancestors of a commit
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("ancestors({}, 0)", commit2.id().hex())),
+        vec![]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("ancestors({}, 1)", commit3.id().hex())),
+        vec![commit3.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("ancestors({}, 3)", commit3.id().hex())),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
+    );
 }
 
 #[test_case(false ; "local backend")]
