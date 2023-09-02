@@ -75,7 +75,7 @@ The following functions are defined.
 
 ### Boolean type
 
-No methods are defined.
+No methods are defined. Can be constructed with `false` or `true` literal.
 
 ### Commit type
 

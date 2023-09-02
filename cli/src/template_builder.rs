@@ -764,6 +764,10 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
                 Ok(Expression::with_label(property, *name))
             }
         }
+        ExpressionKind::Boolean(value) => {
+            let property = language.wrap_boolean(Literal(*value));
+            Ok(Expression::unlabeled(property))
+        }
         ExpressionKind::Integer(value) => {
             let property = language.wrap_integer(Literal(*value));
             Ok(Expression::unlabeled(property))

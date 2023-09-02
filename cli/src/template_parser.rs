@@ -195,6 +195,7 @@ impl<'i> ExpressionNode<'i> {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExpressionKind<'i> {
     Identifier(&'i str),
+    Boolean(bool),
     Integer(i64),
     String(String),
     Concat(Vec<ExpressionNode<'i>>),
@@ -226,6 +227,27 @@ pub struct LambdaNode<'i> {
     pub body: Box<ExpressionNode<'i>>,
 }
 
+fn parse_identifier_or_literal(pair: Pair<Rule>) -> ExpressionKind {
+    assert_eq!(pair.as_rule(), Rule::identifier);
+    match pair.as_str() {
+        "false" => ExpressionKind::Boolean(false),
+        "true" => ExpressionKind::Boolean(true),
+        name => ExpressionKind::Identifier(name),
+    }
+}
+
+fn parse_identifier_name(pair: Pair<Rule>) -> TemplateParseResult<&str> {
+    let span = pair.as_span();
+    if let ExpressionKind::Identifier(name) = parse_identifier_or_literal(pair) {
+        Ok(name)
+    } else {
+        Err(TemplateParseError::unexpected_expression(
+            "Expected identifier",
+            span,
+        ))
+    }
+}
+
 fn parse_string_literal(pair: Pair<Rule>) -> String {
     assert_eq!(pair.as_rule(), Rule::literal);
     let mut result = String::new();
@@ -251,13 +273,10 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
 fn parse_formal_parameters(params_pair: Pair<Rule>) -> TemplateParseResult<Vec<&str>> {
     assert_eq!(params_pair.as_rule(), Rule::formal_parameters);
     let params_span = params_pair.as_span();
-    let params = params_pair
+    let params: Vec<_> = params_pair
         .into_inner()
-        .map(|pair| match pair.as_rule() {
-            Rule::identifier => pair.as_str(),
-            r => panic!("unexpected formal parameter rule {r:?}"),
-        })
-        .collect_vec();
+        .map(parse_identifier_name)
+        .try_collect()?;
     if params.iter().all_unique() {
         Ok(params)
     } else {
@@ -271,18 +290,19 @@ fn parse_formal_parameters(params_pair: Pair<Rule>) -> TemplateParseResult<Vec<&
 fn parse_function_call_node(pair: Pair<Rule>) -> TemplateParseResult<FunctionCallNode> {
     assert_eq!(pair.as_rule(), Rule::function);
     let mut inner = pair.into_inner();
-    let name = inner.next().unwrap();
+    let name_pair = inner.next().unwrap();
+    let name_span = name_pair.as_span();
     let args_pair = inner.next().unwrap();
     let args_span = args_pair.as_span();
-    assert_eq!(name.as_rule(), Rule::identifier);
     assert_eq!(args_pair.as_rule(), Rule::function_arguments);
+    let name = parse_identifier_name(name_pair)?;
     let args = args_pair
         .into_inner()
         .map(parse_template_node)
         .try_collect()?;
     Ok(FunctionCallNode {
-        name: name.as_str(),
-        name_span: name.as_span(),
+        name,
+        name_span,
         args,
         args_span,
     })
@@ -319,7 +339,7 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
             })?;
             ExpressionNode::new(ExpressionKind::Integer(value), span)
         }
-        Rule::identifier => ExpressionNode::new(ExpressionKind::Identifier(expr.as_str()), span),
+        Rule::identifier => ExpressionNode::new(parse_identifier_or_literal(expr), span),
         Rule::function => {
             let function = parse_function_call_node(expr)?;
             ExpressionNode::new(ExpressionKind::FunctionCall(function), span)
@@ -431,13 +451,15 @@ impl TemplateAliasDeclaration {
         let mut pairs = TemplateParser::parse(Rule::alias_declaration, source)?;
         let first = pairs.next().unwrap();
         match first.as_rule() {
-            Rule::identifier => Ok(TemplateAliasDeclaration::Symbol(first.as_str().to_owned())),
+            Rule::identifier => {
+                let name = parse_identifier_name(first)?.to_owned();
+                Ok(TemplateAliasDeclaration::Symbol(name))
+            }
             Rule::function_alias_declaration => {
                 let mut inner = first.into_inner();
                 let name_pair = inner.next().unwrap();
                 let params_pair = inner.next().unwrap();
-                assert_eq!(name_pair.as_rule(), Rule::identifier);
-                let name = name_pair.as_str().to_owned();
+                let name = parse_identifier_name(name_pair)?.to_owned();
                 let params = parse_formal_parameters(params_pair)?
                     .into_iter()
                     .map(|s| s.to_owned())
@@ -544,8 +566,9 @@ pub fn expand_aliases<'i>(
                     Ok(node)
                 }
             }
-            ExpressionKind::Integer(_) => Ok(node),
-            ExpressionKind::String(_) => Ok(node),
+            ExpressionKind::Boolean(_) | ExpressionKind::Integer(_) | ExpressionKind::String(_) => {
+                Ok(node)
+            }
             ExpressionKind::Concat(nodes) => {
                 node.kind = ExpressionKind::Concat(expand_list(nodes, state)?);
                 Ok(node)
@@ -676,6 +699,7 @@ pub fn expect_string_literal_with<'a, 'i, T>(
     match &node.kind {
         ExpressionKind::String(s) => f(s, node.span),
         ExpressionKind::Identifier(_)
+        | ExpressionKind::Boolean(_)
         | ExpressionKind::Integer(_)
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
@@ -698,6 +722,7 @@ pub fn expect_lambda_with<'a, 'i, T>(
         ExpressionKind::Lambda(lambda) => f(lambda, node.span),
         ExpressionKind::String(_)
         | ExpressionKind::Identifier(_)
+        | ExpressionKind::Boolean(_)
         | ExpressionKind::Integer(_)
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
@@ -774,6 +799,7 @@ mod tests {
 
         let normalized_kind = match node.kind {
             ExpressionKind::Identifier(_)
+            | ExpressionKind::Boolean(_)
             | ExpressionKind::Integer(_)
             | ExpressionKind::String(_) => node.kind,
             ExpressionKind::Concat(nodes) => ExpressionKind::Concat(normalize_list(nodes)),
@@ -844,6 +870,11 @@ mod tests {
         assert!(parse_template(r#" label("","") "#).is_ok());
         assert!(parse_template(r#" label("","",) "#).is_ok());
         assert!(parse_template(r#" label("",,"") "#).is_err());
+
+        // Boolean literal cannot be used as a function name
+        assert!(parse_template("false()").is_err());
+        // Function arguments can be any expression
+        assert!(parse_template("f(false)").is_ok());
     }
 
     #[test]
@@ -908,6 +939,24 @@ mod tests {
             parse_template("|x, x| a").unwrap_err().kind,
             TemplateParseErrorKind::RedefinedFunctionParameter
         );
+
+        // Boolean literal cannot be used as a parameter name
+        assert!(parse_template("|false| a").is_err());
+    }
+
+    #[test]
+    fn test_keyword_literal() {
+        assert_eq!(parse_into_kind("false"), Ok(ExpressionKind::Boolean(false)));
+        assert_eq!(parse_into_kind("(true)"), Ok(ExpressionKind::Boolean(true)));
+        // Keyword literals are case sensitive
+        assert_eq!(
+            parse_into_kind("False"),
+            Ok(ExpressionKind::Identifier("False")),
+        );
+        assert_eq!(
+            parse_into_kind("tRue"),
+            Ok(ExpressionKind::Identifier("tRue")),
+        );
     }
 
     #[test]
@@ -964,6 +1013,11 @@ mod tests {
             aliases_map.insert("f(a, a)", r#""""#).unwrap_err().kind,
             TemplateParseErrorKind::RedefinedFunctionParameter
         );
+
+        // Boolean literal cannot be used as a symbol, function, or parameter name
+        assert!(aliases_map.insert("false", r#"""#).is_err());
+        assert!(aliases_map.insert("true()", r#"""#).is_err());
+        assert!(aliases_map.insert("f(false)", r#"""#).is_err());
 
         // Trailing comma isn't allowed for empty parameter
         assert!(aliases_map.insert("f(,)", r#"""#).is_err());
