@@ -138,6 +138,14 @@ fn test_templater_parse_error() {
       |
       = Function "foo" doesn't exist
     "###);
+    insta::assert_snapshot!(render_err(r#"false()"#), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | false()
+      | ^---^
+      |
+      = Expected identifier
+    "###);
 
     insta::assert_snapshot!(render_err(r#"description.first_line().foo()"#), @r###"
     Error: Failed to parse template:  --> 1:26
@@ -771,13 +779,13 @@ fn test_templater_separate_function() {
 
     // Conditional template
     insta::assert_snapshot!(
-        render(r#"separate(" ", "a", if("t", ""))"#), @"a");
+        render(r#"separate(" ", "a", if(true, ""))"#), @"a");
     insta::assert_snapshot!(
-        render(r#"separate(" ", "a", if("t", "", "f"))"#), @"a");
+        render(r#"separate(" ", "a", if(true, "", "f"))"#), @"a");
     insta::assert_snapshot!(
-        render(r#"separate(" ", "a", if("", "t", ""))"#), @"a");
+        render(r#"separate(" ", "a", if(false, "t", ""))"#), @"a");
     insta::assert_snapshot!(
-        render(r#"separate(" ", "a", if("t", "t", "f"))"#), @"a t");
+        render(r#"separate(" ", "a", if(true, "t", "f"))"#), @"a t");
 
     // Separate keywords
     insta::assert_snapshot!(
