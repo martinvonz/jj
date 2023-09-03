@@ -850,7 +850,14 @@ fn parse_expression_rule(
                 | Op::postfix(Rule::compat_parents_op))
     });
     PRATT
-        .map_primary(|primary| parse_primary_rule(primary, state))
+        .map_primary(|primary| match primary.as_rule() {
+            Rule::primary => parse_primary_rule(primary, state),
+            Rule::dag_range_all_op => Ok(RevsetExpression::all()),
+            Rule::range_all_op => {
+                Ok(RevsetExpression::root().range(&RevsetExpression::visible_heads()))
+            }
+            r => panic!("unexpected primary rule {r:?}"),
+        })
         .map_prefix(|op, rhs| match op.as_rule() {
             Rule::negate_op => Ok(rhs?.negated()),
             Rule::dag_range_pre_op => Ok(rhs?.ancestors()),
@@ -2767,6 +2774,8 @@ mod tests {
         assert_eq!(parse("foo::"), Ok(foo_symbol.descendants()));
         // Parse the "dag range" operator
         assert_eq!(parse("foo::bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
+        // Parse the nullary "dag range" operator
+        assert_eq!(parse("::"), Ok(RevsetExpression::all()));
         // Parse the "range" prefix operator
         assert_eq!(
             parse("..foo"),
@@ -2777,6 +2786,11 @@ mod tests {
             Ok(foo_symbol.range(&RevsetExpression::visible_heads()))
         );
         assert_eq!(parse("foo..bar"), Ok(foo_symbol.range(&bar_symbol)));
+        // Parse the nullary "range" operator
+        assert_eq!(
+            parse(".."),
+            Ok(RevsetExpression::root().range(&RevsetExpression::visible_heads()))
+        );
         // Parse the "negate" operator
         assert_eq!(parse("~ foo"), Ok(foo_symbol.negated()));
         assert_eq!(
@@ -2967,6 +2981,7 @@ mod tests {
         assert_eq!(parse("x&y|z").unwrap(), parse("(x&y)|z").unwrap());
         assert_eq!(parse("x|y&z").unwrap(), parse("x|(y&z)").unwrap());
         assert_eq!(parse("x|y~z").unwrap(), parse("x|(y~z)").unwrap());
+        assert_eq!(parse("::&..").unwrap(), parse("(::)&(..)").unwrap());
         // Parse repeated "ancestors"/"descendants"/"dag range"/"range" operators
         assert_eq!(parse("::foo::"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse(":::foo"), Err(RevsetParseErrorKind::SyntaxError));
@@ -2977,16 +2992,21 @@ mod tests {
         assert_eq!(parse("foo::::bar"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("::foo::bar"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("foo::bar::"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("::::"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("....foo"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("foo...."), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("foo.....bar"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("..foo..bar"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("foo..bar.."), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("...."), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("::.."), Err(RevsetParseErrorKind::SyntaxError));
         // Parse combinations of "parents"/"children" operators and the range operators.
         // The former bind more strongly.
         assert_eq!(parse("foo-+"), Ok(foo_symbol.parents().children()));
         assert_eq!(parse("foo-::"), Ok(foo_symbol.parents().descendants()));
         assert_eq!(parse("::foo+"), Ok(foo_symbol.children().ancestors()));
+        assert_eq!(parse("::-"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("..+"), Err(RevsetParseErrorKind::SyntaxError));
     }
 
     #[test]

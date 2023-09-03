@@ -1250,6 +1250,16 @@ fn test_evaluate_expression_range(use_git: bool) {
         resolve_commit_ids(mut_repo, &format!("{}..", commit2.id().hex())),
         vec![commit4.id().clone(), commit3.id().clone()]
     );
+
+    assert_eq!(
+        resolve_commit_ids(mut_repo, ".."),
+        vec![
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
+    );
 }
 
 #[test_case(false ; "local backend")]
@@ -1281,7 +1291,11 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
             mut_repo,
             &format!("{}:{}", root_commit_id.hex(), commit2.id().hex())
         ),
-        vec![commit2.id().clone(), commit1.id().clone(), root_commit_id]
+        vec![
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit_id.clone(),
+        ]
     );
 
     // Empty range
@@ -1342,6 +1356,19 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
             commit5.id().clone(),
             commit3.id().clone(),
             commit2.id().clone(),
+        ]
+    );
+
+    // Full range meaning all()
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "::"),
+        vec![
+            commit5.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit_id.clone(),
         ]
     );
 }

@@ -116,6 +116,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Revsets gained a new function `mine()` that aliases `author(exact:"your_email")`.
 
+* Added support for `::` and `..` revset operators with both left and right
+  operands omitted. These expressions are equivalent to `all()` and `~root()`
+  respectively.
+
 * `jj log` timestamp format now accepts `.utc()` to convert a timestamp to UTC.
  
 * templates now support additional string methods `.starts_with(x)`, `.ends_with(x)`
