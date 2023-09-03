@@ -29,7 +29,7 @@ fn test_syntax_error() {
     1 | x &
       |    ^---
       |
-      = expected dag_range_pre_op, legacy_dag_range_pre_op, range_pre_op, negate_op, or primary
+      = expected dag_range_pre_op, dag_range_all_op, legacy_dag_range_pre_op, range_pre_op, range_all_op, negate_op, or primary
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "x - y"]);
@@ -287,7 +287,7 @@ fn test_alias() {
     1 | whatever &
       |           ^---
       |
-      = expected dag_range_pre_op, legacy_dag_range_pre_op, range_pre_op, negate_op, or primary
+      = expected dag_range_pre_op, dag_range_all_op, legacy_dag_range_pre_op, range_pre_op, range_all_op, negate_op, or primary
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "identity()"]);
