@@ -20,7 +20,7 @@ pub mod common;
 
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["new", "root", "-m", name]);
+        test_env.jj_cmd_success(repo_path, &["new", "root()", "-m", name]);
     } else {
         let mut args = vec!["new", "-m", name];
         args.extend(parents);
@@ -49,7 +49,7 @@ fn test_duplicate() {
     ◉  000000000000
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "root"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Cannot rewrite the root commit
     "###);

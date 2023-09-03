@@ -30,7 +30,7 @@ fn set_up() -> (TestEnvironment, PathBuf) {
 
     test_env.jj_cmd_success(&origin_path, &["describe", "-m=description 1"]);
     test_env.jj_cmd_success(&origin_path, &["branch", "create", "branch1"]);
-    test_env.jj_cmd_success(&origin_path, &["new", "root", "-m=description 2"]);
+    test_env.jj_cmd_success(&origin_path, &["new", "root()", "-m=description 2"]);
     test_env.jj_cmd_success(&origin_path, &["branch", "create", "branch2"]);
     test_env.jj_cmd_success(&origin_path, &["git", "export"]);
 
@@ -505,7 +505,7 @@ fn test_git_push_missing_author() {
             .assert()
             .success();
     };
-    run_without_var("JJ_USER", &["checkout", "root", "-m=initial"]);
+    run_without_var("JJ_USER", &["checkout", "root()", "-m=initial"]);
     run_without_var("JJ_USER", &["branch", "create", "missing-name"]);
     let stderr = test_env.jj_cmd_failure(
         &workspace_root,
@@ -514,7 +514,7 @@ fn test_git_push_missing_author() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 944313939bbd since it has no author and/or committer set
     "###);
-    run_without_var("JJ_EMAIL", &["checkout", "root", "-m=initial"]);
+    run_without_var("JJ_EMAIL", &["checkout", "root()", "-m=initial"]);
     run_without_var("JJ_EMAIL", &["branch", "create", "missing-email"]);
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
@@ -540,7 +540,7 @@ fn test_git_push_missing_committer() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 4fd190283d1a since it has no author and/or committer set
     "###);
-    test_env.jj_cmd_success(&workspace_root, &["checkout", "root"]);
+    test_env.jj_cmd_success(&workspace_root, &["checkout", "root()"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "create", "missing-email"]);
     run_without_var("JJ_EMAIL", &["describe", "-m=no committer email"]);
     let stderr =
@@ -591,7 +591,7 @@ fn test_git_push_conflicting_branches() {
         .delete()
         .unwrap();
     test_env.jj_cmd_success(&workspace_root, &["git", "import"]);
-    test_env.jj_cmd_success(&workspace_root, &["new", "root", "-m=description 3"]);
+    test_env.jj_cmd_success(&workspace_root, &["new", "root()", "-m=description 3"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch2"]);
     test_env.jj_cmd_success(&workspace_root, &["git", "fetch"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["branch", "list"]), @r###"

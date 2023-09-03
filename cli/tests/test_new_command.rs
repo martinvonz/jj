@@ -34,7 +34,7 @@ fn test_new() {
     "###);
 
     // Start a new change off of a specific commit (the root commit in this case).
-    test_env.jj_cmd_success(&repo_path, &["new", "-m", "off of root", "root"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "off of root", "root()"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  026537ddb96b801b9cb909985d5443aab44616c1 off of root
     │ ◉  4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
@@ -53,7 +53,7 @@ fn test_new_merge() {
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add file1"]);
     std::fs::write(repo_path.join("file1"), "a").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m", "add file2"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m", "add file2"]);
     std::fs::write(repo_path.join("file2"), "b").unwrap();
 
     // Create a merge commit
@@ -100,7 +100,7 @@ fn test_new_merge() {
     "###);
 
     // merge with root
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "root"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Cannot merge with root revision
     "###);
@@ -391,7 +391,7 @@ fn test_new_insert_before_root() {
     "###);
 
     let stderr =
-        test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "-m", "G", "root"]);
+        test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "-m", "G", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Cannot insert a commit before the root commit
     "###);
@@ -404,9 +404,9 @@ fn setup_before_insertion(test_env: &TestEnvironment, repo_path: &Path) {
     test_env.jj_cmd_success(repo_path, &["commit", "-m", "B"]);
     test_env.jj_cmd_success(repo_path, &["branch", "create", "C"]);
     test_env.jj_cmd_success(repo_path, &["describe", "-m", "C"]);
-    test_env.jj_cmd_success(repo_path, &["new", "-m", "D", "root"]);
+    test_env.jj_cmd_success(repo_path, &["new", "-m", "D", "root()"]);
     test_env.jj_cmd_success(repo_path, &["branch", "create", "D"]);
-    test_env.jj_cmd_success(repo_path, &["new", "-m", "E", "root"]);
+    test_env.jj_cmd_success(repo_path, &["new", "-m", "E", "root()"]);
     test_env.jj_cmd_success(repo_path, &["branch", "create", "E"]);
     test_env.jj_cmd_success(repo_path, &["new", "-m", "F", "D", "E"]);
     test_env.jj_cmd_success(repo_path, &["branch", "create", "F"]);

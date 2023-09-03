@@ -69,7 +69,7 @@ fn test_restore() {
     insta::assert_snapshot!(stdout, @"");
 
     // Cannot restore the root revision
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-c=root"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-c=root()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Cannot rewrite the root commit
     "###);
@@ -255,7 +255,7 @@ fn create_commit(
     files: &[(&str, &str)],
 ) {
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["new", "root", "-m", name]);
+        test_env.jj_cmd_success(repo_path, &["new", "root()", "-m", name]);
     } else {
         let mut args = vec!["new", "-m", name];
         args.extend(parents);

@@ -51,7 +51,7 @@ fn test_branch_forbidden_at_root() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "create", "fred", "-r=root"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "create", "fred", "-r=root()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Cannot rewrite the root commit
     "###);
@@ -448,7 +448,7 @@ fn test_branch_list_filtered_by_revset() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "remote", "--git"]);
     let remote_path = test_env.env_root().join("remote");
     for branch in ["remote-keep", "remote-delete", "remote-rewrite"] {
-        test_env.jj_cmd_success(&remote_path, &["new", "root", "-m", branch]);
+        test_env.jj_cmd_success(&remote_path, &["new", "root()", "-m", branch]);
         test_env.jj_cmd_success(&remote_path, &["branch", "set", branch]);
     }
     test_env.jj_cmd_success(&remote_path, &["new"]);
@@ -462,7 +462,7 @@ fn test_branch_list_filtered_by_revset() {
         &["git", "clone", remote_git_path.to_str().unwrap(), "local"],
     );
     let local_path = test_env.env_root().join("local");
-    test_env.jj_cmd_success(&local_path, &["new", "root", "-m", "local-keep"]);
+    test_env.jj_cmd_success(&local_path, &["new", "root()", "-m", "local-keep"]);
     test_env.jj_cmd_success(&local_path, &["branch", "set", "local-keep"]);
 
     // Mutate refs in local repository

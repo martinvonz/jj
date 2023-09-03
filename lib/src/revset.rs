@@ -256,6 +256,7 @@ pub enum RevsetCommitRef {
         remote: String,
     },
     VisibleHeads,
+    Root,
     Branches(StringPattern),
     RemoteBranches {
         branch_pattern: StringPattern,
@@ -361,6 +362,10 @@ impl RevsetExpression {
 
     pub fn visible_heads() -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::VisibleHeads))
+    }
+
+    pub fn root() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Root))
     }
 
     pub fn branches(pattern: StringPattern) -> Rc<RevsetExpression> {
@@ -1077,6 +1082,10 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("visible_heads", |name, arguments_pair, _state| {
         expect_no_arguments(name, arguments_pair)?;
         Ok(RevsetExpression::visible_heads())
+    });
+    map.insert("root", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::root())
     });
     map.insert("branches", |name, arguments_pair, state| {
         let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
@@ -1966,8 +1975,8 @@ impl SymbolResolver for FailingSymbolResolver {
 
 pub type PrefixResolver<'a, T> = Box<dyn Fn(&dyn Repo, &HexPrefix) -> PrefixResolution<T> + 'a>;
 
-/// Resolves the "root" symbol, branches, remote branches, tags, git
-/// refs, and full and abbreviated commit and change ids.
+/// Resolves branches, remote branches, tags, git refs, and full and abbreviated
+/// commit and change ids.
 pub struct DefaultSymbolResolver<'a> {
     repo: &'a dyn Repo,
     commit_id_resolver: PrefixResolver<'a, CommitId>,
@@ -2002,68 +2011,66 @@ impl<'a> DefaultSymbolResolver<'a> {
 
 impl SymbolResolver for DefaultSymbolResolver<'_> {
     fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
-        if symbol == "root" {
-            Ok(vec![self.repo.store().root_commit_id().clone()])
-        } else if symbol.is_empty() {
-            Err(RevsetResolutionError::EmptyString)
-        } else {
-            // Try to resolve as a tag
-            let target = self.repo.view().get_tag(symbol);
-            if target.is_present() {
-                return Ok(target.added_ids().cloned().collect());
-            }
-
-            // Try to resolve as a branch
-            if let Some(ids) = resolve_local_branch(self.repo, symbol) {
-                return Ok(ids);
-            }
-
-            // Try to resolve as a git ref
-            if let Some(ids) = resolve_git_ref(self.repo, symbol) {
-                return Ok(ids);
-            }
-
-            // Try to resolve as a full commit id.
-            if let Some(ids) = resolve_full_commit_id(self.repo, symbol)? {
-                return Ok(ids);
-            }
-
-            // Try to resolve as a commit id.
-            if let Some(prefix) = HexPrefix::new(symbol) {
-                match (self.commit_id_resolver)(self.repo, &prefix) {
-                    PrefixResolution::AmbiguousMatch => {
-                        return Err(RevsetResolutionError::AmbiguousCommitIdPrefix(
-                            symbol.to_owned(),
-                        ));
-                    }
-                    PrefixResolution::SingleMatch(id) => {
-                        return Ok(vec![id]);
-                    }
-                    PrefixResolution::NoMatch => {
-                        // Fall through
-                    }
-                }
-            }
-
-            // Try to resolve as a change id.
-            if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
-                match (self.change_id_resolver)(self.repo, &prefix) {
-                    PrefixResolution::AmbiguousMatch => {
-                        return Err(RevsetResolutionError::AmbiguousChangeIdPrefix(
-                            symbol.to_owned(),
-                        ));
-                    }
-                    PrefixResolution::SingleMatch(ids) => {
-                        return Ok(ids);
-                    }
-                    PrefixResolution::NoMatch => {
-                        // Fall through
-                    }
-                }
-            }
-
-            Err(make_no_such_symbol_error(self.repo, symbol))
+        if symbol.is_empty() {
+            return Err(RevsetResolutionError::EmptyString);
         }
+
+        // Try to resolve as a tag
+        let target = self.repo.view().get_tag(symbol);
+        if target.is_present() {
+            return Ok(target.added_ids().cloned().collect());
+        }
+
+        // Try to resolve as a branch
+        if let Some(ids) = resolve_local_branch(self.repo, symbol) {
+            return Ok(ids);
+        }
+
+        // Try to resolve as a git ref
+        if let Some(ids) = resolve_git_ref(self.repo, symbol) {
+            return Ok(ids);
+        }
+
+        // Try to resolve as a full commit id.
+        if let Some(ids) = resolve_full_commit_id(self.repo, symbol)? {
+            return Ok(ids);
+        }
+
+        // Try to resolve as a commit id.
+        if let Some(prefix) = HexPrefix::new(symbol) {
+            match (self.commit_id_resolver)(self.repo, &prefix) {
+                PrefixResolution::AmbiguousMatch => {
+                    return Err(RevsetResolutionError::AmbiguousCommitIdPrefix(
+                        symbol.to_owned(),
+                    ));
+                }
+                PrefixResolution::SingleMatch(id) => {
+                    return Ok(vec![id]);
+                }
+                PrefixResolution::NoMatch => {
+                    // Fall through
+                }
+            }
+        }
+
+        // Try to resolve as a change id.
+        if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
+            match (self.change_id_resolver)(self.repo, &prefix) {
+                PrefixResolution::AmbiguousMatch => {
+                    return Err(RevsetResolutionError::AmbiguousChangeIdPrefix(
+                        symbol.to_owned(),
+                    ));
+                }
+                PrefixResolution::SingleMatch(ids) => {
+                    return Ok(ids);
+                }
+                PrefixResolution::NoMatch => {
+                    // Fall through
+                }
+            }
+        }
+
+        Err(make_no_such_symbol_error(self.repo, symbol))
     }
 }
 
@@ -2086,6 +2093,7 @@ fn resolve_commit_ref(
             }
         }
         RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
+        RevsetCommitRef::Root => Ok(vec![repo.store().root_commit_id().clone()]),
         RevsetCommitRef::Branches(pattern) => {
             let view = repo.view();
             let commit_ids = filter_map_values_by_key_pattern(view.branches(), pattern)
@@ -2995,6 +3003,11 @@ mod tests {
                 message: "Expected 1 arguments".to_string()
             })
         );
+        assert_eq!(
+            parse("root()"),
+            Ok(Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Root)))
+        );
+        assert!(parse("root(a)").is_err());
         assert_eq!(
             parse(r#"description("")"#),
             Ok(RevsetExpression::filter(

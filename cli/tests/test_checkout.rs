@@ -63,10 +63,10 @@ fn test_checkout_not_single_rev() {
     test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fourth"]);
     test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fifth"]);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "root..@"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "root()..@"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Revset "root..@" resolved to more than one revision
-    Hint: The revset "root..@" resolved to these revisions:
+    Error: Revset "root()..@" resolved to more than one revision
+    Hint: The revset "root()..@" resolved to these revisions:
     royxmykx 2f859371 (empty) (no description set)
     mzvwutvl 5c1afd8b (empty) fifth
     zsuskuln 009f88bf (empty) fourth
@@ -75,10 +75,10 @@ fn test_checkout_not_single_rev() {
     ...
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "root..@-"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "root()..@-"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Revset "root..@-" resolved to more than one revision
-    Hint: The revset "root..@-" resolved to these revisions:
+    Error: Revset "root()..@-" resolved to more than one revision
+    Hint: The revset "root()..@-" resolved to these revisions:
     mzvwutvl 5c1afd8b (empty) fifth
     zsuskuln 009f88bf (empty) fourth
     kkmpptxz 3fa8931e (empty) third

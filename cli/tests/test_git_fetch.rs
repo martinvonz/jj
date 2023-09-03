@@ -58,7 +58,7 @@ fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
     let descr = format!("descr_for_{name}");
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["new", "root", "-m", &descr]);
+        test_env.jj_cmd_success(repo_path, &["new", "root()", "-m", &descr]);
     } else {
         let mut args = vec!["new", "-m", &descr];
         args.extend(parents);
@@ -299,7 +299,7 @@ fn test_git_fetch_conflicting_branches() {
     add_git_remote(&test_env, &repo_path, "rem1");
 
     // Create a rem1 branch locally
-    test_env.jj_cmd_success(&repo_path, &["new", "root"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "root()"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "rem1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: kkmpptxz fcdbbd73 (empty) (no description set)
@@ -329,7 +329,7 @@ fn test_git_fetch_conflicting_branches_colocated() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
     // Create a rem1 branch locally
-    test_env.jj_cmd_success(&repo_path, &["new", "root"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "root()"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "rem1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: zsuskuln f652c321 (empty) (no description set)

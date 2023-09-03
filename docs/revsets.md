@@ -18,9 +18,6 @@ ID or a Git ref pointing to them).
 
 ## Symbols
 
-The symbol `root` refers to the virtual commit that is the oldest ancestor of
-all other commits.
-
 The `@` expression refers to the working copy commit in the current workspace.
 Use `<workspace name>@` to refer to the working-copy commit in another
 workspace. Use `<name>@<remote>` to refer to a remote-tracking branch.
@@ -41,11 +38,10 @@ Taking shell quoting into account, you may need to use something like
 
 Jujutsu attempts to resolve a symbol in the following order:
 
-1. `root`
-2. Tag name
-3. Branch name
-4. Git ref
-5. Commit ID or change ID
+1. Tag name
+2. Branch name
+3. Git ref
+4. Commit ID or change ID
 
 ## Operators
 
@@ -107,6 +103,7 @@ revsets (expressions) as arguments.
 * `git_head()`: The Git `HEAD` target as of the last import. Equivalent to
   `present(HEAD@git)`.
 * `visible_heads()`: All visible heads (same as `heads(all())`).
+* `root()`: The virtual commit that is the oldest ancestor of all other commits.
 * `heads(x)`: Commits in `x` that are not ancestors of other commits in `x`.
   Note that this is different from
   [Mercurial's](https://repo.mercurial-scm.org/hg/help/revsets) `heads(x)`
@@ -127,7 +124,7 @@ revsets (expressions) as arguments.
 * `committer(pattern)`: Commits with the given string in the committer's
   name or email.
 * `empty()`: Commits modifying no files. This also includes `merges()` without
-  user modifications and `root`.
+  user modifications and `root()`.
 * `file(pattern..)`: Commits modifying the paths specified by the `pattern..`.
   Paths are relative to the directory `jj` was invoked from. A directory name
   will match all files in that directory and its subdirectories. For example,
@@ -186,7 +183,7 @@ jj log -r :@
 Show the initial commits in the repo (the ones Git calls "root commits"):
 
 ```
-jj log -r root+
+jj log -r root()+
 ```
 
 Show some important commits (like `git --simplify-by-decoration`):

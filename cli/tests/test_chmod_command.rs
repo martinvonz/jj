@@ -26,7 +26,7 @@ fn create_commit(
     files: &[(&str, &str)],
 ) {
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["new", "root", "-m", name]);
+        test_env.jj_cmd_success(repo_path, &["new", "root()", "-m", name]);
     } else {
         let mut args = vec!["new", "-m", name];
         args.extend(parents);

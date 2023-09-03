@@ -49,16 +49,16 @@ fn test_log_legacy_range_operator() {
     insta::assert_snapshot!(stdout, @r###"
     @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
-    ◉  zzzzzzzz root 00000000
+    ◉  zzzzzzzz root() 00000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     The `:` revset operator is deprecated. Please switch to `::`.
     "###);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=root:@"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=root():@"]);
     insta::assert_snapshot!(stdout, @r###"
     @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
-    ◉  zzzzzzzz root 00000000
+    ◉  zzzzzzzz root() 00000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     The `:` revset operator is deprecated. Please switch to `::`.
@@ -589,7 +589,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     );
 
     // Create 2^7 hidden commits
-    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m", "extra"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m", "extra"]);
     for _ in 0..7 {
         test_env.jj_cmd_success(&repo_path, &["duplicate", "description(extra)"]);
     }
@@ -954,7 +954,7 @@ fn test_default_revset() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add a file"]);
 
     // Set configuration to only show the root commit.
-    test_env.add_config(r#"revsets.log = "root""#);
+    test_env.add_config(r#"revsets.log = "root()""#);
 
     // Log should only contain one line (for the root commit), and not show the
     // commit created above.
@@ -979,7 +979,7 @@ fn test_default_revset_per_repo() {
     // Set configuration to only show the root commit.
     std::fs::write(
         repo_path.join(".jj/repo/config.toml"),
-        r#"revsets.log = "root""#,
+        r#"revsets.log = "root()""#,
     )
     .unwrap();
 
@@ -1005,7 +1005,7 @@ fn test_multiple_revsets() {
     }
 
     // Default revset should be overridden if one or more -r options are specified.
-    test_env.add_config(r#"revsets.log = "root""#);
+    test_env.add_config(r#"revsets.log = "root()""#);
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches", "-rfoo"]),

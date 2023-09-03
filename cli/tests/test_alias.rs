@@ -135,9 +135,9 @@ fn test_alias_cannot_override_builtin() {
 
     test_env.add_config(r#"aliases.log = ["rebase"]"#);
     // Alias should be ignored
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "root"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "root()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root 00000000
+    ◉  zzzzzzzz root() 00000000
     "###);
 }
 
