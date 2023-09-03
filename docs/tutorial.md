@@ -137,12 +137,12 @@ for context.  The `~` indicates that the commit has parents that are not
 included in the graph. We can use the `-r` flag to select a different set of
 revisions to list. The flag accepts a ["revset"](revsets.md), which is an
 expression in a simple language for specifying revisions. For example, `@`
-refers to the working-copy commit, `root` refers to the root commit,
+refers to the working-copy commit, `root()` refers to the root commit,
 `branches()` refers to all commits pointed to by branches. We can combine
 expressions with `|` for union, `&` for intersection and `~` for difference. For
 example:
 ```shell
-$ jj log -r '@ | root | branches()'
+$ jj log -r '@ | root() | branches()'
 @  mpqrykypylvy martinvonz@google.com 2023-02-12 15:00:22.000 -08:00 aef4df99ea11
 ╷  (empty) (no description set)
 ╷ ◉  kowxouwzwxmv octocat@nowhere.com 2014-06-10 15:22:26.000 -07:00 test b3cbd5bbd7e8
@@ -156,8 +156,8 @@ $ jj log -r '@ | root | branches()'
 ```
 
 The `000000000000` commit (change ID `zzzzzzzzzzzz`) is a virtual commit that's
-called the "root commit". It's the root commit of every repo. The `root` symbol
-in the revset matches it.
+called the "root commit". It's the root commit of every repo. The `root()`
+function in the revset matches it.
 
 There are also operators for getting the parents (`foo-`), children (`foo+`),
 ancestors (`:foo`), descendants (`foo:`), DAG range (`foo:bar`, like

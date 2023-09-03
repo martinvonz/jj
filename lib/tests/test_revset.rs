@@ -70,18 +70,6 @@ fn revset_for_commits<'index>(
         .unwrap()
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_resolve_symbol_root(use_git: bool) {
-    let test_repo = TestRepo::init(use_git);
-    let repo = &test_repo.repo;
-
-    assert_matches!(
-        resolve_symbol(repo.as_ref(), "root"),
-        Ok(v) if v == vec![repo.store().root_commit_id().clone()]
-    );
-}
-
 #[test]
 fn test_resolve_symbol_empty_string() {
     let test_repo = TestRepo::init(true);
@@ -738,7 +726,7 @@ fn test_resolve_symbol_git_refs() {
         vec![commit2.id().clone()]
     );
 
-    // Cannot shadow root symbols
+    // "@" (quoted) can be resolved, and root is a normal symbol.
     let ws_id = WorkspaceId::default();
     mut_repo
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
@@ -746,8 +734,12 @@ fn test_resolve_symbol_git_refs() {
     mut_repo.set_git_ref_target("@", RefTarget::normal(commit2.id().clone()));
     mut_repo.set_git_ref_target("root", RefTarget::normal(commit3.id().clone()));
     assert_eq!(
+        resolve_symbol(mut_repo, r#""@""#).unwrap(),
+        vec![commit2.id().clone()]
+    );
+    assert_eq!(
         resolve_symbol(mut_repo, "root").unwrap(),
-        vec![mut_repo.store().root_commit().id().clone()]
+        vec![commit3.id().clone()]
     );
 
     // Conflicted ref resolves to its "adds"
@@ -812,7 +804,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
 
     // Can find the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo, "root"),
+        resolve_commit_ids(mut_repo, "root()"),
         vec![root_commit.id().clone()]
     );
 
@@ -847,7 +839,7 @@ fn test_evaluate_expression_heads(use_git: bool) {
 
     // Heads of the root is the root
     assert_eq!(
-        resolve_commit_ids(mut_repo, "heads(root)"),
+        resolve_commit_ids(mut_repo, "heads(root())"),
         vec![root_commit.id().clone()]
     );
 
@@ -912,7 +904,7 @@ fn test_evaluate_expression_roots(use_git: bool) {
 
     // Roots of the root is the root
     assert_eq!(
-        resolve_commit_ids(mut_repo, "roots(root)"),
+        resolve_commit_ids(mut_repo, "roots(root())"),
         vec![root_commit.id().clone()]
     );
 
@@ -966,7 +958,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     let commit5 = graph_builder.commit_with_parents(&[&commit2]);
 
     // The root commit has no parents
-    assert_eq!(resolve_commit_ids(mut_repo, "root-"), vec![]);
+    assert_eq!(resolve_commit_ids(mut_repo, "root()-"), vec![]);
 
     // Can find parents of the current working-copy commit
     mut_repo
@@ -1065,7 +1057,7 @@ fn test_evaluate_expression_children(use_git: bool) {
 
     // Can find children of the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo, "root+"),
+        resolve_commit_ids(mut_repo, "root()+"),
         vec![commit1.id().clone()]
     );
 
@@ -1094,11 +1086,11 @@ fn test_evaluate_expression_children(use_git: bool) {
 
     // Can find children of children, which may be optimized to single query
     assert_eq!(
-        resolve_commit_ids(mut_repo, "root++"),
+        resolve_commit_ids(mut_repo, "root()++"),
         vec![commit4.id().clone(), commit2.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, &format!("(root | {})++", commit1.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("(root() | {})++", commit1.id().hex())),
         vec![
             commit5.id().clone(),
             commit4.id().clone(),
@@ -1136,7 +1128,7 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
 
     // The ancestors of the root commit is just the root commit itself
     assert_eq!(
-        resolve_commit_ids(mut_repo, ":root"),
+        resolve_commit_ids(mut_repo, ":root()"),
         vec![root_commit.id().clone()]
     );
 
@@ -1205,7 +1197,7 @@ fn test_evaluate_expression_range(use_git: bool) {
 
     // The range from the root to the root is empty (because the left side of the
     // range is exclusive)
-    assert_eq!(resolve_commit_ids(mut_repo, "root..root"), vec![]);
+    assert_eq!(resolve_commit_ids(mut_repo, "root()..root()"), vec![]);
 
     // Linear range
     assert_eq!(
@@ -1267,7 +1259,7 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
 
     // Can get DAG range of just the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo, "root:root"),
+        resolve_commit_ids(mut_repo, "root():root()"),
         vec![root_commit_id.clone()]
     );
 
@@ -1364,7 +1356,7 @@ fn test_evaluate_expression_connected(use_git: bool) {
 
     // Can connect just the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo, "connected(root)"),
+        resolve_commit_ids(mut_repo, "connected(root())"),
         vec![root_commit_id.clone()]
     );
 
@@ -1454,7 +1446,7 @@ fn test_evaluate_expression_descendants(use_git: bool) {
 
     // The descendants of the root commit are all the commits in the repo
     assert_eq!(
-        resolve_commit_ids(mut_repo, "root:"),
+        resolve_commit_ids(mut_repo, "root():"),
         vec![
             commit6.id().clone(),
             commit5.id().clone(),
@@ -1939,7 +1931,7 @@ fn test_evaluate_expression_latest(use_git: bool) {
 
     // Should not panic if count is larger than the candidates size
     assert_eq!(
-        resolve_commit_ids(mut_repo, "latest(~root, 5)"),
+        resolve_commit_ids(mut_repo, "latest(~root(), 5)"),
         vec![
             commit4_t1.id().clone(),
             commit3_t2.id().clone(),
@@ -2091,7 +2083,7 @@ fn test_evaluate_expression_author(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!("root.. & (author(name1) | {})", commit3.id().hex())
+            &format!("root().. & (author(name1) | {})", commit3.id().hex())
         ),
         vec![commit3.id().clone(), commit1.id().clone()]
     );
@@ -2156,7 +2148,7 @@ fn test_evaluate_expression_mine(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!("root.. & (mine() | {})", commit1.id().hex())
+            &format!("root().. & (mine() | {})", commit1.id().hex())
         ),
         vec![
             commit3.id().clone(),
@@ -2481,7 +2473,7 @@ fn test_evaluate_expression_filter_combinator(use_git: bool) {
 
     // Intersected with a set node
     assert_eq!(
-        resolve_commit_ids(mut_repo, "root.. & ~description(1)"),
+        resolve_commit_ids(mut_repo, "root().. & ~description(1)"),
         vec![commit3.id().clone(), commit2.id().clone()],
     );
     assert_eq!(

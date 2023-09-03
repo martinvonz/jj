@@ -154,16 +154,16 @@ fn test_diff_types() {
     let file_path = repo_path.join("foo");
 
     // Missing
-    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=missing"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=missing"]);
 
     // Normal file
-    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=file"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=file"]);
     std::fs::write(&file_path, "foo").unwrap();
 
     // Conflict (add/add)
-    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=conflict"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=conflict"]);
     std::fs::write(&file_path, "foo").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "root"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "root()"]);
     std::fs::write(&file_path, "bar").unwrap();
     test_env.jj_cmd_success(&repo_path, &["move", r#"--to=description("conflict")"#]);
 
@@ -173,12 +173,12 @@ fn test_diff_types() {
         use std::path::PathBuf;
 
         // Executable
-        test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=executable"]);
+        test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=executable"]);
         std::fs::write(&file_path, "foo").unwrap();
         std::fs::set_permissions(&file_path, std::fs::Permissions::from_mode(0o755)).unwrap();
 
         // Symlink
-        test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=symlink"]);
+        test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=symlink"]);
         std::os::unix::fs::symlink(PathBuf::from("."), &file_path).unwrap();
     }
 
@@ -689,7 +689,7 @@ fn test_diff_external_tool() {
     │  --
     │  file1
     │  file2
-    ◉  zzzzzzzz root 00000000
+    ◉  zzzzzzzz root() 00000000
        --
     "###);
 
@@ -793,7 +793,7 @@ fn test_diff_stat_long_name_or_stat() {
     let repo_path = test_env.env_root().join("repo");
 
     let get_stat = |test_env: &TestEnvironment, path_length: usize, stat_size: usize| {
-        test_env.jj_cmd_success(&repo_path, &["new", "root"]);
+        test_env.jj_cmd_success(&repo_path, &["new", "root()"]);
         let ascii_name = "1234567890".chars().cycle().take(path_length).join("");
         let han_name = "一二三四五六七八九十"
             .chars()

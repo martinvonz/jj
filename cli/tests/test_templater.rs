@@ -33,9 +33,9 @@ fn test_templater_branches() {
     // Created some branches on the remote
     test_env.jj_cmd_success(&origin_path, &["describe", "-m=description 1"]);
     test_env.jj_cmd_success(&origin_path, &["branch", "create", "branch1"]);
-    test_env.jj_cmd_success(&origin_path, &["new", "root", "-m=description 2"]);
+    test_env.jj_cmd_success(&origin_path, &["new", "root()", "-m=description 2"]);
     test_env.jj_cmd_success(&origin_path, &["branch", "create", "branch2"]);
-    test_env.jj_cmd_success(&origin_path, &["new", "root", "-m=description 3"]);
+    test_env.jj_cmd_success(&origin_path, &["new", "root()", "-m=description 3"]);
     test_env.jj_cmd_success(&origin_path, &["branch", "create", "branch3"]);
     test_env.jj_cmd_success(&origin_path, &["git", "export"]);
     test_env.jj_cmd_success(

@@ -26,7 +26,7 @@ fn test_obslog_with_or_without_diff() {
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "my description"]);
     std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
     std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "@", "-d", "root"]);
+    test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "@", "-d", "root()"]);
     std::fs::write(repo_path.join("file1"), "resolved\n").unwrap();
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog"]);

@@ -50,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parameters. For example, `author(foo@)` is now an error, and the revset alias
   `'revset-aliases.foo@' = '@'` will be failed to parse.
 
+* The `root` revset symbol has been converted to function `root()`.
+
 * `jj git push` will now push all branches in the range `remote_branches()..@`
   instead of only branches pointing to `@` or `@-`.
 

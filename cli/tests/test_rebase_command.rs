@@ -20,7 +20,7 @@ pub mod common;
 
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["new", "root", "-m", name]);
+        test_env.jj_cmd_success(repo_path, &["new", "root()", "-m", name]);
     } else {
         let mut args = vec!["new", "-m", name];
         args.extend(parents);
@@ -275,7 +275,7 @@ fn test_rebase_single_revision() {
 
     // Now, let's try moving the merge commit. After, both parents of "c" ("a" and
     // "b") should become parents of "d".
-    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "c", "-d", "root"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "c", "-d", "root()"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
     Working copy now at: vruxwmqv bf87078f d | d
@@ -401,8 +401,10 @@ fn test_rebase_multiple_destinations() {
     Error: More than one revset resolved to revision d370aee184ba
     "###);
 
-    let stderr =
-        test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "root"]);
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["rebase", "-r", "a", "-d", "b", "-d", "root()"],
+    );
     insta::assert_snapshot!(stderr, @r###"
     Error: Cannot merge with root revision
     "###);

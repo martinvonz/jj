@@ -313,7 +313,7 @@ fn test_git_colocated_external_checkout() {
     let git_repo = git2::Repository::init(&repo_path).unwrap();
     test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
     test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "-m=B", "root"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m=B", "root()"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
 
     // Checked out anonymous branch

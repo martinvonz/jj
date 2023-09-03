@@ -151,12 +151,12 @@ fn test_bad_function_call() {
       = Invalid arguments to revset function "branches": Invalid string pattern kind "bad"
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root::whatever()"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root()::whatever()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:7
+    Error: Failed to parse revset:  --> 1:9
       |
-    1 | root::whatever()
-      |       ^------^
+    1 | root()::whatever()
+      |         ^------^
       |
       = Revset function "whatever" doesn't exist
     "###);
@@ -254,7 +254,7 @@ fn test_alias() {
     test_env.add_config(
         r###"
     [revset-aliases]
-    'my-root' = 'root'
+    'my-root' = 'root()'
     'syntax-error' = 'whatever &'
     'recurse' = 'recurse1'
     'recurse1' = 'recurse2()'
@@ -266,20 +266,20 @@ fn test_alias() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "my-root"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root 00000000
+    ◉  zzzzzzzz root() 00000000
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "identity(my-root)"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root 00000000
+    ◉  zzzzzzzz root() 00000000
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root & syntax-error"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root() & syntax-error"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:8
+    Error: Failed to parse revset:  --> 1:10
       |
-    1 | root & syntax-error
-      |        ^----------^
+    1 | root() & syntax-error
+      |          ^----------^
       |
       = Alias "syntax-error" cannot be expanded
      --> 1:11
@@ -316,12 +316,12 @@ fn test_alias() {
       = Invalid arguments to revset function "author": Expected function argument of string pattern
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root & recurse"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root() & recurse"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:8
+    Error: Failed to parse revset:  --> 1:10
       |
-    1 | root & recurse
-      |        ^-----^
+    1 | root() & recurse
+      |          ^-----^
       |
       = Alias "recurse" cannot be expanded
      --> 1:1
@@ -384,16 +384,16 @@ fn test_bad_alias_decl() {
     test_env.add_config(
         r#"
     [revset-aliases]
-    'my-root' = 'root'
-    '"bad"' = 'root'
-    'badfn(a, a)' = 'root'
+    'my-root' = 'root()'
+    '"bad"' = 'root()'
+    'badfn(a, a)' = 'root()'
     "#,
     );
 
     // Invalid declaration should be warned and ignored.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r", "my-root"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root 00000000
+    ◉  zzzzzzzz root() 00000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Failed to load "revset-aliases."bad"":  --> 1:1

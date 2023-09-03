@@ -25,7 +25,7 @@ fn test_debug_revset() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
 
-    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "revset", "root"]);
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "revset", "root()"]);
     insta::with_settings!({filters => vec![
         (r"(?m)(^    .*\n)+", "    ..\n"),
     ]}, {

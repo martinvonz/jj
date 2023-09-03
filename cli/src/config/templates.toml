@@ -115,7 +115,7 @@ builtin_op_log_comfortable = 'builtin_op_log_compact ++ "\n"'
 'builtin_log_root(change_id, commit_id)' = '''
 separate(" ",
   format_short_change_id(change_id),
-  label("root", "root"),
+  label("root", "root()"),
   format_short_commit_id(commit_id),
   branches
 )

@@ -24,9 +24,9 @@ fn test_enable_tree_level_conflicts() {
 
     // Create a few commits before we enable tree-level conflicts
     let file_path = repo_path.join("file");
-    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=left"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=left"]);
     std::fs::write(&file_path, "left").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=right"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=right"]);
     std::fs::write(&file_path, "right").unwrap();
     test_env.jj_cmd_success(
         &repo_path,
@@ -48,7 +48,7 @@ fn test_enable_tree_level_conflicts() {
     │ │  right
     ◉ │  rlvkpnrz test.user@example.com 2001-02-03 04:05:09.000 +07:00 32003b88
     ├─╯  left
-    ◉  zzzzzzzz root 00000000
+    ◉  zzzzzzzz root() 00000000
     "###);
 
     // Enable tree-level conflicts
@@ -65,7 +65,7 @@ fn test_enable_tree_level_conflicts() {
     │ │  right
     ◉ │  rlvkpnrz test.user@example.com 2001-02-03 04:05:09.000 +07:00 32003b88
     ├─╯  left
-    ◉  zzzzzzzz root 00000000
+    ◉  zzzzzzzz root() 00000000
     "###);
     // ...but at least it has no diff
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
