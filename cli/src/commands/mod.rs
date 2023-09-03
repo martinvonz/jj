@@ -2173,10 +2173,12 @@ fn cmd_duplicate(
     let mut workspace_command = command.workspace_helper(ui)?;
     let to_duplicate: IndexSet<Commit> =
         resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?;
-    to_duplicate
+    if to_duplicate
         .iter()
-        .map(|commit| workspace_command.check_rewritable(commit))
-        .try_collect()?;
+        .any(|commit| commit.id() == workspace_command.repo().store().root_commit_id())
+    {
+        return Err(user_error("Cannot duplicate the root commit"));
+    }
     let mut duplicated_old_to_new: IndexMap<Commit, Commit> = IndexMap::new();
 
     let mut tx = workspace_command

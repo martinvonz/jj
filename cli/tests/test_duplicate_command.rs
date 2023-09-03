@@ -51,7 +51,7 @@ fn test_duplicate() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot rewrite the root commit
+    Error: Cannot duplicate the root commit
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a"]);
