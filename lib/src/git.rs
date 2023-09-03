@@ -395,6 +395,8 @@ pub enum FailedRefExportReason {
     /// The ref was in a conflicted state from the last import. A re-import
     /// should fix it.
     ConflictedOldState,
+    /// The branch points to the root commit, which Git doesn't have
+    OnRootCommit,
     /// We wanted to delete it, but it had been modified in Git.
     DeletedInJjModifiedInGit,
     /// We wanted to add it, but Git had added it with a different target
@@ -435,6 +437,7 @@ pub fn export_some_refs(
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeMap::new();
     let mut failed_branches = vec![];
+    let root_commit_target = RefTarget::normal(mut_repo.store().root_commit_id().clone());
     let view = mut_repo.view();
     let jj_repo_iter_all_branches = view.branches().iter().flat_map(|(branch, target)| {
         itertools::chain(
@@ -481,6 +484,14 @@ pub fn export_some_refs(
             continue;
         };
         if new_branch == old_branch {
+            continue;
+        }
+        if *new_branch == root_commit_target {
+            // Git doesn't have a root commit
+            failed_branches.push(FailedRefExport {
+                name: jj_known_ref,
+                reason: FailedRefExportReason::OnRootCommit,
+            });
             continue;
         }
         let old_oid = if let Some(id) = old_branch.as_normal() {
