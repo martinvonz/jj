@@ -27,8 +27,8 @@ use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git;
 use jj_lib::git::{
-    FailedRefExportReason, GitFetchError, GitImportError, GitPushError, GitRefUpdate,
-    SubmoduleConfig,
+    FailedRefExport, FailedRefExportReason, GitFetchError, GitImportError, GitPushError,
+    GitRefUpdate, SubmoduleConfig,
 };
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::{BranchTarget, RefTarget};
@@ -1329,6 +1329,28 @@ fn test_export_conflicts() {
             .target()
             .unwrap(),
         git_id(&commit_b)
+    );
+}
+
+#[test]
+fn test_export_branch_on_root_commit() {
+    // We skip export of branches pointing to the root commit
+    let test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    let mut tx = test_data
+        .repo
+        .start_transaction(&test_data.settings, "test");
+    let mut_repo = tx.mut_repo();
+    mut_repo.set_local_branch_target(
+        "on_root",
+        RefTarget::normal(mut_repo.store().root_commit_id().clone()),
+    );
+    assert_eq!(
+        git::export_refs(mut_repo, &git_repo),
+        Ok(vec![FailedRefExport {
+            name: RefName::LocalBranch("on_root".to_string()),
+            reason: FailedRefExportReason::OnRootCommit,
+        }])
     );
 }
 
