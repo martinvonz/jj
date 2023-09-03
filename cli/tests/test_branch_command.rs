@@ -46,14 +46,20 @@ fn test_branch_multiple_names() {
 }
 
 #[test]
-fn test_branch_forbidden_at_root() {
+fn test_branch_at_root() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "create", "fred", "-r=root()"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "create", "fred", "-r=root()"]);
+    insta::assert_snapshot!(stdout, @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot rewrite the root commit
+    Failed to export some branches:
+      fred
     "###);
 }
 
