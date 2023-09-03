@@ -21,8 +21,9 @@ ID or a Git ref pointing to them).
 The symbol `root` refers to the virtual commit that is the oldest ancestor of
 all other commits.
 
-The symbol `@` refers to the working copy commit in the current workspace. Use
-`<workspace name>@` to refer to the working-copy commit in another workspace.
+The `@` expression refers to the working copy commit in the current workspace.
+Use `<workspace name>@` to refer to the working-copy commit in another
+workspace. Use `<name>@<remote>` to refer to a remote-tracking branch.
 
 A full commit ID refers to a single commit. A unique prefix of the full commit
 ID can also be used. It is an error to use a non-unique prefix.
@@ -40,12 +41,11 @@ Taking shell quoting into account, you may need to use something like
 
 Jujutsu attempts to resolve a symbol in the following order:
 
-1. `@`
-2. `root`
-3. Tag name
-4. Branch name
-5. Git ref
-6. Commit ID or change ID
+1. `root`
+2. Tag name
+3. Branch name
+4. Git ref
+5. Commit ID or change ID
 
 ## Operators
 
