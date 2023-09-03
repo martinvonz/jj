@@ -81,10 +81,11 @@ fn parse_git_ref(ref_name: &str) -> Option<RefName> {
 
 fn to_git_ref_name(parsed_ref: &RefName) -> Option<String> {
     match parsed_ref {
-        RefName::LocalBranch(branch) => (branch != "HEAD").then(|| format!("refs/heads/{branch}")),
-        RefName::RemoteBranch { branch, remote } => {
-            (branch != "HEAD").then(|| format!("refs/remotes/{remote}/{branch}"))
+        RefName::LocalBranch(branch) => {
+            (!branch.is_empty() && branch != "HEAD").then(|| format!("refs/heads/{branch}"))
         }
+        RefName::RemoteBranch { branch, remote } => (!branch.is_empty() && branch != "HEAD")
+            .then(|| format!("refs/remotes/{remote}/{branch}")),
         RefName::Tag(tag) => Some(format!("refs/tags/{tag}")),
         RefName::GitRef(name) => Some(name.to_owned()),
     }
@@ -379,6 +380,33 @@ pub enum GitExportError {
     InternalGitError(#[from] git2::Error),
 }
 
+/// A ref we failed to export to Git, along with the reason it failed.
+#[derive(Debug, PartialEq)]
+pub struct FailedRefExport {
+    pub name: RefName,
+    pub reason: FailedRefExportReason,
+}
+
+/// The reason we failed to export a ref to Git.
+#[derive(Debug, PartialEq)]
+pub enum FailedRefExportReason {
+    /// The name is not allowed in Git.
+    InvalidGitName,
+    /// The ref was in a conflicted state from the last import. A re-import
+    /// should fix it.
+    ConflictedOldState,
+    /// We wanted to delete it, but it had been modified in Git.
+    DeletedInJjModifiedInGit,
+    /// We wanted to add it, but Git had added it with a different target
+    AddedInJjAddedInGit,
+    /// We wanted to modify it, but Git had deleted it
+    ModifiedInJjDeletedInGit,
+    /// Failed to delete the ref from the Git repo
+    FailedToDelete(git2::Error),
+    /// Failed to set the ref in the Git repo
+    FailedToSet(git2::Error),
+}
+
 /// Export changes to branches made in the Jujutsu repo compared to our last
 /// seen view of the Git repo in `mut_repo.view().git_refs()`. Returns a list of
 /// refs that failed to export.
@@ -394,7 +422,7 @@ pub enum GitExportError {
 pub fn export_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
-) -> Result<Vec<RefName>, GitExportError> {
+) -> Result<Vec<FailedRefExport>, GitExportError> {
     export_some_refs(mut_repo, git_repo, |_| true)
 }
 
@@ -402,7 +430,7 @@ pub fn export_some_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     git_ref_filter: impl Fn(&RefName) -> bool,
-) -> Result<Vec<RefName>, GitExportError> {
+) -> Result<Vec<FailedRefExport>, GitExportError> {
     // First find the changes we want need to make without modifying mut_repo
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeMap::new();
@@ -446,7 +474,10 @@ pub fn export_some_refs(
             view.get_git_ref(&name)
         } else {
             // Invalid branch name in Git sense
-            failed_branches.push(jj_known_ref);
+            failed_branches.push(FailedRefExport {
+                name: jj_known_ref,
+                reason: FailedRefExportReason::InvalidGitName,
+            });
             continue;
         };
         if new_branch == old_branch {
@@ -457,7 +488,10 @@ pub fn export_some_refs(
         } else if old_branch.has_conflict() {
             // The old git ref should only be a conflict if there were concurrent import
             // operations while the value changed. Don't overwrite these values.
-            failed_branches.push(jj_known_ref);
+            failed_branches.push(FailedRefExport {
+                name: jj_known_ref,
+                reason: FailedRefExportReason::ConflictedOldState,
+            });
             continue;
         } else {
             assert!(old_branch.is_absent());
@@ -494,70 +528,91 @@ pub fn export_some_refs(
     }
     for (parsed_ref_name, old_oid) in branches_to_delete {
         let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
-        let success = if let Ok(mut git_repo_ref) = git_repo.find_reference(&git_ref_name) {
+        let reason = if let Ok(mut git_repo_ref) = git_repo.find_reference(&git_ref_name) {
             if git_repo_ref.target() == Some(old_oid) {
                 // The branch has not been updated by git, so go ahead and delete it
-                git_repo_ref.delete().is_ok()
+                git_repo_ref
+                    .delete()
+                    .err()
+                    .map(FailedRefExportReason::FailedToDelete)
             } else {
                 // The branch was updated by git
-                false
+                Some(FailedRefExportReason::DeletedInJjModifiedInGit)
             }
         } else {
             // The branch is already deleted
-            true
+            None
         };
-        if success {
-            mut_repo.set_git_ref_target(&git_ref_name, RefTarget::absent());
+        if let Some(reason) = reason {
+            failed_branches.push(FailedRefExport {
+                name: parsed_ref_name,
+                reason,
+            });
         } else {
-            failed_branches.push(parsed_ref_name);
+            mut_repo.set_git_ref_target(&git_ref_name, RefTarget::absent());
         }
     }
     for (parsed_ref_name, (old_oid, new_oid)) in branches_to_update {
         let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
-        let success = match old_oid {
+        let reason = match old_oid {
             None => {
                 if let Ok(git_repo_ref) = git_repo.find_reference(&git_ref_name) {
                     // The branch was added in jj and in git. We're good if and only if git
                     // pointed it to our desired target.
-                    git_repo_ref.target() == Some(new_oid)
+                    if git_repo_ref.target() == Some(new_oid) {
+                        None
+                    } else {
+                        Some(FailedRefExportReason::AddedInJjAddedInGit)
+                    }
                 } else {
                     // The branch was added in jj but still doesn't exist in git, so add it
                     git_repo
                         .reference(&git_ref_name, new_oid, true, "export from jj")
-                        .is_ok()
+                        .err()
+                        .map(FailedRefExportReason::FailedToSet)
                 }
             }
             Some(old_oid) => {
                 // The branch was modified in jj. We can use libgit2's API for updating under a
                 // lock.
-                if git_repo
-                    .reference_matching(&git_ref_name, new_oid, true, old_oid, "export from jj")
-                    .is_ok()
-                {
-                    // Successfully updated from old_oid to new_oid (unchanged in git)
-                    true
-                } else {
+                if let Err(err) = git_repo.reference_matching(
+                    &git_ref_name,
+                    new_oid,
+                    true,
+                    old_oid,
+                    "export from jj",
+                ) {
                     // The reference was probably updated in git
                     if let Ok(git_repo_ref) = git_repo.find_reference(&git_ref_name) {
                         // We still consider this a success if it was updated to our desired target
-                        git_repo_ref.target() == Some(new_oid)
+                        if git_repo_ref.target() == Some(new_oid) {
+                            None
+                        } else {
+                            Some(FailedRefExportReason::FailedToSet(err))
+                        }
                     } else {
                         // The reference was deleted in git and moved in jj
-                        false
+                        Some(FailedRefExportReason::ModifiedInJjDeletedInGit)
                     }
+                } else {
+                    // Successfully updated from old_oid to new_oid (unchanged in git)
+                    None
                 }
             }
         };
-        if success {
+        if let Some(reason) = reason {
+            failed_branches.push(FailedRefExport {
+                name: parsed_ref_name,
+                reason,
+            });
+        } else {
             mut_repo.set_git_ref_target(
                 &git_ref_name,
                 RefTarget::normal(CommitId::from_bytes(new_oid.as_bytes())),
             );
-        } else {
-            failed_branches.push(parsed_ref_name);
         }
     }
-    failed_branches.sort();
+    failed_branches.sort_by_key(|failed| failed.name.clone());
     Ok(failed_branches)
 }
 

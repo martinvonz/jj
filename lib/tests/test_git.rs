@@ -26,7 +26,10 @@ use jj_lib::backend::{
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git;
-use jj_lib::git::{GitFetchError, GitImportError, GitPushError, GitRefUpdate, SubmoduleConfig};
+use jj_lib::git::{
+    FailedRefExportReason, GitFetchError, GitImportError, GitPushError, GitRefUpdate,
+    SubmoduleConfig,
+};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
@@ -1348,14 +1351,14 @@ fn test_export_partial_failure() {
     // `main/sub` will conflict with `main` in Git, at least when using loose ref
     // storage
     mut_repo.set_local_branch_target("main/sub", target);
-    assert_eq!(
-        git::export_refs(mut_repo, &git_repo),
-        Ok(vec![
-            RefName::LocalBranch("".to_string()),
-            RefName::LocalBranch("HEAD".to_string()),
-            RefName::LocalBranch("main/sub".to_string())
-        ])
-    );
+    let failed = git::export_refs(mut_repo, &git_repo).unwrap();
+    assert_eq!(failed.len(), 3);
+    assert_eq!(failed[0].name, RefName::LocalBranch("".to_string()));
+    assert_matches!(failed[0].reason, FailedRefExportReason::InvalidGitName);
+    assert_eq!(failed[1].name, RefName::LocalBranch("HEAD".to_string()));
+    assert_matches!(failed[1].reason, FailedRefExportReason::InvalidGitName);
+    assert_eq!(failed[2].name, RefName::LocalBranch("main/sub".to_string()));
+    assert_matches!(failed[2].reason, FailedRefExportReason::FailedToSet(_));
 
     // The `main` branch should have succeeded but the other should have failed
     assert!(git_repo.find_reference("refs/heads/").is_err());
@@ -1373,13 +1376,12 @@ fn test_export_partial_failure() {
     // Now remove the `main` branch and make sure that the `main/sub` gets exported
     // even though it didn't change
     mut_repo.set_local_branch_target("main", RefTarget::absent());
-    assert_eq!(
-        git::export_refs(mut_repo, &git_repo),
-        Ok(vec![
-            RefName::LocalBranch("".to_string()),
-            RefName::LocalBranch("HEAD".to_string()),
-        ])
-    );
+    let failed = git::export_refs(mut_repo, &git_repo).unwrap();
+    assert_eq!(failed.len(), 2);
+    assert_eq!(failed[0].name, RefName::LocalBranch("".to_string()));
+    assert_matches!(failed[0].reason, FailedRefExportReason::InvalidGitName);
+    assert_eq!(failed[1].name, RefName::LocalBranch("HEAD".to_string()));
+    assert_matches!(failed[1].reason, FailedRefExportReason::InvalidGitName);
     assert!(git_repo.find_reference("refs/heads/").is_err());
     assert!(git_repo.find_reference("refs/heads/HEAD").is_err());
     assert!(git_repo.find_reference("refs/heads/main").is_err());
@@ -1471,11 +1473,15 @@ fn test_export_reexport_transitions() {
     // export. They should have been unchanged in git and in
     // mut_repo.view().git_refs().
     assert_eq!(
-        git::export_refs(mut_repo, &git_repo),
-        Ok(["ABC", "ABX", "AXB", "XAB"]
+        git::export_refs(mut_repo, &git_repo)
+            .unwrap()
+            .into_iter()
+            .map(|failed| failed.name)
+            .collect_vec(),
+        vec!["ABC", "ABX", "AXB", "XAB"]
             .into_iter()
             .map(|s| RefName::LocalBranch(s.to_string()))
-            .collect_vec())
+            .collect_vec()
     );
     for branch in ["AAX", "ABX", "AXA", "AXX"] {
         assert!(
