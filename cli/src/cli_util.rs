@@ -32,7 +32,9 @@ use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId};
 use jj_lib::commit::Commit;
-use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError};
+use jj_lib::git::{
+    FailedRefExport, GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError,
+};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
@@ -55,7 +57,6 @@ use jj_lib::revset::{
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::TreeMergeError;
-use jj_lib::view::RefName;
 use jj_lib::working_copy::{
     CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions, TreeStateError,
     WorkingCopy,
@@ -1727,13 +1728,16 @@ pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std
     Ok(())
 }
 
-pub fn print_failed_git_export(ui: &Ui, failed_branches: &[RefName]) -> Result<(), std::io::Error> {
+pub fn print_failed_git_export(
+    ui: &Ui,
+    failed_branches: &[FailedRefExport],
+) -> Result<(), std::io::Error> {
     if !failed_branches.is_empty() {
         writeln!(ui.warning(), "Failed to export some branches:")?;
         let mut formatter = ui.stderr_formatter();
-        for branch_ref in failed_branches {
+        for failed_ref_export in failed_branches {
             formatter.write_str("  ")?;
-            write!(formatter.labeled("branch"), "{branch_ref}")?;
+            write!(formatter.labeled("branch"), "{}", failed_ref_export.name)?;
             formatter.write_str("\n")?;
         }
         drop(formatter);
