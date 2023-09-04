@@ -1165,10 +1165,9 @@ commits) to such commands.</p>
 Other commits are only included if you explicitly mention them (e.g. by commit
 ID or a Git ref pointing to them).</p>
 <h2 id="symbols">Symbols<a class="headerlink" href="#symbols" title="Permanent link">&para;</a></h2>
-<p>The symbol <code>root</code> refers to the virtual commit that is the oldest ancestor of
-all other commits.</p>
-<p>The symbol <code>@</code> refers to the working copy commit in the current workspace. Use
-<code>&lt;workspace name&gt;@</code> to refer to the working-copy commit in another workspace.</p>
+<p>The <code>@</code> expression refers to the working copy commit in the current workspace.
+Use <code>&lt;workspace name&gt;@</code> to refer to the working-copy commit in another
+workspace. Use <code>&lt;name&gt;@&lt;remote&gt;</code> to refer to a remote-tracking branch.</p>
 <p>A full commit ID refers to a single commit. A unique prefix of the full commit
 ID can also be used. It is an error to use a non-unique prefix.</p>
 <p>A full change ID refers to all visible commits with that change ID (there is
@@ -1181,8 +1180,6 @@ Taking shell quoting into account, you may need to use something like
 <h3 id="priority">Priority<a class="headerlink" href="#priority" title="Permanent link">&para;</a></h3>
 <p>Jujutsu attempts to resolve a symbol in the following order:</p>
 <ol>
-<li><code>@</code></li>
-<li><code>root</code></li>
 <li>Tag name</li>
 <li>Branch name</li>
 <li>Git ref</li>
@@ -1245,6 +1242,7 @@ revsets (expressions) as arguments.</p>
 <li><code>git_head()</code>: The Git <code>HEAD</code> target as of the last import. Equivalent to
   <code>present(HEAD@git)</code>.</li>
 <li><code>visible_heads()</code>: All visible heads (same as <code>heads(all())</code>).</li>
+<li><code>root()</code>: The virtual commit that is the oldest ancestor of all other commits.</li>
 <li><code>heads(x)</code>: Commits in <code>x</code> that are not ancestors of other commits in <code>x</code>.
   Note that this is different from
   <a href="https://repo.mercurial-scm.org/hg/help/revsets">Mercurial's</a> <code>heads(x)</code>
@@ -1265,7 +1263,7 @@ revsets (expressions) as arguments.</p>
 <li><code>committer(pattern)</code>: Commits with the given string in the committer's
   name or email.</li>
 <li><code>empty()</code>: Commits modifying no files. This also includes <code>merges()</code> without
-  user modifications and <code>root</code>.</li>
+  user modifications and <code>root()</code>.</li>
 <li><code>file(pattern..)</code>: Commits modifying the paths specified by the <code>pattern..</code>.
   Paths are relative to the directory <code>jj</code> was invoked from. A directory name
   will match all files in that directory and its subdirectories. For example,
@@ -1303,7 +1301,7 @@ combination of the predefined symbols/functions and other aliases.</p>
 <div class="highlight"><pre><span></span><code>jj log -r :@
 </code></pre></div>
 <p>Show the initial commits in the repo (the ones Git calls "root commits"):</p>
-<div class="highlight"><pre><span></span><code>jj log -r root+
+<div class="highlight"><pre><span></span><code>jj log -r root()+
 </code></pre></div>
 <p>Show some important commits (like <code>git --simplify-by-decoration</code>):</p>
 <div class="highlight"><pre><span></span><code>jj log -r &#39;tags() | branches()&#39;

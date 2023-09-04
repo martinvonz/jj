@@ -1252,11 +1252,11 @@ for context.  The <code>~</code> indicates that the commit has parents that are 
 included in the graph. We can use the <code>-r</code> flag to select a different set of
 revisions to list. The flag accepts a <a href="revsets.html">"revset"</a>, which is an
 expression in a simple language for specifying revisions. For example, <code>@</code>
-refers to the working-copy commit, <code>root</code> refers to the root commit,
+refers to the working-copy commit, <code>root()</code> refers to the root commit,
 <code>branches()</code> refers to all commits pointed to by branches. We can combine
 expressions with <code>|</code> for union, <code>&amp;</code> for intersection and <code>~</code> for difference. For
 example:
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;@ | root | branches()&#39;</span>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;@ | root() | branches()&#39;</span>
 @<span class="w">  </span>mpqrykypylvy<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:00:22.000<span class="w"> </span>-08:00<span class="w"> </span>aef4df99ea11
 ╷<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
 ╷<span class="w"> </span>◉<span class="w">  </span>kowxouwzwxmv<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2014</span>-06-10<span class="w"> </span><span class="m">15</span>:22:26.000<span class="w"> </span>-07:00<span class="w"> </span><span class="nb">test</span><span class="w"> </span>b3cbd5bbd7e8
@@ -1269,8 +1269,8 @@ example:
 <span class="w">   </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
 </code></pre></div></p>
 <p>The <code>000000000000</code> commit (change ID <code>zzzzzzzzzzzz</code>) is a virtual commit that's
-called the "root commit". It's the root commit of every repo. The <code>root</code> symbol
-in the revset matches it.</p>
+called the "root commit". It's the root commit of every repo. The <code>root()</code>
+function in the revset matches it.</p>
 <p>There are also operators for getting the parents (<code>foo-</code>), children (<code>foo+</code>),
 ancestors (<code>:foo</code>), descendants (<code>foo:</code>), DAG range (<code>foo:bar</code>, like
 <code>git log --ancestry-path</code>), range (<code>foo..bar</code>, same as Git's). There are also a
