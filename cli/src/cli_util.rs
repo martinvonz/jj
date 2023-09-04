@@ -33,7 +33,8 @@ use itertools::Itertools;
 use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId};
 use jj_lib::commit::Commit;
 use jj_lib::git::{
-    FailedRefExport, GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError,
+    FailedRefExport, FailedRefExportReason, GitConfigParseError, GitExportError, GitImportError,
+    GitRemoteManagementError,
 };
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreFile;
@@ -1741,12 +1742,17 @@ pub fn print_failed_git_export(
             formatter.write_str("\n")?;
         }
         drop(formatter);
-        writeln!(
-            ui.hint(),
-            r#"Hint: Git doesn't allow a branch name that looks like a parent directory of
+        if failed_branches
+            .iter()
+            .any(|failed| matches!(failed.reason, FailedRefExportReason::FailedToSet(_)))
+        {
+            writeln!(
+                ui.hint(),
+                r#"Hint: Git doesn't allow a branch name that looks like a parent directory of
 another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
 export or their "parent" branches."#,
-        )?;
+            )?;
+        }
     }
     Ok(())
 }
