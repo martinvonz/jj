@@ -557,6 +557,7 @@ pub fn export_some_refs(
             failed_branches.push(parsed_ref_name);
         }
     }
+    failed_branches.sort();
     Ok(failed_branches)
 }
 
