@@ -57,7 +57,7 @@ prost-build = "0.11.9"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rayon = "1.7.0"
-regex = "1.9.4"
+regex = "1.9.5"
 rpassword = "7.2.0"
 rustix = { version = "0.38.11", features = ["fs"] }
 smallvec = { version = "1.11.0", features = [
@@ -73,7 +73,7 @@ strsim = "0.10.0"
 tempfile = "3.8.0"
 test-case = "3.1.0"
 textwrap = "0.16.0"
-thiserror = "1.0.47"
+thiserror = "1.0.48"
 timeago = { version = "0.4.1", default-features = false }
 toml_edit = { version = "0.19.14", features = ["serde"] }
 tracing = "0.1.37"
