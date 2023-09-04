@@ -910,7 +910,7 @@ fn parse_primary_rule(
             }
         }
         Rule::at_op => {
-            // unary "@"
+            // nullary "@"
             let ctx = state.workspace_ctx.as_ref().ok_or_else(|| {
                 RevsetParseError::new(RevsetParseErrorKind::WorkingCopyWithoutWorkspace)
             })?;
