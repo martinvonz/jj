@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The `root` revset symbol has been converted to function `root()`.
 
+* The `..x` revset is now evaluated to `root()..x`, which means the root commit
+  is no longer included.
+
 * `jj git push` will now push all branches in the range `remote_branches()..@`
   instead of only branches pointing to `@` or `@-`.
 

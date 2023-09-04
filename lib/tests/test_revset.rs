@@ -1238,6 +1238,18 @@ fn test_evaluate_expression_range(use_git: bool) {
         ),
         vec![commit3.id().clone()]
     );
+
+    // Left operand defaults to root()
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("..{}", commit2.id().hex())),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+
+    // Right operand defaults to visible_heads()
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("{}..", commit2.id().hex())),
+        vec![commit4.id().clone(), commit3.id().clone()]
+    );
 }
 
 #[test_case(false ; "local backend")]

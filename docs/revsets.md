@@ -62,8 +62,8 @@ only symbols.
   released in jj 0.9.0. We plan to delete the latter in jj 0.15+.
 * `x..y`: Ancestors of `y` that are not also ancestors of `x`. Equivalent to
   `:y ~ :x`. This is what `git log` calls `x..y` (i.e. the same as we call it).
-* `..x`: Ancestors of `x`, including the commits in `x` itself. Equivalent to
-  `:x` and provided for consistency.
+* `..x`: Ancestors of `x`, including the commits in `x` itself, but excluding
+  the root commit. Equivalent to `:x ~ root()`.
 * `x..`: Revisions that are not ancestors of `x`.
 
 You can use parentheses to control evaluation order, such as `(x & y) | z` or
