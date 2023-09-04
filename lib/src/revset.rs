@@ -853,8 +853,9 @@ fn parse_expression_rule(
         .map_primary(|primary| parse_primary_rule(primary, state))
         .map_prefix(|op, rhs| match op.as_rule() {
             Rule::negate_op => Ok(rhs?.negated()),
-            Rule::dag_range_pre_op | Rule::range_pre_op => Ok(rhs?.ancestors()),
+            Rule::dag_range_pre_op => Ok(rhs?.ancestors()),
             Rule::legacy_dag_range_pre_op => Ok(rhs?.legacy_ancestors()),
+            Rule::range_pre_op => Ok(RevsetExpression::root().range(&rhs?)),
             r => panic!("unexpected prefix operator rule {r:?}"),
         })
         .map_postfix(|lhs, op| match op.as_rule() {
@@ -2767,7 +2768,10 @@ mod tests {
         // Parse the "dag range" operator
         assert_eq!(parse("foo::bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
         // Parse the "range" prefix operator
-        assert_eq!(parse("..foo"), Ok(foo_symbol.ancestors()));
+        assert_eq!(
+            parse("..foo"),
+            Ok(RevsetExpression::root().range(&foo_symbol))
+        );
         assert_eq!(
             parse("foo.."),
             Ok(foo_symbol.range(&RevsetExpression::visible_heads()))
