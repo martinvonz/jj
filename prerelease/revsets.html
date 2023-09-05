@@ -1201,11 +1201,14 @@ only symbols.</p>
    to <code>x: &amp; :y</code>. This is what <code>git log</code> calls <code>--ancestry-path x..y</code>.</li>
 <li><code>::x</code>, <code>x::</code>, and <code>x::y</code>: New versions of for <code>:x</code>, <code>x:</code>, and <code>x:y</code> to be
   released in jj 0.9.0. We plan to delete the latter in jj 0.15+.</li>
+<li><code>::</code>: All visible commits in the repo. Equivalent to <code>all()</code>.</li>
 <li><code>x..y</code>: Ancestors of <code>y</code> that are not also ancestors of <code>x</code>. Equivalent to
   <code>:y ~ :x</code>. This is what <code>git log</code> calls <code>x..y</code> (i.e. the same as we call it).</li>
-<li><code>..x</code>: Ancestors of <code>x</code>, including the commits in <code>x</code> itself. Equivalent to
-  <code>:x</code> and provided for consistency.</li>
+<li><code>..x</code>: Ancestors of <code>x</code>, including the commits in <code>x</code> itself, but excluding
+  the root commit. Equivalent to <code>:x ~ root()</code>.</li>
 <li><code>x..</code>: Revisions that are not ancestors of <code>x</code>.</li>
+<li><code>..</code>: All visible commits in the repo, but excluding the root commit.
+  Equivalent to <code>~root()</code>.</li>
 </ul>
 <p>You can use parentheses to control evaluation order, such as <code>(x &amp; y) | z</code> or
 <code>x &amp; (y | z)</code>.</p>
