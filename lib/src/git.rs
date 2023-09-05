@@ -603,7 +603,7 @@ fn update_git_ref(
             } else {
                 // The branch was added in jj but still doesn't exist in git, so add it
                 git_repo
-                    .reference(git_ref_name, new_oid, true, "export from jj")
+                    .reference(git_ref_name, new_oid, false, "export from jj")
                     .map_err(FailedRefExportReason::FailedToSet)?;
             }
         }
