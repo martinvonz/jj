@@ -549,53 +549,7 @@ pub fn export_some_refs(
     }
     for (parsed_ref_name, (old_oid, new_oid)) in branches_to_update {
         let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
-        let reason = match old_oid {
-            None => {
-                if let Ok(git_repo_ref) = git_repo.find_reference(&git_ref_name) {
-                    // The branch was added in jj and in git. We're good if and only if git
-                    // pointed it to our desired target.
-                    if git_repo_ref.target() == Some(new_oid) {
-                        None
-                    } else {
-                        Some(FailedRefExportReason::AddedInJjAddedInGit)
-                    }
-                } else {
-                    // The branch was added in jj but still doesn't exist in git, so add it
-                    git_repo
-                        .reference(&git_ref_name, new_oid, true, "export from jj")
-                        .err()
-                        .map(FailedRefExportReason::FailedToSet)
-                }
-            }
-            Some(old_oid) => {
-                // The branch was modified in jj. We can use libgit2's API for updating under a
-                // lock.
-                if let Err(err) = git_repo.reference_matching(
-                    &git_ref_name,
-                    new_oid,
-                    true,
-                    old_oid,
-                    "export from jj",
-                ) {
-                    // The reference was probably updated in git
-                    if let Ok(git_repo_ref) = git_repo.find_reference(&git_ref_name) {
-                        // We still consider this a success if it was updated to our desired target
-                        if git_repo_ref.target() == Some(new_oid) {
-                            None
-                        } else {
-                            Some(FailedRefExportReason::FailedToSet(err))
-                        }
-                    } else {
-                        // The reference was deleted in git and moved in jj
-                        Some(FailedRefExportReason::ModifiedInJjDeletedInGit)
-                    }
-                } else {
-                    // Successfully updated from old_oid to new_oid (unchanged in git)
-                    None
-                }
-            }
-        };
-        if let Some(reason) = reason {
+        if let Err(reason) = update_git_ref(git_repo, &git_ref_name, old_oid, new_oid) {
             failed_branches.push(FailedRefExport {
                 name: parsed_ref_name,
                 reason,
@@ -628,6 +582,52 @@ fn delete_git_ref(
         }
     } else {
         // The branch is already deleted
+    }
+    Ok(())
+}
+
+fn update_git_ref(
+    git_repo: &git2::Repository,
+    git_ref_name: &str,
+    old_oid: Option<Oid>,
+    new_oid: Oid,
+) -> Result<(), FailedRefExportReason> {
+    match old_oid {
+        None => {
+            if let Ok(git_repo_ref) = git_repo.find_reference(git_ref_name) {
+                // The branch was added in jj and in git. We're good if and only if git
+                // pointed it to our desired target.
+                if git_repo_ref.target() != Some(new_oid) {
+                    return Err(FailedRefExportReason::AddedInJjAddedInGit);
+                }
+            } else {
+                // The branch was added in jj but still doesn't exist in git, so add it
+                git_repo
+                    .reference(git_ref_name, new_oid, true, "export from jj")
+                    .map_err(FailedRefExportReason::FailedToSet)?;
+            }
+        }
+        Some(old_oid) => {
+            // The branch was modified in jj. We can use libgit2's API for updating under a
+            // lock.
+            if let Err(err) =
+                git_repo.reference_matching(git_ref_name, new_oid, true, old_oid, "export from jj")
+            {
+                // The reference was probably updated in git
+                if let Ok(git_repo_ref) = git_repo.find_reference(git_ref_name) {
+                    // We still consider this a success if it was updated to our desired target
+                    if git_repo_ref.target() != Some(new_oid) {
+                        return Err(FailedRefExportReason::FailedToSet(err));
+                    }
+                } else {
+                    // The reference was deleted in git and moved in jj
+                    return Err(FailedRefExportReason::ModifiedInJjDeletedInGit);
+                }
+            } else {
+                // Successfully updated from old_oid to new_oid (unchanged in
+                // git)
+            }
+        }
     }
     Ok(())
 }
