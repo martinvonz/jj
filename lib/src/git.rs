@@ -420,7 +420,6 @@ pub enum FailedRefExportReason {
 /// We do not export tags and other refs at the moment, since these aren't
 /// supposed to be modified by JJ. For them, the Git state is considered
 /// authoritative.
-// TODO: Also indicate why we failed to export these branches
 pub fn export_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
