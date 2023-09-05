@@ -76,6 +76,7 @@ nav:
 - 'Design docs': 
     - 'git-submodules': 'design/git-submodules.md'
     - 'git-submodule-storage': 'design/git-submodule-storage.md'
+    - 'JJ run': 'design/run.md'
     - 'Tracking branches': 'design/tracking-branches.md'
 
 
