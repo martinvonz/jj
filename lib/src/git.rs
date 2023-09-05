@@ -538,22 +538,7 @@ pub fn export_some_refs(
     }
     for (parsed_ref_name, old_oid) in branches_to_delete {
         let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
-        let reason = if let Ok(mut git_repo_ref) = git_repo.find_reference(&git_ref_name) {
-            if git_repo_ref.target() == Some(old_oid) {
-                // The branch has not been updated by git, so go ahead and delete it
-                git_repo_ref
-                    .delete()
-                    .err()
-                    .map(FailedRefExportReason::FailedToDelete)
-            } else {
-                // The branch was updated by git
-                Some(FailedRefExportReason::DeletedInJjModifiedInGit)
-            }
-        } else {
-            // The branch is already deleted
-            None
-        };
-        if let Some(reason) = reason {
+        if let Err(reason) = delete_git_ref(git_repo, &git_ref_name, old_oid) {
             failed_branches.push(FailedRefExport {
                 name: parsed_ref_name,
                 reason,
@@ -624,6 +609,27 @@ pub fn export_some_refs(
     }
     failed_branches.sort_by_key(|failed| failed.name.clone());
     Ok(failed_branches)
+}
+
+fn delete_git_ref(
+    git_repo: &git2::Repository,
+    git_ref_name: &str,
+    old_oid: Oid,
+) -> Result<(), FailedRefExportReason> {
+    if let Ok(mut git_repo_ref) = git_repo.find_reference(git_ref_name) {
+        if git_repo_ref.target() == Some(old_oid) {
+            // The branch has not been updated by git, so go ahead and delete it
+            git_repo_ref
+                .delete()
+                .map_err(FailedRefExportReason::FailedToDelete)?;
+        } else {
+            // The branch was updated by git
+            return Err(FailedRefExportReason::DeletedInJjModifiedInGit);
+        }
+    } else {
+        // The branch is already deleted
+    }
+    Ok(())
 }
 
 #[derive(Debug, Error)]
