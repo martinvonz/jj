@@ -54,17 +54,17 @@ only symbols.
 * `~x`: Revisions that are not in `x`.
 * `x-`: Parents of `x`.
 * `x+`: Children of `x`.
-* `:x`: Ancestors of `x`, including the commits in `x` itself.
-* `x:`: Descendants of `x`, including the commits in `x` itself.
-* `x:y`: Descendants of `x` that are also ancestors of `y`. Equivalent
-   to `x: & :y`. This is what `git log` calls `--ancestry-path x..y`.
-* `::x`, `x::`, and `x::y`: New versions of `:x`, `x:`, and `x:y` released in
-  jj 0.9.0. We plan to delete the latter in jj 0.15+.
+* `::x`: Ancestors of `x`, including the commits in `x` itself.
+* `x::`: Descendants of `x`, including the commits in `x` itself.
+* `x::y`: Descendants of `x` that are also ancestors of `y`. Equivalent
+   to `x:: & ::y`. This is what `git log` calls `--ancestry-path x..y`.
 * `::`: All visible commits in the repo. Equivalent to `all()`.
+* `:x`, `x:`, and `x:y`: Deprecated versions of `::x`, `x::`, and `x::y` We
+  plan to delete them in jj 0.15+.
 * `x..y`: Ancestors of `y` that are not also ancestors of `x`. Equivalent to
-  `:y ~ :x`. This is what `git log` calls `x..y` (i.e. the same as we call it).
+  `::y ~ ::x`. This is what `git log` calls `x..y` (i.e. the same as we call it).
 * `..x`: Ancestors of `x`, including the commits in `x` itself, but excluding
-  the root commit. Equivalent to `:x ~ root()`.
+  the root commit. Equivalent to `::x ~ root()`.
 * `x..`: Revisions that are not ancestors of `x`.
 * `..`: All visible commits in the repo, but excluding the root commit.
   Equivalent to `~root()`.
@@ -80,8 +80,8 @@ revsets (expressions) as arguments.
 * `parents(x)`: Same as `x-`.
 * `children(x)`: Same as `x+`.
 * `ancestors(x)`: Same as `:x`.
-* `descendants(x)`: Same as `x:`.
-* `connected(x)`: Same as `x:x`. Useful when `x` includes several commits.
+* `descendants(x)`: Same as `x::`.
+* `connected(x)`: Same as `x::x`. Useful when `x` includes several commits.
 * `all()`: All visible commits in the repo.
 * `none()`: No commits. This function is rarely useful; it is provided for
   completeness.
@@ -180,7 +180,7 @@ jj log -r 'remote_branches(remote=origin)..'
 Show all ancestors of the working copy (almost like plain `git log`)
 
 ```
-jj log -r :@
+jj log -r ::@
 ```
 
 Show the initial commits in the repo (the ones Git calls "root commits"):
@@ -200,7 +200,7 @@ those commits:
 
 
 ```
-jj log -r '(remote_branches()..@):'
+jj log -r '(remote_branches()..@)::'
 ```
 
 Show commits authored by "martinvonz" and containing the word "reset" in the

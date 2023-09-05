@@ -231,7 +231,7 @@ To get shorter prefixes for certain revisions, set `revsets.short-prefixes`:
 
 ```toml
 # Prioritize the current branch
-revsets.short-prefixes = "(main..@):"
+revsets.short-prefixes = "(main..@)::"
 ```
 
 ### Relative timestamps
@@ -306,7 +306,7 @@ You can define aliases for commands, including their arguments. For example:
 ```toml
 # `jj l` shows commits on the working-copy commit's (anonymous) branch
 # compared to the `main` branch
-aliases.l = ["log", "-r", "(main..@): | (main..@)-"]
+aliases.l = ["log", "-r", "(main..@):: | (main..@)-"]
 ```
 
 ## Editor

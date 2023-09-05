@@ -160,7 +160,7 @@ called the "root commit". It's the root commit of every repo. The `root()`
 function in the revset matches it.
 
 There are also operators for getting the parents (`foo-`), children (`foo+`),
-ancestors (`:foo`), descendants (`foo:`), DAG range (`foo:bar`, like
+ancestors (`::foo`), descendants (`foo::`), DAG range (`foo::bar`, like
 `git log --ancestry-path`), range (`foo..bar`, same as Git's). There are also a
 few more functions, such as `heads(<set>)`, which filters out revisions in the
 input set if they're ancestors of other revisions in the set.
@@ -346,7 +346,7 @@ $ jj new -m ABC; printf 'A\nB\nc\n' > file
 Working copy now at: 6f30cd1fb351 ABC
 $ jj new -m ABCD; printf 'A\nB\nC\nD\n' > file
 Working copy now at: a67491542e10 ABCD
-$ jj log -r master:@
+$ jj log -r master::@
 @  mrxqplykzpkw martinvonz@google.com 2023-02-12 19:38:21.000 -08:00 b98c607bf87f
 │  ABCD
 ◉  kwtuwqnmqyqp martinvonz@google.com 2023-02-12 19:38:12.000 -08:00 30aecc0871ea
