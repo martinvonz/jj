@@ -409,6 +409,13 @@ pub enum FailedRefExportReason {
     FailedToSet(git2::Error),
 }
 
+#[derive(Debug)]
+struct RefsToExport {
+    branches_to_update: BTreeMap<RefName, (Option<Oid>, Oid)>,
+    branches_to_delete: BTreeMap<RefName, Oid>,
+    failed_branches: Vec<FailedRefExport>,
+}
+
 /// Export changes to branches made in the Jujutsu repo compared to our last
 /// seen view of the Git repo in `mut_repo.view().git_refs()`. Returns a list of
 /// refs that failed to export.
@@ -432,12 +439,73 @@ pub fn export_some_refs(
     git_repo: &git2::Repository,
     git_ref_filter: impl Fn(&RefName) -> bool,
 ) -> Result<Vec<FailedRefExport>, GitExportError> {
-    // First find the changes we want need to make without modifying mut_repo
+    let RefsToExport {
+        branches_to_update,
+        branches_to_delete,
+        mut failed_branches,
+    } = diff_refs_to_export(
+        mut_repo.view(),
+        mut_repo.store().root_commit_id(),
+        git_ref_filter,
+    );
+
+    // TODO: Also check other worktrees' HEAD.
+    if let Ok(head_ref) = git_repo.find_reference("HEAD") {
+        if let (Some(head_git_ref), Ok(current_git_commit)) =
+            (head_ref.symbolic_target(), head_ref.peel_to_commit())
+        {
+            if let Some(parsed_ref) = parse_git_ref(head_git_ref) {
+                let detach_head =
+                    if let Some((_old_oid, new_oid)) = branches_to_update.get(&parsed_ref) {
+                        *new_oid != current_git_commit.id()
+                    } else {
+                        branches_to_delete.contains_key(&parsed_ref)
+                    };
+                if detach_head {
+                    git_repo.set_head_detached(current_git_commit.id())?;
+                }
+            }
+        }
+    }
+    for (parsed_ref_name, old_oid) in branches_to_delete {
+        let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
+        if let Err(reason) = delete_git_ref(git_repo, &git_ref_name, old_oid) {
+            failed_branches.push(FailedRefExport {
+                name: parsed_ref_name,
+                reason,
+            });
+        } else {
+            mut_repo.set_git_ref_target(&git_ref_name, RefTarget::absent());
+        }
+    }
+    for (parsed_ref_name, (old_oid, new_oid)) in branches_to_update {
+        let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
+        if let Err(reason) = update_git_ref(git_repo, &git_ref_name, old_oid, new_oid) {
+            failed_branches.push(FailedRefExport {
+                name: parsed_ref_name,
+                reason,
+            });
+        } else {
+            mut_repo.set_git_ref_target(
+                &git_ref_name,
+                RefTarget::normal(CommitId::from_bytes(new_oid.as_bytes())),
+            );
+        }
+    }
+    failed_branches.sort_by_key(|failed| failed.name.clone());
+    Ok(failed_branches)
+}
+
+/// Calculates diff of branches to be exported.
+fn diff_refs_to_export(
+    view: &View,
+    root_commit_id: &CommitId,
+    git_ref_filter: impl Fn(&RefName) -> bool,
+) -> RefsToExport {
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeMap::new();
     let mut failed_branches = vec![];
-    let root_commit_target = RefTarget::normal(mut_repo.store().root_commit_id().clone());
-    let view = mut_repo.view();
+    let root_commit_target = RefTarget::normal(root_commit_id.clone());
     let jj_repo_iter_all_branches = view.branches().iter().flat_map(|(branch, target)| {
         itertools::chain(
             target
@@ -518,51 +586,12 @@ pub fn export_some_refs(
             branches_to_delete.insert(jj_known_ref, old_oid.unwrap());
         }
     }
-    // TODO: Also check other worktrees' HEAD.
-    if let Ok(head_ref) = git_repo.find_reference("HEAD") {
-        if let (Some(head_git_ref), Ok(current_git_commit)) =
-            (head_ref.symbolic_target(), head_ref.peel_to_commit())
-        {
-            if let Some(parsed_ref) = parse_git_ref(head_git_ref) {
-                let detach_head =
-                    if let Some((_old_oid, new_oid)) = branches_to_update.get(&parsed_ref) {
-                        *new_oid != current_git_commit.id()
-                    } else {
-                        branches_to_delete.contains_key(&parsed_ref)
-                    };
-                if detach_head {
-                    git_repo.set_head_detached(current_git_commit.id())?;
-                }
-            }
-        }
+
+    RefsToExport {
+        branches_to_update,
+        branches_to_delete,
+        failed_branches,
     }
-    for (parsed_ref_name, old_oid) in branches_to_delete {
-        let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
-        if let Err(reason) = delete_git_ref(git_repo, &git_ref_name, old_oid) {
-            failed_branches.push(FailedRefExport {
-                name: parsed_ref_name,
-                reason,
-            });
-        } else {
-            mut_repo.set_git_ref_target(&git_ref_name, RefTarget::absent());
-        }
-    }
-    for (parsed_ref_name, (old_oid, new_oid)) in branches_to_update {
-        let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
-        if let Err(reason) = update_git_ref(git_repo, &git_ref_name, old_oid, new_oid) {
-            failed_branches.push(FailedRefExport {
-                name: parsed_ref_name,
-                reason,
-            });
-        } else {
-            mut_repo.set_git_ref_target(
-                &git_ref_name,
-                RefTarget::normal(CommitId::from_bytes(new_oid.as_bytes())),
-            );
-        }
-    }
-    failed_branches.sort_by_key(|failed| failed.name.clone());
-    Ok(failed_branches)
 }
 
 fn delete_git_ref(
