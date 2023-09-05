@@ -521,69 +521,69 @@ fn diff_refs_to_export(
                 }),
         )
     });
-    let jj_known_refs_passing_filter: HashSet<_> = view
+    let all_ref_names_passing_filter: HashSet<_> = view
         .git_refs()
         .keys()
         .filter_map(|name| parse_git_ref(name))
         .chain(jj_repo_iter_all_branches)
         .filter(git_ref_filter)
         .collect();
-    for jj_known_ref in jj_known_refs_passing_filter {
-        let new_branch = match &jj_known_ref {
+    for ref_name in all_ref_names_passing_filter {
+        let new_target = match &ref_name {
             RefName::LocalBranch(branch) => view.get_local_branch(branch),
             RefName::RemoteBranch { remote, branch } => {
-                // Currently, the only situation where this case occurs *and* new_branch !=
-                // old_branch is after a `jj branch forget`. So, in practice, for
-                // remote-tracking branches either `new_branch == old_branch` or
-                // `new_branch == None`.
+                // Currently, the only situation where this case occurs *and* new_target !=
+                // old_target is after a `jj branch forget`. So, in practice, for
+                // remote-tracking branches either `new_target == old_target` or
+                // `new_target == None`.
                 view.get_remote_branch(branch, remote)
             }
             _ => continue,
         };
-        let old_branch = if let Some(name) = to_git_ref_name(&jj_known_ref) {
+        let old_target = if let Some(name) = to_git_ref_name(&ref_name) {
             view.get_git_ref(&name)
         } else {
             // Invalid branch name in Git sense
             failed_branches.push(FailedRefExport {
-                name: jj_known_ref,
+                name: ref_name,
                 reason: FailedRefExportReason::InvalidGitName,
             });
             continue;
         };
-        if new_branch == old_branch {
+        if new_target == old_target {
             continue;
         }
-        if *new_branch == root_commit_target {
+        if *new_target == root_commit_target {
             // Git doesn't have a root commit
             failed_branches.push(FailedRefExport {
-                name: jj_known_ref,
+                name: ref_name,
                 reason: FailedRefExportReason::OnRootCommit,
             });
             continue;
         }
-        let old_oid = if let Some(id) = old_branch.as_normal() {
+        let old_oid = if let Some(id) = old_target.as_normal() {
             Some(Oid::from_bytes(id.as_bytes()).unwrap())
-        } else if old_branch.has_conflict() {
+        } else if old_target.has_conflict() {
             // The old git ref should only be a conflict if there were concurrent import
             // operations while the value changed. Don't overwrite these values.
             failed_branches.push(FailedRefExport {
-                name: jj_known_ref,
+                name: ref_name,
                 reason: FailedRefExportReason::ConflictedOldState,
             });
             continue;
         } else {
-            assert!(old_branch.is_absent());
+            assert!(old_target.is_absent());
             None
         };
-        if let Some(id) = new_branch.as_normal() {
+        if let Some(id) = new_target.as_normal() {
             let new_oid = Oid::from_bytes(id.as_bytes());
-            branches_to_update.insert(jj_known_ref, (old_oid, new_oid.unwrap()));
-        } else if new_branch.has_conflict() {
+            branches_to_update.insert(ref_name, (old_oid, new_oid.unwrap()));
+        } else if new_target.has_conflict() {
             // Skip conflicts and leave the old value in git_refs
             continue;
         } else {
-            assert!(new_branch.is_absent());
-            branches_to_delete.insert(jj_known_ref, old_oid.unwrap());
+            assert!(new_target.is_absent());
+            branches_to_delete.insert(ref_name, old_oid.unwrap());
         }
     }
 
