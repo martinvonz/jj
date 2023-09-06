@@ -2251,13 +2251,15 @@ fn cmd_abandon(
 
     if to_abandon.len() == 1 {
         ui.write("Abandoned commit ")?;
-        tx.write_commit_summary(ui.stdout_formatter().as_mut(), &to_abandon[0])?;
+        tx.base_workspace_helper()
+            .write_commit_summary(ui.stdout_formatter().as_mut(), &to_abandon[0])?;
         ui.write("\n")?;
     } else if !args.summary {
         ui.write("Abandoned the following commits:\n")?;
         for commit in to_abandon {
             ui.write("  ")?;
-            tx.write_commit_summary(ui.stdout_formatter().as_mut(), &commit)?;
+            tx.base_workspace_helper()
+                .write_commit_summary(ui.stdout_formatter().as_mut(), &commit)?;
             ui.write("\n")?;
         }
     } else {
