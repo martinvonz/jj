@@ -355,7 +355,8 @@ struct StatusArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct LogArgs {
     /// Which revisions to show. Defaults to the `revsets.log` setting, or
-    /// `@ | ancestors((remote_branches() | tags()).., 2)` if it is not set.
+    /// `@ | ancestors(immutable_heads().., 2) | heads(immutable_heads())` if
+    /// it is not set.
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
     /// Show commits modifying the given paths
