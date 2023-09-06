@@ -1727,7 +1727,7 @@ the terminal width.</p>
 </code></pre></div>
 <p>To get shorter prefixes for certain revisions, set <code>revsets.short-prefixes</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Prioritize the current branch</span>
-<span class="n">revsets</span><span class="p">.</span><span class="n">short-prefixes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;(main..@):&quot;</span>
+<span class="n">revsets</span><span class="p">.</span><span class="n">short-prefixes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;(main..@)::&quot;</span>
 </code></pre></div>
 <h3 id="relative-timestamps">Relative timestamps<a class="headerlink" href="#relative-timestamps" title="Permanent link">&para;</a></h3>
 <p>Can be customized by the <code>format_timestamp()</code> template alias.</p>
@@ -1776,7 +1776,7 @@ command will be executed directly. For example:</p>
 <p>You can define aliases for commands, including their arguments. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># `jj l` shows commits on the working-copy commit&#39;s (anonymous) branch</span>
 <span class="c1"># compared to the `main` branch</span>
-<span class="n">aliases</span><span class="p">.</span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;-r&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;(main..@): | (main..@)-&quot;</span><span class="p">]</span>
+<span class="n">aliases</span><span class="p">.</span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;-r&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;(main..@):: | (main..@)-&quot;</span><span class="p">]</span>
 </code></pre></div>
 <h2 id="editor">Editor<a class="headerlink" href="#editor" title="Permanent link">&para;</a></h2>
 <p>The default editor is set via <code>ui.editor</code>, though there are several places to

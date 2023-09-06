@@ -1331,7 +1331,7 @@ remote
 Log all remote branches, which you authored or committed to
 <code>jj log -r 'remote_branches() &amp; (mine() | committer(your@email.com))'</code>
 Log all descendants of the current working copy, which aren't on a remote
-<code>jj log -r ':@ &amp; ~remote_branches()'</code></p>
+<code>jj log -r '::@ &amp; ~remote_branches()'</code></p>
 <h2 id="merge-conflicts">Merge conflicts<a class="headerlink" href="#merge-conflicts" title="Permanent link">&para;</a></h2>
 <p>For a detailed overview, how Jujutsu handles conflicts, revisit
 the <a href="tutorial.html#Conflicts">tutorial</a>.</p>
