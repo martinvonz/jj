@@ -1899,9 +1899,7 @@ fn filter_map_values_by_key_pattern<'a: 'b, 'b, V>(
 
 fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
-    // TODO: We should remove `refs/remotes` from this list once we have a better
-    // way to address local git repo's remote-tracking branches.
-    for git_ref_prefix in &["", "refs/", "refs/tags/", "refs/remotes/"] {
+    for git_ref_prefix in &["", "refs/"] {
         let target = view.get_git_ref(&(git_ref_prefix.to_string() + symbol));
         if target.is_present() {
             return Some(target.added_ids().cloned().collect());

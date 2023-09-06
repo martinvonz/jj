@@ -615,10 +615,9 @@ fn test_resolve_symbol_tags() {
         vec![commit1.id().clone()],
     );
 
-    // TODO: remove refs/tags lookup
-    assert_eq!(
-        resolve_symbol(mut_repo, "unimported").unwrap(),
-        vec![commit3.id().clone()],
+    assert_matches!(
+        resolve_symbol(mut_repo, "unimported"),
+        Err(RevsetResolutionError::NoSuchRevision { .. })
     );
 }
 
@@ -718,6 +717,7 @@ fn test_resolve_symbol_git_refs() {
 
     // Qualified with only heads/
     mut_repo.set_git_ref_target("refs/heads/branch", RefTarget::normal(commit5.id().clone()));
+    mut_repo.set_git_ref_target("refs/tags/branch", RefTarget::normal(commit4.id().clone()));
     // branch alone is not recognized
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "branch").unwrap_err(), @r###"
@@ -730,12 +730,6 @@ fn test_resolve_symbol_git_refs() {
         ],
     }
     "###);
-    mut_repo.set_git_ref_target("refs/tags/branch", RefTarget::normal(commit4.id().clone()));
-    // The *tag* branch is recognized
-    assert_eq!(
-        resolve_symbol(mut_repo, "branch").unwrap(),
-        vec![commit4.id().clone()]
-    );
     // heads/branch does get resolved to the git ref refs/heads/branch
     assert_eq!(
         resolve_symbol(mut_repo, "heads/branch").unwrap(),
@@ -744,9 +738,9 @@ fn test_resolve_symbol_git_refs() {
 
     // Unqualified tag name
     mut_repo.set_git_ref_target("refs/tags/tag", RefTarget::normal(commit4.id().clone()));
-    assert_eq!(
-        resolve_symbol(mut_repo, "tag").unwrap(),
-        vec![commit4.id().clone()]
+    assert_matches!(
+        resolve_symbol(mut_repo, "tag"),
+        Err(RevsetResolutionError::NoSuchRevision { .. })
     );
 
     // Unqualified remote-tracking branch name
@@ -754,9 +748,9 @@ fn test_resolve_symbol_git_refs() {
         "refs/remotes/origin/remote-branch",
         RefTarget::normal(commit2.id().clone()),
     );
-    assert_eq!(
-        resolve_symbol(mut_repo, "origin/remote-branch").unwrap(),
-        vec![commit2.id().clone()]
+    assert_matches!(
+        resolve_symbol(mut_repo, "origin/remote-branch"),
+        Err(RevsetResolutionError::NoSuchRevision { .. })
     );
 
     // "@" (quoted) can be resolved, and root is a normal symbol.

@@ -62,6 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rename` to rename the existing remote.
   [#1690](https://github.com/martinvonz/jj/issues/1690)
 
+* Revset expression like `origin/main` will no longer resolve to a
+  remote-tracking branch. Use `main@origin` instead.
+
 ### New features
 
 * Default template for `jj log` now does not show irrelevant information
