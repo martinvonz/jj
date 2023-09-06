@@ -108,19 +108,13 @@ $ jj config set --user user.email "martinvonz@google.com"
 ## Command-line completion
 
 To set up command-line completion, source the output of
-`jj util completion --bash/--zsh/--fish` (called `jj debug completion` in
-jj <= 0.7.0). Exactly how to source it depends on your shell.
+`jj util completion --bash/--zsh/--fish`. Exactly how to source it
+depends on your shell.
 
 ### Bash
 
 ```shell
 source <(jj util completion)  # --bash is the default
-```
-
-Or, with jj <= 0.7.0:
-
-```shell
-source <(jj debug completion)  # --bash is the default
 ```
 
 ### Zsh
@@ -131,24 +125,10 @@ compinit
 source <(jj util completion --zsh)
 ```
 
-Or, with jj <= 0.7.0:
-
-```shell
-autoload -U compinit
-compinit
-source <(jj debug completion --zsh)
-```
-
 ### Fish
 
 ```shell
 jj util completion --fish | source
-```
-
-Or, with jj <= 0.7.0:
-
-```shell
-jj debug completion --fish | source
 ```
 
 ### Xonsh
@@ -156,10 +136,3 @@ jj debug completion --fish | source
 ```shell
 source-bash $(jj util completion)
 ```
-
-Or, with jj <= 0.7.0:
-
-```shell
-source-bash $(jj debug completion)
-```
-
