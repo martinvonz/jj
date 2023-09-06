@@ -21,6 +21,7 @@ use std::io::Read;
 use std::result::Result;
 use std::vec::Vec;
 
+use async_trait::async_trait;
 use thiserror::Error;
 
 use crate::content_hash::ContentHash;
@@ -465,6 +466,7 @@ pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Comm
     }
 }
 
+#[async_trait]
 pub trait Backend: Send + Sync + Debug {
     fn as_any(&self) -> &dyn Any;
 
@@ -484,23 +486,23 @@ pub trait Backend: Send + Sync + Debug {
 
     fn empty_tree_id(&self) -> &TreeId;
 
-    fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>>;
+    async fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>>;
 
     fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId>;
 
-    fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String>;
+    async fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String>;
 
     fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId>;
 
-    fn read_tree(&self, path: &RepoPath, id: &TreeId) -> BackendResult<Tree>;
+    async fn read_tree(&self, path: &RepoPath, id: &TreeId) -> BackendResult<Tree>;
 
     fn write_tree(&self, path: &RepoPath, contents: &Tree) -> BackendResult<TreeId>;
 
-    fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict>;
+    async fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict>;
 
     fn write_conflict(&self, path: &RepoPath, contents: &Conflict) -> BackendResult<ConflictId>;
 
-    fn read_commit(&self, id: &CommitId) -> BackendResult<Commit>;
+    async fn read_commit(&self, id: &CommitId) -> BackendResult<Commit>;
 
     /// Writes a commit and returns its ID and the commit itself. The commit
     /// should contain the data that was actually written, which may differ

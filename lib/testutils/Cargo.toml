@@ -15,6 +15,7 @@ readme = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = { workspace = true }
 config = { workspace = true }
 git2 = { workspace = true }
 itertools = { workspace = true }

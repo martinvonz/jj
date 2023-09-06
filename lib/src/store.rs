@@ -97,18 +97,22 @@ impl Store {
     }
 
     pub fn get_commit(self: &Arc<Self>, id: &CommitId) -> BackendResult<Commit> {
-        let data = self.get_backend_commit(id)?;
+        futures::executor::block_on(self.get_commit_async(id))
+    }
+
+    pub async fn get_commit_async(self: &Arc<Self>, id: &CommitId) -> BackendResult<Commit> {
+        let data = self.get_backend_commit(id).await?;
         Ok(Commit::new(self.clone(), id.clone(), data))
     }
 
-    fn get_backend_commit(&self, id: &CommitId) -> BackendResult<Arc<backend::Commit>> {
+    async fn get_backend_commit(&self, id: &CommitId) -> BackendResult<Arc<backend::Commit>> {
         {
             let read_locked_cached = self.commit_cache.read().unwrap();
             if let Some(data) = read_locked_cached.get(id).cloned() {
                 return Ok(data);
             }
         }
-        let commit = self.backend.read_commit(id)?;
+        let commit = self.backend.read_commit(id).await?;
         let data = Arc::new(commit);
         let mut write_locked_cache = self.commit_cache.write().unwrap();
         write_locked_cache.insert(id.clone(), data.clone());
@@ -128,11 +132,23 @@ impl Store {
     }
 
     pub fn get_tree(self: &Arc<Self>, dir: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
-        let data = self.get_backend_tree(dir, id)?;
+        futures::executor::block_on(self.get_tree_async(dir, id))
+    }
+
+    pub async fn get_tree_async(
+        self: &Arc<Self>,
+        dir: &RepoPath,
+        id: &TreeId,
+    ) -> BackendResult<Tree> {
+        let data = self.get_backend_tree(dir, id).await?;
         Ok(Tree::new(self.clone(), dir.clone(), id.clone(), data))
     }
 
-    fn get_backend_tree(&self, dir: &RepoPath, id: &TreeId) -> BackendResult<Arc<backend::Tree>> {
+    async fn get_backend_tree(
+        &self,
+        dir: &RepoPath,
+        id: &TreeId,
+    ) -> BackendResult<Arc<backend::Tree>> {
         let key = (dir.clone(), id.clone());
         {
             let read_locked_cache = self.tree_cache.read().unwrap();
@@ -140,7 +156,8 @@ impl Store {
                 return Ok(data);
             }
         }
-        let data = Arc::new(self.backend.read_tree(dir, id)?);
+        let data = self.backend.read_tree(dir, id).await?;
+        let data = Arc::new(data);
         let mut write_locked_cache = self.tree_cache.write().unwrap();
         write_locked_cache.insert(key, data.clone());
         Ok(data)
@@ -175,7 +192,15 @@ impl Store {
     }
 
     pub fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
-        self.backend.read_file(path, id)
+        futures::executor::block_on(self.read_file_async(path, id))
+    }
+
+    pub async fn read_file_async(
+        &self,
+        path: &RepoPath,
+        id: &FileId,
+    ) -> BackendResult<Box<dyn Read>> {
+        self.backend.read_file(path, id).await
     }
 
     pub fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
@@ -183,7 +208,15 @@ impl Store {
     }
 
     pub fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {
-        self.backend.read_symlink(path, id)
+        futures::executor::block_on(self.read_symlink_async(path, id))
+    }
+
+    pub async fn read_symlink_async(
+        &self,
+        path: &RepoPath,
+        id: &SymlinkId,
+    ) -> BackendResult<String> {
+        self.backend.read_symlink(path, id).await
     }
 
     pub fn write_symlink(&self, path: &RepoPath, contents: &str) -> BackendResult<SymlinkId> {
@@ -195,7 +228,7 @@ impl Store {
         path: &RepoPath,
         id: &ConflictId,
     ) -> BackendResult<Merge<Option<TreeValue>>> {
-        let backend_conflict = self.backend.read_conflict(path, id)?;
+        let backend_conflict = futures::executor::block_on(self.backend.read_conflict(path, id))?;
         Ok(Merge::from_backend_conflict(backend_conflict))
     }
 

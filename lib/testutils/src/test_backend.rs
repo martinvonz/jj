@@ -19,6 +19,7 @@ use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
+use async_trait::async_trait;
 use jj_lib::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
     ConflictId, FileId, ObjectId, SymlinkId, Tree, TreeId,
@@ -107,6 +108,7 @@ impl Debug for TestBackend {
     }
 }
 
+#[async_trait]
 impl Backend for TestBackend {
     fn as_any(&self) -> &dyn Any {
         self
@@ -136,7 +138,7 @@ impl Backend for TestBackend {
         &self.empty_tree_id
     }
 
-    fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
+    async fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         match self
             .locked_data()
             .files
@@ -165,7 +167,7 @@ impl Backend for TestBackend {
         Ok(id)
     }
 
-    fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
+    async fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
         match self
             .locked_data()
             .symlinks
@@ -192,7 +194,7 @@ impl Backend for TestBackend {
         Ok(id)
     }
 
-    fn read_tree(&self, path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
+    async fn read_tree(&self, path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
         if id == &self.empty_tree_id {
             return Ok(Tree::default());
         }
@@ -222,7 +224,7 @@ impl Backend for TestBackend {
         Ok(id)
     }
 
-    fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
+    async fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
         match self
             .locked_data()
             .conflicts
@@ -249,7 +251,7 @@ impl Backend for TestBackend {
         Ok(id)
     }
 
-    fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
+    async fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if id == &self.root_commit_id {
             return Ok(make_root_commit(
                 self.root_change_id.clone(),

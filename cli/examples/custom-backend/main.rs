@@ -16,6 +16,7 @@ use std::any::Any;
 use std::io::Read;
 use std::path::Path;
 
+use async_trait::async_trait;
 use jj_cli::cli_util::{CliRunner, CommandError, CommandHelper};
 use jj_cli::ui::Ui;
 use jj_lib::backend::{
@@ -86,6 +87,7 @@ impl JitBackend {
     }
 }
 
+#[async_trait]
 impl Backend for JitBackend {
     fn as_any(&self) -> &dyn Any {
         self
@@ -115,40 +117,40 @@ impl Backend for JitBackend {
         self.inner.empty_tree_id()
     }
 
-    fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
-        self.inner.read_file(path, id)
+    async fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
+        self.inner.read_file(path, id).await
     }
 
     fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
         self.inner.write_file(path, contents)
     }
 
-    fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {
-        self.inner.read_symlink(path, id)
+    async fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {
+        self.inner.read_symlink(path, id).await
     }
 
     fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
         self.inner.write_symlink(path, target)
     }
 
-    fn read_tree(&self, path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
-        self.inner.read_tree(path, id)
+    async fn read_tree(&self, path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
+        self.inner.read_tree(path, id).await
     }
 
     fn write_tree(&self, path: &RepoPath, contents: &Tree) -> BackendResult<TreeId> {
         self.inner.write_tree(path, contents)
     }
 
-    fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
-        self.inner.read_conflict(path, id)
+    async fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
+        self.inner.read_conflict(path, id).await
     }
 
     fn write_conflict(&self, path: &RepoPath, contents: &Conflict) -> BackendResult<ConflictId> {
         self.inner.write_conflict(path, contents)
     }
 
-    fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
-        self.inner.read_commit(id)
+    async fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
+        self.inner.read_commit(id).await
     }
 
     fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)> {

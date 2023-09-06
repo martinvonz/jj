@@ -19,6 +19,7 @@ harness = false
 version_check = { workspace = true }
 
 [dependencies]
+async-trait = { workspace = true}
 backoff = { workspace = true }
 blake2 = { workspace = true }
 byteorder = { workspace = true }
@@ -26,6 +27,7 @@ bytes = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true }
 digest = { workspace = true }
+futures = { workspace = true }
 either = { workspace = true }
 git2 = { workspace = true }
 hex = { workspace = true }
@@ -63,6 +65,7 @@ num_cpus = { workspace = true }
 pretty_assertions = { workspace = true }
 test-case = { workspace = true }
 testutils = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = []
