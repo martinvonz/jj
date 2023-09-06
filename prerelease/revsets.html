@@ -1199,8 +1199,8 @@ only symbols.</p>
 <li><code>x:</code>: Descendants of <code>x</code>, including the commits in <code>x</code> itself.</li>
 <li><code>x:y</code>: Descendants of <code>x</code> that are also ancestors of <code>y</code>. Equivalent
    to <code>x: &amp; :y</code>. This is what <code>git log</code> calls <code>--ancestry-path x..y</code>.</li>
-<li><code>::x</code>, <code>x::</code>, and <code>x::y</code>: New versions of for <code>:x</code>, <code>x:</code>, and <code>x:y</code> to be
-  released in jj 0.9.0. We plan to delete the latter in jj 0.15+.</li>
+<li><code>::x</code>, <code>x::</code>, and <code>x::y</code>: New versions of <code>:x</code>, <code>x:</code>, and <code>x:y</code> released in
+  jj 0.9.0. We plan to delete the latter in jj 0.15+.</li>
 <li><code>::</code>: All visible commits in the repo. Equivalent to <code>all()</code>.</li>
 <li><code>x..y</code>: Ancestors of <code>y</code> that are not also ancestors of <code>x</code>. Equivalent to
   <code>:y ~ :x</code>. This is what <code>git log</code> calls <code>x..y</code> (i.e. the same as we call it).</li>
