@@ -787,6 +787,19 @@
     Introduction
   </a>
   
+    <nav class="md-nav" aria-label="Introduction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#syncing-with-rsync-nfs-dropbox-etc" class="md-nav__link">
+    Syncing with rsync, NFS, Dropbox, etc
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1065,6 +1078,19 @@
     Introduction
   </a>
   
+    <nav class="md-nav" aria-label="Introduction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#syncing-with-rsync-nfs-dropbox-etc" class="md-nav__link">
+    Syncing with rsync, NFS, Dropbox, etc
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1141,6 +1167,7 @@ locking are still valid after you take the lock.</p>
 accepting that concurrent changes can always happen. It instead exposes any
 conflicting changes to the user, much like other DVCSs do for conflicting
 changes made remotely.</p>
+<h3 id="syncing-with-rsync-nfs-dropbox-etc">Syncing with <code>rsync</code>, NFS, Dropbox, etc<a class="headerlink" href="#syncing-with-rsync-nfs-dropbox-etc" title="Permanent link">&para;</a></h3>
 <p>Jujutsu's lock-free concurrency means that it's possible to update copies of the
 clone on different machines and then let <code>rsync</code> (or Dropbox, or NFS, etc.)
 merge them. The working copy may mismatch what's supposed to be checked out, but
@@ -1149,9 +1176,19 @@ conflicting changes were made, they will appear as conflicts. For example, if a
 branch was moved to two different locations, they will appear in <code>jj log</code> in
 both locations but with a "?" after the name, and <code>jj status</code> will also inform
 the user about the conflict.</p>
+<p>Note that, for now, there are known bugs in this area. Most notably, with the
+Git backend, <a href="https://github.com/martinvonz/jj/issues/2193">repository corruption is possible because the backend is not
+entirely lock-free</a>. If you know
+about the bug, it is relatively easy to recover from.</p>
+<p>Moreover, such use of Jujutsu is not currently thoroughly tested,
+especially in the context of <a href="../glossary.html#co-located-repos">co-located
+repositories</a>. While the contents of commits
+should be safe, concurrent modification of a repository from different computers
+might conceivably lose some branch pointers. Note that, unlike in pure
+Git, losing a branch pointer does not lead to losing commits.</p>
+<h2 id="operation-log">Operation log<a class="headerlink" href="#operation-log" title="Permanent link">&para;</a></h2>
 <p>The most important piece in the lock-free design is the "operation log". That is
 what allows us to detect and merge concurrent operations.</p>
-<h2 id="operation-log">Operation log<a class="headerlink" href="#operation-log" title="Permanent link">&para;</a></h2>
 <p>The operation log is similar to a commit DAG (such as in
 <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-Objects">Git's object model</a>),
 but each commit object is instead an "operation" and each tree object is instead
