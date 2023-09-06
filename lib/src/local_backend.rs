@@ -21,6 +21,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
+use async_trait::async_trait;
 use blake2::{Blake2b512, Digest};
 use prost::Message;
 use tempfile::NamedTempFile;
@@ -114,6 +115,7 @@ impl LocalBackend {
     }
 }
 
+#[async_trait]
 impl Backend for LocalBackend {
     fn as_any(&self) -> &dyn Any {
         self
@@ -143,7 +145,7 @@ impl Backend for LocalBackend {
         &self.empty_tree_id
     }
 
-    fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
+    async fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         let path = self.file_path(id);
         let file = File::open(path).map_err(|err| map_not_found_err(err, id))?;
         Ok(Box::new(zstd::Decoder::new(file).map_err(to_other_err)?))
@@ -171,7 +173,7 @@ impl Backend for LocalBackend {
         Ok(id)
     }
 
-    fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
+    async fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
         let path = self.symlink_path(id);
         let target = fs::read_to_string(path).map_err(|err| map_not_found_err(err, id))?;
         Ok(target)
@@ -191,7 +193,7 @@ impl Backend for LocalBackend {
         Ok(id)
     }
 
-    fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
+    async fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
         let path = self.tree_path(id);
         let buf = fs::read(path).map_err(|err| map_not_found_err(err, id))?;
 
@@ -215,7 +217,7 @@ impl Backend for LocalBackend {
         Ok(id)
     }
 
-    fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
+    async fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
         let path = self.conflict_path(id);
         let buf = fs::read(path).map_err(|err| map_not_found_err(err, id))?;
 
@@ -239,7 +241,7 @@ impl Backend for LocalBackend {
         Ok(id)
     }
 
-    fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
+    async fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if *id == self.root_commit_id {
             return Ok(make_root_commit(
                 self.root_change_id().clone(),
@@ -486,25 +488,26 @@ mod tests {
         // Only root commit as parent
         commit.parents = vec![backend.root_commit_id().clone()];
         let first_id = backend.write_commit(commit.clone()).unwrap().0;
-        let first_commit = backend.read_commit(&first_id).unwrap();
+        let first_commit = futures::executor::block_on(backend.read_commit(&first_id)).unwrap();
         assert_eq!(first_commit, commit);
 
         // Only non-root commit as parent
         commit.parents = vec![first_id.clone()];
         let second_id = backend.write_commit(commit.clone()).unwrap().0;
-        let second_commit = backend.read_commit(&second_id).unwrap();
+        let second_commit = futures::executor::block_on(backend.read_commit(&second_id)).unwrap();
         assert_eq!(second_commit, commit);
 
         // Merge commit
         commit.parents = vec![first_id.clone(), second_id.clone()];
         let merge_id = backend.write_commit(commit.clone()).unwrap().0;
-        let merge_commit = backend.read_commit(&merge_id).unwrap();
+        let merge_commit = futures::executor::block_on(backend.read_commit(&merge_id)).unwrap();
         assert_eq!(merge_commit, commit);
 
         // Merge commit with root as one parent
         commit.parents = vec![first_id, backend.root_commit_id().clone()];
         let root_merge_id = backend.write_commit(commit.clone()).unwrap().0;
-        let root_merge_commit = backend.read_commit(&root_merge_id).unwrap();
+        let root_merge_commit =
+            futures::executor::block_on(backend.read_commit(&root_merge_id)).unwrap();
         assert_eq!(root_merge_commit, commit);
     }
 
