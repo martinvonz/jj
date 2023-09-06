@@ -590,6 +590,39 @@ fn test_resolve_symbol_branches() {
 }
 
 #[test]
+fn test_resolve_symbol_tags() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let mut_repo = tx.mut_repo();
+
+    let commit1 = write_random_commit(mut_repo, &settings);
+    let commit2 = write_random_commit(mut_repo, &settings);
+    let commit3 = write_random_commit(mut_repo, &settings);
+
+    mut_repo.set_tag_target("tag-branch", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_local_branch_target("tag-branch", RefTarget::normal(commit2.id().clone()));
+    mut_repo.set_git_ref_target(
+        "refs/tags/unimported",
+        RefTarget::normal(commit3.id().clone()),
+    );
+
+    // Tag precedes branch
+    assert_eq!(
+        resolve_symbol(mut_repo, "tag-branch").unwrap(),
+        vec![commit1.id().clone()],
+    );
+
+    // TODO: remove refs/tags lookup
+    assert_eq!(
+        resolve_symbol(mut_repo, "unimported").unwrap(),
+        vec![commit3.id().clone()],
+    );
+}
+
+#[test]
 fn test_resolve_symbol_git_head() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(true);
