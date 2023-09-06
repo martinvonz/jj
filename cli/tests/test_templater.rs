@@ -67,7 +67,9 @@ fn test_templater_branches() {
     let template = r#"commit_id.short() ++ " " ++ branches"#;
     let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
     insta::assert_snapshot!(output, @r###"
-    ◉  b1bb3766d584 branch3??
+    ◉  fed794e2ba44 branch3?? branch3@origin
+    │ ◉  b1bb3766d584 branch3??
+    ├─╯
     │ ◉  21c33875443e branch1*
     ├─╯
     │ @  a5b4d15489cc branch2* new-branch

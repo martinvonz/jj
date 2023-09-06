@@ -165,8 +165,7 @@ fn test_branch_delete_glob() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1 foo-3 foo-4 6fbf398c2d59
-    │
-    ~
+    ◉   000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "delete", "--glob", "foo-[1-3]"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -174,8 +173,7 @@ fn test_branch_delete_glob() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4 6fbf398c2d59
-    │
-    ~
+    ◉   000000000000
     "###);
 
     // We get an error if none of the globs match live branches. Unlike `jj branch
@@ -196,8 +194,7 @@ fn test_branch_delete_glob() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4@origin 6fbf398c2d59
-    │
-    ~
+    ◉   000000000000
     "###);
 
     // The deleted branches are still there

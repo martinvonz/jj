@@ -60,7 +60,21 @@ fn test_rewrite_immutable_generic() {
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // Error if we redefine immutable_heads() with an argument
+    // TODO: This error comes from the built-in definition of
+    // `revsets.short-prefixes`. That's not clear to the user.
     test_env.add_config(r#"revset-aliases."immutable_heads(foo)" = "none()""#);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "root()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Config error: Invalid `revsets.short-prefixes`:  --> 1:31
+      |
+    1 | @ | ancestors(immutable_heads().., 2) | heads(immutable_heads())
+      |                               ^
+      |
+      = Invalid arguments to revset function "immutable_heads": Expected 1 arguments
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    "###);
+    // ... even if we also update the built-in call sites
+    test_env.add_config(r#"revsets.short-prefixes = "immutable_heads(root())""#);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: The `revset-aliases.immutable_heads()` function must be declared without arguments.
@@ -82,19 +96,20 @@ fn test_rewrite_immutable_commands() {
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
     test_env.jj_cmd_success(&repo_path, &["new", "description(b)"]);
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "main""#);
+
+    // Log shows mutable commits and immutable heads by default
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
     @  yqosqzyt test.user@example.com 2001-02-03 04:05:13.000 +07:00 3f89addf
     │  (empty) (no description set)
     │ ◉  mzvwutvl test.user@example.com 2001-02-03 04:05:11.000 +07:00 main d809c5d9 conflict
     ╭─┤  (empty) merge
-    ◉ │  kkmpptxz test.user@example.com 2001-02-03 04:05:10.000 +07:00 c8d4c7ca
-    │ │  b
-    │ ◉  zsuskuln test.user@example.com 2001-02-03 04:05:11.000 +07:00 6e11f430
-    ├─╯  c
-    ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:08.000 +07:00 46a8dc51
-    │  a
-    ◉  zzzzzzzz root() 00000000
+    │ │
+    │ ~
+    │
+    ◉  kkmpptxz test.user@example.com 2001-02-03 04:05:10.000 +07:00 c8d4c7ca
+    │  b
+    ~
     "###);
 
     // abandon
