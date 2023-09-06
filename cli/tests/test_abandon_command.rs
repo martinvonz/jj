@@ -56,7 +56,7 @@ fn test_rebase_branch_with_merge() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d"]);
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned commit vruxwmqv b7c62f28 d
+    Abandoned commit vruxwmqv b7c62f28 d | d
     Rebased 1 descendant commits onto parents of abandoned commits
     Working copy now at: znkkpsqq 11a2e10e e | e
     Parent commit      : rlvkpnrz 2443ea76 a | a
@@ -77,7 +77,7 @@ fn test_rebase_branch_with_merge() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon"] /* abandons `e` */);
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned commit znkkpsqq 5557ece3 e
+    Abandoned commit znkkpsqq 5557ece3 e | e
     Working copy now at: nkmrtpmo 6b527513 (empty) (no description set)
     Parent commit      : rlvkpnrz 2443ea76 a e?? | a
     Added 0 files, modified 0 files, removed 3 files
@@ -102,9 +102,9 @@ fn test_rebase_branch_with_merge() {
     // of the same problem.
     insta::assert_snapshot!(stdout, @r###"
     Abandoned the following commits:
-      znkkpsqq 5557ece3 e
-      vruxwmqv b7c62f28 d
-      royxmykx fe2e8e8b c
+      znkkpsqq 5557ece3 e | e
+      vruxwmqv b7c62f28 d | d
+      royxmykx fe2e8e8b c | c
     Working copy now at: xtnwkqum e7bb0612 (empty) (no description set)
     Parent commit      : rlvkpnrz 2443ea76 a e?? | a
     Added 0 files, modified 0 files, removed 3 files
@@ -121,7 +121,7 @@ fn test_rebase_branch_with_merge() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "b", "b"]);
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned commit zsuskuln 1394f625 b
+    Abandoned commit zsuskuln 1394f625 b | b
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
@@ -138,10 +138,10 @@ fn test_rebase_branch_with_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d::", "a::"]);
     insta::assert_snapshot!(stdout, @r###"
     Abandoned the following commits:
-      znkkpsqq 5557ece3 e
-      vruxwmqv b7c62f28 d
-      zsuskuln 1394f625 b
-      rlvkpnrz 2443ea76 a
+      znkkpsqq 5557ece3 e | e
+      vruxwmqv b7c62f28 d | d
+      zsuskuln 1394f625 b | b
+      rlvkpnrz 2443ea76 a | a
     Working copy now at: xlzxqlsl af874bff (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 a b e?? | (empty) (no description set)
     Added 0 files, modified 0 files, removed 4 files
