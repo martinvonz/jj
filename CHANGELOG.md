@@ -15,12 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0] - 2023-09-06
 
-* `jj diff --stat` has been implemented. It shows a histogram of the changes,
-  same as `git diff --stat`. Fixes [#2066](https://github.com/martinvonz/jj/issues/2066)
-
-* `jj git fetch --all-remotes` has been implemented. It fetches all remotes
-  instead of just the default remote
-
 ### Breaking changes
 
 * The minimum supported Rust version (MSRV) is now 1.71.0.
@@ -141,6 +135,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in a linear style. For people coming from Sapling and `git-branchles`
   see [#2126](https://github.com/martinvonz/jj/issues/2126) for 
   further pending improvements.
+
+* `jj diff --stat` has been implemented. It shows a histogram of the changes,
+  same as `git diff --stat`. Fixes [#2066](https://github.com/martinvonz/jj/issues/2066)
+
+* `jj git fetch --all-remotes` has been implemented. It fetches all remotes
+  instead of just the default remote
 
 ### Fixed bugs
 
