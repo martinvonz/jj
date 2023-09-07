@@ -53,7 +53,7 @@ use crate::lock::FileLock;
 use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, IntersectionMatcher, Matcher, PrefixMatcher,
 };
-use crate::merge::{Merge, MergeBuilder};
+use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
@@ -662,7 +662,7 @@ impl TreeState {
         &self,
         matcher: &dyn Matcher,
         current_tree: &MergedTree,
-        tree_entries_tx: Sender<(RepoPath, Merge<Option<TreeValue>>)>,
+        tree_entries_tx: Sender<(RepoPath, MergedTreeValue)>,
         file_states_tx: Sender<(RepoPath, FileState)>,
         present_files_tx: Sender<RepoPath>,
         directory_to_visit: DirectoryToVisit,
@@ -887,7 +887,7 @@ impl TreeState {
         maybe_current_file_state: Option<&FileState>,
         current_tree: &MergedTree,
         new_file_state: &FileState,
-    ) -> Result<Option<Merge<Option<TreeValue>>>, SnapshotError> {
+    ) -> Result<Option<MergedTreeValue>, SnapshotError> {
         let clean = match maybe_current_file_state {
             None => {
                 // untracked
@@ -922,9 +922,9 @@ impl TreeState {
         &self,
         repo_path: &RepoPath,
         disk_path: &Path,
-        current_tree_values: &Merge<Option<TreeValue>>,
+        current_tree_values: &MergedTreeValue,
         file_type: FileType,
-    ) -> Result<Merge<Option<TreeValue>>, SnapshotError> {
+    ) -> Result<MergedTreeValue, SnapshotError> {
         let executable = match file_type {
             FileType::Normal { executable } => executable,
             FileType::Symlink => {
@@ -1052,7 +1052,7 @@ impl TreeState {
         &self,
         disk_path: &Path,
         path: &RepoPath,
-        conflict: &Merge<Option<TreeValue>>,
+        conflict: &MergedTreeValue,
     ) -> Result<FileState, CheckoutError> {
         let mut file = OpenOptions::new()
             .write(true)

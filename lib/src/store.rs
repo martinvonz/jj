@@ -24,11 +24,10 @@ use futures::executor::block_on;
 
 use crate::backend;
 use crate::backend::{
-    Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, MergedTreeId, SymlinkId,
-    TreeId, TreeValue,
+    Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, MergedTreeId, SymlinkId, TreeId,
 };
 use crate::commit::Commit;
-use crate::merge::Merge;
+use crate::merge::{Merge, MergedTreeValue};
 use crate::merged_tree::MergedTree;
 use crate::repo_path::RepoPath;
 use crate::tree::Tree;
@@ -229,7 +228,7 @@ impl Store {
         &self,
         path: &RepoPath,
         id: &ConflictId,
-    ) -> BackendResult<Merge<Option<TreeValue>>> {
+    ) -> BackendResult<MergedTreeValue> {
         let backend_conflict = block_on(self.backend.read_conflict(path, id))?;
         Ok(Merge::from_backend_conflict(backend_conflict))
     }
@@ -237,7 +236,7 @@ impl Store {
     pub fn write_conflict(
         &self,
         path: &RepoPath,
-        contents: &Merge<Option<TreeValue>>,
+        contents: &MergedTreeValue,
     ) -> BackendResult<ConflictId> {
         self.backend
             .write_conflict(path, &contents.clone().into_backend_conflict())

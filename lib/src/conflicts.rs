@@ -20,11 +20,11 @@ use std::iter::zip;
 use futures::StreamExt;
 use itertools::Itertools;
 
-use crate::backend::{BackendResult, FileId, TreeValue};
+use crate::backend::{BackendResult, FileId};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
 use crate::files::{ContentHunk, MergeResult};
-use crate::merge::{Merge, MergeBuilder};
+use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::repo_path::RepoPath;
 use crate::store::Store;
 
@@ -89,7 +89,7 @@ pub async fn extract_as_single_hunk(
 }
 
 pub async fn materialize(
-    conflict: &Merge<Option<TreeValue>>,
+    conflict: &MergedTreeValue,
     store: &Store,
     path: &RepoPath,
     output: &mut dyn Write,

@@ -37,7 +37,7 @@ use jj_lib::commit::Commit;
 use jj_lib::dag_walk::topo_order_reverse;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::matchers::EverythingMatcher;
-use jj_lib::merge::Merge;
+use jj_lib::merge::{Merge, MergedTreeValue};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
@@ -3053,7 +3053,7 @@ fn cmd_resolve(
 
 #[instrument(skip_all)]
 fn print_conflicted_paths(
-    conflicts: &[(RepoPath, Merge<Option<TreeValue>>)],
+    conflicts: &[(RepoPath, MergedTreeValue)],
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {

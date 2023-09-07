@@ -25,7 +25,7 @@ use jj_lib::commit::Commit;
 use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::DiffLine;
 use jj_lib::matchers::Matcher;
-use jj_lib::merge::Merge;
+use jj_lib::merge::{Merge, MergedTreeValue};
 use jj_lib::merged_tree::{MergedTree, TreeDiffIterator};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
@@ -345,7 +345,7 @@ fn show_color_words_diff_line(
 fn diff_content(
     repo: &Arc<ReadonlyRepo>,
     path: &RepoPath,
-    value: &Merge<Option<TreeValue>>,
+    value: &MergedTreeValue,
 ) -> Result<Vec<u8>, CommandError> {
     match value.as_resolved() {
         Some(None) => Ok(vec![]),
@@ -379,7 +379,7 @@ fn diff_content(
     }
 }
 
-fn basic_diff_file_type(values: &Merge<Option<TreeValue>>) -> String {
+fn basic_diff_file_type(values: &MergedTreeValue) -> String {
     match values.as_resolved() {
         Some(None) => {
             panic!("absent path in diff");
@@ -493,7 +493,7 @@ struct GitDiffPart {
 fn git_diff_part(
     repo: &Arc<ReadonlyRepo>,
     path: &RepoPath,
-    value: &Merge<Option<TreeValue>>,
+    value: &MergedTreeValue,
 ) -> Result<GitDiffPart, CommandError> {
     let mode;
     let hash;
@@ -886,7 +886,7 @@ pub fn show_types(
     })
 }
 
-fn diff_summary_char(value: &Merge<Option<TreeValue>>) -> char {
+fn diff_summary_char(value: &MergedTreeValue) -> char {
     match value.as_resolved() {
         Some(None) => '-',
         Some(Some(TreeValue::File { .. })) => 'F',
