@@ -1218,7 +1218,9 @@ revsets (expressions) as arguments.</p>
 <ul>
 <li><code>parents(x)</code>: Same as <code>x-</code>.</li>
 <li><code>children(x)</code>: Same as <code>x+</code>.</li>
-<li><code>ancestors(x)</code>: Same as <code>:x</code>.</li>
+<li><code>ancestors(x[, depth])</code>: <code>ancestors(x)</code> is the same as <code>::x</code>. 
+  <code>ancestors(x, depth)</code> returns the ancestors of <code>x</code> limited to the given 
+  <code>depth</code>.</li>
 <li><code>descendants(x)</code>: Same as <code>x::</code>.</li>
 <li><code>connected(x)</code>: Same as <code>x::x</code>. Useful when <code>x</code> includes several commits.</li>
 <li><code>all()</code>: All visible commits in the repo.</li>
