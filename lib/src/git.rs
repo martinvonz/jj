@@ -225,12 +225,14 @@ pub fn import_some_refs(
         changed_git_refs.values().map(|(_, new_target)| new_target),
     )
     .flat_map(|target| target.added_ids());
-    let heads_imported = git_backend.import_head_commits(head_ids).is_ok();
+    let heads_imported = git_backend
+        .import_head_commits(head_ids, store.use_tree_conflict_format())
+        .is_ok();
     let mut head_commits = Vec::new();
     let get_commit = |id| {
         // If bulk-import failed, try again to find bad head or ref.
         if !heads_imported {
-            git_backend.import_head_commits([id])?;
+            git_backend.import_head_commits([id], store.use_tree_conflict_format())?;
         }
         store.get_commit(id)
     };
