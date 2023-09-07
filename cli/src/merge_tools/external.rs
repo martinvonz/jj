@@ -240,7 +240,7 @@ fn check_out_trees(
 ) -> Result<DiffWorkingCopies, DiffCheckoutError> {
     let changed_files = left_tree
         .diff(right_tree, matcher)
-        .map(|(path, _left, _right)| path)
+        .map(|(path, _diff)| path)
         .collect_vec();
 
     let temp_dir = new_utf8_temp_dir("jj-diff-").map_err(DiffCheckoutError::SetUpDir)?;

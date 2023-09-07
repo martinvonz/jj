@@ -3175,7 +3175,8 @@ fn cmd_restore(
         let matcher = workspace_command.matcher_from_values(&args.paths)?;
         let mut tree_builder = MergedTreeBuilder::new(to_commit.tree_id().clone());
         let to_tree = to_commit.tree()?;
-        for (repo_path, before, _after) in from_tree.diff(&to_tree, matcher.as_ref()) {
+        for (repo_path, diff) in from_tree.diff(&to_tree, matcher.as_ref()) {
+            let (before, _after) = diff?;
             tree_builder.set_or_remove(repo_path, before);
         }
         tree_builder.write_tree(workspace_command.repo().store())?

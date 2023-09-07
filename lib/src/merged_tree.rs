@@ -22,6 +22,7 @@ use std::{iter, vec};
 
 use futures::executor::block_on;
 use futures::stream::StreamExt;
+use futures::TryStreamExt;
 use itertools::Itertools;
 
 use crate::backend::{BackendError, BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
@@ -337,11 +338,16 @@ impl MergedTree {
 
     /// Collects lists of modified, added, and removed files between this tree
     /// and another tree.
-    pub fn diff_summary(&self, other: &MergedTree, matcher: &dyn Matcher) -> DiffSummary {
+    pub fn diff_summary(
+        &self,
+        other: &MergedTree,
+        matcher: &dyn Matcher,
+    ) -> BackendResult<DiffSummary> {
         let mut modified = vec![];
         let mut added = vec![];
         let mut removed = vec![];
-        for (file, before, after) in self.diff(other, matcher) {
+        for (file, diff) in self.diff(other, matcher) {
+            let (before, after) = diff?;
             if before.is_absent() {
                 added.push(file);
             } else if after.is_absent() {
@@ -353,11 +359,11 @@ impl MergedTree {
         modified.sort();
         added.sort();
         removed.sort();
-        DiffSummary {
+        Ok(DiffSummary {
             modified,
             added,
             removed,
-        }
+        })
     }
 
     /// Merges this tree with `other`, using `base` as base.
@@ -814,20 +820,28 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         Self { stack, matcher }
     }
 
-    async fn single_tree(store: &Arc<Store>, dir: &RepoPath, value: Option<&TreeValue>) -> Tree {
+    async fn single_tree(
+        store: &Arc<Store>,
+        dir: &RepoPath,
+        value: Option<&TreeValue>,
+    ) -> BackendResult<Tree> {
         match value {
-            Some(TreeValue::Tree(tree_id)) => store.get_tree_async(dir, tree_id).await.unwrap(),
-            _ => Tree::null(store.clone(), dir.clone()),
+            Some(TreeValue::Tree(tree_id)) => store.get_tree_async(dir, tree_id).await,
+            _ => Ok(Tree::null(store.clone(), dir.clone())),
         }
     }
 
     /// Gets the given tree if `value` is a tree, otherwise an empty tree.
-    async fn tree(tree: &MergedTree, dir: &RepoPath, values: &MergedTreeValue) -> MergedTree {
+    async fn tree(
+        tree: &MergedTree,
+        dir: &RepoPath,
+        values: &MergedTreeValue,
+    ) -> BackendResult<MergedTree> {
         let trees = if values.is_tree() {
             let builder: MergeBuilder<Tree> = futures::stream::iter(values.iter())
                 .then(|value| Self::single_tree(tree.store(), dir, value.as_ref()))
-                .collect()
-                .await;
+                .try_collect()
+                .await?;
             builder.build()
         } else {
             Merge::resolved(Tree::null(tree.store().clone(), dir.clone()))
@@ -835,8 +849,8 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         // Maintain the type of tree, so we resolve `TreeValue::Conflict` as necessary
         // in the subtree
         match tree {
-            MergedTree::Legacy(_) => MergedTree::Legacy(trees.into_resolved().unwrap()),
-            MergedTree::Merge(_) => MergedTree::Merge(trees),
+            MergedTree::Legacy(_) => Ok(MergedTree::Legacy(trees.into_resolved().unwrap())),
+            MergedTree::Merge(_) => Ok(MergedTree::Merge(trees)),
         }
     }
 }
@@ -857,7 +871,7 @@ impl TreeDiffDirItem {
 }
 
 impl Iterator for TreeDiffIterator<'_> {
-    type Item = (RepoPath, MergedTreeValue, MergedTreeValue);
+    type Item = (RepoPath, BackendResult<(MergedTreeValue, MergedTreeValue)>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
@@ -872,7 +886,7 @@ impl Iterator for TreeDiffIterator<'_> {
                 }
                 TreeDiffItem::File(..) => {
                     if let TreeDiffItem::File(name, before, after) = self.stack.pop().unwrap() {
-                        return Some((name, before, after));
+                        return Some((name, Ok((before, after))));
                     } else {
                         unreachable!();
                     }
@@ -889,6 +903,18 @@ impl Iterator for TreeDiffIterator<'_> {
                         let after_tree = Self::tree(dir.tree2.as_ref(), &path, &after);
                         futures::join!(before_tree, after_tree)
                     });
+                    let before_tree = match before_tree {
+                        Ok(tree) => tree,
+                        Err(err) => {
+                            return Some((path, Err(err)));
+                        }
+                    };
+                    let after_tree = match after_tree {
+                        Ok(tree) => tree,
+                        Err(err) => {
+                            return Some((path, Err(err)));
+                        }
+                    };
                     let subdir = TreeDiffDirItem::new(path.clone(), before_tree, after_tree);
                     self.stack.push(TreeDiffItem::Dir(subdir));
                     self.stack.len() - 1
@@ -898,7 +924,7 @@ impl Iterator for TreeDiffIterator<'_> {
             if self.matcher.matches(&path) {
                 if !tree_before && tree_after {
                     if before.is_present() {
-                        return Some((path, before, Merge::absent()));
+                        return Some((path, Ok((before, Merge::absent()))));
                     }
                 } else if tree_before && !tree_after {
                     if after.is_present() {
@@ -908,7 +934,7 @@ impl Iterator for TreeDiffIterator<'_> {
                         );
                     }
                 } else if !tree_before && !tree_after {
-                    return Some((path, before, after));
+                    return Some((path, Ok((before, after))));
                 }
             }
         }
