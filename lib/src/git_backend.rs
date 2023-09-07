@@ -206,6 +206,7 @@ impl GitBackend {
     pub fn import_head_commits<'a>(
         &self,
         head_ids: impl IntoIterator<Item = &'a CommitId>,
+        uses_tree_conflict_format: bool,
     ) -> BackendResult<()> {
         let table = self.cached_extra_metadata_table()?;
         let mut missing_head_ids = head_ids
@@ -232,6 +233,7 @@ impl GitBackend {
             &mut mut_table,
             &table_lock,
             &missing_head_ids,
+            uses_tree_conflict_format,
         )?;
         for &id in &missing_head_ids {
             prevent_gc(&locked_repo, id)?;
@@ -240,7 +242,10 @@ impl GitBackend {
     }
 }
 
-fn commit_from_git_without_root_parent(commit: &git2::Commit) -> Commit {
+fn commit_from_git_without_root_parent(
+    commit: &git2::Commit,
+    uses_tree_conflict_format: bool,
+) -> Commit {
     // We reverse the bits of the commit id to create the change id. We don't want
     // to use the first bytes unmodified because then it would be ambiguous
     // if a given hash prefix refers to the commit id or the change id. It
@@ -261,7 +266,11 @@ fn commit_from_git_without_root_parent(commit: &git2::Commit) -> Commit {
     let tree_id = TreeId::from_bytes(commit.tree_id().as_bytes());
     // If this commit is a conflict, we'll update the root tree later, when we read
     // the extra metadata.
-    let root_tree = MergedTreeId::Legacy(tree_id);
+    let root_tree = if uses_tree_conflict_format {
+        MergedTreeId::resolved(tree_id)
+    } else {
+        MergedTreeId::Legacy(tree_id)
+    };
     let description = commit.message().unwrap_or("<no message>").to_owned();
     let author = signature_from_git(commit.author());
     let committer = signature_from_git(commit.committer());
@@ -424,6 +433,7 @@ fn import_extra_metadata_entries_from_heads(
     mut_table: &mut MutableTable,
     _table_lock: &FileLock,
     missing_head_ids: &[&CommitId],
+    uses_tree_conflict_format: bool,
 ) -> BackendResult<()> {
     let mut work_ids = missing_head_ids.iter().map(|&id| id.clone()).collect_vec();
     while let Some(id) = work_ids.pop() {
@@ -433,7 +443,7 @@ fn import_extra_metadata_entries_from_heads(
         // TODO(#1624): Should we read the root tree here and check if it has a
         // `.jjconflict-...` entries? That could happen if the user used `git` to e.g.
         // change the description of a commit with tree-level conflicts.
-        let commit = commit_from_git_without_root_parent(&git_commit);
+        let commit = commit_from_git_without_root_parent(&git_commit, uses_tree_conflict_format);
         mut_table.add_entry(id.to_bytes(), serialize_extras(&commit));
         work_ids.extend(
             commit
@@ -676,7 +686,7 @@ impl Backend for GitBackend {
         let commit = locked_repo
             .find_commit(git_commit_id)
             .map_err(|err| map_not_found_err(err, id))?;
-        let mut commit = commit_from_git_without_root_parent(&commit);
+        let mut commit = commit_from_git_without_root_parent(&commit, false);
         if commit.parents.is_empty() {
             commit.parents.push(self.root_commit_id.clone());
         };
@@ -889,12 +899,14 @@ fn bytes_vec_from_json(value: &serde_json::Value) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use assert_matches::assert_matches;
+    use test_case::test_case;
 
     use super::*;
     use crate::backend::{FileId, MillisSinceEpoch};
 
-    #[test]
-    fn read_plain_git_commit() {
+    #[test_case(false; "legacy tree format")]
+    #[test_case(true; "tree-level conflict format")]
+    fn read_plain_git_commit(uses_tree_conflict_format: bool) {
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
@@ -957,7 +969,9 @@ mod tests {
         let store = GitBackend::init_external(store_path, &git_repo_path).unwrap();
 
         // Import the head commit and its ancestors
-        store.import_head_commits([&commit_id2]).unwrap();
+        store
+            .import_head_commits([&commit_id2], uses_tree_conflict_format)
+            .unwrap();
         // Ref should be created only for the head commit
         let git_refs = store
             .git_repo()
@@ -972,9 +986,14 @@ mod tests {
         assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(
-            commit.root_tree,
-            MergedTreeId::Legacy(TreeId::from_bytes(root_tree_id.as_bytes()))
+            commit.root_tree.to_merge(),
+            Merge::resolved(TreeId::from_bytes(root_tree_id.as_bytes()))
         );
+        if uses_tree_conflict_format {
+            assert_matches!(commit.root_tree, MergedTreeId::Merge(_));
+        } else {
+            assert_matches!(commit.root_tree, MergedTreeId::Legacy(_));
+        }
         assert_eq!(commit.description, "git commit message");
         assert_eq!(commit.author.name, "git author");
         assert_eq!(commit.author.email, "git.author@example.com");
@@ -1034,9 +1053,14 @@ mod tests {
         assert_eq!(commit2.parents, vec![commit_id.clone()]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(
-            commit.root_tree,
-            MergedTreeId::Legacy(TreeId::from_bytes(root_tree_id.as_bytes()))
+            commit.root_tree.to_merge(),
+            Merge::resolved(TreeId::from_bytes(root_tree_id.as_bytes()))
         );
+        if uses_tree_conflict_format {
+            assert_matches!(commit.root_tree, MergedTreeId::Merge(_));
+        } else {
+            assert_matches!(commit.root_tree, MergedTreeId::Legacy(_));
+        }
     }
 
     #[test]

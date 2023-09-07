@@ -1855,7 +1855,10 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     )
     .unwrap();
     get_git_backend(&jj_repo)
-        .import_head_commits(&[jj_id(&initial_git_commit)])
+        .import_head_commits(
+            &[jj_id(&initial_git_commit)],
+            jj_repo.store().use_tree_conflict_format(),
+        )
         .unwrap();
     let mut tx = jj_repo.start_transaction(settings, "test");
     let new_commit = create_random_commit(tx.mut_repo(), settings)
@@ -2289,7 +2292,10 @@ fn test_concurrent_read_write_commit() {
                     pending_commit_ids = pending_commit_ids
                         .into_iter()
                         .filter_map(|commit_id| {
-                            match git_backend.import_head_commits([&commit_id]) {
+                            match git_backend.import_head_commits(
+                                [&commit_id],
+                                repo.store().use_tree_conflict_format(),
+                            ) {
                                 Ok(()) => {
                                     // update index as git::import_refs() would do
                                     let commit = repo.store().get_commit(&commit_id).unwrap();
