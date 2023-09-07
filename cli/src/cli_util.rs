@@ -1369,7 +1369,9 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         )?;
         if Some(&new_commit) != maybe_old_commit {
             ui.write("Working copy now at: ")?;
-            self.write_commit_summary(ui.stdout_formatter().as_mut(), &new_commit)?;
+            ui.stdout_formatter().with_label("working_copy", |fmt| {
+                self.write_commit_summary(fmt, &new_commit)
+            })?;
             ui.write("\n")?;
             for parent in new_commit.parents() {
                 //       "Working copy now at: "
