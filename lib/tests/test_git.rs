@@ -70,12 +70,15 @@ fn git_id(commit: &Commit) -> Oid {
     Oid::from_bytes(commit.id().as_bytes()).unwrap()
 }
 
-fn get_git_repo(repo: &Arc<ReadonlyRepo>) -> git2::Repository {
+fn get_git_backend(repo: &Arc<ReadonlyRepo>) -> &GitBackend {
     repo.store()
         .backend_impl()
         .downcast_ref::<GitBackend>()
         .unwrap()
-        .git_repo_clone()
+}
+
+fn get_git_repo(repo: &Arc<ReadonlyRepo>) -> git2::Repository {
+    get_git_backend(repo).git_repo_clone()
 }
 
 #[test]
@@ -1851,6 +1854,9 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
         ReadonlyRepo::default_submodule_store_factory(),
     )
     .unwrap();
+    get_git_backend(&jj_repo)
+        .import_head_commits(&[jj_id(&initial_git_commit)])
+        .unwrap();
     let mut tx = jj_repo.start_transaction(settings, "test");
     let new_commit = create_random_commit(tx.mut_repo(), settings)
         .set_parents(vec![jj_id(&initial_git_commit)])
@@ -2278,13 +2284,15 @@ fn test_concurrent_read_write_commit() {
                 barrier.wait();
                 while !pending_commit_ids.is_empty() {
                     repo = repo.reload_at_head(settings).unwrap();
+                    let git_backend = get_git_backend(&repo);
                     let mut tx = repo.start_transaction(settings, &format!("reader {i}"));
                     pending_commit_ids = pending_commit_ids
                         .into_iter()
                         .filter_map(|commit_id| {
-                            match repo.store().get_commit(&commit_id) {
-                                Ok(commit) => {
+                            match git_backend.import_head_commits([&commit_id]) {
+                                Ok(()) => {
                                     // update index as git::import_refs() would do
+                                    let commit = repo.store().get_commit(&commit_id).unwrap();
                                     tx.mut_repo().add_head(&commit);
                                     None
                                 }
