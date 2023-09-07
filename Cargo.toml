@@ -23,12 +23,12 @@ assert_matches = "1.5.0"
 backoff = "0.4.0"
 blake2 = "0.10.6"
 byteorder = "1.4.3"
-bytes = "1.4.0"
+bytes = "1.5.0"
 cargo_metadata = "0.17.0"
 clap = { version = "4.4.2", features = ["derive", "deprecated", "wrap_help"] }
-clap_complete = "4.4.0"
+clap_complete = "4.4.1"
 clap_mangen = "0.2.10"
-chrono = { version = "0.4.29", default-features = false, features = [
+chrono = { version = "0.4.30", default-features = false, features = [
     "std",
     "clock",
 ] }
