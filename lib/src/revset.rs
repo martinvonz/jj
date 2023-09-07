@@ -4685,20 +4685,8 @@ mod tests {
         "###);
 
         // Ancestors of empty generation range should be empty.
-        // TODO: rewrite these tests if we added syntax for arbitrary generation
-        // ancestors
-        let empty_generation_ancestors = |heads| {
-            Rc::new(RevsetExpression::Ancestors {
-                heads,
-                generation: GENERATION_RANGE_EMPTY,
-                is_legacy: false,
-            })
-        };
         insta::assert_debug_snapshot!(
-            optimize(empty_generation_ancestors(
-                RevsetExpression::symbol("foo".to_owned()).ancestors()
-            )),
-            @r###"
+            optimize(parse("ancestors(ancestors(foo), 0)").unwrap()), @r###"
         Ancestors {
             heads: CommitRef(
                 Symbol(
@@ -4711,10 +4699,7 @@ mod tests {
         "###
         );
         insta::assert_debug_snapshot!(
-            optimize(
-                empty_generation_ancestors(RevsetExpression::symbol("foo".to_owned())).ancestors()
-            ),
-            @r###"
+            optimize(parse("ancestors(ancestors(foo, 0))").unwrap()), @r###"
         Ancestors {
             heads: CommitRef(
                 Symbol(
