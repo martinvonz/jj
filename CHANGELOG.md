@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to limit the depth of the ancestor set. For example, use `jj log -r 
   'ancestors(@, 5)` to view the last 5 commits.
 
+* Support for the Watchman filesystem monitor is now bundled by default. Set
+  `core.fsmonitor = "watchman"` in your repo to enable.
+
 ### Fixed bugs
 
 ## [0.9.0] - 2023-09-06
