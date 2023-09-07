@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::Infallible;
 use std::ops::Range;
 use std::path::Path;
@@ -75,6 +75,74 @@ pub enum RevsetEvaluationError {
 #[derive(Parser)]
 #[grammar = "revset.pest"]
 pub struct RevsetParser;
+
+impl Rule {
+    /// Whether this is a placeholder rule for compatibility with the other
+    /// systems.
+    fn is_compat(&self) -> bool {
+        matches!(
+            self,
+            Rule::compat_parents_op | Rule::compat_add_op | Rule::compat_sub_op
+        )
+    }
+
+    /// Whether this is a deprecated rule to be removed in later version.
+    fn is_legacy(&self) -> bool {
+        matches!(
+            self,
+            Rule::legacy_dag_range_op
+                | Rule::legacy_dag_range_pre_op
+                | Rule::legacy_dag_range_post_op
+        )
+    }
+
+    fn to_symbol(self) -> Option<&'static str> {
+        match self {
+            Rule::EOI => None,
+            Rule::identifier_part => None,
+            Rule::identifier => None,
+            Rule::symbol => None,
+            Rule::literal_string => None,
+            Rule::whitespace => None,
+            Rule::at_op => Some("@"),
+            Rule::parents_op => Some("-"),
+            Rule::children_op => Some("+"),
+            Rule::compat_parents_op => Some("^"),
+            Rule::dag_range_op
+            | Rule::dag_range_pre_op
+            | Rule::dag_range_post_op
+            | Rule::dag_range_all_op => Some("::"),
+            Rule::legacy_dag_range_op
+            | Rule::legacy_dag_range_pre_op
+            | Rule::legacy_dag_range_post_op => Some(":"),
+            Rule::range_op => Some(".."),
+            Rule::range_pre_op | Rule::range_post_op | Rule::range_all_op => Some(".."),
+            Rule::range_ops => None,
+            Rule::range_pre_ops => None,
+            Rule::range_post_ops => None,
+            Rule::range_all_ops => None,
+            Rule::negate_op => Some("~"),
+            Rule::union_op => Some("|"),
+            Rule::intersection_op => Some("&"),
+            Rule::difference_op => Some("~"),
+            Rule::compat_add_op => Some("+"),
+            Rule::compat_sub_op => Some("-"),
+            Rule::infix_op => None,
+            Rule::function_name => None,
+            Rule::keyword_argument => None,
+            Rule::argument => None,
+            Rule::function_arguments => None,
+            Rule::formal_parameters => None,
+            Rule::primary => None,
+            Rule::neighbors_expression => None,
+            Rule::range_expression => None,
+            Rule::expression => None,
+            Rule::program => None,
+            Rule::alias_declaration_part => None,
+            Rule::alias_declaration => None,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct RevsetParseError {
@@ -175,7 +243,7 @@ impl From<pest::error::Error<Rule>> for RevsetParseError {
     fn from(err: pest::error::Error<Rule>) -> Self {
         RevsetParseError {
             kind: RevsetParseErrorKind::SyntaxError,
-            pest_error: Some(Box::new(err)),
+            pest_error: Some(Box::new(rename_rules_in_pest_error(err))),
             origin: None,
         }
     }
@@ -205,6 +273,32 @@ impl error::Error for RevsetParseError {
             e => e.source(),
         }
     }
+}
+
+fn rename_rules_in_pest_error(mut err: pest::error::Error<Rule>) -> pest::error::Error<Rule> {
+    let pest::error::ErrorVariant::ParsingError {
+        positives,
+        negatives,
+    } = &mut err.variant
+    else {
+        return err;
+    };
+
+    // Remove duplicated symbols. Legacy or compat symbols are also removed from the
+    // (positive) suggestion.
+    let mut known_syms = HashSet::new();
+    positives.retain(|rule| {
+        !rule.is_compat()
+            && !rule.is_legacy()
+            && rule.to_symbol().map_or(true, |sym| known_syms.insert(sym))
+    });
+    let mut known_syms = HashSet::new();
+    negatives.retain(|rule| rule.to_symbol().map_or(true, |sym| known_syms.insert(sym)));
+    err.renamed_rules(|rule| {
+        rule.to_symbol()
+            .map(|sym| format!("`{sym}`"))
+            .unwrap_or_else(|| format!("<{rule:?}>"))
+    })
 }
 
 // assumes index has less than u64::MAX entries.
