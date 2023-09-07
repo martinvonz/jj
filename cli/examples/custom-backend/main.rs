@@ -40,7 +40,7 @@ fn create_store_factories() -> StoreFactories {
     // must match `Backend::name()`.
     store_factories.add_backend(
         "jit",
-        Box::new(|store_path| Ok(Box::new(JitBackend::load(store_path)?))),
+        Box::new(|_settings, store_path| Ok(Box::new(JitBackend::load(store_path)?))),
     );
     store_factories
 }
@@ -54,9 +54,11 @@ fn run_custom_command(
         CustomCommands::InitJit => {
             let wc_path = command_helper.cwd();
             // Initialize a workspace with the custom backend
-            Workspace::init_with_backend(command_helper.settings(), wc_path, &|store_path| {
-                Ok(Box::new(JitBackend::init(store_path)?))
-            })?;
+            Workspace::init_with_backend(
+                command_helper.settings(),
+                wc_path,
+                &|_settings, store_path| Ok(Box::new(JitBackend::init(store_path)?)),
+            )?;
             Ok(())
         }
     }

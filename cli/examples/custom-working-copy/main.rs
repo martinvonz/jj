@@ -27,6 +27,7 @@ use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo_path::RepoPath;
+use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
 use jj_lib::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
@@ -48,7 +49,7 @@ fn run_custom_command(
     match command {
         CustomCommands::InitConflicts => {
             let wc_path = command_helper.cwd();
-            let backend_initializer = |store_path: &Path| {
+            let backend_initializer = |_settings: &UserSettings, store_path: &Path| {
                 let backend: Box<dyn Backend> = Box::new(GitBackend::init_internal(store_path)?);
                 Ok(backend)
             };
