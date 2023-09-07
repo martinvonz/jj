@@ -414,7 +414,13 @@ impl<T: ContentHash> ContentHash for Merge<T> {
     }
 }
 
-impl Merge<Option<TreeValue>> {
+/// The value at a given path in a commit. It depends on the context whether it
+/// can be absent (`Merge::is_absent()`). For example, when getting the value at
+/// a specific path, it may be, but when iterating over entries in a tree, it
+/// shouldn't be.
+pub type MergedTreeValue = Merge<Option<TreeValue>>;
+
+impl MergedTreeValue {
     /// Create a `Merge` from a `backend::Conflict`, padding with `None` to
     /// make sure that there is exactly one more `adds()` than `removes()`.
     pub fn from_backend_conflict(conflict: backend::Conflict) -> Self {
@@ -497,7 +503,7 @@ impl<T> Merge<Option<T>>
 where
     T: Borrow<TreeValue>,
 {
-    /// If every non-`None` term of a `Merge<Option<TreeValue>>`
+    /// If every non-`None` term of a `MergedTreeValue`
     /// is a `TreeValue::Tree`, this converts it to
     /// a `Merge<Tree>`, with empty trees instead of
     /// any `None` terms. Otherwise, returns `None`.

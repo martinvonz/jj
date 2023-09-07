@@ -13,7 +13,7 @@ use jj_lib::conflicts::{self, materialize_merge_result};
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::local_working_copy::{TreeState, TreeStateError};
 use jj_lib::matchers::Matcher;
-use jj_lib::merge::Merge;
+use jj_lib::merge::{Merge, MergedTreeValue};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
@@ -291,7 +291,7 @@ pub fn run_mergetool_external(
     file_merge: Merge<Option<FileId>>,
     content: Merge<jj_lib::files::ContentHunk>,
     repo_path: &RepoPath,
-    conflict: Merge<Option<TreeValue>>,
+    conflict: MergedTreeValue,
     tree: &MergedTree,
 ) -> Result<MergedTreeId, ConflictResolveError> {
     let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {

@@ -544,6 +544,7 @@ pub fn edit_merge_builtin(
 mod tests {
     use futures::executor::block_on;
     use jj_lib::conflicts::extract_as_single_hunk;
+    use jj_lib::merge::MergedTreeValue;
     use jj_lib::repo::Repo;
     use testutils::TestRepo;
 
@@ -710,7 +711,7 @@ mod tests {
             &[(&path, "right 1\nbase 2\nbase 3\nbase 4\nright 5\n")],
         );
 
-        fn to_file_id(tree_value: Merge<Option<TreeValue>>) -> Option<FileId> {
+        fn to_file_id(tree_value: MergedTreeValue) -> Option<FileId> {
             match tree_value.into_resolved() {
                 Ok(Some(TreeValue::File { id, executable: _ })) => Some(id.clone()),
                 other => {
