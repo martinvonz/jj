@@ -29,7 +29,7 @@ fn test_syntax_error() {
     1 | x &
       |    ^---
       |
-      = expected dag_range_pre_op, dag_range_all_op, legacy_dag_range_pre_op, range_pre_op, range_all_op, negate_op, or primary
+      = expected `::`, `..`, `~`, or <primary>
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "x - y"]);
@@ -192,7 +192,7 @@ fn test_bad_function_call() {
     1 | remote_branches(=foo)
       |                 ^---
       |
-      = expected identifier or expression
+      = expected <identifier> or <expression>
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "remote_branches(remote=)"]);
@@ -202,7 +202,7 @@ fn test_bad_function_call() {
     1 | remote_branches(remote=)
       |                        ^---
       |
-      = expected expression
+      = expected <expression>
     "###);
 }
 
@@ -287,7 +287,7 @@ fn test_alias() {
     1 | whatever &
       |           ^---
       |
-      = expected dag_range_pre_op, dag_range_all_op, legacy_dag_range_pre_op, range_pre_op, range_all_op, negate_op, or primary
+      = expected `::`, `..`, `~`, or <primary>
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "identity()"]);
@@ -401,7 +401,7 @@ fn test_bad_alias_decl() {
     1 | "bad"
       | ^---
       |
-      = expected identifier or function_name
+      = expected <identifier> or <function_name>
     Failed to load "revset-aliases.badfn(a, a)":  --> 1:7
       |
     1 | badfn(a, a)
