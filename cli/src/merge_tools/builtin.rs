@@ -408,10 +408,10 @@ pub fn edit_diff_builtin(
     matcher: &dyn Matcher,
 ) -> Result<MergedTreeId, BuiltinToolError> {
     let store = left_tree.store().clone();
-    let changed_files = left_tree
+    let changed_files: Vec<_> = left_tree
         .diff(right_tree, matcher)
-        .map(|(path, _left, _right)| path)
-        .collect_vec();
+        .map(|(path, diff)| diff.map(|_| path))
+        .try_collect()?;
     let files = make_diff_files(&store, left_tree, right_tree, &changed_files)?;
     let recorder = scm_record::Recorder::new(
         scm_record::RecordState {

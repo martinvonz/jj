@@ -408,8 +408,9 @@ pub fn show_color_words_diff(
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
     formatter.push_label("diff")?;
-    for (path, left_value, right_value) in tree_diff {
+    for (path, diff) in tree_diff {
         let ui_path = workspace_command.format_file_path(&path);
+        let (left_value, right_value) = diff?;
         if left_value.is_absent() {
             let right_content = diff_content(repo, &path, &right_value)?;
             let description = basic_diff_file_type(&right_value);
@@ -686,8 +687,9 @@ pub fn show_git_diff(
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
     formatter.push_label("diff")?;
-    for (path, left_value, right_value) in tree_diff {
+    for (path, diff) in tree_diff {
         let path_string = path.to_internal_file_string();
+        let (left_value, right_value) = diff?;
         if left_value.is_absent() {
             let right_part = git_diff_part(repo, &path, &right_value)?;
             formatter.with_label("file_header", |formatter| {
@@ -746,7 +748,8 @@ pub fn show_diff_summary(
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
     formatter.with_label("diff", |formatter| {
-        for (repo_path, before, after) in tree_diff {
+        for (repo_path, diff) in tree_diff {
+            let (before, after) = diff.unwrap();
             if before.is_present() && after.is_present() {
                 writeln!(
                     formatter.labeled("modified"),
@@ -806,7 +809,8 @@ pub fn show_diff_stat(
     let mut stats: Vec<DiffStat> = vec![];
     let mut max_path_width = 0;
     let mut max_diffs = 0;
-    for (repo_path, left, right) in tree_diff {
+    for (repo_path, diff) in tree_diff {
+        let (left, right) = diff?;
         let path = workspace_command.format_file_path(&repo_path);
         let left_content = diff_content(workspace_command.repo(), &repo_path, &left)?;
         let right_content = diff_content(workspace_command.repo(), &repo_path, &right)?;
@@ -873,7 +877,8 @@ pub fn show_types(
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
     formatter.with_label("diff", |formatter| {
-        for (repo_path, before, after) in tree_diff {
+        for (repo_path, diff) in tree_diff {
+            let (before, after) = diff.unwrap();
             writeln!(
                 formatter.labeled("modified"),
                 "{}{} {}",

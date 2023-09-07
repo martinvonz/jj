@@ -1567,7 +1567,8 @@ impl WorkspaceCommandTransaction<'_> {
             Ok(right_tree.id().clone())
         } else {
             let mut tree_builder = MergedTreeBuilder::new(left_tree.id().clone());
-            for (repo_path, _left, right) in left_tree.diff(right_tree, matcher) {
+            for (repo_path, diff) in left_tree.diff(right_tree, matcher) {
+                let (_left, right) = diff?;
                 tree_builder.set_or_remove(repo_path, right);
             }
             Ok(tree_builder.write_tree(self.repo().store())?)

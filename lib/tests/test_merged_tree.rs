@@ -681,30 +681,37 @@ fn test_diff_resolved() {
 
     let diff = before_merged
         .diff(&after_merged, &EverythingMatcher)
+        .map(|(path, diff)| (path, diff.unwrap()))
         .collect_vec();
     assert_eq!(diff.len(), 3);
     assert_eq!(
         diff[0].clone(),
         (
             modified_path.clone(),
-            Merge::resolved(before.path_value(&modified_path)),
-            Merge::resolved(after.path_value(&modified_path)),
+            (
+                Merge::resolved(before.path_value(&modified_path)),
+                Merge::resolved(after.path_value(&modified_path))
+            ),
         )
     );
     assert_eq!(
         diff[1].clone(),
         (
             removed_path.clone(),
-            Merge::resolved(before.path_value(&removed_path)),
-            Merge::absent(),
+            (
+                Merge::resolved(before.path_value(&removed_path)),
+                Merge::absent()
+            ),
         )
     );
     assert_eq!(
         diff[2].clone(),
         (
             added_path.clone(),
-            Merge::absent(),
-            Merge::resolved(after.path_value(&added_path)),
+            (
+                Merge::absent(),
+                Merge::resolved(after.path_value(&added_path))
+            ),
         )
     );
 }
@@ -786,14 +793,14 @@ fn test_diff_conflicted() {
     // Test the forwards diff
     let actual_diff = left_merged
         .diff(&right_merged, &EverythingMatcher)
+        .map(|(path, diff)| (path, diff.unwrap()))
         .collect_vec();
     let expected_diff = [&path2, &path3, &path4]
         .iter()
         .map(|path| {
             (
                 (*path).clone(),
-                left_merged.path_value(path),
-                right_merged.path_value(path),
+                (left_merged.path_value(path), right_merged.path_value(path)),
             )
         })
         .collect_vec();
@@ -801,14 +808,14 @@ fn test_diff_conflicted() {
     // Test the reverse diff
     let actual_diff = right_merged
         .diff(&left_merged, &EverythingMatcher)
+        .map(|(path, diff)| (path, diff.unwrap()))
         .collect_vec();
     let expected_diff = [&path2, &path3, &path4]
         .iter()
         .map(|path| {
             (
                 (*path).clone(),
-                right_merged.path_value(path),
-                left_merged.path_value(path),
+                (right_merged.path_value(path), left_merged.path_value(path)),
             )
         })
         .collect_vec();
@@ -911,136 +918,122 @@ fn test_diff_dir_file() {
     // Test the forwards diff
     let actual_diff = left_merged
         .diff(&right_merged, &EverythingMatcher)
+        .map(|(path, diff)| (path, diff.unwrap()))
         .collect_vec();
     let expected_diff = vec![
         // path1: file1 -> directory1
         (
             path1.clone(),
-            left_merged.path_value(&path1),
-            Merge::absent(),
+            (left_merged.path_value(&path1), Merge::absent()),
         ),
         (
             path1.join(&file),
-            Merge::absent(),
-            right_merged.path_value(&path1.join(&file)),
+            (Merge::absent(), right_merged.path_value(&path1.join(&file))),
         ),
         // path2: file1 -> directory1+(directory2-absent)
         (
             path2.clone(),
-            left_merged.path_value(&path2),
-            Merge::absent(),
+            (left_merged.path_value(&path2), Merge::absent()),
         ),
         (
             path2.join(&file),
-            Merge::absent(),
-            right_merged.path_value(&path2.join(&file)),
+            (Merge::absent(), right_merged.path_value(&path2.join(&file))),
         ),
         // path3: file1 -> directory1+(file1-absent)
         (
             path3.clone(),
-            left_merged.path_value(&path3),
-            right_merged.path_value(&path3),
+            (
+                left_merged.path_value(&path3),
+                right_merged.path_value(&path3),
+            ),
         ),
         // path4: file1+(file2-file3) -> directory1+(directory2-directory3)
         (
             path4.clone(),
-            left_merged.path_value(&path4),
-            Merge::absent(),
+            (left_merged.path_value(&path4), Merge::absent()),
         ),
         (
             path4.join(&file),
-            Merge::absent(),
-            right_merged.path_value(&path4.join(&file)),
+            (Merge::absent(), right_merged.path_value(&path4.join(&file))),
         ),
         // path5: directory1 -> file1+(file2-absent)
         (
             path5.join(&file),
-            left_merged.path_value(&path5.join(&file)),
-            Merge::absent(),
+            (left_merged.path_value(&path5.join(&file)), Merge::absent()),
         ),
         (
             path5.clone(),
-            Merge::absent(),
-            right_merged.path_value(&path5),
+            (Merge::absent(), right_merged.path_value(&path5)),
         ),
         // path6: directory1 -> file1+(directory1-absent)
         (
             path6.join(&file),
-            left_merged.path_value(&path6.join(&file)),
-            Merge::absent(),
+            (left_merged.path_value(&path6.join(&file)), Merge::absent()),
         ),
         (
             path6.clone(),
-            Merge::absent(),
-            right_merged.path_value(&path6),
+            (Merge::absent(), right_merged.path_value(&path6)),
         ),
     ];
     assert_eq!(actual_diff, expected_diff);
     // Test the reverse diff
     let actual_diff = right_merged
         .diff(&left_merged, &EverythingMatcher)
+        .map(|(path, diff)| (path, diff.unwrap()))
         .collect_vec();
     let expected_diff = vec![
         // path1: file1 -> directory1
         (
             path1.join(&file),
-            right_merged.path_value(&path1.join(&file)),
-            Merge::absent(),
+            (right_merged.path_value(&path1.join(&file)), Merge::absent()),
         ),
         (
             path1.clone(),
-            Merge::absent(),
-            left_merged.path_value(&path1),
+            (Merge::absent(), left_merged.path_value(&path1)),
         ),
         // path2: file1 -> directory1+(directory2-absent)
         (
             path2.join(&file),
-            right_merged.path_value(&path2.join(&file)),
-            Merge::absent(),
+            (right_merged.path_value(&path2.join(&file)), Merge::absent()),
         ),
         (
             path2.clone(),
-            Merge::absent(),
-            left_merged.path_value(&path2),
+            (Merge::absent(), left_merged.path_value(&path2)),
         ),
         // path3: file1 -> directory1+(file1-absent)
         (
             path3.clone(),
-            right_merged.path_value(&path3),
-            left_merged.path_value(&path3),
+            (
+                right_merged.path_value(&path3),
+                left_merged.path_value(&path3),
+            ),
         ),
         // path4: file1+(file2-file3) -> directory1+(directory2-directory3)
         (
             path4.join(&file),
-            right_merged.path_value(&path4.join(&file)),
-            Merge::absent(),
+            (right_merged.path_value(&path4.join(&file)), Merge::absent()),
         ),
         (
             path4.clone(),
-            Merge::absent(),
-            left_merged.path_value(&path4),
+            (Merge::absent(), left_merged.path_value(&path4)),
         ),
         // path5: directory1 -> file1+(file2-absent)
         (
             path5.clone(),
-            right_merged.path_value(&path5),
-            Merge::absent(),
+            (right_merged.path_value(&path5), Merge::absent()),
         ),
         (
             path5.join(&file),
-            Merge::absent(),
-            left_merged.path_value(&path5.join(&file)),
+            (Merge::absent(), left_merged.path_value(&path5.join(&file))),
         ),
         // path6: directory1 -> file1+(directory1-absent)
         (
             path6.clone(),
-            right_merged.path_value(&path6),
-            Merge::absent(),
+            (right_merged.path_value(&path6), Merge::absent()),
         ),
         (
             path6.join(&file),
-            Merge::absent(),
-            left_merged.path_value(&path6.join(&file)),
+            (Merge::absent(), left_merged.path_value(&path6.join(&file))),
         ),
     ];
     assert_eq!(actual_diff, expected_diff);

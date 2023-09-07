@@ -83,7 +83,8 @@ fn test_initial(backend: TestRepoBackend) {
             .root_commit()
             .tree()
             .unwrap()
-            .diff_summary(&commit.tree().unwrap(), &EverythingMatcher),
+            .diff_summary(&commit.tree().unwrap(), &EverythingMatcher)
+            .unwrap(),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path, root_file_path],
@@ -167,7 +168,8 @@ fn test_rewrite(backend: TestRepoBackend) {
             .root_commit()
             .tree()
             .unwrap()
-            .diff_summary(&rewritten_commit.tree().unwrap(), &EverythingMatcher),
+            .diff_summary(&rewritten_commit.tree().unwrap(), &EverythingMatcher)
+            .unwrap(),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path.clone(), root_file_path],
@@ -178,7 +180,8 @@ fn test_rewrite(backend: TestRepoBackend) {
         initial_commit
             .tree()
             .unwrap()
-            .diff_summary(&rewritten_commit.tree().unwrap(), &EverythingMatcher),
+            .diff_summary(&rewritten_commit.tree().unwrap(), &EverythingMatcher)
+            .unwrap(),
         DiffSummary {
             modified: vec![dir_file_path],
             added: vec![],

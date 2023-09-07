@@ -1152,7 +1152,8 @@ impl TreeState {
             removed_files: 0,
             skipped_files: 0,
         };
-        for (path, before, after) in old_tree.diff(new_tree, matcher) {
+        for (path, diff) in old_tree.diff(new_tree, matcher) {
+            let (before, after) = diff?;
             if after.is_absent() {
                 stats.removed_files += 1;
             } else if before.is_absent() {
@@ -1226,7 +1227,8 @@ impl TreeState {
             other => ResetError::InternalBackendError(other),
         })?;
 
-        for (path, _before, after) in old_tree.diff(new_tree, self.sparse_matcher().as_ref()) {
+        for (path, diff) in old_tree.diff(new_tree, self.sparse_matcher().as_ref()) {
+            let (_before, after) = diff?;
             if after.is_absent() {
                 self.file_states.remove(&path);
             } else {

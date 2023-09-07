@@ -46,7 +46,7 @@ fn test_types() {
     );
 
     assert_eq!(
-        tree1.diff_summary(&tree2, &EverythingMatcher),
+        tree1.diff_summary(&tree2, &EverythingMatcher).unwrap(),
         DiffSummary {
             modified: vec![modified_path],
             added: vec![added_path],
@@ -67,7 +67,7 @@ fn test_tree_file_transition() {
     let tree2 = create_tree(repo, &[(&dir_path, "contents")]);
 
     assert_eq!(
-        tree1.diff_summary(&tree2, &EverythingMatcher),
+        tree1.diff_summary(&tree2, &EverythingMatcher).unwrap(),
         DiffSummary {
             modified: vec![],
             added: vec![dir_path.clone()],
@@ -75,7 +75,7 @@ fn test_tree_file_transition() {
         }
     );
     assert_eq!(
-        tree2.diff_summary(&tree1, &EverythingMatcher),
+        tree2.diff_summary(&tree1, &EverythingMatcher).unwrap(),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path],
@@ -124,7 +124,7 @@ fn test_sorting() {
     );
 
     assert_eq!(
-        tree1.diff_summary(&tree2, &EverythingMatcher),
+        tree1.diff_summary(&tree2, &EverythingMatcher).unwrap(),
         DiffSummary {
             modified: vec![a_path.clone(), f_a_path.clone(), f_f_a_path.clone()],
             added: vec![
@@ -139,7 +139,7 @@ fn test_sorting() {
         }
     );
     assert_eq!(
-        tree2.diff_summary(&tree1, &EverythingMatcher),
+        tree2.diff_summary(&tree1, &EverythingMatcher).unwrap(),
         DiffSummary {
             modified: vec![a_path, f_a_path, f_f_a_path],
             added: vec![],
@@ -161,7 +161,7 @@ fn test_matcher_dir_file_transition() {
 
     let matcher = FilesMatcher::new(&[a_path.clone()]);
     assert_eq!(
-        tree1.diff_summary(&tree2, &matcher),
+        tree1.diff_summary(&tree2, &matcher).unwrap(),
         DiffSummary {
             modified: vec![],
             added: vec![],
@@ -169,7 +169,7 @@ fn test_matcher_dir_file_transition() {
         }
     );
     assert_eq!(
-        tree2.diff_summary(&tree1, &matcher),
+        tree2.diff_summary(&tree1, &matcher).unwrap(),
         DiffSummary {
             modified: vec![],
             added: vec![a_path.clone()],
@@ -179,7 +179,7 @@ fn test_matcher_dir_file_transition() {
 
     let matcher = FilesMatcher::new(&[a_a_path.clone()]);
     assert_eq!(
-        tree1.diff_summary(&tree2, &matcher),
+        tree1.diff_summary(&tree2, &matcher).unwrap(),
         DiffSummary {
             modified: vec![],
             added: vec![a_a_path.clone()],
@@ -187,7 +187,7 @@ fn test_matcher_dir_file_transition() {
         }
     );
     assert_eq!(
-        tree2.diff_summary(&tree1, &matcher),
+        tree2.diff_summary(&tree1, &matcher).unwrap(),
         DiffSummary {
             modified: vec![],
             added: vec![],
@@ -197,7 +197,7 @@ fn test_matcher_dir_file_transition() {
 
     let matcher = FilesMatcher::new(&[a_path.clone(), a_a_path.clone()]);
     assert_eq!(
-        tree1.diff_summary(&tree2, &matcher),
+        tree1.diff_summary(&tree2, &matcher).unwrap(),
         DiffSummary {
             modified: vec![],
             added: vec![a_a_path.clone()],
@@ -205,7 +205,7 @@ fn test_matcher_dir_file_transition() {
         }
     );
     assert_eq!(
-        tree2.diff_summary(&tree1, &matcher),
+        tree2.diff_summary(&tree1, &matcher).unwrap(),
         DiffSummary {
             modified: vec![],
             added: vec![a_path],
@@ -241,7 +241,7 @@ fn test_matcher_normal_cases() {
 
     let matcher = FilesMatcher::new(&[a_path.clone(), z_path.clone()]);
     assert_eq!(
-        tree1.diff_summary(&tree2, &matcher),
+        tree1.diff_summary(&tree2, &matcher).unwrap(),
         DiffSummary {
             modified: vec![a_path.clone()],
             added: vec![z_path.clone()],
@@ -249,7 +249,7 @@ fn test_matcher_normal_cases() {
         }
     );
     assert_eq!(
-        tree2.diff_summary(&tree1, &matcher),
+        tree2.diff_summary(&tree1, &matcher).unwrap(),
         DiffSummary {
             modified: vec![a_path],
             added: vec![],
@@ -259,7 +259,7 @@ fn test_matcher_normal_cases() {
 
     let matcher = FilesMatcher::new(&[dir1_a_path.clone(), dir2_b_path.clone()]);
     assert_eq!(
-        tree1.diff_summary(&tree2, &matcher),
+        tree1.diff_summary(&tree2, &matcher).unwrap(),
         DiffSummary {
             modified: vec![dir1_a_path.clone()],
             added: vec![dir2_b_path.clone()],
@@ -267,7 +267,7 @@ fn test_matcher_normal_cases() {
         }
     );
     assert_eq!(
-        tree2.diff_summary(&tree1, &matcher),
+        tree2.diff_summary(&tree1, &matcher).unwrap(),
         DiffSummary {
             modified: vec![dir1_a_path],
             added: vec![],
