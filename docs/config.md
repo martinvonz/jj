@@ -526,14 +526,6 @@ snapshots without having to rescan the entire working copy.
 
 ### Watchman
 
-The [Watchman filesystem monitor](https://facebook.github.io/watchman/) is
-currently only enabled if you compile jj with the `watchman` feature, such as
-with the following invocation:
-
-```shell
-cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli --features watchman
-```
-
 To configure the Watchman filesystem monitor, set
 `core.fsmonitor = "watchman"`. Ensure that you have [installed the Watchman
 executable on your system](https://facebook.github.io/watchman/docs/install).
