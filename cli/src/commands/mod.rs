@@ -1598,7 +1598,9 @@ fn cmd_status(
         }
 
         formatter.write_str("Working copy : ")?;
-        workspace_command.write_commit_summary(formatter, wc_commit)?;
+        formatter.with_label("working_copy", |fmt| {
+            workspace_command.write_commit_summary(fmt, wc_commit)
+        })?;
         formatter.write_str("\n")?;
         for parent in wc_commit.parents() {
             formatter.write_str("Parent commit: ")?;
@@ -3822,8 +3824,9 @@ fn cmd_workspace_update_stale(
             })?;
             locked_wc.finish(repo.op_id().clone())?;
             ui.write("Working copy now at: ")?;
-            workspace_command
-                .write_commit_summary(ui.stdout_formatter().as_mut(), &desired_wc_commit)?;
+            ui.stdout_formatter().with_label("working_copy", |fmt| {
+                workspace_command.write_commit_summary(fmt, &desired_wc_commit)
+            })?;
             ui.write("\n")?;
             print_checkout_stats(ui, stats)?;
         }
