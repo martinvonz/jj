@@ -267,16 +267,14 @@ pub fn import_some_refs(
         // but such targets should have already been imported to the backend.
     )
     .flat_map(|target| target.added_ids());
-    let heads_imported = git_backend
-        .import_head_commits(head_ids, store.use_tree_conflict_format())
-        .is_ok();
+    let heads_imported = git_backend.import_head_commits(head_ids).is_ok();
 
     // Import new remote heads
     let mut head_commits = Vec::new();
     let get_commit = |id| {
         // If bulk-import failed, try again to find bad head or ref.
         if !heads_imported {
-            git_backend.import_head_commits([id], store.use_tree_conflict_format())?;
+            git_backend.import_head_commits([id])?;
         }
         store.get_commit(id)
     };
