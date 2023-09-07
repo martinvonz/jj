@@ -75,7 +75,7 @@ testutils = { workspace = true }
 
 [features]
 default = []
-bench = ["criterion"]
+bench = ["dep:criterion"]
 packaging = ["watchman"]
 vendored-openssl = ["git2/vendored-openssl", "jj-lib/vendored-openssl"]
 watchman = ["jj-lib/watchman"]
