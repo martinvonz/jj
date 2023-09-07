@@ -122,22 +122,22 @@ pub enum RepoInitError {
 
 impl ReadonlyRepo {
     pub fn default_op_store_initializer() -> &'static OpStoreInitializer {
-        &|store_path| Box::new(SimpleOpStore::init(store_path))
+        &|_settings, store_path| Box::new(SimpleOpStore::init(store_path))
     }
 
     pub fn default_op_heads_store_initializer() -> &'static OpHeadsStoreInitializer {
-        &|store_path| {
+        &|_settings, store_path| {
             let store = SimpleOpHeadsStore::init(store_path);
             Box::new(store)
         }
     }
 
     pub fn default_index_store_initializer() -> &'static IndexStoreInitializer {
-        &|store_path| Box::new(DefaultIndexStore::init(store_path))
+        &|_settings, store_path| Box::new(DefaultIndexStore::init(store_path))
     }
 
     pub fn default_submodule_store_initializer() -> &'static SubmoduleStoreInitializer {
-        &|store_path| Box::new(DefaultSubmoduleStore::init(store_path))
+        &|_settings, store_path| Box::new(DefaultSubmoduleStore::init(store_path))
     }
 
     pub fn init(
@@ -153,7 +153,7 @@ impl ReadonlyRepo {
 
         let store_path = repo_path.join("store");
         fs::create_dir(&store_path).context(&store_path)?;
-        let backend = backend_initializer(&store_path)?;
+        let backend = backend_initializer(user_settings, &store_path)?;
         let backend_path = store_path.join("type");
         fs::write(&backend_path, backend.name()).context(&backend_path)?;
         let store = Store::new(backend, user_settings.use_tree_conflict_format());
@@ -161,7 +161,7 @@ impl ReadonlyRepo {
 
         let op_store_path = repo_path.join("op_store");
         fs::create_dir(&op_store_path).context(&op_store_path)?;
-        let op_store = op_store_initializer(&op_store_path);
+        let op_store = op_store_initializer(user_settings, &op_store_path);
         let op_store_type_path = op_store_path.join("type");
         fs::write(&op_store_type_path, op_store.name()).context(&op_store_type_path)?;
         let op_store: Arc<dyn OpStore> = Arc::from(op_store);
@@ -184,7 +184,7 @@ impl ReadonlyRepo {
         };
         let init_operation_id = op_store.write_operation(&init_operation).unwrap();
         let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
-        let op_heads_store = op_heads_store_initializer(&op_heads_path);
+        let op_heads_store = op_heads_store_initializer(user_settings, &op_heads_path);
         op_heads_store.add_op_head(init_operation.id());
         let op_heads_type_path = op_heads_path.join("type");
         fs::write(&op_heads_type_path, op_heads_store.name()).context(&op_heads_type_path)?;
@@ -192,14 +192,14 @@ impl ReadonlyRepo {
 
         let index_path = repo_path.join("index");
         fs::create_dir(&index_path).context(&index_path)?;
-        let index_store = index_store_initializer(&index_path);
+        let index_store = index_store_initializer(user_settings, &index_path);
         let index_type_path = index_path.join("type");
         fs::write(&index_type_path, index_store.name()).context(&index_type_path)?;
         let index_store = Arc::from(index_store);
 
         let submodule_store_path = repo_path.join("submodule_store");
         fs::create_dir(&submodule_store_path).context(&submodule_store_path)?;
-        let submodule_store = submodule_store_initializer(&submodule_store_path);
+        let submodule_store = submodule_store_initializer(user_settings, &submodule_store_path);
         let submodule_store_type_path = submodule_store_path.join("type");
         fs::write(&submodule_store_type_path, submodule_store.name())
             .context(&submodule_store_type_path)?;
@@ -343,17 +343,19 @@ impl Repo for ReadonlyRepo {
     }
 }
 
-pub type BackendInitializer = dyn Fn(&Path) -> Result<Box<dyn Backend>, BackendInitError>;
-pub type OpStoreInitializer = dyn Fn(&Path) -> Box<dyn OpStore>;
-pub type OpHeadsStoreInitializer = dyn Fn(&Path) -> Box<dyn OpHeadsStore>;
-pub type IndexStoreInitializer = dyn Fn(&Path) -> Box<dyn IndexStore>;
-pub type SubmoduleStoreInitializer = dyn Fn(&Path) -> Box<dyn SubmoduleStore>;
+pub type BackendInitializer =
+    dyn Fn(&UserSettings, &Path) -> Result<Box<dyn Backend>, BackendInitError>;
+pub type OpStoreInitializer = dyn Fn(&UserSettings, &Path) -> Box<dyn OpStore>;
+pub type OpHeadsStoreInitializer = dyn Fn(&UserSettings, &Path) -> Box<dyn OpHeadsStore>;
+pub type IndexStoreInitializer = dyn Fn(&UserSettings, &Path) -> Box<dyn IndexStore>;
+pub type SubmoduleStoreInitializer = dyn Fn(&UserSettings, &Path) -> Box<dyn SubmoduleStore>;
 
-type BackendFactory = Box<dyn Fn(&Path) -> Result<Box<dyn Backend>, BackendLoadError>>;
-type OpStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpStore>>;
-type OpHeadsStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpHeadsStore>>;
-type IndexStoreFactory = Box<dyn Fn(&Path) -> Box<dyn IndexStore>>;
-type SubmoduleStoreFactory = Box<dyn Fn(&Path) -> Box<dyn SubmoduleStore>>;
+type BackendFactory =
+    Box<dyn Fn(&UserSettings, &Path) -> Result<Box<dyn Backend>, BackendLoadError>>;
+type OpStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn OpStore>>;
+type OpHeadsStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn OpHeadsStore>>;
+type IndexStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn IndexStore>>;
+type SubmoduleStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn SubmoduleStore>>;
 
 pub struct StoreFactories {
     backend_factories: HashMap<String, BackendFactory>,
@@ -370,35 +372,35 @@ impl Default for StoreFactories {
         // Backends
         factories.add_backend(
             LocalBackend::name(),
-            Box::new(|store_path| Ok(Box::new(LocalBackend::load(store_path)))),
+            Box::new(|_settings, store_path| Ok(Box::new(LocalBackend::load(store_path)))),
         );
         factories.add_backend(
             GitBackend::name(),
-            Box::new(|store_path| Ok(Box::new(GitBackend::load(store_path)?))),
+            Box::new(|_settings, store_path| Ok(Box::new(GitBackend::load(store_path)?))),
         );
 
         // OpStores
         factories.add_op_store(
             SimpleOpStore::name(),
-            Box::new(|store_path| Box::new(SimpleOpStore::load(store_path))),
+            Box::new(|_settings, store_path| Box::new(SimpleOpStore::load(store_path))),
         );
 
         // OpHeadsStores
         factories.add_op_heads_store(
             SimpleOpHeadsStore::name(),
-            Box::new(|store_path| Box::new(SimpleOpHeadsStore::load(store_path))),
+            Box::new(|_settings, store_path| Box::new(SimpleOpHeadsStore::load(store_path))),
         );
 
         // Index
         factories.add_index_store(
             DefaultIndexStore::name(),
-            Box::new(|store_path| Box::new(DefaultIndexStore::load(store_path))),
+            Box::new(|_settings, store_path| Box::new(DefaultIndexStore::load(store_path))),
         );
 
         // SubmoduleStores
         factories.add_submodule_store(
             DefaultSubmoduleStore::name(),
-            Box::new(|store_path| Box::new(DefaultSubmoduleStore::load(store_path))),
+            Box::new(|_settings, store_path| Box::new(DefaultSubmoduleStore::load(store_path))),
         );
 
         factories
@@ -436,7 +438,11 @@ impl StoreFactories {
         self.backend_factories.insert(name.to_string(), factory);
     }
 
-    pub fn load_backend(&self, store_path: &Path) -> Result<Box<dyn Backend>, StoreLoadError> {
+    pub fn load_backend(
+        &self,
+        settings: &UserSettings,
+        store_path: &Path,
+    ) -> Result<Box<dyn Backend>, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete in 0.8+.
         if store_path.join("backend").is_file() {
             fs::rename(store_path.join("backend"), store_path.join("type"))
@@ -456,14 +462,18 @@ impl StoreFactories {
                 store_type: backend_type.to_string(),
             }
         })?;
-        Ok(backend_factory(store_path)?)
+        Ok(backend_factory(settings, store_path)?)
     }
 
     pub fn add_op_store(&mut self, name: &str, factory: OpStoreFactory) {
         self.op_store_factories.insert(name.to_string(), factory);
     }
 
-    pub fn load_op_store(&self, store_path: &Path) -> Result<Box<dyn OpStore>, StoreLoadError> {
+    pub fn load_op_store(
+        &self,
+        settings: &UserSettings,
+        store_path: &Path,
+    ) -> Result<Box<dyn OpStore>, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete default in 0.8+.
         let op_store_type =
             read_store_type_compat("operation", store_path.join("type"), SimpleOpStore::name)?;
@@ -473,7 +483,7 @@ impl StoreFactories {
                 store_type: op_store_type.to_string(),
             }
         })?;
-        Ok(op_store_factory(store_path))
+        Ok(op_store_factory(settings, store_path))
     }
 
     pub fn add_op_heads_store(&mut self, name: &str, factory: OpHeadsStoreFactory) {
@@ -483,6 +493,7 @@ impl StoreFactories {
 
     pub fn load_op_heads_store(
         &self,
+        settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Box<dyn OpHeadsStore>, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete default in 0.8+.
@@ -498,7 +509,7 @@ impl StoreFactories {
                 store: "operation heads",
                 store_type: op_heads_store_type.to_string(),
             })?;
-        Ok(op_heads_store_factory(store_path))
+        Ok(op_heads_store_factory(settings, store_path))
     }
 
     pub fn add_index_store(&mut self, name: &str, factory: IndexStoreFactory) {
@@ -507,6 +518,7 @@ impl StoreFactories {
 
     pub fn load_index_store(
         &self,
+        settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Box<dyn IndexStore>, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete default in 0.9+
@@ -519,7 +531,7 @@ impl StoreFactories {
                 store: "index",
                 store_type: index_store_type.to_string(),
             })?;
-        Ok(index_store_factory(store_path))
+        Ok(index_store_factory(settings, store_path))
     }
 
     pub fn add_submodule_store(&mut self, name: &str, factory: SubmoduleStoreFactory) {
@@ -529,6 +541,7 @@ impl StoreFactories {
 
     pub fn load_submodule_store(
         &self,
+        settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Box<dyn SubmoduleStore>, StoreLoadError> {
         // For compatibility with repos without repo/submodule_store.
@@ -546,7 +559,7 @@ impl StoreFactories {
                 store_type: submodule_store_type.to_string(),
             })?;
 
-        Ok(submodule_store_factory(store_path))
+        Ok(submodule_store_factory(settings, store_path))
     }
 }
 
@@ -597,16 +610,21 @@ impl RepoLoader {
         store_factories: &StoreFactories,
     ) -> Result<Self, StoreLoadError> {
         let store = Store::new(
-            store_factories.load_backend(&repo_path.join("store"))?,
+            store_factories.load_backend(user_settings, &repo_path.join("store"))?,
             user_settings.use_tree_conflict_format(),
         );
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
-        let op_store = Arc::from(store_factories.load_op_store(&repo_path.join("op_store"))?);
-        let op_heads_store =
-            Arc::from(store_factories.load_op_heads_store(&repo_path.join("op_heads"))?);
-        let index_store = Arc::from(store_factories.load_index_store(&repo_path.join("index"))?);
-        let submodule_store =
-            Arc::from(store_factories.load_submodule_store(&repo_path.join("submodule_store"))?);
+        let op_store =
+            Arc::from(store_factories.load_op_store(user_settings, &repo_path.join("op_store"))?);
+        let op_heads_store = Arc::from(
+            store_factories.load_op_heads_store(user_settings, &repo_path.join("op_heads"))?,
+        );
+        let index_store =
+            Arc::from(store_factories.load_index_store(user_settings, &repo_path.join("index"))?);
+        let submodule_store = Arc::from(
+            store_factories
+                .load_submodule_store(user_settings, &repo_path.join("submodule_store"))?,
+        );
         Ok(Self {
             repo_path: repo_path.to_path_buf(),
             repo_settings,

@@ -134,9 +134,7 @@ impl TestRepo {
         let repo = ReadonlyRepo::init(
             &settings,
             &repo_dir,
-            &move |store_path: &Path| -> Result<Box<dyn Backend>, BackendInitError> {
-                backend.init_backend(store_path)
-            },
+            &move |_settings, store_path| backend.init_backend(store_path),
             ReadonlyRepo::default_op_store_initializer(),
             ReadonlyRepo::default_op_heads_store_initializer(),
             ReadonlyRepo::default_index_store_initializer(),
@@ -154,7 +152,7 @@ impl TestRepo {
         let mut factories = StoreFactories::default();
         factories.add_backend(
             "test",
-            Box::new(|store_path| Ok(Box::new(TestBackend::load(store_path)))),
+            Box::new(|_settings, store_path| Ok(Box::new(TestBackend::load(store_path)))),
         );
         factories
     }
@@ -178,11 +176,12 @@ impl TestWorkspace {
         let workspace_root = temp_dir.path().join("repo");
         fs::create_dir(&workspace_root).unwrap();
 
-        let (workspace, repo) =
-            Workspace::init_with_backend(settings, &workspace_root, &move |store_path| {
-                backend.init_backend(store_path)
-            })
-            .unwrap();
+        let (workspace, repo) = Workspace::init_with_backend(
+            settings,
+            &workspace_root,
+            &move |_settings, store_path| backend.init_backend(store_path),
+        )
+        .unwrap();
 
         Self {
             temp_dir,

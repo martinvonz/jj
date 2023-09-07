@@ -145,7 +145,7 @@ impl Workspace {
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let backend_initializer: &'static BackendInitializer =
-            &|store_path| Ok(Box::new(LocalBackend::init(store_path)));
+            &|_settings, store_path| Ok(Box::new(LocalBackend::init(store_path)));
         Self::init_with_backend(user_settings, workspace_root, backend_initializer)
     }
 
@@ -156,7 +156,7 @@ impl Workspace {
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let backend_initializer: &'static BackendInitializer =
-            &|store_path| Ok(Box::new(GitBackend::init_internal(store_path)?));
+            &|_settings, store_path| Ok(Box::new(GitBackend::init_internal(store_path)?));
         Self::init_with_backend(user_settings, workspace_root, backend_initializer)
     }
 
@@ -168,7 +168,7 @@ impl Workspace {
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let backend_initializer = {
             let workspace_root = workspace_root.to_owned();
-            move |store_path: &Path| -> Result<Box<dyn Backend>, BackendInitError> {
+            move |_settings: &UserSettings, store_path: &Path| -> Result<Box<dyn Backend>, _> {
                 // TODO: Clean up path normalization. store_path is canonicalized by
                 // ReadonlyRepo::init(). workspace_root will be canonicalized by
                 // Workspace::new(), but it's not yet here.
@@ -195,7 +195,7 @@ impl Workspace {
         let backend_initializer = {
             let workspace_root = workspace_root.to_owned();
             let git_repo_path = git_repo_path.to_owned();
-            move |store_path: &Path| -> Result<Box<dyn Backend>, BackendInitError> {
+            move |_settings: &UserSettings, store_path: &Path| -> Result<Box<dyn Backend>, _> {
                 // If the git repo is inside the workspace, use a relative path to it so the
                 // whole workspace can be moved without breaking.
                 // TODO: Clean up path normalization. store_path is canonicalized by
