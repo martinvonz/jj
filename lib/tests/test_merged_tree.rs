@@ -17,7 +17,7 @@ use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
 use jj_lib::files::MergeResult;
 use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
 use jj_lib::merge::{Merge, MergeBuilder};
-use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder, MergedTreeValue};
+use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder, MergedTreeVal};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::tree::merge_trees;
@@ -119,12 +119,12 @@ fn test_from_legacy_tree() {
     let merged_tree = MergedTree::from_legacy_tree(tree.clone()).unwrap();
     assert_eq!(
         merged_tree.value(&RepoPathComponent::from("missing")),
-        MergedTreeValue::Resolved(None)
+        MergedTreeVal::Resolved(None)
     );
     // file1: regular file without conflicts
     assert_eq!(
         merged_tree.value(&file1_path.components()[0]),
-        MergedTreeValue::Resolved(Some(&TreeValue::File {
+        MergedTreeVal::Resolved(Some(&TreeValue::File {
             id: file1_id.clone(),
             executable: false,
         }))
@@ -132,7 +132,7 @@ fn test_from_legacy_tree() {
     // file2: 3-way conflict
     assert_eq!(
         merged_tree.value(&file2_path.components()[0]),
-        MergedTreeValue::Conflict(Merge::new(
+        MergedTreeVal::Conflict(Merge::new(
             vec![Some(file_value(&file2_v1_id)), None],
             vec![
                 Some(file_value(&file2_v2_id)),
@@ -144,7 +144,7 @@ fn test_from_legacy_tree() {
     // file3: modify/delete conflict
     assert_eq!(
         merged_tree.value(&file3_path.components()[0]),
-        MergedTreeValue::Conflict(Merge::new(
+        MergedTreeVal::Conflict(Merge::new(
             vec![Some(file_value(&file3_v1_id)), None],
             vec![Some(file_value(&file3_v2_id)), None, None],
         ))
@@ -152,7 +152,7 @@ fn test_from_legacy_tree() {
     // file4: add/add conflict
     assert_eq!(
         merged_tree.value(&file4_path.components()[0]),
-        MergedTreeValue::Conflict(Merge::new(
+        MergedTreeVal::Conflict(Merge::new(
             vec![None, None],
             vec![
                 Some(file_value(&file4_v1_id)),
@@ -164,7 +164,7 @@ fn test_from_legacy_tree() {
     // file5: 5-way conflict
     assert_eq!(
         merged_tree.value(&file5_path.components()[0]),
-        MergedTreeValue::Conflict(Merge::new(
+        MergedTreeVal::Conflict(Merge::new(
             vec![
                 Some(file_value(&file5_v1_id)),
                 Some(file_value(&file5_v2_id)),
@@ -179,7 +179,7 @@ fn test_from_legacy_tree() {
     // file6: directory without conflicts
     assert_eq!(
         merged_tree.value(&dir1_basename),
-        MergedTreeValue::Resolved(tree.value(&dir1_basename))
+        MergedTreeVal::Resolved(tree.value(&dir1_basename))
     );
 
     // Also test that MergedTreeBuilder can create the same tree by starting from an
