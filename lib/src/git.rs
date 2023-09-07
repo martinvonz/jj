@@ -26,7 +26,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{BackendError, CommitId, ObjectId};
-use crate::git_backend::NO_GC_REF_NAMESPACE;
+use crate::git_backend::{GitBackend, NO_GC_REF_NAMESPACE};
 use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
 use crate::repo::{MutableRepo, Repo};
 use crate::revset;
@@ -228,27 +228,30 @@ pub fn import_some_refs(
 
     // Import new heads
     let store = mut_repo.store();
+    // TODO: It might be better to obtain both git_repo and git_backend from
+    // mut_repo, and return error if the repo isn't backed by Git.
+    let git_backend = store.backend_impl().downcast_ref::<GitBackend>().unwrap();
     let mut head_commits = Vec::new();
+    // TODO: Import commits in bulk (but we'll need to adjust error handling.)
+    let get_commit = |id| {
+        git_backend.import_head_commits([id])?;
+        store.get_commit(id)
+    };
     if let Some(new_head_target) = &changed_git_head {
         for id in new_head_target.added_ids() {
-            let commit = store
-                .get_commit(id)
-                .map_err(|err| GitImportError::MissingHeadTarget {
-                    id: id.clone(),
-                    err,
-                })?;
+            let commit = get_commit(id).map_err(|err| GitImportError::MissingHeadTarget {
+                id: id.clone(),
+                err,
+            })?;
             head_commits.push(commit);
         }
     }
     for (ref_name, (_, new_git_target)) in &changed_git_refs {
         for id in new_git_target.added_ids() {
-            let commit =
-                store
-                    .get_commit(id)
-                    .map_err(|err| GitImportError::MissingRefAncestor {
-                        ref_name: ref_name.to_string(),
-                        err,
-                    })?;
+            let commit = get_commit(id).map_err(|err| GitImportError::MissingRefAncestor {
+                ref_name: ref_name.to_string(),
+                err,
+            })?;
             head_commits.push(commit);
         }
     }

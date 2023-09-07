@@ -16,11 +16,11 @@
 
 use std::any::Any;
 use std::fmt::{Debug, Error, Formatter};
+use std::fs;
 use std::io::{Cursor, Read};
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::{fs, slice};
 
 use git2::Oid;
 use itertools::Itertools;
@@ -200,6 +200,41 @@ impl GitBackend {
         *self.cached_extra_metadata.lock().unwrap() = Some(table);
         Ok(())
     }
+
+    /// Imports the given commits and ancestors from the backing Git repo.
+    #[tracing::instrument(skip(self, head_ids))]
+    pub fn import_head_commits<'a>(
+        &self,
+        head_ids: impl IntoIterator<Item = &'a CommitId>,
+    ) -> BackendResult<()> {
+        let table = self.cached_extra_metadata_table()?;
+        let mut missing_head_ids = head_ids
+            .into_iter()
+            .filter(|&id| *id != self.root_commit_id && table.get_value(id.as_bytes()).is_none())
+            .collect_vec();
+        if missing_head_ids.is_empty() {
+            return Ok(());
+        }
+
+        // These commits are imported from Git. Make our change ids persist (otherwise
+        // future write_commit() could reassign new change id.)
+        tracing::debug!(
+            heads_count = missing_head_ids.len(),
+            "import extra metadata entries"
+        );
+        let locked_repo = self.repo.lock().unwrap();
+        let (table, table_lock) = self.read_extra_metadata_table_locked()?;
+        let mut mut_table = table.start_mutation();
+        // Concurrent write_commit() might have updated the table before taking a lock.
+        missing_head_ids.retain(|&id| mut_table.get_value(id.as_bytes()).is_none());
+        import_extra_metadata_entries_from_heads(
+            &locked_repo,
+            &mut mut_table,
+            &table_lock,
+            &missing_head_ids,
+        )?;
+        self.save_extra_metadata_table(mut_table, &table_lock)
+    }
 }
 
 fn commit_from_git_without_root_parent(commit: &git2::Commit) -> Commit {
@@ -373,17 +408,16 @@ fn import_extra_metadata_entries_from_heads(
     git_repo: &git2::Repository,
     mut_table: &mut MutableTable,
     _table_lock: &FileLock,
-    head_ids: &[CommitId],
+    missing_head_ids: &[&CommitId],
 ) -> BackendResult<()> {
-    let mut work_ids = head_ids
-        .iter()
-        .filter(|id| mut_table.get_value(id.as_bytes()).is_none())
-        .cloned()
-        .collect_vec();
+    let mut work_ids = missing_head_ids.iter().map(|&id| id.clone()).collect_vec();
     while let Some(id) = work_ids.pop() {
         let git_commit = git_repo
             .find_commit(validate_git_object_id(&id)?)
             .map_err(|err| map_not_found_err(err, &id))?;
+        // TODO(#1624): Should we read the root tree here and check if it has a
+        // `.jjconflict-...` entries? That could happen if the user used `git` to e.g.
+        // change the description of a commit with tree-level conflicts.
         let commit = commit_from_git_without_root_parent(&git_commit);
         mut_table.add_entry(id.to_bytes(), serialize_extras(&commit));
         work_ids.extend(
@@ -614,7 +648,6 @@ impl Backend for GitBackend {
         Ok(ConflictId::from_bytes(oid.as_bytes()))
     }
 
-    #[tracing::instrument(skip(self))]
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if *id == self.root_commit_id {
             return Ok(make_root_commit(
@@ -634,36 +667,15 @@ impl Backend for GitBackend {
         };
 
         let table = self.cached_extra_metadata_table()?;
-        if let Some(extras) = table.get_value(id.as_bytes()) {
-            deserialize_extras(&mut commit, extras);
-        } else {
-            let (table, table_lock) = self.read_extra_metadata_table_locked()?;
-            if let Some(extras) = table.get_value(id.as_bytes()) {
-                // Concurrent write_commit() would update extras before taking a lock.
-                deserialize_extras(&mut commit, extras);
-                *self.cached_extra_metadata.lock().unwrap() = Some(table);
-            } else {
-                // This commit is imported from Git. Make our change id persist (otherwise
-                // future write_commit() could reassign new change id.) It's likely that
-                // the commit is a branch head, so bulk-import metadata as much as possible.
-                tracing::debug!("import extra metadata entries");
-                let mut mut_table = table.start_mutation();
-                // TODO(#1624): Should we read the root tree here and check if it has a
-                // `.jjconflict-...` entries? That could happen if the user used `git` to e.g.
-                // change the description of a commit with tree-level conflicts.
-                mut_table.add_entry(id.to_bytes(), serialize_extras(&commit));
-                if commit.parents != slice::from_ref(&self.root_commit_id) {
-                    import_extra_metadata_entries_from_heads(
-                        &locked_repo,
-                        &mut mut_table,
-                        &table_lock,
-                        &commit.parents,
-                    )?;
-                }
-                self.save_extra_metadata_table(mut_table, &table_lock)?;
-            }
-        }
-
+        let extras =
+            table
+                .get_value(id.as_bytes())
+                .ok_or_else(|| BackendError::ObjectNotFound {
+                    object_type: id.object_type(),
+                    hash: id.hex(),
+                    source: "Not imported from Git".into(),
+                })?;
+        deserialize_extras(&mut commit, extras);
         Ok(commit)
     }
 
@@ -914,7 +926,24 @@ mod tests {
         // Check that the git commit above got the hash we expect
         assert_eq!(git_commit_id.as_bytes(), commit_id.as_bytes());
 
+        // Add an empty commit on top
+        let git_commit_id2 = git_repo
+            .commit(
+                None,
+                &git_author,
+                &git_committer,
+                "git commit message 2",
+                &git_tree,
+                &[&git_repo.find_commit(git_commit_id).unwrap()],
+            )
+            .unwrap();
+        let commit_id2 = CommitId::from_bytes(git_commit_id2.as_bytes());
+
         let store = GitBackend::init_external(store_path, &git_repo_path).unwrap();
+
+        // Import the head commit and its ancestors
+        store.import_head_commits([&commit_id2]).unwrap();
+
         let commit = store.read_commit(&commit_id).unwrap();
         assert_eq!(&commit.change_id, &change_id);
         assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
@@ -976,6 +1005,14 @@ mod tests {
         assert_eq!(
             symlink.value(),
             &TreeValue::Symlink(SymlinkId::from_bytes(blob2.as_bytes()))
+        );
+
+        let commit2 = store.read_commit(&commit_id2).unwrap();
+        assert_eq!(commit2.parents, vec![commit_id.clone()]);
+        assert_eq!(commit.predecessors, vec![]);
+        assert_eq!(
+            commit.root_tree,
+            MergedTreeId::Legacy(TreeId::from_bytes(root_tree_id.as_bytes()))
         );
     }
 
