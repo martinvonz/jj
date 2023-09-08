@@ -34,11 +34,13 @@ the git-hook model, there was consensus about not repeating their mistakes.
 
 For `jj run` there is prior art in Mercurial, git branchless and Google's 
 internal Mercurial. Currently git-branchless `git test` and `hg fix` implement
-some kind of command runner. While the Google internal `hg run` works in 
+some kind of command runner. The Google internal `hg run` works in 
 conjunction with CitC (Clients in the Cloud) which allows it to lazily apply
-the current command to any affected file. The base Jujutsu backend does not
-have a fancy virtual filesystem supporting it, so we can't apply this 
-optimization. 
+the current command to any affected file. Currently no Jujutsu backend
+(Git, Native) has a fancy virtual filesystem supporting it, so we 
+can't apply this optimization. We could do the same once we have an 
+implementation of the working copy based on a virtual file system. Until then, 
+we have to run the commands in regular local-disk working copies. 
 
 ## Goals and Non-Goals
 
@@ -47,7 +49,8 @@ optimization.
 * We should be able to apply the command to any revision, published or unpublished.
 * We should be able to parallelize running the actual command, while preserving a
 good console output.
-* The run command should be able to work in the working copy. 
+* The run command should be able to work in any commit, the working-copy commit
+itself or any other commit. 
 * There should exist some way to signal hard failure. 
 * The command should build enough infrastructure for `jj test`, `jj fix` and 
 `jj format`.
@@ -61,6 +64,9 @@ shouldn't mash their use-cases into `jj run`.
 * The command shouldn't be too smart, as too many assumptions about workflows 
 makes the command confusing for users. 
 * The smart caching of outputs, as user input commands can be unpredictable.
+makes the command confusing for users. 
+* Avoid the smart caching of outputs, as user input commands can be 
+unpredictable.
 * Fine grained user facing configuration, as it's unwarranted complexity.
 * A `fix` subcommand as it cuts too much design space.
 
@@ -74,7 +80,7 @@ makes the command confusing for users.
 
 **Large scale changes across repositories, local and remote:**
 
-- `jj run 'sed s/some/test' -r 'draft() & ~remote_branches()'`
+- `jj run 'sed /some/test/' -r 'mine() & ~remote_branches(exact:"origin")'`
 - `jj run '$rewrite-tool' -r '$revset'`
 
 **Build systems:**
@@ -120,7 +126,7 @@ impacting the repo, we can use a separate [OpHeadsStore] for it.
 
 ### Modifying the Working Copy
 
-Since the subprocesses will run in temporary working copies by default, they 
+Since the subprocesses will run in temporary working copies, they 
 won't interfere with the user's working copy. The user can therefore continue
 to work in it while `jj run` is running. 
 
@@ -145,20 +151,9 @@ operations created by the subprocess will be ignored.
 
 ### Rewriting the revisions 
 
-We should handle public and private revisions differently. We choose to operate
-on an immutable history by default.
-
-### Public revisions
-
-For published revisions, we will not allow `jj run` to modify them and then 
-immediately error out, as published history should be immutable. We may want to
-support a `--force` flag for an override but it won't be available in the first
-iteration of the command. 
-
-### Private/Draft revisions
-
-For private/draft revisions, we just amend the changes, as Jujutsu usually does. 
-We also expose the actual behavior as a command option.
+Like all commands, `jj run` will refuse to rewrite public/immutable commits.
+For private/unpublished revisions, we either amend or reparent the changes, 
+which are available as command options.
 
 ## Execution order/parallelism
 
@@ -184,7 +179,7 @@ also fail.
 It will be useful to have multiple strategies to deal with failures on a single
 or multiple revisions. The reason for these strategies is to allow customized
 conflict handling. These strategies then can be exposed in the ui with a 
-matching command.
+matching option.
 
 **Continue:** If any subprocess fails, we will continue the work on child 
 revisions. Notify the user on exit about the failed revisions. 
@@ -248,7 +243,7 @@ command)
 
 ## Open Points
 
-Should the command be backend specific?  
+Should the command be working copy backend specific?  
 How do we manage the Processes which the command will spawn?  
 Configuration options, User and Repository Wide?
 
