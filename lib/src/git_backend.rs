@@ -43,7 +43,7 @@ use crate::stacked_table::{
 const HASH_LENGTH: usize = 20;
 const CHANGE_ID_LENGTH: usize = 16;
 /// Ref namespace used only for preventing GC.
-pub const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
+const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
 
 #[derive(Debug, Error)]
@@ -233,6 +233,9 @@ impl GitBackend {
             &table_lock,
             &missing_head_ids,
         )?;
+        for &id in &missing_head_ids {
+            prevent_gc(&locked_repo, id)?;
+        }
         self.save_extra_metadata_table(mut_table, &table_lock)
     }
 }
@@ -369,6 +372,18 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
 fn create_no_gc_ref() -> String {
     let random_bytes: [u8; 16] = rand::random();
     format!("{NO_GC_REF_NAMESPACE}{}", hex::encode(random_bytes))
+}
+
+fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) -> Result<(), BackendError> {
+    git_repo
+        .reference(
+            &format!("{NO_GC_REF_NAMESPACE}{}", id.hex()),
+            Oid::from_bytes(id.as_bytes()).unwrap(),
+            true,
+            "used by jj",
+        )
+        .map_err(|err| BackendError::Other(Box::new(err)))?;
+    Ok(())
 }
 
 fn validate_git_object_id(id: &impl ObjectId) -> Result<git2::Oid, BackendError> {
@@ -943,6 +958,14 @@ mod tests {
 
         // Import the head commit and its ancestors
         store.import_head_commits([&commit_id2]).unwrap();
+        // Ref should be created only for the head commit
+        let git_refs = store
+            .git_repo()
+            .references_glob("refs/jj/keep/*")
+            .unwrap()
+            .map(|git_ref| git_ref.unwrap().target().unwrap())
+            .collect_vec();
+        assert_eq!(git_refs, vec![git_commit_id2]);
 
         let commit = store.read_commit(&commit_id).unwrap();
         assert_eq!(&commit.change_id, &change_id);
