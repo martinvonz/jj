@@ -26,7 +26,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{BackendError, CommitId, ObjectId};
-use crate::git_backend::{GitBackend, NO_GC_REF_NAMESPACE};
+use crate::git_backend::GitBackend;
 use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
 use crate::repo::{MutableRepo, Repo};
 use crate::revset;
@@ -172,18 +172,6 @@ pub fn get_local_git_tracking_branch<'a>(view: &'a View, branch: &str) -> &'a Re
     view.get_git_ref(&format!("refs/heads/{branch}"))
 }
 
-fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) -> Result<(), git2::Error> {
-    // If multiple processes do git::import_refs() in parallel, this can fail to
-    // acquire a lock file even with force=true.
-    git_repo.reference(
-        &format!("{}{}", NO_GC_REF_NAMESPACE, id.hex()),
-        Oid::from_bytes(id.as_bytes()).unwrap(),
-        true,
-        "used by jj",
-    )?;
-    Ok(())
-}
-
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
 ///
 /// This function detects conflicts (if both Git and JJ modified a branch) and
@@ -254,9 +242,6 @@ pub fn import_some_refs(
             })?;
             head_commits.push(commit);
         }
-    }
-    for commit in &head_commits {
-        prevent_gc(git_repo, commit.id())?;
     }
     mut_repo.add_heads(&head_commits);
 
