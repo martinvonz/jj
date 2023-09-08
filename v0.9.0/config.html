@@ -1727,7 +1727,7 @@ the terminal width.</p>
 </code></pre></div>
 <p>To get shorter prefixes for certain revisions, set <code>revsets.short-prefixes</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Prioritize the current branch</span>
-<span class="n">revsets</span><span class="p">.</span><span class="n">short-prefixes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;(main..@):&quot;</span>
+<span class="n">revsets</span><span class="p">.</span><span class="n">short-prefixes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;(main..@)::&quot;</span>
 </code></pre></div>
 <h3 id="relative-timestamps">Relative timestamps<a class="headerlink" href="#relative-timestamps" title="Permanent link">&para;</a></h3>
 <p>Can be customized by the <code>format_timestamp()</code> template alias.</p>
@@ -1776,7 +1776,7 @@ command will be executed directly. For example:</p>
 <p>You can define aliases for commands, including their arguments. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># `jj l` shows commits on the working-copy commit&#39;s (anonymous) branch</span>
 <span class="c1"># compared to the `main` branch</span>
-<span class="n">aliases</span><span class="p">.</span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;-r&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;(main..@): | (main..@)-&quot;</span><span class="p">]</span>
+<span class="n">aliases</span><span class="p">.</span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;-r&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;(main..@):: | (main..@)-&quot;</span><span class="p">]</span>
 </code></pre></div>
 <h2 id="editor">Editor<a class="headerlink" href="#editor" title="Permanent link">&para;</a></h2>
 <p>The default editor is set via <code>ui.editor</code>, though there are several places to
@@ -1850,7 +1850,7 @@ this file will be ignored. To suppress the creation of this file, set
 <h3 id="using-vim-as-a-diff-editor">Using Vim as a diff editor<a class="headerlink" href="#using-vim-as-a-diff-editor" title="Permanent link">&para;</a></h3>
 <p>Using <code>ui.diff-editor = "vimdiff"</code> is possible but not recommended. For a better
 experience, you can follow these <a href="https://gist.github.com/ilyagr/5d6339fb7dac5e7ab06fe1561ec62d45">instructions</a> to configure
-the [<code>DirDiff</code> Vim plugin] and/or the [<code>vimtabdiff</code> Python script].</p>
+the <a href="https://github.com/will133/vim-dirdiff">DirDiff Vim plugin</a> and/or the <a href="https://github.com/balki/vimtabdiff">vimtabdiff Python script</a>.</p>
 <h2 id="3-way-merge-tools-for-conflict-resolution">3-way merge tools for conflict resolution<a class="headerlink" href="#3-way-merge-tools-for-conflict-resolution" title="Permanent link">&para;</a></h2>
 <p>The <code>ui.merge-editor</code> key specifies the tool used for three-way merge tools
 by <code>jj resolve</code>. For example:</p>
@@ -1946,7 +1946,7 @@ with the following invocation:</p>
 </code></pre></div>
 <p>To configure the Watchman filesystem monitor, set
 <code>core.fsmonitor = "watchman"</code>. Ensure that you have <a href="https://facebook.github.io/watchman/docs/install">installed the Watchman
-executable on your system</a>).</p>
+executable on your system</a>.</p>
 <p>Debugging commands are available under <code>jj debug watchman</code>.</p>
 <h1 id="user-config-file">User config file<a class="headerlink" href="#user-config-file" title="Permanent link">&para;</a></h1>
 <p>On all platforms, the user's global <code>jj</code> configuration file is located at either
