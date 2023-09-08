@@ -400,6 +400,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#i-accidentally-amended-the-working-copy-how-do-i-move-the-new-changes-into-its-own-commit" class="md-nav__link">
+    I accidentally amended the working copy. How do I move the new changes into its own commit?
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1136,6 +1143,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#i-accidentally-amended-the-working-copy-how-do-i-move-the-new-changes-into-its-own-commit" class="md-nav__link">
+    I accidentally amended the working copy. How do I move the new changes into its own commit?
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1218,6 +1232,15 @@ top of the PR you're working on and then do <code>jj new commit_with_local_chang
 You'll then need to use <code>jj new --before</code> to create new commits
 and <code>jj move --to</code>
 to move new changes into the correct commits.</p>
+<h3 id="i-accidentally-amended-the-working-copy-how-do-i-move-the-new-changes-into-its-own-commit">I accidentally amended the working copy. How do I move the new changes into its own commit?<a class="headerlink" href="#i-accidentally-amended-the-working-copy-how-do-i-move-the-new-changes-into-its-own-commit" title="Permanent link">&para;</a></h3>
+<p>Use <code>jj obslog -p</code> to see how your working-copy commit has evolved. Find the
+commit you want to restore the contents to. Let's say the current commit (with
+the changes intended for a new commit) are in commit X and the state you wanted
+is in commit Y. Note the commit id (normally in blue at the end of the line in
+the log output) of each of them. Now use <code>jj new</code> to create a new working-copy
+commit, then run <code>jj restore --from Y --to @-</code> to restore the parent commit
+to the old state, and <code>jj restore --from X</code> to restore the new working-copy
+commit to the new state.</p>
 
 
 
