@@ -219,10 +219,19 @@ pub fn import_some_refs(
     // TODO: It might be better to obtain both git_repo and git_backend from
     // mut_repo, and return error if the repo isn't backed by Git.
     let git_backend = store.backend_impl().downcast_ref::<GitBackend>().unwrap();
+    // Bulk-import all reachable commits to reduce overhead of table merging.
+    let head_ids = itertools::chain(
+        &changed_git_head,
+        changed_git_refs.values().map(|(_, new_target)| new_target),
+    )
+    .flat_map(|target| target.added_ids());
+    let heads_imported = git_backend.import_head_commits(head_ids).is_ok();
     let mut head_commits = Vec::new();
-    // TODO: Import commits in bulk (but we'll need to adjust error handling.)
     let get_commit = |id| {
-        git_backend.import_head_commits([id])?;
+        // If bulk-import failed, try again to find bad head or ref.
+        if !heads_imported {
+            git_backend.import_head_commits([id])?;
+        }
         store.get_commit(id)
     };
     if let Some(new_head_target) = &changed_git_head {
