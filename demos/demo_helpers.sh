@@ -1,6 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
+export JJ_CONFIG=""
+export JJ_USER="Some One"
+export JJ_EMAIL="someone@example.com"
+export JJ_OP_HOSTNAME="host.example.com"
+export JJ_OP_USERNAME="someone"
+
 new_tmp_dir() {
     local dirname
     dirname=$(mktemp -d)
