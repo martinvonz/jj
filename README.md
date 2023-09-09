@@ -44,8 +44,6 @@ to replace (rare in English). The project is called "Jujutsu" because it matches
 If you have any questions, please join us on Discord
 [![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
 or start a [GitHub Discussion](https://github.com/martinvonz/jj/discussions).
-The [glossary](https://martinvonz.github.io/jj/latest/glossary) may also be helpful.
-
 
 ## Getting started
 
@@ -58,8 +56,17 @@ tutorial](https://martinvonz.github.io/jj/latest/tutorial). Also see the [Git
 comparison](https://martinvonz.github.io/jj/latest/git-comparison), which
 includes a table of `jj` vs. `git` commands.
 
-As you become more familiar with Jujutsu, the
-[FAQ](https://martinvonz.github.io/jj/latest/FAQ) may help.
+As you become more familiar with Jujutsu, the following resources may be helpful:
+
+- The [FAQ](https://martinvonz.github.io/jj/latest/FAQ).
+- The [Glossary](https://martinvonz.github.io/jj/latest/glossary).
+- The `jj help` command (e.g. `jj help rebase`).
+
+If you are using a **prerelease** version of `jj`, you would want to consult
+[the docs for the prerelease (main branch)
+version](https://martinvonz.github.io/jj/prerelease/). You can also get there
+from the docs for the latest release by using the website's version switcher. The version switcher is visible in
+the header of the website when you scroll to the top of any page.
 
 
 ## Features
