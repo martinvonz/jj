@@ -138,10 +138,10 @@ impl RepoPath {
     }
 
     pub fn to_fs_path(&self, base: &Path) -> PathBuf {
-        let mut result = base.to_owned();
-        for dir in &self.components {
-            result = result.join(&dir.value);
-        }
+        let repo_path_len: usize = self.components.iter().map(|x| x.as_str().len() + 1).sum();
+        let mut result = PathBuf::with_capacity(base.as_os_str().len() + repo_path_len);
+        result.push(base);
+        result.extend(self.components.iter().map(|dir| &dir.value));
         result
     }
 
