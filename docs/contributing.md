@@ -58,16 +58,41 @@ This project follows [Google's Open Source Community
 Guidelines](https://opensource.google/conduct/).
 
 
+## Contributing to the documentation
+
+We appreciate [bug
+reports](https://github.com/martinvonz/jj/issues/new?template=bug_report.md)
+about any problems, however small, lurking in [our documentation
+website](https://martinvonz.github.io/jj/prerelease) or in the `jj help
+<command>` docs. If a part of the bug report template does not apply, you can
+just delete it.
+
+Before reporting a problem with the documentation website, we'd appreciate it if
+you could check that the problem still exists in the "prerelease" version of the
+documentation (as opposed to the docs for one of the released versions of `jj`).
+You can use the version switcher in the top-left of the website to do so.
+
+If you are willing to make a PR fixing a documentation problem, even better!
+
+The documentation website sources are Markdown files located in the [`docs/`
+directory](https://github.com/martinvonz/jj/tree/main/docs). You do not need to
+know Rust to work with them. See below for [instructions on how to preview the
+HTML docs](#previewing-the-html-documentation) as you edit the Markdown files.
+Doing so is optional, but recommended.
+
+The `jj help` docs are sourced from the "docstring" comments inside the Rust
+sources, currently from the [`cli/src/commands`
+directory](https://github.com/martinvonz/jj/tree/main/cli/src/commands). Working
+on them requires setting up a Rust development environment, as described
+below, and may occasionally require adjusting a test.
+
+
 ## Learning Rust
 
 In addition to the [Rust Book](https://doc.rust-lang.org/book/) and the other
 excellent resources at <https://www.rust-lang.org/learn>, we recommend the
 ["Comprehensive Rust" mini-course](https://google.github.io/comprehensive-rust/)
 for an overview, especially if you are familiar with C++.
-
-<!--- TODO: A section asking for people to report documentation bugs and
- ---- asking them to check if the problem exists in the prerelease docs.
- ---->
 
 ## Setting up a development environment
 
@@ -137,9 +162,8 @@ These are listed roughly in order of decreasing importance.
 
 ## Previewing the HTML documentation
 
-The documentation for `jj` is automatically published to the website
-<https://martinvonz.github.io/jj/>. At the moment, this is experimental,
-but we hope to advertise this website to our users soon.
+The documentation for `jj` is automatically published to the website at
+<https://martinvonz.github.io/jj/>.
 
 When editing documentation, we'd appreciate it if you checked that the
 result will look as expected when published to the website.
