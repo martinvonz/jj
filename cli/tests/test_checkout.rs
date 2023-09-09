@@ -100,6 +100,41 @@ fn test_checkout_not_single_rev() {
     "###);
 }
 
+#[test]
+fn test_checkout_conflicting_branches() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "one"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "two", "@-"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "foo"]);
+    test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "--at-op=@-",
+            "branch",
+            "create",
+            "foo",
+            "-r",
+            r#"description("one")"#,
+        ],
+    );
+
+    // Trigger resolution of concurrent operations
+    test_env.jj_cmd_success(&repo_path, &["st"]);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "foo" resolved to more than one revision
+    Hint: Branch foo resolved to multiple revisions because it's conflicted.
+    It resolved to these revisions:
+    kkmpptxz 66c6502d foo?? | (empty) two
+    qpvuntsm a9330854 foo?? | (empty) one
+    Set which revision the branch points to with `jj branch set foo -r <REVISION>`.
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"commit_id ++ " " ++ description"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])

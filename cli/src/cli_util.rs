@@ -51,9 +51,9 @@ use jj_lib::repo::{
 };
 use jj_lib::repo_path::{FsPathParseError, RepoPath};
 use jj_lib::revset::{
-    DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression,
-    RevsetIteratorExt, RevsetParseContext, RevsetParseError, RevsetParseErrorKind,
-    RevsetResolutionError, RevsetWorkspaceContext,
+    DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetCommitRef, RevsetEvaluationError,
+    RevsetExpression, RevsetIteratorExt, RevsetParseContext, RevsetParseError,
+    RevsetParseErrorKind, RevsetResolutionError, RevsetWorkspaceContext,
 };
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::transaction::Transaction;
@@ -1006,7 +1006,7 @@ impl WorkspaceCommandHelper {
         ui: &mut Ui,
     ) -> Result<Commit, CommandError> {
         let revset_expression = self.parse_revset(revision_str, Some(ui))?;
-        let revset = self.evaluate_revset(revset_expression)?;
+        let revset = self.evaluate_revset(revset_expression.clone())?;
         let mut iter = revset.iter().commits(self.repo().store()).fuse();
         match (iter.next(), iter.next()) {
             (Some(commit), None) => Ok(commit?),
@@ -1022,10 +1022,23 @@ impl WorkspaceCommandHelper {
                     .map(|c| self.format_commit_summary(c))
                     .join("\n")
                     + elided.then_some("\n...").unwrap_or_default();
-                let hint = format!(
-                    r#"The revset "{revision_str}" resolved to these revisions:
+                let hint = if let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(
+                    branch_name,
+                )) = revset_expression.as_ref()
+                {
+                    // Separate hint if there's a conflicted branch
+                    format!(
+                        r#"Branch {branch_name} resolved to multiple revisions because it's conflicted.
+It resolved to these revisions:
+{commits_summary}
+Set which revision the branch points to with `jj branch set {branch_name} -r <REVISION>`."#,
+                    )
+                } else {
+                    format!(
+                        r#"The revset "{revision_str}" resolved to these revisions:
 {commits_summary}"#,
-                );
+                    )
+                };
                 Err(user_error_with_hint(
                     format!(r#"Revset "{revision_str}" resolved to more than one revision"#),
                     hint,
