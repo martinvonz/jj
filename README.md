@@ -21,17 +21,21 @@ or the [recording](https://www.youtube.com/watch?v=bx_LGilOuE4).
 
 ## Introduction
 
-Jujutsu is a [Git-compatible](docs/git-compatibility.md)
+Jujutsu is a
+[Git-compatible](https://martinvonz.github.io/jj/latest/git-compatibility)
 [DVCS](https://en.wikipedia.org/wiki/Distributed_version_control). It combines
 features from Git (data model,
 [speed](https://github.com/martinvonz/jj/discussions/49)), Mercurial (anonymous
-branching, simple CLI [free from "the index"](docs/git-comparison.md#the-index),
-[revsets](docs/revsets.md), powerful history-rewriting), and Pijul/Darcs
-([first-class conflicts](docs/conflicts.md)), with features not found in most
-of them ([working-copy-as-a-commit](docs/working-copy.md),
-[undo functionality](docs/operation-log.md), automatic rebase,
-[safe replication via `rsync`, Dropbox, or distributed file
-system](docs/technical/concurrency.md)).
+branching, simple CLI [free from "the
+index"](https://martinvonz.github.io/jj/latest/git-comparison#the-index),
+[revsets](https://martinvonz.github.io/jj/latest/revsets), powerful
+history-rewriting), and Pijul/Darcs ([first-class
+conflicts](https://martinvonz.github.io/jj/latest/conflicts)), with features not
+found in most of them
+([working-copy-as-a-commit](https://martinvonz.github.io/jj/latest/working-copy),
+[undo functionality](https://martinvonz.github.io/jj/latest/operation-log),
+automatic rebase, [safe replication via `rsync`, Dropbox, or distributed file
+system](https://martinvonz.github.io/jj/latest/technical/concurrency)).
 
 The command-line tool is called `jj` for now because it's easy to type and easy
 to replace (rare in English). The project is called "Jujutsu" because it matches
@@ -40,30 +44,34 @@ to replace (rare in English). The project is called "Jujutsu" because it matches
 If you have any questions, please join us on Discord
 [![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
 or start a [GitHub Discussion](https://github.com/martinvonz/jj/discussions).
-The [glossary](docs/glossary.md) may also be helpful.
+The [glossary](https://martinvonz.github.io/jj/latest/glossary) may also be helpful.
 
 
 ## Getting started
 
-Follow the [installation instructions](docs/install-and-setup.md) to obtain and configure `jj`.
+Follow the [installation
+instructions](https://martinvonz.github.io/jj/latest/install-and-setup) to
+obtain and configure `jj`.
 
-The best way to get started is probably to go through
-[the tutorial](docs/tutorial.md). Also see the
-[Git comparison](docs/git-comparison.md), which includes a table of
-`jj` vs. `git` commands.
+The best way to get started is probably to go through [the
+tutorial](https://martinvonz.github.io/jj/latest/tutorial). Also see the [Git
+comparison](https://martinvonz.github.io/jj/latest/git-comparison), which
+includes a table of `jj` vs. `git` commands.
 
-As you become more familiar with Jujutsu, the [FAQ](docs/FAQ.md) may help.
+As you become more familiar with Jujutsu, the
+[FAQ](https://martinvonz.github.io/jj/latest/FAQ) may help.
 
 
 ## Features
 
 ### Compatible with Git
 
-Jujutsu has two [backends](docs/glossary.md#backend). One of them is a Git
-backend (the other is a native one [^native-backend]). This lets you use Jujutsu
-as an alternative interface to Git. The commits you create will look like
-regular Git commits. You can always switch back to Git. The Git support uses the
-[libgit2](https://libgit2.org/) C library.
+Jujutsu has two
+[backends](https://martinvonz.github.io/jj/latest/glossary#backend). One of them
+is a Git backend (the other is a native one [^native-backend]). This lets you
+use Jujutsu as an alternative interface to Git. The commits you create will look
+like regular Git commits. You can always switch back to Git. The Git support
+uses the [libgit2](https://libgit2.org/) C library.
 
 [^native-backend]: At this time, there's practically no reason to use the native
 backend. The backend exists mainly to make sure that it's possible to eventually
@@ -72,8 +80,8 @@ add functionality that cannot easily be added to the Git backend.
 <img src="demos/git_compat.png" />
 
 You can even have a ["co-located" local
-repository](docs/git-compatibility.md#co-located-jujutsugit-repos) where you can
-use both `jj` and `git` commands interchangeably.
+repository](https://martinvonz.github.io/jj/latest/git-compatibility#co-located-jujutsugit-repos)
+where you can use both `jj` and `git` commands interchangeably.
 
 ### The working copy is automatically committed
 
@@ -112,13 +120,14 @@ necessarily have to be the most recent operation).
 
 ### Conflicts can be recorded in commits
 
-If an operation results in [conflicts](docs/glossary.md#conflict), information
-about those conflicts will be recorded in the commit(s). The operation will
-succeed. You can then resolve the conflicts later. One consequence of this
-design is that there's no need to continue interrupted operations. Instead, you
-get a single workflow for resolving conflicts, regardless of which command
-caused them. This design also lets Jujutsu rebase merge commits correctly
-(unlike both Git and Mercurial).
+If an operation results in
+[conflicts](https://martinvonz.github.io/jj/latest/glossary#conflict),
+information about those conflicts will be recorded in the commit(s). The
+operation will succeed. You can then resolve the conflicts later. One
+consequence of this design is that there's no need to continue interrupted
+operations. Instead, you get a single workflow for resolving conflicts,
+regardless of which command caused them. This design also lets Jujutsu rebase
+merge commits correctly (unlike both Git and Mercurial).
 
 Basic conflict resolution:
 
@@ -163,4 +172,4 @@ scripts if requested.
 ## Related work
 
 There are several tools trying to solve similar problems as Jujutsu. See
-[related work](docs/related-work.md) for details.
+[related work](https://martinvonz.github.io/jj/latest/related-work) for details.
