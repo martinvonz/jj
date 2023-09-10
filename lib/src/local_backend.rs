@@ -255,6 +255,11 @@ impl Backend for LocalBackend {
     }
 
     fn write_commit(&self, commit: Commit) -> BackendResult<(CommitId, Commit)> {
+        if commit.parents.is_empty() {
+            return Err(BackendError::Other(
+                "Cannot write a commit with no parents".into(),
+            ));
+        }
         let temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
 
         let proto = commit_to_proto(&commit);
@@ -444,5 +449,73 @@ fn conflict_term_from_proto(proto: crate::protos::local_store::conflict::Term) -
 fn conflict_term_to_proto(part: &ConflictTerm) -> crate::protos::local_store::conflict::Term {
     crate::protos::local_store::conflict::Term {
         content: Some(tree_value_to_proto(&part.value)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_matches::assert_matches;
+
+    use super::*;
+    use crate::backend::MillisSinceEpoch;
+
+    /// Test that parents get written correctly
+    #[test]
+    fn write_commit_parents() {
+        let temp_dir = testutils::new_temp_dir();
+        let store_path = temp_dir.path();
+
+        let backend = LocalBackend::init(store_path);
+        let mut commit = Commit {
+            parents: vec![],
+            predecessors: vec![],
+            root_tree: MergedTreeId::resolved(backend.empty_tree_id().clone()),
+            change_id: ChangeId::from_hex("abc123"),
+            description: "".to_string(),
+            author: create_signature(),
+            committer: create_signature(),
+        };
+
+        // No parents
+        commit.parents = vec![];
+        assert_matches!(
+            backend.write_commit(commit.clone()),
+            Err(BackendError::Other(err)) if err.to_string().contains("no parents")
+        );
+
+        // Only root commit as parent
+        commit.parents = vec![backend.root_commit_id().clone()];
+        let first_id = backend.write_commit(commit.clone()).unwrap().0;
+        let first_commit = backend.read_commit(&first_id).unwrap();
+        assert_eq!(first_commit, commit);
+
+        // Only non-root commit as parent
+        commit.parents = vec![first_id.clone()];
+        let second_id = backend.write_commit(commit.clone()).unwrap().0;
+        let second_commit = backend.read_commit(&second_id).unwrap();
+        assert_eq!(second_commit, commit);
+
+        // Merge commit
+        commit.parents = vec![first_id.clone(), second_id.clone()];
+        let merge_id = backend.write_commit(commit.clone()).unwrap().0;
+        let merge_commit = backend.read_commit(&merge_id).unwrap();
+        assert_eq!(merge_commit, commit);
+
+        // Merge commit with root as one parent
+        commit.parents = vec![first_id, backend.root_commit_id().clone()];
+        let root_merge_id = backend.write_commit(commit.clone()).unwrap().0;
+        let root_merge_commit = backend.read_commit(&root_merge_id).unwrap();
+        assert_eq!(root_merge_commit, commit);
+    }
+
+    fn create_signature() -> Signature {
+        Signature {
+            name: "Someone".to_string(),
+            email: "someone@example.com".to_string(),
+            timestamp: Timestamp {
+                timestamp: MillisSinceEpoch(0),
+                tz_offset: 0,
+            },
+        }
     }
 }
