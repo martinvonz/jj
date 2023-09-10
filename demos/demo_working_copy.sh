@@ -3,8 +3,14 @@ set -euo pipefail
 . "$(dirname "$0")"/helpers.sh
 
 new_tmp_dir
-jj git clone https://github.com/octocat/Hello-World > /dev/null
-cd Hello-World
+{
+    jj git clone https://github.com/octocat/Hello-World
+    cd Hello-World
+    jj abandon test
+    jj branch forget test
+    jj abandon octocat-patch-1
+    jj branch forget octocat-patch-1
+}> /dev/null
 
 comment "We are in the octocat/Hello-World repo.
 We have an empty working copy on top of master:"
