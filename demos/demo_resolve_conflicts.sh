@@ -16,6 +16,10 @@ run_command "jj describe -m \"README: say which world\""
 run_command "echo \"Hello Earth!\" > README"
 run_command "jj diff"
 
+# TODO(ilyagr): Get the real shortest prefix of the b1b commit using `jj log
+# --no-graph` and the `.shortest()` template function.
+#
+# This could also be done in demo_git_compat.sh, but that might not be worth it.
 comment "We're going to rebase it onto commit b1.
 That commit looks like this:"
 run_command "jj diff -r b1"
@@ -23,14 +27,13 @@ run_command "jj diff -r b1"
 comment "Now rebase:"
 run_command "jj rebase -d b1"
 
-comment "Huh, that seemed to succeed. Let's take a
-look at the repo:"
+comment "That seemed to succeed but we are also told there is now a conflict.
+Let's take a look at the repo:"
 run_command "jj log -r 'all()'"
 run_command "jj status"
 
-comment "As you can see, the rebased commit has a
-conflict. The file in the working copy looks
-like this:"
+comment "Indeed, the rebased commit has a conflict. The conflicted file
+in the working copy looks like this:"
 run_command "cat README"
 
 comment "Now we will resolve the conflict:"

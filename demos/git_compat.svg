@@ -1,5 +1,5 @@
 <!-- Created with term-transcript v0.3.0 (https://github.com/slowli/term-transcript) -->
-<svg viewBox="0 0 720 866" width="720" height="866" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 720 884" width="720" height="884" xmlns="http://www.w3.org/2000/svg">
   <style>
     .container {
       font: 14px Fira Code, Liberation Mono, SFMono-Regular, Consolas, Menlo, monospace;
@@ -33,14 +33,14 @@
     .fg15 { fill: #f2f2f2; } .output-bg .fg15 { stroke: #f2f2f2; }
   </style>
   <rect width="100%" height="100%" y="0" rx="4.5" style="fill: #0c0c0c;" />
-    <svg x="0" y="10" width="720" height="846" viewBox="0 0 720 846">
+    <svg x="0" y="10" width="720" height="864" viewBox="0 0 720 864">
       <g class="input-bg"></g>
       <text class="container fg7"><tspan xml:space="preserve" x="10" y="14" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="32" class="output"><tspan class="fg2"># Clone a Git repo:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="50" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="68" class="output">$ jj git clone https://github.com/octocat/Hello-World
-</tspan><tspan xml:space="preserve" x="10" y="86" class="output">Fetching into new repo in "/tmp/tmp.PUd3syX7da/Hello-World"
-</tspan><tspan xml:space="preserve" x="10" y="104" class="output">Working copy now at: <tspan class="bold fg13">p</tspan><tspan class="bold fg8">xlotqpw</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">e</tspan><tspan class="bold fg8">905ce63</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(empty)</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="86" class="output">Fetching into new repo in "/tmp/tmp.4dxBbjaULs/Hello-World"
+</tspan><tspan xml:space="preserve" x="10" y="104" class="output">Working copy now at: <tspan class="bold fg13">r</tspan><tspan class="bold fg8">pmzkzyv</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">8</tspan><tspan class="bold fg8">01bb6c4</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(empty)</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(no description set)</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="122" class="output">Parent commit      : <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 fr<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="140" class="output">om Spaceghost/patch-1
 </tspan><tspan xml:space="preserve" x="10" y="158" class="output">Added 1 files, modified 0 files, removed 0 files
@@ -49,7 +49,7 @@
 </tspan><tspan xml:space="preserve" x="10" y="212" class="output"><tspan class="fg2"># Inspect it:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="230" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="248" class="output">$ jj log -r 'all()'
-</tspan><tspan xml:space="preserve" x="10" y="266" class="output">@  <tspan class="bold fg13">p</tspan><tspan class="bold fg8">xlotqpw</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 22:29:21.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">e</tspan><tspan class="bold fg8">905ce63</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="266" class="output">@  <tspan class="bold fg13">r</tspan><tspan class="bold fg8">pmzkzyv</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 23:08:41.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">8</tspan><tspan class="bold fg8">01bb6c4</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="284" class="output">│  <tspan class="bold fg10">(empty)</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(no description set)</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="302" class="output">│ ◉  <tspan class="bold fg5">t</tspan><tspan class="fg8">pstlust</tspan> <tspan class="fg3">support+octocat@github.com</tspan> <tspan class="fg6">2018-05-10 12:55:19.000 -05:00</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="320" class="output">├─╯  <tspan class="fg5">octocat-patch-1</tspan> <tspan class="bold fg4">b1</tspan><tspan class="fg8">b3f972</tspan>
@@ -64,24 +64,25 @@
 </tspan><tspan xml:space="preserve" x="10" y="482" class="output">◉  <tspan class="bold fg5">s</tspan><tspan class="fg8">yktoqts</tspan> <tspan class="fg3">cameron@github.com</tspan> <tspan class="fg6">2011-01-26 11:06:08.000 -08:00</tspan> <tspan class="bold fg4">5</tspan><tspan class="fg8">53c2077</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="500" class="output">│  first commit
 </tspan><tspan xml:space="preserve" x="10" y="518" class="output">◉  <tspan class="bold fg5">z</tspan><tspan class="fg8">zzzzzzz</tspan> <tspan class="fg2">root()</tspan> <tspan class="bold fg4">0</tspan><tspan class="fg8">0000000</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="536" class="output">$ jj diff -r b1
-</tspan><tspan xml:space="preserve" x="10" y="554" class="output"><tspan class="fg3">Modified regular file README:</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="572" class="output"><tspan class="fg1">   1</tspan> <tspan class="fg2">   1</tspan>: Hello <tspan class="fg1">World</tspan><tspan class="fg2">world</tspan>!
-</tspan><tspan xml:space="preserve" x="10" y="590" class="output">
-</tspan><tspan xml:space="preserve" x="10" y="608" class="output"><tspan class="fg2"># The repo is backed by the actual Git repo:</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="626" class="output">
-</tspan><tspan xml:space="preserve" x="10" y="644" class="output">$ git --git-dir=.jj/repo/store/git log --graph --all --decorate --oneline
-</tspan><tspan xml:space="preserve" x="10" y="662" class="output">* <tspan class="fg3">e905ce6</tspan> 
-</tspan><tspan xml:space="preserve" x="10" y="680" class="output"><tspan class="fg1">|</tspan> * <tspan class="fg3">d7ab898</tspan> 
-</tspan><tspan xml:space="preserve" x="10" y="698" class="output"><tspan class="fg1">|</tspan> * <tspan class="fg3">b1b3f97</tspan><tspan class="fg3"> (</tspan><tspan class="bold fg1">origin/octocat-patch-1</tspan><tspan class="fg3">)</tspan> sentence case
-</tspan><tspan xml:space="preserve" x="10" y="716" class="output"><tspan class="fg1">|</tspan><tspan class="fg1">/</tspan>  
-</tspan><tspan xml:space="preserve" x="10" y="734" class="output"><tspan class="fg1">|</tspan> * <tspan class="fg3">b3cbd5b</tspan><tspan class="fg3"> (</tspan><tspan class="bold fg1">origin/test</tspan><tspan class="fg3">)</tspan> Create CONTRIBUTING.md
-</tspan><tspan xml:space="preserve" x="10" y="752" class="output"><tspan class="fg1">|</tspan><tspan class="fg1">/</tspan>  
-</tspan><tspan xml:space="preserve" x="10" y="770" class="output">*   <tspan class="fg3">7fd1a60</tspan><tspan class="fg3"> (</tspan><tspan class="bold fg1">origin/master</tspan><tspan class="fg3">)</tspan> Merge pull request #6 from Spaceghost/patch-1
-</tspan><tspan xml:space="preserve" x="10" y="788" class="output"><tspan class="fg4">|</tspan><tspan class="fg5">\</tspan>  
-</tspan><tspan xml:space="preserve" x="10" y="806" class="output"><tspan class="fg4">|</tspan> * <tspan class="fg3">7629413</tspan> New line at end of file. --Signed off by Spaceghost
-</tspan><tspan xml:space="preserve" x="10" y="824" class="output"><tspan class="fg4">|</tspan><tspan class="fg4">/</tspan>  
-</tspan><tspan xml:space="preserve" x="10" y="842" class="output">* <tspan class="fg3">553c207</tspan> first commit
+</tspan><tspan xml:space="preserve" x="10" y="536" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="554" class="output">$ jj diff -r b1
+</tspan><tspan xml:space="preserve" x="10" y="572" class="output"><tspan class="fg3">Modified regular file README:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="590" class="output"><tspan class="fg1">   1</tspan> <tspan class="fg2">   1</tspan>: Hello <tspan class="fg1">World</tspan><tspan class="fg2">world</tspan>!
+</tspan><tspan xml:space="preserve" x="10" y="608" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="626" class="output"><tspan class="fg2"># The repo is backed by the actual Git repo:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="644" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="662" class="output">$ git --git-dir=.jj/repo/store/git log --graph --all --decorate --oneline
+</tspan><tspan xml:space="preserve" x="10" y="680" class="output">* <tspan class="fg3">801bb6c</tspan> 
+</tspan><tspan xml:space="preserve" x="10" y="698" class="output"><tspan class="fg1">|</tspan> * <tspan class="fg3">8684af8</tspan> 
+</tspan><tspan xml:space="preserve" x="10" y="716" class="output"><tspan class="fg1">|</tspan> * <tspan class="fg3">b1b3f97</tspan><tspan class="fg3"> (</tspan><tspan class="bold fg1">origin/octocat-patch-1</tspan><tspan class="fg3">)</tspan> sentence case
+</tspan><tspan xml:space="preserve" x="10" y="734" class="output"><tspan class="fg1">|</tspan><tspan class="fg1">/</tspan>  
+</tspan><tspan xml:space="preserve" x="10" y="752" class="output"><tspan class="fg1">|</tspan> * <tspan class="fg3">b3cbd5b</tspan><tspan class="fg3"> (</tspan><tspan class="bold fg1">origin/test</tspan><tspan class="fg3">)</tspan> Create CONTRIBUTING.md
+</tspan><tspan xml:space="preserve" x="10" y="770" class="output"><tspan class="fg1">|</tspan><tspan class="fg1">/</tspan>  
+</tspan><tspan xml:space="preserve" x="10" y="788" class="output">*   <tspan class="fg3">7fd1a60</tspan><tspan class="fg3"> (</tspan><tspan class="bold fg1">origin/master</tspan><tspan class="fg3">)</tspan> Merge pull request #6 from Spaceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="806" class="output"><tspan class="fg4">|</tspan><tspan class="fg5">\</tspan>  
+</tspan><tspan xml:space="preserve" x="10" y="824" class="output"><tspan class="fg4">|</tspan> * <tspan class="fg3">7629413</tspan> New line at end of file. --Signed off by Spaceghost
+</tspan><tspan xml:space="preserve" x="10" y="842" class="output"><tspan class="fg4">|</tspan><tspan class="fg4">/</tspan>  
+</tspan><tspan xml:space="preserve" x="10" y="860" class="output">* <tspan class="fg3">553c207</tspan> first commit
 </tspan></text>
     </svg>
 </svg>
