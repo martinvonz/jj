@@ -27,12 +27,12 @@ use thiserror::Error;
 use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::git;
 use crate::merge::Merge;
 use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
-    RefTarget, View, ViewId, WorkspaceId,
+    RefTarget, RemoteRef, RemoteView, View, ViewId, WorkspaceId,
 };
+use crate::{git, op_store};
 
 impl From<PersistError> for OpStoreError {
     fn from(err: PersistError) -> Self {
@@ -366,6 +366,57 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     view
 }
 
+#[allow(dead_code)] // TODO
+fn branch_views_to_proto_legacy(
+    local_branches: &BTreeMap<String, RefTarget>,
+    remote_views: &BTreeMap<String, RemoteView>,
+) -> Vec<crate::protos::op_store::Branch> {
+    op_store::merge_join_branch_views(local_branches, remote_views)
+        .map(|(name, branch_target)| {
+            let local_target = ref_target_to_proto(&branch_target.local_target);
+            let remote_branches = branch_target
+                .remote_targets
+                .into_iter()
+                .map(
+                    |(remote_name, target)| crate::protos::op_store::RemoteBranch {
+                        remote_name,
+                        target: ref_target_to_proto(&target),
+                    },
+                )
+                .collect();
+            crate::protos::op_store::Branch {
+                name: name.to_owned(),
+                local_target,
+                remote_branches,
+            }
+        })
+        .collect()
+}
+
+#[allow(dead_code)] // TODO
+fn branch_views_from_proto_legacy(
+    branches_legacy: Vec<crate::protos::op_store::Branch>,
+) -> (BTreeMap<String, RefTarget>, BTreeMap<String, RemoteView>) {
+    let mut local_branches: BTreeMap<String, RefTarget> = BTreeMap::new();
+    let mut remote_views: BTreeMap<String, RemoteView> = BTreeMap::new();
+    for branch_proto in branches_legacy {
+        for remote_branch in branch_proto.remote_branches {
+            let remote_view = remote_views.entry(remote_branch.remote_name).or_default();
+            let remote_ref = RemoteRef {
+                target: ref_target_from_proto(remote_branch.target),
+            };
+            remote_view
+                .branches
+                .insert(branch_proto.name.clone(), remote_ref);
+        }
+        let local_target = ref_target_from_proto(branch_proto.local_target);
+        if local_target.is_present() {
+            local_branches.insert(branch_proto.name, local_target);
+        }
+    }
+    (local_branches, remote_views)
+}
+
 fn migrate_git_refs_to_remote(view: &mut View) {
     if view.git_refs.is_empty() {
         // Not a repo backed by Git?
@@ -472,6 +523,7 @@ fn ref_target_from_proto(maybe_proto: Option<crate::protos::op_store::RefTarget>
 #[cfg(test)]
 mod tests {
     use insta::assert_snapshot;
+    use itertools::Itertools as _;
     use maplit::{btreemap, hashmap, hashset};
 
     use super::*;
@@ -590,6 +642,56 @@ mod tests {
         let op_id = store.write_operation(&operation).unwrap();
         let read_operation = store.read_operation(&op_id).unwrap();
         assert_eq!(read_operation, operation);
+    }
+
+    #[test]
+    fn test_branch_views_legacy_roundtrip() {
+        let remote_ref = |target: &RefTarget| RemoteRef {
+            target: target.clone(),
+        };
+        let local_branch1_target = RefTarget::normal(CommitId::from_hex("111111"));
+        let local_branch3_target = RefTarget::normal(CommitId::from_hex("222222"));
+        let git_branch1_target = RefTarget::normal(CommitId::from_hex("333333"));
+        let remote1_branch1_target = RefTarget::normal(CommitId::from_hex("444444"));
+        let remote2_branch2_target = RefTarget::normal(CommitId::from_hex("555555"));
+        let remote2_branch4_target = RefTarget::normal(CommitId::from_hex("666666"));
+        let local_branches = btreemap! {
+            "branch1".to_owned() => local_branch1_target.clone(),
+            "branch3".to_owned() => local_branch3_target.clone(),
+        };
+        let remote_views = btreemap! {
+            "git".to_owned() => RemoteView {
+                branches: btreemap! {
+                    "branch1".to_owned() => remote_ref(&git_branch1_target),
+                },
+            },
+            "remote1".to_owned() => RemoteView {
+                branches: btreemap! {
+                    "branch1".to_owned() => remote_ref(&remote1_branch1_target),
+                },
+            },
+            "remote2".to_owned() => RemoteView {
+                branches: btreemap! {
+                    "branch2".to_owned() => remote_ref(&remote2_branch2_target),
+                    "branch4".to_owned() => remote_ref(&remote2_branch4_target),
+                },
+            },
+        };
+
+        let branches_legacy = branch_views_to_proto_legacy(&local_branches, &remote_views);
+        assert_eq!(
+            branches_legacy
+                .iter()
+                .map(|proto| &proto.name)
+                .sorted()
+                .collect_vec(),
+            vec!["branch1", "branch2", "branch3", "branch4"],
+        );
+
+        let (local_branches_reconstructed, remote_views_reconstructed) =
+            branch_views_from_proto_legacy(branches_legacy);
+        assert_eq!(local_branches_reconstructed, local_branches);
+        assert_eq!(remote_views_reconstructed, remote_views);
     }
 
     #[test]
