@@ -29,6 +29,9 @@ pub struct OperationLogArgs {
     /// Limit number of operations to show
     #[arg(long, short)]
     limit: Option<usize>,
+    /// Don't show the graph, show a flat list of operations
+    #[arg(long)]
+    no_graph: bool,
     /// Render each operation using the given template
     ///
     /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
@@ -120,34 +123,45 @@ fn cmd_op_log(
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
-    let mut graph = get_graphlog(command.settings(), formatter.raw());
-    let default_node_symbol = graph.default_node_symbol().to_owned();
-    for op in operation::walk_ancestors(&head_op).take(args.limit.unwrap_or(usize::MAX)) {
-        let mut edges = vec![];
-        for parent in op.parents() {
-            edges.push(Edge::direct(parent.id().clone()));
+    let iter = operation::walk_ancestors(&head_op).take(args.limit.unwrap_or(usize::MAX));
+    if !args.no_graph {
+        let mut graph = get_graphlog(command.settings(), formatter.raw());
+        let default_node_symbol = graph.default_node_symbol().to_owned();
+        for op in iter {
+            let mut edges = vec![];
+            for parent in op.parents() {
+                edges.push(Edge::direct(parent.id().clone()));
+            }
+            let is_head_op = op.id() == &head_op_id;
+            let mut buffer = vec![];
+            with_content_format.write_graph_text(
+                ui.new_formatter(&mut buffer).as_mut(),
+                |formatter| {
+                    formatter.with_label("op_log", |formatter| template.format(&op, formatter))
+                },
+                || graph.width(op.id(), &edges),
+            )?;
+            if !buffer.ends_with(b"\n") {
+                buffer.push(b'\n');
+            }
+            let node_symbol = if is_head_op {
+                "@"
+            } else {
+                &default_node_symbol
+            };
+            graph.add_node(
+                op.id(),
+                &edges,
+                node_symbol,
+                &String::from_utf8_lossy(&buffer),
+            )?;
         }
-        let is_head_op = op.id() == &head_op_id;
-        let mut buffer = vec![];
-        with_content_format.write_graph_text(
-            ui.new_formatter(&mut buffer).as_mut(),
-            |formatter| formatter.with_label("op_log", |formatter| template.format(&op, formatter)),
-            || graph.width(op.id(), &edges),
-        )?;
-        if !buffer.ends_with(b"\n") {
-            buffer.push(b'\n');
+    } else {
+        for op in iter {
+            with_content_format.write(formatter, |formatter| {
+                formatter.with_label("op_log", |formatter| template.format(&op, formatter))
+            })?;
         }
-        let node_symbol = if is_head_op {
-            "@"
-        } else {
-            &default_node_symbol
-        };
-        graph.add_node(
-            op.id(),
-            &edges,
-            node_symbol,
-            &String::from_utf8_lossy(&buffer),
-        )?;
     }
 
     Ok(())

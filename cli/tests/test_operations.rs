@@ -131,6 +131,22 @@ fn test_op_log_limit() {
 }
 
 #[test]
+fn test_op_log_no_graph() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["op", "log", "--no-graph", "--color=always"]);
+    insta::assert_snapshot!(stdout, @r###"
+    [1m[38;5;12m19b8089fc78b[39m [38;5;3mtest-username@host.example.com[39m [38;5;14m2001-02-03 04:05:07.000 +07:00[39m - [38;5;14m2001-02-03 04:05:07.000 +07:00[39m[0m
+    [1madd workspace 'default'[0m
+    [38;5;4mf1c462c494be[39m [38;5;3mtest-username@host.example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m - [38;5;6m2001-02-03 04:05:07.000 +07:00[39m
+    initialize repo
+    "###);
+}
+
+#[test]
 fn test_op_log_template() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
