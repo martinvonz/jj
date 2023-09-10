@@ -44,8 +44,12 @@ run_script_through_term_transcript_and_pipe_result_to_stderr() {
     tee "$outfile"
   term-transcript capture \
       --no-inputs --pure-svg --palette powershell \
-      --out "$script_base".svg "$script_base" \
-      < "$outfile"
+      --font "Fira Code, Liberation Mono, SFMono-Regular, Consolas, Menlo" \
+      --out "$script_base".svg "$script_base" < "$outfile"
+  # The default font choice term-transcript would make is:
+  #     SFMono-Regular, Consolas, Liberation Mono, Menlo
+  # We add the fonts that were checked and seem to contain all the relevant
+  # unicode in front.
   rm "$outfile"
 }
 
