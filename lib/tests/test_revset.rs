@@ -619,6 +619,22 @@ fn test_resolve_symbol_tags() {
         resolve_symbol(mut_repo, "unimported"),
         Err(RevsetResolutionError::NoSuchRevision { .. })
     );
+
+    // "@" (quoted) can be resolved, and root is a normal symbol.
+    let ws_id = WorkspaceId::default();
+    mut_repo
+        .set_wc_commit(ws_id.clone(), commit1.id().clone())
+        .unwrap();
+    mut_repo.set_tag_target("@", RefTarget::normal(commit2.id().clone()));
+    mut_repo.set_tag_target("root", RefTarget::normal(commit3.id().clone()));
+    assert_eq!(
+        resolve_symbol(mut_repo, r#""@""#).unwrap(),
+        vec![commit2.id().clone()]
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo, "root").unwrap(),
+        vec![commit3.id().clone()]
+    );
 }
 
 #[test]
@@ -751,22 +767,6 @@ fn test_resolve_symbol_git_refs() {
     assert_matches!(
         resolve_symbol(mut_repo, "origin/remote-branch"),
         Err(RevsetResolutionError::NoSuchRevision { .. })
-    );
-
-    // "@" (quoted) can be resolved, and root is a normal symbol.
-    let ws_id = WorkspaceId::default();
-    mut_repo
-        .set_wc_commit(ws_id.clone(), commit1.id().clone())
-        .unwrap();
-    mut_repo.set_git_ref_target("@", RefTarget::normal(commit2.id().clone()));
-    mut_repo.set_git_ref_target("root", RefTarget::normal(commit3.id().clone()));
-    assert_eq!(
-        resolve_symbol(mut_repo, r#""@""#).unwrap(),
-        vec![commit2.id().clone()]
-    );
-    assert_eq!(
-        resolve_symbol(mut_repo, "root").unwrap(),
-        vec![commit3.id().clone()]
     );
 
     // Conflicted ref resolves to its "adds"
