@@ -254,7 +254,7 @@ fn test_merge_views_branches() {
         RefTarget::normal(main_branch_alternate_tx0.id().clone()),
     );
     let feature_branch_local_tx0 = write_random_commit(mut_repo, &settings);
-    mut_repo.set_git_ref_target(
+    mut_repo.set_local_branch_target(
         "feature",
         RefTarget::normal(feature_branch_local_tx0.id().clone()),
     );
