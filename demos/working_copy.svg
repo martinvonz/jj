@@ -1,0 +1,141 @@
+<!-- Created with term-transcript v0.3.0 (https://github.com/slowli/term-transcript) -->
+<svg viewBox="0 0 720 1838" width="720" height="1838" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .container {
+      font: 14px Fira Code, Liberation Mono, SFMono-Regular, Consolas, Menlo, monospace;
+      line-height: 18px;
+    }
+    .input,.output,.output-bg {
+      white-space: pre;
+    }
+    .input-bg { fill: #fff; fill-opacity: 0.1; }
+    .output-bg { user-select: none; text-rendering: geometricPrecision; stroke-width: 0.1; }
+    .bold,.prompt { font-weight: 600; }
+    .italic { font-style: italic; }
+    .underline { text-decoration: underline; }
+    .dimmed { fill-opacity: 0.7; }
+    .hard-br { font-size: 16px; fill-opacity: 0.8; user-select: none; }
+    .fg0 { fill: #0c0c0c; } .output-bg .fg0 { stroke: #0c0c0c; }
+    .fg1 { fill: #c50f1f; } .output-bg .fg1 { stroke: #c50f1f; }
+    .fg2 { fill: #13a10e; } .output-bg .fg2 { stroke: #13a10e; }
+    .fg3 { fill: #c19c00; } .output-bg .fg3 { stroke: #c19c00; }
+    .fg4 { fill: #0037da; } .output-bg .fg4 { stroke: #0037da; }
+    .fg5 { fill: #881798; } .output-bg .fg5 { stroke: #881798; }
+    .fg6 { fill: #3a96dd; } .output-bg .fg6 { stroke: #3a96dd; }
+    .fg7 { fill: #cccccc; } .output-bg .fg7 { stroke: #cccccc; }
+    .fg8 { fill: #767676; } .output-bg .fg8 { stroke: #767676; }
+    .fg9 { fill: #e74856; } .output-bg .fg9 { stroke: #e74856; }
+    .fg10 { fill: #16c60c; } .output-bg .fg10 { stroke: #16c60c; }
+    .fg11 { fill: #f9f1a5; } .output-bg .fg11 { stroke: #f9f1a5; }
+    .fg12 { fill: #3b78ff; } .output-bg .fg12 { stroke: #3b78ff; }
+    .fg13 { fill: #b4009e; } .output-bg .fg13 { stroke: #b4009e; }
+    .fg14 { fill: #61d6d6; } .output-bg .fg14 { stroke: #61d6d6; }
+    .fg15 { fill: #f2f2f2; } .output-bg .fg15 { stroke: #f2f2f2; }
+  </style>
+  <rect width="100%" height="100%" y="0" rx="4.5" style="fill: #0c0c0c;" />
+    <svg x="0" y="10" width="720" height="1818" viewBox="0 0 720 1818">
+      <g class="input-bg"></g>
+      <text class="container fg7"><tspan xml:space="preserve" x="10" y="14" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="32" class="output"><tspan class="fg2"># We are in the octocat/Hello-World repo.</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="50" class="output"><tspan class="fg2"># We have an empty working copy on top of master:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="68" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="86" class="output">$ jj status
+</tspan><tspan xml:space="preserve" x="10" y="104" class="output">The working copy is clean
+</tspan><tspan xml:space="preserve" x="10" y="122" class="output">Working copy : <tspan class="bold fg5">l</tspan><tspan class="fg8">potmuxz</tspan> <tspan class="bold fg4">9</tspan><tspan class="fg8">50f3f73</tspan> <tspan class="fg2">(empty)</tspan> <tspan class="fg2">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="140" class="output">Parent commit: <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 from Spa<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="158" class="output">ceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="176" class="output">$ jj log
+</tspan><tspan xml:space="preserve" x="10" y="194" class="output">@  <tspan class="bold fg13">l</tspan><tspan class="bold fg8">potmuxz</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-09-16 21:50:37.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">9</tspan><tspan class="bold fg8">50f3f73</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="212" class="output">│  <tspan class="bold fg10">(empty)</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="230" class="output">◉  <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2012-03-06 15:06:50.000 -08:00</tspan> <tspan class="fg5">master</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="248" class="output">│  <tspan class="fg2">(empty)</tspan> Merge pull request #6 from Spaceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="266" class="output">~
+</tspan><tspan xml:space="preserve" x="10" y="284" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="302" class="output"><tspan class="fg2"># Now make some changes in the working copy:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="320" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="338" class="output">$ echo "Goodbye World!" &gt; README
+</tspan><tspan xml:space="preserve" x="10" y="356" class="output">$ echo stuff &gt; new-file
+</tspan><tspan xml:space="preserve" x="10" y="374" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="392" class="output"><tspan class="fg2"># Our working copy's commit ID changed</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="410" class="output"><tspan class="fg2"># because we made changes:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="428" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="446" class="output">$ jj status
+</tspan><tspan xml:space="preserve" x="10" y="464" class="output">Working copy changes:
+</tspan><tspan xml:space="preserve" x="10" y="482" class="output"><tspan class="fg6">M README</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="500" class="output"><tspan class="fg2">A new-file</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="518" class="output">Working copy : <tspan class="bold fg5">l</tspan><tspan class="fg8">potmuxz</tspan> <tspan class="bold fg4">f</tspan><tspan class="fg8">e6a4af3</tspan> <tspan class="fg3">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="536" class="output">Parent commit: <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 from Spa<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="554" class="output">ceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="572" class="output">$ jj log
+</tspan><tspan xml:space="preserve" x="10" y="590" class="output">@  <tspan class="bold fg13">l</tspan><tspan class="bold fg8">potmuxz</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-09-16 21:50:37.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">f</tspan><tspan class="bold fg8">e6a4af3</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="608" class="output">│  <tspan class="bold fg3">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="626" class="output">◉  <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2012-03-06 15:06:50.000 -08:00</tspan> <tspan class="fg5">master</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="644" class="output">│  <tspan class="fg2">(empty)</tspan> Merge pull request #6 from Spaceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="662" class="output">~
+</tspan><tspan xml:space="preserve" x="10" y="680" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="698" class="output"><tspan class="fg2"># Add a branch so we can easily refer to this</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="716" class="output"><tspan class="fg2"># commit:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="734" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="752" class="output">$ jj branch create goodbye
+</tspan><tspan xml:space="preserve" x="10" y="770" class="output">$ jj log
+</tspan><tspan xml:space="preserve" x="10" y="788" class="output">@  <tspan class="bold fg13">l</tspan><tspan class="bold fg8">potmuxz</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-09-16 21:50:37.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg13">goodbye</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">f</tspan><tspan class="bold fg8">e6a4af3</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="806" class="output">│  <tspan class="bold fg3">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="824" class="output">◉  <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2012-03-06 15:06:50.000 -08:00</tspan> <tspan class="fg5">master</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="842" class="output">│  <tspan class="fg2">(empty)</tspan> Merge pull request #6 from Spaceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="860" class="output">~
+</tspan><tspan xml:space="preserve" x="10" y="878" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="896" class="output"><tspan class="fg2"># Start working on a new change off of master:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="914" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="932" class="output">$ jj co master
+</tspan><tspan xml:space="preserve" x="10" y="950" class="output">Working copy now at: <tspan class="bold fg5">ou</tspan><tspan class="fg8">nkkvrs</tspan> <tspan class="bold fg4">a</tspan><tspan class="fg8">54c61a2</tspan> <tspan class="fg2">(empty)</tspan> <tspan class="fg2">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="968" class="output">Parent commit      : <tspan class="bold fg5">or</tspan><tspan class="fg8">rkosyo</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 fr<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="986" class="output">om Spaceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="1004" class="output">Added 0 files, modified 1 files, removed 1 files
+</tspan><tspan xml:space="preserve" x="10" y="1022" class="output">$ jj log
+</tspan><tspan xml:space="preserve" x="10" y="1040" class="output">@  <tspan class="bold fg13">ou</tspan><tspan class="bold fg8">nkkvrs</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-09-16 21:50:36.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">a</tspan><tspan class="bold fg8">54c61a2</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1058" class="output">│  <tspan class="bold fg10">(empty)</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1076" class="output">│ ◉  <tspan class="bold fg5">l</tspan><tspan class="fg8">potmuxz</tspan> <tspan class="fg3">jjfan@example.com</tspan> <tspan class="fg6">2023-09-16 21:50:37.000 -07:00</tspan> <tspan class="fg5">goodbye</tspan> <tspan class="bold fg4">f</tspan><tspan class="fg8">e6a4af3</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1094" class="output">├─╯  <tspan class="fg3">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1112" class="output">◉  <tspan class="bold fg5">or</tspan><tspan class="fg8">rkosyo</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2012-03-06 15:06:50.000 -08:00</tspan> <tspan class="fg5">master</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1130" class="output">│  <tspan class="fg2">(empty)</tspan> Merge pull request #6 from Spaceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="1148" class="output">~
+</tspan><tspan xml:space="preserve" x="10" y="1166" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="1184" class="output"><tspan class="fg2"># Note that the working copy is now clean; the</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1202" class="output"><tspan class="fg2"># "goodbye" change stayed in its own commit:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1220" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="1238" class="output">$ jj status
+</tspan><tspan xml:space="preserve" x="10" y="1256" class="output">The working copy is clean
+</tspan><tspan xml:space="preserve" x="10" y="1274" class="output">Working copy : <tspan class="bold fg5">ou</tspan><tspan class="fg8">nkkvrs</tspan> <tspan class="bold fg4">a</tspan><tspan class="fg8">54c61a2</tspan> <tspan class="fg2">(empty)</tspan> <tspan class="fg2">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1292" class="output">Parent commit: <tspan class="bold fg5">or</tspan><tspan class="fg8">rkosyo</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 from Spa<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1310" class="output">ceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="1328" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="1346" class="output"><tspan class="fg2"># Modify a file in this new change:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1364" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="1382" class="output">$ echo "Hello everyone!" &gt; README
+</tspan><tspan xml:space="preserve" x="10" y="1400" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="1418" class="output"><tspan class="fg2"># The working copy is not special; we can, for</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1436" class="output"><tspan class="fg2"># example, set the description of any commit.</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1454" class="output"><tspan class="fg2"># First, set it on the working copy:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1472" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="1490" class="output">$ jj describe -m everyone
+</tspan><tspan xml:space="preserve" x="10" y="1508" class="output">Working copy now at: <tspan class="bold fg5">ou</tspan><tspan class="fg8">nkkvrs</tspan> <tspan class="bold fg4">e</tspan><tspan class="fg8">fab10c4</tspan> everyone
+</tspan><tspan xml:space="preserve" x="10" y="1526" class="output">Parent commit      : <tspan class="bold fg5">or</tspan><tspan class="fg8">rkosyo</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 fr<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1544" class="output">om Spaceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="1562" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="1580" class="output"><tspan class="fg2"># Now set it on the change we worked on before:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1598" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="1616" class="output">$ jj describe goodbye -m goodbye
+</tspan><tspan xml:space="preserve" x="10" y="1634" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="1652" class="output"><tspan class="fg2"># Inspect the result:</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1670" class="output">
+</tspan><tspan xml:space="preserve" x="10" y="1688" class="output">$ jj log
+</tspan><tspan xml:space="preserve" x="10" y="1706" class="output">◉  <tspan class="bold fg5">l</tspan><tspan class="fg8">potmuxz</tspan> <tspan class="fg3">jjfan@example.com</tspan> <tspan class="fg6">2023-09-16 21:50:38.000 -07:00</tspan> <tspan class="fg5">goodbye</tspan> <tspan class="bold fg4">5</tspan><tspan class="fg8">e859fe3</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1724" class="output">│  goodbye
+</tspan><tspan xml:space="preserve" x="10" y="1742" class="output">│ @  <tspan class="bold fg13">ou</tspan><tspan class="bold fg8">nkkvrs</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-09-16 21:50:38.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">e</tspan><tspan class="bold fg8">fab10c4</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1760" class="output">├─╯  <tspan class="bold">everyone</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1778" class="output">◉  <tspan class="bold fg5">or</tspan><tspan class="fg8">rkosyo</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2012-03-06 15:06:50.000 -08:00</tspan> <tspan class="fg5">master</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1796" class="output">│  <tspan class="fg2">(empty)</tspan> Merge pull request #6 from Spaceghost/patch-1
+</tspan><tspan xml:space="preserve" x="10" y="1814" class="output">~
+</tspan></text>
+    </svg>
+</svg>
