@@ -3,12 +3,16 @@ set -euo pipefail
 . "$(dirname "$0")"/helpers.sh
 
 new_tmp_dir
-jj git clone https://github.com/octocat/Hello-World > /dev/null
-cd Hello-World
+{
+    jj git clone https://github.com/octocat/Hello-World 
+    cd Hello-World
+    jj abandon test
+    jj branch forget test
+} > /dev/null
 
 comment "We are on the master branch of the
 octocat/Hello-World repo:"
-run_command "jj log -r 'all()'"
+run_command "jj log"
 
 comment "Let's make an edit that will conflict
 when we rebase it:"
@@ -29,7 +33,7 @@ run_command "jj rebase -d b1"
 
 comment "That seemed to succeed but we are also told there is now a conflict.
 Let's take a look at the repo:"
-run_command "jj log -r 'all()'"
+run_command "jj log"
 run_command "jj status"
 
 comment "Indeed, the rebased commit has a conflict. The conflicted file
