@@ -10,6 +10,7 @@ run_command "cd Hello-World"
 
 comment "Inspect it:"
 run_command "jj log -r 'all()'"
+blank
 run_command "jj diff -r b1"
 
 comment "The repo is backed by the actual Git repo:"

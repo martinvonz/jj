@@ -28,13 +28,11 @@ comment "Let's reorder the second and third commits:"
 run_command "jj rebase -s third -d first"
 run_command "jj rebase -s second -d third"
 run_command "jj log"
-comment "The commit labeled \"third\" has a conflict,
-as expected. What's more interesting is
-that the top commit has no conflict! That's
-because it has the changes from all three
-commits applied to it."
+comment "The commit labeled \"third\" has a conflict, as expected. What's more
+interesting is that the top commit has no conflict! That's because it
+has the changes from all three commits applied to it.
 
-comment "Let's verify that by looking at its contents:"
+Let's verify that by looking at its contents:"
 run_command "jj co second"
 run_command "cat file"
 
