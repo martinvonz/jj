@@ -41,15 +41,15 @@
 </tspan><tspan xml:space="preserve" x="10" y="68" class="output"><tspan class="fg2"># so far:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="86" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="104" class="output">$ jj op log
-</tspan><tspan xml:space="preserve" x="10" y="122" class="output">@  <tspan class="bold fg12">fa79b3466874</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@jujube</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">now, lasted 1 millisecond</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="122" class="output">@  <tspan class="bold fg12">23e16cd056d6</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@jujube</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">now, lasted 1 millisecond</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="140" class="output">│  <tspan class="bold">check out git remote's default branch</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="158" class="output">│  <tspan class="bold fg5">args: jj git clone https://github.com/octocat/Hello-World</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="176" class="output">◉  <tspan class="fg4">b9f3854e4c6b</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted 444 milliseconds</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="176" class="output">◉  <tspan class="fg4">38fa897ac829</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted 421 milliseconds</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="194" class="output">│  fetch from git remote into empty repo
 </tspan><tspan xml:space="preserve" x="10" y="212" class="output">│  <tspan class="fg5">args: jj git clone https://github.com/octocat/Hello-World</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="230" class="output">◉  <tspan class="fg4">3eed56af5757</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted less than a microsecond</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="230" class="output">◉  <tspan class="fg4">a9f79cad5303</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted 1 millisecond</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="248" class="output">│  add workspace 'default'
-</tspan><tspan xml:space="preserve" x="10" y="266" class="output">◉  <tspan class="fg4">6f3495125bc8</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted less than a microsecond</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="266" class="output">◉  <tspan class="fg4">3ec40df88146</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted less than a microsecond</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="284" class="output">   initialize repo
 </tspan><tspan xml:space="preserve" x="10" y="302" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="320" class="output"><tspan class="fg2"># We are going to make some changes to show</tspan>
@@ -58,12 +58,12 @@
 </tspan><tspan xml:space="preserve" x="10" y="374" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="392" class="output">$ echo stuff &gt; new-file
 </tspan><tspan xml:space="preserve" x="10" y="410" class="output">$ jj describe -m stuff
-</tspan><tspan xml:space="preserve" x="10" y="428" class="output">Working copy now at: <tspan class="bold fg13">x</tspan><tspan class="bold fg8">trplzoo</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">e</tspan><tspan class="bold fg8">b5aa286</tspan><tspan class="bold"> stuff</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="428" class="output">Working copy now at: <tspan class="bold fg13">z</tspan><tspan class="bold fg8">pozwolt</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">6</tspan><tspan class="bold fg8">6247d7c</tspan><tspan class="bold"> stuff</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="446" class="output">Parent commit      : <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 fr<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="464" class="output">om Spaceghost/patch-1
 </tspan><tspan xml:space="preserve" x="10" y="482" class="output">$ jj rebase -d test
 </tspan><tspan xml:space="preserve" x="10" y="500" class="output">Rebased 1 commits
-</tspan><tspan xml:space="preserve" x="10" y="518" class="output">Working copy now at: <tspan class="bold fg13">x</tspan><tspan class="bold fg8">trplzoo</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">8</tspan><tspan class="bold fg8">c520228</tspan><tspan class="bold"> stuff</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="518" class="output">Working copy now at: <tspan class="bold fg13">z</tspan><tspan class="bold fg8">pozwolt</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">1</tspan><tspan class="bold fg8">6ddd272</tspan><tspan class="bold"> stuff</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="536" class="output">Parent commit      : <tspan class="bold fg5">k</tspan><tspan class="fg8">owxouwz</tspan> <tspan class="bold fg4">b3</tspan><tspan class="fg8">cbd5bb</tspan> <tspan class="fg5">test</tspan><tspan class="fg8"> | </tspan>Create CONTRIBUTING.md
 </tspan><tspan xml:space="preserve" x="10" y="554" class="output">Added 1 files, modified 0 files, removed 0 files
 </tspan><tspan xml:space="preserve" x="10" y="572" class="output">
@@ -71,28 +71,28 @@
 </tspan><tspan xml:space="preserve" x="10" y="608" class="output"><tspan class="fg2"># master:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="626" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="644" class="output">$ jj co master
-</tspan><tspan xml:space="preserve" x="10" y="662" class="output">Working copy now at: <tspan class="bold fg13">ok</tspan><tspan class="bold fg8">qrllkp</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">7c</tspan><tspan class="bold fg8">e6d4fb</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(empty)</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(no description set)</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="680" class="output">Parent commit      : <tspan class="bold fg5">or</tspan><tspan class="fg8">rkosyo</tspan> <tspan class="bold fg4">7f</tspan><tspan class="fg8">d1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 fr<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="662" class="output">Working copy now at: <tspan class="bold fg13">w</tspan><tspan class="bold fg8">yrvvywu</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">2</tspan><tspan class="bold fg8">b999f3c</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(empty)</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="680" class="output">Parent commit      : <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 fr<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="698" class="output">om Spaceghost/patch-1
 </tspan><tspan xml:space="preserve" x="10" y="716" class="output">Added 0 files, modified 0 files, removed 2 files
 </tspan><tspan xml:space="preserve" x="10" y="734" class="output">$ jj describe -m "other stuff"
-</tspan><tspan xml:space="preserve" x="10" y="752" class="output">Working copy now at: <tspan class="bold fg13">ok</tspan><tspan class="bold fg8">qrllkp</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">79</tspan><tspan class="bold fg8">2d0b92</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(empty)</tspan><tspan class="bold"> other stuff</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="770" class="output">Parent commit      : <tspan class="bold fg5">or</tspan><tspan class="fg8">rkosyo</tspan> <tspan class="bold fg4">7f</tspan><tspan class="fg8">d1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 fr<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="752" class="output">Working copy now at: <tspan class="bold fg13">w</tspan><tspan class="bold fg8">yrvvywu</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">8</tspan><tspan class="bold fg8">68bb61a</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(empty)</tspan><tspan class="bold"> other stuff</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="770" class="output">Parent commit      : <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 fr<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="788" class="output">om Spaceghost/patch-1
 </tspan><tspan xml:space="preserve" x="10" y="806" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="824" class="output"><tspan class="fg2"># The repo now looks like this:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="842" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="860" class="output">$ jj log
-</tspan><tspan xml:space="preserve" x="10" y="878" class="output">@  <tspan class="bold fg13">ok</tspan><tspan class="bold fg8">qrllkp</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 22:29:23.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">79</tspan><tspan class="bold fg8">2d0b92</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="878" class="output">@  <tspan class="bold fg13">w</tspan><tspan class="bold fg8">yrvvywu</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 22:30:45.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">8</tspan><tspan class="bold fg8">68bb61a</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="896" class="output">│  <tspan class="bold fg10">(empty)</tspan><tspan class="bold"> other stuff</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="914" class="output">│ ◉  <tspan class="bold fg5">t</tspan><tspan class="fg8">pstlust</tspan> <tspan class="fg3">support+octocat@github.com</tspan> <tspan class="fg6">2018-05-10 12:55:19.000 -05:00</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="932" class="output">├─╯  <tspan class="fg5">octocat-patch-1</tspan> <tspan class="bold fg4">b1</tspan><tspan class="fg8">b3f972</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="950" class="output">│    sentence case
-</tspan><tspan xml:space="preserve" x="10" y="968" class="output">│ ◉  <tspan class="bold fg5">x</tspan><tspan class="fg8">trplzoo</tspan> <tspan class="fg3">jjfan@example.com</tspan> <tspan class="fg6">2023-10-01 22:29:23.000 -07:00</tspan> <tspan class="bold fg4">8</tspan><tspan class="fg8">c520228</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="968" class="output">│ ◉  <tspan class="bold fg5">z</tspan><tspan class="fg8">pozwolt</tspan> <tspan class="fg3">jjfan@example.com</tspan> <tspan class="fg6">2023-10-01 22:30:45.000 -07:00</tspan> <tspan class="bold fg4">1</tspan><tspan class="fg8">6ddd272</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="986" class="output">│ │  stuff
 </tspan><tspan xml:space="preserve" x="10" y="1004" class="output">│ ◉  <tspan class="bold fg5">k</tspan><tspan class="fg8">owxouwz</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2014-06-10 15:22:26.000 -07:00</tspan> <tspan class="fg5">test</tspan> <tspan class="bold fg4">b3</tspan><tspan class="fg8">cbd5bb</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1022" class="output">├─╯  Create CONTRIBUTING.md
-</tspan><tspan xml:space="preserve" x="10" y="1040" class="output">◉  <tspan class="bold fg5">or</tspan><tspan class="fg8">rkosyo</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2012-03-06 15:06:50.000 -08:00</tspan> <tspan class="fg5">master</tspan> <tspan class="bold fg4">7f</tspan><tspan class="fg8">d1a60b</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1040" class="output">◉  <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2012-03-06 15:06:50.000 -08:00</tspan> <tspan class="fg5">master</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1058" class="output">│  <tspan class="fg2">(empty)</tspan> Merge pull request #6 from Spaceghost/patch-1
 </tspan><tspan xml:space="preserve" x="10" y="1076" class="output">~
 </tspan><tspan xml:space="preserve" x="10" y="1094" class="output">
@@ -100,43 +100,43 @@
 </tspan><tspan xml:space="preserve" x="10" y="1130" class="output"><tspan class="fg2"># is:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1148" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="1166" class="output">$ jj op log | head
-</tspan><tspan xml:space="preserve" x="10" y="1184" class="output">@  <tspan class="bold fg12">5bae9d9b6a8a</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@jujube</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">now, lasted 1 millisecond</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="1202" class="output">│  <tspan class="bold">describe commit 7ce6d4fb5acb6945fd0301187a03245b49fe6b71</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1184" class="output">@  <tspan class="bold fg12">639de92bce45</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@jujube</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">now, lasted 1 millisecond</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1202" class="output">│  <tspan class="bold">describe commit 2b999f3ce130a7dd257902e6ac0f319f7023f60f</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1220" class="output">│  <tspan class="bold fg5">args: jj describe -m 'other stuff'</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="1238" class="output">◉  <tspan class="fg4">99a3111903cc</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted 1 millisecond</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1238" class="output">◉  <tspan class="fg4">c98451b33357</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted 1 millisecond</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1256" class="output">│  check out commit 7fd1a60b01f91b314f59955a4e4d4e80d8edf11d
 </tspan><tspan xml:space="preserve" x="10" y="1274" class="output">│  <tspan class="fg5">args: jj co master</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="1292" class="output">◉  <tspan class="fg4">5cdf49cce8a4</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted 1 millisecond</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="1310" class="output">│  rebase commit eb5aa28675c23f6664c1027aae91f13bf5e3c474 and descendants
+</tspan><tspan xml:space="preserve" x="10" y="1292" class="output">◉  <tspan class="fg4">b9453170d284</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted 1 millisecond</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1310" class="output">│  rebase commit 66247d7c5aeb7f4c9303bce20e39c92e5b101c41 and descendants
 </tspan><tspan xml:space="preserve" x="10" y="1328" class="output">│  <tspan class="fg5">args: jj rebase -d test</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="1346" class="output">◉  <tspan class="fg4">74cd4da2188d</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted 1 millisecond</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1346" class="output">◉  <tspan class="fg4">a5f1b6116139</tspan> <tspan class="fg3">jjfan@jujube</tspan> <tspan class="fg6">now, lasted 1 millisecond</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1364" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="1382" class="output"><tspan class="fg2"># Let's undo that rebase operation:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1400" class="output">
-</tspan><tspan xml:space="preserve" x="10" y="1418" class="output">$ jj undo 5cdf4
+</tspan><tspan xml:space="preserve" x="10" y="1418" class="output">$ jj undo b9453
 </tspan><tspan xml:space="preserve" x="10" y="1436" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="1454" class="output"><tspan class="fg2"># Note that only the rebase was undone, and the</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1472" class="output"><tspan class="fg2"># subsequent "other stuff" change was not undone:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1490" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="1508" class="output">$ jj log
-</tspan><tspan xml:space="preserve" x="10" y="1526" class="output">@  <tspan class="bold fg13">ok</tspan><tspan class="bold fg8">qrllkp</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 22:29:23.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">79</tspan><tspan class="bold fg8">2d0b92</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1526" class="output">@  <tspan class="bold fg13">w</tspan><tspan class="bold fg8">yrvvywu</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 22:30:45.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">8</tspan><tspan class="bold fg8">68bb61a</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1544" class="output">│  <tspan class="bold fg10">(empty)</tspan><tspan class="bold"> other stuff</tspan>
-</tspan><tspan xml:space="preserve" x="10" y="1562" class="output">│ ◉  <tspan class="bold fg5">x</tspan><tspan class="fg8">trplzoo</tspan> <tspan class="fg3">jjfan@example.com</tspan> <tspan class="fg6">2023-10-01 22:29:23.000 -07:00</tspan> <tspan class="bold fg4">e</tspan><tspan class="fg8">b5aa286</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1562" class="output">│ ◉  <tspan class="bold fg5">z</tspan><tspan class="fg8">pozwolt</tspan> <tspan class="fg3">jjfan@example.com</tspan> <tspan class="fg6">2023-10-01 22:30:44.000 -07:00</tspan> <tspan class="bold fg4">6</tspan><tspan class="fg8">6247d7c</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1580" class="output">├─╯  stuff
 </tspan><tspan xml:space="preserve" x="10" y="1598" class="output">│ ◉  <tspan class="bold fg5">t</tspan><tspan class="fg8">pstlust</tspan> <tspan class="fg3">support+octocat@github.com</tspan> <tspan class="fg6">2018-05-10 12:55:19.000 -05:00</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1616" class="output">├─╯  <tspan class="fg5">octocat-patch-1</tspan> <tspan class="bold fg4">b1</tspan><tspan class="fg8">b3f972</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1634" class="output">│    sentence case
 </tspan><tspan xml:space="preserve" x="10" y="1652" class="output">│ ◉  <tspan class="bold fg5">k</tspan><tspan class="fg8">owxouwz</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2014-06-10 15:22:26.000 -07:00</tspan> <tspan class="fg5">test</tspan> <tspan class="bold fg4">b3</tspan><tspan class="fg8">cbd5bb</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1670" class="output">├─╯  Create CONTRIBUTING.md
-</tspan><tspan xml:space="preserve" x="10" y="1688" class="output">◉  <tspan class="bold fg5">or</tspan><tspan class="fg8">rkosyo</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2012-03-06 15:06:50.000 -08:00</tspan> <tspan class="fg5">master</tspan> <tspan class="bold fg4">7f</tspan><tspan class="fg8">d1a60b</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1688" class="output">◉  <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2012-03-06 15:06:50.000 -08:00</tspan> <tspan class="fg5">master</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1706" class="output">│  <tspan class="fg2">(empty)</tspan> Merge pull request #6 from Spaceghost/patch-1
 </tspan><tspan xml:space="preserve" x="10" y="1724" class="output">~
 </tspan><tspan xml:space="preserve" x="10" y="1742" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="1760" class="output"><tspan class="fg2"># We can also see what the repo looked like</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1778" class="output"><tspan class="fg2"># after the rebase operation:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1796" class="output">
-</tspan><tspan xml:space="preserve" x="10" y="1814" class="output">$ jj --at-op 5cdf4 log
-</tspan><tspan xml:space="preserve" x="10" y="1832" class="output">@  <tspan class="bold fg13">x</tspan><tspan class="bold fg8">trplzoo</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 22:29:23.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">8</tspan><tspan class="bold fg8">c520228</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="1814" class="output">$ jj --at-op b9453 log
+</tspan><tspan xml:space="preserve" x="10" y="1832" class="output">@  <tspan class="bold fg13">z</tspan><tspan class="bold fg8">pozwolt</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 22:30:45.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">1</tspan><tspan class="bold fg8">6ddd272</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1850" class="output">│  <tspan class="bold">stuff</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1868" class="output">◉  <tspan class="bold fg5">k</tspan><tspan class="fg8">owxouwz</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2014-06-10 15:22:26.000 -07:00</tspan> <tspan class="fg5">test</tspan> <tspan class="bold fg4">b3</tspan><tspan class="fg8">cbd5bb</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="1886" class="output">│  Create CONTRIBUTING.md
@@ -150,8 +150,8 @@
 </tspan><tspan xml:space="preserve" x="10" y="2030" class="output"><tspan class="fg2"># Let's say we instead want to go back to the</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="2048" class="output"><tspan class="fg2"># state of the repo right after the rebase:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="2066" class="output">
-</tspan><tspan xml:space="preserve" x="10" y="2084" class="output">$ jj op restore 5cdf4
-</tspan><tspan xml:space="preserve" x="10" y="2102" class="output">Working copy now at: <tspan class="bold fg13">x</tspan><tspan class="bold fg8">trplzoo</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">8</tspan><tspan class="bold fg8">c520228</tspan><tspan class="bold"> stuff</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="2084" class="output">$ jj op restore b9453
+</tspan><tspan xml:space="preserve" x="10" y="2102" class="output">Working copy now at: <tspan class="bold fg13">z</tspan><tspan class="bold fg8">pozwolt</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">1</tspan><tspan class="bold fg8">6ddd272</tspan><tspan class="bold"> stuff</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="2120" class="output">Parent commit      : <tspan class="bold fg5">k</tspan><tspan class="fg8">owxouwz</tspan> <tspan class="bold fg4">b3</tspan><tspan class="fg8">cbd5bb</tspan> <tspan class="fg5">test</tspan><tspan class="fg8"> | </tspan>Create CONTRIBUTING.md
 </tspan><tspan xml:space="preserve" x="10" y="2138" class="output">Added 2 files, modified 0 files, removed 0 files
 </tspan><tspan xml:space="preserve" x="10" y="2156" class="output">
@@ -159,7 +159,7 @@
 </tspan><tspan xml:space="preserve" x="10" y="2192" class="output"><tspan class="fg2"># change existed:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="2210" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="2228" class="output">$ jj log
-</tspan><tspan xml:space="preserve" x="10" y="2246" class="output">@  <tspan class="bold fg13">x</tspan><tspan class="bold fg8">trplzoo</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 22:29:23.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">8</tspan><tspan class="bold fg8">c520228</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="2246" class="output">@  <tspan class="bold fg13">z</tspan><tspan class="bold fg8">pozwolt</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 22:30:45.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">1</tspan><tspan class="bold fg8">6ddd272</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="2264" class="output">│  <tspan class="bold">stuff</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="2282" class="output">◉  <tspan class="bold fg5">k</tspan><tspan class="fg8">owxouwz</tspan> <tspan class="fg3">octocat@nowhere.com</tspan> <tspan class="fg6">2014-06-10 15:22:26.000 -07:00</tspan> <tspan class="fg5">test</tspan> <tspan class="bold fg4">b3</tspan><tspan class="fg8">cbd5bb</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="2300" class="output">│  Create CONTRIBUTING.md
