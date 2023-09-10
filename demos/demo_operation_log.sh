@@ -27,7 +27,7 @@ comment "The repo now looks like this:"
 run_command "jj log"
 comment "The most recent portion of the operation log
 is:"
-run_command_allow_broken_pipe "jj op log | head"
+run_command_allow_broken_pipe "jj op log --limit 4"
 
 comment "Let's undo that rebase operation:"
 rebase_op=$(jj --color=never op log --no-graph -T 'id.short(5)' --limit 1 --at-op @--)
