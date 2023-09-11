@@ -59,7 +59,7 @@ rand_chacha = "0.3.1"
 rayon = "1.7.0"
 regex = "1.9.5"
 rpassword = "7.2.0"
-rustix = { version = "0.38.11", features = ["fs"] }
+rustix = { version = "0.38.13", features = ["fs"] }
 smallvec = { version = "1.11.0", features = [
     "const_generics",
     "const_new",
@@ -67,7 +67,7 @@ smallvec = { version = "1.11.0", features = [
 ] }
 scm-record = "0.1.0"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0.105"
+serde_json = "1.0.106"
 slab = "0.4.9"
 strsim = "0.10.0"
 tempfile = "3.8.0"
