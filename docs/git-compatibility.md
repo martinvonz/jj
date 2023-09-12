@@ -153,6 +153,26 @@ repos may require you to deal with more involved Jujutsu and Git concepts.
   report any new ones you find, or if any of the known bugs are less minor than
   they appear.
 
+### Converting a repo into a co-located repo
+
+A Jujutsu repo backed by a Git repo has a full Git repo inside, so it is
+technically possible (though not officially supported) to convert it into a
+co-located repo like so:
+
+```bash
+# Move the Git repo
+mv .jj/repo/store/git .git
+# Tell jj where to find it
+echo -n '../../../.git' > .jj/repo/store/git_target
+# Ignore the .jj directory in Git
+echo /.jj/ > .git/info/exclude
+# Make the Git repository non-bare and set HEAD
+git config --unset core.bare
+jj st
+```
+
+We may officially support this in the future. If you try this, we would
+appreciate feedback and bug reports.
 
 ## Branches
 
