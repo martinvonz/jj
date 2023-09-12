@@ -898,6 +898,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#contributing-to-the-documentation" class="md-nav__link">
+    Contributing to the documentation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#learning-rust" class="md-nav__link">
     Learning Rust
   </a>
@@ -1183,6 +1190,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#contributing-to-the-documentation" class="md-nav__link">
+    Contributing to the documentation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#learning-rust" class="md-nav__link">
     Learning Rust
   </a>
@@ -1328,15 +1342,33 @@ changes, please ask your reviewer to take another look.</p>
 <h3 id="community-guidelines">Community Guidelines<a class="headerlink" href="#community-guidelines" title="Permanent link">&para;</a></h3>
 <p>This project follows <a href="https://opensource.google/conduct/">Google's Open Source Community
 Guidelines</a>.</p>
+<h2 id="contributing-to-the-documentation">Contributing to the documentation<a class="headerlink" href="#contributing-to-the-documentation" title="Permanent link">&para;</a></h2>
+<p>We appreciate <a href="https://github.com/martinvonz/jj/issues/new?template=bug_report.md">bug
+reports</a>
+about any problems, however small, lurking in <a href="https://martinvonz.github.io/jj/prerelease">our documentation
+website</a> or in the <code>jj help
+&lt;command&gt;</code> docs. If a part of the bug report template does not apply, you can
+just delete it.</p>
+<p>Before reporting a problem with the documentation website, we'd appreciate it if
+you could check that the problem still exists in the "prerelease" version of the
+documentation (as opposed to the docs for one of the released versions of <code>jj</code>).
+You can use the version switcher in the top-left of the website to do so.</p>
+<p>If you are willing to make a PR fixing a documentation problem, even better!</p>
+<p>The documentation website sources are Markdown files located in the <a href="https://github.com/martinvonz/jj/tree/main/docs"><code>docs/</code>
+directory</a>. You do not need to
+know Rust to work with them. See below for <a href="#previewing-the-html-documentation">instructions on how to preview the
+HTML docs</a> as you edit the Markdown files.
+Doing so is optional, but recommended.</p>
+<p>The <code>jj help</code> docs are sourced from the "docstring" comments inside the Rust
+sources, currently from the <a href="https://github.com/martinvonz/jj/tree/main/cli/src/commands"><code>cli/src/commands</code>
+directory</a>. Working
+on them requires setting up a Rust development environment, as described
+below, and may occasionally require adjusting a test.</p>
 <h2 id="learning-rust">Learning Rust<a class="headerlink" href="#learning-rust" title="Permanent link">&para;</a></h2>
 <p>In addition to the <a href="https://doc.rust-lang.org/book/">Rust Book</a> and the other
 excellent resources at <a href="https://www.rust-lang.org/learn">https://www.rust-lang.org/learn</a>, we recommend the
 <a href="https://google.github.io/comprehensive-rust/">"Comprehensive Rust" mini-course</a>
 for an overview, especially if you are familiar with C++.</p>
-<!--- TODO: A section asking for people to report documentation bugs and
- ---- asking them to check if the problem exists in the prerelease docs.
- ---->
-
 <h2 id="setting-up-a-development-environment">Setting up a development environment<a class="headerlink" href="#setting-up-a-development-environment" title="Permanent link">&para;</a></h2>
 <p>To develop <code>jj</code>, the mandatory steps are simply
 to <a href="https://www.rust-lang.org/tools/install">install Rust</a> (the default
@@ -1406,9 +1438,8 @@ Cargo will happily use up your entire hard drive. If this happens, run
 </li>
 </ol>
 <h2 id="previewing-the-html-documentation">Previewing the HTML documentation<a class="headerlink" href="#previewing-the-html-documentation" title="Permanent link">&para;</a></h2>
-<p>The documentation for <code>jj</code> is automatically published to the website
-<a href="https://martinvonz.github.io/jj/">https://martinvonz.github.io/jj/</a>. At the moment, this is experimental,
-but we hope to advertise this website to our users soon.</p>
+<p>The documentation for <code>jj</code> is automatically published to the website at
+<a href="https://martinvonz.github.io/jj/">https://martinvonz.github.io/jj/</a>.</p>
 <p>When editing documentation, we'd appreciate it if you checked that the
 result will look as expected when published to the website.</p>
 <h3 id="setting-up-the-prerequisites">Setting up the prerequisites<a class="headerlink" href="#setting-up-the-prerequisites" title="Permanent link">&para;</a></h3>
