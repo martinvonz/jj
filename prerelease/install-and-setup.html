@@ -286,6 +286,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#download-pre-built-binaries-for-a-release" class="md-nav__link">
+    Download pre-built binaries for a release
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#linux" class="md-nav__link">
     Linux
   </a>
@@ -1169,6 +1176,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#download-pre-built-binaries-for-a-release" class="md-nav__link">
+    Download pre-built binaries for a release
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#linux" class="md-nav__link">
     Linux
   </a>
@@ -1313,43 +1327,55 @@
 
 <h1 id="installation-and-setup">Installation and setup<a class="headerlink" href="#installation-and-setup" title="Permanent link">&para;</a></h1>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
-<p>See below for how to build from source. There are also
-<a href="https://github.com/martinvonz/jj/releases">pre-built binaries</a> for Windows,
-Mac, or Linux (musl).</p>
+<h3 id="download-pre-built-binaries-for-a-release">Download pre-built binaries for a release<a class="headerlink" href="#download-pre-built-binaries-for-a-release" title="Permanent link">&para;</a></h3>
+<p>There are <a href="https://github.com/martinvonz/jj/releases/latest">pre-built binaries</a>
+of the last released version of <code>jj</code> for Windows, Mac, or Linux (the "musl"
+version should work on all distributions).</p>
+<p>If you'd like to install a prerelease version, you'll need to use one of the
+options below.</p>
 <h3 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
-<p>On most distributions, you'll need to build from source using <code>cargo</code> directly.</p>
 <h4 id="build-using-cargo">Build using <code>cargo</code><a class="headerlink" href="#build-using-cargo" title="Permanent link">&para;</a></h4>
 <p>First make sure that you have the <code>libssl-dev</code>, <code>openssl</code>, and <code>pkg-config</code>
 packages installed by running something like this:</p>
 <div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>libssl-dev<span class="w"> </span>openssl<span class="w"> </span>pkg-config
 </code></pre></div>
-<p>Now run:</p>
-<div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/martinvonz/jj.git<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli
+<p>Now run either:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># To install the *prerelease* version from the main branch</span>
+cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/martinvonz/jj.git<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli
+</code></pre></div>
+<p>or:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># To install the latest release</span>
+cargo<span class="w"> </span>install<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli
 </code></pre></div>
 <h4 id="nix-os">Nix OS<a class="headerlink" href="#nix-os" title="Permanent link">&para;</a></h4>
-<p>If you're on Nix OS you can use the flake for this repository.
+<p>If you're on Nix OS you can install a <strong>released</strong> version of <code>jj</code> using the
+<a href="https://search.nixos.org/packages?channel=unstable&amp;show=jujutsu">nixpkgs <code>jujutsu</code> package</a>.</p>
+<p>To install a <strong>prerelease</strong> version, you can use the flake for this repository.
 For example, if you want to run <code>jj</code> loaded from the flake, use:</p>
 <div class="highlight"><pre><span></span><code>nix<span class="w"> </span>run<span class="w"> </span><span class="s1">&#39;github:martinvonz/jj&#39;</span>
 </code></pre></div>
 <p>You can also add this flake url to your system input flakes. Or you can
 install the flake to your user profile:</p>
-<div class="highlight"><pre><span></span><code>nix<span class="w"> </span>profile<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;github:martinvonz/jj&#39;</span>
+<div class="highlight"><pre><span></span><code><span class="c1"># Installs the prerelease version from the main branch</span>
+nix<span class="w"> </span>profile<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;github:martinvonz/jj&#39;</span>
 </code></pre></div>
 <h4 id="homebrew">Homebrew<a class="headerlink" href="#homebrew" title="Permanent link">&para;</a></h4>
 <p>If you use linuxbrew, you can run:</p>
-<div class="highlight"><pre><span></span><code>brew<span class="w"> </span>install<span class="w"> </span>jj
+<div class="highlight"><pre><span></span><code><span class="c1"># Installs the latest release</span>
+brew<span class="w"> </span>install<span class="w"> </span>jj
 </code></pre></div>
 <h3 id="mac">Mac<a class="headerlink" href="#mac" title="Permanent link">&para;</a></h3>
 <h4 id="homebrew_1">Homebrew<a class="headerlink" href="#homebrew_1" title="Permanent link">&para;</a></h4>
 <p>If you use Homebrew, you can run:</p>
-<div class="highlight"><pre><span></span><code>brew<span class="w"> </span>install<span class="w"> </span>jj
+<div class="highlight"><pre><span></span><code><span class="c1"># Installs the latest release</span>
+brew<span class="w"> </span>install<span class="w"> </span>jj
 </code></pre></div>
 <h4 id="macports">MacPorts<a class="headerlink" href="#macports" title="Permanent link">&para;</a></h4>
-<p>You can also install <code>jj</code> via <a href="https://www.macports.org">MacPorts</a> (as
-the <code>jujutsu</code> port):</p>
-<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>port<span class="w"> </span>install<span class="w"> </span>jujutsu
+<p>You can also install <code>jj</code> via <a href="https://ports.macports.org/port/jujutsu/">the MacPorts <code>jujutsu</code>
+port</a>:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Installs the latest release</span>
+sudo<span class="w"> </span>port<span class="w"> </span>install<span class="w"> </span>jujutsu
 </code></pre></div>
-<p>(<a href="https://ports.macports.org/port/jujutsu/">port page</a>)</p>
 <h4 id="from-source">From Source<a class="headerlink" href="#from-source" title="Permanent link">&para;</a></h4>
 <p>You may need to run some or all of these:</p>
 <div class="highlight"><pre><span></span><code>xcode-select<span class="w"> </span>--install
@@ -1357,12 +1383,22 @@ brew<span class="w"> </span>install<span class="w"> </span>openssl
 brew<span class="w"> </span>install<span class="w"> </span>pkg-config
 <span class="nb">export</span><span class="w"> </span><span class="nv">PKG_CONFIG_PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="k">)</span><span class="s2">/opt/openssl@3/lib/pkgconfig&quot;</span>
 </code></pre></div>
-<p>Now run:</p>
-<div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/martinvonz/jj.git<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli
+<p>Now run either:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># To install the *prerelease* version from the main branch</span>
+cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/martinvonz/jj.git<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli
+</code></pre></div>
+<p>or:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># To install the latest release</span>
+cargo<span class="w"> </span>install<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli
 </code></pre></div>
 <h3 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h3>
-<p>Run:</p>
-<div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/martinvonz/jj.git<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli<span class="w"> </span>--features<span class="w"> </span>vendored-openssl
+<p>Run either:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># To install the *prerelease* version from the main branch</span>
+cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/martinvonz/jj.git<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli<span class="w"> </span>--features<span class="w"> </span>vendored-openssl
+</code></pre></div>
+<p>or:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># To install the latest release</span>
+cargo<span class="w"> </span>install<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli<span class="w"> </span>--features<span class="w"> </span>vendored-openssl
 </code></pre></div>
 <h2 id="initial-configuration">Initial configuration<a class="headerlink" href="#initial-configuration" title="Permanent link">&para;</a></h2>
 <p>You may want to configure your name and email so commits are made in your name.</p>
