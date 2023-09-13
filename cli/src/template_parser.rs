@@ -256,12 +256,13 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
             Rule::raw_literal => {
                 result.push_str(part.as_str());
             }
-            Rule::escape => match part.as_str().as_bytes()[1] as char {
-                '"' => result.push('"'),
-                '\\' => result.push('\\'),
-                't' => result.push('\t'),
-                'r' => result.push('\r'),
-                'n' => result.push('\n'),
+            Rule::escape => match &part.as_str()[1..] {
+                "\"" => result.push('"'),
+                "\\" => result.push('\\'),
+                "t" => result.push('\t'),
+                "r" => result.push('\r'),
+                "n" => result.push('\n'),
+                "0" => result.push('\0'),
                 char => panic!("invalid escape: \\{char:?}"),
             },
             _ => panic!("unexpected part of string: {part:?}"),
@@ -963,8 +964,8 @@ mod tests {
     fn test_string_literal() {
         // "\<char>" escapes
         assert_eq!(
-            parse_into_kind(r#" "\t\r\n\"\\" "#),
-            Ok(ExpressionKind::String("\t\r\n\"\\".to_owned())),
+            parse_into_kind(r#" "\t\r\n\"\\\0" "#),
+            Ok(ExpressionKind::String("\t\r\n\"\\\0".to_owned())),
         );
 
         // Invalid "\<char>" escape

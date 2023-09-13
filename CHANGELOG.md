@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj op log` now supports `--no-graph`.
 
+* Templates now support an additional escape: `\0`. This will output a literal
+  null byte. This may be useful for e.g.
+  `jj log -T 'description ++ "\0"' --no-graph` to output descriptions only, but
+  be able to tell where the boundaries are
+
 ### Fixed bugs
 
 ## [0.9.0] - 2023-09-06

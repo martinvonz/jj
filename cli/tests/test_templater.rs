@@ -279,6 +279,8 @@ fn test_templater_list_method() {
 
     insta::assert_snapshot!(render(r#""".lines().join("|")"#), @"");
     insta::assert_snapshot!(render(r#""a\nb\nc".lines().join("|")"#), @"a|b|c");
+    // Null separator
+    insta::assert_snapshot!(render(r#""a\nb\nc".lines().join("\0")"#), @"a\0b\0c");
     // Keyword as separator
     insta::assert_snapshot!(render(r#""a\nb\nc".lines().join(commit_id.short(2))"#), @"a00b00c");
 
