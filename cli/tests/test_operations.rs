@@ -147,6 +147,27 @@ fn test_op_log_no_graph() {
 }
 
 #[test]
+fn test_op_log_no_graph_null_terminated() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "message1"]);
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "message2"]);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "op",
+            "log",
+            "--no-graph",
+            "--template",
+            r#"id.short(4) ++ "\0""#,
+        ],
+    );
+    insta::assert_debug_snapshot!(stdout, @r###""c8b0\07277\019b8\0f1c4\0""###);
+}
+
+#[test]
 fn test_op_log_template() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

@@ -19,7 +19,7 @@
 
 whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
-escape = @{ "\\" ~ ("t" | "r" | "n" | "\"" | "\\") }
+escape = @{ "\\" ~ ("t" | "r" | "n" | "0" | "\"" | "\\") }
 literal_char = @{ !("\"" | "\\") ~ ANY }
 raw_literal = @{ literal_char+ }
 literal = { "\"" ~ (raw_literal | escape)* ~ "\"" }

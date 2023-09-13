@@ -315,6 +315,42 @@ fn test_log_with_or_without_diff() {
 }
 
 #[test]
+fn test_log_null_terminate_multiline_descriptions() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["commit", "-m", "commit 1 line 1", "-m", "commit 1 line 2"],
+    );
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["commit", "-m", "commit 2 line 1", "-m", "commit 2 line 2"],
+    );
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["describe", "-m", "commit 3 line 1", "-m", "commit 3 line 2"],
+    );
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-r",
+            "~root()",
+            "-T",
+            r#"description ++ "\0""#,
+            "--no-graph",
+        ],
+    );
+    insta::assert_debug_snapshot!(
+        stdout,
+        @r###""commit 3 line 1\n\ncommit 3 line 2\n\0commit 2 line 1\n\ncommit 2 line 2\n\0commit 1 line 1\n\ncommit 1 line 2\n\0""###
+    )
+}
+
+#[test]
 fn test_log_shortest_accessors() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
