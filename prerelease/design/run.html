@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://martinvonz.github.io/jj/prerelease/design/git-submodules.html">
+        <link rel="canonical" href="https://martinvonz.github.io/jj/prerelease/design/run.html">
       
       
-        <link rel="prev" href="../code-of-conduct.html">
+        <link rel="prev" href="git-submodule-storage.html">
       
       
-        <link rel="next" href="git-submodule-storage.html">
+        <link rel="next" href="tracking-branches.html">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>git-submodules - Jujutsu docs</title>
+        <title>JJ run - Jujutsu docs</title>
       
     
     
@@ -69,7 +69,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#git-submodules" class="md-skip">
+        <a href="#introducing-jj-run" class="md-skip">
           Skip to content
         </a>
       
@@ -109,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              git-submodules
+              JJ run
             
           </span>
         </div>
@@ -897,29 +897,9 @@
                 
   
   
-    
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    git-submodules
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="git-submodules.html" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="git-submodules.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -928,187 +908,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#objective" class="md-nav__link">
-    Objective
-  </a>
-  
-    <nav class="md-nav" aria-label="Objective">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#non-goals" class="md-nav__link">
-    Non-goals
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#background" class="md-nav__link">
-    Background
-  </a>
-  
-    <nav class="md-nav" aria-label="Background">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#intro-to-git-submodules" class="md-nav__link">
-    Intro to Git Submodules
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#roadmap" class="md-nav__link">
-    Roadmap
-  </a>
-  
-    <nav class="md-nav" aria-label="Roadmap">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#phase-1-readonly-submodules" class="md-nav__link">
-    Phase 1: Readonly submodules
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 1: Readonly submodules">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#outcomes" class="md-nav__link">
-    Outcomes
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#phase-2-snapshotting-new-changes" class="md-nav__link">
-    Phase 2: Snapshotting new changes
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 2: Snapshotting new changes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#outcomes_1" class="md-nav__link">
-    Outcomes
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#phase-3-mergingrebasingconflicts" class="md-nav__link">
-    Phase 3: Merging/rebasing/conflicts
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 3: Merging/rebasing/conflicts">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#outcomes_2" class="md-nav__link">
-    Outcomes
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#phase-an-ideal-world" class="md-nav__link">
-    Phase ?: An ideal world
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#design" class="md-nav__link">
-    Design
-  </a>
-  
-    <nav class="md-nav" aria-label="Design">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#guiding-principles" class="md-nav__link">
-    Guiding principles
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#storing-submodules" class="md-nav__link">
-    Storing submodules
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#snapshotting-new-submodule-changes" class="md-nav__link">
-    Snapshotting new submodule changes
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mergingrebasing-with-submodules" class="md-nav__link">
-    Merging/rebasing with submodules
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1138,9 +937,29 @@
                 
   
   
+    
   
-    <li class="md-nav__item">
-      <a href="run.html" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    JJ run
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="run.html" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -1149,6 +968,170 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#preface" class="md-nav__link">
+    Preface
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-scope" class="md-nav__link">
+    Context and Scope
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#goals-and-non-goals" class="md-nav__link">
+    Goals and Non-Goals
+  </a>
+  
+    <nav class="md-nav" aria-label="Goals and Non-Goals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#goals" class="md-nav__link">
+    Goals
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    Non-Goals
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-cases-of-jj-run" class="md-nav__link">
+    Use-Cases of jj run
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design" class="md-nav__link">
+    Design
+  </a>
+  
+    <nav class="md-nav" aria-label="Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#base-design" class="md-nav__link">
+    Base Design
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modifying-the-working-copy" class="md-nav__link">
+    Modifying the Working Copy
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modifying-the-repo" class="md-nav__link">
+    Modifying the Repo
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rewriting-the-revisions" class="md-nav__link">
+    Rewriting the revisions
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution-orderparallelism" class="md-nav__link">
+    Execution order/parallelism
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dealing-with-failure" class="md-nav__link">
+    Dealing with failure
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-constraints" class="md-nav__link">
+    Resource constraints
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-options" class="md-nav__link">
+    Command Options
+  </a>
+  
+    <nav class="md-nav" aria-label="Command Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#integrating-with-other-commands" class="md-nav__link">
+    Integrating with other commands
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-points" class="md-nav__link">
+    Open Points
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-possibilities" class="md-nav__link">
+    Future possibilities
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1208,16 +1191,37 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#objective" class="md-nav__link">
-    Objective
+  <a href="#preface" class="md-nav__link">
+    Preface
   </a>
   
-    <nav class="md-nav" aria-label="Objective">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-scope" class="md-nav__link">
+    Context and Scope
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#goals-and-non-goals" class="md-nav__link">
+    Goals and Non-Goals
+  </a>
+  
+    <nav class="md-nav" aria-label="Goals and Non-Goals">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#goals" class="md-nav__link">
+    Goals
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#non-goals" class="md-nav__link">
-    Non-goals
+    Non-Goals
   </a>
   
 </li>
@@ -1228,102 +1232,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#background" class="md-nav__link">
-    Background
+  <a href="#use-cases-of-jj-run" class="md-nav__link">
+    Use-Cases of jj run
   </a>
-  
-    <nav class="md-nav" aria-label="Background">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#intro-to-git-submodules" class="md-nav__link">
-    Intro to Git Submodules
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#roadmap" class="md-nav__link">
-    Roadmap
-  </a>
-  
-    <nav class="md-nav" aria-label="Roadmap">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#phase-1-readonly-submodules" class="md-nav__link">
-    Phase 1: Readonly submodules
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 1: Readonly submodules">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#outcomes" class="md-nav__link">
-    Outcomes
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#phase-2-snapshotting-new-changes" class="md-nav__link">
-    Phase 2: Snapshotting new changes
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 2: Snapshotting new changes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#outcomes_1" class="md-nav__link">
-    Outcomes
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#phase-3-mergingrebasingconflicts" class="md-nav__link">
-    Phase 3: Merging/rebasing/conflicts
-  </a>
-  
-    <nav class="md-nav" aria-label="Phase 3: Merging/rebasing/conflicts">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#outcomes_2" class="md-nav__link">
-    Outcomes
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#phase-an-ideal-world" class="md-nav__link">
-    Phase ?: An ideal world
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1336,35 +1247,90 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#guiding-principles" class="md-nav__link">
-    Guiding principles
+  <a href="#base-design" class="md-nav__link">
+    Base Design
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#storing-submodules" class="md-nav__link">
-    Storing submodules
+  <a href="#modifying-the-working-copy" class="md-nav__link">
+    Modifying the Working Copy
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#snapshotting-new-submodule-changes" class="md-nav__link">
-    Snapshotting new submodule changes
+  <a href="#modifying-the-repo" class="md-nav__link">
+    Modifying the Repo
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#mergingrebasing-with-submodules" class="md-nav__link">
-    Merging/rebasing with submodules
+  <a href="#rewriting-the-revisions" class="md-nav__link">
+    Rewriting the revisions
   </a>
   
 </li>
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution-orderparallelism" class="md-nav__link">
+    Execution order/parallelism
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dealing-with-failure" class="md-nav__link">
+    Dealing with failure
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-constraints" class="md-nav__link">
+    Resource constraints
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-options" class="md-nav__link">
+    Command Options
+  </a>
+  
+    <nav class="md-nav" aria-label="Command Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#integrating-with-other-commands" class="md-nav__link">
+    Integrating with other commands
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-points" class="md-nav__link">
+    Open Points
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-possibilities" class="md-nav__link">
+    Future possibilities
+  </a>
   
 </li>
       
@@ -1383,134 +1349,221 @@
                   
 
 
-<h1 id="git-submodules">Git submodules<a class="headerlink" href="#git-submodules" title="Permanent link">&para;</a></h1>
-<p>This is an aspirational document that describes how jj <em>will</em> support Git
-submodules. Readers are assumed to have some familiarity with Git and Git
-submodules.</p>
-<p>This document is a work in progress; submodules are a big feature, and relevant
-details will be filled in incrementally.</p>
-<h2 id="objective">Objective<a class="headerlink" href="#objective" title="Permanent link">&para;</a></h2>
-<p>This proposal aims to replicate the workflows users are used to with Git
-submodules, e.g.:</p>
+<h1 id="introducing-jj-run">Introducing JJ run<a class="headerlink" href="#introducing-jj-run" title="Permanent link">&para;</a></h1>
+<p>Authors: <a href="mailto:philipmetzger@bluewin.ch">Philip Metzger</a>, <a href="mailto:martinvonz@google.com">Martin von Zweigberk</a>, <a href="mailto:hooper@google.com">Danny Hooper</a>, <a href="mailto:me@waleedkhan.name">Waleed Khan</a></p>
+<p>Initial Version, 10.12.2022 (view full history <a href="https://docs.google.com/document/d/14BiAoEEy_e-BRPHYpXRFjvHMfgYVKh-pKWzzTDi-v-g/edit">here</a>)</p>
+<p><strong>Summary:</strong> This Document documents the design of a new <code>run</code> command for 
+Jujutsu which will be used to seamlessly integrate with build systems, linters
+and formatters. This is achieved by running a user-provided command or script 
+across multiple revisions. For more details, read the 
+<a href="#Use-Cases-of-jj-run">Use-Cases of jj run</a>.</p>
+<h2 id="preface">Preface<a class="headerlink" href="#preface" title="Permanent link">&para;</a></h2>
+<p>The goal of this Design Document is to specify the correct behavior of <code>jj run</code>.
+The points we decide on here I (Philip Metzger) will try to implement. There 
+exists some prior work in other DVCS:
+* <code>git test</code>: part of <a href="https://github.com/arxanas/git-branchless">git-branchless</a>. Similar to this proposal for <code>jj run</code>. 
+* <code>hg run</code>: Google's internal Mercurial extension. Similar to this proposal for
+<code>jj run</code>.
+Details not available. 
+* <code>hg fix</code>: Google's open source Mercurial extension: <a href="https://repo.mercurial-scm.org/hg/file/tip/hgext/fix.py">source code</a>. A
+more specialized approach to rewriting file content without full context of the
+working directory. 
+* <code>git rebase -x</code>: runs commands opportunistically as part of rebase. 
+* <code>git bisect run</code>: run a command to determine which commit introduced a bug.</p>
+<h2 id="context-and-scope">Context and Scope<a class="headerlink" href="#context-and-scope" title="Permanent link">&para;</a></h2>
+<p>The initial need for some kind of command runner integrated in the VCS, surfaced
+in a <a href="https://github.com/martinvonz/jj/issues/405">github discussion</a>. In a <a href="https://discord.com/channels/968932220549103686/969829516539228222/1047958933161119795">discussion on discord</a> about
+the git-hook model, there was consensus about not repeating their mistakes.</p>
+<p>For <code>jj run</code> there is prior art in Mercurial, git branchless and Google's 
+internal Mercurial. Currently git-branchless <code>git test</code> and <code>hg fix</code> implement
+some kind of command runner. The Google internal <code>hg run</code> works in 
+conjunction with CitC (Clients in the Cloud) which allows it to lazily apply
+the current command to any affected file. Currently no Jujutsu backend
+(Git, Native) has a fancy virtual filesystem supporting it, so we 
+can't apply this optimization. We could do the same once we have an 
+implementation of the working copy based on a virtual file system. Until then, 
+we have to run the commands in regular local-disk working copies. </p>
+<h2 id="goals-and-non-goals">Goals and Non-Goals<a class="headerlink" href="#goals-and-non-goals" title="Permanent link">&para;</a></h2>
+<h3 id="goals">Goals<a class="headerlink" href="#goals" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Cloning submodules</li>
-<li>Making new submodule commits and updating the superproject</li>
-<li>Fetching and pushing updates to the submodule's remote</li>
-<li>Viewing submodule history</li>
+<li>We should be able to apply the command to any revision, published or unpublished.</li>
+<li>We should be able to parallelize running the actual command, while preserving a
+good console output.</li>
+<li>The run command should be able to work in any commit, the working-copy commit
+itself or any other commit. </li>
+<li>There should exist some way to signal hard failure. </li>
+<li>The command should build enough infrastructure for <code>jj test</code>, <code>jj fix</code> and 
+<code>jj format</code>.</li>
+<li>The main goal is to be good enough, as we can always expand the functionality 
+in the future.</li>
 </ul>
-<p>When it is convenient, this proposal will also aim to make submodules easier to
-use than Git's implementation.</p>
-<h3 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h3>
+<h3 id="non-goals">Non-Goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Non-Git 'submodules' (e.g. native jj submodules, other VCSes)</li>
-<li>Non-Git backends (e.g. Google internal backend)</li>
-<li>Changing how Git submodules are implemented in Git</li>
+<li>While we should build a base for <code>jj test</code>, <code>jj format</code> and <code>jj fix</code>, we 
+shouldn't mash their use-cases into <code>jj run</code>.</li>
+<li>The command shouldn't be too smart, as too many assumptions about workflows 
+makes the command confusing for users. </li>
+<li>The smart caching of outputs, as user input commands can be unpredictable.
+makes the command confusing for users. </li>
+<li>Avoid the smart caching of outputs, as user input commands can be 
+unpredictable.</li>
+<li>Fine grained user facing configuration, as it's unwarranted complexity.</li>
+<li>A <code>fix</code> subcommand as it cuts too much design space.</li>
 </ul>
-<h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
-<p>We mainly want to support Git submodules for feature parity, since Git
-submodules are a standard feature in Git and are popular enough that we have
-received user requests for them. Secondarily (and distantly so), Git submodules
-are notoriously difficult to use, so there is an opportunity to improve the UX
-over Git's implementation.</p>
-<h3 id="intro-to-git-submodules">Intro to Git Submodules<a class="headerlink" href="#intro-to-git-submodules" title="Permanent link">&para;</a></h3>
-<p><a href="https://git-scm.com/docs/gitsubmodules">Git submodules</a> are a feature of Git
-that allow a repository (submodule) to be embedded inside another repository
-(the superproject). Notably, a submodule is a full repository, complete with its
-own index, object store and ref store. It can be interacted with like any other
-repository, regardless of the superproject.</p>
-<p>In a superproject commit, submodule information is captured in two places:</p>
+<h2 id="use-cases-of-jj-run">Use-Cases of jj run<a class="headerlink" href="#use-cases-of-jj-run" title="Permanent link">&para;</a></h2>
+<p><strong>Linting and Formatting:</strong></p>
 <ul>
-<li>
-<p>A <code>gitlink</code> entry in the commit's tree, where the value of the <code>gitlink</code> entry
-  is the submodule commit id. This tells Git what to populate in the working
-  tree.</p>
-</li>
-<li>
-<p>A top level <code>.gitmodules</code> file. This file is in Git's config syntax and
-  entries take the form <code>submodule.&lt;submodule-name&gt;.*</code>. These include many
-  settings about the submodules, but most importantly:</p>
-</li>
-<li>
-<p><code>submodule&lt;submodule-name&gt;.path</code> contains the path from the root of the tree
-    to the <code>gitlink</code> being described.</p>
-</li>
-<li>
-<p><code>submodule&lt;submodule-name&gt;.url</code> contains the url to clone the submodule
-    from.</p>
-</li>
+<li><code>jj run 'pre-commit run' -r $revset</code></li>
+<li><code>jj run 'cargo clippy' -r $revset</code></li>
+<li><code>jj run 'cargo +nightly fmt'</code></li>
 </ul>
-<p>In the working tree, Git notices the presence of a submodule by the <code>.git</code> entry
-(signifying the root of a Git repository working tree). This is either the
-submodule's actual Git directory (an "old-form" submodule), or a <code>.git</code> file
-pointing to <code>&lt;superproject-git-directory&gt;/modules/&lt;submodule-name&gt;</code>. The latter
-is sometimes called the "absorbed form", and is Git's preferred mode of
-operation.</p>
-<h2 id="roadmap">Roadmap<a class="headerlink" href="#roadmap" title="Permanent link">&para;</a></h2>
-<p>Git submodules should be implemented in an order that supports an increasing set
-of workflows, with the goal of getting feedback early and often. When support is
-incomplete, jj should not crash, but instead provide fallback behavior and warn
-the user where needed.</p>
-<p>The goal is to land good support for pure Jujutsu repositories, while colocated
-repositories will be supported when convenient.</p>
-<p>This section should be treated as a set of guidelines, not a strict order of
-work.</p>
-<h3 id="phase-1-readonly-submodules">Phase 1: Readonly submodules<a class="headerlink" href="#phase-1-readonly-submodules" title="Permanent link">&para;</a></h3>
-<p>This includes work that inspects submodule contents but does not create new
-objects in the submodule. This requires a way to store submodules in a jj
-repository that supports readonly operations.</p>
-<h4 id="outcomes">Outcomes<a class="headerlink" href="#outcomes" title="Permanent link">&para;</a></h4>
+<p><strong>Large scale changes across repositories, local and remote:</strong></p>
 <ul>
-<li>Submodules can be cloned anew</li>
-<li>New submodule commits can be fetched</li>
-<li>Submodule history and branches can be viewed</li>
-<li>Submodule contents are populated in the working copy</li>
-<li>Superproject gitlink can be updated to an existing submodule commit</li>
-<li>Conflicts in the superproject gitlink can be resolved to an existing submodule
-  commit</li>
+<li><code>jj run 'sed /some/test/' -r 'mine() &amp; ~remote_branches(exact:"origin")'</code></li>
+<li><code>jj run '$rewrite-tool' -r '$revset'</code></li>
 </ul>
-<h3 id="phase-2-snapshotting-new-changes">Phase 2: Snapshotting new changes<a class="headerlink" href="#phase-2-snapshotting-new-changes" title="Permanent link">&para;</a></h3>
-<p>This allows a user to write new contents to a submodule and its remote.</p>
-<h4 id="outcomes_1">Outcomes<a class="headerlink" href="#outcomes_1" title="Permanent link">&para;</a></h4>
+<p><strong>Build systems:</strong></p>
 <ul>
-<li>Changes in the working copy can be recorded in a submodule commit</li>
-<li>Submodule branches can be modified</li>
-<li>Submodules and their branches can be pushed to their remote</li>
+<li><code>jj run 'bazel build //some/target:somewhere'</code></li>
+<li><code>jj run 'ninja check-lld'</code></li>
 </ul>
-<h3 id="phase-3-mergingrebasingconflicts">Phase 3: Merging/rebasing/conflicts<a class="headerlink" href="#phase-3-mergingrebasingconflicts" title="Permanent link">&para;</a></h3>
-<p>This allows merging and rebasing of superproject commits in a content-aware way
-(in contrast to Git, where only the gitlink commit ids are compared), as well as
-workflows that make resolving conflicts easy and sensible.</p>
-<p>This can be done in tandem with Phase 2, but will likely require a significant
-amount of design work on its own.</p>
-<h4 id="outcomes_2">Outcomes<a class="headerlink" href="#outcomes_2" title="Permanent link">&para;</a></h4>
-<ul>
-<li>Merged/rebased submodules result in merged/rebased working copy content</li>
-<li>Merged/rebased working copy content can be committed, possibly by creating
-  sensible merged/rebased submodule commits</li>
-<li>Merge/rebase between submodule and non-submodule gives a sensible result</li>
-<li>Merge/rebase between submodule A and submodule B gives a sensible result</li>
-</ul>
-<h3 id="phase-an-ideal-world">Phase ?: An ideal world<a class="headerlink" href="#phase-an-ideal-world" title="Permanent link">&para;</a></h3>
-<p>I.e. outcomes we would like to see if there were no constraints whatsoever.</p>
-<ul>
-<li>Rewriting submodule commits rewrites descendants correctly and updates
-  superproject gitlinks.</li>
-<li>Submodule conflicts automatically resolve to the 'correct' submodule commits,
-  e.g. a merge between superproject commits creating a merge of the submodule
-  commits.</li>
-<li>Nested submodules are as easy to work with as non-nested submodules.</li>
-<li>The operation log captures changes in the submodule.</li>
-</ul>
+<p>Some of these use-cases should get a specialized command, as this allows 
+further optimization. A command could be <code>jj format</code>, which runs a list of 
+formatters over a subset of a file in a revision. Another command could be 
+<code>jj fix</code>, which runs a command like <code>rustfmt --fix</code> or <code>cargo clippy --fix</code> over
+a subset of a file in a revision.</p>
 <h2 id="design">Design<a class="headerlink" href="#design" title="Permanent link">&para;</a></h2>
-<h3 id="guiding-principles">Guiding principles<a class="headerlink" href="#guiding-principles" title="Permanent link">&para;</a></h3>
-<p>TODO</p>
-<h3 id="storing-submodules">Storing submodules<a class="headerlink" href="#storing-submodules" title="Permanent link">&para;</a></h3>
-<p>Possible approaches under discussion. See
-<a href="git-submodule-storage.html">./git-submodule-storage.md</a>.</p>
-<h3 id="snapshotting-new-submodule-changes">Snapshotting new submodule changes<a class="headerlink" href="#snapshotting-new-submodule-changes" title="Permanent link">&para;</a></h3>
-<p>TODO</p>
-<h3 id="mergingrebasing-with-submodules">Merging/rebasing with submodules<a class="headerlink" href="#mergingrebasing-with-submodules" title="Permanent link">&para;</a></h3>
-<p>TODO</p>
+<h3 id="base-design">Base Design<a class="headerlink" href="#base-design" title="Permanent link">&para;</a></h3>
+<p>All the work will be done in the <code>.jj/</code> directory. This allows us to hide all 
+complexity from the users, while preserving the user's current workspace.</p>
+<p>We will copy the approach from git-branchless's <code>git test</code> of creating a 
+temporary working copy for each parallel command. The working copies will be 
+reused between <code>jj run</code> invocations. They will also be reused within <code>jj run</code> 
+invocation if there are more commits to run on than there are parallel jobs.</p>
+<p>We will leave ignored files in the temporary directory between runs. That 
+enables incremental builds (e.g by letting cargo reuse its <code>target/</code> directory).
+However, it also means that runs potentially become less reproducible. We will 
+provide a flag for removing ignored files from the temporary working copies to
+address that. </p>
+<p>Another problem with leaving ignored files in the temporary directories is that
+they take up space. That is especially problematic in the case of cargo (the 
+<code>target/</code> directory often takes up tens of GBs). The same flag for cleaning up
+ignored files can be used to address that. We may want to also have a flag for 
+cleaning up temporary working copies <em>after</em> running the command. </p>
+<p>An early version of the command will directly use <a href="https://github.com/martinvonz/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/working_copy.rs#L117">Treestate</a> to 
+to manage the temporary working copies. That means that running <code>jj</code> inside the 
+temporary working copies will not work . We can later extend that to use a full
+<a href="https://github.com/martinvonz/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/workspace.rs#L54">Workspace</a>. To prevent operations in the working copies from 
+impacting the repo, we can use a separate <a href="https://github.com/martinvonz/jj/blob/main/lib/src/op_heads_store.rs">OpHeadsStore</a> for it.</p>
+<h3 id="modifying-the-working-copy">Modifying the Working Copy<a class="headerlink" href="#modifying-the-working-copy" title="Permanent link">&para;</a></h3>
+<p>Since the subprocesses will run in temporary working copies, they 
+won't interfere with the user's working copy. The user can therefore continue
+to work in it while <code>jj run</code> is running. </p>
+<p>We want subprocesses to be able to make changes to the repo by updating their
+assigned working copy. Let's say the user runs <code>jj run</code> on just commits A and 
+B, where B's parent is A. Any changes made on top of A would be squashed into 
+A, forming A'. Similarly B' would be formed by squasing it into B. We can then
+either do a normal rebase of B' onto A', or we can simply update its parent to
+A'. The former is useful, e.g when the subprocess only makes a partial update
+of the tree based on the parent commit. In addition to these two modes, we may 
+want to have an option to ignore any changes made in the subprocess's working 
+copy.</p>
+<h3 id="modifying-the-repo">Modifying the Repo<a class="headerlink" href="#modifying-the-repo" title="Permanent link">&para;</a></h3>
+<p>Once we give the subprocess access to a fork of the repo via separate 
+<a href="https://github.com/martinvonz/jj/blob/main/lib/src/op_heads_store.rs">OpHeadsStore</a>, it will be able to create new operations in its fork.
+If the user runs <code>jj run -r foo</code> and the subprocess checks out another commit,
+it's not clear what that should do. We should probably just verify that the 
+working-copy commit's parents are unchanged after the subprocess returns. Any
+operations created by the subprocess will be ignored. </p>
+<h3 id="rewriting-the-revisions">Rewriting the revisions<a class="headerlink" href="#rewriting-the-revisions" title="Permanent link">&para;</a></h3>
+<p>Like all commands, <code>jj run</code> will refuse to rewrite public/immutable commits.
+For private/unpublished revisions, we either amend or reparent the changes, 
+which are available as command options.</p>
+<h2 id="execution-orderparallelism">Execution order/parallelism<a class="headerlink" href="#execution-orderparallelism" title="Permanent link">&para;</a></h2>
+<p>It may be useful to execute commands in topological order. For example, 
+commands with costs proportional to incremental changes, like build systems. 
+There may also be other revelant heuristics, but topological order is an easy
+and effective way to start. </p>
+<p>Parallel execution of commands on different commits may choose to schedule 
+commits to still reduce incremental changes in the working copy used by each
+execution slot/"thread". However, running the command on all commits 
+concurrently should be possible if desired. </p>
+<p>Executing commands in topological order allows for more meaningful use of any 
+potential features that stop execution "at the first failure". For example, 
+when running tests on a chain of commits, it might be useful to proceed in 
+topological/chronological order, and stop on the first failure, because it 
+might imply that the remaining executions will be undesirable because they will
+also fail.</p>
+<h2 id="dealing-with-failure">Dealing with failure<a class="headerlink" href="#dealing-with-failure" title="Permanent link">&para;</a></h2>
+<p>It will be useful to have multiple strategies to deal with failures on a single
+or multiple revisions. The reason for these strategies is to allow customized
+conflict handling. These strategies then can be exposed in the ui with a 
+matching option.</p>
+<p><strong>Continue:</strong> If any subprocess fails, we will continue the work on child 
+revisions. Notify the user on exit about the failed revisions. </p>
+<p><strong>Stop:</strong> Signal a fatal failure and cancel any scheduled work that has not
+yet started running, but let any already started subprocess finish. Notify the
+user about the failed command and display the generated error from the 
+subprocess. </p>
+<p><strong>Fatal:</strong> Signal a fatal failure and immediately stop processing and kill any 
+running processes. Notify the user that we failed to apply the command to the 
+specific revision. </p>
+<p>We will leave any affected commit in its current state, if any subprocess fails.
+This allows us provide a better user experience, as leaving revisions in an 
+undesirable state, e.g partially formatted, may confuse users.</p>
+<h2 id="resource-constraints">Resource constraints<a class="headerlink" href="#resource-constraints" title="Permanent link">&para;</a></h2>
+<p>It will be useful to constrain the execution to prevent resource exhaustion. 
+Relevant resources could include:
+- CPU and memory available on the machine running the commands. <code>jj run</code> can
+provide some simple mitigations like limiting parallelism to "number of CPUs" 
+by default, and limiting parallelism by dividing "available memory" by some 
+estimate or measurement of per-invocation memory use of the commands.
+- External resources that are not immediately known to jj. For example, 
+commands run in parallel may wish to limit the total number of connections
+to a server. We might choose to defer any handling of this to the 
+implementation of the command being invoked, instead of trying to 
+communicate that information to jj.</p>
+<h2 id="command-options">Command Options<a class="headerlink" href="#command-options" title="Permanent link">&para;</a></h2>
+<p>The base command of any jj command should be usable. By default <code>jj run</code> works 
+on the <code>@</code> the current working copy.
+* --command, explicit name of the first argument
+* -x, for git compatibility (may alias another command)
+* -j, --jobs, the amount of parallelism to use
+* -k, --keep-going, continue on failure (may alias another command)
+* --show, display the diff for an affected revision
+* --dry-run, do the command execution without doing any work, logging all 
+intended files and arguments
+* --rebase, rebase all parents on the consulitng diff (may alias another 
+command)
+* --reparent, change the parent of an effected revision to the new change 
+(may alias another command)
+* --clean, remove existing workspaces and remove the ignored files
+* --readonly, ignore changes across multiple run invocations
+* --error-strategy=<code>continue|stop|fatal</code>, see <a href="#Dealing-with-failure">Dealing with failure</a></p>
+<h3 id="integrating-with-other-commands">Integrating with other commands<a class="headerlink" href="#integrating-with-other-commands" title="Permanent link">&para;</a></h3>
+<p><code>jj log</code>: No special handling needed
+<code>jj diff</code>: No special handling needed
+<code>jj st</code>: For now reprint the final output of <code>jj run</code>
+<code>jj op log</code>: No special handling needed, but awaits further discussion in 
+<a href="https://github.com/martinvonz/jj/issues/963">#963</a>
+<code>jj undo/jj op undo</code>: No special handling needed</p>
+<h2 id="open-points">Open Points<a class="headerlink" href="#open-points" title="Permanent link">&para;</a></h2>
+<p>Should the command be working copy backend specific?<br />
+How do we manage the Processes which the command will spawn?<br />
+Configuration options, User and Repository Wide?</p>
+<h2 id="future-possibilities">Future possibilities<a class="headerlink" href="#future-possibilities" title="Permanent link">&para;</a></h2>
+<ul>
+<li>We could rewrite the file in memory, which is a neat optimization  </li>
+<li>Exposing some internal state, to allow preciser resource constraints  </li>
+<li>Integration options for virtual filesystems, which allow them to cache the 
+needed working copies.  </li>
+<li>A Jujutsu wide concept for a cached working copy, as they could be expensive
+to materialize.  </li>
+<li>Customized failure messages, this maybe useful for bots, it could be similar 
+to Bazel's <code>select(..., message = "arch not supported for $project")</code>.</li>
+<li>Make <code>jj run</code> asynchronous by spawning a <code>main</code> process, directly return to the
+user and incrementally updating the output of <code>jj st</code>. </li>
+</ul>
 
 
 

@@ -101,6 +101,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://martinvonz.github.io/jj/prerelease/design/run.html</loc>
+         <lastmod>2023-09-14</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://martinvonz.github.io/jj/prerelease/design/tracking-branches.html</loc>
          <lastmod>2023-09-14</lastmod>
          <changefreq>daily</changefreq>
