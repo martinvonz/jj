@@ -430,7 +430,7 @@ fn test_help() {
       -v, --verbose                      Enable verbose logging
           --color <WHEN>                 When to colorize output (always, never, auto)
           --no-pager                     Disable the pager
-          --config-toml <TOML>           Additional configuration options
+          --config-toml <TOML>           Additional configuration options (can be repeated)
     "###);
 }
 
