@@ -148,6 +148,14 @@ defined.
 * `.remove_suffix(needle: Template) -> String`: Removes the passed suffix, if present
 * `.substr(start: Integer, end: Integer) -> String`: Extract substring. Negative values count from the end.
 
+#### String literals
+
+String literals must be surrounded by double quotes (`"`). The following escape
+sequences starting with a backslash have their usual meaning: `\"`, `\\`, `\n`,
+`\r`, `\t`, `\0`. Other escape sequences are not supported. Any UTF-8 characters
+are allowed inside a string literal, with two exceptions: unescaped `"`-s and
+uses of `\` that don't form a valid escape sequence.
+
 ### Template type
 
 Most types can be implicitly converted to `Template`. No methods are defined.
