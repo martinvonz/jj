@@ -320,3 +320,21 @@ you can submit a PR based on the `gh-pages` branch of
 
  The `.rs` files generated from `.proto` files are included in the repository,
  and there is a GitHub CI check that will complain if they do not match.
+
+## Profiling
+
+One easy-to-use sampling profiler
+is [samply](https://github.com/mstange/samply). For example:
+```shell
+cargo install samply
+samply record jj diff
+```
+Then just open the link it prints.
+
+Another option is to use the instrumentation we've added manually (using
+`tracing::instrument`) in various places. For example:
+```shell
+JJ_TRACE=/tmp/trace.json jj diff
+```
+Then go to `https://ui.perfetto.dev/` in Chrome and load `/tmp/trace.json` from
+there.
