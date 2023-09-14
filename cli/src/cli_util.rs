@@ -2292,7 +2292,7 @@ pub struct EarlyArgs {
     // Parsing with ignore_errors will crash if this is bool, so use
     // Option<bool>.
     pub no_pager: Option<bool>,
-    /// Additional configuration options
+    /// Additional configuration options (can be repeated)
     //  TODO: Introduce a `--config` option with simpler syntax for simple
     //  cases, designed so that `--config ui.color=auto` works
     #[arg(
