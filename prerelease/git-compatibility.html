@@ -694,6 +694,19 @@
     Co-located Jujutsu/Git repos
   </a>
   
+    <nav class="md-nav" aria-label="Co-located Jujutsu/Git repos">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#converting-a-repo-into-a-co-located-repo" class="md-nav__link">
+    Converting a repo into a co-located repo
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1108,6 +1121,19 @@
     Co-located Jujutsu/Git repos
   </a>
   
+    <nav class="md-nav" aria-label="Co-located Jujutsu/Git repos">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#converting-a-repo-into-a-co-located-repo" class="md-nav__link">
+    Converting a repo into a co-located repo
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1281,6 +1307,22 @@ repos may require you to deal with more involved Jujutsu and Git concepts.</p>
   they appear.</p>
 </li>
 </ul>
+<h3 id="converting-a-repo-into-a-co-located-repo">Converting a repo into a co-located repo<a class="headerlink" href="#converting-a-repo-into-a-co-located-repo" title="Permanent link">&para;</a></h3>
+<p>A Jujutsu repo backed by a Git repo has a full Git repo inside, so it is
+technically possible (though not officially supported) to convert it into a
+co-located repo like so:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Move the Git repo</span>
+mv<span class="w"> </span>.jj/repo/store/git<span class="w"> </span>.git
+<span class="c1"># Tell jj where to find it</span>
+<span class="nb">echo</span><span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;../../../.git&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>.jj/repo/store/git_target
+<span class="c1"># Ignore the .jj directory in Git</span>
+<span class="nb">echo</span><span class="w"> </span>/.jj/<span class="w"> </span>&gt;<span class="w"> </span>.git/info/exclude
+<span class="c1"># Make the Git repository non-bare and set HEAD</span>
+git<span class="w"> </span>config<span class="w"> </span>--unset<span class="w"> </span>core.bare
+jj<span class="w"> </span>st
+</code></pre></div>
+<p>We may officially support this in the future. If you try this, we would
+appreciate feedback and bug reports.</p>
 <h2 id="branches">Branches<a class="headerlink" href="#branches" title="Permanent link">&para;</a></h2>
 <p>TODO: Describe how branches are mapped</p>
 <h2 id="format-mapping-details">Format mapping details<a class="headerlink" href="#format-mapping-details" title="Permanent link">&para;</a></h2>
