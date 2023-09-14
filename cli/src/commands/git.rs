@@ -126,7 +126,7 @@ pub struct GitCloneArgs {
 /// Push to a Git remote
 ///
 /// By default, pushes any branches pointing to
-/// `remote_branches(remote=<remote>)..@`. Use `--branch` to push specific
+/// `(trunk()..@):: & branches()`. Use `--branch` to push specific
 /// branches. Use `--all` to push all branches. Use `--change` to generate
 /// branch names based on the change IDs of specific commits.
 #[derive(clap::Args, Clone, Debug)]
@@ -791,15 +791,19 @@ fn cmd_git_push(
             let Some(wc_commit_id) = wc_commit_id else {
                 return Err(user_error("Nothing checked out in this workspace"));
             };
-            let current_branches_expression = RevsetExpression::remote_branches(
-                StringPattern::everything(),
-                StringPattern::Exact(remote.to_owned()),
-            )
-            .range(&RevsetExpression::commit(wc_commit_id))
-            .intersection(&RevsetExpression::branches(StringPattern::everything()));
+
+            let trunk_expression = tx
+                .base_workspace_helper()
+                .parse_revset("trunk()", Some(ui))?;
+            let stack_expression = trunk_expression
+                .range(&RevsetExpression::commit(wc_commit_id.clone()))
+                .descendants();
+            let current_branches_expression = stack_expression
+                .intersection(&RevsetExpression::branches(StringPattern::everything()));
             let current_branches_revset = tx
                 .base_workspace_helper()
                 .evaluate_revset(current_branches_expression)?;
+
             current_branches_revset.iter().collect()
         } else {
             // TODO: Narrow search space to local target commits.

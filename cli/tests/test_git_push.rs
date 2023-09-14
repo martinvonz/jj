@@ -140,9 +140,7 @@ fn test_git_push_matching_branch_unchanged() {
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @r###"
-    No branches point to the specified revisions.
-    "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 /// Test that `jj git push` without arguments pushes a branch to the specified
@@ -183,9 +181,7 @@ fn test_git_push_other_remote_has_branch() {
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @r###"
-    No branches point to the specified revisions.
-    "###);
+    insta::assert_snapshot!(stderr, @"");
     // But it will still get pushed to another remote
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--remote=other"]);
     insta::assert_snapshot!(stdout, @r###"

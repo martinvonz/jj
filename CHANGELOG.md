@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Check [revsets.toml](cli/src/config/revsets.toml) and [revsets.md](docs/revset.md)
   to understand how the function can be adapted.
 
+* `jj git push` will now push all branches in the range `(trunk()..@):: & branches()`
+  instead of only branches pointing to `remote_branches()..@`.
+
 ### New features
 
 * The `ancestors()` revset function now takes an optional `depth` argument 
