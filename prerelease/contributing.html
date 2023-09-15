@@ -992,6 +992,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#profiling" class="md-nav__link">
+    Profiling
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1304,6 +1311,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#profiling" class="md-nav__link">
+    Profiling
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1584,6 +1598,19 @@ you can submit a PR based on the <code>gh-pages</code> branch of
 </ul>
 <p>The <code>.rs</code> files generated from <code>.proto</code> files are included in the repository,
  and there is a GitHub CI check that will complain if they do not match.</p>
+<h2 id="profiling">Profiling<a class="headerlink" href="#profiling" title="Permanent link">&para;</a></h2>
+<p>One easy-to-use sampling profiler
+is <a href="https://github.com/mstange/samply">samply</a>. For example:
+<div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>install<span class="w"> </span>samply
+samply<span class="w"> </span>record<span class="w"> </span>jj<span class="w"> </span>diff
+</code></pre></div>
+Then just open the link it prints.</p>
+<p>Another option is to use the instrumentation we've added manually (using
+<code>tracing::instrument</code>) in various places. For example:
+<div class="highlight"><pre><span></span><code><span class="nv">JJ_TRACE</span><span class="o">=</span>/tmp/trace.json<span class="w"> </span>jj<span class="w"> </span>diff
+</code></pre></div>
+Then go to <code>https://ui.perfetto.dev/</code> in Chrome and load <code>/tmp/trace.json</code> from
+there.</p>
 
 
 
