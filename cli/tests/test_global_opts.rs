@@ -66,7 +66,8 @@ fn test_no_subcommand() {
     insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Jujutsu (An experimental VCS)");
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--version"]);
-    let sanitized = stdout.replace(|c: char| c.is_ascii_hexdigit(), "?");
+    let sanitized = stdout.replace("-pre", "");
+    let sanitized = sanitized.replace(|c: char| c.is_ascii_hexdigit(), "?");
     assert!(
         sanitized == "jj ?.?.?\n"
             || sanitized == "jj ?.?.?-????????????????????????????????????????\n",
