@@ -27,8 +27,8 @@ jobs:
           poetry-version: latest
       - name: Install dependencies, compile and deploy docs
         run: |
-          git config user.name jj-docs-bot
-          git config user.email jj-docs-bot@users.noreply.github.io
+          git config user.name 'jj-docs[bot]'
+          git config user.email 'jj-docs[bot]@users.noreply.github.io'
           .github/scripts/docs-build-deploy 'https://martinvonz.github.io/jj' prerelease main --push
       - name: "Show `git diff --stat`"
         run: git diff --stat gh-pages^ gh-pages || echo "(No diffs)"
