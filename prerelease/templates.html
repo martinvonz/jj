@@ -697,6 +697,19 @@
     String type
   </a>
   
+    <nav class="md-nav" aria-label="String type">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#string-literals" class="md-nav__link">
+    String literals
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1315,6 +1328,19 @@
     String type
   </a>
   
+    <nav class="md-nav" aria-label="String type">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#string-literals" class="md-nav__link">
+    String literals
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1492,6 +1518,12 @@ defined.</p>
 <li><code>.remove_suffix(needle: Template) -&gt; String</code>: Removes the passed suffix, if present</li>
 <li><code>.substr(start: Integer, end: Integer) -&gt; String</code>: Extract substring. Negative values count from the end.</li>
 </ul>
+<h4 id="string-literals">String literals<a class="headerlink" href="#string-literals" title="Permanent link">&para;</a></h4>
+<p>String literals must be surrounded by double quotes (<code>"</code>). The following escape
+sequences starting with a backslash have their usual meaning: <code>\"</code>, <code>\\</code>, <code>\n</code>,
+<code>\r</code>, <code>\t</code>, <code>\0</code>. Other escape sequences are not supported. Any UTF-8 characters
+are allowed inside a string literal, with two exceptions: unescaped <code>"</code>-s and
+uses of <code>\</code> that don't form a valid escape sequence.</p>
 <h3 id="template-type">Template type<a class="headerlink" href="#template-type" title="Permanent link">&para;</a></h3>
 <p>Most types can be implicitly converted to <code>Template</code>. No methods are defined.</p>
 <h3 id="timestamp-type">Timestamp type<a class="headerlink" href="#timestamp-type" title="Permanent link">&para;</a></h3>
