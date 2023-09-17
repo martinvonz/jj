@@ -84,41 +84,50 @@ pub struct TestRepo {
     pub repo: Arc<ReadonlyRepo>,
 }
 
+#[derive(PartialEq, Eq, Copy, Clone)]
+pub enum TestRepoBackend {
+    Git,
+    Local,
+}
+
+impl TestRepoBackend {
+    fn init_backend(&self, store_path: &Path) -> Result<Box<dyn Backend>, BackendInitError> {
+        match self {
+            TestRepoBackend::Git => Ok(Box::new(GitBackend::init_internal(store_path)?)),
+            TestRepoBackend::Local => Ok(Box::new(LocalBackend::init(store_path))),
+        }
+    }
+}
+
 impl TestRepo {
     pub fn init(use_git: bool) -> Self {
+        let backend = if use_git {
+            TestRepoBackend::Git
+        } else {
+            TestRepoBackend::Local
+        };
+        Self::init_with_backend(backend)
+    }
+
+    pub fn init_with_backend(backend: TestRepoBackend) -> Self {
         let settings = user_settings();
         let temp_dir = new_temp_dir();
 
         let repo_dir = temp_dir.path().join("repo");
         fs::create_dir(&repo_dir).unwrap();
 
-        let repo = if use_git {
-            ReadonlyRepo::init(
-                &settings,
-                &repo_dir,
-                |store_path| -> Result<Box<dyn Backend>, BackendInitError> {
-                    Ok(Box::new(GitBackend::init_internal(store_path)?))
-                },
-                ReadonlyRepo::default_op_store_factory(),
-                ReadonlyRepo::default_op_heads_store_factory(),
-                ReadonlyRepo::default_index_store_factory(),
-                ReadonlyRepo::default_submodule_store_factory(),
-            )
-            .unwrap()
-        } else {
-            ReadonlyRepo::init(
-                &settings,
-                &repo_dir,
-                |store_path| -> Result<Box<dyn Backend>, BackendInitError> {
-                    Ok(Box::new(LocalBackend::init(store_path)))
-                },
-                ReadonlyRepo::default_op_store_factory(),
-                ReadonlyRepo::default_op_heads_store_factory(),
-                ReadonlyRepo::default_index_store_factory(),
-                ReadonlyRepo::default_submodule_store_factory(),
-            )
-            .unwrap()
-        };
+        let repo = ReadonlyRepo::init(
+            &settings,
+            &repo_dir,
+            |store_path| -> Result<Box<dyn Backend>, BackendInitError> {
+                backend.init_backend(store_path)
+            },
+            ReadonlyRepo::default_op_store_factory(),
+            ReadonlyRepo::default_op_heads_store_factory(),
+            ReadonlyRepo::default_index_store_factory(),
+            ReadonlyRepo::default_submodule_store_factory(),
+        )
+        .unwrap();
 
         Self {
             _temp_dir: temp_dir,
