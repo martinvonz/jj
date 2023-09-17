@@ -38,45 +38,51 @@ fn merge_directories(left: &Path, base: &Path, right: &Path, output: &Path) {
     std::fs::create_dir(output).unwrap();
     let mut sub_dirs = vec![];
     // Walk the left side and copy to the output
-    for entry in std::fs::read_dir(left).unwrap() {
-        let path = entry.unwrap().path();
-        let base_name = path.file_name().unwrap();
-        let child_left = left.join(base_name);
-        let child_output = output.join(base_name);
-        if child_left.is_dir() {
-            sub_dirs.push(base_name.to_os_string());
-        } else {
-            std::fs::copy(&child_left, child_output).unwrap();
+    if left.exists() {
+        for entry in std::fs::read_dir(left).unwrap() {
+            let path = entry.unwrap().path();
+            let base_name = path.file_name().unwrap();
+            let child_left = left.join(base_name);
+            let child_output = output.join(base_name);
+            if child_left.is_dir() {
+                sub_dirs.push(base_name.to_os_string());
+            } else {
+                std::fs::copy(&child_left, child_output).unwrap();
+            }
         }
     }
     // Walk the base and find files removed in the right side, then remove them in
     // the output
-    for entry in std::fs::read_dir(base).unwrap() {
-        let path = entry.unwrap().path();
-        let base_name = path.file_name().unwrap();
-        let child_base = base.join(base_name);
-        let child_right = right.join(base_name);
-        let child_output = output.join(base_name);
-        if child_base.is_dir() {
-            sub_dirs.push(base_name.to_os_string());
-        } else if !child_right.exists() {
-            std::fs::remove_file(child_output).ok();
+    if base.exists() {
+        for entry in std::fs::read_dir(base).unwrap() {
+            let path = entry.unwrap().path();
+            let base_name = path.file_name().unwrap();
+            let child_base = base.join(base_name);
+            let child_right = right.join(base_name);
+            let child_output = output.join(base_name);
+            if child_base.is_dir() {
+                sub_dirs.push(base_name.to_os_string());
+            } else if !child_right.exists() {
+                std::fs::remove_file(child_output).ok();
+            }
         }
     }
     // Walk the right side and find files added in the right side, then add them in
     // the output
-    for entry in std::fs::read_dir(right).unwrap() {
-        let path = entry.unwrap().path();
-        let base_name = path.file_name().unwrap();
-        let child_base = base.join(base_name);
-        let child_right = right.join(base_name);
-        let child_output = output.join(base_name);
-        if child_right.is_dir() {
-            sub_dirs.push(base_name.to_os_string());
-        } else if !child_base.exists() {
-            // This overwrites the left side if that's been written. That's fine, since the
-            // point of the test is that it should be okay for either side to win.
-            std::fs::copy(&child_right, child_output).unwrap();
+    if right.exists() {
+        for entry in std::fs::read_dir(right).unwrap() {
+            let path = entry.unwrap().path();
+            let base_name = path.file_name().unwrap();
+            let child_base = base.join(base_name);
+            let child_right = right.join(base_name);
+            let child_output = output.join(base_name);
+            if child_right.is_dir() {
+                sub_dirs.push(base_name.to_os_string());
+            } else if !child_base.exists() {
+                // This overwrites the left side if that's been written. That's fine, since the
+                // point of the test is that it should be okay for either side to win.
+                std::fs::copy(&child_right, child_output).unwrap();
+            }
         }
     }
     // Do the merge in subdirectories

@@ -93,13 +93,11 @@ impl TestRepo {
         fs::create_dir(&repo_dir).unwrap();
 
         let repo = if use_git {
-            let git_path = temp_dir.path().join("git-repo");
-            git2::Repository::init(&git_path).unwrap();
             ReadonlyRepo::init(
                 &settings,
                 &repo_dir,
                 |store_path| -> Result<Box<dyn Backend>, BackendInitError> {
-                    Ok(Box::new(GitBackend::init_external(store_path, &git_path)?))
+                    Ok(Box::new(GitBackend::init_internal(store_path)?))
                 },
                 ReadonlyRepo::default_op_store_factory(),
                 ReadonlyRepo::default_op_heads_store_factory(),
@@ -144,9 +142,7 @@ impl TestWorkspace {
         fs::create_dir(&workspace_root).unwrap();
 
         let (workspace, repo) = if use_git {
-            let git_path = temp_dir.path().join("git-repo");
-            git2::Repository::init(&git_path).unwrap();
-            Workspace::init_external_git(settings, &workspace_root, &git_path).unwrap()
+            Workspace::init_internal_git(settings, &workspace_root).unwrap()
         } else {
             Workspace::init_local(settings, &workspace_root).unwrap()
         };
