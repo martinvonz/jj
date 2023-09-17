@@ -145,16 +145,25 @@ pub struct TestWorkspace {
 
 impl TestWorkspace {
     pub fn init(settings: &UserSettings, use_git: bool) -> Self {
+        let backend = if use_git {
+            TestRepoBackend::Git
+        } else {
+            TestRepoBackend::Local
+        };
+        Self::init_with_backend(settings, backend)
+    }
+
+    pub fn init_with_backend(settings: &UserSettings, backend: TestRepoBackend) -> Self {
         let temp_dir = new_temp_dir();
 
         let workspace_root = temp_dir.path().join("repo");
         fs::create_dir(&workspace_root).unwrap();
 
-        let (workspace, repo) = if use_git {
-            Workspace::init_internal_git(settings, &workspace_root).unwrap()
-        } else {
-            Workspace::init_local(settings, &workspace_root).unwrap()
-        };
+        let (workspace, repo) =
+            Workspace::init_with_backend(settings, &workspace_root, |store_path| {
+                backend.init_backend(store_path)
+            })
+            .unwrap();
 
         Self {
             temp_dir,
