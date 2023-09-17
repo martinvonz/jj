@@ -135,6 +135,28 @@ fn test_checkout_conflicting_branches() {
     "###);
 }
 
+#[test]
+fn test_checkout_conflicting_change_ids() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "one"]);
+    test_env.jj_cmd_success(&repo_path, &["--at-op=@-", "describe", "-m", "two"]);
+
+    // Trigger resolution of concurrent operations
+    test_env.jj_cmd_success(&repo_path, &["st"]);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "qpvuntsm"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "qpvuntsm" resolved to more than one revision
+    Hint: The revset "qpvuntsm" resolved to these revisions:
+    qpvuntsm d2ae6806 (empty) two
+    qpvuntsm a9330854 (empty) one
+    Some of these commits have the same change id. Abandon one of them with `jj abandon -r <REVISION>`.
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"commit_id ++ " " ++ description"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])

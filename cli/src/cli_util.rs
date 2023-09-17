@@ -1022,9 +1022,15 @@ impl WorkspaceCommandHelper {
                     .map(|c| self.format_commit_summary(c))
                     .join("\n")
                     + elided.then_some("\n...").unwrap_or_default();
-                let hint = if let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(
-                    branch_name,
-                )) = revset_expression.as_ref()
+                let hint = if commits[0].change_id() == commits[1].change_id() {
+                    // Separate hint if there's commits with same change id
+                    format!(
+                        r#"The revset "{revision_str}" resolved to these revisions:
+{commits_summary}
+Some of these commits have the same change id. Abandon one of them with `jj abandon -r <REVISION>`."#,
+                    )
+                } else if let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(branch_name)) =
+                    revset_expression.as_ref()
                 {
                     // Separate hint if there's a conflicted branch
                     format!(
