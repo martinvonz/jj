@@ -606,6 +606,19 @@
     Aliases
   </a>
   
+    <nav class="md-nav" aria-label="Aliases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#built-in-aliases" class="md-nav__link">
+    Built-in Aliases
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1147,6 +1160,19 @@
     Aliases
   </a>
   
+    <nav class="md-nav" aria-label="Aliases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#built-in-aliases" class="md-nav__link">
+    Built-in Aliases
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1311,6 +1337,21 @@ combination of the predefined symbols/functions and other aliases.</p>
 <div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
 <span class="s">&#39;mine&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#39;author(martinvonz)&#39;</span>
 <span class="s">&#39;user(x)&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#39;author(x) | committer(x)&#39;</span>
+</code></pre></div>
+<h3 id="built-in-aliases">Built-in Aliases<a class="headerlink" href="#built-in-aliases" title="Permanent link">&para;</a></h3>
+<p>The following aliases are built-in and used for certain operations. These functions
+are defined as aliases in order to allow you to overwrite them as needed. 
+See <a href="https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.toml">revsets.toml</a>
+for a comprehensive list.</p>
+<ul>
+<li><code>trunk()</code>: Resolves to the head commit for the trunk branch of the <code>origin</code>
+  remote. The branches <code>main</code>, <code>master</code>, and <code>trunk</code> are tried in order.
+  If none of the branches exist, it evaluates to <code>root()</code>.</li>
+</ul>
+<p>You can <a href="config.html">override</a> this as appropriate. If you do, make sure it
+  always resolves to exactly one commit. For example:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
+<span class="s">&#39;trunk()&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#39;latest(remote_branches(exact:&quot;your-branch&quot;, exact:&quot;your-remote&quot;))&#39;</span>
 </code></pre></div>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Show the parent(s) of the working-copy commit (like <code>git log -1 HEAD</code>):</p>
