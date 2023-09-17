@@ -14,6 +14,7 @@
 
 use std::path::Path;
 
+use itertools::Itertools;
 use jj_lib::repo::{Repo, StoreFactories};
 use jj_lib::workspace::Workspace;
 use test_case::test_case;
@@ -34,7 +35,7 @@ fn copy_directory(src: &Path, dst: &Path) {
 }
 
 fn merge_directories(left: &Path, base: &Path, right: &Path, output: &Path) {
-    std::fs::create_dir(output).ok();
+    std::fs::create_dir(output).unwrap();
     let mut sub_dirs = vec![];
     // Walk the left side and copy to the output
     for entry in std::fs::read_dir(left).unwrap() {
@@ -79,11 +80,11 @@ fn merge_directories(left: &Path, base: &Path, right: &Path, output: &Path) {
         }
     }
     // Do the merge in subdirectories
-    for base_name in sub_dirs {
-        let child_base = base.join(&base_name);
-        let child_right = right.join(&base_name);
-        let child_left = left.join(&base_name);
-        let child_output = output.join(&base_name);
+    for base_name in sub_dirs.iter().sorted().dedup() {
+        let child_base = base.join(base_name);
+        let child_right = right.join(base_name);
+        let child_left = left.join(base_name);
+        let child_output = output.join(base_name);
         merge_directories(&child_left, &child_base, &child_right, &child_output);
     }
 }
@@ -106,10 +107,10 @@ fn test_bad_locking_children(use_git: bool) {
     tx.commit();
 
     // Simulate a write of a commit that happens on one machine
-    let machine1_root = testutils::new_temp_dir();
-    copy_directory(workspace_root, machine1_root.path());
+    let machine1_root = test_workspace.root_dir().join("machine1");
+    copy_directory(workspace_root, &machine1_root);
     let machine1_workspace =
-        Workspace::load(&settings, machine1_root.path(), &StoreFactories::default()).unwrap();
+        Workspace::load(&settings, &machine1_root, &StoreFactories::default()).unwrap();
     let machine1_repo = machine1_workspace
         .repo_loader()
         .load_at_head(&settings)
@@ -122,10 +123,10 @@ fn test_bad_locking_children(use_git: bool) {
     machine1_tx.commit();
 
     // Simulate a write of a commit that happens on another machine
-    let machine2_root = testutils::new_temp_dir();
-    copy_directory(workspace_root, machine2_root.path());
+    let machine2_root = test_workspace.root_dir().join("machine2");
+    copy_directory(workspace_root, &machine2_root);
     let machine2_workspace =
-        Workspace::load(&settings, machine2_root.path(), &StoreFactories::default()).unwrap();
+        Workspace::load(&settings, &machine2_root, &StoreFactories::default()).unwrap();
     let machine2_repo = machine2_workspace
         .repo_loader()
         .load_at_head(&settings)
@@ -139,15 +140,10 @@ fn test_bad_locking_children(use_git: bool) {
 
     // Simulate that the distributed file system now has received the changes from
     // both machines
-    let merged_path = testutils::new_temp_dir();
-    merge_directories(
-        machine1_root.path(),
-        workspace_root,
-        machine2_root.path(),
-        merged_path.path(),
-    );
+    let merged_path = test_workspace.root_dir().join("merged");
+    merge_directories(&machine1_root, workspace_root, &machine2_root, &merged_path);
     let merged_workspace =
-        Workspace::load(&settings, merged_path.path(), &StoreFactories::default()).unwrap();
+        Workspace::load(&settings, &merged_path, &StoreFactories::default()).unwrap();
     let merged_repo = merged_workspace
         .repo_loader()
         .load_at_head(&settings)
@@ -181,8 +177,8 @@ fn test_bad_locking_interrupted(use_git: bool) {
     // operation and then copying that back afterwards, leaving the existing
     // op-head(s) in place.
     let op_heads_dir = repo.repo_path().join("op_heads");
-    let backup_path = testutils::new_temp_dir();
-    copy_directory(&op_heads_dir, backup_path.path());
+    let backup_path = test_workspace.root_dir().join("backup");
+    copy_directory(&op_heads_dir, &backup_path);
     let mut tx = repo.start_transaction(&settings, "test");
     create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![initial.id().clone()])
@@ -190,7 +186,7 @@ fn test_bad_locking_interrupted(use_git: bool) {
         .unwrap();
     let op_id = tx.commit().operation().id().clone();
 
-    copy_directory(backup_path.path(), &op_heads_dir);
+    copy_directory(&backup_path, &op_heads_dir);
     // Reload the repo and check that only the new head is present.
     let reloaded_repo = load_repo_at_head(&settings, repo.repo_path());
     assert_eq!(reloaded_repo.op_id(), &op_id);
