@@ -159,7 +159,7 @@ impl UserSettings {
             // For compatibility with old config files (<0.8.0)
             self.config
                 .get_string("ui.default-revset")
-                .unwrap_or_else(|_| "@ | ancestors((remote_branches() | tags()).., 2)".to_string())
+                .unwrap_or_else(|_| "(trunk()..@):: | (trunk()..@)-".to_string())
         })
     }
 
