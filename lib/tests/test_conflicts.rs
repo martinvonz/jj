@@ -20,11 +20,11 @@ use jj_lib::merge::Merge;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::store::Store;
-use testutils::TestRepo;
+use testutils::{TestRepo, TestRepoBackend};
 
 #[test]
 fn test_materialize_conflict_basic() {
-    let test_repo = TestRepo::init(false);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
     let store = test_repo.repo.store();
 
     let path = RepoPath::from_internal_string("file");
@@ -113,7 +113,7 @@ line 5
 
 #[test]
 fn test_materialize_conflict_multi_rebase_conflicts() {
-    let test_repo = TestRepo::init(false);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
     let store = test_repo.repo.store();
 
     // Create changes (a, b, c) on top of the base, and linearize them.
@@ -232,7 +232,7 @@ line 3
 
 #[test]
 fn test_materialize_parse_roundtrip() {
-    let test_repo = TestRepo::init(false);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
     let store = test_repo.repo.store();
 
     let path = RepoPath::from_internal_string("file");
@@ -334,7 +334,7 @@ line 5 right
 
 #[test]
 fn test_materialize_conflict_modify_delete() {
-    let test_repo = TestRepo::init(false);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
     let store = test_repo.repo.store();
 
     let path = RepoPath::from_internal_string("file");
@@ -614,7 +614,7 @@ line 5
 
 #[test]
 fn test_update_conflict_from_content() {
-    let test_repo = TestRepo::init(false);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
     let store = test_repo.repo.store();
 
     let path = RepoPath::from_internal_string("dir/file");
@@ -665,7 +665,7 @@ fn test_update_conflict_from_content() {
 
 #[test]
 fn test_update_conflict_from_content_modify_delete() {
-    let test_repo = TestRepo::init(false);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
     let store = test_repo.repo.store();
 
     let path = RepoPath::from_internal_string("dir/file");

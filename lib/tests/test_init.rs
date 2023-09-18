@@ -20,7 +20,7 @@ use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
 use jj_lib::workspace::Workspace;
 use test_case::test_case;
-use testutils::{write_random_commit, TestWorkspace};
+use testutils::{write_random_commit, TestRepoBackend, TestWorkspace};
 
 fn canonicalize(input: &Path) -> (PathBuf, PathBuf) {
     let uncanonical = input.join("..").join(input.file_name().unwrap());
@@ -93,12 +93,12 @@ fn test_init_external_git() {
     write_random_commit(tx.mut_repo(), &settings);
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_init_no_config_set(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_init_no_config_set(backend: TestRepoBackend) {
     // Test that we can create a repo without setting any config
     let settings = UserSettings::from_config(config::Config::default());
-    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
     let wc_commit_id = repo
         .view()
@@ -111,12 +111,12 @@ fn test_init_no_config_set(use_git: bool) {
     assert_eq!(wc_commit.committer().email, "".to_string());
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_init_checkout(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_init_checkout(backend: TestRepoBackend) {
     // Test the contents of the working-copy commit after init
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
     let wc_commit_id = repo
         .view()

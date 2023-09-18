@@ -18,14 +18,15 @@ use maplit::hashset;
 use test_case::test_case;
 use testutils::{
     assert_rebased, create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo,
+    TestRepoBackend,
 };
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_edit(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_edit(backend: TestRepoBackend) {
     // Test that MutableRepo::edit() uses the requested commit (not a new child)
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -39,12 +40,12 @@ fn test_edit(use_git: bool) {
     assert_eq!(repo.view().get_wc_commit_id(&ws_id), Some(wc_commit.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_checkout(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_checkout(backend: TestRepoBackend) {
     // Test that MutableRepo::check_out() creates a child
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -64,13 +65,13 @@ fn test_checkout(use_git: bool) {
     assert_eq!(repo.view().get_wc_commit_id(&ws_id), Some(wc_commit.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_checkout_previous_not_empty(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_checkout_previous_not_empty(backend: TestRepoBackend) {
     // Test that MutableRepo::check_out() does not usually abandon the previous
     // commit.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -88,13 +89,13 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_checkout_previous_empty(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_checkout_previous_empty(backend: TestRepoBackend) {
     // Test that MutableRepo::check_out() abandons the previous commit if it was
     // empty.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -119,13 +120,13 @@ fn test_checkout_previous_empty(use_git: bool) {
     assert!(!mut_repo.view().heads().contains(old_wc_commit.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_checkout_previous_empty_with_description(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_checkout_previous_empty_with_description(backend: TestRepoBackend) {
     // Test that MutableRepo::check_out() does not abandon the previous commit if it
     // has a non-empty description.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -151,13 +152,13 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
     assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_checkout_previous_empty_with_local_branch(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_checkout_previous_empty_with_local_branch(backend: TestRepoBackend) {
     // Test that MutableRepo::check_out() does not abandon the previous commit if it
     // is pointed by local branch.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -183,13 +184,13 @@ fn test_checkout_previous_empty_with_local_branch(use_git: bool) {
     assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_checkout_previous_empty_non_head(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_checkout_previous_empty_non_head(backend: TestRepoBackend) {
     // Test that MutableRepo::check_out() does not abandon the previous commit if it
     // was empty and is not a head
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -225,13 +226,13 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_edit_initial(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_edit_initial(backend: TestRepoBackend) {
     // Test that MutableRepo::edit() can be used on the initial working-copy commit
     // in a workspace
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -250,13 +251,13 @@ fn test_edit_initial(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_add_head_success(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_add_head_success(backend: TestRepoBackend) {
     // Test that MutableRepo::add_head() adds the head, and that it's still there
     // after commit. It should also be indexed.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     // Create a commit outside of the repo by using a temporary transaction. Then
@@ -277,13 +278,13 @@ fn test_add_head_success(use_git: bool) {
     assert!(repo.index().has_id(new_commit.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_add_head_ancestor(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_add_head_ancestor(backend: TestRepoBackend) {
     // Test that MutableRepo::add_head() does not add a head if it's an ancestor of
     // an existing head.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -300,13 +301,13 @@ fn test_add_head_ancestor(use_git: bool) {
     assert_eq!(repo.view().heads(), &hashset! {commit3.id().clone()});
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_add_head_not_immediate_child(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_add_head_not_immediate_child(backend: TestRepoBackend) {
     // Test that MutableRepo::add_head() can be used for adding a head that is not
     // an immediate child of a current head.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -340,14 +341,14 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     assert!(mut_repo.index().has_id(child.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_remove_head(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_remove_head(backend: TestRepoBackend) {
     // Test that MutableRepo::remove_head() removes the head, and that it's still
     // removed after commit. It should remain in the index, since we otherwise would
     // have to reindex everything.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -378,13 +379,13 @@ fn test_remove_head(use_git: bool) {
     assert!(repo.index().has_id(commit3.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_add_public_head(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_add_public_head(backend: TestRepoBackend) {
     // Test that MutableRepo::add_public_head() adds the head, and that it's still
     // there after commit.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -400,13 +401,13 @@ fn test_add_public_head(use_git: bool) {
     assert!(repo.view().public_heads().contains(commit1.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_add_public_head_ancestor(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_add_public_head_ancestor(backend: TestRepoBackend) {
     // Test that MutableRepo::add_public_head() does not add a public head if it's
     // an ancestor of an existing public head.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -425,13 +426,13 @@ fn test_add_public_head_ancestor(use_git: bool) {
     assert!(!repo.view().public_heads().contains(commit1.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_remove_public_head(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_remove_public_head(backend: TestRepoBackend) {
     // Test that MutableRepo::remove_public_head() removes the head, and that it's
     // still removed after commit.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -449,14 +450,14 @@ fn test_remove_public_head(use_git: bool) {
     assert!(!repo.view().public_heads().contains(commit1.id()));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_has_changed(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_has_changed(backend: TestRepoBackend) {
     // Test that MutableRepo::has_changed() reports changes iff the view has changed
     // (e.g. not after setting a branch to point to where it was already
     // pointing).
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -527,14 +528,14 @@ fn test_has_changed(use_git: bool) {
     assert!(!mut_repo.has_changes());
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_rebase_descendants_simple(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_rebase_descendants_simple(backend: TestRepoBackend) {
     // Tests that MutableRepo::create_descendant_rebaser() creates a
     // DescendantRebaser that rebases descendants of rewritten and abandoned
     // commits.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -566,13 +567,13 @@ fn test_rebase_descendants_simple(use_git: bool) {
         .is_none());
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_rebase_descendants_conflicting_rewrite(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_rebase_descendants_conflicting_rewrite(backend: TestRepoBackend) {
     // Tests MutableRepo::create_descendant_rebaser() when a commit has been marked
     // as rewritten to several other commits.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -601,11 +602,11 @@ fn test_rebase_descendants_conflicting_rewrite(use_git: bool) {
         .is_none());
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_rename_remote(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_rename_remote(backend: TestRepoBackend) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();

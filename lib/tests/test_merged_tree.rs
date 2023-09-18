@@ -21,7 +21,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::tree::merge_trees;
 use pretty_assertions::assert_eq;
-use testutils::{create_single_tree, write_file, TestRepo};
+use testutils::{create_single_tree, write_file, TestRepo, TestRepoBackend};
 
 fn file_value(file_id: &FileId) -> TreeValue {
     TreeValue::File {
@@ -32,7 +32,7 @@ fn file_value(file_id: &FileId) -> TreeValue {
 
 #[test]
 fn test_from_legacy_tree() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -223,7 +223,7 @@ fn test_from_legacy_tree() {
 
 #[test]
 fn test_path_value_and_entries() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     // Create a MergedTree
@@ -348,7 +348,7 @@ fn test_path_value_and_entries() {
 
 #[test]
 fn test_resolve_success() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     let unchanged_path = RepoPath::from_internal_string("unchanged");
@@ -415,7 +415,7 @@ fn test_resolve_success() {
 
 #[test]
 fn test_resolve_root_becomes_empty() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -432,7 +432,7 @@ fn test_resolve_root_becomes_empty() {
 
 #[test]
 fn test_resolve_with_conflict() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     // The trivial conflict should be resolved but the non-trivial should not (and
@@ -459,7 +459,7 @@ fn test_resolve_with_conflict() {
 
 #[test]
 fn test_conflict_iterator() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     let unchanged_path = RepoPath::from_internal_string("dir/subdir/unchanged");
@@ -575,7 +575,7 @@ fn test_conflict_iterator() {
 }
 #[test]
 fn test_conflict_iterator_higher_arity() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     let two_sided_path = RepoPath::from_internal_string("dir/2-sided");
@@ -652,7 +652,7 @@ fn test_conflict_iterator_higher_arity() {
 /// Diff two resolved trees
 #[test]
 fn test_diff_resolved() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     let clean_path = RepoPath::from_internal_string("dir1/file");
@@ -711,7 +711,7 @@ fn test_diff_resolved() {
 /// Diff two conflicted trees
 #[test]
 fn test_diff_conflicted() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     // path1 is a clean (unchanged) conflict
@@ -816,7 +816,7 @@ fn test_diff_conflicted() {
 
 #[test]
 fn test_diff_dir_file() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     // path1: file1 -> directory1
@@ -1048,7 +1048,7 @@ fn test_diff_dir_file() {
 /// Merge 3 resolved trees that can be resolved
 #[test]
 fn test_merge_simple() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     let path1 = RepoPath::from_internal_string("dir1/file");
@@ -1069,7 +1069,7 @@ fn test_merge_simple() {
 /// Merge 3 resolved trees that can be partially resolved
 #[test]
 fn test_merge_partial_resolution() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     // path1 can be resolved, path2 cannot
@@ -1096,7 +1096,7 @@ fn test_merge_partial_resolution() {
 /// Merge 3 resolved trees, including one empty legacy tree
 #[test]
 fn test_merge_with_empty_legacy_tree() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     let path1 = RepoPath::from_internal_string("dir1/file");
@@ -1121,7 +1121,7 @@ fn test_merge_with_empty_legacy_tree() {
 /// at by only simplifying the conflict (no need to recurse)
 #[test]
 fn test_merge_simplify_only() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     let path = RepoPath::from_internal_string("dir1/file");
@@ -1154,7 +1154,7 @@ fn test_merge_simplify_only() {
 /// result is a 3-way conflict.
 #[test]
 fn test_merge_simplify_result() {
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     // The conflict in path1 cannot be resolved, but the conflict in path2 can.

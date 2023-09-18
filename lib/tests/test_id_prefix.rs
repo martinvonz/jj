@@ -19,12 +19,12 @@ use jj_lib::index::HexPrefix;
 use jj_lib::index::PrefixResolution::{AmbiguousMatch, NoMatch, SingleMatch};
 use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
-use testutils::TestRepo;
+use testutils::{TestRepo, TestRepoBackend};
 
 #[test]
 fn test_id_prefix() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let root_commit_id = repo.store().root_commit_id();
     let root_change_id = repo.store().root_change_id();

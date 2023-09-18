@@ -100,15 +100,6 @@ impl TestRepoBackend {
 }
 
 impl TestRepo {
-    pub fn init(use_git: bool) -> Self {
-        let backend = if use_git {
-            TestRepoBackend::Git
-        } else {
-            TestRepoBackend::Local
-        };
-        Self::init_with_backend(backend)
-    }
-
     pub fn init_with_backend(backend: TestRepoBackend) -> Self {
         let settings = user_settings();
         let temp_dir = new_temp_dir();
@@ -144,15 +135,6 @@ pub struct TestWorkspace {
 }
 
 impl TestWorkspace {
-    pub fn init(settings: &UserSettings, use_git: bool) -> Self {
-        let backend = if use_git {
-            TestRepoBackend::Git
-        } else {
-            TestRepoBackend::Local
-        };
-        Self::init_with_backend(settings, backend)
-    }
-
     pub fn init_with_backend(settings: &UserSettings, backend: TestRepoBackend) -> Self {
         let temp_dir = new_temp_dir();
 
