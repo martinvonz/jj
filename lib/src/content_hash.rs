@@ -1,3 +1,5 @@
+//! Portable, stable hashing suitable for identifying values
+
 use blake2::Blake2b512;
 use itertools::Itertools as _;
 
@@ -9,9 +11,11 @@ use itertools::Itertools as _;
 /// hash a 32-bit little-endian encoding of the ordinal number of the enum
 /// variant, then the variant's fields in lexical order.
 pub trait ContentHash {
+    /// Update the hasher state with this object's content
     fn hash(&self, state: &mut impl digest::Update);
 }
 
+/// The 512-bit BLAKE2b content hash
 pub fn blake2b_hash(x: &(impl ContentHash + ?Sized)) -> digest::Output<Blake2b512> {
     use digest::Digest;
     let mut hasher = Blake2b512::default();

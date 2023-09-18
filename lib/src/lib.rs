@@ -18,7 +18,7 @@
 #![deny(unused_must_use)]
 
 #[macro_use]
-mod content_hash;
+pub mod content_hash;
 
 pub mod backend;
 pub mod commit;
