@@ -35,14 +35,14 @@ use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::{LockedWorkingCopy, SnapshotError, SnapshotOptions, WorkingCopy};
 use test_case::test_case;
-use testutils::{create_tree, write_random_commit, TestWorkspace};
+use testutils::{create_tree, write_random_commit, TestRepoBackend, TestWorkspace};
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_root(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_root(backend: TestRepoBackend) {
     // Test that the working copy is clean and empty after init.
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
 
     let wc = test_workspace.workspace.working_copy();
     assert_eq!(wc.sparse_patterns().unwrap(), vec![RepoPath::root()]);
@@ -57,15 +57,15 @@ fn test_root(use_git: bool) {
     assert_eq!(new_tree.id(), repo.store().empty_merged_tree_id());
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_checkout_file_transitions(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_checkout_file_transitions(backend: TestRepoBackend) {
     // Tests switching between commits where a certain path is of one type in one
     // commit and another type in the other. Includes a "missing" type, so we cover
     // additions and removals as well.
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
     let store = repo.store().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
@@ -170,7 +170,7 @@ fn test_checkout_file_transitions(use_git: bool) {
     ];
     #[cfg(unix)]
     kinds.push(Kind::Symlink);
-    if use_git {
+    if backend == TestRepoBackend::Git {
         kinds.push(Kind::GitSubmodule);
     }
     let mut left_tree_builder = MergedTreeBuilder::new(store.empty_merged_tree_id());
@@ -264,7 +264,7 @@ fn test_checkout_file_transitions(use_git: bool) {
 #[test]
 fn test_conflict_subdirectory() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, true);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
     let repo = &test_workspace.repo;
 
     let path = RepoPath::from_internal_string("sub/file");
@@ -279,11 +279,11 @@ fn test_conflict_subdirectory() {
         .unwrap();
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_tree_builder_file_directory_transition(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_tree_builder_file_directory_transition(backend: TestRepoBackend) {
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
     let store = repo.store();
     let mut workspace = test_workspace.workspace;
@@ -328,7 +328,7 @@ fn test_tree_builder_file_directory_transition(use_git: bool) {
 #[test]
 fn test_reset() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, false);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Local);
     let repo = &test_workspace.repo;
     let op_id = repo.op_id().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
@@ -379,7 +379,7 @@ fn test_checkout_discard() {
     // copy files should remain changed, but the state files should not be
     // written.
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, false);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Local);
     let repo = test_workspace.repo.clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -419,13 +419,13 @@ fn test_checkout_discard() {
     assert!(!reloaded_wc.file_states().unwrap().contains_key(&file2_path));
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_snapshot_racy_timestamps(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_snapshot_racy_timestamps(backend: TestRepoBackend) {
     // Tests that file modifications are detected even if they happen the same
     // millisecond as the updated working copy state.
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -458,7 +458,7 @@ fn test_snapshot_special_file() {
     // Tests that we ignore when special files (such as sockets and pipes) exist on
     // disk.
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, false);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Local);
     let workspace_root = test_workspace.workspace.workspace_root().clone();
     let store = test_workspace.repo.store();
 
@@ -508,13 +508,13 @@ fn test_snapshot_special_file() {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_gitignores(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_gitignores(backend: TestRepoBackend) {
     // Tests that .gitignore files are respected.
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
@@ -568,14 +568,14 @@ fn test_gitignores(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_gitignores_in_ignored_dir(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_gitignores_in_ignored_dir(backend: TestRepoBackend) {
     // Tests that .gitignore files in an ignored directory are ignored, i.e. that
     // they cannot override the ignores from the parent
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let op_id = test_workspace.repo.op_id().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -616,14 +616,14 @@ fn test_gitignores_in_ignored_dir(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_gitignores_checkout_never_overwrites_ignored(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_gitignores_checkout_never_overwrites_ignored(backend: TestRepoBackend) {
     // Tests that a .gitignore'd file doesn't get overwritten if check out a commit
     // where the file is tracked.
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -648,14 +648,14 @@ fn test_gitignores_checkout_never_overwrites_ignored(use_git: bool) {
     assert_eq!(std::fs::read(&path).unwrap(), b"garbage");
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_gitignores_ignored_directory_already_tracked(backend: TestRepoBackend) {
     // Tests that a .gitignore'd directory that already has a tracked file in it
     // does not get removed when snapshotting the working directory.
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let workspace_root = test_workspace.workspace.workspace_root().clone();
     let repo = test_workspace.repo.clone();
 
@@ -697,14 +697,14 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_dotgit_ignored(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_dotgit_ignored(backend: TestRepoBackend) {
     // Tests that .git directories and files are always ignored (we could accept
     // them if the backend is not git).
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let store = test_workspace.repo.store().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -737,7 +737,7 @@ fn test_gitsubmodule() {
     // Tests that git submodules are ignored.
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, true);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let store = repo.store().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
@@ -792,11 +792,11 @@ fn test_gitsubmodule() {
 }
 
 #[cfg(unix)]
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_existing_directory_symlink(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_existing_directory_symlink(backend: TestRepoBackend) {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -817,7 +817,7 @@ fn test_existing_directory_symlink(use_git: bool) {
 #[test]
 fn test_fsmonitor() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, true);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -918,7 +918,7 @@ fn test_snapshot_max_new_file_size() {
             .build()
             .unwrap(),
     );
-    let mut test_workspace = TestWorkspace::init(&settings, true);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
     let workspace_root = test_workspace.workspace.workspace_root().clone();
     let small_path = RepoPath::from_internal_string("small");
     let large_path = RepoPath::from_internal_string("large");

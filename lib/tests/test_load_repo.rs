@@ -14,13 +14,13 @@
 
 use jj_lib::repo::{RepoLoader, StoreFactories};
 use test_case::test_case;
-use testutils::{write_random_commit, TestRepo};
+use testutils::{write_random_commit, TestRepo, TestRepoBackend};
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_load_at_operation(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_load_at_operation(backend: TestRepoBackend) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "add commit");

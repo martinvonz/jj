@@ -20,14 +20,14 @@ use jj_lib::repo::{Repo, StoreFactories};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
 use jj_lib::workspace::Workspace;
-use testutils::{create_tree, write_working_copy_file, TestWorkspace};
+use testutils::{create_tree, write_working_copy_file, TestRepoBackend, TestWorkspace};
 
 #[test]
 fn test_concurrent_checkout() {
     // Test that we error out if a concurrent checkout is detected (i.e. if the
     // working-copy commit changed on disk after we read it).
     let settings = testutils::user_settings();
-    let mut test_workspace1 = TestWorkspace::init(&settings, true);
+    let mut test_workspace1 = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
     let repo1 = test_workspace1.repo.clone();
     let workspace1_root = test_workspace1.workspace.workspace_root().clone();
 
@@ -72,7 +72,7 @@ fn test_checkout_parallel() {
     // Test that concurrent checkouts by different processes (simulated by using
     // different repo instances) is safe.
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, true);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -137,7 +137,7 @@ fn test_checkout_parallel() {
 #[test]
 fn test_racy_checkout() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init(&settings, true);
+    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let op_id = repo.op_id().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();

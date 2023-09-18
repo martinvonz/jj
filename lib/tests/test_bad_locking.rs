@@ -18,7 +18,7 @@ use itertools::Itertools;
 use jj_lib::repo::{Repo, StoreFactories};
 use jj_lib::workspace::Workspace;
 use test_case::test_case;
-use testutils::{create_random_commit, load_repo_at_head, TestWorkspace};
+use testutils::{create_random_commit, load_repo_at_head, TestRepoBackend, TestWorkspace};
 
 fn copy_directory(src: &Path, dst: &Path) {
     std::fs::create_dir(dst).ok();
@@ -95,13 +95,13 @@ fn merge_directories(left: &Path, base: &Path, right: &Path, output: &Path) {
     }
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_bad_locking_children(use_git: bool) {
+#[test_case(TestRepoBackend::Local; "local backend")]
+#[test_case(TestRepoBackend::Git; "git backend")]
+fn test_bad_locking_children(backend: TestRepoBackend) {
     // Test that two new commits created on separate machines are both visible (not
     // lost due to lack of locking)
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root();
 
@@ -161,14 +161,14 @@ fn test_bad_locking_children(use_git: bool) {
     assert_eq!(op.parents.len(), 2);
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_bad_locking_interrupted(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_bad_locking_interrupted(backend: TestRepoBackend) {
     // Test that an interrupted update of the op-heads resulting in on op-head
     // that's a descendant of the other is resolved without creating a new
     // operation.
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");

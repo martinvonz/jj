@@ -19,13 +19,13 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
 use test_case::test_case;
-use testutils::{assert_rebased, create_tree, CommitGraphBuilder, TestRepo};
+use testutils::{assert_rebased, create_tree, CommitGraphBuilder, TestRepo, TestRepoBackend};
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_initial(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_initial(backend: TestRepoBackend) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -92,11 +92,11 @@ fn test_initial(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_rewrite(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_rewrite(backend: TestRepoBackend) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
     let store = repo.store().clone();
 
@@ -188,12 +188,12 @@ fn test_rewrite(use_git: bool) {
 }
 
 // An author field with an empty name/email should get filled in on rewrite
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_rewrite_update_missing_user(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_rewrite_update_missing_user(backend: TestRepoBackend) {
     let missing_user_settings =
         UserSettings::from_config(config::Config::builder().build().unwrap());
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&missing_user_settings, "test");
@@ -237,11 +237,11 @@ fn test_rewrite_update_missing_user(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
-fn test_commit_builder_descendants(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+// #[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_commit_builder_descendants(backend: TestRepoBackend) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
     let store = repo.store().clone();
 

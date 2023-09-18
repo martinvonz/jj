@@ -39,6 +39,7 @@ use maplit::{btreemap, hashset};
 use tempfile::TempDir;
 use testutils::{
     commit_transactions, create_random_commit, load_repo_at_head, write_random_commit, TestRepo,
+    TestRepoBackend,
 };
 
 fn empty_git_commit<'r>(
@@ -85,7 +86,7 @@ fn get_git_repo(repo: &Arc<ReadonlyRepo>) -> git2::Repository {
 fn test_import_refs() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -185,7 +186,7 @@ fn test_import_refs() {
 fn test_import_refs_reimport() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_workspace = TestRepo::init(true);
+    let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let git_repo = get_git_repo(repo);
 
@@ -277,7 +278,7 @@ fn test_import_refs_reimport_head_removed() {
     // Test that re-importing refs doesn't cause a deleted head to come back
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -302,7 +303,7 @@ fn test_import_refs_reimport_git_head_counts() {
     // descendant of it), we still keep it alive.
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -330,7 +331,7 @@ fn test_import_refs_reimport_git_head_without_ref() {
     // Simulate external `git checkout` in colocated repo, from anonymous branch.
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -364,7 +365,7 @@ fn test_import_refs_reimport_git_head_with_moved_ref() {
     // Simulate external history rewriting in colocated repo.
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -400,7 +401,7 @@ fn test_import_refs_reimport_git_head_with_moved_ref() {
 fn test_import_refs_reimport_with_deleted_remote_ref() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_workspace = TestRepo::init(true);
+    let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let git_repo = get_git_repo(repo);
 
@@ -489,7 +490,7 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
 fn test_import_refs_reimport_with_moved_remote_ref() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_workspace = TestRepo::init(true);
+    let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let git_repo = get_git_repo(repo);
 
@@ -605,7 +606,7 @@ fn test_import_refs_reimport_git_head_with_fixed_ref() {
     // Simulate external `git checkout` in colocated repo, from named branch.
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -640,7 +641,7 @@ fn test_import_refs_reimport_all_from_root_removed() {
     // we abandon the whole stack, but not including the root commit.
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -666,7 +667,7 @@ fn test_import_refs_reimport_all_from_root_removed() {
 fn test_import_refs_reimport_conflicted_remote_branch() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -709,7 +710,7 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
 fn test_import_refs_reserved_remote_name() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -724,7 +725,7 @@ fn test_import_refs_reserved_remote_name() {
 fn test_import_some_refs() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_workspace = TestRepo::init(true);
+    let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let git_repo = get_git_repo(repo);
 
@@ -966,7 +967,7 @@ fn test_import_refs_empty_git_repo() {
 fn test_import_refs_missing_git_commit() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_workspace = TestRepo::init(true);
+    let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let git_repo = get_git_repo(repo);
 
@@ -2071,7 +2072,7 @@ fn test_push_updates_invalid_remote() {
 fn test_bulk_update_extra_on_import_refs() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -2117,7 +2118,7 @@ fn test_bulk_update_extra_on_import_refs() {
 fn test_rewrite_imported_commit() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -2167,7 +2168,7 @@ fn test_rewrite_imported_commit() {
 #[test]
 fn test_concurrent_write_commit() {
     let settings = &testutils::user_settings();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     // Try to create identical commits with different change ids. Timestamp of the
@@ -2229,7 +2230,7 @@ fn test_concurrent_write_commit() {
 #[test]
 fn test_concurrent_read_write_commit() {
     let settings = &testutils::user_settings();
-    let test_repo = TestRepo::init(true);
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
 
     // Create unique commits and load them concurrently. In this test, we assume

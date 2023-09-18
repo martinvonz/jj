@@ -17,7 +17,7 @@ use std::path::Path;
 use jj_lib::backend::{CommitId, ObjectId};
 use jj_lib::repo::Repo;
 use test_case::test_case;
-use testutils::{create_random_commit, write_random_commit, TestRepo};
+use testutils::{create_random_commit, write_random_commit, TestRepo, TestRepoBackend};
 
 fn list_dir(dir: &Path) -> Vec<String> {
     std::fs::read_dir(dir)
@@ -26,12 +26,12 @@ fn list_dir(dir: &Path) -> Vec<String> {
         .collect()
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_unpublished_operation(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_unpublished_operation(backend: TestRepoBackend) {
     // Test that the operation doesn't get published until that's requested.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads").join("heads");
@@ -48,13 +48,13 @@ fn test_unpublished_operation(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_consecutive_operations(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_consecutive_operations(backend: TestRepoBackend) {
     // Test that consecutive operations result in a single op-head on disk after
     // each operation
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads").join("heads");
@@ -81,13 +81,13 @@ fn test_consecutive_operations(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![op_id2.hex()]);
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_concurrent_operations(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_concurrent_operations(backend: TestRepoBackend) {
     // Test that consecutive operations result in multiple op-heads on disk until
     // the repo has been reloaded (which currently happens right away).
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads").join("heads");
@@ -127,12 +127,12 @@ fn assert_heads(repo: &dyn Repo, expected: Vec<&CommitId>) {
     assert_eq!(*repo.view().heads(), expected);
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_isolation(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_isolation(backend: TestRepoBackend) {
     // Test that two concurrent transactions don't see each other's changes.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");

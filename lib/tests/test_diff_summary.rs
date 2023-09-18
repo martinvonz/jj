@@ -16,12 +16,12 @@ use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
 use jj_lib::merged_tree::DiffSummary;
 use jj_lib::repo_path::RepoPath;
 use test_case::test_case;
-use testutils::{create_tree, TestRepo};
+use testutils::{create_tree, TestRepo, TestRepoBackend};
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_types(use_git: bool) {
-    let test_repo = TestRepo::init(use_git);
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_types(backend: TestRepoBackend) {
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let clean_path = RepoPath::from_internal_string("clean");
@@ -57,10 +57,10 @@ fn test_types(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_tree_file_transition(use_git: bool) {
-    let test_repo = TestRepo::init(use_git);
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_tree_file_transition(backend: TestRepoBackend) {
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let dir_file_path = RepoPath::from_internal_string("dir/file");
@@ -87,10 +87,10 @@ fn test_tree_file_transition(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_sorting(use_git: bool) {
-    let test_repo = TestRepo::init(use_git);
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_sorting(backend: TestRepoBackend) {
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let a_path = RepoPath::from_internal_string("a");
@@ -152,10 +152,10 @@ fn test_sorting(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_matcher_dir_file_transition(use_git: bool) {
-    let test_repo = TestRepo::init(use_git);
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_matcher_dir_file_transition(backend: TestRepoBackend) {
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let a_path = RepoPath::from_internal_string("a");
@@ -219,10 +219,10 @@ fn test_matcher_dir_file_transition(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_matcher_normal_cases(use_git: bool) {
-    let test_repo = TestRepo::init(use_git);
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_matcher_normal_cases(backend: TestRepoBackend) {
+    let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
     let a_path = RepoPath::from_internal_string("a");

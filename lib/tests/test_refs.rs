@@ -16,12 +16,12 @@ use jj_lib::merge::Merge;
 use jj_lib::op_store::RefTarget;
 use jj_lib::refs::merge_ref_targets;
 use jj_lib::repo::Repo;
-use testutils::{CommitGraphBuilder, TestWorkspace};
+use testutils::{CommitGraphBuilder, TestRepoBackend, TestWorkspace};
 
 #[test]
 fn test_merge_ref_targets() {
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init(&settings, false);
+    let test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Local);
     let repo = &test_workspace.repo;
 
     // 6 7

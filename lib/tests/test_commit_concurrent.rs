@@ -19,7 +19,7 @@ use std::thread;
 use jj_lib::dag_walk;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use test_case::test_case;
-use testutils::{load_repo_at_head, write_random_commit, TestWorkspace};
+use testutils::{load_repo_at_head, write_random_commit, TestRepoBackend, TestWorkspace};
 
 fn count_non_merge_operations(repo: &Arc<ReadonlyRepo>) -> usize {
     let op_store = repo.op_store();
@@ -38,14 +38,14 @@ fn count_non_merge_operations(repo: &Arc<ReadonlyRepo>) -> usize {
     num_ops
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_commit_parallel(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_commit_parallel(backend: TestRepoBackend) {
     // This loads a Repo instance and creates and commits many concurrent
     // transactions from it. It then reloads the repo. That should merge all the
     // operations and all commits should be visible.
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
 
     let num_threads = max(num_cpus::get(), 4);
@@ -70,13 +70,13 @@ fn test_commit_parallel(use_git: bool) {
     assert_eq!(count_non_merge_operations(&repo), num_threads + 2);
 }
 
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_commit_parallel_instances(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_commit_parallel_instances(backend: TestRepoBackend) {
     // Like the test above but creates a new repo instance for every thread, which
     // makes it behave very similar to separate processes.
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
 
     let num_threads = max(num_cpus::get(), 4);

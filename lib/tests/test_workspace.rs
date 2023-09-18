@@ -17,7 +17,7 @@ use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{Repo, StoreFactories};
 use jj_lib::workspace::{Workspace, WorkspaceLoadError};
 use test_case::test_case;
-use testutils::TestWorkspace;
+use testutils::{TestRepoBackend, TestWorkspace};
 
 #[test]
 fn test_load_bad_path() {
@@ -32,11 +32,11 @@ fn test_load_bad_path() {
     );
 }
 
-#[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
-fn test_init_additional_workspace(use_git: bool) {
+#[test_case(TestRepoBackend::Local ; "local backend")]
+// #[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_init_additional_workspace(backend: TestRepoBackend) {
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let workspace = &test_workspace.workspace;
 
     let ws2_id = WorkspaceId::new("ws2".to_string());
