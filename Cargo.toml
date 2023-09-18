@@ -25,7 +25,7 @@ blake2 = "0.10.6"
 byteorder = "1.4.3"
 bytes = "1.5.0"
 cargo_metadata = "0.17.0"
-clap = { version = "4.4.3", features = ["derive", "deprecated", "wrap_help"] }
+clap = { version = "4.4.4", features = ["derive", "deprecated", "wrap_help"] }
 clap_complete = "4.4.1"
 clap_mangen = "0.2.10"
 chrono = { version = "0.4.31", default-features = false, features = [
@@ -71,10 +71,10 @@ serde_json = "1.0.107"
 slab = "0.4.9"
 strsim = "0.10.0"
 tempfile = "3.8.0"
-test-case = "3.1.0"
+test-case = "3.2.1"
 textwrap = "0.16.0"
 thiserror = "1.0.48"
-timeago = { version = "0.4.1", default-features = false }
+timeago = { version = "0.4.2", default-features = false }
 toml_edit = { version = "0.19.15", features = ["serde"] }
 tracing = "0.1.37"
 tracing-chrome = "0.7.1"
