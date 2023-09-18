@@ -418,7 +418,8 @@ fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
     let mut conflicts = vec![];
     for basename in all_tree_conflict_names(merge) {
         let path_merge = merge.map(|tree| tree.value(basename).cloned());
-        let path_merge = merge_tree_values(store, dir, path_merge)?;
+        let path = dir.join(basename);
+        let path_merge = merge_tree_values(store, &path, path_merge)?;
         match path_merge.into_resolved() {
             Ok(value) => {
                 new_tree.set_or_remove(basename, value);
