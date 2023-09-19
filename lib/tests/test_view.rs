@@ -18,13 +18,11 @@ use maplit::{btreemap, hashset};
 use test_case::test_case;
 use testutils::{
     commit_transactions, create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo,
-    TestRepoBackend,
 };
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_heads_empty(backend: TestRepoBackend) {
-    let test_repo = TestRepo::init_with_backend(backend);
+#[test]
+fn test_heads_empty() {
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     assert_eq!(
@@ -37,11 +35,10 @@ fn test_heads_empty(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_heads_fork(backend: TestRepoBackend) {
+#[test]
+fn test_heads_fork() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
     let mut tx = repo.start_transaction(&settings, "test");
 
@@ -60,11 +57,10 @@ fn test_heads_fork(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_heads_merge(backend: TestRepoBackend) {
+#[test]
+fn test_heads_merge() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
     let mut tx = repo.start_transaction(&settings, "test");
 
