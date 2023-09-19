@@ -1351,7 +1351,7 @@ for a comprehensive list.</p>
 <p>You can <a href="config.html">override</a> this as appropriate. If you do, make sure it
   always resolves to exactly one commit. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
-<span class="s">&#39;trunk()&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#39;latest(remote_branches(exact:&quot;your-branch&quot;, exact:&quot;your-remote&quot;))&#39;</span>
+<span class="s">&#39;trunk()&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#39;your-branch@your-remote&#39;</span>
 </code></pre></div>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Show the parent(s) of the working-copy commit (like <code>git log -1 HEAD</code>):</p>
