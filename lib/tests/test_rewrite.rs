@@ -917,7 +917,7 @@ fn test_rebase_descendants_contents(backend: TestRepoBackend) {
 #[test]
 fn test_rebase_descendants_basic_branch_update() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" points to commit B. B gets rewritten as B2. Branch main should
@@ -955,7 +955,7 @@ fn test_rebase_descendants_basic_branch_update() {
 #[test]
 fn test_rebase_descendants_branch_move_two_steps() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" points to branch C. C gets rewritten as C2 and B gets rewritten
@@ -1004,7 +1004,7 @@ fn test_rebase_descendants_branch_move_two_steps() {
 #[test]
 fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" points to commit B. B gets rewritten as B2. Branch main should
@@ -1062,7 +1062,7 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
 #[test]
 fn test_rebase_descendants_update_branch_after_abandon() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" points to commit B. B is then abandoned. Branch main should
@@ -1096,7 +1096,7 @@ fn test_rebase_descendants_update_branch_after_abandon() {
 #[test]
 fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" points to commit B. B gets rewritten as B2, B3, B4. Branch main
@@ -1165,7 +1165,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
 #[test]
 fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" is a conflict removing commit A and adding commits B and C.
@@ -1242,7 +1242,7 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
 #[test]
 fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" is a conflict removing ancestor commit A and adding commit B
@@ -1288,7 +1288,7 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
 #[test]
 fn test_rebase_descendants_branch_delete_modify_abandon() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" initially points to commit A. One operation rewrites it to

@@ -543,13 +543,13 @@ pub fn edit_merge_builtin(
 mod tests {
     use jj_lib::conflicts::extract_as_single_hunk;
     use jj_lib::repo::Repo;
-    use testutils::{TestRepo, TestRepoBackend};
+    use testutils::TestRepo;
 
     use super::*;
 
     #[test]
     fn test_edit_diff_builtin() {
-        let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+        let test_repo = TestRepo::init();
         let store = test_repo.repo.store();
 
         let unused_path = RepoPath::from_internal_string("unused");
@@ -691,7 +691,7 @@ mod tests {
 
     #[test]
     fn test_make_merge_sections() {
-        let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+        let test_repo = TestRepo::init();
         let store = test_repo.repo.store();
 
         let path = RepoPath::from_internal_string("file");

@@ -106,6 +106,10 @@ impl TestRepoBackend {
 }
 
 impl TestRepo {
+    pub fn init() -> Self {
+        Self::init_with_backend(TestRepoBackend::Test)
+    }
+
     pub fn init_with_backend(backend: TestRepoBackend) -> Self {
         let settings = user_settings();
         let temp_dir = new_temp_dir();
@@ -141,6 +145,10 @@ pub struct TestWorkspace {
 }
 
 impl TestWorkspace {
+    pub fn init(settings: &UserSettings) -> Self {
+        Self::init_with_backend(settings, TestRepoBackend::Test)
+    }
+
     pub fn init_with_backend(settings: &UserSettings, backend: TestRepoBackend) -> Self {
         let temp_dir = new_temp_dir();
 
