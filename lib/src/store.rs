@@ -76,20 +76,20 @@ impl Store {
         self.backend.change_id_length()
     }
 
-    pub fn empty_tree_id(&self) -> &TreeId {
-        self.backend.empty_tree_id()
-    }
-
-    pub fn empty_merged_tree_id(&self) -> MergedTreeId {
-        MergedTreeId::Legacy(self.backend.empty_tree_id().clone())
-    }
-
     pub fn root_commit_id(&self) -> &CommitId {
         self.backend.root_commit_id()
     }
 
     pub fn root_change_id(&self) -> &ChangeId {
         self.backend.root_change_id()
+    }
+
+    pub fn empty_tree_id(&self) -> &TreeId {
+        self.backend.empty_tree_id()
+    }
+
+    pub fn empty_merged_tree_id(&self) -> MergedTreeId {
+        MergedTreeId::Legacy(self.backend.empty_tree_id().clone())
     }
 
     pub fn root_commit(self: &Arc<Self>) -> Commit {

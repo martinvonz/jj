@@ -480,6 +480,18 @@ impl Backend for GitBackend {
         CHANGE_ID_LENGTH
     }
 
+    fn root_commit_id(&self) -> &CommitId {
+        &self.root_commit_id
+    }
+
+    fn root_change_id(&self) -> &ChangeId {
+        &self.root_change_id
+    }
+
+    fn empty_tree_id(&self) -> &TreeId {
+        &self.empty_tree_id
+    }
+
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         let git_blob_id = validate_git_object_id(id)?;
         let locked_repo = self.repo.lock().unwrap();
@@ -528,18 +540,6 @@ impl Backend for GitBackend {
                 source: Box::new(err),
             })?;
         Ok(SymlinkId::new(oid.as_bytes().to_vec()))
-    }
-
-    fn root_commit_id(&self) -> &CommitId {
-        &self.root_commit_id
-    }
-
-    fn root_change_id(&self) -> &ChangeId {
-        &self.root_change_id
-    }
-
-    fn empty_tree_id(&self) -> &TreeId {
-        &self.empty_tree_id
     }
 
     fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {

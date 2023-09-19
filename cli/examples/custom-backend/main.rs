@@ -103,6 +103,18 @@ impl Backend for JitBackend {
         self.inner.change_id_length()
     }
 
+    fn root_commit_id(&self) -> &CommitId {
+        self.inner.root_commit_id()
+    }
+
+    fn root_change_id(&self) -> &ChangeId {
+        self.inner.root_change_id()
+    }
+
+    fn empty_tree_id(&self) -> &TreeId {
+        self.inner.empty_tree_id()
+    }
+
     fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         self.inner.read_file(path, id)
     }
@@ -117,18 +129,6 @@ impl Backend for JitBackend {
 
     fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
         self.inner.write_symlink(path, target)
-    }
-
-    fn root_commit_id(&self) -> &CommitId {
-        self.inner.root_commit_id()
-    }
-
-    fn root_change_id(&self) -> &ChangeId {
-        self.inner.root_change_id()
-    }
-
-    fn empty_tree_id(&self) -> &TreeId {
-        self.inner.empty_tree_id()
     }
 
     fn read_tree(&self, path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {

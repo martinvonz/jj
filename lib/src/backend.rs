@@ -478,6 +478,12 @@ pub trait Backend: Send + Sync + Debug {
     /// The length of change IDs in bytes.
     fn change_id_length(&self) -> usize;
 
+    fn root_commit_id(&self) -> &CommitId;
+
+    fn root_change_id(&self) -> &ChangeId;
+
+    fn empty_tree_id(&self) -> &TreeId;
+
     fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>>;
 
     fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId>;
@@ -485,12 +491,6 @@ pub trait Backend: Send + Sync + Debug {
     fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String>;
 
     fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId>;
-
-    fn root_commit_id(&self) -> &CommitId;
-
-    fn root_change_id(&self) -> &ChangeId;
-
-    fn empty_tree_id(&self) -> &TreeId;
 
     fn read_tree(&self, path: &RepoPath, id: &TreeId) -> BackendResult<Tree>;
 

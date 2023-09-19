@@ -131,6 +131,18 @@ impl Backend for LocalBackend {
         CHANGE_ID_LENGTH
     }
 
+    fn root_commit_id(&self) -> &CommitId {
+        &self.root_commit_id
+    }
+
+    fn root_change_id(&self) -> &ChangeId {
+        &self.root_change_id
+    }
+
+    fn empty_tree_id(&self) -> &TreeId {
+        &self.empty_tree_id
+    }
+
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         let path = self.file_path(id);
         let file = File::open(path).map_err(|err| map_not_found_err(err, id))?;
@@ -177,18 +189,6 @@ impl Backend for LocalBackend {
         persist_content_addressed_temp_file(temp_file, self.symlink_path(&id))
             .map_err(to_other_err)?;
         Ok(id)
-    }
-
-    fn root_commit_id(&self) -> &CommitId {
-        &self.root_commit_id
-    }
-
-    fn root_change_id(&self) -> &ChangeId {
-        &self.root_change_id
-    }
-
-    fn empty_tree_id(&self) -> &TreeId {
-        &self.empty_tree_id
     }
 
     fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
