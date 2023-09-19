@@ -198,7 +198,7 @@ impl TestWorkspace {
 }
 
 pub fn load_repo_at_head(settings: &UserSettings, repo_path: &Path) -> Arc<ReadonlyRepo> {
-    RepoLoader::init(settings, repo_path, &StoreFactories::default())
+    RepoLoader::init(settings, repo_path, &TestRepo::default_store_factories())
         .unwrap()
         .load_at_head(settings)
         .unwrap()

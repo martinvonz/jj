@@ -72,7 +72,7 @@ fn revset_for_commits<'index>(
 
 #[test]
 fn test_resolve_symbol_empty_string() {
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     assert_matches!(
@@ -332,11 +332,10 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_resolve_working_copy(backend: TestRepoBackend) {
+#[test]
+fn test_resolve_working_copy() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -380,7 +379,7 @@ fn test_resolve_working_copy(backend: TestRepoBackend) {
 #[test]
 fn test_resolve_symbol_branches() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -592,7 +591,7 @@ fn test_resolve_symbol_branches() {
 #[test]
 fn test_resolve_symbol_tags() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -640,7 +639,7 @@ fn test_resolve_symbol_tags() {
 #[test]
 fn test_resolve_symbol_git_head() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -684,7 +683,7 @@ fn test_resolve_symbol_git_head() {
 #[test]
 fn test_resolve_symbol_git_refs() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -816,11 +815,10 @@ fn resolve_commit_ids_in_workspace(
     expression.evaluate(repo).unwrap().iter().collect()
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_root_and_checkout(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_root_and_checkout() {
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -845,11 +843,10 @@ fn test_evaluate_expression_root_and_checkout(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_heads(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_heads() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let root_commit = repo.store().root_commit();
@@ -911,11 +908,10 @@ fn test_evaluate_expression_heads(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_roots(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_roots() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let root_commit = repo.store().root_commit();
@@ -967,11 +963,10 @@ fn test_evaluate_expression_roots(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_parents(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_parents() {
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
 
     let root_commit = repo.store().root_commit();
@@ -1050,11 +1045,10 @@ fn test_evaluate_expression_parents(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_children(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_children() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1137,11 +1131,10 @@ fn test_evaluate_expression_children(backend: TestRepoBackend) {
     assert_eq!(resolve_commit_ids(mut_repo, "none()+"), vec![]);
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_ancestors(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_ancestors() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let root_commit = repo.store().root_commit();
@@ -1225,11 +1218,10 @@ fn test_evaluate_expression_ancestors(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_range(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_range() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1307,11 +1299,10 @@ fn test_evaluate_expression_range(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_dag_range(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_dag_range() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let root_commit_id = repo.store().root_commit_id().clone();
@@ -1418,11 +1409,10 @@ fn test_evaluate_expression_dag_range(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_connected(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_connected() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let root_commit_id = repo.store().root_commit_id().clone();
@@ -1495,11 +1485,10 @@ fn test_evaluate_expression_connected(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_descendants(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_descendants() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1597,21 +1586,19 @@ fn test_evaluate_expression_descendants(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_none(backend: TestRepoBackend) {
-    let test_repo = TestRepo::init_with_backend(backend);
+#[test]
+fn test_evaluate_expression_none() {
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // none() is empty (doesn't include the checkout, for example)
     assert_eq!(resolve_commit_ids(repo.as_ref(), "none()"), vec![]);
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_all(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_all() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1635,11 +1622,10 @@ fn test_evaluate_expression_all(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_visible_heads(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_visible_heads() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1655,11 +1641,10 @@ fn test_evaluate_expression_visible_heads(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_git_refs(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_git_refs() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1715,11 +1700,10 @@ fn test_evaluate_expression_git_refs(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_git_head(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_git_head() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1736,11 +1720,10 @@ fn test_evaluate_expression_git_head(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_branches(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_branches() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1812,11 +1795,10 @@ fn test_evaluate_expression_branches(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_remote_branches(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_remote_branches() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1941,11 +1923,10 @@ fn test_evaluate_expression_remote_branches(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_latest(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_latest() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -2025,11 +2006,10 @@ fn test_evaluate_expression_latest(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_merges(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_merges() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -2053,11 +2033,10 @@ fn test_evaluate_expression_merges(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_description(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_description() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -2099,11 +2078,10 @@ fn test_evaluate_expression_description(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_author(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_author() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -2173,11 +2151,10 @@ fn test_evaluate_expression_author(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_mine(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_mine() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -2242,11 +2219,10 @@ fn test_evaluate_expression_mine(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_committer(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_committer() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -2308,11 +2284,10 @@ fn test_evaluate_expression_committer(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_union(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_union() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let root_commit = repo.store().root_commit();
@@ -2381,11 +2356,10 @@ fn test_evaluate_expression_union(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_intersection(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_intersection() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let root_commit = repo.store().root_commit();
@@ -2421,11 +2395,10 @@ fn test_evaluate_expression_intersection(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_difference(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_difference() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let root_commit = repo.store().root_commit();
@@ -2508,11 +2481,10 @@ fn test_evaluate_expression_difference(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_filter_combinator(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_filter_combinator() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -2572,11 +2544,10 @@ fn test_evaluate_expression_filter_combinator(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_file(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_file() {
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -2683,11 +2654,10 @@ fn test_evaluate_expression_file(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_evaluate_expression_conflict(backend: TestRepoBackend) {
+#[test]
+fn test_evaluate_expression_conflict() {
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -2722,7 +2692,7 @@ fn test_evaluate_expression_conflict(backend: TestRepoBackend) {
 #[test]
 fn test_reverse_graph_iterator() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Tests that merges, forks, direct edges, indirect edges, and "missing" edges
@@ -2787,7 +2757,7 @@ fn test_reverse_graph_iterator() {
 #[test]
 fn test_change_id_index() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -2893,7 +2863,7 @@ fn test_change_id_index() {
 #[test]
 fn test_no_such_revision_suggestion() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");

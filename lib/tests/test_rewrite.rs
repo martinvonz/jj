@@ -18,17 +18,15 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::rewrite::DescendantRebaser;
 use maplit::{hashmap, hashset};
-use test_case::test_case;
 use testutils::{
     assert_rebased, create_random_commit, create_tree, write_random_commit, CommitGraphBuilder,
-    TestRepo, TestRepoBackend,
+    TestRepo,
 };
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_sideways(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_sideways() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit F. Commits C-E should be rebased.
@@ -72,11 +70,10 @@ fn test_rebase_descendants_sideways(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_forward(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_forward() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit F. Commits C and E should be rebased onto F.
@@ -132,11 +129,10 @@ fn test_rebase_descendants_forward(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_reorder(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_reorder() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit E was replaced by commit D, and commit C was replaced by commit F
@@ -184,11 +180,10 @@ fn test_rebase_descendants_reorder(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_backward(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_backward() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit C was replaced by commit B. Commit D should be rebased.
@@ -222,11 +217,10 @@ fn test_rebase_descendants_backward(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_chain_becomes_branchy(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_chain_becomes_branchy() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit E and commit C was replaced by commit F.
@@ -270,11 +264,10 @@ fn test_rebase_descendants_chain_becomes_branchy(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_internal_merge(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_internal_merge() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit F. Commits C-E should be rebased.
@@ -320,11 +313,10 @@ fn test_rebase_descendants_internal_merge(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_external_merge(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_external_merge() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit C was replaced by commit F. Commits E should be rebased. The rebased
@@ -369,11 +361,10 @@ fn test_rebase_descendants_external_merge(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_abandon(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_abandon() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B and commit E were abandoned. Commit C and commit D should get
@@ -415,11 +406,10 @@ fn test_rebase_descendants_abandon(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_abandon_no_descendants(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_abandon_no_descendants() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B and C were abandoned. Commit A should become a head.
@@ -450,11 +440,10 @@ fn test_rebase_descendants_abandon_no_descendants(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_abandon_and_replace(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_abandon_and_replace() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit E. Commit C was abandoned. Commit D should
@@ -489,11 +478,10 @@ fn test_rebase_descendants_abandon_and_replace(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_abandon_degenerate_merge(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_abandon_degenerate_merge() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was abandoned. Commit D should get rebased to have only C as parent
@@ -527,11 +515,10 @@ fn test_rebase_descendants_abandon_degenerate_merge(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_abandon_widen_merge(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_abandon_widen_merge() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit E was abandoned. Commit F should get rebased to have B, C, and D as
@@ -573,11 +560,10 @@ fn test_rebase_descendants_abandon_widen_merge(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_multiple_sideways(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_multiple_sideways() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B and commit D were both replaced by commit F. Commit C and commit E
@@ -620,11 +606,10 @@ fn test_rebase_descendants_multiple_sideways(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_multiple_swap(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_multiple_swap() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit D. Commit D was replaced by commit B.
@@ -665,11 +650,10 @@ fn test_rebase_descendants_multiple_swap(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_multiple_no_descendants(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_multiple_no_descendants() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit C. Commit C was replaced by commit B.
@@ -704,11 +688,10 @@ fn test_rebase_descendants_multiple_no_descendants(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_divergent_rewrite(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_divergent_rewrite() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit B2. Commit D was replaced by commits D2 and
@@ -772,11 +755,10 @@ fn test_rebase_descendants_divergent_rewrite(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_repeated(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_repeated() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit B2. Commit C should get rebased. Rebasing
@@ -840,11 +822,10 @@ fn test_rebase_descendants_repeated(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_contents(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_contents() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit D. Commit C should have the changes from
@@ -1312,11 +1293,10 @@ fn test_rebase_descendants_branch_delete_modify_abandon() {
     assert_eq!(tx.mut_repo().get_local_branch("main"), RefTarget::absent());
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_update_checkout(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_update_checkout() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Checked-out commit B was replaced by commit C. C should become
@@ -1362,11 +1342,10 @@ fn test_rebase_descendants_update_checkout(backend: TestRepoBackend) {
     assert_eq!(repo.view().get_wc_commit_id(&ws3_id), Some(commit_a.id()));
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_update_checkout_abandoned(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_update_checkout_abandoned() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Checked-out commit B was abandoned. A child of A
@@ -1414,11 +1393,10 @@ fn test_rebase_descendants_update_checkout_abandoned(backend: TestRepoBackend) {
     assert_eq!(repo.view().get_wc_commit_id(&ws3_id), Some(commit_a.id()));
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_rebase_descendants_update_checkout_abandoned_merge(backend: TestRepoBackend) {
+#[test]
+fn test_rebase_descendants_update_checkout_abandoned_merge() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Checked-out merge commit D was abandoned. A parent commit should become
