@@ -37,12 +37,11 @@ use jj_lib::working_copy::{LockedWorkingCopy, SnapshotError, SnapshotOptions, Wo
 use test_case::test_case;
 use testutils::{create_tree, write_random_commit, TestRepoBackend, TestWorkspace};
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_root(backend: TestRepoBackend) {
+#[test]
+fn test_root() {
     // Test that the working copy is clean and empty after init.
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let mut test_workspace = TestWorkspace::init(&settings);
 
     let wc = test_workspace.workspace.working_copy();
     assert_eq!(wc.sparse_patterns().unwrap(), vec![RepoPath::root()]);
@@ -264,7 +263,7 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
 #[test]
 fn test_conflict_subdirectory() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
 
     let path = RepoPath::from_internal_string("sub/file");
@@ -279,11 +278,10 @@ fn test_conflict_subdirectory() {
         .unwrap();
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_tree_builder_file_directory_transition(backend: TestRepoBackend) {
+#[test]
+fn test_tree_builder_file_directory_transition() {
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let store = repo.store();
     let mut workspace = test_workspace.workspace;
@@ -419,13 +417,12 @@ fn test_checkout_discard() {
     assert!(!reloaded_wc.file_states().unwrap().contains_key(&file2_path));
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_snapshot_racy_timestamps(backend: TestRepoBackend) {
+#[test]
+fn test_snapshot_racy_timestamps() {
     // Tests that file modifications are detected even if they happen the same
     // millisecond as the updated working copy state.
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -508,13 +505,12 @@ fn test_snapshot_special_file() {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_gitignores(backend: TestRepoBackend) {
+#[test]
+fn test_gitignores() {
     // Tests that .gitignore files are respected.
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
@@ -568,14 +564,13 @@ fn test_gitignores(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_gitignores_in_ignored_dir(backend: TestRepoBackend) {
+#[test]
+fn test_gitignores_in_ignored_dir() {
     // Tests that .gitignore files in an ignored directory are ignored, i.e. that
     // they cannot override the ignores from the parent
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let op_id = test_workspace.repo.op_id().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -616,14 +611,13 @@ fn test_gitignores_in_ignored_dir(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_gitignores_checkout_never_overwrites_ignored(backend: TestRepoBackend) {
+#[test]
+fn test_gitignores_checkout_never_overwrites_ignored() {
     // Tests that a .gitignore'd file doesn't get overwritten if check out a commit
     // where the file is tracked.
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -648,14 +642,13 @@ fn test_gitignores_checkout_never_overwrites_ignored(backend: TestRepoBackend) {
     assert_eq!(std::fs::read(&path).unwrap(), b"garbage");
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_gitignores_ignored_directory_already_tracked(backend: TestRepoBackend) {
+#[test]
+fn test_gitignores_ignored_directory_already_tracked() {
     // Tests that a .gitignore'd directory that already has a tracked file in it
     // does not get removed when snapshotting the working directory.
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let workspace_root = test_workspace.workspace.workspace_root().clone();
     let repo = test_workspace.repo.clone();
 
@@ -697,14 +690,13 @@ fn test_gitignores_ignored_directory_already_tracked(backend: TestRepoBackend) {
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_dotgit_ignored(backend: TestRepoBackend) {
+#[test]
+fn test_dotgit_ignored() {
     // Tests that .git directories and files are always ignored (we could accept
     // them if the backend is not git).
 
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let store = test_workspace.repo.store().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -792,11 +784,10 @@ fn test_gitsubmodule() {
 }
 
 #[cfg(unix)]
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_existing_directory_symlink(backend: TestRepoBackend) {
+#[test]
+fn test_existing_directory_symlink() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -817,7 +808,7 @@ fn test_existing_directory_symlink(backend: TestRepoBackend) {
 #[test]
 fn test_fsmonitor() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -861,8 +852,8 @@ fn test_fsmonitor() {
         let mut locked_wc = wc.start_mutation().unwrap();
         let tree_id = snapshot(&mut locked_wc, &[&foo_path]);
         insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
-        tree 205f6b799e7d5c2524468ca006a0131aa57ecce7
-          file "foo" (257cc5642cb1a054f08cc83f2d943e56fd3ebe99): "foo\n"
+        tree d5e38c0a1b0ee5de47c5
+          file "foo" (e99c2057c15160add351): "foo\n"
         "###);
     }
 
@@ -873,10 +864,10 @@ fn test_fsmonitor() {
             &[&foo_path, &bar_path, &nested_path, &ignored_path],
         );
         insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
-        tree ab5a0465cc71725a723f28b685844a5bc0f5b599
-          file "bar" (5716ca5987cbf97d6bb54920bea6adde242d87e6): "bar\n"
-          file "foo" (257cc5642cb1a054f08cc83f2d943e56fd3ebe99): "foo\n"
-          file "path/to/nested" (79c53955ef856f16f2107446bc721c8879a1bd2e): "nested\n"
+        tree f408c8d080414f8e90e1
+          file "bar" (94cc973e7e1aefb7eff6): "bar\n"
+          file "foo" (e99c2057c15160add351): "foo\n"
+          file "path/to/nested" (6209060941cd770c8d46): "nested\n"
         "###);
         locked_wc.finish(repo.op_id().clone()).unwrap();
     }
@@ -887,10 +878,10 @@ fn test_fsmonitor() {
         let mut locked_wc = wc.start_mutation().unwrap();
         let tree_id = snapshot(&mut locked_wc, &[&foo_path]);
         insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
-        tree 2f57ab8f48ae62e3137079f2add9878dfa1d1bcc
-          file "bar" (5716ca5987cbf97d6bb54920bea6adde242d87e6): "bar\n"
-          file "foo" (9d053d7c8a18a286dce9b99a59bb058be173b463): "updated foo\n"
-          file "path/to/nested" (79c53955ef856f16f2107446bc721c8879a1bd2e): "nested\n"
+        tree e994a93c46f41dc91704
+          file "bar" (94cc973e7e1aefb7eff6): "bar\n"
+          file "foo" (e0fbd106147cc04ccd05): "updated foo\n"
+          file "path/to/nested" (6209060941cd770c8d46): "nested\n"
         "###);
     }
 
@@ -899,9 +890,9 @@ fn test_fsmonitor() {
         let mut locked_wc = wc.start_mutation().unwrap();
         let tree_id = snapshot(&mut locked_wc, &[&foo_path]);
         insta::assert_snapshot!(testutils::dump_tree(repo.store(), &tree_id), @r###"
-        tree 34b83765131477e1a7d72160079daec12c6144e3
-          file "bar" (5716ca5987cbf97d6bb54920bea6adde242d87e6): "bar\n"
-          file "path/to/nested" (79c53955ef856f16f2107446bc721c8879a1bd2e): "nested\n"
+        tree 1df764981d4d74a4ecfa
+          file "bar" (94cc973e7e1aefb7eff6): "bar\n"
+          file "path/to/nested" (6209060941cd770c8d46): "nested\n"
         "###);
         locked_wc.finish(repo.op_id().clone()).unwrap();
     }
@@ -918,7 +909,7 @@ fn test_snapshot_max_new_file_size() {
             .build()
             .unwrap(),
     );
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let workspace_root = test_workspace.workspace.workspace_root().clone();
     let small_path = RepoPath::from_internal_string("small");
     let large_path = RepoPath::from_internal_string("large");
