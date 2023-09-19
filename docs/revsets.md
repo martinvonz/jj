@@ -175,7 +175,7 @@ for a comprehensive list.
 
   ```toml
   [revset-aliases]
-  'trunk()' = 'latest(remote_branches(exact:"your-branch", exact:"your-remote"))'
+  'trunk()' = 'your-branch@your-remote'
   ```
 
 ## Examples
