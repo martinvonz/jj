@@ -17,12 +17,12 @@ use jj_lib::matchers::EverythingMatcher;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
-use testutils::{create_tree, TestRepoBackend, TestWorkspace};
+use testutils::{create_tree, TestWorkspace};
 
 #[test]
 fn test_sparse_checkout() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Local);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let working_copy_path = test_workspace.workspace.workspace_root().clone();
 
@@ -129,7 +129,7 @@ fn test_sparse_checkout() {
 #[test]
 fn test_sparse_commit() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Local);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let op_id = repo.op_id().clone();
     let working_copy_path = test_workspace.workspace.workspace_root().clone();
@@ -192,7 +192,7 @@ fn test_sparse_commit() {
 fn test_sparse_commit_gitignore() {
     // Test that (untracked) .gitignore files in parent directories are respected
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Local);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let working_copy_path = test_workspace.workspace.workspace_root().clone();
 

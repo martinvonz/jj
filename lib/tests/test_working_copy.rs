@@ -328,7 +328,7 @@ fn test_tree_builder_file_directory_transition(backend: TestRepoBackend) {
 #[test]
 fn test_reset() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Local);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let op_id = repo.op_id().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
@@ -379,7 +379,7 @@ fn test_checkout_discard() {
     // copy files should remain changed, but the state files should not be
     // written.
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Local);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = test_workspace.repo.clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -458,7 +458,7 @@ fn test_snapshot_special_file() {
     // Tests that we ignore when special files (such as sockets and pipes) exist on
     // disk.
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Local);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let workspace_root = test_workspace.workspace.workspace_root().clone();
     let store = test_workspace.repo.store();
 

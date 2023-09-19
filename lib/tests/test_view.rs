@@ -82,7 +82,7 @@ fn test_heads_merge(backend: TestRepoBackend) {
 fn test_merge_views_heads() {
     // Tests merging of the view's heads (by performing concurrent operations).
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -140,7 +140,7 @@ fn test_merge_views_heads() {
 fn test_merge_views_checkout() {
     // Tests merging of the view's checkout (by performing concurrent operations).
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Workspace 1 gets updated in both transactions.
@@ -231,7 +231,7 @@ fn test_merge_views_branches() {
     // Tests merging of branches (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -322,7 +322,7 @@ fn test_merge_views_tags() {
     // Tests merging of tags (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -366,7 +366,7 @@ fn test_merge_views_git_refs() {
     // Tests merging of git refs (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -422,7 +422,7 @@ fn test_merge_views_git_heads() {
     // Tests merging of git heads (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx0 = repo.start_transaction(&settings, "test");
@@ -454,7 +454,7 @@ fn test_merge_views_divergent() {
     // We start with just commit A. Operation 1 rewrites it as A2. Operation 2
     // rewrites it as A3.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
 
     let mut tx = test_repo.repo.start_transaction(&settings, "test");
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
@@ -493,7 +493,7 @@ fn test_merge_views_child_on_rewritten(child_first: bool) {
     // We start with just commit A. Operation 1 adds commit B on top. Operation 2
     // rewrites A as A2.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
 
     let mut tx = test_repo.repo.start_transaction(&settings, "test");
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
@@ -539,7 +539,7 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
     // gets rebased onto A4 if it was based on A2 before, but if it was based on
     // A3, it should remain there.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
 
     let mut tx = test_repo.repo.start_transaction(&settings, "test");
     let commit_a2 = write_random_commit(tx.mut_repo(), &settings);
@@ -595,7 +595,7 @@ fn test_merge_views_child_on_abandoned(child_first: bool) {
     // We start with commit B on top of commit A. Operation 1 adds commit C on top.
     // Operation 2 abandons B.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Local);
+    let test_repo = TestRepo::init();
 
     let mut tx = test_repo.repo.start_transaction(&settings, "test");
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
