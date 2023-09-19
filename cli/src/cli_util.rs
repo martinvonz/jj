@@ -802,7 +802,6 @@ impl WorkspaceCommandHelper {
             match new_git_head.as_normal() {
                 Some(new_git_head_id) if new_git_head != old_git_head => {
                     let workspace_id = self.workspace_id().to_owned();
-                    let op_id = self.repo().op_id().clone();
                     if let Some(old_wc_commit_id) =
                         self.repo().view().get_wc_commit_id(&workspace_id)
                     {
@@ -821,7 +820,7 @@ impl WorkspaceCommandHelper {
                     locked_working_copy.reset(&new_git_head_tree)?;
                     tx.mut_repo().rebase_descendants(&self.settings)?;
                     self.user_repo = ReadonlyUserRepo::new(tx.commit());
-                    locked_working_copy.finish(op_id)?;
+                    locked_working_copy.finish(self.user_repo.repo.op_id().clone())?;
                 }
                 _ => {
                     let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
