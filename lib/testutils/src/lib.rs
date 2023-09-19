@@ -135,6 +135,15 @@ impl TestRepo {
             repo,
         }
     }
+
+    pub fn default_store_factories() -> StoreFactories {
+        let mut factories = StoreFactories::default();
+        factories.add_backend(
+            "test",
+            Box::new(|store_path| Ok(Box::new(TestBackend::load(store_path)))),
+        );
+        factories
+    }
 }
 
 pub struct TestWorkspace {

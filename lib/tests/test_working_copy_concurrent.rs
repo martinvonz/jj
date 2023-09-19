@@ -16,18 +16,18 @@ use std::cmp::max;
 use std::thread;
 
 use assert_matches::assert_matches;
-use jj_lib::repo::{Repo, StoreFactories};
+use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
 use jj_lib::workspace::Workspace;
-use testutils::{create_tree, write_working_copy_file, TestRepoBackend, TestWorkspace};
+use testutils::{create_tree, write_working_copy_file, TestRepo, TestWorkspace};
 
 #[test]
 fn test_concurrent_checkout() {
     // Test that we error out if a concurrent checkout is detected (i.e. if the
     // working-copy commit changed on disk after we read it).
     let settings = testutils::user_settings();
-    let mut test_workspace1 = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
+    let mut test_workspace1 = TestWorkspace::init(&settings);
     let repo1 = test_workspace1.repo.clone();
     let workspace1_root = test_workspace1.workspace.workspace_root().clone();
 
@@ -45,8 +45,12 @@ fn test_concurrent_checkout() {
 
     // Check out tree2 from another process (simulated by another workspace
     // instance)
-    let mut workspace2 =
-        Workspace::load(&settings, &workspace1_root, &StoreFactories::default()).unwrap();
+    let mut workspace2 = Workspace::load(
+        &settings,
+        &workspace1_root,
+        &TestRepo::default_store_factories(),
+    )
+    .unwrap();
     workspace2
         .working_copy_mut()
         .check_out(repo1.op_id().clone(), Some(&tree_id1), &tree2)
@@ -59,8 +63,12 @@ fn test_concurrent_checkout() {
     );
 
     // Check that the tree2 is still checked out on disk.
-    let workspace3 =
-        Workspace::load(&settings, &workspace1_root, &StoreFactories::default()).unwrap();
+    let workspace3 = Workspace::load(
+        &settings,
+        &workspace1_root,
+        &TestRepo::default_store_factories(),
+    )
+    .unwrap();
     assert_eq!(
         *workspace3.working_copy().current_tree_id().unwrap(),
         tree_id2
@@ -72,7 +80,7 @@ fn test_checkout_parallel() {
     // Test that concurrent checkouts by different processes (simulated by using
     // different repo instances) is safe.
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -104,9 +112,12 @@ fn test_checkout_parallel() {
             let settings = settings.clone();
             let workspace_root = workspace_root.clone();
             s.spawn(move || {
-                let mut workspace =
-                    Workspace::load(&settings, &workspace_root, &StoreFactories::default())
-                        .unwrap();
+                let mut workspace = Workspace::load(
+                    &settings,
+                    &workspace_root,
+                    &TestRepo::default_store_factories(),
+                )
+                .unwrap();
                 let tree = workspace
                     .repo_loader()
                     .store()
@@ -137,7 +148,7 @@ fn test_checkout_parallel() {
 #[test]
 fn test_racy_checkout() {
     let settings = testutils::user_settings();
-    let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
+    let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let op_id = repo.op_id().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();

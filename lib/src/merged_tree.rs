@@ -180,7 +180,8 @@ impl MergedTree {
         match self {
             MergedTree::Legacy(tree) => match tree.value(basename) {
                 Some(TreeValue::Conflict(conflict_id)) => {
-                    let conflict = tree.store().read_conflict(tree.dir(), conflict_id).unwrap();
+                    let path = tree.dir().join(basename);
+                    let conflict = tree.store().read_conflict(&path, conflict_id).unwrap();
                     MergedTreeValue::Conflict(conflict)
                 }
                 other => MergedTreeValue::Resolved(other),
