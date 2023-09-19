@@ -14,10 +14,9 @@
 
 use assert_matches::assert_matches;
 use jj_lib::op_store::WorkspaceId;
-use jj_lib::repo::{Repo, StoreFactories};
+use jj_lib::repo::Repo;
 use jj_lib::workspace::{Workspace, WorkspaceLoadError};
-use test_case::test_case;
-use testutils::{TestRepoBackend, TestWorkspace};
+use testutils::{TestRepo, TestWorkspace};
 
 #[test]
 fn test_load_bad_path() {
@@ -25,18 +24,21 @@ fn test_load_bad_path() {
     let temp_dir = testutils::new_temp_dir();
     let workspace_root = temp_dir.path().to_owned();
     // We haven't created a repo in the workspace_root, so it should fail to load.
-    let result = Workspace::load(&settings, &workspace_root, &StoreFactories::default());
+    let result = Workspace::load(
+        &settings,
+        &workspace_root,
+        &TestRepo::default_store_factories(),
+    );
     assert_matches!(
         result.err(),
         Some(WorkspaceLoadError::NoWorkspaceHere(root)) if root == workspace_root
     );
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-// #[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_init_additional_workspace(backend: TestRepoBackend) {
+#[test]
+fn test_init_additional_workspace() {
     let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
+    let test_workspace = TestWorkspace::init(&settings);
     let workspace = &test_workspace.workspace;
 
     let ws2_id = WorkspaceId::new("ws2".to_string());
@@ -63,7 +65,8 @@ fn test_init_additional_workspace(backend: TestRepoBackend) {
         workspace.repo_path().canonicalize().unwrap()
     );
     assert_eq!(*ws2.workspace_root(), ws2_root.canonicalize().unwrap());
-    let same_workspace = Workspace::load(&settings, &ws2_root, &StoreFactories::default());
+    let same_workspace =
+        Workspace::load(&settings, &ws2_root, &TestRepo::default_store_factories());
     assert!(same_workspace.is_ok());
     let same_workspace = same_workspace.unwrap();
     assert_eq!(same_workspace.workspace_id(), &ws2_id);

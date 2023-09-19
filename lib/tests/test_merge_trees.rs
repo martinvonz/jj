@@ -18,16 +18,14 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent};
 use jj_lib::rewrite::rebase_commit;
 use jj_lib::tree::{merge_trees, Tree};
-use test_case::test_case;
-use testutils::{create_single_tree, create_tree, TestRepo, TestRepoBackend};
+use testutils::{create_single_tree, create_tree, TestRepo};
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_same_type(backend: TestRepoBackend) {
+#[test]
+fn test_same_type() {
     // Tests all possible cases where the entry type is unchanged, specifically
     // using only normal files in all trees (no symlinks, no trees, etc.).
 
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -187,10 +185,9 @@ fn test_same_type(backend: TestRepoBackend) {
     };
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_executable(backend: TestRepoBackend) {
-    let test_repo = TestRepo::init_with_backend(backend);
+#[test]
+fn test_executable() {
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -239,12 +236,11 @@ fn test_executable(backend: TestRepoBackend) {
     assert_eq!(merged_tree.value(&RepoPathComponent::from("xxx")), exec);
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_subtrees(backend: TestRepoBackend) {
+#[test]
+fn test_subtrees() {
     // Tests that subtrees are merged.
 
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -294,12 +290,11 @@ fn test_subtrees(backend: TestRepoBackend) {
     assert_eq!(entries, expected_entries);
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_subtree_becomes_empty(backend: TestRepoBackend) {
+#[test]
+fn test_subtree_becomes_empty() {
     // Tests that subtrees that become empty are removed from the parent tree.
 
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -324,12 +319,11 @@ fn test_subtree_becomes_empty(backend: TestRepoBackend) {
     assert_eq!(merged_tree.id(), store.empty_tree_id());
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_subtree_one_missing(backend: TestRepoBackend) {
+#[test]
+fn test_subtree_one_missing() {
     // Tests that merging trees where one side is missing is resolved as if the
     // missing side was empty.
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -367,13 +361,12 @@ fn test_subtree_one_missing(backend: TestRepoBackend) {
     assert_eq!(reverse_merged_tree.id(), merged_tree.id());
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_types(backend: TestRepoBackend) {
+#[test]
+fn test_types() {
     // Tests conflicts between different types. This is mostly to test that the
     // conflicts survive the roundtrip to the store.
 
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -466,10 +459,9 @@ fn test_types(backend: TestRepoBackend) {
     };
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_simplify_conflict(backend: TestRepoBackend) {
-    let test_repo = TestRepo::init_with_backend(backend);
+#[test]
+fn test_simplify_conflict() {
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -549,11 +541,10 @@ fn test_simplify_conflict(backend: TestRepoBackend) {
     };
 }
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_simplify_conflict_after_resolving_parent(backend: TestRepoBackend) {
+#[test]
+fn test_simplify_conflict_after_resolving_parent() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Set up a repo like this:

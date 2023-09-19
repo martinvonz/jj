@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::repo::{RepoLoader, StoreFactories};
-use test_case::test_case;
-use testutils::{write_random_commit, TestRepo, TestRepoBackend};
+use jj_lib::repo::RepoLoader;
+use testutils::{write_random_commit, TestRepo};
 
-#[test_case(TestRepoBackend::Local ; "local backend")]
-#[test_case(TestRepoBackend::Git ; "git backend")]
-fn test_load_at_operation(backend: TestRepoBackend) {
+#[test]
+fn test_load_at_operation() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init_with_backend(backend);
+    let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "add commit");
@@ -33,13 +31,23 @@ fn test_load_at_operation(backend: TestRepoBackend) {
 
     // If we load the repo at head, we should not see the commit since it was
     // removed
-    let loader = RepoLoader::init(&settings, repo.repo_path(), &StoreFactories::default()).unwrap();
+    let loader = RepoLoader::init(
+        &settings,
+        repo.repo_path(),
+        &TestRepo::default_store_factories(),
+    )
+    .unwrap();
     let head_repo = loader.load_at_head(&settings).unwrap();
     assert!(!head_repo.view().heads().contains(commit.id()));
 
     // If we load the repo at the previous operation, we should see the commit since
     // it has not been removed yet
-    let loader = RepoLoader::init(&settings, repo.repo_path(), &StoreFactories::default()).unwrap();
+    let loader = RepoLoader::init(
+        &settings,
+        repo.repo_path(),
+        &TestRepo::default_store_factories(),
+    )
+    .unwrap();
     let old_repo = loader.load_at(repo.operation()).unwrap();
     assert!(old_repo.view().heads().contains(commit.id()));
 }
