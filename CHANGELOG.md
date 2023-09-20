@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* `jj`'s stable release can now be installed with [`cargo binstall jj-cli`](https://github.com/cargo-bins/cargo-binstall).
+
 * `jj workspace add` now takes a `--revision` argument.
 
 * `jj workspace forget` can now forget multiple workspaces at once.

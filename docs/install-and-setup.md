@@ -12,6 +12,19 @@ version should work on all distributions).
 If you'd like to install a prerelease version, you'll need to use one of the
 options below.
 
+#### Cargo BInstall
+
+If you use [`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall), you
+can install the same binaries of the last `jj` release from GitHub as follows:
+
+```shell
+# Will put the jj binary for the latest release in ~/.cargo/bin by default
+cargo binstall --strategy crate-meta-data jj-cli
+```
+
+Without the `--strategy` option, you may get equivalent binaries that should be
+compiled from the same source code.
+
 
 ### Linux
 
