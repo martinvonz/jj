@@ -4,9 +4,9 @@ use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId};
 use jj_lib::git;
-use jj_lib::op_store::{BranchTarget, RefTarget};
+use jj_lib::op_store::RefTarget;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{self, RevsetExpression};
+use jj_lib::revset::{self, RevsetExpression, StringPattern};
 use jj_lib::view::View;
 
 use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg};
@@ -320,39 +320,34 @@ fn cmd_branch_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let mut all_branches = repo.view().branches().clone(); // TODO: useless clone
-    if !args.revisions.is_empty() {
+    let view = repo.view();
+    let branch_names_to_list: Option<HashSet<&str>> = if !args.revisions.is_empty() {
         // Match against local targets only, which is consistent with "jj git push".
-        fn local_targets(branch_target: &BranchTarget) -> impl Iterator<Item = &CommitId> {
-            branch_target.local_target.added_ids()
-        }
-
         let filter_expressions: Vec<_> = args
             .revisions
             .iter()
             .map(|revision_str| workspace_command.parse_revset(revision_str, Some(ui)))
             .try_collect()?;
         let filter_expression = RevsetExpression::union_all(&filter_expressions);
-        // Intersects with the set of all branch targets to minimize the lookup space.
-        let all_targets = all_branches
-            .values()
-            .flat_map(local_targets)
-            .cloned()
-            .collect();
-        let revset_expression =
-            RevsetExpression::commits(all_targets).intersection(&filter_expression);
+        // Intersects with the set of local branch targets to minimize the lookup space.
+        let revset_expression = RevsetExpression::branches(StringPattern::everything())
+            .intersection(&filter_expression);
         let revset_expression = revset::optimize(revset_expression);
         let revset = workspace_command.evaluate_revset(revset_expression)?;
         let filtered_targets: HashSet<CommitId> = revset.iter().collect();
-        // TODO: If we add name-based filter like --glob, this might have to be
-        // rewritten as a positive list or predicate function. Should they
+        // TODO: Suppose we have name-based filter like --glob, should these filters
         // be AND-ed or OR-ed? Maybe OR as "jj git push" would do. Perhaps, we
         // can consider these options as producers of branch names, not filters
         // of different kind (which are typically intersected.)
-        all_branches.retain(|_, branch_target| {
-            local_targets(branch_target).any(|id| filtered_targets.contains(id))
-        });
-    }
+        let branch_names = view
+            .local_branches()
+            .filter(|(_, target)| target.added_ids().any(|id| filtered_targets.contains(id)))
+            .map(|(name, _)| name)
+            .collect();
+        Some(branch_names)
+    } else {
+        None
+    };
 
     let no_branches_template = workspace_command.parse_commit_template(
         &command
@@ -391,7 +386,12 @@ fn cmd_branch_list(
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
 
-    for (name, branch_target) in all_branches {
+    let branches_to_list = view.branches().iter().filter(|&(name, _)| {
+        branch_names_to_list
+            .as_ref()
+            .map_or(true, |branch_names| branch_names.contains(name.as_str()))
+    });
+    for (name, branch_target) in branches_to_list {
         let found_non_git_remote = {
             let pseudo_remote_count = branch_target
                 .remote_targets
