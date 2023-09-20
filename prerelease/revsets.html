@@ -1344,9 +1344,10 @@ are defined as aliases in order to allow you to overwrite them as needed.
 See <a href="https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.toml">revsets.toml</a>
 for a comprehensive list.</p>
 <ul>
-<li><code>trunk()</code>: Resolves to the head commit for the trunk branch of the <code>origin</code>
-  remote. The branches <code>main</code>, <code>master</code>, and <code>trunk</code> are tried in order.
-  If none of the branches exist, it evaluates to <code>root()</code>.</li>
+<li><code>trunk()</code>: Resolves to the head commit for the trunk branch of the remote
+  named <code>origin</code> or <code>upstream</code>. The branches <code>main</code>, <code>master</code>, and <code>trunk</code> are
+  tried. If more than one potential trunk commit exists, the newest one is
+  chosen. If none of the branches exist, the revset evaluates to <code>root()</code>.</li>
 </ul>
 <p>You can <a href="config.html">override</a> this as appropriate. If you do, make sure it
   always resolves to exactly one commit. For example:</p>
