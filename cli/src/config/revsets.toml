@@ -7,6 +7,9 @@ latest(
   remote_branches(exact:"main", exact:"origin") | 
   remote_branches(exact:"master", exact:"origin") | 
   remote_branches(exact:"trunk", exact:"origin") |
+  remote_branches(exact:"main", exact:"upstream") |
+  remote_branches(exact:"master", exact:"upstream") |
+  remote_branches(exact:"trunk", exact:"upstream") |
   root()
 )
 '''

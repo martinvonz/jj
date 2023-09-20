@@ -166,10 +166,10 @@ are defined as aliases in order to allow you to overwrite them as needed.
 See [revsets.toml](https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.toml)
 for a comprehensive list.
 
-* `trunk()`: Resolves to the head commit for the trunk branch of the `origin`
-  remote. The branches `main`, `master`, and `trunk` are tried. If more than one
-  potential trunk commit exists, the newest one is chosen. If none of the
-  branches exist, the revset evaluates to `root()`.
+* `trunk()`: Resolves to the head commit for the trunk branch of the remote
+  named `origin` or `upstream`. The branches `main`, `master`, and `trunk` are
+  tried. If more than one potential trunk commit exists, the newest one is
+  chosen. If none of the branches exist, the revset evaluates to `root()`.
 
   You can [override](./config.md) this as appropriate. If you do, make sure it
   always resolves to exactly one commit. For example:
