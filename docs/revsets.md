@@ -167,8 +167,9 @@ See [revsets.toml](https://github.com/martinvonz/jj/blob/main/cli/src/config/rev
 for a comprehensive list.
 
 * `trunk()`: Resolves to the head commit for the trunk branch of the `origin`
-  remote. The branches `main`, `master`, and `trunk` are tried in order.
-  If none of the branches exist, it evaluates to `root()`.
+  remote. The branches `main`, `master`, and `trunk` are tried. If more than one
+  potential trunk commit exists, the newest one is chosen. If none of the
+  branches exist, the revset evaluates to `root()`.
 
   You can [override](./config.md) this as appropriate. If you do, make sure it
   always resolves to exactly one commit. For example:
