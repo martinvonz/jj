@@ -433,9 +433,7 @@ pub fn try_resolve_file_conflict(
             executable,
         }));
     }
-    let mut removed_contents = vec![];
-    let mut added_contents = vec![];
-    for &file_id in file_id_conflict.removes() {
+    let contents = file_id_conflict.try_map(|&file_id| -> Result<Vec<u8>, TreeMergeError> {
         let mut content = vec![];
         store
             .read_file(filename, file_id)?
@@ -444,23 +442,11 @@ pub fn try_resolve_file_conflict(
                 source: err,
                 file_id: file_id.clone(),
             })?;
-        removed_contents.push(content);
-    }
-    for &file_id in file_id_conflict.adds() {
-        let mut content = vec![];
-        store
-            .read_file(filename, file_id)?
-            .read_to_end(&mut content)
-            .map_err(|err| TreeMergeError::ReadError {
-                source: err,
-                file_id: file_id.clone(),
-            })?;
-        added_contents.push(content);
-    }
-    let merge_result = files::merge(
-        &removed_contents.iter().map(Vec::as_slice).collect_vec(),
-        &added_contents.iter().map(Vec::as_slice).collect_vec(),
-    );
+        Ok(content)
+    })?;
+    let removed_contents = contents.removes().iter().map(Vec::as_slice).collect_vec();
+    let added_contents = contents.adds().iter().map(Vec::as_slice).collect_vec();
+    let merge_result = files::merge(&removed_contents, &added_contents);
     match merge_result {
         MergeResult::Resolved(merged_content) => {
             let id = store.write_file(filename, &mut merged_content.0.as_slice())?;
