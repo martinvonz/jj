@@ -439,6 +439,7 @@ struct InterdiffArgs {
 /// Starts an editor to let you edit the description of a change. The editor
 /// will be $EDITOR, or `pico` if that's not defined (`Notepad` on Windows).
 #[derive(clap::Args, Clone, Debug)]
+#[command(visible_aliases = &["desc"])]
 struct DescribeArgs {
     /// The revision whose description to edit
     #[arg(default_value = "@")]
