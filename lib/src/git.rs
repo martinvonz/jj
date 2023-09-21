@@ -362,12 +362,8 @@ fn diff_refs_to_import(
 /// `view.git_refs()`. Main difference is that local branches can be moved by
 /// tracking remotes, and such mutation isn't applied to `view.git_refs()` yet.
 fn pinned_commit_ids(view: &View) -> impl Iterator<Item = &CommitId> {
-    let branch_ref_targets = view
-        .branches()
-        .values()
-        .map(|branch_target| &branch_target.local_target);
     itertools::chain!(
-        branch_ref_targets,
+        view.local_branches().map(|(_, target)| target),
         view.tags().values(),
         iter::once(view.git_head()),
     )
@@ -852,9 +848,7 @@ pub fn fetch(
     // help branch forget`.
     let nonempty_branches: HashSet<_> = mut_repo
         .view()
-        .branches()
-        .iter()
-        .filter(|&(_branch, target)| target.local_target.is_present())
+        .local_branches()
         .map(|(branch, _target)| branch.to_owned())
         .collect();
     // TODO: Inform the user if the export failed? In most cases, export is not

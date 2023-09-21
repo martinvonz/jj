@@ -160,6 +160,15 @@ impl View {
         self.data.branches.remove(name);
     }
 
+    /// Iterates local branch `(name, target)`s in lexicographical order.
+    pub fn local_branches(&self) -> impl Iterator<Item = (&str, &RefTarget)> {
+        self.data
+            .branches
+            .iter()
+            .map(|(name, branch_target)| (name.as_ref(), &branch_target.local_target))
+            .filter(|(_, target)| target.is_present())
+    }
+
     pub fn get_local_branch(&self, name: &str) -> &RefTarget {
         if let Some(branch_target) = self.data.branches.get(name) {
             &branch_target.local_target
