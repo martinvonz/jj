@@ -433,6 +433,13 @@ pub fn try_resolve_file_conflict(
             executable,
         }));
     }
+
+    // Simplify the conflict for two reasons:
+    // 1. Avoid reading unchanged file contents
+    // 2. The simplified conflict can sometimes be resolved when the unsimplfied one
+    //    cannot
+    let file_id_conflict = file_id_conflict.simplify();
+
     let contents: Merge<Vec<u8>> =
         file_id_conflict.try_map(|&file_id| -> Result<Vec<u8>, TreeMergeError> {
             let mut content = vec![];
