@@ -1130,7 +1130,6 @@ struct UtilCompletionArgs {
     /// autoload -U compinit
     /// compinit
     /// source <(jj util completion --zsh)
-    /// compdef _jj jj
     #[arg(long, verbatim_doc_comment)]
     zsh: bool,
 }
