@@ -714,13 +714,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#setting-up-scm-diff-editor" class="md-nav__link">
-    Setting up scm-diff-editor
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#jj-instructions" class="md-nav__link">
     JJ-INSTRUCTIONS
   </a>
@@ -1486,13 +1479,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#setting-up-scm-diff-editor" class="md-nav__link">
-    Setting up scm-diff-editor
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#jj-instructions" class="md-nav__link">
     JJ-INSTRUCTIONS
   </a>
@@ -1821,8 +1807,9 @@ setting, but you could set it explicitly too.</p>
 </code></pre></div>
 <p>Obviously, you would only set one line, don't copy them all in!</p>
 <h2 id="editing-diffs">Editing diffs<a class="headerlink" href="#editing-diffs" title="Permanent link">&para;</a></h2>
-<p>The <code>ui.diff-editor</code> setting affects the tool used for editing diffs (e.g.
-<code>jj split</code>, <code>jj amend -i</code>). The default is <code>meld</code>.</p>
+<p>The <code>ui.diff-editor</code> setting affects the tool used for editing diffs (e.g.  <code>jj
+split</code>, <code>jj amend -i</code>). The default is the special value <code>:builtin</code>, which
+launches a TUI tool to edit the diff in your terminal.</p>
 <p><code>jj</code> makes the following substitutions:</p>
 <ul>
 <li><code>$left</code> and <code>$right</code> are replaced with the paths to the left and right
@@ -1852,16 +1839,6 @@ and <code>$right</code> in <code>merge-tools.TOOL.edit-args</code>. <code>jj</co
 the directory where the diff editor will be expected to put the result of the
 user's edits. Initially, the contents of <code>$output</code> will be the same as the
 contents of <code>$right</code>.</p>
-<h3 id="setting-up-scm-diff-editor">Setting up <code>scm-diff-editor</code><a class="headerlink" href="#setting-up-scm-diff-editor" title="Permanent link">&para;</a></h3>
-<p><code>scm-diff-editor</code> is a terminal-based diff editor that is part of
-the <a href="https://github.com/arxanas/git-branchless">git-branchless</a> suite of tools.
-It's a good alternative to Meld, especially if you don't have a graphical
-environment (e.g. when using SSH). To install it:</p>
-<div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/arxanas/git-branchless<span class="w"> </span>scm-record<span class="w"> </span>--features<span class="w"> </span>scm-diff-editor
-</code></pre></div>
-<p>Then config it as follows:</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;scm-diff-editor&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;--dir-diff&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;$right&quot;</span><span class="p">]</span>
-</code></pre></div>
 <h3 id="jj-instructions"><code>JJ-INSTRUCTIONS</code><a class="headerlink" href="#jj-instructions" title="Permanent link">&para;</a></h3>
 <p>When editing a diff, jj will include a synthetic file called <code>JJ-INSTRUCTIONS</code>
 in the diff with instructions on how to edit the diff. Any changes you make to
