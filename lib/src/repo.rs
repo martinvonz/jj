@@ -872,9 +872,8 @@ impl MutableRepo {
         commit: &Commit,
     ) -> Result<(), EditCommitError> {
         fn local_branch_target_ids(view: &View) -> impl Iterator<Item = &CommitId> {
-            view.branches()
-                .values()
-                .flat_map(|branch_target| branch_target.local_target.added_ids())
+            view.local_branches()
+                .flat_map(|(_, target)| target.added_ids())
         }
 
         let maybe_wc_commit_id = self

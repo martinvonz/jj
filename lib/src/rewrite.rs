@@ -233,12 +233,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         // Build a map from commit to branches pointing to it, so we don't need to scan
         // all branches each time we rebase a commit.
         let mut branches: HashMap<_, HashSet<_>> = HashMap::new();
-        for (branch_name, branch_target) in mut_repo.view().branches() {
-            for commit in branch_target.local_target.added_ids() {
+        for (branch_name, target) in mut_repo.view().local_branches() {
+            for commit in target.added_ids() {
                 branches
                     .entry(commit.clone())
                     .or_default()
-                    .insert(branch_name.clone());
+                    .insert(branch_name.to_owned());
             }
         }
 
