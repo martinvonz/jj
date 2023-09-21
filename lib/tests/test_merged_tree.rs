@@ -14,6 +14,7 @@
 
 use itertools::Itertools;
 use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
+use jj_lib::files::MergeResult;
 use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
 use jj_lib::merge::{Merge, MergeBuilder};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder, MergedTreeValue};
@@ -1181,4 +1182,137 @@ fn test_merge_simplify_result() {
 
     let merged = side1_merged.merge(&base1_merged, &side2_merged).unwrap();
     assert_eq!(merged, expected_merged);
+}
+
+/// Test that we simplify content-level conflicts before passing them to
+/// files::merge().
+///
+/// This is what happens when you squash a conflict resolution into a conflict
+/// and it gets propagated to a child where the conflict is different.
+#[test]
+fn test_merge_simplify_file_conflict() {
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let conflict_path = RepoPath::from_internal_string("CHANGELOG.md");
+    let other_path = RepoPath::from_internal_string("other");
+
+    let prefix = r#"### New features
+
+* The `ancestors()` revset function now takes an optional `depth` argument
+  to limit the depth of the ancestor set. For example, use `jj log -r
+  'ancestors(@, 5)` to view the last 5 commits.
+
+* Support for the Watchman filesystem monitor is now bundled by default. Set
+  `core.fsmonitor = "watchman"` in your repo to enable.
+"#;
+    let suffix = r#"
+### Fixed bugs 
+"#;
+    let parent_base_text = format!(r#"{prefix}{suffix}"#);
+    let parent_left_text = format!(
+        r#"{prefix}
+* `jj op log` now supports `--no-graph`.
+{suffix}"#
+    );
+    let parent_right_text = format!(
+        r#"{prefix}
+* You can now configure the set of immutable commits via
+  `revsets.immutable-heads`. For example, set it to `"main"` to prevent
+  rewriting commits on the `main` branch.
+{suffix}"#
+    );
+    let child1_right_text = format!(
+        r#"{prefix}
+* You can now configure the set of immutable commits via
+  `revsets.immutable-heads`. For example, set it to `"main"` to prevent
+  rewriting commits on the `main` branch. The new `immutable()` revset resolves
+  to these immutable commits.
+{suffix}"#
+    );
+    let child2_text = format!(
+        r#"{prefix}
+* You can now configure the set of immutable commits via
+  `revsets.immutable-heads`. For example, set it to `"main"` to prevent
+  rewriting commits on the `main` branch.
+
+* `jj op log` now supports `--no-graph`.
+{suffix}"#
+    );
+    let expected_text = format!(
+        r#"{prefix}
+* You can now configure the set of immutable commits via
+  `revsets.immutable-heads`. For example, set it to `"main"` to prevent
+  rewriting commits on the `main` branch. The new `immutable()` revset resolves
+  to these immutable commits.
+
+* `jj op log` now supports `--no-graph`.
+{suffix}"#
+    );
+
+    // conflict in parent commit
+    let parent_base = create_single_tree(repo, &[(&conflict_path, &parent_base_text)]);
+    let parent_left = create_single_tree(repo, &[(&conflict_path, &parent_left_text)]);
+    let parent_right = create_single_tree(repo, &[(&conflict_path, &parent_right_text)]);
+    let parent_merged = MergedTree::new(Merge::new(
+        vec![parent_base],
+        vec![parent_left, parent_right],
+    ));
+
+    // different conflict in child
+    let child1_base = create_single_tree(
+        repo,
+        &[(&other_path, "child1"), (&conflict_path, &parent_base_text)],
+    );
+    let child1_left = create_single_tree(
+        repo,
+        &[(&other_path, "child1"), (&conflict_path, &parent_left_text)],
+    );
+    let child1_right = create_single_tree(
+        repo,
+        &[
+            (&other_path, "child1"),
+            (&conflict_path, &child1_right_text),
+        ],
+    );
+    let child1_merged = MergedTree::new(Merge::new(
+        vec![child1_base],
+        vec![child1_left, child1_right],
+    ));
+
+    // resolved state
+    let child2 = create_single_tree(repo, &[(&conflict_path, &child2_text)]);
+    let child2_merged = MergedTree::resolved(child2.clone());
+
+    // expected result
+    let expected = create_single_tree(
+        repo,
+        &[(&other_path, "child1"), (&conflict_path, &expected_text)],
+    );
+    let expected_merged = MergedTree::resolved(expected);
+
+    let merged = child1_merged.merge(&parent_merged, &child2_merged).unwrap();
+    assert_eq!(merged, expected_merged);
+
+    // Also test the setup by checking that the unsimplified content conflict cannot
+    // be resolved. If we later change files::merge() so this no longer fails,  it
+    // probably means that we can delete this whole test (the Merge::simplify() call
+    // in try_resolve_file_conflict() is just an optimization then).
+    let text_merge = Merge::new(
+        vec![Merge::new(
+            vec![parent_base_text.as_bytes()],
+            vec![parent_left_text.as_bytes(), parent_right_text.as_bytes()],
+        )],
+        vec![
+            Merge::new(
+                vec![parent_base_text.as_bytes()],
+                vec![parent_left_text.as_bytes(), child1_right_text.as_bytes()],
+            ),
+            Merge::resolved(child2_text.as_bytes()),
+        ],
+    );
+    assert!(matches!(
+        jj_lib::files::merge(text_merge.flatten()),
+        MergeResult::Conflict(_)
+    ));
 }

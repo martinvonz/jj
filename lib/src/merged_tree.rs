@@ -392,7 +392,15 @@ impl MergedTree {
             // a resolved merge. However, that function will always preserve the arity of
             // conflicts it cannot resolve. So we simplify the conflict again
             // here to possibly reduce a complex conflict to a simpler one.
-            Ok(MergedTree::Merge(tree.simplify()))
+            let tree = tree.simplify();
+            // If debug assertions are enabled, check that the merge was idempotent. In
+            // particular,  that this last simplification doesn't enable further automatic
+            // resolutions
+            if cfg!(debug_assertions) {
+                let re_merged = merge_trees(&tree).unwrap();
+                debug_assert_eq!(re_merged, tree);
+            }
+            Ok(MergedTree::Merge(tree))
         }
     }
 }
