@@ -16,7 +16,9 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
+use std::iter;
 
+use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
@@ -132,6 +134,15 @@ impl RefTarget {
     }
 }
 
+content_hash! {
+    /// Remote branch or tag.
+    #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+    pub struct RemoteRef {
+        pub target: RefTarget,
+        // TODO: add tracking flag or enum
+    }
+}
+
 /// Helper to strip redundant `Option<T>` from `RefTarget` lookup result.
 pub trait RefTargetOptionExt {
     type Value;
@@ -190,6 +201,72 @@ content_hash! {
         // precise: the commit to which we most recently completed an update to).
         pub wc_commit_ids: HashMap<WorkspaceId, CommitId>,
     }
+}
+
+content_hash! {
+    /// Represents the state of the remote repo.
+    #[derive(Clone, Debug, Default, Eq, PartialEq)]
+    pub struct RemoteView {
+        pub branches: BTreeMap<String, RemoteRef>,
+        // TODO: pub tags: BTreeMap<String, RemoteRef>,
+    }
+}
+
+/// Iterates pair of local and remote branches by branch name.
+#[allow(dead_code)] // TODO
+pub(crate) fn merge_join_branch_views<'a>(
+    local_branches: &'a BTreeMap<String, RefTarget>,
+    remote_views: &'a BTreeMap<String, RemoteView>,
+) -> impl Iterator<Item = (&'a str, BranchTarget)> {
+    let mut local_branches_iter = local_branches
+        .iter()
+        .map(|(branch_name, target)| (branch_name.as_str(), target))
+        .peekable();
+    let mut remote_branches_iter = flatten_remote_branches(remote_views).peekable();
+
+    iter::from_fn(move || {
+        // Pick earlier branch name
+        let (branch_name, local_target) =
+            if let Some(&((remote_branch_name, _), _)) = remote_branches_iter.peek() {
+                local_branches_iter
+                    .next_if(|&(local_branch_name, _)| local_branch_name <= remote_branch_name)
+                    .unwrap_or((remote_branch_name, RefTarget::absent_ref()))
+            } else {
+                local_branches_iter.next()?
+            };
+        // TODO: add borrowed version of BranchTarget?
+        let mut branch_target = BranchTarget {
+            local_target: local_target.clone(),
+            ..Default::default()
+        };
+        while let Some(((_, remote_name), target)) = remote_branches_iter
+            .next_if(|&((remote_branch_name, _), _)| remote_branch_name == branch_name)
+        {
+            branch_target
+                .remote_targets
+                .insert(remote_name.to_owned(), target.clone());
+        }
+        Some((branch_name, branch_target))
+    })
+}
+
+/// Iterates branch `((name, remote_name), target)`s in lexicographical order.
+#[allow(dead_code)] // TODO
+pub(crate) fn flatten_remote_branches(
+    remote_views: &BTreeMap<String, RemoteView>,
+) -> impl Iterator<Item = ((&str, &str), &RefTarget)> {
+    remote_views
+        .iter()
+        .map(|(remote_name, remote_view)| {
+            remote_view
+                .branches
+                .iter()
+                .map(move |(branch_name, remote_ref)| {
+                    let full_name = (branch_name.as_str(), remote_name.as_str());
+                    (full_name, &remote_ref.target)
+                })
+        })
+        .kmerge_by(|(full_name1, _), (full_name2, _)| full_name1 < full_name2)
 }
 
 content_hash! {
@@ -257,4 +334,110 @@ pub trait OpStore: Send + Sync + Debug {
     fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation>;
 
     fn write_operation(&self, contents: &Operation) -> OpStoreResult<OperationId>;
+}
+
+#[cfg(test)]
+mod tests {
+    use maplit::btreemap;
+
+    use super::*;
+
+    #[test]
+    fn test_merge_join_branch_views() {
+        let remote_ref = |target: &RefTarget| RemoteRef {
+            target: target.clone(),
+        };
+        let local_branch1_target = RefTarget::normal(CommitId::from_hex("111111"));
+        let local_branch2_target = RefTarget::normal(CommitId::from_hex("222222"));
+        let git_branch1_target = RefTarget::normal(CommitId::from_hex("333333"));
+        let git_branch2_target = RefTarget::normal(CommitId::from_hex("444444"));
+        let remote1_branch1_target = RefTarget::normal(CommitId::from_hex("555555"));
+        let remote2_branch2_target = RefTarget::normal(CommitId::from_hex("666666"));
+
+        let local_branches = btreemap! {
+            "branch1".to_owned() => local_branch1_target.clone(),
+            "branch2".to_owned() => local_branch2_target.clone(),
+        };
+        let remote_views = btreemap! {
+            "git".to_owned() => RemoteView {
+                branches: btreemap! {
+                    "branch1".to_owned() => remote_ref(&git_branch1_target),
+                    "branch2".to_owned() => remote_ref(&git_branch2_target),
+                },
+            },
+            "remote1".to_owned() => RemoteView {
+                branches: btreemap! {
+                    "branch1".to_owned() => remote_ref(&remote1_branch1_target),
+                },
+            },
+            "remote2".to_owned() => RemoteView {
+                branches: btreemap! {
+                    "branch2".to_owned() => remote_ref(&remote2_branch2_target),
+                },
+            },
+        };
+        assert_eq!(
+            merge_join_branch_views(&local_branches, &remote_views).collect_vec(),
+            vec![
+                (
+                    "branch1",
+                    BranchTarget {
+                        local_target: local_branch1_target.clone(),
+                        remote_targets: btreemap! {
+                            "git".to_owned() => git_branch1_target.clone(),
+                            "remote1".to_owned() => remote1_branch1_target.clone(),
+                        },
+                    },
+                ),
+                (
+                    "branch2",
+                    BranchTarget {
+                        local_target: local_branch2_target.clone(),
+                        remote_targets: btreemap! {
+                            "git".to_owned() => git_branch2_target.clone(),
+                            "remote2".to_owned() => remote2_branch2_target.clone(),
+                        },
+                    },
+                ),
+            ],
+        );
+
+        // Local only
+        let local_branches = btreemap! {
+            "branch1".to_owned() => local_branch1_target.clone(),
+        };
+        let remote_views = btreemap! {};
+        assert_eq!(
+            merge_join_branch_views(&local_branches, &remote_views).collect_vec(),
+            vec![(
+                "branch1",
+                BranchTarget {
+                    local_target: local_branch1_target.clone(),
+                    remote_targets: btreemap! {},
+                },
+            )],
+        );
+
+        // Remote only
+        let local_branches = btreemap! {};
+        let remote_views = btreemap! {
+            "remote1".to_owned() => RemoteView {
+                branches: btreemap! {
+                    "branch1".to_owned() => remote_ref(&remote1_branch1_target),
+                },
+            },
+        };
+        assert_eq!(
+            merge_join_branch_views(&local_branches, &remote_views).collect_vec(),
+            vec![(
+                "branch1",
+                BranchTarget {
+                    local_target: RefTarget::absent(),
+                    remote_targets: btreemap! {
+                        "remote1".to_owned() => remote1_branch1_target.clone(),
+                    },
+                },
+            )],
+        );
+    }
 }
