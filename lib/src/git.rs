@@ -531,10 +531,9 @@ fn diff_refs_to_export(
         let new_target = match &ref_name {
             RefName::LocalBranch(branch) => view.get_local_branch(branch),
             RefName::RemoteBranch { remote, branch } => {
-                // Currently, the only situation where this case occurs *and* new_target !=
-                // old_target is after a `jj branch forget`. So, in practice, for
-                // remote-tracking branches either `new_target == old_target` or
-                // `new_target == None`.
+                // There are two situations where remote-tracking branches get out of sync:
+                // 1. `jj branch forget`
+                // 2. `jj op undo`/`restore` in colocated repo
                 view.get_remote_branch(branch, remote)
             }
             _ => continue,
