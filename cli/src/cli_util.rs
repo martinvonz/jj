@@ -1017,14 +1017,14 @@ impl WorkspaceCommandHelper {
                 let mut iter = [commit0, commit1].into_iter().chain(iter);
                 let commits: Vec<_> = iter.by_ref().take(5).try_collect()?;
                 let elided = iter.next().is_some();
+                let commits_summary = commits
+                    .iter()
+                    .map(|c| self.format_commit_summary(c))
+                    .join("\n")
+                    + elided.then_some("\n...").unwrap_or_default();
                 let hint = format!(
-                    r#"The revset "{revision_str}" resolved to these revisions:{eol}{commits}{ellipsis}"#,
-                    eol = "\n",
-                    commits = commits
-                        .iter()
-                        .map(|c| self.format_commit_summary(c))
-                        .join("\n"),
-                    ellipsis = elided.then_some("\n...").unwrap_or_default()
+                    r#"The revset "{revision_str}" resolved to these revisions:
+{commits_summary}"#,
                 );
                 Err(user_error_with_hint(
                     format!(r#"Revset "{revision_str}" resolved to more than one revision"#),
