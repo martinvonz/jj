@@ -103,7 +103,7 @@ pub fn materialize_merge_result(
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
     let slices = single_hunk.map(|content| content.0.as_slice());
-    let merge_result = files::merge(slices.removes(), slices.adds());
+    let merge_result = files::merge(slices);
     match merge_result {
         MergeResult::Resolved(content) => {
             output.write_all(&content.0)?;
