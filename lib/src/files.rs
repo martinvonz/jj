@@ -167,8 +167,8 @@ struct SyncRegion {
     right: Range<usize>,
 }
 
-pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
-    assert_eq!(adds.len(), removes.len() + 1);
+pub fn merge(slices: Merge<&[u8]>) -> MergeResult {
+    let (removes, adds) = slices.take();
     let num_diffs = removes.len();
     // TODO: Using the first remove as base (first in the inputs) is how it's
     // usually done for 3-way conflicts. Are there better heuristics when there are
@@ -223,6 +223,10 @@ mod tests {
 
     fn hunk(data: &[u8]) -> ContentHunk {
         ContentHunk(data.to_vec())
+    }
+
+    fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
+        super::merge(Merge::new(removes.to_vec(), adds.to_vec()))
     }
 
     #[test]
