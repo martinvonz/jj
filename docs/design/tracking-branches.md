@@ -36,9 +36,13 @@ git_head: target?
 ```
 
 * Remote branches are stored in both `branches[name].remote_targets` and
-  `git_refs["refs/remotes"]`. These two are kept in sync unless the branch is
-  removed by `jj branch forget` command.
-* Pseudo `@git` remote branches are stored in `git_refs["refs/heads"]`.
+  `git_refs["refs/remotes"]`. These two are mostly kept in sync, but there
+  are two scenarios where remote-tracking branches and git refs can diverge:
+  1. `jj branch forget`
+  2. `jj op undo`/`restore` in colocated repo
+* Pseudo `@git` tracking branches are stored in `git_refs["refs/heads"]`. We
+  need special case to resolve `@git` branches, and their behavior is slightly
+  different from the other remote-tracking branches.
 
 ## Proposed data model
 
@@ -48,14 +52,13 @@ from tracking ones.
 ```
 state = new        # not merged in the local branch or tag
       | tracking   # merged in the local branch or tag
-      | forgotten  # to be expunged on the next export
 # `ignored` state could be added if we want to manage it by view, not by
 # config file. target of ignored remote branch would be absent.
 ```
 
 We'll add a per-remote view-like object to record the last known remote
-branches. It will replace `git_refs` and `branches[name].remote_targets` in
-the current model.
+branches. It will replace `branches[name].remote_targets` in the current model.
+`@git` branches will be stored in `remotes["git"]`.
 
 ```
 branches
@@ -74,12 +77,48 @@ remotes
       [name]: target, state                 # refs/remotes/{remote}/{name}
     tags: (empty)
     head: (empty)
+git_refs                                    # last imported/exported refs
+  ["refs/heads/{name}"]: target
+  ["refs/remotes/{remote}/{name}"]: target
+  ["refs/tags/{name}"]: target
 ```
 
 With the proposed data model, we can
 * naturally support remote branches which have no local counterparts
 * deduplicate `branches[name].remote_targets` and `git_refs["refs/remotes"]`
-* eliminate `git_` variables and methods from the view object
+
+### Import/export data flow
+
+```
+       export flow                              import flow
+       -----------                              -----------
+                        +----------------+                   --.
+   +------------------->|backing Git repo|---+                 :
+   |                    +----------------+   |                 : unchanged
+   |[update]                                 |[copy]           : on "op restore"
+   |                      +----------+       |                 :
+   |      +-------------->| git_refs |<------+                 :
+   |      |               +----------+       |               --'
+   +--[compare]                            [diff]--+
+          |   .--       +---------------+    |     |         --.
+          |   :    +--->|remotes["git"] |    |     |           :
+          +---:    |    |               |<---+     |           :
+              :    |    |remotes[remote]|          |           : restored
+              '--  |    +---------------+          |[merge]    : on "op restore"
+                   |                               |           : by default
+             [copy]|    +---------------+          |           :
+                   +----| (local)       |<---------+           :
+                        | branches/tags |                      :
+                        +---------------+                    --'
+```
+
+* `jj git import` applies diff between `git_refs` and `remotes[]`. `git_refs` is
+  always copied from the backing Git repo.
+* `jj git export` copies jj's `remotes` view back to the Git repo. If a ref in
+  the Git repo has been updated since the last import, the ref isn't exported.
+* `jj op restore` never rolls back `git_refs`.
+
+### Tracking state
 
 The `git.auto-local-branch` config knob is applied when importing new remote
 branch. `jj branch` sub commands will be added to change the tracking state.
@@ -103,20 +142,18 @@ fn target_in_merge_context(known_target, state) {
     match state {
         State::New => RefTarget::absent(),
         State::Tracking => known_target,
-        State::Forgotten => RefTarget::absent(),
     }
 }
 ```
 
 ### Mapping to the current data model
 
-* New `remotes["git"].branches` corresponds to `git_refs["refs/heads"]`.
+* New `remotes["git"].branches` corresponds to `git_refs["refs/heads"]`, but
+  forgotten branches are removed from `remotes["git"].branches`.
 * New `remotes["git"].tags` corresponds to `git_refs["refs/tags"]`.
 * New `remotes["git"].head` corresponds to `git_head`.
 * New `remotes[remote].branches` corresponds to
-  `git_refs["refs/remotes/{remote}"]` and `branches[].remote_targets[remote]`.
-* If `git_refs["refs/remotes/{remote}"]` exists but `.remote_targets` doesn't,
-  it means `state = forgotten` in new model.
+  `branches[].remote_targets[remote]`.
 * `state = new|tracking` doesn't exist in the current model. It's determined
   by `git.auto-local-branch` config.
 
@@ -134,29 +171,28 @@ In particular, a merge of local and remote targets is
      * TODO: how about fetched `.tags`?
 
 * `jj git import`
-  1. Calculates diff from the known `remotes` to the actual git repo.
-     * `"refs/heads" - remotes["git"].branches`
-     * `"refs/tags" - remotes["git"].tags`
-     * `"HEAD" - remotes["git"].head` (unused)
-     * `"refs/remotes/{remote}" - remotes[remote]`
-  2. Merges diff in local `branches` and `tags` if `state` is `tracking`.
-     * If the branch is new, the default `state` should be calculated.
-     * If `state` is `forgotten`, the known branch is supposed to be removed,
-       and the default `state` should be calculated.
-  3. Updates `remotes` reflecting the import.
-     * `absent` entries are removed from `remotes`.
-  4. Abandons commits that are no longer referenced.
+  1. Copies `git_refs` from the backing Git repo.
+  2. Calculates diff from the known `remotes` to the new `git_refs`.
+     * `git_refs["refs/heads"] - remotes["git"].branches`
+     * `git_refs["refs/tags"] - remotes["git"].tags`
+     * TBD: `"HEAD" - remotes["git"].head` (unused)
+     * `git_refs["refs/remotes/{remote}"] - remotes[remote]`
+  3. Merges diff in local `branches` and `tags` if `state` is `tracking`.
+     * If the known `target` is `absent`, the default `state` should be
+       calculated. This also applies to previously-forgotten branches.
+  4. Updates `remotes` reflecting the import.
+  5. Abandons commits that are no longer referenced.
 
 ### push/export
 
 * `jj git push`
   1. Calculates diff from the known `remotes[remote]` to the local changes.
      * `branches - remotes[remote].branches`
-       * If `state` is `new|forgotten` (i.e. untracked), the known remote
-         branch `target` is considered `absent`.
-       * If `state` is `new|forgotten`, and if the local branch `target` is
-         `absent`, the diff `[absent, remote] - absent` is noop. So it's not
-         allowed to push deleted branch to untracked remote.
+       * If `state` is `new` (i.e. untracked), the known remote branch `target`
+         is considered `absent`.
+       * If `state` is `new`, and if the local branch `target` is `absent`, the
+         diff `[absent, remote] - absent` is noop. So it's not allowed to push
+         deleted branch to untracked remote.
        * TODO: Copy Git's `--force-with-lease` behavior?
      * ~`tags`~ (not implemented, but should be the same as `branches`)
   2. Pushes diff to the remote Git repo (as well as remote tracking branches
@@ -165,19 +201,18 @@ In particular, a merge of local and remote targets is
   4. Import changes only for `remotes[remote].branches[glob]`
 
 * `jj git export`
-  1. Calculates diff from the known `remotes["git"]` to the local changes
-     and forgotten branches.
-     * `branches - remotes["git"].branches` if `state` is `tracking`
-       * If `remotes["git"].branches[name]` is `absent`, the default
-         `state = tracking` applies.
-       * If `state` is `forgotten` but local branch exists,
-         `remotes["git"].branches[name]` is supposed to be removed, and
-         the default `state = tracking` applies.
+  1. Copies local `branches`/`tags` back to `remotes["git"]`.
+     * Conceptually, `remotes["git"].branches[name].state` can be set to
+       untracked. Untracked local branches won't be exported to Git.
+     * If `remotes["git"].branches[name]` is `absent`, the default
+       `state = tracking` applies. This also applies to forgotten branches.
      * ~`tags`~ (not implemented, but should be the same as `branches`)
-     * `absent - remotes[remote].branches` if `state` is `forgotten`
-  2. Applies diff to the backing Git repo.
-  3. Updates `remotes` reflecting the export.
-     * `absent` entries are removed from `remotes`.
+  2. Calculates diff from the known `git_refs` to the new `remotes[remote]`.
+  3. Applies diff to the backing Git repo.
+  4. Updates `git_refs` reflecting the export.
+
+  If a ref failed to export at the step 3, the preceding steps should also be
+  rolled back for that ref.
 
 ### init/clone
 
@@ -199,7 +234,8 @@ In particular, a merge of local and remote targets is
   1. Removes local `branches[name]` entry.
 * `jj branch forget {name}`
   1. Removes local `branches[name]` entry if exists.
-  2. Sets all `remotes[remote].branches[name].state = forgotten`.
+  2. Removes `remotes[remote].branches[name]` entries if exist.
+     TODO: maybe better to not remove non-tracking remote branches?
 * `jj branch track {name}@{remote}` (new command)
   1. Merges `[local, remote] - [absent]` in local branch.
      * Same as "fetching/importing existing branch from untracked remote".
@@ -242,50 +278,68 @@ Note: desired behavior of `jj branch forget` is to
   1. Decides new `state = new|tracking` based on `git.auto_local_branch`
   2. If new `state` is `tracking`, merges
     `[absent, new_remote] - [absent]` -> `new_remote`
-     (The known `target` of forgotten remote branch is `absent`)
   3. Sets `remotes[remote].branches[name].state`
 * Fetching forgotten and remotely-deleted branch
-  * Same as "remotely-deleted branch from untracked remote" since `forgotten`
-    remote branch should never be `tracking`
+  * Same as "remotely-deleted branch from untracked remote" since forgotten
+    remote branch should be `state = new`
   * Therefore, no local commits should be abandoned
 
-### push/export
+### push
 
-* Pushing/exporting new branch, remote doesn't exist
-  1. Exports `[local, absent] - [absent]` -> `local`
+* Pushing new branch, remote doesn't exist
+  1. Pushes `[local, absent] - [absent]` -> `local`
   2. Sets `remotes[remote].branches[name].state = tracking`
   3. `import_refs()` merges `[local, local] - [absent]` -> `local` (noop)
-* Pushing/exporting new branch, untracked remote exists
-  1. Exports `[local, remote] - [absent]`
+* Pushing new branch, untracked remote exists
+  1. Pushes `[local, remote] - [absent]`
      * Fails if `local` moved backwards or sideways
   2. Sets `remotes[remote].branches[name].state = tracking`
   3. `import_refs()` merges `[local, local] - [remote]` -> `local` (noop)
-* Pushing/exporting existing branch to tracking remote
-  1. Exports `[local, remote] - [remote]` -> `local`
+* Pushing existing branch to tracking remote
+  1. Pushes `[local, remote] - [remote]` -> `local`
      * Fails if `local` moved backwards or sideways, and if `remote` is out of
        sync
   2. `import_refs()` merges `[local, local] - [remote]` -> `local` (noop)
-* Pushing/exporting existing branch to untracked remote
+* Pushing existing branch to untracked remote
   * Same as "new branch"
-* Pushing/exporting deleted branch to tracking remote
-  1. Exports `[absent, remote] - [remote]` -> `absent`
+* Pushing deleted branch to tracking remote
+  1. Pushes `[absent, remote] - [remote]` -> `absent`
      * TODO: Fails if `remote` is out of sync?
   2. `import_refs()` merges `[absent, absent] - [remote]` -> `absent`
   3. Removes `remotes[remote].branches[name]` (`target` becomes `absent`)
-* Pushing/exporting deleted branch to untracked remote
+* Pushing deleted branch to untracked remote
   * Noop since `[absent, remote] - [absent]` -> `remote`
   * Perhaps, UI will report error
 * Pushing forgotten branch to untracked remote
   * Same as "deleted branch to untracked remote"
-* Exporting forgotten branch
-  1. Local branch change is noop since `[absent, absent] - [absent]` -> `absent`
-  2. Exports `forgotten` state to the backing Git repo:
-    `[absent, known_remote] - [known_remote]` -> `absent`
-    (This includes local branch in the pseudo `"git"` remote)
-  3. Removes `remotes[remote].branches[name]` (`target` becomes `absent`)
 * Pushing previously-forgotten branch to remote
   * Same as "new branch, untracked remote exists"
-  * The known `target` of forgotten remote branch is `absent`
+  * The `target` of forgotten remote branch is `absent`
+
+### export
+
+* Exporting new local branch, git branch doesn't exist
+  1. Sets `remotes["git"].branches[name].target = local`, `.state = tracking`
+  2. Exports `[local, absent] - [absent]` -> `local`
+* Exporting new local branch, git branch is out of sync
+  1. Exports `[local, git] - [absent]` -> fail
+* Exporting existing local branch, git branch is synced
+  1. Sets `remotes["git"].branches[name].target = local`
+  2. Exports `[local, git] - [git]` -> `local`
+* Exporting deleted local branch, git branch is synced
+  1. Removes `remotes["git"].branches[name]`
+  2. Exports `[absent, git] - [git]` -> `absent`
+* Exporting forgotten branches, git branches are synced
+  1. Exports `[absent, git] - [git]` -> `absent` for forgotten local/remote
+     branches
+
+### undo fetch
+
+* Exporting undone fetch, git branches are synced
+  1. Exports `[old, git] - [git]` -> `old` for undone local/remote branches
+* Redoing undone fetch without exporting
+  * Same as plain fetch since the known `git_refs` isn't diffed against the
+    refs in the backing Git repo.
 
 ### `@git` remote
 
@@ -294,10 +348,10 @@ Note: desired behavior of `jj branch forget` is to
   * Allowing this would mean different local branches of the same name coexist
     in jj and git.
 * `jj git fetch --remote git`
-  * Maybe rejected (to avoid confusion)?
+  * Rejected. The implementation is different.
   * Conceptually, it's `git::import_refs()` only for local branches.
 * `jj git push --remote git`
-  * Maybe rejected (to avoid confusion)?
+  * Rejected. The implementation is different.
   * Conceptually, it's `jj branch track` and `git::export_refs()` only for
     local branches.
 
