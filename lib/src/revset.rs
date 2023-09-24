@@ -783,22 +783,14 @@ impl RevsetAliasesMap {
         Ok(())
     }
 
-    fn get_symbol(&self, name: &str) -> Option<(RevsetAliasId, &str)> {
-        self.symbol_aliases
-            .get_key_value(name)
-            .map(|(name, defn)| (RevsetAliasId::Symbol(name), defn.as_ref()))
+    fn get_symbol(&self, name: &str) -> Option<&str> {
+        self.symbol_aliases.get(name).map(|defn| defn.as_ref())
     }
 
-    fn get_function(&self, name: &str) -> Option<(RevsetAliasId, &[String], &str)> {
+    fn get_function(&self, name: &str) -> Option<(&[String], &str)> {
         self.function_aliases
-            .get_key_value(name)
-            .map(|(name, (params, defn))| {
-                (
-                    RevsetAliasId::Function(name),
-                    params.as_ref(),
-                    defn.as_ref(),
-                )
-            })
+            .get(name)
+            .map(|(params, defn)| (params.as_ref(), defn.as_ref()))
     }
 }
 
@@ -1057,7 +1049,8 @@ fn parse_symbol_rule(
             let name = first.as_str();
             if let Some(expr) = state.locals.get(name) {
                 Ok(expr.clone())
-            } else if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
+            } else if let Some(defn) = state.aliases_map.get_symbol(name) {
+                let id = RevsetAliasId::Symbol(name);
                 let locals = HashMap::new(); // Don't spill out the current scope
                 state.with_alias_expanding(id, &locals, first.as_span(), |state| {
                     parse_program(defn, state)
@@ -1104,7 +1097,7 @@ fn parse_function_expression(
     primary_span: pest::Span<'_>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let name = name_pair.as_str();
-    if let Some((id, params, defn)) = state.aliases_map.get_function(name) {
+    if let Some((params, defn)) = state.aliases_map.get_function(name) {
         // Resolve arguments in the current scope, and pass them in to the alias
         // expansion scope.
         let (required, optional) =
@@ -1114,6 +1107,7 @@ fn parse_function_expression(
             .into_iter()
             .map(|arg| parse_expression_rule(arg.into_inner(), state))
             .try_collect()?;
+        let id = RevsetAliasId::Function(name);
         let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
         state.with_alias_expanding(id, &locals, primary_span, |state| {
             parse_program(defn, state)
