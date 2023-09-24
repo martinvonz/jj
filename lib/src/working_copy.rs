@@ -623,7 +623,7 @@ impl TreeState {
     }
 
     #[cfg(feature = "watchman")]
-    #[tokio::main]
+    #[tokio::main(flavor = "current_thread")]
     #[instrument(skip(self))]
     pub async fn query_watchman(
         &self,
