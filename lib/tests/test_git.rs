@@ -1364,6 +1364,16 @@ fn test_export_conflicts() {
             .unwrap(),
         git_id(&commit_b)
     );
+
+    // Conflicted branches shouldn't be copied to the "git" remote
+    assert_eq!(
+        mut_repo.get_remote_branch("feature", "git"),
+        RefTarget::normal(commit_a.id().clone())
+    );
+    assert_eq!(
+        mut_repo.get_remote_branch("main", "git"),
+        RefTarget::normal(commit_b.id().clone())
+    );
 }
 
 #[test]
@@ -1406,7 +1416,7 @@ fn test_export_partial_failure() {
     mut_repo.set_local_branch_target("main", target.clone());
     // `main/sub` will conflict with `main` in Git, at least when using loose ref
     // storage
-    mut_repo.set_local_branch_target("main/sub", target);
+    mut_repo.set_local_branch_target("main/sub", target.clone());
     let failed = git::export_refs(mut_repo, &git_repo).unwrap();
     assert_eq!(failed.len(), 3);
     assert_eq!(failed[0].name, RefName::LocalBranch("".to_string()));
@@ -1429,6 +1439,12 @@ fn test_export_partial_failure() {
     );
     assert!(git_repo.find_reference("refs/heads/main/sub").is_err());
 
+    // Failed branches shouldn't be copied to the "git" remote
+    assert!(mut_repo.get_remote_branch("", "git").is_absent());
+    assert!(mut_repo.get_remote_branch("HEAD", "git").is_absent());
+    assert_eq!(mut_repo.get_remote_branch("main", "git"), target);
+    assert!(mut_repo.get_remote_branch("main/sub", "git").is_absent());
+
     // Now remove the `main` branch and make sure that the `main/sub` gets exported
     // even though it didn't change
     mut_repo.set_local_branch_target("main", RefTarget::absent());
@@ -1449,6 +1465,12 @@ fn test_export_partial_failure() {
             .unwrap(),
         git_id(&commit_a)
     );
+
+    // Failed branches shouldn't be copied to the "git" remote
+    assert!(mut_repo.get_remote_branch("", "git").is_absent());
+    assert!(mut_repo.get_remote_branch("HEAD", "git").is_absent());
+    assert!(mut_repo.get_remote_branch("main", "git").is_absent());
+    assert_eq!(mut_repo.get_remote_branch("main/sub", "git"), target);
 }
 
 #[test]
@@ -1590,6 +1612,40 @@ fn test_export_reexport_transitions() {
             "refs/heads/XAX".to_string() => RefTarget::normal(commit_a.id().clone()),
         }
     );
+}
+
+#[test]
+fn test_export_undo_reexport() {
+    let test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    let mut tx = test_data
+        .repo
+        .start_transaction(&test_data.settings, "test");
+    let mut_repo = tx.mut_repo();
+
+    // Initial export
+    let commit_a = write_random_commit(mut_repo, &test_data.settings);
+    let target_a = RefTarget::normal(commit_a.id().clone());
+    mut_repo.set_local_branch_target("main", target_a.clone());
+    assert!(git::export_refs(mut_repo, &git_repo).unwrap().is_empty());
+    assert_eq!(
+        git_repo.find_reference("refs/heads/main").unwrap().target(),
+        Some(git_id(&commit_a))
+    );
+    assert_eq!(mut_repo.get_git_ref("refs/heads/main"), target_a);
+    assert_eq!(mut_repo.get_remote_branch("main", "git"), target_a);
+
+    // Undo remote changes only
+    mut_repo.set_remote_branch_target("main", "git", RefTarget::absent());
+
+    // Reexport should update the Git-tracking branch
+    assert!(git::export_refs(mut_repo, &git_repo).unwrap().is_empty());
+    assert_eq!(
+        git_repo.find_reference("refs/heads/main").unwrap().target(),
+        Some(git_id(&commit_a))
+    );
+    assert_eq!(mut_repo.get_git_ref("refs/heads/main"), target_a);
+    assert_eq!(mut_repo.get_remote_branch("main", "git"), target_a);
 }
 
 #[test]
