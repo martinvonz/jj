@@ -20,6 +20,7 @@ use std::iter::zip;
 use std::sync::Arc;
 use std::{iter, vec};
 
+use futures::stream::StreamExt;
 use itertools::Itertools;
 
 use crate::backend::{BackendError, BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
@@ -816,17 +817,25 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         Self { stack, matcher }
     }
 
-    fn single_tree(store: &Arc<Store>, dir: &RepoPath, value: Option<&TreeValue>) -> Tree {
+    async fn single_tree(store: &Arc<Store>, dir: &RepoPath, value: Option<&TreeValue>) -> Tree {
         match value {
-            Some(TreeValue::Tree(tree_id)) => store.get_tree(dir, tree_id).unwrap(),
+            Some(TreeValue::Tree(tree_id)) => store.get_tree_async(dir, tree_id).await.unwrap(),
             _ => Tree::null(store.clone(), dir.clone()),
         }
     }
 
     /// Gets the given tree if `value` is a tree, otherwise an empty tree.
-    fn tree(tree: &MergedTree, dir: &RepoPath, values: &Merge<Option<TreeValue>>) -> MergedTree {
+    async fn tree(
+        tree: &MergedTree,
+        dir: &RepoPath,
+        values: &Merge<Option<TreeValue>>,
+    ) -> MergedTree {
         let trees = if values.is_tree() {
-            values.map(|value| Self::single_tree(tree.store(), dir, value.as_ref()))
+            let builder: MergeBuilder<Tree> = futures::stream::iter(values.iter())
+                .then(|value| Self::single_tree(tree.store(), dir, value.as_ref()))
+                .collect()
+                .await;
+            builder.build()
         } else {
             Merge::resolved(Tree::null(tree.store().clone(), dir.clone()))
         };
@@ -882,8 +891,11 @@ impl Iterator for TreeDiffIterator<'_> {
             let tree_after = after.is_tree();
             let post_subdir =
                 if (tree_before || tree_after) && !self.matcher.visit(&path).is_nothing() {
-                    let before_tree = Self::tree(dir.tree1.as_ref(), &path, &before);
-                    let after_tree = Self::tree(dir.tree2.as_ref(), &path, &after);
+                    let (before_tree, after_tree) = futures::executor::block_on(async {
+                        let before_tree = Self::tree(dir.tree1.as_ref(), &path, &before);
+                        let after_tree = Self::tree(dir.tree2.as_ref(), &path, &after);
+                        futures::join!(before_tree, after_tree)
+                    });
                     let subdir = TreeDiffDirItem::new(path.clone(), before_tree, after_tree);
                     self.stack.push(TreeDiffItem::Dir(subdir));
                     self.stack.len() - 1
