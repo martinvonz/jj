@@ -34,7 +34,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
-use crate::git::{self, get_local_git_tracking_branch};
+use crate::git;
 use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
@@ -2018,7 +2018,6 @@ fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Ve
     let view = repo.view();
     let target = match (name, remote) {
         ("HEAD", git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => view.git_head(),
-        (name, git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => get_local_git_tracking_branch(view, name),
         (name, remote) => view.get_remote_branch(name, remote),
     };
     target
@@ -2028,8 +2027,7 @@ fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Ve
 
 fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<String> {
     let view = repo.view();
-    let all_branches = git::build_unified_branches_map(view);
-    all_branches
+    view.branches()
         .iter()
         .flat_map(|(name, branch_target)| {
             let local_target = &branch_target.local_target;
