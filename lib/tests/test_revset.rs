@@ -409,8 +409,9 @@ fn test_resolve_symbol_branches() {
         "mirror",
         mut_repo.get_local_branch("local-remote"),
     );
-    mut_repo.set_git_ref_target(
-        "refs/heads/local-remote",
+    mut_repo.set_remote_branch_target(
+        "local-remote",
+        git::REMOTE_NAME_FOR_LOCAL_GIT_REPO,
         mut_repo.get_local_branch("local-remote"),
     );
 
@@ -739,11 +740,7 @@ fn test_resolve_symbol_git_refs() {
         resolve_symbol(mut_repo, "branch").unwrap_err(), @r###"
     NoSuchRevision {
         name: "branch",
-        candidates: [
-            "branch1@git",
-            "branch2@git",
-            "branch@git",
-        ],
+        candidates: [],
     }
     "###);
     // heads/branch does get resolved to the git ref refs/heads/branch

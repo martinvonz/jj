@@ -320,7 +320,7 @@ fn cmd_branch_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let mut all_branches = git::build_unified_branches_map(repo.view());
+    let mut all_branches = repo.view().branches().clone(); // TODO: useless clone
     if !args.revisions.is_empty() {
         // Match against local targets only, which is consistent with "jj git push".
         fn local_targets(branch_target: &BranchTarget) -> impl Iterator<Item = &CommitId> {

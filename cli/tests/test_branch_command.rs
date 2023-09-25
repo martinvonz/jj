@@ -239,25 +239,13 @@ fn test_branch_forget_export() {
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "foo"]);
     insta::assert_snapshot!(stdout, @"");
-    // Forgetting a branch does not delete its local-git tracking branch. The
-    // git-tracking branch is kept.
-    // TODO: Actually git-tracking branch is forgotten. Update the branch
-    // resolution code to not shadow the real @git branch.
+    // Forgetting a branch deletes local and remote-tracking branches including
+    // the corresponding git-tracking branch.
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
-    insta::assert_snapshot!(stdout, @r###"
-    foo (forgotten)
-      @git: rlvkpnrz 65b6b74e (empty) (no description set)
-      (this branch will be deleted from the underlying Git repo on the next `jj git export`)
-    "###);
+    insta::assert_snapshot!(stdout, @"");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r=foo", "--no-graph"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Revision "foo" doesn't exist
-    Hint: Did you mean "foo@git"?
-    "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r=foo@git", "--no-graph"]);
-    insta::assert_snapshot!(stdout, @r###"
-    rlvkpnrz test.user@example.com 2001-02-03 04:05:08.000 +07:00 foo@git 65b6b74e
-    (empty) (no description set)
     "###);
 
     // `jj git export` will delete the branch from git. In a colocated repo,

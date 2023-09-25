@@ -28,7 +28,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::git_backend::GitBackend;
-use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
+use crate::op_store::{RefTarget, RefTargetOptionExt};
 use crate::repo::{MutableRepo, Repo};
 use crate::revset::{self, RevsetExpression};
 use crate::settings::GitSettings;
@@ -153,33 +153,6 @@ fn resolve_git_ref_to_commit_id(
 
     let git_commit = git_ref.peel_to_commit().ok()?;
     Some(CommitId::from_bytes(git_commit.id().as_bytes()))
-}
-
-/// Builds a map of branches which also includes pseudo `@git` remote.
-pub fn build_unified_branches_map(view: &View) -> BTreeMap<String, BranchTarget> {
-    let mut all_branches = view.branches().clone();
-    for (branch_name, git_tracking_target) in local_branch_git_tracking_refs(view) {
-        // There may be a "git" remote if the view has been stored by older jj versions,
-        // but we override it anyway.
-        let branch_target = all_branches.entry(branch_name.to_owned()).or_default();
-        branch_target.remote_targets.insert(
-            REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned(),
-            git_tracking_target.clone(),
-        );
-    }
-    all_branches
-}
-
-fn local_branch_git_tracking_refs(view: &View) -> impl Iterator<Item = (&str, &RefTarget)> {
-    view.git_refs().iter().filter_map(|(ref_name, target)| {
-        ref_name
-            .strip_prefix("refs/heads/")
-            .map(|branch_name| (branch_name, target))
-    })
-}
-
-pub fn get_local_git_tracking_branch<'a>(view: &'a View, branch: &str) -> &'a RefTarget {
-    view.get_git_ref(&format!("refs/heads/{branch}"))
 }
 
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.

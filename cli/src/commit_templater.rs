@@ -24,7 +24,7 @@ use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
-use jj_lib::{git, rewrite};
+use jj_lib::rewrite;
 use once_cell::unsync::OnceCell;
 
 use crate::formatter::Formatter;
@@ -358,8 +358,7 @@ impl RefNamesIndex {
 
 fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
-    let all_branches = git::build_unified_branches_map(repo.view());
-    for (branch_name, branch_target) in &all_branches {
+    for (branch_name, branch_target) in repo.view().branches() {
         let local_target = &branch_target.local_target;
         let mut unsynced_remote_targets = branch_target
             .remote_targets
