@@ -1684,6 +1684,10 @@ fn test_fetch_success() {
         "refs/heads/main",
         &[&initial_git_commit],
     );
+    test_data
+        .origin_repo
+        .reference("refs/tags/v1.0", new_git_commit.id(), false, "")
+        .unwrap();
 
     let mut tx = test_data
         .repo
@@ -1708,6 +1712,7 @@ fn test_fetch_success() {
         *view.git_refs(),
         btreemap! {
             "refs/remotes/origin/main".to_string() => new_commit_target.clone(),
+            "refs/tags/v1.0".to_string() => new_commit_target.clone(),
         }
     );
     assert_eq!(
@@ -1716,9 +1721,15 @@ fn test_fetch_success() {
             "main".to_string() => BranchTarget {
                 local_target: new_commit_target.clone(),
                 remote_targets: btreemap! {
-                    "origin".to_string() => new_commit_target,
+                    "origin".to_string() => new_commit_target.clone(),
                 },
             },
+        }
+    );
+    assert_eq!(
+        *view.tags(),
+        btreemap! {
+            "v1.0".to_string() => new_commit_target.clone(),
         }
     );
 }
