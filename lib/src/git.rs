@@ -496,7 +496,7 @@ pub fn export_some_refs(
     } = diff_refs_to_export(
         mut_repo.view(),
         mut_repo.store().root_commit_id(),
-        git_ref_filter,
+        &git_ref_filter,
     );
 
     // TODO: Also check other worktrees' HEAD.
@@ -523,13 +523,6 @@ pub fn export_some_refs(
             failed_branches.insert(parsed_ref_name, reason);
         } else {
             let new_target = RefTarget::absent();
-            if let RefName::LocalBranch(branch) = &parsed_ref_name {
-                mut_repo.set_remote_branch_target(
-                    branch,
-                    REMOTE_NAME_FOR_LOCAL_GIT_REPO,
-                    new_target.clone(),
-                );
-            }
             mut_repo.set_git_ref_target(&git_ref_name, new_target);
         }
     }
@@ -539,16 +532,15 @@ pub fn export_some_refs(
             failed_branches.insert(parsed_ref_name, reason);
         } else {
             let new_target = RefTarget::normal(CommitId::from_bytes(new_oid.as_bytes()));
-            if let RefName::LocalBranch(branch) = &parsed_ref_name {
-                mut_repo.set_remote_branch_target(
-                    branch,
-                    REMOTE_NAME_FOR_LOCAL_GIT_REPO,
-                    new_target.clone(),
-                );
-            }
             mut_repo.set_git_ref_target(&git_ref_name, new_target);
         }
     }
+
+    copy_exportable_local_branches_to_remote_view(
+        mut_repo,
+        REMOTE_NAME_FOR_LOCAL_GIT_REPO,
+        |ref_name| git_ref_filter(ref_name) && !failed_branches.contains_key(ref_name),
+    );
 
     let failed_branches = failed_branches
         .into_iter()
@@ -556,6 +548,28 @@ pub fn export_some_refs(
         .sorted_unstable_by(|a, b| a.name.cmp(&b.name))
         .collect();
     Ok(failed_branches)
+}
+
+fn copy_exportable_local_branches_to_remote_view(
+    mut_repo: &mut MutableRepo,
+    remote_name: &str,
+    git_ref_filter: impl Fn(&RefName) -> bool,
+) {
+    let new_local_branches = mut_repo
+        .view()
+        .branches()
+        .iter()
+        .filter_map(|(branch, branch_target)| {
+            let old_target = branch_target.remote_targets.get(remote_name).flatten();
+            let new_target = &branch_target.local_target;
+            (!new_target.has_conflict() && old_target != new_target).then_some((branch, new_target))
+        })
+        .filter(|&(branch, _)| git_ref_filter(&RefName::LocalBranch(branch.to_owned())))
+        .map(|(branch, new_target)| (branch.to_owned(), new_target.clone()))
+        .collect_vec();
+    for (branch, new_target) in new_local_branches {
+        mut_repo.set_remote_branch_target(&branch, remote_name, new_target);
+    }
 }
 
 /// Calculates diff of branches to be exported.
@@ -568,6 +582,8 @@ fn diff_refs_to_export(
     let mut branches_to_delete = BTreeMap::new();
     let mut failed_branches = HashMap::new();
     let root_commit_target = RefTarget::normal(root_commit_id.clone());
+    // Local targets will be copied to the "git" remote if successfully exported. So
+    // the local branches are considered to be the new "git" remote branches.
     let jj_repo_iter_all_branches = view.branches().iter().flat_map(|(branch, target)| {
         itertools::chain(
             target
