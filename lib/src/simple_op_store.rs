@@ -242,7 +242,11 @@ fn operation_from_proto(proto: crate::protos::op_store::Operation) -> Operation 
 }
 
 fn view_to_proto(view: &View) -> crate::protos::op_store::View {
-    let mut proto = crate::protos::op_store::View::default();
+    let mut proto = crate::protos::op_store::View {
+        // New/loaded view should have been migrated to the latest format
+        has_git_refs_migrated_to_remote: true,
+        ..Default::default()
+    };
     for (workspace_id, commit_id) in &view.wc_commit_ids {
         proto
             .wc_commit_ids
@@ -355,7 +359,10 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
         view.git_head = RefTarget::normal(CommitId::new(proto.git_head_legacy));
     }
 
-    migrate_git_refs_to_remote(&mut view);
+    if !proto.has_git_refs_migrated_to_remote {
+        migrate_git_refs_to_remote(&mut view);
+    }
+
     view
 }
 
@@ -370,6 +377,16 @@ fn migrate_git_refs_to_remote(view: &mut View) {
         branch_target
             .remote_targets
             .remove(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
+    }
+    for (full_name, target) in &view.git_refs {
+        if let Some(name) = full_name.strip_prefix("refs/heads/") {
+            assert!(!name.is_empty());
+            let branch_target = view.branches.entry(name.to_owned()).or_default();
+            branch_target.remote_targets.insert(
+                git::REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned(),
+                target.clone(),
+            );
+        }
     }
 
     // jj < 0.9 might have imported refs from remote named "git"
@@ -609,6 +626,7 @@ mod tests {
                 git_ref_to_proto("refs/remotes/git/main", &normal_ref_target("555555")),
                 git_ref_to_proto("refs/remotes/gita/main", &normal_ref_target("666666")),
             ],
+            has_git_refs_migrated_to_remote: false,
             ..Default::default()
         };
 
@@ -619,6 +637,7 @@ mod tests {
                 "main".to_owned() => BranchTarget {
                     local_target: normal_ref_target("111111"),
                     remote_targets: btreemap! {
+                        "git".to_owned() => normal_ref_target("444444"), // refs/heads/main
                         "gita".to_owned() => normal_ref_target("333333"),
                     },
                 },
@@ -631,6 +650,13 @@ mod tests {
                 "refs/remotes/gita/main".to_owned() => normal_ref_target("666666"),
             },
         );
+
+        // Once migrated, "git" remote branches shouldn't be populated again.
+        let mut proto = view_to_proto(&view);
+        assert!(proto.has_git_refs_migrated_to_remote);
+        proto.branches.clear();
+        let view = view_from_proto(proto);
+        assert!(view.branches.is_empty());
     }
 
     #[test]

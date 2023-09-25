@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should be noticeably faster on large repos. You may need to create a new
   clone to see the full speedup.
 
+* The `remote_branches()` revset now includes branches exported to the Git
+  repository (so called Git-tracking branches.) Use
+  `remote_branches(remote=exact:"origin")` to query branches of certain remote.
+
 ### New features
 
 ### Fixed bugs

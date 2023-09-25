@@ -82,6 +82,8 @@ message View {
   // TODO: Delete support for the old format.
   bytes git_head_legacy = 7 [deprecated = true];
   RefTarget git_head = 9;
+  // Whether "@git" branches have been migrated to remote_targets.
+  bool has_git_refs_migrated_to_remote = 10;
 }
 
 message Operation {

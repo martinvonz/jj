@@ -241,6 +241,8 @@ fn test_branch_forget_export() {
     insta::assert_snapshot!(stdout, @"");
     // Forgetting a branch does not delete its local-git tracking branch. The
     // git-tracking branch is kept.
+    // TODO: Actually git-tracking branch is forgotten. Update the branch
+    // resolution code to not shadow the real @git branch.
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     foo (forgotten)
@@ -258,25 +260,14 @@ fn test_branch_forget_export() {
     (empty) (no description set)
     "###);
 
-    // The presence of the @git branch means that a `jj git import` is a no-op...
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "import"]);
-    insta::assert_snapshot!(stdout, @r###"
-    Nothing changed.
-    "###);
-    // ... and a `jj git export` will delete the branch from git and will delete the
-    // git-tracking branch. In a colocated repo, this will happen automatically
-    // immediately after a `jj branch forget`. This is demonstrated in
-    // `test_git_colocated_branch_forget` in test_git_colocated.rs
+    // `jj git export` will delete the branch from git. In a colocated repo,
+    // this will happen automatically immediately after a `jj branch forget`.
+    // This is demonstrated in `test_git_colocated_branch_forget` in
+    // test_git_colocated.rs
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @"");
-
-    // Note that if `jj branch forget` *did* delete foo@git, a subsequent `jj
-    // git export` would be a no-op and a `jj git import` would resurrect
-    // the branch. In a normal repo, that might be OK. In a colocated repo,
-    // this would automatically happen before the next command, making `jj
-    // branch forget` useless.
 }
 
 #[test]
