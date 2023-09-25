@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * A default revset-alias function `trunk()` now exists. If you previously defined
   your own `trunk()` alias it will continue to overwrite the built-in one.
-  Check [revsets.toml](cli/src/config/revsets.toml) and [revsets.md](docs/revset.md)
+  Check [revsets.toml](cli/src/config/revsets.toml) and [revsets.md](docs/revsets.md)
   to understand how the function can be adapted.
 
 ### New features
