@@ -120,6 +120,56 @@ fn test_commit_without_working_copy() {
     "###);
 }
 
+#[test]
+fn test_commit_paths() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+
+    test_env.jj_cmd_success(&workspace_path, &["commit", "-m=first", "file1"]);
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["diff", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Added regular file file1:
+            1: foo
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["diff"]);
+    insta::assert_snapshot!(stdout, @"
+    Added regular file file2:
+            1: bar
+    ");
+}
+
+#[test]
+fn test_commit_paths_warning() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=first", "file3"]);
+    insta::assert_snapshot!(stderr, @r###"
+    The given paths do not match any file: file3
+    "###);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: rlvkpnrz 67872820 (no description set)
+    Parent commit      : qpvuntsm 69542c19 (empty) first
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["diff"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Added regular file file1:
+            1: foo
+    Added regular file file2:
+            1: bar
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"commit_id.short() ++ " " ++ description"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
