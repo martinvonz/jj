@@ -54,13 +54,8 @@ pub struct OperationRestoreArgs {
 
     /// What portions of the local state to restore (can be repeated)
     ///
-    /// Defaults to everything for non-colocated repos.
-    ///
-    /// Defaults to `repo` and `remote-tracking` for colocated repos. This
-    /// ensures that the automatic `jj git export` succeeds.
-    ///
     /// This option is EXPERIMENTAL.
-    #[arg(long)]
+    #[arg(long, value_enum, default_values_t = DEFAULT_UNDO_WHAT)]
     what: Vec<UndoWhatToRestore>,
 }
 
@@ -78,13 +73,8 @@ pub struct OperationUndoArgs {
 
     /// What portions of the local state to restore (can be repeated)
     ///
-    /// Defaults to everything for non-colocated repos.
-    ///
-    /// Defaults to `repo` and `remote-tracking` for colocated repos. This
-    /// ensures that the automatic `jj git export` succeeds.
-    ///
     /// This option is EXPERIMENTAL.
-    #[arg(long)]
+    #[arg(long, value_enum, default_values_t = DEFAULT_UNDO_WHAT)]
     what: Vec<UndoWhatToRestore>,
 }
 
@@ -95,9 +85,10 @@ enum UndoWhatToRestore {
     /// The remote-tracking branches. Do not restore these if you'd like to push
     /// after the undo
     RemoteTracking,
-    /// Remembered git repo state from the last `jj git import`
-    GitTracking,
 }
+
+const DEFAULT_UNDO_WHAT: [UndoWhatToRestore; 2] =
+    [UndoWhatToRestore::Repo, UndoWhatToRestore::RemoteTracking];
 
 fn cmd_op_log(
     ui: &mut Ui,
@@ -179,13 +170,8 @@ fn view_with_desired_portions_restored(
         current_view.clone()
     };
 
-    let git_source_view = if what.contains(&UndoWhatToRestore::GitTracking) {
-        view_being_restored
-    } else {
-        current_view
-    };
-    new_view.git_refs = git_source_view.git_refs.clone();
-    new_view.git_head = git_source_view.git_head.clone();
+    new_view.git_refs = current_view.git_refs.clone();
+    new_view.git_head = current_view.git_head.clone();
 
     if what.contains(&UndoWhatToRestore::RemoteTracking) == what.contains(&UndoWhatToRestore::Repo)
     {
@@ -229,39 +215,6 @@ fn view_with_desired_portions_restored(
     new_view
 }
 
-fn process_what_arg(what_arg: &[UndoWhatToRestore], colocated: bool) -> Vec<UndoWhatToRestore> {
-    if !what_arg.is_empty() {
-        what_arg.to_vec()
-    } else {
-        let mut default_what = vec![UndoWhatToRestore::Repo, UndoWhatToRestore::RemoteTracking];
-        if !colocated {
-            // In a colocated repo, restoring the git-tracking refs is harmful
-            // (https://github.com/martinvonz/jj/issues/922).
-            //
-            // The issue is that `jj undo` does not directly change the local
-            // git repo's branches. Keeping those up to date the job of the
-            // automatic `jj git import` and `jj git export`, and they rely on the
-            // git-tracking refs matching the git repo's branches.
-            //
-            // Consider, for example, undoing a `jj branch set` command. If the
-            // git-tracking refs were restored by `undo`, they would no longer
-            // match the actual positions of branches in the git repo. So, the
-            // automatic `jj git export` would fail and the automatic `jj git
-            // import` would create a conflict, as demonstrated by the bug
-            // linked above.
-            //
-            // So, we have `undo` *not* move the git-tracking branches. After
-            // the undo, git-tracking refs will still match the actual positions
-            // of the git repo's branches (in the normal case where they matched
-            // before the undo). The automatic `jj git export` that happens
-            // immediately after the undo will successfully export whatever
-            // changes to branches `undo` caused.
-            default_what.push(UndoWhatToRestore::GitTracking);
-        }
-        default_what
-    }
-}
-
 pub fn cmd_op_undo(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -269,7 +222,6 @@ pub fn cmd_op_undo(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let bad_op = workspace_command.resolve_single_op(&args.operation)?;
-    let repo_is_colocated = workspace_command.working_copy_shared_with_git();
     let parent_ops = bad_op.parents();
     if parent_ops.len() > 1 {
         return Err(user_error("Cannot undo a merge operation"));
@@ -287,7 +239,7 @@ pub fn cmd_op_undo(
     let new_view = view_with_desired_portions_restored(
         tx.repo().view().store_view(),
         tx.base_repo().view().store_view(),
-        &process_what_arg(&args.what, repo_is_colocated),
+        &args.what,
     );
     tx.mut_repo().set_view(new_view);
     tx.finish(ui)?;
@@ -302,13 +254,12 @@ fn cmd_op_restore(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let target_op = workspace_command.resolve_single_op(&args.operation)?;
-    let repo_is_colocated = workspace_command.working_copy_shared_with_git();
     let mut tx = workspace_command
         .start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     let new_view = view_with_desired_portions_restored(
         target_op.view()?.store_view(),
         tx.base_repo().view().store_view(),
-        &process_what_arg(&args.what, repo_is_colocated),
+        &args.what,
     );
     tx.mut_repo().set_view(new_view);
     tx.finish(ui)?;
