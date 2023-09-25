@@ -88,8 +88,14 @@ fn test_git_export_undo() {
     a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-ra@git"]), @r###"
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 a 230dd059
+    │  (empty) (no description set)
+    ~
+    "###);
 
-    // "git export" can't be undone.
+    // Exported refs won't be removed by undoing the export, but the git-tracking
+    // branch is. This is the same as remote-tracking branches.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "undo"]), @r###"
     "###);
     insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
@@ -102,10 +108,18 @@ fn test_git_export_undo() {
         ),
     ]
     "###);
+    insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "-ra@git"]), @r###"
+    Error: Revision "a@git" doesn't exist
+    Hint: Did you mean "a"?
+    "###);
 
-    // This would re-export branch "a" as the internal state has been rolled back.
-    // It might be better to preserve the state, and say "Nothing changed" here.
+    // This would re-export branch "a" and create git-tracking branch.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-ra@git"]), @r###"
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 a 230dd059
+    │  (empty) (no description set)
+    ~
+    "###);
 }
 
 #[test]
@@ -132,33 +146,12 @@ fn test_git_import_undo() {
     a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
-    // "git import" can be undone by default in non-colocated repositories.
+    // "git import" can be undone by default.
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
     insta::assert_snapshot!(stdout, @r###"
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     // Try "git import" again, which should re-import the branch "a".
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    a: qpvuntsm 230dd059 (empty) (no description set)
-    "###);
-
-    // Even if we don't restore the git_refs, "git import" can re-import the
-    // local branch "a".
-    // TODO: This will be the default "op restore" mode.
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "op",
-            "restore",
-            &base_operation_id,
-            "--what=repo",
-            "--what=remote-tracking",
-        ],
-    );
-    insta::assert_snapshot!(stdout, @r###"
-    "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
