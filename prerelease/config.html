@@ -618,6 +618,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#set-of-immutable-commits" class="md-nav__link">
+    Set of immutable commits
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#default-revisions-to-log" class="md-nav__link">
     Default revisions to log
   </a>
@@ -1383,6 +1390,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#set-of-immutable-commits" class="md-nav__link">
+    Set of immutable commits
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#default-revisions-to-log" class="md-nav__link">
     Default revisions to log
   </a>
@@ -1698,10 +1712,21 @@ For the tool named <code>&lt;name&gt;</code>, command arguments can be configure
 <li><code>$left</code> and <code>$right</code> are replaced with the paths to the left and right
   directories to diff respectively.</li>
 </ul>
+<h3 id="set-of-immutable-commits">Set of immutable commits<a class="headerlink" href="#set-of-immutable-commits" title="Permanent link">&para;</a></h3>
+<p>You can configure the set of immutable commits via <code>revset-aliases."immutable_heads()"</code>.
+The default set of immutable heads is <code>trunk() | tags()</code>. For example, to
+prevent rewriting commits on <code>main@origin</code> and commits authored by other
+users:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># The `main.. &amp;` bit is an optimization to scan for non-`mine()` commits only</span>
+<span class="c1"># among commits that are not in `main`.</span>
+<span class="n">revset-aliases</span><span class="p">.</span><span class="s">&quot;immutable_heads()&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;main@origin | (main@origin.. &amp; ~mine())&quot;</span>
+</code></pre></div>
+<p>Ancestors of the configured set are also immutable. The root commit always
+immutable even if the set is empty.</p>
 <h3 id="default-revisions-to-log">Default revisions to log<a class="headerlink" href="#default-revisions-to-log" title="Permanent link">&para;</a></h3>
 <p>You can configure the revisions <code>jj log</code> without <code>-r</code> should show.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Show commits that are not in `main`</span>
-<span class="n">revsets</span><span class="p">.</span><span class="n">log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;main..&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="c1"># Show commits that are not in `main@origin`</span>
+<span class="n">revsets</span><span class="p">.</span><span class="n">log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;main@origin..&quot;</span>
 </code></pre></div>
 <h3 id="graph-style">Graph style<a class="headerlink" href="#graph-style" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="c1"># Possible values: &quot;curved&quot; (default), &quot;square&quot;, &quot;ascii&quot;, &quot;ascii-large&quot;,</span>
