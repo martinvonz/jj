@@ -123,13 +123,16 @@ fn test_import_refs() {
     let expected_main_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit2)),
         remote_targets: btreemap! {
-          "origin".to_string() => RefTarget::normal(jj_id(&commit1)),
+            "git".to_string() => RefTarget::normal(jj_id(&commit2)),
+            "origin".to_string() => RefTarget::normal(jj_id(&commit1)),
         },
     };
     assert_eq!(view.get_branch("main"), Some(expected_main_branch).as_ref());
     let expected_feature1_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit3)),
-        remote_targets: btreemap! {},
+        remote_targets: btreemap! {
+            "git".to_string() => RefTarget::normal(jj_id(&commit3)),
+        },
     };
     assert_eq!(
         view.get_branch("feature1"),
@@ -137,7 +140,9 @@ fn test_import_refs() {
     );
     let expected_feature2_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit4)),
-        remote_targets: btreemap! {},
+        remote_targets: btreemap! {
+            "git".to_string() => RefTarget::normal(jj_id(&commit4)),
+        },
     };
     assert_eq!(
         view.get_branch("feature2"),
@@ -256,7 +261,8 @@ fn test_import_refs_reimport() {
     let expected_main_branch = BranchTarget {
         local_target: RefTarget::normal(jj_id(&commit2)),
         remote_targets: btreemap! {
-          "origin".to_string() => commit1_target.clone(),
+            "git".to_string() => RefTarget::normal(jj_id(&commit2)),
+            "origin".to_string() => commit1_target.clone(),
         },
     };
     assert_eq!(view.get_branch("main"), Some(expected_main_branch).as_ref());
@@ -265,7 +271,9 @@ fn test_import_refs_reimport() {
             [jj_id(&commit4)],
             [commit6.id().clone(), jj_id(&commit5)],
         ),
-        remote_targets: btreemap! {},
+        remote_targets: btreemap! {
+            "git".to_string() => RefTarget::normal(jj_id(&commit5)),
+        },
     };
     assert_eq!(
         view.get_branch("feature2"),
@@ -463,6 +471,7 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             remote_targets: btreemap! {
+                "git".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
                 "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
             },
         }),
@@ -482,10 +491,18 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
 
     let view = repo.view();
     // The local branches were indeed deleted
-    assert_eq!(view.branches().len(), 1);
-    view.get_branch("main").unwrap(); // branch #1 of 1
-    assert_eq!(view.get_branch("feature-remote-local"), None);
-    assert_eq!(view.get_branch("feature-remote-and-local"), None);
+    assert_eq!(view.branches().len(), 2);
+    assert!(view.get_branch("main").is_some());
+    assert!(view.get_branch("feature-remote-only").is_none());
+    assert_eq!(
+        view.get_branch("feature-remote-and-local"),
+        Some(&BranchTarget {
+            local_target: RefTarget::absent(),
+            remote_targets: btreemap! {
+                "git".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
+            },
+        }),
+    );
     let expected_heads = hashset! {
             jj_id(&commit_main),
             // Neither commit_remote_only nor commit_remote_and_local should be
@@ -552,6 +569,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             remote_targets: btreemap! {
+                "git".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
                 "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
             },
         }),
@@ -596,6 +614,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         Some(&BranchTarget {
             local_target: RefTarget::normal(jj_id(&new_commit_remote_and_local)),
             remote_targets: btreemap! {
+                "git".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
                 "origin".to_string() => RefTarget::normal(jj_id(&new_commit_remote_and_local)),
             },
         }),

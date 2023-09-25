@@ -39,30 +39,20 @@ fn test_resolution_of_git_tracking_branches() {
     "###);
 
     // Test that we can address both revisions
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "-r=main",
-            "-T",
-            r#"commit_id ++ " " ++ description"#,
-            "--no-graph",
-        ],
-    );
-    insta::assert_snapshot!(stdout, @r###"
+    let query = |expr| {
+        let template = r#"commit_id ++ " " ++ description"#;
+        test_env.jj_cmd_success(
+            &repo_path,
+            &["log", "-r", expr, "-T", template, "--no-graph"],
+        )
+    };
+    insta::assert_snapshot!(query("main"), @r###"
     3af370264cdcbba791762f8ef6bc79b456dcbf3b new_message
     "###);
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "-r=main@git",
-            "-T",
-            r#"commit_id ++ " " ++ description"#,
-            "--no-graph",
-        ],
-    );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(query("main@git"), @r###"
+    16d541ca40f42baf2dea41aa61a0b5f1cbf1f91b old_message
+    "###);
+    insta::assert_snapshot!(query(r#"remote_branches(exact:"main", exact:"git")"#), @r###"
     16d541ca40f42baf2dea41aa61a0b5f1cbf1f91b old_message
     "###);
 }

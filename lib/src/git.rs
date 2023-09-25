@@ -284,6 +284,14 @@ pub fn import_some_refs(
                 mut_repo.merge_single_ref(&local_ref_name, old_git_target, new_git_target);
             }
         } else {
+            if let RefName::LocalBranch(branch) = ref_name {
+                // Update Git-tracking branch like the other remote branches.
+                mut_repo.set_remote_branch_target(
+                    branch,
+                    REMOTE_NAME_FOR_LOCAL_GIT_REPO,
+                    new_git_target.clone(),
+                );
+            }
             mut_repo.merge_single_ref(ref_name, old_git_target, new_git_target);
         }
     }
@@ -493,7 +501,15 @@ pub fn export_some_refs(
                 reason,
             });
         } else {
-            mut_repo.set_git_ref_target(&git_ref_name, RefTarget::absent());
+            let new_target = RefTarget::absent();
+            if let RefName::LocalBranch(branch) = &parsed_ref_name {
+                mut_repo.set_remote_branch_target(
+                    branch,
+                    REMOTE_NAME_FOR_LOCAL_GIT_REPO,
+                    new_target.clone(),
+                );
+            }
+            mut_repo.set_git_ref_target(&git_ref_name, new_target);
         }
     }
     for (parsed_ref_name, (old_oid, new_oid)) in branches_to_update {
@@ -504,10 +520,15 @@ pub fn export_some_refs(
                 reason,
             });
         } else {
-            mut_repo.set_git_ref_target(
-                &git_ref_name,
-                RefTarget::normal(CommitId::from_bytes(new_oid.as_bytes())),
-            );
+            let new_target = RefTarget::normal(CommitId::from_bytes(new_oid.as_bytes()));
+            if let RefName::LocalBranch(branch) = &parsed_ref_name {
+                mut_repo.set_remote_branch_target(
+                    branch,
+                    REMOTE_NAME_FOR_LOCAL_GIT_REPO,
+                    new_target.clone(),
+                );
+            }
+            mut_repo.set_git_ref_target(&git_ref_name, new_target);
         }
     }
     failed_branches.sort_by_key(|failed| failed.name.clone());
@@ -533,6 +554,7 @@ fn diff_refs_to_export(
             target
                 .remote_targets
                 .keys()
+                .filter(|&remote| remote != REMOTE_NAME_FOR_LOCAL_GIT_REPO)
                 .map(|remote| RefName::RemoteBranch {
                     branch: branch.to_string(),
                     remote: remote.to_string(),
@@ -777,6 +799,13 @@ pub fn remove_remote(
             GitRemoteManagementError::InternalGitError(err)
         }
     })?;
+    if remote_name != REMOTE_NAME_FOR_LOCAL_GIT_REPO {
+        remove_remote_refs(mut_repo, remote_name);
+    }
+    Ok(())
+}
+
+fn remove_remote_refs(mut_repo: &mut MutableRepo, remote_name: &str) {
     let mut branches_to_delete = vec![];
     for (branch, target) in mut_repo.view().branches() {
         if target.remote_targets.contains_key(remote_name) {
@@ -797,7 +826,6 @@ pub fn remove_remote(
     for git_ref in git_refs_to_delete {
         mut_repo.set_git_ref_target(&git_ref, RefTarget::absent());
     }
-    Ok(())
 }
 
 pub fn rename_remote(
@@ -820,6 +848,13 @@ pub fn rename_remote(
                 GitRemoteManagementError::InternalGitError(err)
             }
         })?;
+    if old_remote_name != REMOTE_NAME_FOR_LOCAL_GIT_REPO {
+        rename_remote_refs(mut_repo, old_remote_name, new_remote_name);
+    }
+    Ok(())
+}
+
+fn rename_remote_refs(mut_repo: &mut MutableRepo, old_remote_name: &str, new_remote_name: &str) {
     mut_repo.rename_remote(old_remote_name, new_remote_name);
     let prefix = format!("refs/remotes/{old_remote_name}/");
     let git_refs = mut_repo
@@ -840,7 +875,6 @@ pub fn rename_remote(
         mut_repo.set_git_ref_target(&old, RefTarget::absent());
         mut_repo.set_git_ref_target(&new, target);
     }
-    Ok(())
 }
 
 #[derive(Error, Debug)]

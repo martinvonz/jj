@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fs;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -133,6 +135,7 @@ fn test_git_remote_named_git() {
         .remote("git", "http://example.com/repo/repo")
         .unwrap();
     test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "main"]);
 
     // The remote can be renamed.
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "rename", "git", "bar"]);
@@ -140,5 +143,37 @@ fn test_git_remote_named_git() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     bar http://example.com/repo/repo
+    "###);
+    // @git branch shouldn't be renamed.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-rmain@git", "-Tbranches"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  main
+    │
+    ~
+    "###);
+
+    // The remote cannot be renamed back by jj.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["git", "remote", "rename", "bar", "git"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Git remote named 'git' is reserved for local Git repository
+    "###);
+
+    // Reinitialize the repo with remote named 'git'.
+    fs::remove_dir_all(repo_path.join(".jj")).unwrap();
+    git_repo.remote_rename("bar", "git").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+
+    // The remote can also be removed.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "remove", "git"]);
+    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    "###);
+    // @git branch shouldn't be removed.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-rmain@git", "-Tbranches"]);
+    insta::assert_snapshot!(stdout, @r###"
+    ◉  main
+    │
+    ~
     "###);
 }
