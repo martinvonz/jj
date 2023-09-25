@@ -472,6 +472,9 @@ struct CommitArgs {
     /// The change description to use (don't open editor)
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,
+    /// Put these paths in the first commit
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    paths: Vec<String>,
 }
 
 /// Create a new change with the same content as an existing one
@@ -2133,18 +2136,31 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
+    let template =
+        description_template_for_commit(ui, command.settings(), &workspace_command, &commit)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
+    let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
+    let tree_id = tx.select_diff(ui, &base_tree, &commit.tree()?, matcher.as_ref(), "", false)?;
+    let middle_tree = tx.repo().store().get_root_tree(&tree_id)?;
+    if !args.paths.is_empty() && middle_tree.id() == base_tree.id() {
+        writeln!(
+            ui.warning(),
+            "The given paths do not match any file: {}",
+            args.paths.join(" ")
+        )?;
+    }
+
     let description = if !args.message_paragraphs.is_empty() {
         cli_util::join_message_paragraphs(&args.message_paragraphs)
     } else {
-        let template =
-            description_template_for_commit(ui, command.settings(), &workspace_command, &commit)?;
-        edit_description(workspace_command.repo(), &template, command.settings())?
+        edit_description(tx.base_repo(), &template, command.settings())?
     };
 
-    let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
     let new_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
+        .set_tree_id(tree_id)
         .set_description(description)
         .write()?;
     let workspace_ids = tx
@@ -2157,7 +2173,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
             .new_commit(
                 command.settings(),
                 vec![new_commit.id().clone()],
-                new_commit.tree_id().clone(),
+                commit.tree_id().clone(),
             )
             .write()?;
         for workspace_id in workspace_ids {

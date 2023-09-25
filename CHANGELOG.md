@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj split` supports the `--interactive` flag. (This is already the default if
   no paths are provided.)
 
+* `jj commit` accepts an optional list of paths indicating a subset of files to
+  include in the first commit
+
 ### Fixed bugs
 
 ## [0.9.0] - 2023-09-06
