@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj commit` accepts an optional list of paths indicating a subset of files to
   include in the first commit
 
+* `jj commit` accepts the `--interactive` flag.
+
 ### Fixed bugs
 
 ## [0.9.0] - 2023-09-06
