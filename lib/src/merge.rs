@@ -277,6 +277,15 @@ pub struct MergeBuilder<T> {
     adds: Vec<T>,
 }
 
+impl<T> Default for MergeBuilder<T> {
+    fn default() -> Self {
+        Self {
+            removes: Default::default(),
+            adds: Default::default(),
+        }
+    }
+}
+
 impl<T> MergeBuilder<T> {
     /// Requires that exactly one more "adds" than "removes" have been added to
     /// this builder.
@@ -296,15 +305,23 @@ impl<T> IntoIterator for Merge<T> {
 
 impl<T> FromIterator<T> for MergeBuilder<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut removes = vec![];
-        let mut adds = vec![];
-        let mut curr = &mut adds;
-        let mut next = &mut removes;
+        let mut builder = MergeBuilder::default();
+        builder.extend(iter);
+        builder
+    }
+}
+
+impl<T> Extend<T> for MergeBuilder<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        let (mut curr, mut next) = if self.adds.len() != self.removes.len() {
+            (&mut self.removes, &mut self.adds)
+        } else {
+            (&mut self.adds, &mut self.removes)
+        };
         for item in iter {
             curr.push(item);
             std::mem::swap(&mut curr, &mut next);
         }
-        MergeBuilder { removes, adds }
     }
 }
 
@@ -787,6 +804,19 @@ mod tests {
     #[should_panic]
     fn test_from_iter_even() {
         MergeBuilder::from_iter([1, 2]).build();
+    }
+
+    #[test]
+    fn test_extend() {
+        // 1-way merge
+        let mut builder: MergeBuilder<i32> = Default::default();
+        builder.extend([1]);
+        assert_eq!(builder.build(), c(&[], &[1]));
+        // 5-way merge
+        let mut builder: MergeBuilder<i32> = Default::default();
+        builder.extend([1, 2]);
+        builder.extend([3, 4, 5]);
+        assert_eq!(builder.build(), c(&[2, 4], &[1, 3, 5]));
     }
 
     #[test]
