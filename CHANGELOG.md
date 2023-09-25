@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * jj now bundles a TUI tool to use as the default diff and merge editors. (The
   previous default was `meld`.)
 
+* `jj split` supports the `--interactive` flag. (This is already the default if
+  no paths are provided.)
+
 ### Fixed bugs
 
 ## [0.9.0] - 2023-09-06
