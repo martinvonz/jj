@@ -914,13 +914,14 @@ pub fn fetch(
     tracing::debug!("remote.disconnect");
     remote.disconnect()?;
 
-    // `import_some_refs` will import the remote-tracking branches into the jj repo
-    // and update jj's local branches.
+    // Import the remote-tracking branches into the jj repo and update jj's
+    // local branches. We also import local tags since remote tags should have
+    // been merged by Git.
     tracing::debug!("import_refs");
     import_some_refs(mut_repo, git_repo, git_settings, |ref_name| {
         to_remote_branch(ref_name, remote_name)
             .map(&branch_name_filter)
-            .unwrap_or(false)
+            .unwrap_or_else(|| matches!(ref_name, RefName::Tag(_)))
     })?;
     Ok(default_branch)
 }
