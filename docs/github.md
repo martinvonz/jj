@@ -11,8 +11,7 @@ authenticated http.
 
 ## Basic workflow
 
-The simplest way to start with Jujutsu, is creating a stack of commits, before
-creating any branch.
+The simplest way to start with Jujutsu is by creating a stack of commits and letting Jujutsu auto-create a branch.
 
 ```shell
 # Start a new commit off of `main`
@@ -21,10 +20,8 @@ $ jj new main
 $ jj commit -m 'refactor(foo): restructure foo()'
 # Add a feature, then add a description and start a new commit
 $ jj commit -m 'feat(bar): add support for bar'
-# Create a branch so we can push it to GitHub
-$ jj branch create bar -r @-
-# Push the branch to GitHub (pushes only `bar`)
-$ jj git push
+# Let Jujutsu generate a branch name and push that to GitHub
+$ jj git push -c @-
 ```
 
 While it's possible to create a branch and commit on top of it in a Git like
