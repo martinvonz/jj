@@ -299,10 +299,13 @@ fn build_commit_keyword_opt<'repo>(
             let maybe_entries = repo.resolve_change_id(commit.change_id());
             maybe_entries.map_or(true, |entries| !entries.contains(commit.id()))
         })),
-        "conflict" => language.wrap_boolean(wrap_fn(property, |commit| {
-            commit.tree().unwrap().has_conflict()
-        })),
+        "conflict" => {
+            language.wrap_boolean(wrap_fn(property, |commit| commit.has_conflict().unwrap()))
+        }
         "empty" => language.wrap_boolean(wrap_fn(property, |commit| {
+            if let [parent] = &commit.parents()[..] {
+                return parent.tree_id() == commit.tree_id();
+            }
             let parent_tree = rewrite::merge_commit_trees(repo, &commit.parents()).unwrap();
             *commit.tree_id() == parent_tree.id()
         })),
