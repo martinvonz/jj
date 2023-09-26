@@ -1317,7 +1317,7 @@ $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>pu
 something like this:</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the second-to-last commit in `your-feature`,</span>
 $<span class="w"> </span><span class="c1"># as reviews requested a fix there.</span>
-$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>your-feature-
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>your-feature-<span class="w"> </span><span class="c1"># NOTE: the trailing hyphen is not a typo!</span>
 $<span class="w"> </span><span class="c1"># Address the comments by updating the code</span>
 $<span class="w"> </span><span class="c1"># Review the changes</span>
 $<span class="w"> </span>jj<span class="w"> </span>diff
@@ -1326,6 +1326,7 @@ $<span class="w"> </span>jj<span class="w"> </span>squash
 $<span class="w"> </span><span class="c1"># Push the updated branch to the remote. Jujutsu automatically makes it a force push</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--branch<span class="w"> </span>your-feature
 </code></pre></div>
+<p>The hyphen after <code>your-feature</code> comes from <a href="https://github.com/martinvonz/jj/blob/main/docs/revsets.md">revset</a> syntax.</p>
 <h2 id="using-github-cli">Using GitHub CLI<a class="headerlink" href="#using-github-cli" title="Permanent link">&para;</a></h2>
 <p>GitHub CLI will have trouble finding the proper git repository path in jj repos
 that aren't <a href="git-compatibility.html#co-located-jujutsugit-repos">co-located</a>
