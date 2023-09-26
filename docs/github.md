@@ -102,7 +102,7 @@ something like this:
 ```shell
 $ # Create a new commit on top of the second-to-last commit in `your-feature`,
 $ # as reviews requested a fix there.
-$ jj new your-feature-
+$ jj new your-feature- # NOTE: the trailing hyphen is not a typo!
 $ # Address the comments by updating the code
 $ # Review the changes
 $ jj diff
@@ -111,6 +111,8 @@ $ jj squash
 $ # Push the updated branch to the remote. Jujutsu automatically makes it a force push
 $ jj git push --branch your-feature
 ```
+
+The hyphen after `your-feature` comes from [revset](https://github.com/martinvonz/jj/blob/main/docs/revsets.md) syntax.
 
 ## Using GitHub CLI
 
