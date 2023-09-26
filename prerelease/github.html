@@ -1249,18 +1249,15 @@ projects. See <a href="https://docs.github.com/en/authentication/connecting-to-g
 future, see <a href="https://github.com/martinvonz/jj/issues/469">issue #469</a> for more information and progress on
 authenticated http.</p>
 <h2 id="basic-workflow">Basic workflow<a class="headerlink" href="#basic-workflow" title="Permanent link">&para;</a></h2>
-<p>The simplest way to start with Jujutsu, is creating a stack of commits, before
-creating any branch.</p>
+<p>The simplest way to start with Jujutsu is by creating a stack of commits and letting Jujutsu auto-create a branch.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Start a new commit off of `main`</span>
 $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>main
 <span class="c1"># Refactor some files, then add a description and start a new commit</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;refactor(foo): restructure foo()&#39;</span>
 <span class="c1"># Add a feature, then add a description and start a new commit</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;feat(bar): add support for bar&#39;</span>
-<span class="c1"># Create a branch so we can push it to GitHub</span>
-$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>create<span class="w"> </span>bar<span class="w"> </span>-r<span class="w"> </span>@-
-<span class="c1"># Push the branch to GitHub (pushes only `bar`)</span>
-$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
+<span class="c1"># Let Jujutsu generate a branch name and push that to GitHub</span>
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>-c<span class="w"> </span>@-
 </code></pre></div>
 <p>While it's possible to create a branch and commit on top of it in a Git like
 manner, it's not recommended, as no further commits will be placed on the
