@@ -73,7 +73,7 @@ strsim = "0.10.0"
 tempfile = "3.8.0"
 test-case = "3.2.1"
 textwrap = "0.16.0"
-thiserror = "1.0.48"
+thiserror = "1.0.49"
 timeago = { version = "0.4.2", default-features = false }
 toml_edit = { version = "0.19.15", features = ["serde"] }
 tracing = "0.1.37"
