@@ -1721,7 +1721,7 @@ users:</p>
 <span class="c1"># among commits that are not in `main`.</span>
 <span class="n">revset-aliases</span><span class="p">.</span><span class="s">&quot;immutable_heads()&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;main@origin | (main@origin.. &amp; ~mine())&quot;</span>
 </code></pre></div>
-<p>Ancestors of the configured set are also immutable. The root commit always
+<p>Ancestors of the configured set are also immutable. The root commit is always
 immutable even if the set is empty.</p>
 <h3 id="default-revisions-to-log">Default revisions to log<a class="headerlink" href="#default-revisions-to-log" title="Permanent link">&para;</a></h3>
 <p>You can configure the revisions <code>jj log</code> without <code>-r</code> should show.</p>
