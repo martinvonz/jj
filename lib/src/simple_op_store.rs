@@ -27,6 +27,7 @@ use thiserror::Error;
 use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
+use crate::git;
 use crate::merge::Merge;
 use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
@@ -354,7 +355,27 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
         view.git_head = RefTarget::normal(CommitId::new(proto.git_head_legacy));
     }
 
+    migrate_git_refs_to_remote(&mut view);
     view
+}
+
+fn migrate_git_refs_to_remote(view: &mut View) {
+    if view.git_refs.is_empty() {
+        // Not a repo backed by Git?
+        return;
+    }
+
+    tracing::info!("migrating Git-tracking branches");
+    for branch_target in view.branches.values_mut() {
+        branch_target
+            .remote_targets
+            .remove(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
+    }
+
+    // jj < 0.9 might have imported refs from remote named "git"
+    let reserved_git_ref_prefix = format!("refs/remotes/{}/", git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
+    view.git_refs
+        .retain(|name, _| !name.starts_with(&reserved_git_ref_prefix));
 }
 
 fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::RefTarget> {
@@ -552,6 +573,64 @@ mod tests {
         let op_id = store.write_operation(&operation).unwrap();
         let read_operation = store.read_operation(&op_id).unwrap();
         assert_eq!(read_operation, operation);
+    }
+
+    #[test]
+    fn test_migrate_git_refs_remote_named_git() {
+        let normal_ref_target = |id_hex: &str| RefTarget::normal(CommitId::from_hex(id_hex));
+        let branch_to_proto =
+            |name: &str, local_ref_target, remote_branches| crate::protos::op_store::Branch {
+                name: name.to_owned(),
+                local_target: ref_target_to_proto(local_ref_target),
+                remote_branches,
+            };
+        let remote_branch_to_proto =
+            |remote_name: &str, ref_target| crate::protos::op_store::RemoteBranch {
+                remote_name: remote_name.to_owned(),
+                target: ref_target_to_proto(ref_target),
+            };
+        let git_ref_to_proto = |name: &str, ref_target| crate::protos::op_store::GitRef {
+            name: name.to_owned(),
+            target: ref_target_to_proto(ref_target),
+            ..Default::default()
+        };
+
+        let proto = crate::protos::op_store::View {
+            branches: vec![branch_to_proto(
+                "main",
+                &normal_ref_target("111111"),
+                vec![
+                    remote_branch_to_proto("git", &normal_ref_target("222222")),
+                    remote_branch_to_proto("gita", &normal_ref_target("333333")),
+                ],
+            )],
+            git_refs: vec![
+                git_ref_to_proto("refs/heads/main", &normal_ref_target("444444")),
+                git_ref_to_proto("refs/remotes/git/main", &normal_ref_target("555555")),
+                git_ref_to_proto("refs/remotes/gita/main", &normal_ref_target("666666")),
+            ],
+            ..Default::default()
+        };
+
+        let view = view_from_proto(proto);
+        assert_eq!(
+            view.branches,
+            btreemap! {
+                "main".to_owned() => BranchTarget {
+                    local_target: normal_ref_target("111111"),
+                    remote_targets: btreemap! {
+                        "gita".to_owned() => normal_ref_target("333333"),
+                    },
+                },
+            },
+        );
+        assert_eq!(
+            view.git_refs,
+            btreemap! {
+                "refs/heads/main".to_owned() => normal_ref_target("444444"),
+                "refs/remotes/gita/main".to_owned() => normal_ref_target("666666"),
+            },
+        );
     }
 
     #[test]
