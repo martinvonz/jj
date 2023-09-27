@@ -189,7 +189,7 @@ users:
 revset-aliases."immutable_heads()" = "main@origin | (main@origin.. & ~mine())"
 ```
 
-Ancestors of the configured set are also immutable. The root commit always
+Ancestors of the configured set are also immutable. The root commit is always
 immutable even if the set is empty.
 
 ### Default revisions to log
