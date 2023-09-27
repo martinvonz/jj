@@ -356,15 +356,16 @@ fn diff_refs_to_import(
     Ok(changed_git_refs)
 }
 
-/// Commits referenced by local/remote branches, tags, or HEAD@git.
+/// Commits referenced by local branches, tags, or HEAD@git.
 ///
 /// On `import_refs()`, this is similar to collecting commits referenced by
 /// `view.git_refs()`. Main difference is that local branches can be moved by
 /// tracking remotes, and such mutation isn't applied to `view.git_refs()` yet.
 fn pinned_commit_ids(view: &View) -> impl Iterator<Item = &CommitId> {
-    let branch_ref_targets = view.branches().values().flat_map(|branch_target| {
-        iter::once(&branch_target.local_target).chain(branch_target.remote_targets.values())
-    });
+    let branch_ref_targets = view
+        .branches()
+        .values()
+        .map(|branch_target| &branch_target.local_target);
     itertools::chain!(
         branch_ref_targets,
         view.tags().values(),
