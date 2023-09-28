@@ -908,9 +908,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5477fe2230a79769d8dc68e0eabf5437907c0457a5614a9e8dddb67f65eb65d"
+checksum = "ad227c3af19d4914570ad36d30409928b75967c298feb9ea1969db3a610bb14e"
 dependencies = [
  "equivalent",
  "hashbrown",
@@ -918,9 +918,9 @@ dependencies = [
 
 [[package]]
 name = "insta"
-version = "1.32.0"
+version = "1.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3e02c584f4595792d09509a94cdb92a3cef7592b1eb2d9877ee6f527062d0ea"
+checksum = "1aa511b2e298cd49b1856746f6bb73e17036bcd66b25f5e92cdcdbec9bd75686"
 dependencies = [
  "console",
  "lazy_static",
