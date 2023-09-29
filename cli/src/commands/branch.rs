@@ -403,10 +403,8 @@ fn cmd_branch_list(
         write!(formatter.labeled("branch"), "{name}")?;
         if branch_target.local_target.is_present() {
             print_branch_target(formatter, &branch_target.local_target)?;
-        } else if found_non_git_remote {
-            writeln!(formatter, " (deleted)")?;
         } else {
-            writeln!(formatter, " (forgotten)")?;
+            writeln!(formatter, " (deleted)")?;
         }
 
         for (remote, remote_target) in branch_target.remote_targets.iter() {
