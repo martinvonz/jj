@@ -25,8 +25,8 @@ blake2 = "0.10.6"
 byteorder = "1.4.3"
 bytes = "1.5.0"
 cargo_metadata = "0.17.0"
-clap = { version = "4.4.5", features = ["derive", "deprecated", "wrap_help"] }
-clap_complete = "4.4.2"
+clap = { version = "4.4.6", features = ["derive", "deprecated", "wrap_help"] }
+clap_complete = "4.4.3"
 clap_mangen = "0.2.10"
 chrono = { version = "0.4.31", default-features = false, features = [
     "std",
