@@ -1616,14 +1616,12 @@ fn cmd_status(
         .filter(|(_, target)| target.has_conflict())
         .map(|(branch_name, _)| branch_name)
         .collect_vec();
-    let mut conflicted_remote_branches = vec![];
-    for (branch_name, branch_target) in repo.view().branches() {
-        for (remote_name, remote_target) in &branch_target.remote_targets {
-            if remote_target.has_conflict() {
-                conflicted_remote_branches.push((branch_name.clone(), remote_name.clone()));
-            }
-        }
-    }
+    let conflicted_remote_branches = repo
+        .view()
+        .remote_branches()
+        .filter(|(_, target)| target.has_conflict())
+        .map(|(full_name, _)| full_name)
+        .collect_vec();
     if !conflicted_local_branches.is_empty() {
         writeln!(
             formatter.labeled("conflict"),

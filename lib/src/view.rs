@@ -201,6 +201,17 @@ impl View {
         }
     }
 
+    /// Iterates remote branch `((name, remote_name), target)`s in
+    /// lexicographical order.
+    pub fn remote_branches(&self) -> impl Iterator<Item = ((&str, &str), &RefTarget)> {
+        self.data.branches.iter().flat_map(|(name, branch_target)| {
+            branch_target
+                .remote_targets
+                .iter()
+                .map(|(remote_name, target)| ((name.as_ref(), remote_name.as_ref()), target))
+        })
+    }
+
     pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> &RefTarget {
         if let Some(branch_target) = self.data.branches.get(name) {
             let maybe_target = branch_target.remote_targets.get(remote_name);
