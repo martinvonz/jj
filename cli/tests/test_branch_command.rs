@@ -222,6 +222,30 @@ fn test_branch_delete_glob() {
 }
 
 #[test]
+fn test_branch_delete_export() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo"]);
+    test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+
+    test_env.jj_cmd_success(&repo_path, &["branch", "delete", "foo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    foo (deleted)
+      @git: rlvkpnrz 65b6b74e (empty) (no description set)
+      (this branch will be deleted from the underlying Git repo on the next `jj git export`)
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    "###);
+}
+
+#[test]
 fn test_branch_forget_export() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
