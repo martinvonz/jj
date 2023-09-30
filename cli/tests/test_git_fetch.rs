@@ -474,7 +474,11 @@ fn test_git_fetch_all() {
     master: zowqyktl ff36dc55 descr_for_trunk1
     trunk1: zowqyktl ff36dc55 descr_for_trunk1
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]), @"");
+    insta::assert_snapshot!(test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]), @r###"
+    Abandoned the following commits:
+      qkvnknrk decaa396 a2 | descr_for_a2
+      nknoxmzm 359a9a02 a1 | descr_for_a1
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
     a1: quxllqov 0424f6df descr_for_a1
     a2: osusxwst 91e46b4b descr_for_a2
@@ -625,7 +629,10 @@ fn test_git_fetch_some_of_many_branches() {
         &target_jj_repo_path,
         &["git", "fetch", "--branch", "b", "--branch", "a1"],
     );
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Abandoned the following commits:
+      nknoxmzm 359a9a02 a1 | descr_for_a1
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  13ac032802f1 descr_for_b b?? b@origin
     │ ◉  6f4e1c4dfe29 descr_for_a1 a1
@@ -657,7 +664,10 @@ fn test_git_fetch_some_of_many_branches() {
         &target_jj_repo_path,
         &["git", "fetch", "--branch", "b", "--branch", "a*"],
     );
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Abandoned the following commits:
+      qkvnknrk decaa396 a2 | descr_for_a2
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  010977d69c5b descr_for_a2 a2
     │ ◉  13ac032802f1 descr_for_b b?? b@origin
@@ -979,7 +989,10 @@ fn test_git_fetch_removed_branch() {
 
     // Fetch branches a2 from origin, and check that it has been removed locally
     let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "a2"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Abandoned the following commits:
+      qkvnknrk decaa396 a2 | descr_for_a2
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  359a9a02457d descr_for_a1 a1
@@ -1046,7 +1059,10 @@ fn test_git_fetch_removed_parent_branch() {
             "git", "fetch", "--branch", "master", "--branch", "trunk1", "--branch", "a1",
         ],
     );
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Abandoned the following commits:
+      nknoxmzm 359a9a02 a1 | descr_for_a1
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  decaa3966c83 descr_for_a2 a2
