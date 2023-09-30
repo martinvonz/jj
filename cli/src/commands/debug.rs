@@ -213,8 +213,8 @@ fn cmd_debug_revset(
     writeln!(ui, "{expression:#?}")?;
     writeln!(ui)?;
 
-    let expression =
-        expression.resolve_user_expression(repo, &workspace_command.revset_symbol_resolver())?;
+    let symbol_resolver = workspace_command.revset_symbol_resolver()?;
+    let expression = expression.resolve_user_expression(repo, &symbol_resolver)?;
     writeln!(ui, "-- Resolved:")?;
     writeln!(ui, "{expression:#?}")?;
     writeln!(ui)?;
