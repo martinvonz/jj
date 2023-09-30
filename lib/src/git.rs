@@ -29,7 +29,7 @@ use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::git_backend::GitBackend;
 use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
 use crate::repo::{MutableRepo, Repo};
-use crate::revset;
+use crate::revset::{self, RevsetExpression};
 use crate::settings::GitSettings;
 use crate::view::{RefName, View};
 
@@ -308,7 +308,13 @@ pub fn import_some_refs(
     // about abandoned commits for now. We may want to change this if we ever
     // add a way of preserving change IDs across rewrites by `git` (e.g. by
     // putting them in the commit message).
-    let abandoned_commits = revset::walk_revs(mut_repo, &hidable_git_heads, &pinned_heads)
+    let abandoned_expression = RevsetExpression::commits(pinned_heads)
+        .range(&RevsetExpression::commits(hidable_git_heads))
+        .intersection(&RevsetExpression::visible_heads().ancestors());
+    let abandoned_commits = revset::optimize(abandoned_expression)
+        .resolve(mut_repo)
+        .unwrap()
+        .evaluate(mut_repo)
         .unwrap()
         .iter()
         .collect_vec();
