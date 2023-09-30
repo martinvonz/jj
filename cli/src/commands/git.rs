@@ -26,9 +26,9 @@ use jj_lib::workspace::Workspace;
 use maplit::hashset;
 
 use crate::cli_util::{
-    print_failed_git_export, resolve_multiple_nonempty_revsets, short_change_hash,
-    short_commit_hash, user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg,
-    WorkspaceCommandHelper,
+    print_failed_git_export, print_git_import_stats, resolve_multiple_nonempty_revsets,
+    short_change_hash, short_commit_hash, user_error, user_error_with_hint, CommandError,
+    CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::commands::make_branch_term;
 use crate::progress::Progress;
@@ -332,7 +332,7 @@ fn cmd_git_fetch(
     ));
     let branches = args.branch.iter().map(|b| b.as_str()).collect_vec();
     for remote in remotes {
-        with_remote_callbacks(ui, |cb| {
+        let stats = with_remote_callbacks(ui, |cb| {
             git::fetch(
                 tx.mut_repo(),
                 &git_repo,
@@ -347,6 +347,7 @@ fn cmd_git_fetch(
             GitFetchError::InternalGitError(err) => map_git_error(err),
             _ => user_error(err.to_string()),
         })?;
+        print_git_import_stats(ui, &tx, &stats.import_stats)?;
     }
     tx.finish(ui)?;
     Ok(())
@@ -547,6 +548,7 @@ fn do_git_clone(
             unreachable!("we didn't provide any globs")
         }
     })?;
+    print_git_import_stats(ui, &fetch_tx, &stats.import_stats)?;
     fetch_tx.finish(ui)?;
     Ok((workspace_command, git_repo, stats))
 }
@@ -977,7 +979,8 @@ fn cmd_git_push(
         ),
         _ => user_error(err.to_string()),
     })?;
-    git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
+    let stats = git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
+    print_git_import_stats(ui, &tx, &stats)?;
     tx.finish(ui)?;
     Ok(())
 }
@@ -1025,7 +1028,8 @@ fn cmd_git_import(
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction("import git refs");
-    git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
+    let stats = git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
+    print_git_import_stats(ui, &tx, &stats)?;
     tx.finish(ui)?;
     Ok(())
 }

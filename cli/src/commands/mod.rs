@@ -55,10 +55,10 @@ use tracing::instrument;
 
 use crate::cli_util::{
     self, check_stale_working_copy, get_new_config_file_path, print_checkout_stats,
-    resolve_multiple_nonempty_revsets, resolve_multiple_nonempty_revsets_default_single,
-    run_ui_editor, serialize_config_value, short_commit_hash, user_error, user_error_with_hint,
-    write_config_value_to_file, Args, CommandError, CommandHelper, LogContentFormat, RevisionArg,
-    WorkspaceCommandHelper,
+    print_git_import_stats, resolve_multiple_nonempty_revsets,
+    resolve_multiple_nonempty_revsets_default_single, run_ui_editor, serialize_config_value,
+    short_commit_hash, user_error, user_error_with_hint, write_config_value_to_file, Args,
+    CommandError, CommandHelper, LogContentFormat, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::config::{AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -1213,12 +1213,13 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
             git::add_to_git_exclude(ui, &git_repo)?;
         } else {
             let mut tx = workspace_command.start_transaction("import git refs");
-            jj_lib::git::import_some_refs(
+            let stats = jj_lib::git::import_some_refs(
                 tx.mut_repo(),
                 &git_repo,
                 &command.settings().git_settings(),
                 |ref_name| !jj_lib::git::is_reserved_git_remote_ref(ref_name),
             )?;
+            print_git_import_stats(ui, &tx, &stats)?;
             if let Some(git_head_id) = tx.mut_repo().view().git_head().as_normal().cloned() {
                 let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
                 tx.check_out(&git_head_commit)?;

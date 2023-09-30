@@ -34,7 +34,7 @@ use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId};
 use jj_lib::commit::Commit;
 use jj_lib::git::{
     FailedRefExport, FailedRefExportReason, GitConfigParseError, GitExportError, GitImportError,
-    GitRemoteManagementError,
+    GitImportStats, GitRemoteManagementError,
 };
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreFile;
@@ -790,18 +790,18 @@ impl WorkspaceCommandHelper {
         ui: &mut Ui,
         git_repo: &Repository,
     ) -> Result<(), CommandError> {
-        let mut tx = self.start_transaction("import git refs").into_inner();
+        let git_settings = self.settings.git_settings();
+        let mut tx = self.start_transaction("import git refs");
         // Automated import shouldn't fail because of reserved remote name.
-        git::import_some_refs(
-            tx.mut_repo(),
-            git_repo,
-            &self.settings.git_settings(),
-            |ref_name| !git::is_reserved_git_remote_ref(ref_name),
-        )?;
+        let stats = git::import_some_refs(tx.mut_repo(), git_repo, &git_settings, |ref_name| {
+            !git::is_reserved_git_remote_ref(ref_name)
+        })?;
         if !tx.mut_repo().has_changes() {
             return Ok(());
         }
 
+        print_git_import_stats(ui, &tx, &stats)?;
+        let mut tx = tx.into_inner();
         let old_git_head = self.repo().view().git_head().clone();
         let new_git_head = tx.mut_repo().view().git_head().clone();
         // If the Git HEAD has changed, abandon our old checkout and check out the new
@@ -1793,6 +1793,26 @@ pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std
             "Added {} files, modified {} files, removed {} files",
             stats.added_files, stats.updated_files, stats.removed_files
         )?;
+    }
+    Ok(())
+}
+
+pub fn print_git_import_stats(
+    ui: &mut Ui,
+    tx: &WorkspaceCommandTransaction,
+    stats: &GitImportStats,
+) -> Result<(), CommandError> {
+    // TODO: maybe better to write status messages to stderr
+    if !stats.abandoned_commits.is_empty() {
+        ui.write("Abandoned the following commits:\n")?;
+        let store = tx.base_repo().store();
+        let helper = tx.base_workspace_helper();
+        for id in &stats.abandoned_commits {
+            ui.write("  ")?;
+            let commit = store.get_commit(id)?;
+            helper.write_commit_summary(ui.stdout_formatter().as_mut(), &commit)?;
+            ui.write("\n")?;
+        }
     }
     Ok(())
 }
