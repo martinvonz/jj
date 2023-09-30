@@ -518,7 +518,10 @@ pub fn export_some_refs(
         }
     }
     for (parsed_ref_name, old_oid) in branches_to_delete {
-        let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
+        let Some(git_ref_name) = to_git_ref_name(&parsed_ref_name) else {
+            failed_branches.insert(parsed_ref_name, FailedRefExportReason::InvalidGitName);
+            continue;
+        };
         if let Err(reason) = delete_git_ref(git_repo, &git_ref_name, old_oid) {
             failed_branches.insert(parsed_ref_name, reason);
         } else {
@@ -527,7 +530,10 @@ pub fn export_some_refs(
         }
     }
     for (parsed_ref_name, (old_oid, new_oid)) in branches_to_update {
-        let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
+        let Some(git_ref_name) = to_git_ref_name(&parsed_ref_name) else {
+            failed_branches.insert(parsed_ref_name, FailedRefExportReason::InvalidGitName);
+            continue;
+        };
         if let Err(reason) = update_git_ref(git_repo, &git_ref_name, old_oid, new_oid) {
             failed_branches.insert(parsed_ref_name, reason);
         } else {
@@ -578,53 +584,53 @@ fn diff_refs_to_export(
     root_commit_id: &CommitId,
     git_ref_filter: impl Fn(&RefName) -> bool,
 ) -> RefsToExport {
+    // Local targets will be copied to the "git" remote if successfully exported. So
+    // the local branches are considered to be the new "git" remote branches.
+    let mut all_branch_targets: HashMap<RefName, (&RefTarget, &RefTarget)> = itertools::chain(
+        view.local_branches()
+            .map(|(branch, target)| (RefName::LocalBranch(branch.to_owned()), target)),
+        view.remote_branches()
+            .filter(|&((_, remote), _)| remote != REMOTE_NAME_FOR_LOCAL_GIT_REPO)
+            .map(|((branch, remote), target)| {
+                let ref_name = RefName::RemoteBranch {
+                    branch: branch.to_owned(),
+                    remote: remote.to_owned(),
+                };
+                (ref_name, target)
+            }),
+    )
+    .map(|(ref_name, new_target)| (ref_name, (RefTarget::absent_ref(), new_target)))
+    .filter(|(ref_name, _)| git_ref_filter(ref_name))
+    .collect();
+    let known_git_refs = view
+        .git_refs()
+        .iter()
+        .map(|(full_name, target)| {
+            let ref_name = parse_git_ref(full_name).expect("stored git ref should be parsable");
+            (ref_name, target)
+        })
+        .filter(|(ref_name, _)| {
+            // There are two situations where remote-tracking branches get out of sync:
+            // 1. `jj branch forget`
+            // 2. `jj op undo`/`restore` in colocated repo
+            matches!(
+                ref_name,
+                RefName::LocalBranch(..) | RefName::RemoteBranch { .. }
+            )
+        })
+        .filter(|(ref_name, _)| git_ref_filter(ref_name));
+    for (ref_name, target) in known_git_refs {
+        all_branch_targets
+            .entry(ref_name)
+            .and_modify(|(old_target, _)| *old_target = target)
+            .or_insert((target, RefTarget::absent_ref()));
+    }
+
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeMap::new();
     let mut failed_branches = HashMap::new();
     let root_commit_target = RefTarget::normal(root_commit_id.clone());
-    // Local targets will be copied to the "git" remote if successfully exported. So
-    // the local branches are considered to be the new "git" remote branches.
-    let jj_repo_iter_all_branches = view.branches().iter().flat_map(|(branch, target)| {
-        itertools::chain(
-            target
-                .local_target
-                .is_present()
-                .then(|| RefName::LocalBranch(branch.to_owned())),
-            target
-                .remote_targets
-                .keys()
-                .filter(|&remote| remote != REMOTE_NAME_FOR_LOCAL_GIT_REPO)
-                .map(|remote| RefName::RemoteBranch {
-                    branch: branch.to_string(),
-                    remote: remote.to_string(),
-                }),
-        )
-    });
-    let all_ref_names_passing_filter: HashSet<_> = view
-        .git_refs()
-        .keys()
-        .filter_map(|name| parse_git_ref(name))
-        .chain(jj_repo_iter_all_branches)
-        .filter(git_ref_filter)
-        .collect();
-    for ref_name in all_ref_names_passing_filter {
-        let new_target = match &ref_name {
-            RefName::LocalBranch(branch) => view.get_local_branch(branch),
-            RefName::RemoteBranch { remote, branch } => {
-                // There are two situations where remote-tracking branches get out of sync:
-                // 1. `jj branch forget`
-                // 2. `jj op undo`/`restore` in colocated repo
-                view.get_remote_branch(branch, remote)
-            }
-            _ => continue,
-        };
-        let old_target = if let Some(name) = to_git_ref_name(&ref_name) {
-            view.get_git_ref(&name)
-        } else {
-            // Invalid branch name in Git sense
-            failed_branches.insert(ref_name, FailedRefExportReason::InvalidGitName);
-            continue;
-        };
+    for (ref_name, (old_target, new_target)) in all_branch_targets {
         if new_target == old_target {
             continue;
         }
