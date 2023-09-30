@@ -105,11 +105,12 @@ fn test_import_refs() {
 
     let git_repo = get_git_repo(repo);
     let mut tx = repo.start_transaction(&settings, "test");
-    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    let stats = git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
     let view = repo.view();
 
+    assert!(stats.abandoned_commits.is_empty());
     let expected_heads = hashset! {
         jj_id(&commit3),
         jj_id(&commit4),
@@ -201,10 +202,11 @@ fn test_import_refs_reimport() {
         .unwrap();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    let stats = git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 
+    assert!(stats.abandoned_commits.is_empty());
     let expected_heads = hashset! {
             jj_id(&commit3),
             jj_id(&commit4),
@@ -228,10 +230,18 @@ fn test_import_refs_reimport() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    let stats = git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 
+    assert_eq!(
+        // The order is unstable just because we import heads from Git repo.
+        HashSet::from_iter(stats.abandoned_commits),
+        hashset! {
+            jj_id(&commit4),
+            jj_id(&commit3),
+        },
+    );
     let view = repo.view();
     let expected_heads = hashset! {
             jj_id(&commit5),
@@ -1599,7 +1609,7 @@ fn test_fetch_empty_repo() {
     let mut tx = test_data
         .repo
         .start_transaction(&test_data.settings, "test");
-    let default_branch = git::fetch(
+    let stats = git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
@@ -1609,7 +1619,8 @@ fn test_fetch_empty_repo() {
     )
     .unwrap();
     // No default branch and no refs
-    assert_eq!(default_branch, None);
+    assert_eq!(stats.default_branch, None);
+    assert!(stats.import_stats.abandoned_commits.is_empty());
     assert_eq!(*tx.mut_repo().view().git_refs(), btreemap! {});
     assert_eq!(*tx.mut_repo().view().branches(), btreemap! {});
 }
@@ -1623,7 +1634,7 @@ fn test_fetch_initial_commit() {
     let mut tx = test_data
         .repo
         .start_transaction(&test_data.settings, "test");
-    let default_branch = git::fetch(
+    let stats = git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
@@ -1633,7 +1644,8 @@ fn test_fetch_initial_commit() {
     )
     .unwrap();
     // No default branch because the origin repo's HEAD wasn't set
-    assert_eq!(default_branch, None);
+    assert_eq!(stats.default_branch, None);
+    assert!(stats.import_stats.abandoned_commits.is_empty());
     let repo = tx.commit();
     // The initial commit is visible after git::fetch().
     let view = repo.view();
@@ -1692,7 +1704,7 @@ fn test_fetch_success() {
     let mut tx = test_data
         .repo
         .start_transaction(&test_data.settings, "test");
-    let default_branch = git::fetch(
+    let stats = git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
@@ -1702,7 +1714,8 @@ fn test_fetch_success() {
     )
     .unwrap();
     // The default branch is "main"
-    assert_eq!(default_branch, Some("main".to_string()));
+    assert_eq!(stats.default_branch, Some("main".to_string()));
+    assert!(stats.import_stats.abandoned_commits.is_empty());
     let repo = tx.commit();
     // The new commit is visible after we fetch again
     let view = repo.view();
@@ -1738,7 +1751,7 @@ fn test_fetch_success() {
 fn test_fetch_prune_deleted_ref() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
-    empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
+    let commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data
         .repo
@@ -1762,7 +1775,7 @@ fn test_fetch_prune_deleted_ref() {
         .delete()
         .unwrap();
     // After re-fetching, the branch should be deleted
-    git::fetch(
+    let stats = git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
@@ -1771,6 +1784,7 @@ fn test_fetch_prune_deleted_ref() {
         &git_settings,
     )
     .unwrap();
+    assert_eq!(stats.import_stats.abandoned_commits, vec![jj_id(&commit)]);
     assert!(tx.mut_repo().get_branch("main").is_none());
 }
 
@@ -1806,7 +1820,7 @@ fn test_fetch_no_default_branch() {
         .set_head_detached(initial_git_commit.id())
         .unwrap();
 
-    let default_branch = git::fetch(
+    let stats = git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
@@ -1816,7 +1830,7 @@ fn test_fetch_no_default_branch() {
     )
     .unwrap();
     // There is no default branch
-    assert_eq!(default_branch, None);
+    assert_eq!(stats.default_branch, None);
 }
 
 #[test]

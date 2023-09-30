@@ -59,6 +59,13 @@ pub enum GitImportError {
     InternalGitError(#[from] git2::Error),
 }
 
+/// Describes changes made by `import_refs()` or `fetch()`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GitImportStats {
+    /// Commits superseded by newly imported commits.
+    pub abandoned_commits: Vec<CommitId>,
+}
+
 fn parse_git_ref(ref_name: &str) -> Option<RefName> {
     if let Some(branch_name) = ref_name.strip_prefix("refs/heads/") {
         // Git CLI says 'HEAD' is not a valid branch name
@@ -180,7 +187,7 @@ pub fn import_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     git_settings: &GitSettings,
-) -> Result<(), GitImportError> {
+) -> Result<GitImportStats, GitImportError> {
     import_some_refs(mut_repo, git_repo, git_settings, |_| true)
 }
 
@@ -193,7 +200,7 @@ pub fn import_some_refs(
     git_repo: &git2::Repository,
     git_settings: &GitSettings,
     git_ref_filter: impl Fn(&RefName) -> bool,
-) -> Result<(), GitImportError> {
+) -> Result<GitImportStats, GitImportError> {
     // TODO: Should this be a separate function? We may not always want to import
     // the Git HEAD (and add it to our set of heads).
     let old_git_head = mut_repo.view().git_head();
@@ -286,9 +293,17 @@ pub fn import_some_refs(
         .cloned()
         .collect_vec();
     if hidable_git_heads.is_empty() {
-        return Ok(());
+        let stats = GitImportStats {
+            abandoned_commits: vec![],
+        };
+        return Ok(stats);
     }
-    let pinned_heads = pinned_commit_ids(mut_repo.view()).cloned().collect_vec();
+    let pinned_heads = itertools::chain(
+        pinned_commit_ids(mut_repo.view()),
+        iter::once(mut_repo.store().root_commit_id()),
+    )
+    .cloned()
+    .collect_vec();
     // We could use mut_repo.record_rewrites() here but we know we only need to care
     // about abandoned commits for now. We may want to change this if we ever
     // add a way of preserving change IDs across rewrites by `git` (e.g. by
@@ -297,14 +312,12 @@ pub fn import_some_refs(
         .unwrap()
         .iter()
         .collect_vec();
-    let root_commit_id = mut_repo.store().root_commit_id().clone();
-    for abandoned_commit in abandoned_commits {
-        if abandoned_commit != root_commit_id {
-            mut_repo.record_abandoned_commit(abandoned_commit);
-        }
+    for abandoned_commit in &abandoned_commits {
+        mut_repo.record_abandoned_commit(abandoned_commit.clone());
     }
 
-    Ok(())
+    let stats = GitImportStats { abandoned_commits };
+    Ok(stats)
 }
 
 /// Calculates diff of git refs to be imported.
@@ -797,6 +810,15 @@ pub enum GitFetchError {
     InternalGitError(#[from] git2::Error),
 }
 
+/// Describes successful `fetch()` result.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GitFetchStats {
+    /// Remote's default branch.
+    pub default_branch: Option<String>,
+    /// Changes made by the import.
+    pub import_stats: GitImportStats,
+}
+
 #[tracing::instrument(skip(mut_repo, git_repo, callbacks))]
 pub fn fetch(
     mut_repo: &mut MutableRepo,
@@ -805,7 +827,7 @@ pub fn fetch(
     branch_name_globs: Option<&[&str]>,
     callbacks: RemoteCallbacks<'_>,
     git_settings: &GitSettings,
-) -> Result<Option<String>, GitFetchError> {
+) -> Result<GitFetchStats, GitFetchError> {
     let branch_name_filter = {
         let regex = if let Some(globs) = branch_name_globs {
             let result = regex::RegexSet::new(
@@ -913,12 +935,16 @@ pub fn fetch(
     // local branches. We also import local tags since remote tags should have
     // been merged by Git.
     tracing::debug!("import_refs");
-    import_some_refs(mut_repo, git_repo, git_settings, |ref_name| {
+    let import_stats = import_some_refs(mut_repo, git_repo, git_settings, |ref_name| {
         to_remote_branch(ref_name, remote_name)
             .map(&branch_name_filter)
             .unwrap_or_else(|| matches!(ref_name, RefName::Tag(_)))
     })?;
-    Ok(default_branch)
+    let stats = GitFetchStats {
+        default_branch,
+        import_stats,
+    };
+    Ok(stats)
 }
 
 #[derive(Error, Debug, PartialEq)]

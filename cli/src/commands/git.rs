@@ -10,7 +10,9 @@ use std::{fs, io};
 use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId, TreeValue};
-use jj_lib::git::{self, parse_gitmodules, GitFetchError, GitPushError, GitRefUpdate};
+use jj_lib::git::{
+    self, parse_gitmodules, GitFetchError, GitFetchStats, GitPushError, GitRefUpdate,
+};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
@@ -480,11 +482,12 @@ fn cmd_git_clone(
         }
     }
 
-    if let (mut workspace_command, git_repo, Some(default_branch)) = clone_result? {
+    let (mut workspace_command, git_repo, stats) = clone_result?;
+    if let Some(default_branch) = &stats.default_branch {
         let default_branch_target = workspace_command
             .repo()
             .view()
-            .get_remote_branch(&default_branch, "origin");
+            .get_remote_branch(default_branch, "origin");
         if let Some(commit_id) = default_branch_target.as_normal().cloned() {
             let mut checkout_tx =
                 workspace_command.start_transaction("check out git remote's default branch");
@@ -509,7 +512,7 @@ fn do_git_clone(
     colocate: bool,
     source: &str,
     wc_path: &Path,
-) -> Result<(WorkspaceCommandHelper, git2::Repository, Option<String>), CommandError> {
+) -> Result<(WorkspaceCommandHelper, git2::Repository, GitFetchStats), CommandError> {
     let (workspace, repo) = if colocate {
         let git_repo = git2::Repository::init(wc_path)?;
         add_to_git_exclude(ui, &git_repo)?;
@@ -524,7 +527,7 @@ fn do_git_clone(
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction("fetch from git remote into empty repo");
 
-    let maybe_default_branch = with_remote_callbacks(ui, |cb| {
+    let stats = with_remote_callbacks(ui, |cb| {
         git::fetch(
             fetch_tx.mut_repo(),
             &git_repo,
@@ -545,7 +548,7 @@ fn do_git_clone(
         }
     })?;
     fetch_tx.finish(ui)?;
-    Ok((workspace_command, git_repo, maybe_default_branch))
+    Ok((workspace_command, git_repo, stats))
 }
 
 fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>) -> T) -> T {
