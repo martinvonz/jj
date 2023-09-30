@@ -463,7 +463,7 @@ pub enum FailedRefExportReason {
 struct RefsToExport {
     branches_to_update: BTreeMap<RefName, (Option<Oid>, Oid)>,
     branches_to_delete: BTreeMap<RefName, Oid>,
-    failed_branches: Vec<FailedRefExport>,
+    failed_branches: HashMap<RefName, FailedRefExportReason>,
 }
 
 /// Export changes to branches made in the Jujutsu repo compared to our last
@@ -520,10 +520,7 @@ pub fn export_some_refs(
     for (parsed_ref_name, old_oid) in branches_to_delete {
         let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
         if let Err(reason) = delete_git_ref(git_repo, &git_ref_name, old_oid) {
-            failed_branches.push(FailedRefExport {
-                name: parsed_ref_name,
-                reason,
-            });
+            failed_branches.insert(parsed_ref_name, reason);
         } else {
             let new_target = RefTarget::absent();
             if let RefName::LocalBranch(branch) = &parsed_ref_name {
@@ -539,10 +536,7 @@ pub fn export_some_refs(
     for (parsed_ref_name, (old_oid, new_oid)) in branches_to_update {
         let git_ref_name = to_git_ref_name(&parsed_ref_name).unwrap();
         if let Err(reason) = update_git_ref(git_repo, &git_ref_name, old_oid, new_oid) {
-            failed_branches.push(FailedRefExport {
-                name: parsed_ref_name,
-                reason,
-            });
+            failed_branches.insert(parsed_ref_name, reason);
         } else {
             let new_target = RefTarget::normal(CommitId::from_bytes(new_oid.as_bytes()));
             if let RefName::LocalBranch(branch) = &parsed_ref_name {
@@ -555,7 +549,12 @@ pub fn export_some_refs(
             mut_repo.set_git_ref_target(&git_ref_name, new_target);
         }
     }
-    failed_branches.sort_by_key(|failed| failed.name.clone());
+
+    let failed_branches = failed_branches
+        .into_iter()
+        .map(|(name, reason)| FailedRefExport { name, reason })
+        .sorted_unstable_by(|a, b| a.name.cmp(&b.name))
+        .collect();
     Ok(failed_branches)
 }
 
@@ -567,7 +566,7 @@ fn diff_refs_to_export(
 ) -> RefsToExport {
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeMap::new();
-    let mut failed_branches = vec![];
+    let mut failed_branches = HashMap::new();
     let root_commit_target = RefTarget::normal(root_commit_id.clone());
     let jj_repo_iter_all_branches = view.branches().iter().flat_map(|(branch, target)| {
         itertools::chain(
@@ -607,10 +606,7 @@ fn diff_refs_to_export(
             view.get_git_ref(&name)
         } else {
             // Invalid branch name in Git sense
-            failed_branches.push(FailedRefExport {
-                name: ref_name,
-                reason: FailedRefExportReason::InvalidGitName,
-            });
+            failed_branches.insert(ref_name, FailedRefExportReason::InvalidGitName);
             continue;
         };
         if new_target == old_target {
@@ -618,10 +614,7 @@ fn diff_refs_to_export(
         }
         if *new_target == root_commit_target {
             // Git doesn't have a root commit
-            failed_branches.push(FailedRefExport {
-                name: ref_name,
-                reason: FailedRefExportReason::OnRootCommit,
-            });
+            failed_branches.insert(ref_name, FailedRefExportReason::OnRootCommit);
             continue;
         }
         let old_oid = if let Some(id) = old_target.as_normal() {
@@ -629,10 +622,7 @@ fn diff_refs_to_export(
         } else if old_target.has_conflict() {
             // The old git ref should only be a conflict if there were concurrent import
             // operations while the value changed. Don't overwrite these values.
-            failed_branches.push(FailedRefExport {
-                name: ref_name,
-                reason: FailedRefExportReason::ConflictedOldState,
-            });
+            failed_branches.insert(ref_name, FailedRefExportReason::ConflictedOldState);
             continue;
         } else {
             assert!(old_target.is_absent());
