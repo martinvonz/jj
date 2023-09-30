@@ -459,6 +459,26 @@ fn test_log_shortest_accessors() {
 }
 
 #[test]
+fn test_log_bad_short_prefixes() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    // Error on bad config of short prefixes
+    test_env.add_config(r#"revsets.short-prefixes = "!nval!d""#);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["status"]);
+    insta::assert_snapshot!(stderr,
+        @r###"
+    Config error: Invalid `revsets.short-prefixes`:  --> 1:1
+      |
+    1 | !nval!d
+      | ^---
+      |
+      = expected <expression>
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    "###);
+}
+
+#[test]
 fn test_log_prefix_highlight_styled() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

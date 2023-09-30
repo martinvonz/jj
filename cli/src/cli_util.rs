@@ -732,7 +732,7 @@ impl WorkspaceCommandHelper {
         let loaded_at_head = command.global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !command.global_args.ignore_working_copy;
         let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
-        Ok(Self {
+        let helper = Self {
             cwd: command.cwd.clone(),
             string_args: command.string_args.clone(),
             global_args: command.global_args.clone(),
@@ -743,7 +743,11 @@ impl WorkspaceCommandHelper {
             template_aliases_map,
             may_update_working_copy,
             working_copy_shared_with_git,
-        })
+        };
+        // Parse short-prefixes revset early to report error before starting mutable
+        // operation.
+        helper.id_prefix_context()?;
+        Ok(helper)
     }
 
     pub fn git_backend(&self) -> Option<&GitBackend> {
@@ -1161,8 +1165,9 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         &'repo self,
         revset_expression: Rc<RevsetExpression>,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, CommandError> {
-        let revset_expression = revset_expression
-            .resolve_user_expression(self.repo().as_ref(), &self.revset_symbol_resolver())?;
+        let symbol_resolver = self.revset_symbol_resolver()?;
+        let revset_expression =
+            revset_expression.resolve_user_expression(self.repo().as_ref(), &symbol_resolver)?;
         Ok(revset_expression.evaluate(self.repo().as_ref())?)
     }
 
@@ -1179,19 +1184,20 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         }
     }
 
-    pub(crate) fn revset_symbol_resolver(&self) -> DefaultSymbolResolver<'_> {
-        let id_prefix_context = self.id_prefix_context();
+    pub(crate) fn revset_symbol_resolver(&self) -> Result<DefaultSymbolResolver<'_>, CommandError> {
+        let id_prefix_context = self.id_prefix_context()?;
         let commit_id_resolver: revset::PrefixResolver<CommitId> =
             Box::new(|repo, prefix| id_prefix_context.resolve_commit_prefix(repo, prefix));
         let change_id_resolver: revset::PrefixResolver<Vec<CommitId>> =
             Box::new(|repo, prefix| id_prefix_context.resolve_change_prefix(repo, prefix));
-        DefaultSymbolResolver::new(self.repo().as_ref())
+        let symbol_resolver = DefaultSymbolResolver::new(self.repo().as_ref())
             .with_commit_id_resolver(commit_id_resolver)
-            .with_change_id_resolver(change_id_resolver)
+            .with_change_id_resolver(change_id_resolver);
+        Ok(symbol_resolver)
     }
 
-    pub fn id_prefix_context(&self) -> &IdPrefixContext {
-        self.user_repo.id_prefix_context.get_or_init(|| {
+    pub fn id_prefix_context(&self) -> Result<&IdPrefixContext, CommandError> {
+        self.user_repo.id_prefix_context.get_or_try_init(|| {
             let mut context: IdPrefixContext = IdPrefixContext::default();
             let revset_string: String = self
                 .settings
@@ -1199,10 +1205,15 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
                 .get_string("revsets.short-prefixes")
                 .unwrap_or_else(|_| self.settings.default_revset());
             if !revset_string.is_empty() {
-                let disambiguation_revset = self.parse_revset(&revset_string, None).unwrap();
+                let disambiguation_revset =
+                    self.parse_revset(&revset_string, None).map_err(|err| {
+                        CommandError::ConfigError(format!(
+                            "Invalid `revsets.short-prefixes`: {err}"
+                        ))
+                    })?;
                 context = context.disambiguate_within(disambiguation_revset);
             }
-            context
+            Ok(context)
         })
     }
 
@@ -1213,14 +1224,16 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
     pub fn parse_commit_template(
         &self,
         template_text: &str,
-    ) -> Result<Box<dyn Template<Commit> + '_>, TemplateParseError> {
-        commit_templater::parse(
+    ) -> Result<Box<dyn Template<Commit> + '_>, CommandError> {
+        let id_prefix_context = self.id_prefix_context()?;
+        let template = commit_templater::parse(
             self.repo().as_ref(),
             self.workspace_id(),
-            self.id_prefix_context(),
+            id_prefix_context,
             template_text,
             &self.template_aliases_map,
-        )
+        )?;
+        Ok(template)
     }
 
     /// Returns one-line summary of the given `commit`.
@@ -1238,15 +1251,19 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         formatter: &mut dyn Formatter,
         commit: &Commit,
     ) -> std::io::Result<()> {
+        let id_prefix_context = self
+            .id_prefix_context()
+            .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         let template = parse_commit_summary_template(
             self.repo().as_ref(),
             self.workspace_id(),
-            self.id_prefix_context(),
+            id_prefix_context,
             &self.template_aliases_map,
             &self.settings,
         )
         .expect("parse error should be confined by WorkspaceCommandHelper::new()");
-        template.format(commit, formatter)
+        template.format(commit, formatter)?;
+        Ok(())
     }
 
     pub fn check_rewritable<'a>(
