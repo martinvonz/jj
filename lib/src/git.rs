@@ -193,9 +193,6 @@ pub fn import_some_refs(
         old_git_head.is_present().then(RefTarget::absent)
     };
     let changed_remote_refs = diff_refs_to_import(mut_repo.view(), git_repo, git_ref_filter)?;
-    if changed_remote_refs.keys().any(is_reserved_git_remote_ref) {
-        return Err(GitImportError::RemoteReservedForLocalGitRepo);
-    }
 
     // Import new heads
     let store = mut_repo.store();
@@ -340,6 +337,9 @@ fn diff_refs_to_import(
         };
         if !git_ref_filter(&ref_name) {
             continue;
+        }
+        if is_reserved_git_remote_ref(&ref_name) {
+            return Err(GitImportError::RemoteReservedForLocalGitRepo);
         }
         let old_target = known_remote_refs.get(&ref_name).copied().flatten();
         let Some(id) = resolve_git_ref_to_commit_id(&git_ref, old_target) else {
