@@ -838,6 +838,7 @@ impl WorkspaceCommandHelper {
                 self.finish_transaction(ui, tx)?;
             }
         }
+        writeln!(ui, "Done importing changes from the underlying Git repo.")?;
         Ok(())
     }
 

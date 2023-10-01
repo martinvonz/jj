@@ -164,6 +164,7 @@ fn test_init_git_colocated() {
     init_git_repo(&workspace_root, false);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @r###"
+    Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
 
@@ -211,6 +212,7 @@ fn test_init_git_colocated_gitlink() {
     assert!(workspace_root.join(".git").is_file());
     let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @r###"
+    Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
 
@@ -244,6 +246,7 @@ fn test_init_git_colocated_symlink_directory() {
     std::os::unix::fs::symlink(git_repo_path.join(".git"), workspace_root.join(".git")).unwrap();
     let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @r###"
+    Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
 
@@ -282,6 +285,7 @@ fn test_init_git_colocated_symlink_gitlink() {
     std::os::unix::fs::symlink(git_workdir_path.join(".git"), workspace_root.join(".git")).unwrap();
     let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @r###"
+    Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
 
