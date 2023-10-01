@@ -143,8 +143,9 @@ fn test_git_import_undo() {
     a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
-    // If we don't restore the git_refs, undoing the import removes the local branch
-    // but makes a following import a no-op.
+    // Even if we don't restore the git_refs, "git import" can re-import the
+    // local branch "a".
+    // TODO: This will be the default "op restore" mode.
     let stdout = test_env.jj_cmd_success(
         &repo_path,
         &[
@@ -158,23 +159,6 @@ fn test_git_import_undo() {
     insta::assert_snapshot!(stdout, @r###"
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
-    // Try "git import" again, which should *not* re-import the branch "a" and be a
-    // no-op.
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @r###"
-    Nothing changed.
-    "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
-
-    // We can restore *only* the git refs to make an import re-import the branch
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &["op", "restore", &base_operation_id, "--what=git-tracking"],
-    );
-    insta::assert_snapshot!(stdout, @r###"
-    "###);
-    // The git-tracking branch disappears.
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
-    // Try "git import" again, which should again re-import the branch "a".
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
