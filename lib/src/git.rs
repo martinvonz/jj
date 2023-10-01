@@ -340,15 +340,29 @@ fn diff_refs_to_import(
             git_ref_filter(&ref_name).then_some((full_name.as_ref(), target))
         })
         .collect();
-    let mut known_remote_refs: HashMap<RefName, &RefTarget> = view
-        .git_refs()
-        .iter()
-        .filter_map(|(full_name, target)| {
-            // TODO: or clean up invalid ref in case it was stored due to historical bug?
-            let ref_name = parse_git_ref(full_name).expect("stored git ref should be parsable");
-            git_ref_filter(&ref_name).then_some((ref_name, target))
-        })
-        .collect();
+    let mut known_remote_refs: HashMap<RefName, &RefTarget> = itertools::chain(
+        view.remote_branches().map(|((branch, remote), target)| {
+            // TODO: want to abstract local ref as "git" tracking remote, but
+            // we'll probably need to refactor the git_ref_filter API first.
+            let ref_name = if remote == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
+                RefName::LocalBranch(branch.to_owned())
+            } else {
+                RefName::RemoteBranch {
+                    branch: branch.to_owned(),
+                    remote: remote.to_owned(),
+                }
+            };
+            (ref_name, target)
+        }),
+        // TODO: compare to tags stored in the "git" remote view. Since tags should never
+        // be moved locally in jj, we can consider local tags as merge base.
+        view.tags().iter().map(|(name, target)| {
+            let ref_name = RefName::Tag(name.to_owned());
+            (ref_name, target)
+        }),
+    )
+    .filter(|(ref_name, _)| git_ref_filter(ref_name))
+    .collect();
     let mut changed_git_refs = Vec::new();
     let mut changed_remote_refs = BTreeMap::new();
     for git_ref in git_repo.references()? {
