@@ -155,6 +155,15 @@ fn resolve_git_ref_to_commit_id(
     Some(CommitId::from_bytes(git_commit.id().as_bytes()))
 }
 
+#[derive(Debug)]
+struct RefsToImport {
+    /// Git ref `(full_name, new_target)`s to be copied to the view.
+    changed_git_refs: Vec<(String, RefTarget)>,
+    /// Remote `(ref_name, (old_target, new_target))`s to be merged in to the
+    /// local refs.
+    changed_remote_refs: BTreeMap<RefName, (RefTarget, RefTarget)>,
+}
+
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
 ///
 /// This function detects conflicts (if both Git and JJ modified a branch) and
@@ -192,9 +201,13 @@ pub fn import_some_refs(
     } else {
         old_git_head.is_present().then(RefTarget::absent)
     };
-    let changed_remote_refs = diff_refs_to_import(mut_repo.view(), git_repo, git_ref_filter)?;
 
-    // Import new heads
+    let RefsToImport {
+        changed_git_refs,
+        changed_remote_refs,
+    } = diff_refs_to_import(mut_repo.view(), git_repo, git_ref_filter)?;
+
+    // Import new Git commits to the backend
     let store = mut_repo.store();
     // TODO: It might be better to obtain both git_repo and git_backend from
     // mut_repo, and return error if the repo isn't backed by Git.
@@ -202,14 +215,16 @@ pub fn import_some_refs(
     // Bulk-import all reachable commits to reduce overhead of table merging.
     let head_ids = itertools::chain(
         &changed_git_head,
-        changed_remote_refs
-            .values()
-            .map(|(_, new_target)| new_target),
+        changed_git_refs.iter().map(|(_, new_target)| new_target),
+        // changed_remote_refs might contain new_targets that are not in changed_git_refs,
+        // but such targets should have already been imported to the backend.
     )
     .flat_map(|target| target.added_ids());
     let heads_imported = git_backend
         .import_head_commits(head_ids, store.use_tree_conflict_format())
         .is_ok();
+
+    // Import new remote heads
     let mut head_commits = Vec::new();
     let get_commit = |id| {
         // If bulk-import failed, try again to find bad head or ref.
@@ -242,9 +257,10 @@ pub fn import_some_refs(
     if let Some(new_head_target) = changed_git_head {
         mut_repo.set_git_head_target(new_head_target);
     }
+    for (full_name, new_target) in changed_git_refs {
+        mut_repo.set_git_ref_target(&full_name, new_target);
+    }
     for (ref_name, (old_target, new_target)) in &changed_remote_refs {
-        let full_name = to_git_ref_name(ref_name).unwrap();
-        mut_repo.set_git_ref_target(&full_name, new_target.clone());
         if let RefName::RemoteBranch { branch, remote } = ref_name {
             // Remote-tracking branch is the last known state of the branch in the remote.
             // It shouldn't diverge even if we had inconsistent view.
@@ -314,7 +330,16 @@ fn diff_refs_to_import(
     view: &View,
     git_repo: &git2::Repository,
     git_ref_filter: impl Fn(&RefName) -> bool,
-) -> Result<BTreeMap<RefName, (RefTarget, RefTarget)>, GitImportError> {
+) -> Result<RefsToImport, GitImportError> {
+    let mut known_git_refs: HashMap<&str, &RefTarget> = view
+        .git_refs()
+        .iter()
+        .filter_map(|(full_name, target)| {
+            // TODO: or clean up invalid ref in case it was stored due to historical bug?
+            let ref_name = parse_git_ref(full_name).expect("stored git ref should be parsable");
+            git_ref_filter(&ref_name).then_some((full_name.as_ref(), target))
+        })
+        .collect();
     let mut known_remote_refs: HashMap<RefName, &RefTarget> = view
         .git_refs()
         .iter()
@@ -324,6 +349,7 @@ fn diff_refs_to_import(
             git_ref_filter(&ref_name).then_some((ref_name, target))
         })
         .collect();
+    let mut changed_git_refs = Vec::new();
     let mut changed_remote_refs = BTreeMap::new();
     for git_ref in git_repo.references()? {
         let git_ref = git_ref?;
@@ -341,23 +367,33 @@ fn diff_refs_to_import(
         if is_reserved_git_remote_ref(&ref_name) {
             return Err(GitImportError::RemoteReservedForLocalGitRepo);
         }
-        let old_target = known_remote_refs.get(&ref_name).copied().flatten();
-        let Some(id) = resolve_git_ref_to_commit_id(&git_ref, old_target) else {
+        let old_git_target = known_git_refs.get(full_name).copied().flatten();
+        let Some(id) = resolve_git_ref_to_commit_id(&git_ref, old_git_target) else {
             // Skip (or remove existing) invalid refs.
             continue;
         };
+        let new_target = RefTarget::normal(id);
+        known_git_refs.remove(full_name);
+        if new_target != *old_git_target {
+            changed_git_refs.push((full_name.to_owned(), new_target.clone()));
+        }
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
-        known_remote_refs.remove(&ref_name);
-        let new_target = RefTarget::normal(id);
-        if new_target != *old_target {
-            changed_remote_refs.insert(ref_name, (old_target.clone(), new_target));
+        let old_remote_target = known_remote_refs.remove(&ref_name).flatten();
+        if new_target != *old_remote_target {
+            changed_remote_refs.insert(ref_name, (old_remote_target.clone(), new_target));
         }
+    }
+    for full_name in known_git_refs.into_keys() {
+        changed_git_refs.push((full_name.to_owned(), RefTarget::absent()));
     }
     for (ref_name, old_target) in known_remote_refs {
         changed_remote_refs.insert(ref_name, (old_target.clone(), RefTarget::absent()));
     }
-    Ok(changed_remote_refs)
+    Ok(RefsToImport {
+        changed_git_refs,
+        changed_remote_refs,
+    })
 }
 
 /// Commits referenced by local branches, tags, or HEAD@git.
