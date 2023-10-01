@@ -160,6 +160,7 @@ fn test_git_colocated_rebase_on_import() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     Abandoned the following commits:
       rlvkpnrz 45fbe1af master | modify a file
+    Done importing changes from the underlying Git repo.
     @  7f96185cfbe36341d0f9a86ebfaeab67a5922c7e
     ◉  4bcbeaba9a4b309c5f45a8807fbf5499b9714315 master HEAD@git add a file
     ◉  0000000000000000000000000000000000000000
@@ -212,6 +213,7 @@ fn test_git_colocated_branches() {
       kkmpptxz 35605592 master | (empty) bar
     Working copy now at: yqosqzyt 096dc80d (empty) (no description set)
     Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
+    Done importing changes from the underlying Git repo.
     @  096dc80da67094fbaa6683e2a205dddffa31f9a8
     │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master foo
     ├─╯
@@ -347,6 +349,7 @@ fn test_git_colocated_external_checkout() {
     // The old working-copy commit gets abandoned, but the whole branch should not
     // be abandoned. (#1042)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    Done importing changes from the underlying Git repo.
     @  0521ce3b8c4e29aab79f3c750e2845dcbc4c3874
     ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master HEAD@git A
     │ ◉  66f4d1806ae41bd604f69155dece64062a0056cf B
@@ -364,6 +367,7 @@ fn test_git_colocated_squash_undo() {
     test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    Done importing changes from the underlying Git repo.
     @  rlvkpnrzqnoo 8f71e3b6a3be
     ◉  qpvuntsmwlqt a86754f975f9 A master HEAD@git
     ◉  zzzzzzzzzzzz 000000000000

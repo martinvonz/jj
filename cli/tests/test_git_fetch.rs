@@ -262,6 +262,7 @@ fn test_git_fetch_from_remote_named_git() {
     test_env.jj_cmd_success(&repo_path, &["git", "remote", "rename", "git", "bar"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
+    Done importing changes from the underlying Git repo.
     git: mrylzrtu 76fc7466 message
     "###);
 }
