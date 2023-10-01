@@ -798,45 +798,44 @@ impl WorkspaceCommandHelper {
             &self.settings.git_settings(),
             |ref_name| !git::is_reserved_git_remote_ref(ref_name),
         )?;
-        if tx.mut_repo().has_changes() {
-            let old_git_head = self.repo().view().git_head().clone();
-            let new_git_head = tx.mut_repo().view().git_head().clone();
-            // If the Git HEAD has changed, abandon our old checkout and check out the new
-            // Git HEAD.
-            match new_git_head.as_normal() {
-                Some(new_git_head_id) if new_git_head != old_git_head => {
-                    let workspace_id = self.workspace_id().to_owned();
-                    if let Some(old_wc_commit_id) =
-                        self.repo().view().get_wc_commit_id(&workspace_id)
-                    {
-                        tx.mut_repo()
-                            .record_abandoned_commit(old_wc_commit_id.clone());
-                    }
-                    let new_git_head_commit = tx.mut_repo().store().get_commit(new_git_head_id)?;
+        if !tx.mut_repo().has_changes() {
+            return Ok(());
+        }
+
+        let old_git_head = self.repo().view().git_head().clone();
+        let new_git_head = tx.mut_repo().view().git_head().clone();
+        // If the Git HEAD has changed, abandon our old checkout and check out the new
+        // Git HEAD.
+        match new_git_head.as_normal() {
+            Some(new_git_head_id) if new_git_head != old_git_head => {
+                let workspace_id = self.workspace_id().to_owned();
+                if let Some(old_wc_commit_id) = self.repo().view().get_wc_commit_id(&workspace_id) {
                     tx.mut_repo()
-                        .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
-                    let mut locked_working_copy =
-                        self.workspace.working_copy_mut().start_mutation()?;
-                    // The working copy was presumably updated by the git command that updated
-                    // HEAD, so we just need to reset our working copy
-                    // state to it without updating working copy files.
-                    let new_git_head_tree = new_git_head_commit.tree()?;
-                    locked_working_copy.reset(&new_git_head_tree)?;
-                    tx.mut_repo().rebase_descendants(&self.settings)?;
-                    self.user_repo = ReadonlyUserRepo::new(tx.commit());
-                    locked_working_copy.finish(self.user_repo.repo.op_id().clone())?;
+                        .record_abandoned_commit(old_wc_commit_id.clone());
                 }
-                _ => {
-                    let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
-                    if num_rebased > 0 {
-                        writeln!(
-                            ui,
-                            "Rebased {num_rebased} descendant commits off of commits rewritten \
-                             from git"
-                        )?;
-                    }
-                    self.finish_transaction(ui, tx)?;
+                let new_git_head_commit = tx.mut_repo().store().get_commit(new_git_head_id)?;
+                tx.mut_repo()
+                    .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
+                let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation()?;
+                // The working copy was presumably updated by the git command that updated
+                // HEAD, so we just need to reset our working copy
+                // state to it without updating working copy files.
+                let new_git_head_tree = new_git_head_commit.tree()?;
+                locked_working_copy.reset(&new_git_head_tree)?;
+                tx.mut_repo().rebase_descendants(&self.settings)?;
+                self.user_repo = ReadonlyUserRepo::new(tx.commit());
+                locked_working_copy.finish(self.user_repo.repo.op_id().clone())?;
+            }
+            _ => {
+                let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+                if num_rebased > 0 {
+                    writeln!(
+                        ui,
+                        "Rebased {num_rebased} descendant commits off of commits rewritten from \
+                         git"
+                    )?;
                 }
+                self.finish_transaction(ui, tx)?;
             }
         }
         Ok(())
