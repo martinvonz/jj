@@ -179,7 +179,7 @@ fn test_git_colocated_branches() {
     @  3560559274ab431feea00b7b7e0b9250ecce951f bar
     │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda foo
     ├─╯
-    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 master HEAD@git
+    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◉  0000000000000000000000000000000000000000
     "###);
 
@@ -232,13 +232,12 @@ fn test_git_colocated_branch_forget() {
     test_env.jj_cmd_success(&workspace_root, &["branch", "set", "foo"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  65b6b74e08973b88d38404430f119c8c79465250 foo
-    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 master HEAD@git
+    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◉  0000000000000000000000000000000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
-    master: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "forget", "foo"]);
@@ -246,9 +245,7 @@ fn test_git_colocated_branch_forget() {
     // A forgotten branch is deleted in the git repo. For a detailed demo explaining
     // this, see `test_branch_forget_export` in `test_branch_command.rs`.
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
-    insta::assert_snapshot!(stdout, @r###"
-    master: qpvuntsm 230dd059 (empty) (no description set)
-    "###);
+    insta::assert_snapshot!(stdout, @"");
 }
 
 #[test]
@@ -292,7 +289,7 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     ├─╯
     │ ◉  929e298ae9edf969b405a304c75c10457c47d52c B_to_delete B_to_delete
     ├─╯
-    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A master HEAD@git A
+    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A HEAD@git A
     ◉  0000000000000000000000000000000000000000
     "###);
 
@@ -311,7 +308,7 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     ◉  04fd29df05638156b20044b3b6136b42abcb09ab C_to_move moved C
     │ @  0335878796213c3a701f1c9c34dcae242bee4131
     ├─╯
-    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A master HEAD@git A
+    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b A HEAD@git A
     ◉  0000000000000000000000000000000000000000
     "###);
 }
@@ -323,13 +320,14 @@ fn test_git_colocated_external_checkout() {
     let git_repo = git2::Repository::init(&repo_path).unwrap();
     test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
     test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "-r@-", "master"]);
     test_env.jj_cmd_success(&repo_path, &["new", "-m=B", "root()"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
 
     // Checked out anonymous branch
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  53637cd508ff02427dd78eca98f5b2450a6370ce
-    ◉  66f4d1806ae41bd604f69155dece64062a0056cf HEAD@git B
+    @  f8a23336e41840ed1757ef323402a770427dc89a
+    ◉  eccedddfa5152d99fc8ddd1081b375387a8a382a HEAD@git B
     │ ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master A
     ├─╯
     ◉  0000000000000000000000000000000000000000
@@ -350,9 +348,9 @@ fn test_git_colocated_external_checkout() {
     // be abandoned. (#1042)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     Done importing changes from the underlying Git repo.
-    @  0521ce3b8c4e29aab79f3c750e2845dcbc4c3874
+    @  adadbd65a794e2294962b3c3da9aada09fe1b472
     ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master HEAD@git A
-    │ ◉  66f4d1806ae41bd604f69155dece64062a0056cf B
+    │ ◉  eccedddfa5152d99fc8ddd1081b375387a8a382a B
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -367,16 +365,15 @@ fn test_git_colocated_squash_undo() {
     test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
-    Done importing changes from the underlying Git repo.
     @  rlvkpnrzqnoo 8f71e3b6a3be
-    ◉  qpvuntsmwlqt a86754f975f9 A master HEAD@git
+    ◉  qpvuntsmwlqt a86754f975f9 A HEAD@git
     ◉  zzzzzzzzzzzz 000000000000
     "###);
 
     test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
     @  zsuskulnrvyr f0c12b0396d9
-    ◉  qpvuntsmwlqt 2f376ea1478c A master HEAD@git
+    ◉  qpvuntsmwlqt 2f376ea1478c A HEAD@git
     ◉  zzzzzzzzzzzz 000000000000
     "###);
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -384,7 +381,7 @@ fn test_git_colocated_squash_undo() {
     // (#922)
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
     @  rlvkpnrzqnoo 8f71e3b6a3be
-    ◉  qpvuntsmwlqt a86754f975f9 A master HEAD@git
+    ◉  qpvuntsmwlqt a86754f975f9 A HEAD@git
     ◉  zzzzzzzzzzzz 000000000000
     "###);
 }

@@ -849,20 +849,13 @@ impl WorkspaceCommandHelper {
             .downcast_ref::<GitBackend>()
             .unwrap()
             .git_repo_clone();
-        let current_git_head_ref = git_repo.find_reference("HEAD").unwrap();
-        let current_git_commit_id = current_git_head_ref
-            .peel_to_commit()
-            .ok()
-            .map(|commit| commit.id());
         if let Some(wc_commit_id) = mut_repo.view().get_wc_commit_id(self.workspace_id()) {
             let wc_commit = mut_repo.store().get_commit(wc_commit_id)?;
             let first_parent_id = wc_commit.parent_ids()[0].clone();
             if first_parent_id != *mut_repo.store().root_commit_id() {
-                if let Some(current_git_commit_id) = current_git_commit_id {
-                    git_repo.set_head_detached(current_git_commit_id)?;
-                }
                 let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
                 let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
+                git_repo.set_head_detached(new_git_commit_id)?;
                 git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
                 mut_repo.set_git_head_target(RefTarget::normal(first_parent_id));
             }

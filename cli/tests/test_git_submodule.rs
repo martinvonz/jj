@@ -50,7 +50,6 @@ fn test_gitsubmodule_print_gitmodules() {
         &["git", "submodule", "print-gitmodules", "-r", "@-"],
     );
     insta::assert_snapshot!(stdout, @r###"
-    Done importing changes from the underlying Git repo.
     name:old
     url:https://github.com/old/old.git
     path:old
