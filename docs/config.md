@@ -313,7 +313,9 @@ If you'd like to pass the output through a formatter e.g.
 through a pager you must do it using a subshell as, unlike `git` or `hg`, the
 command will be executed directly. For example:
 
-`ui.pager = ["sh", "-c", "diff-so-fancy | less -RFX"]`
+```toml
+ui.pager = ["sh", "-c", "diff-so-fancy | less -RFX"]
+```
 
 ## Aliases
 
