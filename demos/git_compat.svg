@@ -39,8 +39,8 @@
 </tspan><tspan xml:space="preserve" x="10" y="32" class="output"><tspan class="fg2"># Clone a Git repo:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="50" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="68" class="output">$ jj git clone https://github.com/octocat/Hello-World
-</tspan><tspan xml:space="preserve" x="10" y="86" class="output">Fetching into new repo in "/tmp/tmp.FzCQ5K0fCd/Hello-World"
-</tspan><tspan xml:space="preserve" x="10" y="104" class="output">Working copy now at: <tspan class="bold fg5">r</tspan><tspan class="fg8">msvpzst</tspan> <tspan class="bold fg4">e</tspan><tspan class="fg8">4dbb280</tspan> <tspan class="fg2">(empty)</tspan> <tspan class="fg2">(no description set)</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="86" class="output">Fetching into new repo in "/tmp/tmp.PUd3syX7da/Hello-World"
+</tspan><tspan xml:space="preserve" x="10" y="104" class="output">Working copy now at: <tspan class="bold fg13">p</tspan><tspan class="bold fg8">xlotqpw</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">e</tspan><tspan class="bold fg8">905ce63</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(empty)</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(no description set)</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="122" class="output">Parent commit      : <tspan class="bold fg5">o</tspan><tspan class="fg8">rrkosyo</tspan> <tspan class="bold fg4">7</tspan><tspan class="fg8">fd1a60b</tspan> <tspan class="fg5">master</tspan><tspan class="fg8"> | </tspan><tspan class="fg2">(empty)</tspan> Merge pull request #6 fr<tspan class="hard-br" rotate="45" dx=".1em" dy="-.2em">↓</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="140" class="output">om Spaceghost/patch-1
 </tspan><tspan xml:space="preserve" x="10" y="158" class="output">Added 1 files, modified 0 files, removed 0 files
@@ -49,7 +49,7 @@
 </tspan><tspan xml:space="preserve" x="10" y="212" class="output"><tspan class="fg2"># Inspect it:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="230" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="248" class="output">$ jj log -r 'all()'
-</tspan><tspan xml:space="preserve" x="10" y="266" class="output">@  <tspan class="bold fg13">r</tspan><tspan class="bold fg8">msvpzst</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-09-16 21:50:32.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">e</tspan><tspan class="bold fg8">4dbb280</tspan>
+</tspan><tspan xml:space="preserve" x="10" y="266" class="output">@  <tspan class="bold fg13">p</tspan><tspan class="bold fg8">xlotqpw</tspan><tspan class="bold"> </tspan><tspan class="bold fg3">jjfan@example.com</tspan><tspan class="bold"> </tspan><tspan class="bold fg14">2023-10-01 22:29:21.000 -07:00</tspan><tspan class="bold"> </tspan><tspan class="bold fg12">e</tspan><tspan class="bold fg8">905ce63</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="284" class="output">│  <tspan class="bold fg10">(empty)</tspan><tspan class="bold"> </tspan><tspan class="bold fg10">(no description set)</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="302" class="output">│ ◉  <tspan class="bold fg5">t</tspan><tspan class="fg8">pstlust</tspan> <tspan class="fg3">support+octocat@github.com</tspan> <tspan class="fg6">2018-05-10 12:55:19.000 -05:00</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="320" class="output">├─╯  <tspan class="fg5">octocat-patch-1</tspan> <tspan class="bold fg4">b1</tspan><tspan class="fg8">b3f972</tspan>
@@ -71,8 +71,8 @@
 </tspan><tspan xml:space="preserve" x="10" y="608" class="output"><tspan class="fg2"># The repo is backed by the actual Git repo:</tspan>
 </tspan><tspan xml:space="preserve" x="10" y="626" class="output">
 </tspan><tspan xml:space="preserve" x="10" y="644" class="output">$ git --git-dir=.jj/repo/store/git log --graph --all --decorate --oneline
-</tspan><tspan xml:space="preserve" x="10" y="662" class="output">* <tspan class="fg3">db9d0cd</tspan> 
-</tspan><tspan xml:space="preserve" x="10" y="680" class="output">* <tspan class="fg3">e4dbb28</tspan> 
+</tspan><tspan xml:space="preserve" x="10" y="662" class="output">* <tspan class="fg3">e905ce6</tspan> 
+</tspan><tspan xml:space="preserve" x="10" y="680" class="output"><tspan class="fg1">|</tspan> * <tspan class="fg3">d7ab898</tspan> 
 </tspan><tspan xml:space="preserve" x="10" y="698" class="output"><tspan class="fg1">|</tspan> * <tspan class="fg3">b1b3f97</tspan><tspan class="fg3"> (</tspan><tspan class="bold fg1">origin/octocat-patch-1</tspan><tspan class="fg3">)</tspan> sentence case
 </tspan><tspan xml:space="preserve" x="10" y="716" class="output"><tspan class="fg1">|</tspan><tspan class="fg1">/</tspan>  
 </tspan><tspan xml:space="preserve" x="10" y="734" class="output"><tspan class="fg1">|</tspan> * <tspan class="fg3">b3cbd5b</tspan><tspan class="fg3"> (</tspan><tspan class="bold fg1">origin/test</tspan><tspan class="fg3">)</tspan> Create CONTRIBUTING.md
