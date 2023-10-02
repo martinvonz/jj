@@ -1,0 +1,10 @@
+# This config is good if you plan to use the rendered docs from
+# your file system. To use, run:
+#      poetry run -- mkdocs -f mkdocs-offline.yml
+INHERIT: 'mkdocs.yml'
+plugins:
+    - offline
+# Turns out the `offline` plugin forces the following
+# option no matter what, and therefore shouldn't be
+# used in the main config file.
+use_directory_urls: false
