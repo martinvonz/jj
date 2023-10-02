@@ -12,7 +12,6 @@ extra:
   version:
     provider: mike
 plugins:
-    - offline
     - search
     - redirects:
         redirect_maps:
