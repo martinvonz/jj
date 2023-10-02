@@ -405,7 +405,7 @@ fn test_git_fetch_all() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     ◉  000000000000
     "###);
 
@@ -420,7 +420,6 @@ fn test_git_fetch_all() {
     a1: nknoxmzm 359a9a02 descr_for_a1
     a2: qkvnknrk decaa396 descr_for_a2
     b: vpupmnsl c7d4bdcb descr_for_b
-    master: zowqyktl ff36dc55 descr_for_trunk1
     trunk1: zowqyktl ff36dc55 descr_for_trunk1
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
@@ -429,7 +428,7 @@ fn test_git_fetch_all() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     │ @  230dd059e1b0
     ├─╯
     ◉  000000000000
@@ -446,7 +445,7 @@ fn test_git_fetch_all() {
     │ ◉  0424f6dfc1ff descr_for_a1 a1
     ├─╯
     @  8f1f14fbbf42 descr_for_trunk2 trunk2
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     ◉  000000000000
     "###);
     // Change a branch in the source repo as well, so that it becomes conflicted.
@@ -462,7 +461,7 @@ fn test_git_fetch_all() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     │ @  230dd059e1b0
     ├─╯
     ◉  000000000000
@@ -472,7 +471,6 @@ fn test_git_fetch_all() {
     a2: qkvnknrk decaa396 descr_for_a2
     b: vpupmnsl 061eddbb new_descr_for_b_to_create_conflict
       @origin (ahead by 1 commits, behind by 1 commits): vpupmnsl c7d4bdcb descr_for_b
-    master: zowqyktl ff36dc55 descr_for_trunk1
     trunk1: zowqyktl ff36dc55 descr_for_trunk1
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]), @r###"
@@ -488,7 +486,6 @@ fn test_git_fetch_all() {
       + vpupmnsl 061eddbb new_descr_for_b_to_create_conflict
       + vktnwlsu babc4922 descr_for_b
       @origin (behind by 1 commits): vktnwlsu babc4922 descr_for_b
-    master: zowqyktl ff36dc55 descr_for_trunk1
     trunk1: zowqyktl ff36dc55 descr_for_trunk1
     trunk2: umznmzko 8f1f14fb descr_for_trunk2
     "###);
@@ -501,7 +498,7 @@ fn test_git_fetch_all() {
     ◉  8f1f14fbbf42 descr_for_trunk2 trunk2
     │ ◉  061eddbb43ab new_descr_for_b_to_create_conflict b??
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     │ @  230dd059e1b0
     ├─╯
     ◉  000000000000
@@ -533,7 +530,7 @@ fn test_git_fetch_some_of_many_branches() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     ◉  000000000000
     "###);
 
@@ -605,7 +602,7 @@ fn test_git_fetch_some_of_many_branches() {
     │ ◉  6f4e1c4dfe29 descr_for_a1 a1
     ├─╯
     @  09430ba04a82 descr_for_trunk2 trunk2
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     ◉  000000000000
     "###);
     // Change a branch in the source repo as well, so that it becomes conflicted.
@@ -720,7 +717,7 @@ fn test_git_fetch_undo() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     ◉  000000000000
     "###);
 
@@ -783,7 +780,7 @@ fn test_fetch_undo_what() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     ◉  000000000000
     "###);
 
@@ -949,7 +946,7 @@ fn test_git_fetch_removed_branch() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     ◉  000000000000
     "###);
 
@@ -962,7 +959,7 @@ fn test_git_fetch_removed_branch() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     │ @  230dd059e1b0
     ├─╯
     ◉  000000000000
@@ -982,7 +979,7 @@ fn test_git_fetch_removed_branch() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     │ @  230dd059e1b0
     ├─╯
     ◉  000000000000
@@ -998,7 +995,7 @@ fn test_git_fetch_removed_branch() {
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     │ @  230dd059e1b0
     ├─╯
     ◉  000000000000
@@ -1029,7 +1026,7 @@ fn test_git_fetch_removed_parent_branch() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     ◉  000000000000
     "###);
 
@@ -1042,7 +1039,7 @@ fn test_git_fetch_removed_parent_branch() {
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
     ├─╯
-    ◉  ff36dc55760e descr_for_trunk1 master trunk1
+    ◉  ff36dc55760e descr_for_trunk1 trunk1
     │ @  230dd059e1b0
     ├─╯
     ◉  000000000000
