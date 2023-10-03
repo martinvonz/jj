@@ -1206,7 +1206,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
             .backend_impl()
             .downcast_ref::<GitBackend>()
             .unwrap()
-            .git_repo_clone();
+            .open_git_repo()?;
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         workspace_command.snapshot(ui)?;
         if workspace_command.working_copy_shared_with_git() {

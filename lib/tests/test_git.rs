@@ -79,7 +79,7 @@ fn get_git_backend(repo: &Arc<ReadonlyRepo>) -> &GitBackend {
 }
 
 fn get_git_repo(repo: &Arc<ReadonlyRepo>) -> git2::Repository {
-    get_git_backend(repo).git_repo_clone()
+    get_git_backend(repo).open_git_repo().unwrap()
 }
 
 #[test]

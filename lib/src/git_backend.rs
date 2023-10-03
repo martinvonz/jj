@@ -158,9 +158,10 @@ impl GitBackend {
         self.repo.lock().unwrap()
     }
 
-    pub fn git_repo_clone(&self) -> git2::Repository {
-        let path = self.repo.lock().unwrap().path().to_owned();
-        git2::Repository::open(path).unwrap()
+    /// Creates new owned git repository instance.
+    pub fn open_git_repo(&self) -> Result<git2::Repository, git2::Error> {
+        let locked_repo = self.git_repo();
+        git2::Repository::open(locked_repo.path())
     }
 
     /// Git configuration for this repository.

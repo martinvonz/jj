@@ -187,7 +187,7 @@ pub struct GitSubmodulePrintGitmodulesArgs {
 fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     match store.backend_impl().downcast_ref::<GitBackend>() {
         None => Err(user_error("The repo is not backed by a git repo")),
-        Some(git_backend) => Ok(git_backend.git_repo_clone()),
+        Some(git_backend) => Ok(git_backend.open_git_repo()?),
     }
 }
 
