@@ -800,7 +800,7 @@ impl WorkspaceCommandHelper {
             return Ok(());
         }
 
-        print_git_import_stats(ui, &tx, &stats)?;
+        print_git_import_stats(ui, &stats)?;
         let mut tx = tx.into_inner();
         let old_git_head = self.repo().view().git_head().clone();
         let new_git_head = tx.mut_repo().view().git_head().clone();
@@ -1791,22 +1791,14 @@ pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std
     Ok(())
 }
 
-pub fn print_git_import_stats(
-    ui: &mut Ui,
-    tx: &WorkspaceCommandTransaction,
-    stats: &GitImportStats,
-) -> Result<(), CommandError> {
+pub fn print_git_import_stats(ui: &mut Ui, stats: &GitImportStats) -> Result<(), CommandError> {
     // TODO: maybe better to write status messages to stderr
     if !stats.abandoned_commits.is_empty() {
-        ui.write("Abandoned the following commits:\n")?;
-        let store = tx.base_repo().store();
-        let helper = tx.base_workspace_helper();
-        for id in &stats.abandoned_commits {
-            ui.write("  ")?;
-            let commit = store.get_commit(id)?;
-            helper.write_commit_summary(ui.stdout_formatter().as_mut(), &commit)?;
-            ui.write("\n")?;
-        }
+        writeln!(
+            ui,
+            "Abandoned {} commits that are no longer reachable.",
+            stats.abandoned_commits.len()
+        )?;
     }
     Ok(())
 }

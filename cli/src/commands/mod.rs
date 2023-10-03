@@ -1219,7 +1219,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
                 &command.settings().git_settings(),
                 |ref_name| !jj_lib::git::is_reserved_git_remote_ref(ref_name),
             )?;
-            print_git_import_stats(ui, &tx, &stats)?;
+            print_git_import_stats(ui, &stats)?;
             if let Some(git_head_id) = tx.mut_repo().view().git_head().as_normal().cloned() {
                 let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
                 tx.check_out(&git_head_commit)?;

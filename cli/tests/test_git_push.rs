@@ -295,9 +295,7 @@ fn test_git_push_multiple() {
       Delete branch branch1 from 45a3aa29e907
       Force branch branch2 from 8476341eb395 to 15dcdaa4f12f
       Add branch my-branch to 15dcdaa4f12f
-    Abandoned the following commits:
-      rlzusymt 8476341e branch2@origin | (empty) description 2
-      lzmmnrxq 45a3aa29 branch1@origin | (empty) description 1
+    Abandoned 2 commits that are no longer reachable.
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -574,8 +572,7 @@ fn test_git_push_deleted() {
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Delete branch branch1 from 45a3aa29e907
-    Abandoned the following commits:
-      lzmmnrxq 45a3aa29 branch1@origin | (empty) description 1
+    Abandoned 1 commits that are no longer reachable.
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--deleted"]);
     insta::assert_snapshot!(stdout, @r###"
