@@ -26,6 +26,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{BackendError, CommitId, ObjectId};
+use crate::commit::Commit;
 use crate::git_backend::GitBackend;
 use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
 use crate::repo::{MutableRepo, Repo};
@@ -671,6 +672,24 @@ fn update_git_ref(
                 // git)
             }
         }
+    }
+    Ok(())
+}
+
+/// Sets `HEAD@git` to the parent of the given working-copy commit and resets
+/// the Git index.
+pub fn reset_head(
+    mut_repo: &mut MutableRepo,
+    git_repo: &git2::Repository,
+    wc_commit: &Commit,
+) -> Result<(), git2::Error> {
+    let first_parent_id = &wc_commit.parent_ids()[0];
+    if first_parent_id != mut_repo.store().root_commit_id() {
+        let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
+        let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
+        git_repo.set_head_detached(new_git_commit_id)?;
+        git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
+        mut_repo.set_git_head_target(RefTarget::normal(first_parent_id.clone()));
     }
     Ok(())
 }

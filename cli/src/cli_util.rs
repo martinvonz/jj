@@ -27,7 +27,7 @@ use std::time::SystemTime;
 
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
-use git2::{Oid, Repository};
+use git2::Repository;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId};
@@ -43,7 +43,7 @@ use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use jj_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
+use jj_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jj_lib::operation::Operation;
 use jj_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
@@ -849,14 +849,7 @@ impl WorkspaceCommandHelper {
     ) -> Result<(), CommandError> {
         if let Some(wc_commit_id) = mut_repo.view().get_wc_commit_id(self.workspace_id()) {
             let wc_commit = mut_repo.store().get_commit(wc_commit_id)?;
-            let first_parent_id = wc_commit.parent_ids()[0].clone();
-            if first_parent_id != *mut_repo.store().root_commit_id() {
-                let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
-                let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
-                git_repo.set_head_detached(new_git_commit_id)?;
-                git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
-                mut_repo.set_git_head_target(RefTarget::normal(first_parent_id));
-            }
+            git::reset_head(mut_repo, git_repo, &wc_commit)?;
         } else {
             // The workspace was removed (maybe the user undid the
             // initialization of the workspace?), which is weird,
