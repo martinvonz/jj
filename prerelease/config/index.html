@@ -1800,7 +1800,8 @@ a <code>$</code>):</p>
 <a href="https://github.com/so-fancy/diff-so-fancy"><code>diff-so-fancy</code></a> before piping it
 through a pager you must do it using a subshell as, unlike <code>git</code> or <code>hg</code>, the
 command will be executed directly. For example:</p>
-<p><code>ui.pager = ["sh", "-c", "diff-so-fancy | less -RFX"]</code></p>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">pager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;-c&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;diff-so-fancy | less -RFX&quot;</span><span class="p">]</span>
+</code></pre></div>
 <h2 id="aliases">Aliases<a class="headerlink" href="#aliases" title="Permanent link">&para;</a></h2>
 <p>You can define aliases for commands, including their arguments. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># `jj l` shows commits on the working-copy commit&#39;s (anonymous) branch</span>
