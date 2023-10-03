@@ -2169,7 +2169,7 @@ pub fn write_config_value_to_file(
     })?;
 
     // Apply config value
-    // Iterpret value as string unless it's another simple scalar type.
+    // Interpret value as string unless it's another simple scalar type.
     // TODO(#531): Infer types based on schema (w/ --type arg to override).
     let item = match toml_edit::Value::from_str(value_str) {
         Ok(value @ toml_edit::Value::Boolean(..))
