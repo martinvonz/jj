@@ -945,7 +945,7 @@ impl WorkspaceCommandHelper {
 
     pub fn git_config(&self) -> Result<git2::Config, git2::Error> {
         if let Some(git_backend) = self.git_backend() {
-            git_backend.git_repo().config()
+            git_backend.git_config()
         } else {
             git2::Config::open_default()
         }
@@ -975,10 +975,8 @@ impl WorkspaceCommandHelper {
             git_ignores = git_ignores.chain_with_file("", excludes_file_path);
         }
         if let Some(git_backend) = self.git_backend() {
-            git_ignores = git_ignores.chain_with_file(
-                "",
-                git_backend.git_repo().path().join("info").join("exclude"),
-            );
+            git_ignores = git_ignores
+                .chain_with_file("", git_backend.git_repo_path().join("info").join("exclude"));
         }
         git_ignores
     }
@@ -1676,8 +1674,10 @@ fn is_colocated_git_workspace(workspace: &Workspace, repo: &ReadonlyRepo) -> boo
     let Some(git_backend) = repo.store().backend_impl().downcast_ref::<GitBackend>() else {
         return false;
     };
-    let git_repo = git_backend.git_repo();
-    let Some(git_workdir) = git_repo.workdir().and_then(|path| path.canonicalize().ok()) else {
+    let Some(git_workdir) = git_backend
+        .git_workdir()
+        .and_then(|path| path.canonicalize().ok())
+    else {
         return false; // Bare repository
     };
     // Colocated workspace should have ".git" directory, file, or symlink. Since the
