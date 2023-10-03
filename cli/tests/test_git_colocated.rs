@@ -96,6 +96,138 @@ fn test_git_colocated() {
 }
 
 #[test]
+fn test_git_colocated_unborn_branch() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&workspace_root).unwrap();
+
+    let add_file_to_index = |name: &str, data: &str| {
+        std::fs::write(workspace_root.join(name), data).unwrap();
+        let mut index = git_repo.index().unwrap();
+        index.add_path(Path::new(name)).unwrap();
+        index.write().unwrap();
+    };
+    let checkout_index = || {
+        let mut index = git_repo.index().unwrap();
+        index.read(true).unwrap(); // discard in-memory cache
+        git_repo.checkout_index(Some(&mut index), None).unwrap();
+    };
+
+    // Initially, HEAD isn't set.
+    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    assert!(git_repo.head().is_err());
+    assert_eq!(
+        git_repo.find_reference("HEAD").unwrap().symbolic_target(),
+        Some("refs/heads/master")
+    );
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ◉  0000000000000000000000000000000000000000
+    "###);
+
+    // Stage some change, and check out root. This shouldn't clobber the HEAD.
+    add_file_to_index("file0", "");
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&workspace_root, &["checkout", "root()"]), @r###"
+    Working copy now at: kkmpptxz fcdbbd73 (empty) (no description set)
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    assert!(git_repo.head().is_err());
+    assert_eq!(
+        git_repo.find_reference("HEAD").unwrap().symbolic_target(),
+        Some("refs/heads/master")
+    );
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  fcdbbd731496cae17161cd6be9b6cf1f759655a8
+    │ ◉  1de814dbef9641cc6c5c80d2689b80778edcce09
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+    // Staged change shouldn't persist.
+    checkout_index();
+    insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["status"]), @r###"
+    The working copy is clean
+    Working copy : kkmpptxz fcdbbd73 (empty) (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+
+    // Stage some change, and create new HEAD. This shouldn't move the default
+    // branch.
+    add_file_to_index("file1", "");
+    insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["new"]), @r###"
+    Working copy now at: royxmykx 76c60bf0 (empty) (no description set)
+    Parent commit      : kkmpptxz f8d5bc77 (no description set)
+    "###);
+    assert!(git_repo.head().unwrap().symbolic_target().is_none());
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
+        @"f8d5bc772d1147351fd6e8cea52a4f935d3b31e7"
+    );
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  76c60bf0a66dcbe74d74d58c23848d96f9e86e84
+    ◉  f8d5bc772d1147351fd6e8cea52a4f935d3b31e7 HEAD@git
+    │ ◉  1de814dbef9641cc6c5c80d2689b80778edcce09
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+    // Staged change shouldn't persist.
+    checkout_index();
+    insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["status"]), @r###"
+    The working copy is clean
+    Working copy : royxmykx 76c60bf0 (empty) (no description set)
+    Parent commit: kkmpptxz f8d5bc77 (no description set)
+    "###);
+
+    // Assign the default branch. The branch is no longer "unborn".
+    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "-r@-", "master"]);
+
+    // Stage some change, and check out root again. This should unset the HEAD.
+    // https://github.com/martinvonz/jj/issues/1495
+    add_file_to_index("file2", "");
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&workspace_root, &["checkout", "root()"]), @r###"
+    Working copy now at: znkkpsqq 10dd328b (empty) (no description set)
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    Added 0 files, modified 0 files, removed 2 files
+    "###);
+    assert!(git_repo.head().is_err());
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  10dd328bb906e15890e55047740eab2812a3b2f7
+    │ ◉  2c576a57d2e6e8494616629cfdbb8fe5e3fea73b
+    │ ◉  f8d5bc772d1147351fd6e8cea52a4f935d3b31e7 master
+    ├─╯
+    │ ◉  1de814dbef9641cc6c5c80d2689b80778edcce09
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+    // Staged change shouldn't persist.
+    checkout_index();
+    insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["status"]), @r###"
+    The working copy is clean
+    Working copy : znkkpsqq 10dd328b (empty) (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+
+    // New snapshot and commit can be created after the HEAD got unset.
+    std::fs::write(workspace_root.join("file3"), "").unwrap();
+    insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["new"]), @r###"
+    Working copy now at: wqnwkozp cab23370 (empty) (no description set)
+    Parent commit      : znkkpsqq 8f5b2638 (no description set)
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  cab233704a5c0b21bde070943055f22142fb2043
+    ◉  8f5b263819457712a2937428b9c58a2a84afbb1c HEAD@git
+    │ ◉  2c576a57d2e6e8494616629cfdbb8fe5e3fea73b
+    │ ◉  f8d5bc772d1147351fd6e8cea52a4f935d3b31e7 master
+    ├─╯
+    │ ◉  1de814dbef9641cc6c5c80d2689b80778edcce09
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+}
+
+#[test]
 fn test_git_colocated_export_branches_on_snapshot() {
     // Checks that we export branches that were changed only because the working
     // copy was snapshotted

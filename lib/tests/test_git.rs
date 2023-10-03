@@ -35,6 +35,7 @@ use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::{GitSettings, UserSettings};
 use jj_lib::view::RefName;
+use jj_lib::workspace::Workspace;
 use maplit::{btreemap, hashset};
 use tempfile::TempDir;
 use testutils::{
@@ -1570,6 +1571,64 @@ fn test_export_reexport_transitions() {
             "refs/heads/XAX".to_string() => RefTarget::normal(commit_a.id().clone()),
         }
     );
+}
+
+#[test]
+fn test_reset_head_to_root() {
+    // Create colocated workspace
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let workspace_root = temp_dir.path().join("repo");
+    let git_repo = git2::Repository::init(&workspace_root).unwrap();
+    let (_workspace, repo) =
+        Workspace::init_external_git(&settings, &workspace_root, &workspace_root.join(".git"))
+            .unwrap();
+
+    let mut tx = repo.start_transaction(&settings, "test");
+    let mut_repo = tx.mut_repo();
+
+    let root_commit_id = repo.store().root_commit_id();
+    let tree_id = repo.store().empty_merged_tree_id();
+    let commit1 = mut_repo
+        .new_commit(&settings, vec![root_commit_id.clone()], tree_id.clone())
+        .write()
+        .unwrap();
+    let commit2 = mut_repo
+        .new_commit(&settings, vec![commit1.id().clone()], tree_id.clone())
+        .write()
+        .unwrap();
+
+    // Set Git HEAD to commit2's parent (i.e. commit1)
+    git::reset_head(tx.mut_repo(), &git_repo, &commit2).unwrap();
+    assert!(git_repo.head().is_ok());
+    assert_eq!(
+        tx.mut_repo().git_head(),
+        RefTarget::normal(commit1.id().clone())
+    );
+
+    // Set Git HEAD back to root
+    git::reset_head(tx.mut_repo(), &git_repo, &commit1).unwrap();
+    assert!(git_repo.head().is_err());
+    assert!(tx.mut_repo().git_head().is_absent());
+
+    // Move placeholder ref as if new commit were created by git
+    git_repo
+        .reference("refs/jj/root", git_id(&commit1), false, "")
+        .unwrap();
+    git::reset_head(tx.mut_repo(), &git_repo, &commit2).unwrap();
+    assert!(git_repo.head().is_ok());
+    assert_eq!(
+        tx.mut_repo().git_head(),
+        RefTarget::normal(commit1.id().clone())
+    );
+    assert!(git_repo.find_reference("refs/jj/root").is_ok());
+
+    // Set Git HEAD back to root
+    git::reset_head(tx.mut_repo(), &git_repo, &commit1).unwrap();
+    assert!(git_repo.head().is_err());
+    assert!(tx.mut_repo().git_head().is_absent());
+    // The placeholder ref should be deleted
+    assert!(git_repo.find_reference("refs/jj/root").is_err());
 }
 
 #[test]
