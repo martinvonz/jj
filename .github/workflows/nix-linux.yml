@@ -23,5 +23,5 @@ jobs:
         with:
           fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@65d7c888b2778e8cf30a07a88422ccb23499bfb8
-      - uses: DeterminateSystems/magic-nix-cache-action@749fc5bbc9fa49d60c2b93f6c4bc867b82e1d295
+      - uses: DeterminateSystems/magic-nix-cache-action@a04e6275a6bea232cd04fc6f3cbf20d4cb02a3e1
       - run: nix ${{ matrix.mode }} --print-build-logs --show-trace
