@@ -201,7 +201,8 @@ fn test_resolve_symbol_change_id(readonly: bool) {
         .backend_impl()
         .downcast_ref::<GitBackend>()
         .unwrap()
-        .git_repo_clone();
+        .open_git_repo()
+        .unwrap();
     // Add some commits that will end up having change ids with common prefixes
     let empty_tree_id = git_repo.treebuilder(None).unwrap().write().unwrap();
     let git_author = git2::Signature::new(
