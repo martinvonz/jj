@@ -842,23 +842,6 @@ impl WorkspaceCommandHelper {
         Ok(())
     }
 
-    fn export_head_to_git(
-        &self,
-        mut_repo: &mut MutableRepo,
-        git_repo: &git2::Repository,
-    ) -> Result<(), CommandError> {
-        if let Some(wc_commit_id) = mut_repo.view().get_wc_commit_id(self.workspace_id()) {
-            let wc_commit = mut_repo.store().get_commit(wc_commit_id)?;
-            git::reset_head(mut_repo, git_repo, &wc_commit)?;
-        } else {
-            // The workspace was removed (maybe the user undid the
-            // initialization of the workspace?), which is weird,
-            // but we should probably just not do anything else here.
-            // Except maybe print a note about it?
-        }
-        Ok(())
-    }
-
     pub fn repo(&self) -> &Arc<ReadonlyRepo> {
         &self.user_repo.repo
     }
@@ -1399,25 +1382,19 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         &mut self,
         ui: &mut Ui,
         maybe_old_commit: Option<&Commit>,
+        new_commit: &Commit,
     ) -> Result<(), CommandError> {
         assert!(self.may_update_working_copy);
-        let new_commit = match self.get_wc_commit_id() {
-            Some(commit_id) => self.repo().store().get_commit(commit_id)?,
-            None => {
-                // It seems the workspace was deleted, so we shouldn't try to update it.
-                return Ok(());
-            }
-        };
         let stats = update_working_copy(
             &self.user_repo.repo,
             self.workspace.working_copy_mut(),
             maybe_old_commit,
-            &new_commit,
+            new_commit,
         )?;
-        if Some(&new_commit) != maybe_old_commit {
+        if Some(new_commit) != maybe_old_commit {
             ui.write("Working copy now at: ")?;
             ui.stdout_formatter().with_label("working_copy", |fmt| {
-                self.write_commit_summary(fmt, &new_commit)
+                self.write_commit_summary(fmt, new_commit)
             })?;
             ui.write("\n")?;
             for parent in new_commit.parents() {
@@ -1455,15 +1432,28 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             .get_wc_commit_id(self.workspace_id())
             .map(|commit_id| tx.base_repo().store().get_commit(commit_id))
             .transpose()?;
+        let maybe_new_wc_commit = tx
+            .repo()
+            .view()
+            .get_wc_commit_id(self.workspace_id())
+            .map(|commit_id| tx.repo().store().get_commit(commit_id))
+            .transpose()?;
         if self.working_copy_shared_with_git {
             let git_repo = self.git_backend().unwrap().open_git_repo()?;
-            self.export_head_to_git(tx.mut_repo(), &git_repo)?;
+            if let Some(wc_commit) = &maybe_new_wc_commit {
+                git::reset_head(tx.mut_repo(), &git_repo, wc_commit)?;
+            }
             let failed_branches = git::export_refs(tx.mut_repo(), &git_repo)?;
             print_failed_git_export(ui, &failed_branches)?;
         }
         self.user_repo = ReadonlyUserRepo::new(tx.commit());
         if self.may_update_working_copy {
-            self.update_working_copy(ui, maybe_old_wc_commit.as_ref())?;
+            if let Some(new_commit) = &maybe_new_wc_commit {
+                self.update_working_copy(ui, maybe_old_wc_commit.as_ref(), new_commit)?;
+            } else {
+                // It seems the workspace was deleted, so we shouldn't try to
+                // update it.
+            }
         }
         let settings = &self.settings;
         if settings.user_name().is_empty() || settings.user_email().is_empty() {
