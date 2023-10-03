@@ -19,7 +19,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::fs;
 use std::io::{Cursor, Read};
 use std::ops::Deref;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use git2::Oid;
@@ -161,6 +161,21 @@ impl GitBackend {
     pub fn git_repo_clone(&self) -> git2::Repository {
         let path = self.repo.lock().unwrap().path().to_owned();
         git2::Repository::open(path).unwrap()
+    }
+
+    /// Git configuration for this repository.
+    pub fn git_config(&self) -> Result<git2::Config, git2::Error> {
+        self.git_repo().config()
+    }
+
+    /// Path to the `.git` directory or the repository itself if it's bare.
+    pub fn git_repo_path(&self) -> PathBuf {
+        self.git_repo().path().to_owned()
+    }
+
+    /// Path to the working directory if the repository isn't bare.
+    pub fn git_workdir(&self) -> Option<PathBuf> {
+        self.git_repo().workdir().map(|path| path.to_owned())
     }
 
     fn cached_extra_metadata_table(&self) -> BackendResult<Arc<ReadonlyTable>> {
