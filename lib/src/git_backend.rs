@@ -154,7 +154,7 @@ impl GitBackend {
         Ok(GitBackend::new(repo, extra_metadata_store))
     }
 
-    pub fn git_repo(&self) -> MutexGuard<'_, git2::Repository> {
+    fn git_repo(&self) -> MutexGuard<'_, git2::Repository> {
         self.repo.lock().unwrap()
     }
 

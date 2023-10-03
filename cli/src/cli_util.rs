@@ -842,13 +842,11 @@ impl WorkspaceCommandHelper {
         Ok(())
     }
 
-    fn export_head_to_git(&self, mut_repo: &mut MutableRepo) -> Result<(), CommandError> {
-        let git_repo = mut_repo
-            .store()
-            .backend_impl()
-            .downcast_ref::<GitBackend>()
-            .unwrap()
-            .git_repo_clone();
+    fn export_head_to_git(
+        &self,
+        mut_repo: &mut MutableRepo,
+        git_repo: &git2::Repository,
+    ) -> Result<(), CommandError> {
         if let Some(wc_commit_id) = mut_repo.view().get_wc_commit_id(self.workspace_id()) {
             let wc_commit = mut_repo.store().get_commit(wc_commit_id)?;
             let first_parent_id = wc_commit.parent_ids()[0].clone();
@@ -1393,8 +1391,8 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             }
 
             if self.working_copy_shared_with_git {
-                let failed_branches =
-                    git::export_refs(mut_repo, &self.user_repo.git_backend().unwrap().git_repo())?;
+                let git_repo = self.user_repo.git_backend().unwrap().git_repo_clone();
+                let failed_branches = git::export_refs(mut_repo, &git_repo)?;
                 print_failed_git_export(ui, &failed_branches)?;
             }
 
@@ -1460,9 +1458,9 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             writeln!(ui, "Rebased {num_rebased} descendant commits")?;
         }
         if self.working_copy_shared_with_git {
-            self.export_head_to_git(mut_repo)?;
-            let failed_branches =
-                git::export_refs(mut_repo, &self.git_backend().unwrap().git_repo())?;
+            let git_repo = self.git_backend().unwrap().git_repo_clone();
+            self.export_head_to_git(mut_repo, &git_repo)?;
+            let failed_branches = git::export_refs(mut_repo, &git_repo)?;
             print_failed_git_export(ui, &failed_branches)?;
         }
         let maybe_old_commit = tx
