@@ -1,0 +1,1523 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://martinvonz.github.io/jj/prerelease/github/">
+      
+      
+        <link rel="prev" href="../tutorial/">
+      
+      
+        <link rel="next" href="../FAQ/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
+    
+    
+      
+        <title>Working with GitHub - Jujutsu docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.0e669242.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#using-jujutsu-with-github-and-gitlab-projects" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Jujutsu docs" class="md-header__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Jujutsu docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Working with GitHub
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Jujutsu docs" class="md-nav__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Jujutsu docs
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Getting started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install-and-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation and Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tutorial and Birds-Eye View
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Working with GitHub
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Working with GitHub
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#set-up-an-ssh-key" class="md-nav__link">
+    Set up an SSH key
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-workflow" class="md-nav__link">
+    Basic workflow
+  </a>
+  
+    <nav class="md-nav" aria-label="Basic workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-a-generated-branch-name" class="md-nav__link">
+    Using a generated branch name
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-a-named-branch" class="md-nav__link">
+    Using a named branch
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#updating-the-repository" class="md-nav__link">
+    Updating the repository.
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-in-a-git-co-located-repository" class="md-nav__link">
+    Working in a Git co-located repository
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-in-a-jujutsu-repository" class="md-nav__link">
+    Working in a Jujutsu repository
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#addressing-review-comments" class="md-nav__link">
+    Addressing review comments
+  </a>
+  
+    <nav class="md-nav" aria-label="Addressing review comments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-new-commits" class="md-nav__link">
+    Adding new commits
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rewriting-commits" class="md-nav__link">
+    Rewriting commits
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-other-peoples-branches" class="md-nav__link">
+    Working with other people's branches
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-github-cli" class="md-nav__link">
+    Using GitHub CLI
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#useful-revsets" class="md-nav__link">
+    Useful Revsets
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#merge-conflicts" class="md-nav__link">
+    Merge conflicts
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-several-remotes" class="md-nav__link">
+    Using several remotes
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../FAQ/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FAQ
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../working-copy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working Copy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operation-log/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Operation Log
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Glossary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Settings
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../revsets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Revset language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../templates/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Templating language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Comparisons
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Comparisons
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git comparison
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-compatibility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git compatibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sapling-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sapling
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../related-work/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Other related work
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Technical details
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Technical details
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/concurrency/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Concurrency
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Contributing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Guidelines and "How to...?"
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../code-of-conduct/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Code of conduct
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Design docs
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Design docs
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/git-submodules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/git-submodule-storage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodule-storage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/run/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JJ run
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/tracking-branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tracking branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#set-up-an-ssh-key" class="md-nav__link">
+    Set up an SSH key
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-workflow" class="md-nav__link">
+    Basic workflow
+  </a>
+  
+    <nav class="md-nav" aria-label="Basic workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-a-generated-branch-name" class="md-nav__link">
+    Using a generated branch name
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-a-named-branch" class="md-nav__link">
+    Using a named branch
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#updating-the-repository" class="md-nav__link">
+    Updating the repository.
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-in-a-git-co-located-repository" class="md-nav__link">
+    Working in a Git co-located repository
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-in-a-jujutsu-repository" class="md-nav__link">
+    Working in a Jujutsu repository
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#addressing-review-comments" class="md-nav__link">
+    Addressing review comments
+  </a>
+  
+    <nav class="md-nav" aria-label="Addressing review comments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-new-commits" class="md-nav__link">
+    Adding new commits
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rewriting-commits" class="md-nav__link">
+    Rewriting commits
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-other-peoples-branches" class="md-nav__link">
+    Working with other people's branches
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-github-cli" class="md-nav__link">
+    Using GitHub CLI
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#useful-revsets" class="md-nav__link">
+    Useful Revsets
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#merge-conflicts" class="md-nav__link">
+    Merge conflicts
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-several-remotes" class="md-nav__link">
+    Using several remotes
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="using-jujutsu-with-github-and-gitlab-projects">Using Jujutsu with GitHub and GitLab Projects<a class="headerlink" href="#using-jujutsu-with-github-and-gitlab-projects" title="Permanent link">&para;</a></h1>
+<p>This guide assumes a basic understanding of either Git or Mercurial.</p>
+<h2 id="set-up-an-ssh-key">Set up an SSH key<a class="headerlink" href="#set-up-an-ssh-key" title="Permanent link">&para;</a></h2>
+<p>As of December 2022 it's recommended to set up an SSH key to work with GitHub
+projects. See <a href="https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent">GitHub's Tutorial</a>. This restriction may be lifted in the
+future, see <a href="https://github.com/martinvonz/jj/issues/469">issue #469</a> for more information and progress on
+authenticated http.</p>
+<h2 id="basic-workflow">Basic workflow<a class="headerlink" href="#basic-workflow" title="Permanent link">&para;</a></h2>
+<p>The simplest way to start with Jujutsu is to create a stack of commits first.
+You will only need to create a branch when you need to push the stack to a 
+remote. There are two primary workflows, using a generated branch name or 
+naming a branch.</p>
+<h3 id="using-a-generated-branch-name">Using a generated branch name<a class="headerlink" href="#using-a-generated-branch-name" title="Permanent link">&para;</a></h3>
+<p>In this example we're letting Jujutsu auto-create a branch.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Start a new commit off of the default branch.</span>
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>main
+<span class="c1"># Refactor some files, then add a description and start a new commit</span>
+$<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;refactor(foo): restructure foo()&#39;</span>
+<span class="c1"># Add a feature, then add a description and start a new commit</span>
+$<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;feat(bar): add support for bar&#39;</span>
+<span class="c1"># Let Jujutsu generate a branch name and push that to GitHub</span>
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>-c<span class="w"> </span>@-
+</code></pre></div>
+<h3 id="using-a-named-branch">Using a named branch<a class="headerlink" href="#using-a-named-branch" title="Permanent link">&para;</a></h3>
+<p>In this example, we create a branch named <code>bar</code> and then push it to the remote.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Start a new commit off of the default branch.</span>
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>main
+<span class="c1"># Refactor some files, then add a description and start a new commit</span>
+$<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;refactor(foo): restructure foo()&#39;</span>
+<span class="c1"># Add a feature, then add a description and start a new commit</span>
+$<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;feat(bar): add support for bar&#39;</span>
+<span class="c1"># Create a branch so we can push it to GitHub</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>create<span class="w"> </span>bar<span class="w"> </span>-r<span class="w"> </span>@-<span class="w"> </span><span class="c1"># create a branch `bar` that now contains the previous two commits.</span>
+<span class="c1"># Push the branch to GitHub (pushes only `bar`)</span>
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
+</code></pre></div>
+<p>While it's possible to create a branch and commit on top of it in a Git-like
+manner, you will then need to move the branch manually when you create a new 
+commits. Unlike Git, Jujutsu will not do it automatically .</p>
+<h2 id="updating-the-repository">Updating the repository.<a class="headerlink" href="#updating-the-repository" title="Permanent link">&para;</a></h2>
+<p>As of December 2022, Jujutsu has no equivalent to a <code>git pull</code> command. Until
+such a command is added, you need to use <code>jj git fetch</code> followed by a
+<code>jj rebase -d $main_branch</code> to update your changes.</p>
+<h2 id="working-in-a-git-co-located-repository">Working in a Git co-located repository<a class="headerlink" href="#working-in-a-git-co-located-repository" title="Permanent link">&para;</a></h2>
+<p>After doing <code>jj init --git-repo=.</code>, git will be in
+a <a href="https://git-scm.com/docs/git-checkout#_detached_head">detached HEAD state</a>, which is unusual, as git mainly works with
+branches. In a co-located repository, <code>jj</code> isn't the source of truth. But
+Jujutsu allows an incremental migration, as <code>jj commit</code> updates the HEAD of the
+git repository.</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>nvim<span class="w"> </span>docs/tutorial.md
+$<span class="w"> </span><span class="c1"># Do some more work.</span>
+$<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Update tutorial&quot;</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>create<span class="w"> </span>doc-update
+$<span class="w"> </span><span class="c1"># Move the previous revision to doc-update.</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span><span class="nb">set</span><span class="w"> </span>doc-update<span class="w"> </span>-r<span class="w"> </span>@-
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
+</code></pre></div>
+<h2 id="working-in-a-jujutsu-repository">Working in a Jujutsu repository<a class="headerlink" href="#working-in-a-jujutsu-repository" title="Permanent link">&para;</a></h2>
+<p>In a Jujutsu repository, the workflow is simplified. If there's no need for
+explicitly named branches, you just can generate one for a change. As Jujutsu is
+able to create a branch for a revision.</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Do your work</span>
+$<span class="w"> </span>jj<span class="w"> </span>commit
+$<span class="w"> </span><span class="c1"># Push change &quot;mw&quot;, letting Jujutsu automatically create a branch called &quot;push-mwmpwkwknuz&quot;</span>
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--change<span class="w"> </span>mw<span class="w"> </span>
+</code></pre></div>
+<h2 id="addressing-review-comments">Addressing review comments<a class="headerlink" href="#addressing-review-comments" title="Permanent link">&para;</a></h2>
+<p>There are two workflows for addressing review comments, depending on your
+project's preference. Many projects prefer that you address comments by adding
+commits to your branch<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>. Some projects (such as Jujutsu and LLVM) instead
+prefer that you keep your commits clean by rewriting them and then
+force-pushing<sup id="fnref:2"><a class="footnote-ref" href="#fn:2">2</a></sup>.</p>
+<h3 id="adding-new-commits">Adding new commits<a class="headerlink" href="#adding-new-commits" title="Permanent link">&para;</a></h3>
+<p>If your project prefers that you address review comments by adding commits on
+top, you can do that by doing something like this:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the `your-feature` branch from above.</span>
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>your-feature
+$<span class="w"> </span><span class="c1"># Address the comments, by updating the code</span>
+$<span class="w"> </span>jj<span class="w"> </span>diff
+$<span class="w"> </span><span class="c1"># Give the fix a description and create a new working-copy on top.</span>
+$<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;address pr comments&#39;</span>
+$<span class="w"> </span><span class="c1"># Update the branch to point to the new commit.</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span><span class="nb">set</span><span class="w"> </span>your-feature<span class="w"> </span>-r<span class="w"> </span>@-
+$<span class="w"> </span><span class="c1"># Push it to your remote</span>
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
+</code></pre></div>
+<p>Notably, the above workflow creates a new commit for you. The same can be 
+achieved without creating a new commit. </p>
+<blockquote>
+<p><strong>Warning</strong>
+We strongly suggest to <code>jj new</code> after the example below, as all further edits
+still get amended to the previous commit.</p>
+</blockquote>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the `your-feature` branch from above.</span>
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>your-feature
+$<span class="w"> </span><span class="c1"># Address the comments, by updating the code</span>
+$<span class="w"> </span>jj<span class="w"> </span>diff
+$<span class="w"> </span><span class="c1"># Give the fix a description.</span>
+$<span class="w"> </span>jj<span class="w"> </span>describe<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;address pr comments&#39;</span>
+$<span class="w"> </span><span class="c1"># Update the branch to point to the current commit.</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span><span class="nb">set</span><span class="w"> </span>your-feature<span class="w"> </span>-r<span class="w"> </span>@
+$<span class="w"> </span><span class="c1"># Push it to your remote</span>
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
+</code></pre></div>
+<h3 id="rewriting-commits">Rewriting commits<a class="headerlink" href="#rewriting-commits" title="Permanent link">&para;</a></h3>
+<p>If your project prefers that you keep commits clean, you can do that by doing
+something like this:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the second-to-last commit in `your-feature`,</span>
+$<span class="w"> </span><span class="c1"># as reviews requested a fix there.</span>
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>your-feature-<span class="w"> </span><span class="c1"># NOTE: the trailing hyphen is not a typo!</span>
+$<span class="w"> </span><span class="c1"># Address the comments by updating the code</span>
+$<span class="w"> </span><span class="c1"># Review the changes</span>
+$<span class="w"> </span>jj<span class="w"> </span>diff
+$<span class="w"> </span><span class="c1"># Squash the changes into the parent commit</span>
+$<span class="w"> </span>jj<span class="w"> </span>squash
+$<span class="w"> </span><span class="c1"># Push the updated branch to the remote. Jujutsu automatically makes it a force push</span>
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--branch<span class="w"> </span>your-feature
+</code></pre></div>
+<p>The hyphen after <code>your-feature</code> comes from <a href="https://github.com/martinvonz/jj/blob/main/docs/revsets.md">revset</a> syntax.</p>
+<h2 id="working-with-other-peoples-branches">Working with other people's branches<a class="headerlink" href="#working-with-other-peoples-branches" title="Permanent link">&para;</a></h2>
+<p>By default <code>jj git clone</code> and <code>jj git fetch</code> clone all active branches from
+the remote. This means that if you want to iterate or test another 
+contributor's branch you can <code>jj new &lt;branchname&gt;</code> onto it.</p>
+<p>If your remote has a large amount of old, inactive branches or this feature is
+undesirable, set <code>git.auto-local-branch = false</code> in the config file.</p>
+<p>You can find more information on that setting <a href="../config/#automatic-local-branch-creation">here</a>.</p>
+<h2 id="using-github-cli">Using GitHub CLI<a class="headerlink" href="#using-github-cli" title="Permanent link">&para;</a></h2>
+<p>GitHub CLI will have trouble finding the proper git repository path in jj repos
+that aren't <a href="../git-compatibility/#co-located-jujutsugit-repos">co-located</a>
+(see <a href="https://github.com/martinvonz/jj/issues/1008">issue #1008</a>). You can configure the <code>$GIT_DIR</code> environment variable to
+point it to the right path:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="nv">GIT_DIR</span><span class="o">=</span>.jj/repo/store/git<span class="w"> </span>gh<span class="w"> </span>issue<span class="w"> </span>list
+</code></pre></div>
+<p>You can make that automatic by installing <a href="https://direnv.net">direnv</a> and
+defining hooks in a .envrc file in the repository root to configure <code>$GIT_DIR</code>.
+Just add this line into .envrc:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_DIR</span><span class="o">=</span><span class="nv">$PWD</span>/.jj/repo/store/git
+</code></pre></div>
+<p>and run <code>direnv allow</code> to approve it for direnv to run. Then GitHub CLI will
+work automatically even in repos that aren't co-located so you can execute
+commands like <code>gh issue list</code> normally.</p>
+<h2 id="useful-revsets">Useful Revsets<a class="headerlink" href="#useful-revsets" title="Permanent link">&para;</a></h2>
+<p>Log all revisions across all local branches, which aren't on the main branch nor
+on any remote
+<code>jj log -r 'branches() &amp; ~(main | remote_branches())'</code>
+Log all revisions which you authored, across all branches which aren't on any
+remote
+<code>jj log -r 'mine() &amp; branches() &amp; ~remote_branches()'</code>
+Log all remote branches, which you authored or committed to
+<code>jj log -r 'remote_branches() &amp; (mine() | committer(your@email.com))'</code>
+Log all descendants of the current working copy, which aren't on a remote
+<code>jj log -r '::@ &amp; ~remote_branches()'</code></p>
+<h2 id="merge-conflicts">Merge conflicts<a class="headerlink" href="#merge-conflicts" title="Permanent link">&para;</a></h2>
+<p>For a detailed overview, how Jujutsu handles conflicts, revisit
+the <a href="../tutorial/#Conflicts">tutorial</a>.</p>
+<h2 id="using-several-remotes">Using several remotes<a class="headerlink" href="#using-several-remotes" title="Permanent link">&para;</a></h2>
+<p>It is common to use several remotes when contributing to a shared repository.
+For example,
+"upstream" can designate the remote where the changes will be merged through a
+pull-request while "origin" is your private fork of the project. In this case,
+you might want to
+<code>jj git fetch</code> from "upstream" and to <code>jj git push</code> to "origin".</p>
+<p>You can configure the default remotes to fetch from and push to in your
+configuration file
+(for example <code>.jj/repo/config.toml</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="k">[git]</span>
+<span class="n">fetch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;upstream&quot;</span>
+<span class="n">push</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;origin&quot;</span>
+</code></pre></div>
+<p>The default for both <code>git.fetch</code> and <code>git.push</code> is "origin".</p>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:1">
+<p>This is a GitHub Style review, as GitHub currently only is able to compare
+branches.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+<li id="fn:2">
+<p>If you're wondering why we prefer clean commits in this project, see
+e.g. <a href="https://jg.gg/2018/09/29/stacked-diffs-versus-pull-requests/">this blog post</a>&#160;<a class="footnote-backref" href="#fnref:2" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.dfff1995.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.78eede0e.min.js"></script>
+      
+    
+  </body>
+</html>
