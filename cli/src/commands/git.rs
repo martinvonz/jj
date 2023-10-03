@@ -347,7 +347,7 @@ fn cmd_git_fetch(
             GitFetchError::InternalGitError(err) => map_git_error(err),
             _ => user_error(err.to_string()),
         })?;
-        print_git_import_stats(ui, &tx, &stats.import_stats)?;
+        print_git_import_stats(ui, &stats.import_stats)?;
     }
     tx.finish(ui)?;
     Ok(())
@@ -548,7 +548,7 @@ fn do_git_clone(
             unreachable!("we didn't provide any globs")
         }
     })?;
-    print_git_import_stats(ui, &fetch_tx, &stats.import_stats)?;
+    print_git_import_stats(ui, &stats.import_stats)?;
     fetch_tx.finish(ui)?;
     Ok((workspace_command, git_repo, stats))
 }
@@ -980,7 +980,7 @@ fn cmd_git_push(
         _ => user_error(err.to_string()),
     })?;
     let stats = git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
-    print_git_import_stats(ui, &tx, &stats)?;
+    print_git_import_stats(ui, &stats)?;
     tx.finish(ui)?;
     Ok(())
 }
@@ -1029,7 +1029,7 @@ fn cmd_git_import(
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction("import git refs");
     let stats = git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
-    print_git_import_stats(ui, &tx, &stats)?;
+    print_git_import_stats(ui, &stats)?;
     tx.finish(ui)?;
     Ok(())
 }

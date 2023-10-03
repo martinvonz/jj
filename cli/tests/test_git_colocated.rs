@@ -158,8 +158,7 @@ fn test_git_colocated_rebase_on_import() {
     git_repo.branch("master", &commit1, true).unwrap();
     git_repo.set_head("refs/heads/master").unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
-    Abandoned the following commits:
-      rlvkpnrz 45fbe1af master | modify a file
+    Abandoned 1 commits that are no longer reachable.
     Done importing changes from the underlying Git repo.
     @  7f96185cfbe36341d0f9a86ebfaeab67a5922c7e
     ◉  4bcbeaba9a4b309c5f45a8807fbf5499b9714315 master HEAD@git add a file
@@ -209,8 +208,7 @@ fn test_git_colocated_branches() {
         )
         .unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
-    Abandoned the following commits:
-      kkmpptxz 35605592 master | (empty) bar
+    Abandoned 1 commits that are no longer reachable.
     Working copy now at: yqosqzyt 096dc80d (empty) (no description set)
     Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
     Done importing changes from the underlying Git repo.
@@ -298,9 +296,7 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     test_env.jj_cmd_success(&origin_path, &["describe", "C_to_move", "-m", "moved C"]);
     let stdout = test_env.jj_cmd_success(&clone_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned the following commits:
-      vnotlzrn 8d4e006f C_to_move | (empty) original C
-      wvpolxwl 929e298a B_to_delete | (empty) B_to_delete
+    Abandoned 2 commits that are no longer reachable.
     "###);
     // "original C" and "B_to_delete" are abandoned, as the corresponding branches
     // were deleted or moved on the remote (#864)
