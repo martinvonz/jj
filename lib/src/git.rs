@@ -36,6 +36,8 @@ use crate::view::{RefName, View};
 
 /// Reserved remote name for the backing Git repo.
 pub const REMOTE_NAME_FOR_LOCAL_GIT_REPO: &str = "git";
+/// Ref name used as a placeholder to unset HEAD without a commit.
+const UNBORN_ROOT_REF_NAME: &str = "refs/jj/root";
 
 #[derive(Error, Debug)]
 pub enum GitImportError {
@@ -690,6 +692,25 @@ pub fn reset_head(
         git_repo.set_head_detached(new_git_commit_id)?;
         git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
         mut_repo.set_git_head_target(RefTarget::normal(first_parent_id.clone()));
+    } else {
+        // Can't detach HEAD without a commit. Use placeholder ref to nullify the HEAD.
+        // We can't set_head() an arbitrary unborn ref, so use reference_symbolic()
+        // instead. Git CLI appears to deal with that. It would be nice if Git CLI
+        // couldn't create a commit without setting a valid branch name.
+        if mut_repo.git_head().is_present() {
+            match git_repo.find_reference(UNBORN_ROOT_REF_NAME) {
+                Ok(mut git_repo_ref) => git_repo_ref.delete()?,
+                Err(err) if err.code() == git2::ErrorCode::NotFound => {}
+                Err(err) => return Err(err),
+            }
+            git_repo.reference_symbolic("HEAD", UNBORN_ROOT_REF_NAME, true, "unset HEAD by jj")?;
+        }
+        // git_reset() of libgit2 requires a commit object. Do that manually.
+        let mut index = git_repo.index()?;
+        index.clear()?; // or read empty tree
+        index.write()?;
+        git_repo.cleanup_state()?;
+        mut_repo.set_git_head_target(RefTarget::absent());
     }
     Ok(())
 }
