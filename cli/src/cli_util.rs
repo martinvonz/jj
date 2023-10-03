@@ -1440,31 +1440,30 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
     }
 
     fn finish_transaction(&mut self, ui: &mut Ui, mut tx: Transaction) -> Result<(), CommandError> {
-        let mut_repo = tx.mut_repo();
-        let store = mut_repo.store().clone();
-        if !mut_repo.has_changes() {
+        if !tx.mut_repo().has_changes() {
             writeln!(ui, "Nothing changed.")?;
             return Ok(());
         }
-        let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
+        let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
         if num_rebased > 0 {
             writeln!(ui, "Rebased {num_rebased} descendant commits")?;
         }
-        if self.working_copy_shared_with_git {
-            let git_repo = self.git_backend().unwrap().open_git_repo()?;
-            self.export_head_to_git(mut_repo, &git_repo)?;
-            let failed_branches = git::export_refs(mut_repo, &git_repo)?;
-            print_failed_git_export(ui, &failed_branches)?;
-        }
-        let maybe_old_commit = tx
+
+        let maybe_old_wc_commit = tx
             .base_repo()
             .view()
             .get_wc_commit_id(self.workspace_id())
-            .map(|commit_id| store.get_commit(commit_id))
+            .map(|commit_id| tx.base_repo().store().get_commit(commit_id))
             .transpose()?;
+        if self.working_copy_shared_with_git {
+            let git_repo = self.git_backend().unwrap().open_git_repo()?;
+            self.export_head_to_git(tx.mut_repo(), &git_repo)?;
+            let failed_branches = git::export_refs(tx.mut_repo(), &git_repo)?;
+            print_failed_git_export(ui, &failed_branches)?;
+        }
         self.user_repo = ReadonlyUserRepo::new(tx.commit());
         if self.may_update_working_copy {
-            self.update_working_copy(ui, maybe_old_commit.as_ref())?;
+            self.update_working_copy(ui, maybe_old_wc_commit.as_ref())?;
         }
         let settings = &self.settings;
         if settings.user_name().is_empty() || settings.user_email().is_empty() {
