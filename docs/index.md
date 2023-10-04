@@ -17,7 +17,7 @@ You may want to jump to:
 ## Some useful links
 
 - [GitHub repo for `jj`](https://github.com/martinvonz/jj)
-- Overview of `jj` in the repo's [README](https://github.com/martinvonz/jj?tab=readme-ov-file#jujutsu-vcs)
+- Overview of `jj` in the repo's [README](https://github.com/martinvonz/jj?tab=readme-ov-file#readme)
 - [Installation and Setup](install-and-setup.md)
 - [Tutorial and Birds-Eye View](tutorial.md)
 - [Working with GitHub](github.md)
