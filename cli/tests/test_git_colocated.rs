@@ -411,6 +411,68 @@ fn test_git_colocated_conflicting_git_refs() {
 }
 
 #[test]
+fn test_git_colocated_checkout_non_empty_working_copy() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&workspace_root).unwrap();
+    test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+
+    // Create an initial commit in Git
+    // We use this to set HEAD to master
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    git_repo
+        .index()
+        .unwrap()
+        .add_path(Path::new("file"))
+        .unwrap();
+    let tree1_oid = git_repo.index().unwrap().write_tree().unwrap();
+    let tree1 = git_repo.find_tree(tree1_oid).unwrap();
+    let signature = git2::Signature::new(
+        "Someone",
+        "someone@example.com",
+        &git2::Time::new(1234567890, 60),
+    )
+    .unwrap();
+    git_repo
+        .commit(
+            Some("refs/heads/master"),
+            &signature,
+            &signature,
+            "initial",
+            &tree1,
+            &[],
+        )
+        .unwrap();
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
+        @"e61b6729ff4292870702f2f72b2a60165679ef37"
+    );
+
+    std::fs::write(workspace_root.join("two"), "y").unwrap();
+
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "two"]);
+    test_env.jj_cmd_ok(&workspace_root, &["co", "@-"]);
+    let (_, stderr) = test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "new"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: kkmpptxz 4c049607 (empty) new
+    Parent commit      : lnksqltp e61b6729 master | initial
+    "###);
+
+    let git_head = git_repo.find_reference("HEAD").unwrap();
+    let git_head_target = git_head.symbolic_target().unwrap();
+
+    assert_eq!(git_head_target, "refs/heads/master");
+
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  4c04960765ca906d0cb25b15a946be4c0dd71b8e new
+    │ ◉  4ec6f6506bd1903410f15b80058a7f0d8f62deea two
+    ├─╯
+    ◉  e61b6729ff4292870702f2f72b2a60165679ef37 master HEAD@git initial
+    ◉  0000000000000000000000000000000000000000
+    "###);
+}
+
+#[test]
 fn test_git_colocated_fetch_deleted_or_moved_branch() {
     let test_env = TestEnvironment::default();
     let origin_path = test_env.env_root().join("origin");
