@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+### New features
+
+### Fixed bugs
+
+## [0.10.0] - 2023-10-04
+
+### Breaking changes
+
 * A default revset-alias function `trunk()` now exists. If you previously defined
   your own `trunk()` alias it will continue to overwrite the built-in one.
   Check [revsets.toml](cli/src/config/revsets.toml) and [revsets.md](docs/revsets.md)
@@ -47,6 +55,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj commit` accepts the `--interactive` flag.
 
 ### Fixed bugs
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Austin Seipp (@thoughtpolice)
+* Emily Kyle Fox (@emilykfox)
+* glencbz (@glencbz)
+* Hong Shin (@honglooker)
+* Ilya Grigoriev (@ilyagr)
+* James Sully (@sullyj3)
+* Martin von Zweigbergk (@martinvonz)
+* Philip Metzger (@PhilipMetzger)
+* Ruben Slabbert (@rslabbert)
+* Vamsi Avula (@avamsi)
+* Waleed Khan (@arxanas)
+* Willian Mori (@wmrmrx))
+* Yuya Nishihara (@yuja)
+* Zachary Dremann (@Dr-Emann)
+
 
 ## [0.9.0] - 2023-09-06
 
