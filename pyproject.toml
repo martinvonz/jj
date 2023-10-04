@@ -13,7 +13,7 @@ python = "^3.8"
 [tool.poetry.dev-dependencies]
 mkdocs = "^1.5.2"
 mkdocs-material = "^9.2.5"
-# Makes `install-and-setup.md` open by default instead of `index.md`.
+# Allows setting up redirects when renaming docs files
 mkdocs-redirects = "^1.2.1"
 # Versioning of documentation
 mike = "^1.1.2"
