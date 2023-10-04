@@ -15,7 +15,6 @@ plugins:
     - search
     - redirects:
         redirect_maps:
-            'index.md': 'install-and-setup.md'
 
 # Not all of these may be necessary, especially since the material
 # theme substitutes for some of them
@@ -38,6 +37,8 @@ markdown_extensions:
 
 # This lists all the files that become part of the documentation
 nav:
+- 'Home': 'index.md'
+
 - 'Getting started':
       - 'Installation and Setup': 'install-and-setup.md'
       - 'Tutorial and Birds-Eye View': 'tutorial.md'
