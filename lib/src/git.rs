@@ -809,11 +809,15 @@ pub fn reset_head(
 ) -> Result<(), git2::Error> {
     let first_parent_id = &wc_commit.parent_ids()[0];
     if first_parent_id != mut_repo.store().root_commit_id() {
+        let first_parent = RefTarget::normal(first_parent_id.clone());
+        let git_head = mut_repo.view().git_head();
         let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
         let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
-        git_repo.set_head_detached(new_git_commit_id)?;
+        if git_head != &first_parent {
+            git_repo.set_head_detached(new_git_commit_id)?;
+            mut_repo.set_git_head_target(first_parent);
+        }
         git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
-        mut_repo.set_git_head_target(RefTarget::normal(first_parent_id.clone()));
     } else {
         // Can't detach HEAD without a commit. Use placeholder ref to nullify the HEAD.
         // We can't set_head() an arbitrary unborn ref, so use reference_symbolic()
