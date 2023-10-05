@@ -222,17 +222,15 @@ fn find_globs(
         let glob = glob::Pattern::new(glob_str)?;
         let names = view
             .branches()
-            .iter()
             .filter_map(|(branch_name, branch_target)| {
                 if glob.matches(branch_name)
                     && (allow_deleted || branch_target.local_target.is_present())
                 {
-                    Some(branch_name)
+                    Some(branch_name.to_owned())
                 } else {
                     None
                 }
             })
-            .cloned()
             .collect_vec();
         if names.is_empty() {
             failed_globs.push(glob);
@@ -385,10 +383,10 @@ fn cmd_branch_list(
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
 
-    let branches_to_list = view.branches().iter().filter(|&(name, _)| {
+    let branches_to_list = view.branches().filter(|&(name, _)| {
         branch_names_to_list
             .as_ref()
-            .map_or(true, |branch_names| branch_names.contains(name.as_str()))
+            .map_or(true, |branch_names| branch_names.contains(name))
     });
     for (name, branch_target) in branches_to_list {
         let found_non_git_remote = {

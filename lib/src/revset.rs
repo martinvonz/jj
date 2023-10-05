@@ -2028,14 +2028,13 @@ fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Ve
 fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<String> {
     let view = repo.view();
     view.branches()
-        .iter()
         .flat_map(|(name, branch_target)| {
-            let local_target = &branch_target.local_target;
+            let local_target = branch_target.local_target;
             let local_symbol = local_target.is_present().then(|| name.to_owned());
             let remote_symbols = branch_target
                 .remote_targets
-                .iter()
-                .filter(move |&(_, target)| include_synced_remotes || target != local_target)
+                .into_iter()
+                .filter(move |(_, target)| include_synced_remotes || *target != local_target)
                 .map(move |(remote_name, _)| format!("{name}@{remote_name}"));
             local_symbol.into_iter().chain(remote_symbols)
         })
@@ -2191,8 +2190,8 @@ fn resolve_commit_ref(
         RevsetCommitRef::Root => Ok(vec![repo.store().root_commit_id().clone()]),
         RevsetCommitRef::Branches(pattern) => {
             let view_data = repo.view().store_view();
-            let commit_ids = filter_map_values_by_key_pattern(&view_data.branches, pattern)
-                .flat_map(|branch_target| branch_target.local_target.added_ids())
+            let commit_ids = filter_map_values_by_key_pattern(&view_data.local_branches, pattern)
+                .flat_map(|target| target.added_ids())
                 .cloned()
                 .collect();
             Ok(commit_ids)
@@ -2202,13 +2201,14 @@ fn resolve_commit_ref(
             remote_pattern,
         } => {
             let view_data = repo.view().store_view();
-            let commit_ids = filter_map_values_by_key_pattern(&view_data.branches, branch_pattern)
-                .flat_map(|branch_target| {
-                    filter_map_values_by_key_pattern(&branch_target.remote_targets, remote_pattern)
-                })
-                .flat_map(|remote_target| remote_target.added_ids())
-                .cloned()
-                .collect();
+            let commit_ids =
+                filter_map_values_by_key_pattern(&view_data.remote_views, remote_pattern)
+                    .flat_map(|remote_view| {
+                        filter_map_values_by_key_pattern(&remote_view.branches, branch_pattern)
+                    })
+                    .flat_map(|remote_ref| remote_ref.target.added_ids())
+                    .cloned()
+                    .collect();
             Ok(commit_ids)
         }
         RevsetCommitRef::Tags => {

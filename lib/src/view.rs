@@ -22,8 +22,8 @@ use itertools::Itertools;
 use crate::backend::CommitId;
 use crate::index::Index;
 use crate::op_store;
-use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt as _, WorkspaceId};
-use crate::refs::{merge_ref_targets, TrackingRefPair};
+use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRef, WorkspaceId};
+use crate::refs::{iter_named_ref_pairs, merge_ref_targets, TrackingRefPair};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum RefName {
@@ -86,8 +86,9 @@ impl View {
         &self.data.public_head_ids
     }
 
-    pub fn branches(&self) -> &BTreeMap<String, BranchTarget> {
-        &self.data.branches
+    /// Iterates pair of local and remote branches by branch name.
+    pub fn branches(&self) -> impl Iterator<Item = (&str, BranchTarget)> {
+        op_store::merge_join_branch_views(&self.data.local_branches, &self.data.remote_views)
     }
 
     pub fn tags(&self) -> &BTreeMap<String, RefTarget> {
@@ -151,68 +152,58 @@ impl View {
     /// Returns true if any local or remote branch of the given `name` exists.
     #[must_use]
     pub fn has_branch(&self, name: &str) -> bool {
-        self.data.branches.contains_key(name)
+        self.data.local_branches.contains_key(name)
+            || self
+                .data
+                .remote_views
+                .values()
+                .any(|remote_view| remote_view.branches.contains_key(name))
     }
 
+    // TODO: maybe rename to forget_branch() because this seems unusual operation?
     pub fn remove_branch(&mut self, name: &str) {
-        self.data.branches.remove(name);
+        self.data.local_branches.remove(name);
+        for remote_view in self.data.remote_views.values_mut() {
+            remote_view.branches.remove(name);
+        }
     }
 
     /// Iterates local branch `(name, target)`s in lexicographical order.
     pub fn local_branches(&self) -> impl Iterator<Item = (&str, &RefTarget)> {
         self.data
-            .branches
+            .local_branches
             .iter()
-            .map(|(name, branch_target)| (name.as_ref(), &branch_target.local_target))
-            .filter(|(_, target)| target.is_present())
+            .map(|(name, target)| (name.as_ref(), target))
     }
 
     pub fn get_local_branch(&self, name: &str) -> &RefTarget {
-        if let Some(branch_target) = self.data.branches.get(name) {
-            &branch_target.local_target
-        } else {
-            RefTarget::absent_ref()
-        }
+        self.data.local_branches.get(name).flatten()
     }
 
     /// Sets local branch to point to the given target. If the target is absent,
     /// and if no associated remote branches exist, the branch will be removed.
     pub fn set_local_branch_target(&mut self, name: &str, target: RefTarget) {
         if target.is_present() {
-            self.insert_local_branch(name.to_owned(), target);
+            self.data.local_branches.insert(name.to_owned(), target);
         } else {
-            self.remove_local_branch(name);
-        }
-    }
-
-    fn insert_local_branch(&mut self, name: String, target: RefTarget) {
-        assert!(target.is_present());
-        self.data.branches.entry(name).or_default().local_target = target;
-    }
-
-    fn remove_local_branch(&mut self, name: &str) {
-        if let Some(branch) = self.data.branches.get_mut(name) {
-            branch.local_target = RefTarget::absent();
-            if branch.remote_targets.is_empty() {
-                self.remove_branch(name);
-            }
+            self.data.local_branches.remove(name);
         }
     }
 
     /// Iterates remote branch `((name, remote_name), target)`s in
     /// lexicographical order.
     pub fn remote_branches(&self) -> impl Iterator<Item = ((&str, &str), &RefTarget)> {
-        self.data.branches.iter().flat_map(|(name, branch_target)| {
-            branch_target
-                .remote_targets
-                .iter()
-                .map(|(remote_name, target)| ((name.as_ref(), remote_name.as_ref()), target))
-        })
+        // TODO: maybe yield RemoteRef instead of RefTarget?
+        op_store::flatten_remote_branches(&self.data.remote_views)
     }
 
     pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> &RefTarget {
-        if let Some(branch_target) = self.data.branches.get(name) {
-            let maybe_target = branch_target.remote_targets.get(remote_name);
+        // TODO: maybe return RemoteRef instead of RefTarget?
+        if let Some(remote_view) = self.data.remote_views.get(remote_name) {
+            let maybe_target = remote_view
+                .branches
+                .get(name)
+                .map(|remote_ref| &remote_ref.target);
             maybe_target.flatten()
         } else {
             RefTarget::absent_ref()
@@ -223,28 +214,15 @@ impl View {
     /// is absent, the branch will be removed.
     pub fn set_remote_branch_target(&mut self, name: &str, remote_name: &str, target: RefTarget) {
         if target.is_present() {
-            self.insert_remote_branch(name.to_owned(), remote_name.to_owned(), target);
-        } else {
-            self.remove_remote_branch(name, remote_name);
-        }
-    }
-
-    fn insert_remote_branch(&mut self, name: String, remote_name: String, target: RefTarget) {
-        assert!(target.is_present());
-        self.data
-            .branches
-            .entry(name)
-            .or_default()
-            .remote_targets
-            .insert(remote_name, target);
-    }
-
-    fn remove_remote_branch(&mut self, name: &str, remote_name: &str) {
-        if let Some(branch) = self.data.branches.get_mut(name) {
-            branch.remote_targets.remove(remote_name);
-            if branch.remote_targets.is_empty() && branch.local_target.is_absent() {
-                self.remove_branch(name);
-            }
+            let remote_ref = RemoteRef { target }; // TODO: preserve or reset tracking flag?
+            let remote_view = self
+                .data
+                .remote_views
+                .entry(remote_name.to_owned())
+                .or_default();
+            remote_view.branches.insert(name.to_owned(), remote_ref);
+        } else if let Some(remote_view) = self.data.remote_views.get_mut(remote_name) {
+            remote_view.branches.remove(name);
         }
     }
 
@@ -252,44 +230,38 @@ impl View {
     /// in lexicographical order.
     pub fn local_remote_branches<'a>(
         &'a self,
-        remote_name: &'a str, // TODO: migrate to per-remote view and remove 'a
+        remote_name: &str,
     ) -> impl Iterator<Item = (&'a str, TrackingRefPair<'a>)> + 'a {
-        // TODO: maybe untracked remote_target can be translated to absent, and rename
+        // TODO: maybe untracked remote target can be translated to absent, and rename
         // the method accordingly.
-        self.data
-            .branches
-            .iter()
-            .filter_map(move |(name, branch_target)| {
-                let local_target = &branch_target.local_target;
-                let remote_target = branch_target.remote_targets.get(remote_name).flatten();
-                (local_target.is_present() || remote_target.is_present()).then_some((
-                    name.as_ref(),
-                    TrackingRefPair {
-                        local_target,
-                        remote_target,
-                    },
-                ))
+        let maybe_remote_view = self.data.remote_views.get(remote_name);
+        let remote_branches = maybe_remote_view
+            .map(|remote_view| {
+                remote_view
+                    .branches
+                    .iter()
+                    .map(|(name, remote_ref)| (name, &remote_ref.target))
             })
+            .into_iter()
+            .flatten();
+        iter_named_ref_pairs(&self.data.local_branches, remote_branches).map(
+            |(name, (local_target, remote_target))| {
+                let targets = TrackingRefPair {
+                    local_target,
+                    remote_target,
+                };
+                (name.as_ref(), targets)
+            },
+        )
     }
 
     pub fn remove_remote(&mut self, remote_name: &str) {
-        let mut branches_to_delete = vec![];
-        for (branch, target) in &self.data.branches {
-            if target.remote_targets.contains_key(remote_name) {
-                branches_to_delete.push(branch.clone());
-            }
-        }
-        for branch in branches_to_delete {
-            self.remove_remote_branch(&branch, remote_name);
-        }
+        self.data.remote_views.remove(remote_name);
     }
 
     pub fn rename_remote(&mut self, old: &str, new: &str) {
-        for branch in self.data.branches.values_mut() {
-            let target = branch.remote_targets.remove(old).flatten();
-            if target.is_present() {
-                branch.remote_targets.insert(new.to_owned(), target);
-            }
+        if let Some(remote_view) = self.data.remote_views.remove(old) {
+            self.data.remote_views.insert(new.to_owned(), remote_view);
         }
     }
 

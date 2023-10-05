@@ -29,8 +29,8 @@ use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::merge::Merge;
 use crate::op_store::{
-    BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
-    RefTarget, RemoteRef, RemoteView, View, ViewId, WorkspaceId,
+    OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, RefTarget,
+    RemoteRef, RemoteView, View, ViewId, WorkspaceId,
 };
 use crate::{git, op_store};
 
@@ -259,23 +259,7 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
         proto.public_head_ids.push(head_id.to_bytes());
     }
 
-    for (name, target) in &view.branches {
-        let mut branch_proto = crate::protos::op_store::Branch {
-            name: name.clone(),
-            ..Default::default()
-        };
-        branch_proto.name = name.clone();
-        branch_proto.local_target = ref_target_to_proto(&target.local_target);
-        for (remote_name, target) in &target.remote_targets {
-            branch_proto
-                .remote_branches
-                .push(crate::protos::op_store::RemoteBranch {
-                    remote_name: remote_name.clone(),
-                    target: ref_target_to_proto(target),
-                });
-        }
-        proto.branches.push(branch_proto);
-    }
+    proto.branches = branch_views_to_proto_legacy(&view.local_branches, &view.remote_views);
 
     for (name, target) in &view.tags {
         proto.tags.push(crate::protos::op_store::Tag {
@@ -317,25 +301,9 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
         view.public_head_ids.insert(CommitId::new(head_id_bytes));
     }
 
-    for branch_proto in proto.branches {
-        let local_target = ref_target_from_proto(branch_proto.local_target);
-
-        let mut remote_targets = BTreeMap::new();
-        for remote_branch in branch_proto.remote_branches {
-            remote_targets.insert(
-                remote_branch.remote_name,
-                ref_target_from_proto(remote_branch.target),
-            );
-        }
-
-        view.branches.insert(
-            branch_proto.name.clone(),
-            BranchTarget {
-                local_target,
-                remote_targets,
-            },
-        );
-    }
+    let (local_branches, remote_views) = branch_views_from_proto_legacy(proto.branches);
+    view.local_branches = local_branches;
+    view.remote_views = remote_views;
 
     for tag_proto in proto.tags {
         view.tags
@@ -366,7 +334,6 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     view
 }
 
-#[allow(dead_code)] // TODO
 fn branch_views_to_proto_legacy(
     local_branches: &BTreeMap<String, RefTarget>,
     remote_views: &BTreeMap<String, RemoteView>,
@@ -393,7 +360,6 @@ fn branch_views_to_proto_legacy(
         .collect()
 }
 
-#[allow(dead_code)] // TODO
 fn branch_views_from_proto_legacy(
     branches_legacy: Vec<crate::protos::op_store::Branch>,
 ) -> (BTreeMap<String, RefTarget>, BTreeMap<String, RemoteView>) {
@@ -424,21 +390,18 @@ fn migrate_git_refs_to_remote(view: &mut View) {
     }
 
     tracing::info!("migrating Git-tracking branches");
-    for branch_target in view.branches.values_mut() {
-        branch_target
-            .remote_targets
-            .remove(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
-    }
+    let mut git_view = RemoteView::default();
     for (full_name, target) in &view.git_refs {
         if let Some(name) = full_name.strip_prefix("refs/heads/") {
             assert!(!name.is_empty());
-            let branch_target = view.branches.entry(name.to_owned()).or_default();
-            branch_target.remote_targets.insert(
-                git::REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned(),
-                target.clone(),
-            );
+            let remote_ref = RemoteRef {
+                target: target.clone(),
+            };
+            git_view.branches.insert(name.to_owned(), remote_ref);
         }
     }
+    view.remote_views
+        .insert(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned(), git_view);
 
     // jj < 0.9 might have imported refs from remote named "git"
     let reserved_git_ref_prefix = format!("refs/remotes/{}/", git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
@@ -529,9 +492,12 @@ mod tests {
     use super::*;
     use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
     use crate::content_hash::blake2b_hash;
-    use crate::op_store::{BranchTarget, OperationMetadata, RefTarget, WorkspaceId};
+    use crate::op_store::{OperationMetadata, RefTarget, WorkspaceId};
 
     fn create_view() -> View {
+        let remote_ref = |target: &RefTarget| RemoteRef {
+            target: target.clone(),
+        };
         let head_id1 = CommitId::from_hex("aaa111");
         let head_id2 = CommitId::from_hex("aaa222");
         let public_head_id1 = CommitId::from_hex("bbb444");
@@ -550,22 +516,19 @@ mod tests {
         View {
             head_ids: hashset! {head_id1, head_id2},
             public_head_ids: hashset! {public_head_id1, public_head_id2},
-            branches: btreemap! {
-                "main".to_string() => BranchTarget {
-                    local_target: branch_main_local_target,
-                    remote_targets: btreemap! {
-                        "origin".to_string() => branch_main_origin_target,
-                    },
-                },
-                "deleted".to_string() => BranchTarget {
-                    local_target: RefTarget::absent(),
-                    remote_targets: btreemap! {
-                        "origin".to_string() => branch_deleted_origin_target,
-                    },
-                },
+            local_branches: btreemap! {
+                "main".to_string() => branch_main_local_target,
             },
             tags: btreemap! {
                 "v1.0".to_string() => tag_v1_target,
+            },
+            remote_views: btreemap! {
+                "origin".to_string() => RemoteView {
+                    branches: btreemap! {
+                        "main".to_string() => remote_ref(&branch_main_origin_target),
+                        "deleted".to_string() => remote_ref(&branch_deleted_origin_target),
+                    },
+                },
             },
             git_refs: btreemap! {
                 "refs/heads/main".to_string() => git_refs_main_target,
@@ -611,7 +574,7 @@ mod tests {
         // Test exact output so we detect regressions in compatibility
         assert_snapshot!(
             ViewId::new(blake2b_hash(&create_view()).to_vec()).hex(),
-            @"3c1c6efecfc0809130a5bf139aec77e6299cd7d5985b95c01a29318d40a5e2defc9bd12329e91511e545fbad065f60ce5da91f5f0368c9bf549ca761bb047f7e"
+            @"6ef5f01bb0bd239670c79966753c6af9ce18694bba1d5dbd1aa82de7f5c421dfc3bf91c1608eec480ae8e244093485bcff3e95db7acdc3958c7a8ead7a453b54"
         );
     }
 
@@ -697,6 +660,9 @@ mod tests {
     #[test]
     fn test_migrate_git_refs_remote_named_git() {
         let normal_ref_target = |id_hex: &str| RefTarget::normal(CommitId::from_hex(id_hex));
+        let normal_remote_ref = |id_hex: &str| RemoteRef {
+            target: normal_ref_target(id_hex),
+        };
         let branch_to_proto =
             |name: &str, local_ref_target, remote_branches| crate::protos::op_store::Branch {
                 name: name.to_owned(),
@@ -734,13 +700,22 @@ mod tests {
 
         let view = view_from_proto(proto);
         assert_eq!(
-            view.branches,
+            view.local_branches,
             btreemap! {
-                "main".to_owned() => BranchTarget {
-                    local_target: normal_ref_target("111111"),
-                    remote_targets: btreemap! {
-                        "git".to_owned() => normal_ref_target("444444"), // refs/heads/main
-                        "gita".to_owned() => normal_ref_target("333333"),
+                "main".to_owned() => normal_ref_target("111111"),
+            },
+        );
+        assert_eq!(
+            view.remote_views,
+            btreemap! {
+                "git".to_owned() => RemoteView {
+                    branches: btreemap! {
+                        "main".to_owned() => normal_remote_ref("444444"), // refs/heads/main
+                    },
+                },
+                "gita".to_owned() => RemoteView {
+                    branches: btreemap! {
+                        "main".to_owned() => normal_remote_ref("333333"),
                     },
                 },
             },
@@ -758,7 +733,7 @@ mod tests {
         assert!(proto.has_git_refs_migrated_to_remote);
         proto.branches.clear();
         let view = view_from_proto(proto);
-        assert!(view.branches.is_empty());
+        assert!(!view.remote_views.contains_key("git"));
     }
 
     #[test]
