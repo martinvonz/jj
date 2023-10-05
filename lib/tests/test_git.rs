@@ -120,43 +120,45 @@ fn test_import_refs() {
     };
     assert_eq!(*view.heads(), expected_heads);
 
-    let expected_main_branch = BranchTarget {
-        local_target: RefTarget::normal(jj_id(&commit2)),
-        remote_targets: btreemap! {
-            "git".to_string() => RefTarget::normal(jj_id(&commit2)),
-            "origin".to_string() => RefTarget::normal(jj_id(&commit1)),
-        },
-    };
-    assert_eq!(view.get_branch("main"), Some(expected_main_branch).as_ref());
-    let expected_feature1_branch = BranchTarget {
-        local_target: RefTarget::normal(jj_id(&commit3)),
-        remote_targets: btreemap! {
-            "git".to_string() => RefTarget::normal(jj_id(&commit3)),
-        },
-    };
+    assert_eq!(view.branches().len(), 4);
     assert_eq!(
-        view.get_branch("feature1"),
-        Some(expected_feature1_branch).as_ref()
+        view.get_local_branch("main"),
+        &RefTarget::normal(jj_id(&commit2))
     );
-    let expected_feature2_branch = BranchTarget {
-        local_target: RefTarget::normal(jj_id(&commit4)),
-        remote_targets: btreemap! {
-            "git".to_string() => RefTarget::normal(jj_id(&commit4)),
-        },
-    };
     assert_eq!(
-        view.get_branch("feature2"),
-        Some(expected_feature2_branch).as_ref()
+        view.get_remote_branch("main", "git"),
+        &RefTarget::normal(jj_id(&commit2))
     );
-    let expected_feature3_branch = BranchTarget {
-        local_target: RefTarget::normal(jj_id(&commit6)),
-        remote_targets: btreemap! {
-          "origin".to_string() => RefTarget::normal(jj_id(&commit6)),
-        },
-    };
     assert_eq!(
-        view.get_branch("feature3"),
-        Some(expected_feature3_branch).as_ref()
+        view.get_remote_branch("main", "origin"),
+        &RefTarget::normal(jj_id(&commit1))
+    );
+    assert_eq!(
+        view.get_local_branch("feature1"),
+        &RefTarget::normal(jj_id(&commit3))
+    );
+    assert_eq!(
+        view.get_remote_branch("feature1", "git"),
+        &RefTarget::normal(jj_id(&commit3))
+    );
+    assert!(view.get_remote_branch("feature1", "origin").is_absent());
+    assert_eq!(
+        view.get_local_branch("feature2"),
+        &RefTarget::normal(jj_id(&commit4))
+    );
+    assert_eq!(
+        view.get_remote_branch("feature2", "git"),
+        &RefTarget::normal(jj_id(&commit4))
+    );
+    assert!(view.get_remote_branch("feature2", "origin").is_absent());
+    assert_eq!(
+        view.get_local_branch("feature3"),
+        &RefTarget::normal(jj_id(&commit6))
+    );
+    assert!(view.get_remote_branch("feature3", "git").is_absent());
+    assert_eq!(
+        view.get_remote_branch("feature3", "origin"),
+        &RefTarget::normal(jj_id(&commit6))
     );
 
     assert_eq!(view.get_tag("v1.0"), &RefTarget::normal(jj_id(&commit5)));
@@ -258,27 +260,24 @@ fn test_import_refs_reimport() {
     assert_eq!(view.branches().len(), 2);
     let commit1_target = RefTarget::normal(jj_id(&commit1));
     let commit2_target = RefTarget::normal(jj_id(&commit2));
-    let expected_main_branch = BranchTarget {
-        local_target: RefTarget::normal(jj_id(&commit2)),
-        remote_targets: btreemap! {
-            "git".to_string() => RefTarget::normal(jj_id(&commit2)),
-            "origin".to_string() => commit1_target.clone(),
-        },
-    };
-    assert_eq!(view.get_branch("main"), Some(expected_main_branch).as_ref());
-    let expected_feature2_branch = BranchTarget {
-        local_target: RefTarget::from_legacy_form(
-            [jj_id(&commit4)],
-            [commit6.id().clone(), jj_id(&commit5)],
-        ),
-        remote_targets: btreemap! {
-            "git".to_string() => RefTarget::normal(jj_id(&commit5)),
-        },
-    };
     assert_eq!(
-        view.get_branch("feature2"),
-        Some(expected_feature2_branch).as_ref()
+        view.get_local_branch("main"),
+        &RefTarget::normal(jj_id(&commit2))
     );
+    assert_eq!(
+        view.get_remote_branch("main", "git"),
+        &RefTarget::normal(jj_id(&commit2))
+    );
+    assert_eq!(view.get_remote_branch("main", "origin"), &commit1_target);
+    assert_eq!(
+        view.get_local_branch("feature2"),
+        &RefTarget::from_legacy_form([jj_id(&commit4)], [commit6.id().clone(), jj_id(&commit5)])
+    );
+    assert_eq!(
+        view.get_remote_branch("feature2", "git"),
+        &RefTarget::normal(jj_id(&commit5))
+    );
+    assert!(view.get_remote_branch("feature2", "origin").is_absent());
 
     assert!(view.tags().is_empty());
 
@@ -455,26 +454,31 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     let view = repo.view();
     assert_eq!(*view.heads(), expected_heads);
     assert_eq!(view.branches().len(), 3);
+    // Even though the git repo does not have a local branch for
+    // `feature-remote-only`, jj creates one. This follows the model explained
+    // in docs/branches.md.
     assert_eq!(
-        view.get_branch("feature-remote-only"),
-        Some(&BranchTarget {
-            // Even though the git repo does not have a local branch for `feature-remote-only`, jj
-            // creates one. This follows the model explained in docs/branches.md.
-            local_target: RefTarget::normal(jj_id(&commit_remote_only)),
-            remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_only)),
-            },
-        }),
+        view.get_local_branch("feature-remote-only"),
+        &RefTarget::normal(jj_id(&commit_remote_only))
+    );
+    assert!(view
+        .get_remote_branch("feature-remote-only", "git")
+        .is_absent());
+    assert_eq!(
+        view.get_remote_branch("feature-remote-only", "origin"),
+        &RefTarget::normal(jj_id(&commit_remote_only))
     );
     assert_eq!(
-        view.get_branch("feature-remote-and-local"),
-        Some(&BranchTarget {
-            local_target: RefTarget::normal(jj_id(&commit_remote_and_local)),
-            remote_targets: btreemap! {
-                "git".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
-                "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
-            },
-        }),
+        view.get_local_branch("feature-remote-and-local"),
+        &RefTarget::normal(jj_id(&commit_remote_and_local))
+    );
+    assert_eq!(
+        view.get_remote_branch("feature-remote-and-local", "git"),
+        &RefTarget::normal(jj_id(&commit_remote_and_local))
+    );
+    assert_eq!(
+        view.get_remote_branch("feature-remote-and-local", "origin"),
+        &RefTarget::normal(jj_id(&commit_remote_and_local))
     );
     assert!(view.has_branch("main")); // branch #3 of 3
 
@@ -494,15 +498,16 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     assert_eq!(view.branches().len(), 2);
     assert!(view.has_branch("main"));
     assert!(!view.has_branch("feature-remote-only"));
+    assert!(view
+        .get_local_branch("feature-remote-and-local")
+        .is_absent());
     assert_eq!(
-        view.get_branch("feature-remote-and-local"),
-        Some(&BranchTarget {
-            local_target: RefTarget::absent(),
-            remote_targets: btreemap! {
-                "git".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
-            },
-        }),
+        view.get_remote_branch("feature-remote-and-local", "git"),
+        &RefTarget::normal(jj_id(&commit_remote_and_local))
     );
+    assert!(view
+        .get_remote_branch("feature-remote-and-local", "origin")
+        .is_absent());
     let expected_heads = hashset! {
             jj_id(&commit_main),
             // Neither commit_remote_only nor commit_remote_and_local should be
@@ -553,26 +558,31 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
     let view = repo.view();
     assert_eq!(*view.heads(), expected_heads);
     assert_eq!(view.branches().len(), 3);
+    // Even though the git repo does not have a local branch for
+    // `feature-remote-only`, jj creates one. This follows the model explained
+    // in docs/branches.md.
     assert_eq!(
-        view.get_branch("feature-remote-only"),
-        Some(&BranchTarget {
-            // Even though the git repo does not have a local branch for `feature-remote-only`, jj
-            // creates one. This follows the model explained in docs/branches.md.
-            local_target: RefTarget::normal(jj_id(&commit_remote_only)),
-            remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_only)),
-            },
-        }),
+        view.get_local_branch("feature-remote-only"),
+        &RefTarget::normal(jj_id(&commit_remote_only))
+    );
+    assert!(view
+        .get_remote_branch("feature-remote-only", "git")
+        .is_absent());
+    assert_eq!(
+        view.get_remote_branch("feature-remote-only", "origin"),
+        &RefTarget::normal(jj_id(&commit_remote_only))
     );
     assert_eq!(
-        view.get_branch("feature-remote-and-local"),
-        Some(&BranchTarget {
-            local_target: RefTarget::normal(jj_id(&commit_remote_and_local)),
-            remote_targets: btreemap! {
-                "git".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
-                "origin".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
-            },
-        }),
+        view.get_local_branch("feature-remote-and-local"),
+        &RefTarget::normal(jj_id(&commit_remote_and_local))
+    );
+    assert_eq!(
+        view.get_remote_branch("feature-remote-and-local", "git"),
+        &RefTarget::normal(jj_id(&commit_remote_and_local))
+    );
+    assert_eq!(
+        view.get_remote_branch("feature-remote-and-local", "origin"),
+        &RefTarget::normal(jj_id(&commit_remote_and_local))
     );
     assert!(view.has_branch("main")); // branch #3 of 3
 
@@ -601,23 +611,27 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
     assert_eq!(view.branches().len(), 3);
     // The local branches are moved
     assert_eq!(
-        view.get_branch("feature-remote-only"),
-        Some(&BranchTarget {
-            local_target: RefTarget::normal(jj_id(&new_commit_remote_only)),
-            remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::normal(jj_id(&new_commit_remote_only)),
-            },
-        }),
+        view.get_local_branch("feature-remote-only"),
+        &RefTarget::normal(jj_id(&new_commit_remote_only))
+    );
+    assert!(view
+        .get_remote_branch("feature-remote-only", "git")
+        .is_absent());
+    assert_eq!(
+        view.get_remote_branch("feature-remote-only", "origin"),
+        &RefTarget::normal(jj_id(&new_commit_remote_only))
     );
     assert_eq!(
-        view.get_branch("feature-remote-and-local"),
-        Some(&BranchTarget {
-            local_target: RefTarget::normal(jj_id(&new_commit_remote_and_local)),
-            remote_targets: btreemap! {
-                "git".to_string() => RefTarget::normal(jj_id(&commit_remote_and_local)),
-                "origin".to_string() => RefTarget::normal(jj_id(&new_commit_remote_and_local)),
-            },
-        }),
+        view.get_local_branch("feature-remote-and-local"),
+        &RefTarget::normal(jj_id(&new_commit_remote_and_local))
+    );
+    assert_eq!(
+        view.get_remote_branch("feature-remote-and-local", "git"),
+        &RefTarget::normal(jj_id(&commit_remote_and_local))
+    );
+    assert_eq!(
+        view.get_remote_branch("feature-remote-and-local", "origin"),
+        &RefTarget::normal(jj_id(&new_commit_remote_and_local))
     );
     assert!(view.has_branch("main")); // branch #3 of 3
     let expected_heads = hashset! {
@@ -804,45 +818,37 @@ fn test_import_some_refs() {
     let commit_feat2_target = RefTarget::normal(jj_id(&commit_feat2));
     let commit_feat3_target = RefTarget::normal(jj_id(&commit_feat3));
     let commit_feat4_target = RefTarget::normal(jj_id(&commit_feat4));
-    let expected_feature1_branch = BranchTarget {
-        local_target: RefTarget::normal(jj_id(&commit_feat1)),
-        remote_targets: btreemap! {
-            "origin".to_string() => commit_feat1_target,
-        },
-    };
     assert_eq!(
-        view.get_branch("feature1"),
-        Some(expected_feature1_branch).as_ref()
+        view.get_local_branch("feature1"),
+        &RefTarget::normal(jj_id(&commit_feat1))
     );
-    let expected_feature2_branch = BranchTarget {
-        local_target: RefTarget::normal(jj_id(&commit_feat2)),
-        remote_targets: btreemap! {
-            "origin".to_string() => commit_feat2_target,
-        },
-    };
     assert_eq!(
-        view.get_branch("feature2"),
-        Some(expected_feature2_branch).as_ref()
+        view.get_remote_branch("feature1", "origin"),
+        &commit_feat1_target
     );
-    let expected_feature3_branch = BranchTarget {
-        local_target: RefTarget::normal(jj_id(&commit_feat3)),
-        remote_targets: btreemap! {
-            "origin".to_string() => commit_feat3_target,
-        },
-    };
     assert_eq!(
-        view.get_branch("feature3"),
-        Some(expected_feature3_branch).as_ref()
+        view.get_local_branch("feature2"),
+        &RefTarget::normal(jj_id(&commit_feat2))
     );
-    let expected_feature4_branch = BranchTarget {
-        local_target: RefTarget::normal(jj_id(&commit_feat4)),
-        remote_targets: btreemap! {
-            "origin".to_string() => commit_feat4_target,
-        },
-    };
     assert_eq!(
-        view.get_branch("feature4"),
-        Some(expected_feature4_branch).as_ref()
+        view.get_remote_branch("feature2", "origin"),
+        &commit_feat2_target
+    );
+    assert_eq!(
+        view.get_local_branch("feature3"),
+        &RefTarget::normal(jj_id(&commit_feat3))
+    );
+    assert_eq!(
+        view.get_remote_branch("feature3", "origin"),
+        &commit_feat3_target
+    );
+    assert_eq!(
+        view.get_local_branch("feature4"),
+        &RefTarget::normal(jj_id(&commit_feat4))
+    );
+    assert_eq!(
+        view.get_remote_branch("feature4", "origin"),
+        &commit_feat4_target
     );
     assert!(!view.has_branch("main"));
     assert!(!view.heads().contains(&jj_id(&commit_main)));
@@ -1301,15 +1307,10 @@ fn test_import_export_no_auto_local_branch() {
 
     git::import_refs(mut_repo, &git_repo, &git_settings).unwrap();
 
-    let expected_branch = BranchTarget {
-        local_target: RefTarget::absent(),
-        remote_targets: btreemap! {
-            "origin".to_string() => RefTarget::normal(jj_id(&git_commit)),
-        },
-    };
+    assert!(mut_repo.view().get_local_branch("main").is_absent());
     assert_eq!(
-        mut_repo.view().get_branch("main"),
-        Some(expected_branch).as_ref()
+        mut_repo.view().get_remote_branch("main", "origin"),
+        &RefTarget::normal(jj_id(&git_commit))
     );
     assert_eq!(
         mut_repo.get_git_ref("refs/remotes/origin/main"),

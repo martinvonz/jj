@@ -154,10 +154,6 @@ impl View {
         self.data.branches.contains_key(name)
     }
 
-    pub fn get_branch(&self, name: &str) -> Option<&BranchTarget> {
-        self.data.branches.get(name)
-    }
-
     pub fn remove_branch(&mut self, name: &str) {
         self.data.branches.remove(name);
     }
