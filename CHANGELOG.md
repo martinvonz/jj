@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* Conflicts are now stored in a different way. Commits written by a new `jj`
+  binary will not be read correctly by older `jj` binaries. The new model
+  solves some performance problems with the old model. For example, `jj log`
+  should be noticeably faster on large repos. You may need to create a new
+  clone to see the full speedup.
+
 ### New features
 
 ### Fixed bugs

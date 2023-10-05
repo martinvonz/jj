@@ -33,7 +33,7 @@ fn test_obslog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     @  rlvkpnrz test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad3
     │  my description
-    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5a conflict
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 5f4634a5 conflict
     │  my description
     ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bc
     │  my description
@@ -46,7 +46,7 @@ fn test_obslog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:10.000 +07:00[39m [38;5;12m6[38;5;8m6b42ad3[39m[0m
     │  [1mmy description[0m
-    ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m [1m[38;5;4maf[0m[38;5;8m536e5a[39m [38;5;1mconflict[39m
+    ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m [1m[38;5;4m5[0m[38;5;8mf4634a5[39m [38;5;1mconflict[39m
     │  my description
     ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m [1m[38;5;4m6f[0m[38;5;8mbba7bc[39m
     │  my description
@@ -63,11 +63,12 @@ fn test_obslog_with_or_without_diff() {
     │  Resolved conflict in file1:
     │     1    1: <<<<<<<resolved
     │     2     : %%%%%%%
-    │     3     :  foo
-    │     4     : +bar
-    │     5     : +++++++
-    │     6     : >>>>>>>
-    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5a conflict
+    │     3     : -foo
+    │     4     : +++++++
+    │     5     : foo
+    │     6     : bar
+    │     7     : >>>>>>>
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 5f4634a5 conflict
     │  my description
     ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bc
     │  my description
@@ -85,7 +86,7 @@ fn test_obslog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     @  rlvkpnrz test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad3
     │  my description
-    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5a conflict
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 5f4634a5 conflict
     │  my description
     "###);
 
@@ -94,7 +95,7 @@ fn test_obslog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     rlvkpnrz test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad3
     my description
-    rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5a conflict
+    rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 5f4634a5 conflict
     my description
     rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bc
     my description
@@ -111,15 +112,16 @@ fn test_obslog_with_or_without_diff() {
     index 0000000000...2ab19ae607 100644
     --- a/file1
     +++ b/file1
-    @@ -1,6 +1,1 @@
+    @@ -1,7 +1,1 @@
     -<<<<<<<
     -%%%%%%%
-    - foo
-    -+bar
+    --foo
     -+++++++
+    -foo
+    -bar
     ->>>>>>>
     +resolved
-    rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5a conflict
+    rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 5f4634a5 conflict
     my description
     rlvkpnrz hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bc
     my description
