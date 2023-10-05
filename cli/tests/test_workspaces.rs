@@ -174,14 +174,14 @@ fn test_workspaces_conflicting_edits() {
     "###);
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation 5c95db542ebd).
+    Error: The working copy is stale (not updated since operation d47ba8bebf5d).
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);
     // Same error on second run, and from another command
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["log"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation 5c95db542ebd).
+    Error: The working copy is stale (not updated since operation d47ba8bebf5d).
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);
@@ -261,7 +261,7 @@ fn test_workspaces_updated_by_other() {
     "###);
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation 5c95db542ebd).
+    Error: The working copy is stale (not updated since operation d47ba8bebf5d).
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);

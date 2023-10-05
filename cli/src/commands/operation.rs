@@ -1,8 +1,5 @@
-use std::collections::{BTreeMap, BTreeSet};
-
 use clap::Subcommand;
 use jj_lib::backend::ObjectId;
-use jj_lib::op_store::{BranchTarget, RefTarget};
 use jj_lib::operation;
 use jj_lib::repo::Repo;
 
@@ -179,39 +176,11 @@ fn view_with_desired_portions_restored(
         return new_view;
     }
 
-    let all_branch_names: BTreeSet<_> = itertools::chain(
-        view_being_restored.branches.keys(),
-        current_view.branches.keys(),
-    )
-    .collect();
-    let branch_source_view = if what.contains(&UndoWhatToRestore::RemoteTracking) {
-        view_being_restored
+    if what.contains(&UndoWhatToRestore::RemoteTracking) {
+        new_view.remote_views = view_being_restored.remote_views.clone();
     } else {
-        current_view
-    };
-    let mut new_branches = BTreeMap::default();
-    for branch_name in all_branch_names {
-        let local_target = new_view
-            .branches
-            .get(branch_name)
-            .map(|br| br.local_target.clone())
-            .unwrap_or_else(RefTarget::absent);
-        let remote_targets = branch_source_view
-            .branches
-            .get(branch_name)
-            .map(|br| br.remote_targets.clone())
-            .unwrap_or_default();
-        if local_target.is_present() || !remote_targets.is_empty() {
-            new_branches.insert(
-                branch_name.to_string(),
-                BranchTarget {
-                    local_target,
-                    remote_targets,
-                },
-            );
-        }
+        new_view.remote_views = current_view.remote_views.clone();
     }
-    new_view.branches = new_branches;
     new_view
 }
 

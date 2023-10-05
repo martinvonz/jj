@@ -189,8 +189,9 @@ content_hash! {
         pub head_ids: HashSet<CommitId>,
         /// Heads of the set of public commits.
         pub public_head_ids: HashSet<CommitId>,
-        pub branches: BTreeMap<String, BranchTarget>,
+        pub local_branches: BTreeMap<String, RefTarget>,
         pub tags: BTreeMap<String, RefTarget>,
+        pub remote_views: BTreeMap<String, RemoteView>,
         pub git_refs: BTreeMap<String, RefTarget>,
         /// The commit the Git HEAD points to.
         // TODO: Support multiple Git worktrees?
@@ -213,7 +214,6 @@ content_hash! {
 }
 
 /// Iterates pair of local and remote branches by branch name.
-#[allow(dead_code)] // TODO
 pub(crate) fn merge_join_branch_views<'a>(
     local_branches: &'a BTreeMap<String, RefTarget>,
     remote_views: &'a BTreeMap<String, RemoteView>,
@@ -251,7 +251,6 @@ pub(crate) fn merge_join_branch_views<'a>(
 }
 
 /// Iterates branch `((name, remote_name), target)`s in lexicographical order.
-#[allow(dead_code)] // TODO
 pub(crate) fn flatten_remote_branches(
     remote_views: &BTreeMap<String, RemoteView>,
 ) -> impl Iterator<Item = ((&str, &str), &RefTarget)> {

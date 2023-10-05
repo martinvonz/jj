@@ -371,7 +371,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
             } else if unsynced_remote_targets.peek().is_some() {
                 format!("{branch_name}*")
             } else {
-                branch_name.clone()
+                branch_name.to_owned()
             };
             index.insert(local_target.added_ids(), decorated_name);
         }

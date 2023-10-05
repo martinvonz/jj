@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::BTreeMap;
+
 use jj_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
 use maplit::{btreemap, hashset};
@@ -305,10 +307,10 @@ fn test_merge_views_branches() {
         remote_targets: btreemap! {},
     };
     assert_eq!(
-        repo.view().branches(),
-        &btreemap! {
-            "main".to_string() => expected_main_branch,
-            "feature".to_string() => expected_feature_branch,
+        repo.view().branches().collect::<BTreeMap<_, _>>(),
+        btreemap! {
+            "main" => expected_main_branch,
+            "feature" => expected_feature_branch,
         }
     );
 }

@@ -894,7 +894,8 @@ fn cmd_git_push(
     // Check if there are conflicts in any commits we're about to push that haven't
     // already been pushed.
     let mut old_heads = vec![];
-    for branch_target in repo.view().branches().values() {
+    // TODO: get list of branches by remote name instead of using .branches()
+    for (_, branch_target) in repo.view().branches() {
         if let Some(old_head) = branch_target.remote_targets.get(&remote) {
             old_heads.extend(old_head.added_ids().cloned());
         }

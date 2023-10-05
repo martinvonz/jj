@@ -34,7 +34,7 @@ pub fn diff_named_refs<'a, 'b, K: Ord>(
 /// Iterates `refs1` and `refs2` target pairs by name.
 ///
 /// `refs1` and `refs2` must be sorted by `K`.
-fn iter_named_ref_pairs<'a, 'b, K: Ord>(
+pub fn iter_named_ref_pairs<'a, 'b, K: Ord>(
     refs1: impl IntoIterator<Item = (K, &'a RefTarget)>,
     refs2: impl IntoIterator<Item = (K, &'b RefTarget)>,
 ) -> impl Iterator<Item = (K, (&'a RefTarget, &'b RefTarget))> {
