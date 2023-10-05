@@ -61,7 +61,7 @@ fn test_restore() {
     insta::assert_snapshot!(stdout, @r###"
     Created rlvkpnrz e25100af (empty) (no description set)
     Rebased 1 descendant commits
-    Working copy now at: kkmpptxz fd42591e (conflict) (no description set)
+    Working copy now at: kkmpptxz e301deb3 (conflict) (no description set)
     Parent commit      : rlvkpnrz e25100af (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
@@ -184,8 +184,8 @@ fn test_restore_conflicted_merge() {
     // ...and restore it back again.
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "file"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created vruxwmqv 63198ca2 (conflict) (empty) conflict
-    Working copy now at: vruxwmqv 63198ca2 conflict | (conflict) (empty) conflict
+    Created vruxwmqv b2c9c888 (conflict) (empty) conflict
+    Working copy now at: vruxwmqv b2c9c888 conflict | (conflict) (empty) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
@@ -222,8 +222,8 @@ fn test_restore_conflicted_merge() {
     // ... and restore it back again.
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created vruxwmqv d955febc (conflict) (empty) conflict
-    Working copy now at: vruxwmqv d955febc conflict | (conflict) (empty) conflict
+    Created vruxwmqv 4fc10820 (conflict) (empty) conflict
+    Working copy now at: vruxwmqv 4fc10820 conflict | (conflict) (empty) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files

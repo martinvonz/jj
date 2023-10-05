@@ -183,7 +183,7 @@ conflict
             ],
         ),
         @r###"
-    Working copy now at: vruxwmqv 0bb40c90 conflict | (conflict) conflict
+    Working copy now at: vruxwmqv ff4e8c6b conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
@@ -632,7 +632,7 @@ fn test_multiple_conflicts() {
     std::fs::write(&editor_script, "expect\n\0write\nresolution another_file\n").unwrap();
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve", "another_file"]), @r###"
-    Working copy now at: vruxwmqv 07feb084 conflict | (conflict) conflict
+    Working copy now at: vruxwmqv c3c25bce conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
     Added 0 files, modified 1 files, removed 0 files
@@ -660,7 +660,7 @@ fn test_multiple_conflicts() {
     std::fs::write(&editor_script, "expect\n\0write\nresolution another_file\n").unwrap();
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve", "--quiet", "another_file"]), @r###"
-    Working copy now at: vruxwmqv ff142405 conflict | (conflict) conflict
+    Working copy now at: vruxwmqv fd3874cd conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
     Added 0 files, modified 1 files, removed 0 files

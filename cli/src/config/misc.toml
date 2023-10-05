@@ -1,6 +1,9 @@
 [aliases]
 # Placeholder: added by user
 
+[format]
+tree-level-conflicts = true
+
 [ui]
 paginate = "auto"
 pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }

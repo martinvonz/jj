@@ -327,10 +327,10 @@ fn test_diffedit_merge() {
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created royxmykx a70eded7 (conflict) merge
+    Created royxmykx 2b5202ae (conflict) merge
     Rebased 1 descendant commits
-    Working copy now at: yqosqzyt a5f1ce84 (conflict) (empty) (no description set)
-    Parent commit      : royxmykx a70eded7 (conflict) merge
+    Working copy now at: yqosqzyt 23b1fe1b (conflict) (empty) (no description set)
+    Parent commit      : royxmykx 2b5202ae (conflict) merge
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);

@@ -19,6 +19,7 @@ pub mod common;
 #[test]
 fn test_enable_tree_level_conflicts() {
     let test_env = TestEnvironment::default();
+    test_env.add_config(r#"format.tree-level-conflicts = false"#);
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 

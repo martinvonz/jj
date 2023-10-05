@@ -102,7 +102,7 @@ fn test_rewrite_immutable_commands() {
     insta::assert_snapshot!(stdout, @r###"
     @  yqosqzyt test.user@example.com 2001-02-03 04:05:13.000 +07:00 3f89addf
     │  (empty) (no description set)
-    │ ◉  mzvwutvl test.user@example.com 2001-02-03 04:05:11.000 +07:00 main d809c5d9 conflict
+    │ ◉  mzvwutvl test.user@example.com 2001-02-03 04:05:11.000 +07:00 main 16ca9d80 conflict
     ╭─┤  (empty) merge
     │ │
     │ ~
@@ -115,49 +115,49 @@ fn test_rewrite_immutable_commands() {
     // abandon
     let stderr = test_env.jj_cmd_failure(&repo_path, &["abandon", "main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // chmod
     let stderr = test_env.jj_cmd_failure(&repo_path, &["chmod", "-r=main", "x", "file"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // describe
     let stderr = test_env.jj_cmd_failure(&repo_path, &["describe", "main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // diffedit
     let stderr = test_env.jj_cmd_failure(&repo_path, &["diffedit", "-r=main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // edit
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // move --from
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--from=main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // move --to
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--to=main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // rebase -s
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s=main", "-d=@"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // rebase -b
@@ -169,43 +169,43 @@ fn test_rewrite_immutable_commands() {
     // rebase -r
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r=main", "-d=@"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // resolve
     let stderr = test_env.jj_cmd_failure(&repo_path, &["resolve", "-r=description(merge)", "file"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // restore -c
     let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-c=main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // restore --to
     let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "--to=main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // split
     let stderr = test_env.jj_cmd_failure(&repo_path, &["split", "-r=main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // squash
     let stderr = test_env.jj_cmd_failure(&repo_path, &["squash", "-r=main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // unsquash
     let stderr = test_env.jj_cmd_failure(&repo_path, &["unsquash", "-r=main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit d809c5d93710 is immutable
+    Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
 }
