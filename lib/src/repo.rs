@@ -44,7 +44,7 @@ use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use crate::operation::Operation;
-use crate::refs::merge_ref_targets;
+use crate::refs::{diff_named_refs, merge_ref_targets};
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
@@ -1102,54 +1102,24 @@ impl MutableRepo {
             self.view_mut().add_head(added_head);
         }
 
-        let mut maybe_changed_ref_names = HashSet::new();
-
-        let base_branches: HashSet<_> = base.branches().keys().cloned().collect();
-        let other_branches: HashSet<_> = other.branches().keys().cloned().collect();
-        for branch_name in base_branches.union(&other_branches) {
-            let base_branch = base.get_branch(branch_name);
-            let other_branch = other.get_branch(branch_name);
-            if other_branch == base_branch {
-                // Unchanged on other side
-                continue;
-            }
-
-            maybe_changed_ref_names.insert(RefName::LocalBranch(branch_name.clone()));
-            if let Some(branch) = base_branch {
-                for remote in branch.remote_targets.keys() {
-                    maybe_changed_ref_names.insert(RefName::RemoteBranch {
-                        branch: branch_name.clone(),
-                        remote: remote.clone(),
-                    });
+        let changed_refs = itertools::chain!(
+            diff_named_refs(base.local_branches(), other.local_branches())
+                .map(|(name, diff)| (RefName::LocalBranch(name.to_owned()), diff)),
+            diff_named_refs(base.remote_branches(), other.remote_branches()).map(
+                |((branch, remote), diff)| {
+                    let ref_name = RefName::RemoteBranch {
+                        branch: branch.to_owned(),
+                        remote: remote.to_owned(),
+                    };
+                    (ref_name, diff)
                 }
-            }
-            if let Some(branch) = other_branch {
-                for remote in branch.remote_targets.keys() {
-                    maybe_changed_ref_names.insert(RefName::RemoteBranch {
-                        branch: branch_name.clone(),
-                        remote: remote.clone(),
-                    });
-                }
-            }
-        }
-
-        for tag_name in base.tags().keys() {
-            maybe_changed_ref_names.insert(RefName::Tag(tag_name.clone()));
-        }
-        for tag_name in other.tags().keys() {
-            maybe_changed_ref_names.insert(RefName::Tag(tag_name.clone()));
-        }
-
-        for git_ref_name in base.git_refs().keys() {
-            maybe_changed_ref_names.insert(RefName::GitRef(git_ref_name.clone()));
-        }
-        for git_ref_name in other.git_refs().keys() {
-            maybe_changed_ref_names.insert(RefName::GitRef(git_ref_name.clone()));
-        }
-
-        for ref_name in maybe_changed_ref_names {
-            let base_target = base.get_ref(&ref_name);
-            let other_target = other.get_ref(&ref_name);
+            ),
+            diff_named_refs(base.tags(), other.tags())
+                .map(|(name, diff)| (RefName::Tag(name.to_owned()), diff)),
+            diff_named_refs(base.git_refs(), other.git_refs())
+                .map(|(name, diff)| (RefName::GitRef(name.to_owned()), diff)),
+        );
+        for (ref_name, (base_target, other_target)) in changed_refs {
             self.view.get_mut().merge_single_ref(
                 self.index.as_index(),
                 &ref_name,

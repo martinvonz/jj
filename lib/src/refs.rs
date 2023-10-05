@@ -14,10 +14,38 @@
 
 #![allow(missing_docs)]
 
+use itertools::EitherOrBoth;
+
 use crate::backend::CommitId;
 use crate::index::Index;
 use crate::merge::{trivial_merge, Merge};
 use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
+
+/// Compares `refs1` and `refs2` targets, yields entry if they differ.
+///
+/// `refs1` and `refs2` must be sorted by `K`.
+pub fn diff_named_refs<'a, 'b, K: Ord>(
+    refs1: impl IntoIterator<Item = (K, &'a RefTarget)>,
+    refs2: impl IntoIterator<Item = (K, &'b RefTarget)>,
+) -> impl Iterator<Item = (K, (&'a RefTarget, &'b RefTarget))> {
+    iter_named_ref_pairs(refs1, refs2).filter(|(_, (target1, target2))| target1 != target2)
+}
+
+/// Iterates `refs1` and `refs2` target pairs by name.
+///
+/// `refs1` and `refs2` must be sorted by `K`.
+fn iter_named_ref_pairs<'a, 'b, K: Ord>(
+    refs1: impl IntoIterator<Item = (K, &'a RefTarget)>,
+    refs2: impl IntoIterator<Item = (K, &'b RefTarget)>,
+) -> impl Iterator<Item = (K, (&'a RefTarget, &'b RefTarget))> {
+    itertools::merge_join_by(refs1, refs2, |(name1, _), (name2, _)| name1.cmp(name2)).map(|entry| {
+        match entry {
+            EitherOrBoth::Both((name, target1), (_, target2)) => (name, (target1, target2)),
+            EitherOrBoth::Left((name, target1)) => (name, (target1, RefTarget::absent_ref())),
+            EitherOrBoth::Right((name, target2)) => (name, (RefTarget::absent_ref(), target2)),
+        }
+    })
+}
 
 pub fn merge_ref_targets(
     index: &dyn Index,
