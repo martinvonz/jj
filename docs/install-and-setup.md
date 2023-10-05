@@ -17,11 +17,11 @@ options below.
 
 #### Build using `cargo`
 
-First make sure that you have the `libssl-dev`, `openssl`, and `pkg-config`
-packages installed by running something like this:
+First make sure that you have the `libssl-dev`, `openssl`, `pkg-config`, and
+`build-essential` packages installed by running something like this:
 
 ```shell
-sudo apt-get install libssl-dev openssl pkg-config
+sudo apt-get install libssl-dev openssl pkg-config build-essential
 ```
 
 Now run either:
