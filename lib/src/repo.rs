@@ -983,10 +983,6 @@ impl MutableRepo {
         self.view.with_ref(|v| v.get_branch(name).cloned())
     }
 
-    pub fn set_branch(&mut self, name: String, target: BranchTarget) {
-        self.view_mut().set_branch(name, target);
-    }
-
     pub fn remove_branch(&mut self, name: &str) {
         self.view_mut().remove_branch(name);
     }
