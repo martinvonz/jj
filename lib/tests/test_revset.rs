@@ -26,7 +26,7 @@ use jj_lib::commit::Commit;
 use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::index::{HexPrefix, PrefixResolution};
-use jj_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
+use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
@@ -2869,13 +2869,7 @@ fn test_no_such_revision_suggestion() {
     let commit = write_random_commit(mut_repo, &settings);
 
     for branch_name in ["foo", "bar", "baz"] {
-        mut_repo.set_branch(
-            branch_name.to_string(),
-            BranchTarget {
-                local_target: RefTarget::normal(commit.id().clone()),
-                remote_targets: Default::default(),
-            },
-        );
+        mut_repo.set_local_branch_target(branch_name, RefTarget::normal(commit.id().clone()));
     }
 
     assert_matches!(resolve_symbol(mut_repo, "bar"), Ok(_));
