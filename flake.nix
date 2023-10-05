@@ -94,8 +94,6 @@
         program = "${self.packages.${system}.jujutsu}/bin/jj";
       };
       checks.jujutsu = self.packages.${system}.jujutsu.overrideAttrs ({ ... }: {
-        cargoBuildType = "debug";
-        cargoCheckType = "debug";
         preCheck = ''
           export RUST_BACKTRACE=1
         '';
