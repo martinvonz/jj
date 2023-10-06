@@ -9,7 +9,7 @@ use std::{fs, io};
 
 use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
-use jj_lib::backend::{CommitId, ObjectId, TreeValue};
+use jj_lib::backend::{ObjectId, TreeValue};
 use jj_lib::git::{
     self, parse_gitmodules, GitFetchError, GitFetchStats, GitPushError, GitRefUpdate,
 };
@@ -21,7 +21,6 @@ use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{self, RevsetExpression, RevsetIteratorExt as _, StringPattern};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
-use jj_lib::view::View;
 use jj_lib::workspace::Workspace;
 use maplit::hashset;
 
@@ -697,16 +696,6 @@ fn cmd_git_push(
         .map(|change_str| workspace_command.resolve_single_rev(change_str, ui))
         .try_collect()?;
 
-    fn find_branches_targeting<'a>(
-        view: &'a View,
-        mut is_target: impl FnMut(&'a CommitId) -> bool,
-    ) -> Vec<(&'a String, &'a BranchTarget)> {
-        view.branches()
-            .iter()
-            .filter(|(_, branch_target)| branch_target.local_target.added_ids().any(&mut is_target))
-            .collect()
-    }
-
     let mut tx = workspace_command.start_transaction("");
     let tx_description;
     let mut branch_updates = vec![];
@@ -823,8 +812,15 @@ fn cmd_git_push(
                 .map(|commit| commit.id().clone())
                 .collect()
         };
-        let branches_targeted =
-            find_branches_targeting(repo.view(), |id| revision_commit_ids.contains(id));
+        let branches_targeted = repo
+            .view()
+            .branches()
+            .iter()
+            .filter(|(_, branch_target)| {
+                let mut local_ids = branch_target.local_target.added_ids();
+                local_ids.any(|id| revision_commit_ids.contains(id))
+            })
+            .collect_vec();
         for &(branch_name, branch_target) in &branches_targeted {
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
