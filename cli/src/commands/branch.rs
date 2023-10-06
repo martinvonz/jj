@@ -295,10 +295,8 @@ fn cmd_branch_forget(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
-    for branch_name in args.names.iter() {
-        if view.get_branch(branch_name).is_none() {
-            return Err(user_error(format!("No such branch: {branch_name}")));
-        }
+    if let Some(branch_name) = args.names.iter().find(|name| !view.has_branch(name)) {
+        return Err(user_error(format!("No such branch: {branch_name}")));
     }
     let globbed_names = find_globs(view, &args.glob, true)?;
     let names: BTreeSet<String> = args.names.iter().cloned().chain(globbed_names).collect();

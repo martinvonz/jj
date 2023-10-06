@@ -148,6 +148,12 @@ impl View {
         }
     }
 
+    /// Returns true if any local or remote branch of the given `name` exists.
+    #[must_use]
+    pub fn has_branch(&self, name: &str) -> bool {
+        self.data.branches.contains_key(name)
+    }
+
     pub fn get_branch(&self, name: &str) -> Option<&BranchTarget> {
         self.data.branches.get(name)
     }

@@ -979,6 +979,12 @@ impl MutableRepo {
         self.view.mark_dirty();
     }
 
+    /// Returns true if any local or remote branch of the given `name` exists.
+    #[must_use]
+    pub fn has_branch(&self, name: &str) -> bool {
+        self.view.with_ref(|v| v.has_branch(name))
+    }
+
     pub fn get_branch(&self, name: &str) -> Option<BranchTarget> {
         self.view.with_ref(|v| v.get_branch(name).cloned())
     }
