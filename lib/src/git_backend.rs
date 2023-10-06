@@ -990,14 +990,14 @@ mod tests {
             .unwrap();
         let commit_id2 = CommitId::from_bytes(git_commit_id2.as_bytes());
 
-        let store = GitBackend::init_external(store_path, &git_repo_path).unwrap();
+        let backend = GitBackend::init_external(store_path, &git_repo_path).unwrap();
 
         // Import the head commit and its ancestors
-        store
+        backend
             .import_head_commits([&commit_id2], uses_tree_conflict_format)
             .unwrap();
         // Ref should be created only for the head commit
-        let git_refs = store
+        let git_refs = backend
             .git_repo()
             .references_glob("refs/jj/keep/*")
             .unwrap()
@@ -1005,7 +1005,7 @@ mod tests {
             .collect_vec();
         assert_eq!(git_refs, vec![git_commit_id2]);
 
-        let commit = store.read_commit(&commit_id).unwrap();
+        let commit = backend.read_commit(&commit_id).unwrap();
         assert_eq!(&commit.change_id, &change_id);
         assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
         assert_eq!(commit.predecessors, vec![]);
@@ -1034,7 +1034,7 @@ mod tests {
         );
         assert_eq!(commit.committer.timestamp.tz_offset, -480);
 
-        let root_tree = store
+        let root_tree = backend
             .read_tree(
                 &RepoPath::root(),
                 &TreeId::from_bytes(root_tree_id.as_bytes()),
@@ -1049,7 +1049,7 @@ mod tests {
             &TreeValue::Tree(TreeId::from_bytes(dir_tree_id.as_bytes()))
         );
 
-        let dir_tree = store
+        let dir_tree = backend
             .read_tree(
                 &RepoPath::from_internal_string("dir"),
                 &TreeId::from_bytes(dir_tree_id.as_bytes()),
@@ -1073,7 +1073,7 @@ mod tests {
             &TreeValue::Symlink(SymlinkId::from_bytes(blob2.as_bytes()))
         );
 
-        let commit2 = store.read_commit(&commit_id2).unwrap();
+        let commit2 = backend.read_commit(&commit_id2).unwrap();
         assert_eq!(commit2.parents, vec![commit_id.clone()]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(
@@ -1314,7 +1314,7 @@ mod tests {
     #[test]
     fn commit_has_ref() {
         let temp_dir = testutils::new_temp_dir();
-        let store = GitBackend::init_internal(temp_dir.path()).unwrap();
+        let backend = GitBackend::init_internal(temp_dir.path()).unwrap();
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),
@@ -1324,16 +1324,16 @@ mod tests {
             },
         };
         let commit = Commit {
-            parents: vec![store.root_commit_id().clone()],
+            parents: vec![backend.root_commit_id().clone()],
             predecessors: vec![],
-            root_tree: MergedTreeId::Legacy(store.empty_tree_id().clone()),
+            root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
             author: signature.clone(),
             committer: signature,
         };
-        let commit_id = store.write_commit(commit).unwrap().0;
-        let git_refs = store
+        let commit_id = backend.write_commit(commit).unwrap().0;
+        let git_refs = backend
             .git_repo()
             .references_glob("refs/jj/keep/*")
             .unwrap()
@@ -1345,11 +1345,11 @@ mod tests {
     #[test]
     fn overlapping_git_commit_id() {
         let temp_dir = testutils::new_temp_dir();
-        let store = GitBackend::init_internal(temp_dir.path()).unwrap();
+        let backend = GitBackend::init_internal(temp_dir.path()).unwrap();
         let mut commit1 = Commit {
-            parents: vec![store.root_commit_id().clone()],
+            parents: vec![backend.root_commit_id().clone()],
             predecessors: vec![],
-            root_tree: MergedTreeId::Legacy(store.empty_tree_id().clone()),
+            root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
             author: create_signature(),
@@ -1359,13 +1359,13 @@ mod tests {
         // second after the epoch, so the timestamp adjustment can remove 1
         // second and it will still be nonnegative
         commit1.committer.timestamp.timestamp = MillisSinceEpoch(1000);
-        let (commit_id1, mut commit2) = store.write_commit(commit1).unwrap();
+        let (commit_id1, mut commit2) = backend.write_commit(commit1).unwrap();
         commit2.predecessors.push(commit_id1.clone());
         // `write_commit` should prevent the ids from being the same by changing the
         // committer timestamp of the commit it actually writes.
-        let (commit_id2, mut actual_commit2) = store.write_commit(commit2.clone()).unwrap();
+        let (commit_id2, mut actual_commit2) = backend.write_commit(commit2.clone()).unwrap();
         // The returned matches the ID
-        assert_eq!(store.read_commit(&commit_id2).unwrap(), actual_commit2);
+        assert_eq!(backend.read_commit(&commit_id2).unwrap(), actual_commit2);
         assert_ne!(commit_id2, commit_id1);
         // The committer timestamp should differ
         assert_ne!(
