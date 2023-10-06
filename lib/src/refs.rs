@@ -19,7 +19,7 @@ use itertools::EitherOrBoth;
 use crate::backend::CommitId;
 use crate::index::Index;
 use crate::merge::{trivial_merge, Merge};
-use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt};
+use crate::op_store::RefTarget;
 
 /// Compares `refs1` and `refs2` targets, yields entry if they differ.
 ///
@@ -136,12 +136,9 @@ pub enum BranchPushAction {
 
 /// Figure out what changes (if any) need to be made to the remote when pushing
 /// this branch.
-pub fn classify_branch_push_action(
-    branch_target: &BranchTarget,
-    remote_name: &str,
-) -> BranchPushAction {
-    let local_target = &branch_target.local_target;
-    let remote_target = branch_target.remote_targets.get(remote_name).flatten();
+pub fn classify_branch_push_action(targets: TrackingRefPair) -> BranchPushAction {
+    let local_target = targets.local_target;
+    let remote_target = targets.remote_target;
     if local_target == remote_target {
         BranchPushAction::AlreadyMatches
     } else if local_target.has_conflict() {
@@ -158,22 +155,18 @@ pub fn classify_branch_push_action(
 
 #[cfg(test)]
 mod tests {
-    use maplit::btreemap;
-
     use super::*;
     use crate::backend::ObjectId;
 
     #[test]
     fn test_classify_branch_push_action_unchanged() {
         let commit_id1 = CommitId::from_hex("11");
-        let branch = BranchTarget {
-            local_target: RefTarget::normal(commit_id1.clone()),
-            remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::normal(commit_id1),
-            },
+        let targets = TrackingRefPair {
+            local_target: &RefTarget::normal(commit_id1.clone()),
+            remote_target: &RefTarget::normal(commit_id1),
         };
         assert_eq!(
-            classify_branch_push_action(&branch, "origin"),
+            classify_branch_push_action(targets),
             BranchPushAction::AlreadyMatches
         );
     }
@@ -181,12 +174,12 @@ mod tests {
     #[test]
     fn test_classify_branch_push_action_added() {
         let commit_id1 = CommitId::from_hex("11");
-        let branch = BranchTarget {
-            local_target: RefTarget::normal(commit_id1.clone()),
-            remote_targets: btreemap! {},
+        let targets = TrackingRefPair {
+            local_target: &RefTarget::normal(commit_id1.clone()),
+            remote_target: RefTarget::absent_ref(),
         };
         assert_eq!(
-            classify_branch_push_action(&branch, "origin"),
+            classify_branch_push_action(targets),
             BranchPushAction::Update(BranchPushUpdate {
                 old_target: None,
                 new_target: Some(commit_id1),
@@ -197,14 +190,12 @@ mod tests {
     #[test]
     fn test_classify_branch_push_action_removed() {
         let commit_id1 = CommitId::from_hex("11");
-        let branch = BranchTarget {
-            local_target: RefTarget::absent(),
-            remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::normal(commit_id1.clone()),
-            },
+        let targets = TrackingRefPair {
+            local_target: RefTarget::absent_ref(),
+            remote_target: &RefTarget::normal(commit_id1.clone()),
         };
         assert_eq!(
-            classify_branch_push_action(&branch, "origin"),
+            classify_branch_push_action(targets),
             BranchPushAction::Update(BranchPushUpdate {
                 old_target: Some(commit_id1),
                 new_target: None,
@@ -216,14 +207,12 @@ mod tests {
     fn test_classify_branch_push_action_updated() {
         let commit_id1 = CommitId::from_hex("11");
         let commit_id2 = CommitId::from_hex("22");
-        let branch = BranchTarget {
-            local_target: RefTarget::normal(commit_id2.clone()),
-            remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::normal(commit_id1.clone()),
-            },
+        let targets = TrackingRefPair {
+            local_target: &RefTarget::normal(commit_id2.clone()),
+            remote_target: &RefTarget::normal(commit_id1.clone()),
         };
         assert_eq!(
-            classify_branch_push_action(&branch, "origin"),
+            classify_branch_push_action(targets),
             BranchPushAction::Update(BranchPushUpdate {
                 old_target: Some(commit_id1),
                 new_target: Some(commit_id2),
@@ -235,14 +224,12 @@ mod tests {
     fn test_classify_branch_push_action_local_conflicted() {
         let commit_id1 = CommitId::from_hex("11");
         let commit_id2 = CommitId::from_hex("22");
-        let branch = BranchTarget {
-            local_target: RefTarget::from_legacy_form([], [commit_id1.clone(), commit_id2]),
-            remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::normal(commit_id1),
-            },
+        let targets = TrackingRefPair {
+            local_target: &RefTarget::from_legacy_form([], [commit_id1.clone(), commit_id2]),
+            remote_target: &RefTarget::normal(commit_id1),
         };
         assert_eq!(
-            classify_branch_push_action(&branch, "origin"),
+            classify_branch_push_action(targets),
             BranchPushAction::LocalConflicted
         );
     }
@@ -251,17 +238,12 @@ mod tests {
     fn test_classify_branch_push_action_remote_conflicted() {
         let commit_id1 = CommitId::from_hex("11");
         let commit_id2 = CommitId::from_hex("22");
-        let branch = BranchTarget {
-            local_target: RefTarget::normal(commit_id1.clone()),
-            remote_targets: btreemap! {
-                "origin".to_string() => RefTarget::from_legacy_form(
-                    [],
-                    [commit_id1, commit_id2],
-                ),
-            },
+        let targets = TrackingRefPair {
+            local_target: &RefTarget::normal(commit_id1.clone()),
+            remote_target: &RefTarget::from_legacy_form([], [commit_id1, commit_id2]),
         };
         assert_eq!(
-            classify_branch_push_action(&branch, "origin"),
+            classify_branch_push_action(targets),
             BranchPushAction::RemoteConflicted
         );
     }

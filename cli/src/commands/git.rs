@@ -14,8 +14,10 @@ use jj_lib::git::{
     self, parse_gitmodules, GitFetchError, GitFetchStats, GitPushError, GitRefUpdate,
 };
 use jj_lib::git_backend::GitBackend;
-use jj_lib::op_store::{BranchTarget, RefTarget};
-use jj_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
+use jj_lib::op_store::RefTarget;
+use jj_lib::refs::{
+    classify_branch_push_action, BranchPushAction, BranchPushUpdate, TrackingRefPair,
+};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{self, RevsetExpression, RevsetIteratorExt as _, StringPattern};
@@ -700,21 +702,21 @@ fn cmd_git_push(
     let tx_description;
     let mut branch_updates = vec![];
     if args.all {
-        for (branch_name, branch_target) in repo.view().branches() {
-            match classify_branch_update(branch_name, branch_target, &remote) {
-                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+        for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
+            match classify_branch_update(branch_name, &remote, targets) {
+                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(message) => writeln!(ui.warning(), "{message}")?,
             }
         }
         tx_description = format!("push all branches to git remote {remote}");
     } else if args.deleted {
-        for (branch_name, branch_target) in repo.view().branches() {
-            if branch_target.local_target.is_present() {
+        for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
+            if targets.local_target.is_present() {
                 continue;
             }
-            match classify_branch_update(branch_name, branch_target, &remote) {
-                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+            match classify_branch_update(branch_name, &remote, targets) {
+                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(message) => writeln!(ui.warning(), "{message}")?,
             }
@@ -726,11 +728,14 @@ fn cmd_git_push(
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
             }
-            let branch_target = repo
-                .view()
-                .get_branch(branch_name)
-                .ok_or_else(|| user_error(format!("Branch {branch_name} doesn't exist")))?;
-            match classify_branch_update(branch_name, branch_target, &remote) {
+            let targets = TrackingRefPair {
+                local_target: repo.view().get_local_branch(branch_name),
+                remote_target: repo.view().get_remote_branch(branch_name, &remote),
+            };
+            if targets.local_target.is_absent() && targets.remote_target.is_absent() {
+                return Err(user_error(format!("Branch {branch_name} doesn't exist")));
+            }
+            match classify_branch_update(branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
                 Ok(None) => writeln!(
                     ui.stderr(),
@@ -777,8 +782,11 @@ fn cmd_git_push(
             }
             tx.mut_repo()
                 .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
-            let branch_target = tx.repo().view().get_branch(&branch_name).unwrap();
-            match classify_branch_update(&branch_name, branch_target, &remote) {
+            let targets = TrackingRefPair {
+                local_target: tx.repo().view().get_local_branch(&branch_name),
+                remote_target: tx.repo().view().get_remote_branch(&branch_name, &remote),
+            };
+            match classify_branch_update(&branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
                 Ok(None) => writeln!(
                     ui.stderr(),
@@ -814,19 +822,18 @@ fn cmd_git_push(
         };
         let branches_targeted = repo
             .view()
-            .branches()
-            .iter()
-            .filter(|(_, branch_target)| {
-                let mut local_ids = branch_target.local_target.added_ids();
+            .local_remote_branches(&remote)
+            .filter(|(_, targets)| {
+                let mut local_ids = targets.local_target.added_ids();
                 local_ids.any(|id| revision_commit_ids.contains(id))
             })
             .collect_vec();
-        for &(branch_name, branch_target) in &branches_targeted {
-            if !seen_branches.insert(branch_name.clone()) {
+        for &(branch_name, targets) in &branches_targeted {
+            if !seen_branches.insert(branch_name.to_owned()) {
                 continue;
             }
-            match classify_branch_update(branch_name, branch_target, &remote) {
-                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+            match classify_branch_update(branch_name, &remote, targets) {
+                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(message) => writeln!(ui.warning(), "{message}")?,
             }
@@ -1010,10 +1017,10 @@ fn get_default_push_remote(
 
 fn classify_branch_update(
     branch_name: &str,
-    branch_target: &BranchTarget,
     remote_name: &str,
+    targets: TrackingRefPair,
 ) -> Result<Option<BranchPushUpdate>, String> {
-    let push_action = classify_branch_push_action(branch_target, remote_name);
+    let push_action = classify_branch_push_action(targets);
     match push_action {
         BranchPushAction::AlreadyMatches => Ok(None),
         BranchPushAction::LocalConflicted => Err(format!("Branch {branch_name} is conflicted")),
