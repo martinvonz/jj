@@ -563,11 +563,10 @@ fn copy_exportable_local_branches_to_remote_view(
 ) {
     let new_local_branches = mut_repo
         .view()
-        .branches()
-        .iter()
-        .filter_map(|(branch, branch_target)| {
-            let old_target = branch_target.remote_targets.get(remote_name).flatten();
-            let new_target = &branch_target.local_target;
+        .local_remote_branches(remote_name)
+        .filter_map(|(branch, targets)| {
+            let old_target = targets.remote_target;
+            let new_target = targets.local_target;
             (!new_target.has_conflict() && old_target != new_target).then_some((branch, new_target))
         })
         .filter(|&(branch, _)| git_ref_filter(&RefName::LocalBranch(branch.to_owned())))
