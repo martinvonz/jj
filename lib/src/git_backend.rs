@@ -689,6 +689,7 @@ impl Backend for GitBackend {
         Ok(ConflictId::from_bytes(oid.as_bytes()))
     }
 
+    #[tracing::instrument(skip(self))]
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if *id == self.root_commit_id {
             return Ok(make_root_commit(
@@ -698,25 +699,32 @@ impl Backend for GitBackend {
         }
         let git_commit_id = validate_git_object_id(id)?;
 
-        let locked_repo = self.repo.lock().unwrap();
-        let commit = locked_repo
-            .find_commit(git_commit_id)
-            .map_err(|err| map_not_found_err(err, id))?;
-        let mut commit = commit_from_git_without_root_parent(&commit, false);
+        let mut commit = {
+            let locked_repo = self.repo.lock().unwrap();
+            let git_commit = locked_repo
+                .find_commit(git_commit_id)
+                .map_err(|err| map_not_found_err(err, id))?;
+            commit_from_git_without_root_parent(&git_commit, false)
+        };
         if commit.parents.is_empty() {
             commit.parents.push(self.root_commit_id.clone());
         };
 
         let table = self.cached_extra_metadata_table()?;
-        let extras =
-            table
-                .get_value(id.as_bytes())
-                .ok_or_else(|| BackendError::ObjectNotFound {
-                    object_type: id.object_type(),
-                    hash: id.hex(),
-                    source: "Not imported from Git".into(),
-                })?;
-        deserialize_extras(&mut commit, extras);
+        if let Some(extras) = table.get_value(id.as_bytes()) {
+            deserialize_extras(&mut commit, extras);
+        } else {
+            // TODO: Remove this hack and map to ObjectNotFound error if we're sure that
+            // there are no reachable ancestor commits without extras metadata. Git commits
+            // imported by jj < 0.8.0 might not have extras (#924).
+            // https://github.com/martinvonz/jj/issues/2343
+            tracing::info!("unimported Git commit found");
+            let uses_tree_conflict_format = false;
+            self.import_head_commits([id], uses_tree_conflict_format)?;
+            let table = self.cached_extra_metadata_table()?;
+            let extras = table.get_value(id.as_bytes()).unwrap();
+            deserialize_extras(&mut commit, extras);
+        }
         Ok(commit)
     }
 
@@ -1077,6 +1085,44 @@ mod tests {
         } else {
             assert_matches!(commit.root_tree, MergedTreeId::Legacy(_));
         }
+    }
+
+    #[test]
+    fn read_git_commit_without_importing() {
+        let temp_dir = testutils::new_temp_dir();
+        let store_path = temp_dir.path();
+        let git_repo_path = temp_dir.path().join("git");
+        let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+
+        let signature = git2::Signature::now("Someone", "someone@example.com").unwrap();
+        let empty_tree_id = Oid::from_str("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap();
+        let empty_tree = git_repo.find_tree(empty_tree_id).unwrap();
+        let git_commit_id = git_repo
+            .commit(
+                Some("refs/heads/main"),
+                &signature,
+                &signature,
+                "git commit message",
+                &empty_tree,
+                &[],
+            )
+            .unwrap();
+
+        let backend = GitBackend::init_external(store_path, &git_repo_path).unwrap();
+
+        // read_commit() without import_head_commits() works as of now. This might be
+        // changed later.
+        assert!(backend
+            .read_commit(&CommitId::from_bytes(git_commit_id.as_bytes()))
+            .is_ok());
+        assert!(
+            backend
+                .cached_extra_metadata_table()
+                .unwrap()
+                .get_value(git_commit_id.as_bytes())
+                .is_some(),
+            "extra metadata should have been be created"
+        );
     }
 
     #[test]
