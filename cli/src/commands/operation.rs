@@ -161,27 +161,26 @@ fn view_with_desired_portions_restored(
     current_view: &jj_lib::op_store::View,
     what: &[UndoWhatToRestore],
 ) -> jj_lib::op_store::View {
-    let mut new_view = if what.contains(&UndoWhatToRestore::Repo) {
-        view_being_restored.clone()
+    let repo_source = if what.contains(&UndoWhatToRestore::Repo) {
+        view_being_restored
     } else {
-        current_view.clone()
+        current_view
     };
-
-    new_view.git_refs = current_view.git_refs.clone();
-    new_view.git_head = current_view.git_head.clone();
-
-    if what.contains(&UndoWhatToRestore::RemoteTracking) == what.contains(&UndoWhatToRestore::Repo)
-    {
-        // new_view already contains the correct branches; we can short-curcuit
-        return new_view;
-    }
-
-    if what.contains(&UndoWhatToRestore::RemoteTracking) {
-        new_view.remote_views = view_being_restored.remote_views.clone();
+    let remote_source = if what.contains(&UndoWhatToRestore::RemoteTracking) {
+        view_being_restored
     } else {
-        new_view.remote_views = current_view.remote_views.clone();
+        current_view
+    };
+    jj_lib::op_store::View {
+        head_ids: repo_source.head_ids.clone(),
+        public_head_ids: repo_source.public_head_ids.clone(),
+        local_branches: repo_source.local_branches.clone(),
+        tags: repo_source.tags.clone(),
+        remote_views: remote_source.remote_views.clone(),
+        git_refs: current_view.git_refs.clone(),
+        git_head: current_view.git_head.clone(),
+        wc_commit_ids: repo_source.wc_commit_ids.clone(),
     }
-    new_view
 }
 
 pub fn cmd_op_undo(
