@@ -272,6 +272,18 @@ impl View {
             })
     }
 
+    pub fn remove_remote(&mut self, remote_name: &str) {
+        let mut branches_to_delete = vec![];
+        for (branch, target) in &self.data.branches {
+            if target.remote_targets.contains_key(remote_name) {
+                branches_to_delete.push(branch.clone());
+            }
+        }
+        for branch in branches_to_delete {
+            self.remove_remote_branch(&branch, remote_name);
+        }
+    }
+
     pub fn rename_remote(&mut self, old: &str, new: &str) {
         for branch in self.data.branches.values_mut() {
             let target = branch.remote_targets.remove(old).flatten();
