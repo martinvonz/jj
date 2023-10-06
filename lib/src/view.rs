@@ -23,7 +23,7 @@ use crate::backend::CommitId;
 use crate::index::Index;
 use crate::op_store;
 use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt as _, WorkspaceId};
-use crate::refs::merge_ref_targets;
+use crate::refs::{merge_ref_targets, TrackingRefPair};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum RefName {
@@ -248,6 +248,30 @@ impl View {
                 self.remove_branch(name);
             }
         }
+    }
+
+    /// Iterates local/remote branch `(name, targets)`s of the specified remote
+    /// in lexicographical order.
+    pub fn local_remote_branches<'a>(
+        &'a self,
+        remote_name: &'a str, // TODO: migrate to per-remote view and remove 'a
+    ) -> impl Iterator<Item = (&'a str, TrackingRefPair<'a>)> + 'a {
+        // TODO: maybe untracked remote_target can be translated to absent, and rename
+        // the method accordingly.
+        self.data
+            .branches
+            .iter()
+            .filter_map(move |(name, branch_target)| {
+                let local_target = &branch_target.local_target;
+                let remote_target = branch_target.remote_targets.get(remote_name).flatten();
+                (local_target.is_present() || remote_target.is_present()).then_some((
+                    name.as_ref(),
+                    TrackingRefPair {
+                        local_target,
+                        remote_target,
+                    },
+                ))
+            })
     }
 
     pub fn rename_remote(&mut self, old: &str, new: &str) {
