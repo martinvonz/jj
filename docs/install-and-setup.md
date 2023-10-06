@@ -142,7 +142,7 @@ $ jj config set --user user.email "martinvonz@google.com"
 ## Command-line completion
 
 To set up command-line completion, source the output of
-`jj util completion --bash/--zsh/--fish`. Exactly how to source it
+`jj util completion --bash/--zsh/--fish/--nushell`. Exactly how to source it
 depends on your shell.
 
 ### Bash
@@ -169,4 +169,12 @@ jj util completion --fish | source
 
 ```shell
 source-bash $(jj util completion)
+```
+
+### Nushell
+
+```shell
+jj util completion --nushell | save ~/.config/nushell/jj.nu
+'use ~/.config/nushell/jj.nu' | save --append $nu.config-path
+source $nu.config-path
 ```

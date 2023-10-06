@@ -33,6 +33,7 @@ cargo_metadata = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
+clap_complete_nushell = { workspace = true }
 clap_mangen = { workspace = true }
 config = { workspace = true }
 criterion = { workspace = true, optional = true }

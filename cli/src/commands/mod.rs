@@ -1144,6 +1144,15 @@ struct UtilCompletionArgs {
     /// source <(jj util completion --zsh)
     #[arg(long, verbatim_doc_comment)]
     zsh: bool,
+    /// Print a completion script for Nushell
+    ///
+    /// Apply it by running this:
+    ///
+    /// jj util completion --nushell | save ~/.config/nushell/jj.nu
+    /// 'use ~/.config/nushell/jj.nu' | save --append $nu.config-path
+    /// source $nu.config-path
+    #[arg(long, verbatim_doc_comment)]
+    nushell: bool,
 }
 
 /// Print a ROFF (manpage)
@@ -3653,16 +3662,19 @@ fn cmd_util(
 ) -> Result<(), CommandError> {
     match subcommand {
         UtilCommands::Completion(completion_matches) => {
+            use clap_complete::{generate, Shell};
+
             let mut app = command.app().clone();
             let mut buf = vec![];
-            let shell = if completion_matches.zsh {
-                clap_complete::Shell::Zsh
+            if completion_matches.zsh {
+                generate(Shell::Zsh, &mut app, "jj", &mut buf);
             } else if completion_matches.fish {
-                clap_complete::Shell::Fish
+                generate(Shell::Fish, &mut app, "jj", &mut buf);
+            } else if completion_matches.nushell {
+                generate(clap_complete_nushell::Nushell, &mut app, "jj", &mut buf);
             } else {
-                clap_complete::Shell::Bash
+                generate(Shell::Bash, &mut app, "jj", &mut buf);
             };
-            clap_complete::generate(shell, &mut app, "jj", &mut buf);
             ui.stdout_formatter().write_all(&buf)?;
         }
         UtilCommands::Mangen(_mangen_matches) => {

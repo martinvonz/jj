@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* `jj util completion` now supports nushell completion generation with `--nushell`.
+
 ### Fixed bugs
 
 * Updating the working copy to a commit where a file that's currently ignored
