@@ -1352,7 +1352,7 @@ struct CheckoutState {
     workspace_id: WorkspaceId,
 }
 
-pub struct WorkingCopy {
+pub struct LocalWorkingCopy {
     store: Arc<Store>,
     working_copy_path: PathBuf,
     state_path: PathBuf,
@@ -1360,7 +1360,7 @@ pub struct WorkingCopy {
     tree_state: OnceCell<TreeState>,
 }
 
-impl WorkingCopy {
+impl LocalWorkingCopy {
     /// Initializes a new working copy at `working_copy_path`. The working
     /// copy's state will be stored in the `state_path` directory. The working
     /// copy will have the empty tree checked out.
@@ -1370,7 +1370,7 @@ impl WorkingCopy {
         state_path: PathBuf,
         operation_id: OperationId,
         workspace_id: WorkspaceId,
-    ) -> Result<WorkingCopy, TreeStateError> {
+    ) -> Result<LocalWorkingCopy, TreeStateError> {
         let proto = crate::protos::working_copy::Checkout {
             operation_id: operation_id.to_bytes(),
             workspace_id: workspace_id.as_str().to_string(),
@@ -1384,7 +1384,7 @@ impl WorkingCopy {
         file.write_all(&proto.encode_to_vec()).unwrap();
         let tree_state =
             TreeState::init(store.clone(), working_copy_path.clone(), state_path.clone())?;
-        Ok(WorkingCopy {
+        Ok(LocalWorkingCopy {
             store,
             working_copy_path,
             state_path,
@@ -1393,8 +1393,12 @@ impl WorkingCopy {
         })
     }
 
-    pub fn load(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> WorkingCopy {
-        WorkingCopy {
+    pub fn load(
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> LocalWorkingCopy {
+        LocalWorkingCopy {
             store,
             working_copy_path,
             state_path,
@@ -1489,7 +1493,7 @@ impl WorkingCopy {
         });
     }
 
-    pub fn start_mutation(&mut self) -> Result<LockedWorkingCopy, TreeStateError> {
+    pub fn start_mutation(&mut self) -> Result<LockedLocalWorkingCopy, TreeStateError> {
         let lock_path = self.state_path.join("working_copy.lock");
         let lock = FileLock::lock(lock_path);
 
@@ -1501,7 +1505,7 @@ impl WorkingCopy {
         let old_operation_id = self.operation_id().clone();
         let old_tree_id = self.current_tree_id()?.clone();
 
-        Ok(LockedWorkingCopy {
+        Ok(LockedLocalWorkingCopy {
             wc: self,
             lock,
             old_operation_id,
@@ -1542,8 +1546,8 @@ impl WorkingCopy {
 
 /// A working copy that's locked on disk. The lock is held until you call
 /// `finish()` or `discard()`.
-pub struct LockedWorkingCopy<'a> {
-    wc: &'a mut WorkingCopy,
+pub struct LockedLocalWorkingCopy<'a> {
+    wc: &'a mut LocalWorkingCopy,
     #[allow(dead_code)]
     lock: FileLock,
     old_operation_id: OperationId,
@@ -1552,7 +1556,7 @@ pub struct LockedWorkingCopy<'a> {
     closed: bool,
 }
 
-impl LockedWorkingCopy<'_> {
+impl LockedLocalWorkingCopy<'_> {
     /// The operation at the time the lock was taken
     pub fn old_operation_id(&self) -> &OperationId {
         &self.old_operation_id
@@ -1627,7 +1631,7 @@ impl LockedWorkingCopy<'_> {
     }
 }
 
-impl Drop for LockedWorkingCopy<'_> {
+impl Drop for LockedLocalWorkingCopy<'_> {
     fn drop(&mut self) {
         if !self.closed {
             // Undo the changes in memory

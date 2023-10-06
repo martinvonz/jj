@@ -40,6 +40,10 @@ use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::local_working_copy::{
+    CheckoutStats, LocalWorkingCopy, LockedLocalWorkingCopy, ResetError, SnapshotError,
+    SnapshotOptions, TreeStateError,
+};
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
@@ -58,10 +62,6 @@ use jj_lib::revset::{
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::TreeMergeError;
-use jj_lib::working_copy::{
-    CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions, TreeStateError,
-    WorkingCopy,
-};
 use jj_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader};
 use jj_lib::{dag_walk, file_util, git, revset};
 use once_cell::unsync::OnceCell;
@@ -846,13 +846,13 @@ impl WorkspaceCommandHelper {
         &self.user_repo.repo
     }
 
-    pub fn working_copy(&self) -> &WorkingCopy {
+    pub fn working_copy(&self) -> &LocalWorkingCopy {
         self.workspace.working_copy()
     }
 
     pub fn unchecked_start_working_copy_mutation(
         &mut self,
-    ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
+    ) -> Result<(LockedLocalWorkingCopy, Commit), CommandError> {
         self.check_working_copy_writable()?;
         let wc_commit = if let Some(wc_commit_id) = self.get_wc_commit_id() {
             self.repo().store().get_commit(wc_commit_id)?
@@ -867,7 +867,7 @@ impl WorkspaceCommandHelper {
 
     pub fn start_working_copy_mutation(
         &mut self,
-    ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
+    ) -> Result<(LockedLocalWorkingCopy, Commit), CommandError> {
         let (locked_working_copy, wc_commit) = self.unchecked_start_working_copy_mutation()?;
         if wc_commit.tree_id() != locked_working_copy.old_tree_id() {
             return Err(user_error("Concurrent working copy operation. Try again."));
@@ -1716,7 +1716,7 @@ pub enum StaleWorkingCopyError {
 
 #[instrument(skip_all)]
 pub fn check_stale_working_copy(
-    locked_wc: &LockedWorkingCopy,
+    locked_wc: &LockedLocalWorkingCopy,
     wc_commit: &Commit,
     repo: &ReadonlyRepo,
 ) -> Result<Option<Operation>, StaleWorkingCopyError> {
@@ -1990,7 +1990,7 @@ pub fn resolve_multiple_nonempty_revsets_default_single(
 
 pub fn update_working_copy(
     repo: &Arc<ReadonlyRepo>,
-    wc: &mut WorkingCopy,
+    wc: &mut LocalWorkingCopy,
     old_commit: Option<&Commit>,
     new_commit: &Commit,
 ) -> Result<Option<CheckoutStats>, CommandError> {

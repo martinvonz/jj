@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use itertools::Itertools;
+use jj_lib::local_working_copy::{CheckoutStats, LocalWorkingCopy};
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
 use testutils::{create_tree, TestWorkspace};
 
 #[test]
@@ -84,7 +84,7 @@ fn test_sparse_checkout() {
     assert_eq!(wc.sparse_patterns().unwrap(), sparse_patterns);
 
     // Reload the state to check that it was persisted
-    let mut wc = WorkingCopy::load(
+    let mut wc = LocalWorkingCopy::load(
         repo.store().clone(),
         wc.working_copy_path().to_path_buf(),
         wc.state_path().to_path_buf(),

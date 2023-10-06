@@ -23,6 +23,7 @@ use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::local_backend::LocalBackend;
+use jj_lib::local_working_copy::{SnapshotError, SnapshotOptions};
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
 use jj_lib::repo_path::RepoPath;
@@ -32,7 +33,6 @@ use jj_lib::store::Store;
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::Tree;
 use jj_lib::tree_builder::TreeBuilder;
-use jj_lib::working_copy::{SnapshotError, SnapshotOptions};
 use jj_lib::workspace::Workspace;
 use tempfile::TempDir;
 

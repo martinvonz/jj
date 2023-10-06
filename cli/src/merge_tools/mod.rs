@@ -21,11 +21,11 @@ use config::ConfigError;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::gitignore::GitIgnoreFile;
+use jj_lib::local_working_copy::SnapshotError;
 use jj_lib::matchers::Matcher;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
-use jj_lib::working_copy::SnapshotError;
 use thiserror::Error;
 
 use self::builtin::{edit_diff_builtin, edit_merge_builtin, BuiltinToolError};

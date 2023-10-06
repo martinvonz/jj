@@ -27,13 +27,15 @@ use std::sync::Arc;
 use itertools::Itertools;
 use jj_lib::backend::{MergedTreeId, ObjectId, TreeId, TreeValue};
 use jj_lib::fsmonitor::FsmonitorKind;
+use jj_lib::local_working_copy::{
+    LocalWorkingCopy, LockedLocalWorkingCopy, SnapshotError, SnapshotOptions,
+};
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::settings::UserSettings;
-use jj_lib::working_copy::{LockedWorkingCopy, SnapshotError, SnapshotOptions, WorkingCopy};
 use test_case::test_case;
 use testutils::{create_tree, write_random_commit, TestRepoBackend, TestWorkspace};
 
@@ -402,7 +404,8 @@ fn test_checkout_discard() {
     // The change should be reflected in the working copy but not saved
     assert!(!file1_path.to_fs_path(&workspace_root).is_file());
     assert!(file2_path.to_fs_path(&workspace_root).is_file());
-    let reloaded_wc = WorkingCopy::load(store.clone(), workspace_root.clone(), state_path.clone());
+    let reloaded_wc =
+        LocalWorkingCopy::load(store.clone(), workspace_root.clone(), state_path.clone());
     assert!(reloaded_wc.file_states().unwrap().contains_key(&file1_path));
     assert!(!reloaded_wc.file_states().unwrap().contains_key(&file2_path));
     drop(locked_wc);
@@ -412,7 +415,7 @@ fn test_checkout_discard() {
     assert!(!wc.file_states().unwrap().contains_key(&file2_path));
     assert!(!file1_path.to_fs_path(&workspace_root).is_file());
     assert!(file2_path.to_fs_path(&workspace_root).is_file());
-    let reloaded_wc = WorkingCopy::load(store.clone(), workspace_root, state_path);
+    let reloaded_wc = LocalWorkingCopy::load(store.clone(), workspace_root, state_path);
     assert!(reloaded_wc.file_states().unwrap().contains_key(&file1_path));
     assert!(!reloaded_wc.file_states().unwrap().contains_key(&file2_path));
 }
@@ -827,7 +830,7 @@ fn test_fsmonitor() {
     testutils::write_working_copy_file(&workspace_root, &ignored_path, "ignored\n");
     testutils::write_working_copy_file(&workspace_root, &gitignore_path, "to/ignored\n");
 
-    let snapshot = |locked_wc: &mut LockedWorkingCopy, paths: &[&RepoPath]| {
+    let snapshot = |locked_wc: &mut LockedLocalWorkingCopy, paths: &[&RepoPath]| {
         let fs_paths = paths
             .iter()
             .map(|p| p.to_fs_path(&workspace_root))

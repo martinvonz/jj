@@ -27,6 +27,7 @@ use crate::file_util::{IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
 use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
+use crate::local_working_copy::{LocalWorkingCopy, TreeStateError};
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OpStore, WorkspaceId};
 use crate::repo::{
@@ -35,7 +36,6 @@ use crate::repo::{
 };
 use crate::settings::UserSettings;
 use crate::submodule_store::SubmoduleStore;
-use crate::working_copy::{TreeStateError, WorkingCopy};
 
 #[derive(Error, Debug)]
 pub enum WorkspaceInitError {
@@ -74,7 +74,7 @@ pub struct Workspace {
     // working copy files live.
     workspace_root: PathBuf,
     repo_loader: RepoLoader,
-    working_copy: WorkingCopy,
+    working_copy: LocalWorkingCopy,
 }
 
 fn create_jj_dir(workspace_root: &Path) -> Result<PathBuf, WorkspaceInitError> {
@@ -94,7 +94,7 @@ fn init_working_copy(
     workspace_root: &Path,
     jj_dir: &Path,
     workspace_id: WorkspaceId,
-) -> Result<(WorkingCopy, Arc<ReadonlyRepo>), WorkspaceInitError> {
+) -> Result<(LocalWorkingCopy, Arc<ReadonlyRepo>), WorkspaceInitError> {
     let working_copy_state_path = jj_dir.join("working_copy");
     std::fs::create_dir(&working_copy_state_path).context(&working_copy_state_path)?;
 
@@ -109,7 +109,7 @@ fn init_working_copy(
     )?;
     let repo = tx.commit();
 
-    let working_copy = WorkingCopy::init(
+    let working_copy = LocalWorkingCopy::init(
         repo.store().clone(),
         workspace_root.to_path_buf(),
         working_copy_state_path,
@@ -122,7 +122,7 @@ fn init_working_copy(
 impl Workspace {
     fn new(
         workspace_root: &Path,
-        working_copy: WorkingCopy,
+        working_copy: LocalWorkingCopy,
         repo_loader: RepoLoader,
     ) -> Result<Workspace, PathError> {
         let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
@@ -277,11 +277,11 @@ impl Workspace {
         &self.repo_loader
     }
 
-    pub fn working_copy(&self) -> &WorkingCopy {
+    pub fn working_copy(&self) -> &LocalWorkingCopy {
         &self.working_copy
     }
 
-    pub fn working_copy_mut(&mut self) -> &mut WorkingCopy {
+    pub fn working_copy_mut(&mut self) -> &mut LocalWorkingCopy {
         &mut self.working_copy
     }
 }
@@ -338,7 +338,7 @@ impl WorkspaceLoader {
         store_factories: &StoreFactories,
     ) -> Result<Workspace, WorkspaceLoadError> {
         let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories)?;
-        let working_copy = WorkingCopy::load(
+        let working_copy = LocalWorkingCopy::load(
             repo_loader.store().clone(),
             self.workspace_root.clone(),
             self.working_copy_state_path.clone(),
