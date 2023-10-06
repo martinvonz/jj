@@ -2190,8 +2190,8 @@ fn resolve_commit_ref(
         RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
         RevsetCommitRef::Root => Ok(vec![repo.store().root_commit_id().clone()]),
         RevsetCommitRef::Branches(pattern) => {
-            let view = repo.view();
-            let commit_ids = filter_map_values_by_key_pattern(view.branches(), pattern)
+            let view_data = repo.view().store_view();
+            let commit_ids = filter_map_values_by_key_pattern(&view_data.branches, pattern)
                 .flat_map(|branch_target| branch_target.local_target.added_ids())
                 .cloned()
                 .collect();
@@ -2201,8 +2201,8 @@ fn resolve_commit_ref(
             branch_pattern,
             remote_pattern,
         } => {
-            let view = repo.view();
-            let commit_ids = filter_map_values_by_key_pattern(view.branches(), branch_pattern)
+            let view_data = repo.view().store_view();
+            let commit_ids = filter_map_values_by_key_pattern(&view_data.branches, branch_pattern)
                 .flat_map(|branch_target| {
                     filter_map_values_by_key_pattern(&branch_target.remote_targets, remote_pattern)
                 })
