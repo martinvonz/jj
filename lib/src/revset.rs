@@ -32,7 +32,7 @@ use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
-use crate::backend::{BackendError, BackendResult, ChangeId, CommitId, ObjectId};
+use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::git::{self, get_local_git_tracking_branch};
 use crate::hex_util::to_forward_hex;
@@ -2056,26 +2056,6 @@ fn make_no_such_symbol_error(repo: &dyn Repo, name: impl Into<String>) -> Revset
     RevsetResolutionError::NoSuchRevision { name, candidates }
 }
 
-fn resolve_full_commit_id(
-    repo: &dyn Repo,
-    symbol: &str,
-) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
-    if let Ok(binary_commit_id) = hex::decode(symbol) {
-        if repo.store().commit_id_length() != binary_commit_id.len() {
-            return Ok(None);
-        }
-        let commit_id = CommitId::new(binary_commit_id);
-        match repo.store().get_commit(&commit_id) {
-            // Only recognize a commit if we have indexed it
-            Ok(_) if repo.index().has_id(&commit_id) => Ok(Some(vec![commit_id])),
-            Ok(_) | Err(BackendError::ObjectNotFound { .. }) => Ok(None),
-            Err(err) => Err(RevsetResolutionError::StoreError(err)),
-        }
-    } else {
-        Ok(None)
-    }
-}
-
 pub trait SymbolResolver {
     fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError>;
 }
@@ -2150,11 +2130,6 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
 
         // Try to resolve as a git ref
         if let Some(ids) = resolve_git_ref(self.repo, symbol) {
-            return Ok(ids);
-        }
-
-        // Try to resolve as a full commit id.
-        if let Some(ids) = resolve_full_commit_id(self.repo, symbol)? {
             return Ok(ids);
         }
 
