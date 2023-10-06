@@ -1007,6 +1007,10 @@ impl MutableRepo {
             .set_remote_branch_target(name, remote_name, target);
     }
 
+    pub fn remove_remote(&mut self, remote_name: &str) {
+        self.view_mut().remove_remote(remote_name);
+    }
+
     pub fn rename_remote(&mut self, old: &str, new: &str) {
         self.view_mut().rename_remote(old, new);
     }

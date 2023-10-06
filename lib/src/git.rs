@@ -841,12 +841,7 @@ pub fn remove_remote(
 }
 
 fn remove_remote_refs(mut_repo: &mut MutableRepo, remote_name: &str) {
-    let mut branches_to_delete = vec![];
-    for (branch, target) in mut_repo.view().branches() {
-        if target.remote_targets.contains_key(remote_name) {
-            branches_to_delete.push(branch.clone());
-        }
-    }
+    mut_repo.remove_remote(remote_name);
     let prefix = format!("refs/remotes/{remote_name}/");
     let git_refs_to_delete = mut_repo
         .view()
@@ -855,9 +850,6 @@ fn remove_remote_refs(mut_repo: &mut MutableRepo, remote_name: &str) {
         .filter(|&r| r.starts_with(&prefix))
         .cloned()
         .collect_vec();
-    for branch in branches_to_delete {
-        mut_repo.set_remote_branch_target(&branch, remote_name, RefTarget::absent());
-    }
     for git_ref in git_refs_to_delete {
         mut_repo.set_git_ref_target(&git_ref, RefTarget::absent());
     }
