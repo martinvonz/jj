@@ -1076,7 +1076,6 @@ impl TreeState {
         id: &FileId,
         executable: bool,
     ) -> Result<FileState, CheckoutError> {
-        create_parent_dirs(&self.working_copy_path, path)?;
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true) // Don't overwrite un-ignored file. Don't follow symlink.
@@ -1109,7 +1108,6 @@ impl TreeState {
         path: &RepoPath,
         id: &SymlinkId,
     ) -> Result<FileState, CheckoutError> {
-        create_parent_dirs(&self.working_copy_path, path)?;
         let target = self.store.read_symlink(path, id)?;
         #[cfg(windows)]
         {
@@ -1139,7 +1137,6 @@ impl TreeState {
         path: &RepoPath,
         conflict: &Merge<Option<TreeValue>>,
     ) -> Result<FileState, CheckoutError> {
-        create_parent_dirs(&self.working_copy_path, path)?;
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true) // Don't overwrite un-ignored file. Don't follow symlink.
@@ -1237,6 +1234,9 @@ impl TreeState {
 
             if before.is_present() {
                 fs::remove_file(&disk_path).ok();
+            }
+            if after.is_present() {
+                create_parent_dirs(&self.working_copy_path, &path)?;
             }
             // TODO: Check that the file has not changed before overwriting/removing it.
             match after.into_resolved() {
