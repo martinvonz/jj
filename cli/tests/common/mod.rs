@@ -107,6 +107,14 @@ impl TestEnvironment {
         cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
         cmd.env("JJ_OP_TIMESTAMP", timestamp.to_rfc3339());
 
+        // libgit2 always initializes OpenSSL, and it takes a few tens of milliseconds
+        // to load the system CA certificates in X509_load_cert_crl_file_ex(). As we
+        // don't use HTTPS in our tests, we can disable the cert loading to speed up the
+        // CLI tests. If we migrated to gitoxide, maybe we can remove this hack.
+        if cfg!(unix) {
+            cmd.env("SSL_CERT_FILE", "/dev/null");
+        }
+
         if cfg!(all(windows, target_env = "gnu")) {
             // MinGW executables cannot run without `mingw\bin` in the PATH (which we're
             // clearing above), so we add it again here.
