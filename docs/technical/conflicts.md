@@ -10,32 +10,43 @@ For example, if you merge two branches in a repo, there may be conflicting
 changes between the two branches. Most DVCSs require you to resolve those
 conflicts before you can finish the merge operation. Jujutsu instead records
 the conflicts in the commit and lets you resolve the conflict when you feel like
-it. 
-
+it.
 
 ## Data model
 
-When a merge conflict happens, it is recorded within the tree object as a
-special conflict object (not a file object with conflict markers). Conflicts
-are stored as a lists of states to add and another list of states to remove. A
-"state" here can be a normal file, a symlink, or a tree. These two lists
-together can be a viewed as a simple algebraic expression of positive and
-negative terms. The order of terms is undefined.
+When a merge conflict happens, it is recorded as an ordered list of tree objects
+linked from the commit (instead of the usual single tree per commit). There will
+always be an odd number of trees linked from the commit. You can think of the
+first tree as a start tree, and the subsequent pairs of trees to apply the diff
+between onto the start. Examples:
 
-For example, a regular 3-way merge between B and C, with A as base, is `B+C-A`
-(`{ removes=[A], adds=[B,C] }`). A modify/remove conflict is `B-A`. An add/add
-conflict is `B+C`. An octopus merge of N commits usually has N positive terms
-and N-1 negative terms. A non-conflict state A is equivalent to a conflict state
-containing just the term `A`. An empty expression indicates absence of any
-content at that path. A conflict can thus encode a superset of what can be
-encoded in a regular path state.
+* If the commit has trees A, B, C, D, and E it means that the contents should be
+  calculated as A+(C-B)+(E-D).
+* A three-way merge between A and C with B as base can be represented as a
+commit with trees A, B, and C, also known as A+(C-B).
 
+The resulting tree contents is calculated on demand. Note that we often don't
+need to merge the entire tree. For example, when checking out a commit in the
+working copy, we only need to merge parts of the tree that differs from the
+tree that was previously checked out in the working copy. As another example,
+when listing paths with conflicts, we only need to traverse parts of the tree
+that cannot be trivially resolved; if only one side modified `lib/`, then we
+don't need to look for conflicts in that sub-tree.
+
+When merging trees, if we can't resolve a sub-tree conflict trivially by looking
+at just the tree id, we recurse into the sub-tree. Similarly, if we can't
+resolve a file conflict trivially by looking at just the id, we recursive into
+the hunks within the file.
+
+See [here](../git-compatibility.md#format-mapping-details) for how conflicts are
+stored when using the Git commit backend.
 
 ## Conflict simplification
 
-Remember that a 3-way merge can be written `B+C-A`. If one of those states is
+Remember that a 3-way merge can be written `A+C-B`. If one of those states is
 itself a conflict, then we simply insert the conflict expression there. Then we
-simplify by removing canceling terms.
+simplify by removing canceling terms. These two steps are implemented in
+`Merge::flatten()` and `Merge::simplify()` in [`merge.rs`][merge-rs].
 
 For example, let's say commit B is based on A and is rebased to C, where it
 results in conflicts (`B+C-A`), which the user leaves unresolved. If the commit
@@ -50,3 +61,5 @@ commit. Let's say we have the usual `B+C-A` conflict on top of non-conflict
 state C. We then back out that change. Backing out ("reverting" in Git-speak) a
 change means applying its reverse diff, so the result is `(B+C-A)+(A-(B+C-A))`,
 which we can simplify to just `A` (i.e. no conflict).
+
+[merge-rs]: https://github.com/martinvonz/jj/blob/main/lib/src/merge.rs
