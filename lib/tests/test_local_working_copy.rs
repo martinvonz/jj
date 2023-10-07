@@ -28,7 +28,7 @@ use itertools::Itertools;
 use jj_lib::backend::{MergedTreeId, ObjectId, TreeId, TreeValue};
 use jj_lib::fsmonitor::FsmonitorKind;
 use jj_lib::local_working_copy::{
-    LocalWorkingCopy, LockedLocalWorkingCopy, SnapshotError, SnapshotOptions,
+    CheckoutStats, LocalWorkingCopy, LockedLocalWorkingCopy, SnapshotError, SnapshotOptions,
 };
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
@@ -323,6 +323,75 @@ fn test_tree_builder_file_directory_transition() {
     check_out_tree(&tree_id);
     assert!(parent_path.to_fs_path(&workspace_root).is_file());
     assert!(!child_path.to_fs_path(&workspace_root).exists());
+}
+
+#[test]
+fn test_conflicting_changes_on_disk() {
+    let settings = testutils::user_settings();
+    let test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let mut workspace = test_workspace.workspace;
+    let workspace_root = workspace.workspace_root().clone();
+
+    // file on disk conflicts with file in target commit
+    let file_file_path = RepoPath::from_internal_string("file-file");
+    // file on disk conflicts with directory in target commit
+    let file_dir_path = RepoPath::from_internal_string("file-dir");
+    // directory on disk conflicts with file in target commit
+    let dir_file_path = RepoPath::from_internal_string("dir-file");
+    let tree = create_tree(
+        repo,
+        &[
+            (&file_file_path, "committed contents"),
+            (
+                &file_dir_path.join(&RepoPathComponent::from("file")),
+                "committed contents",
+            ),
+            (&dir_file_path, "committed contents"),
+        ],
+    );
+
+    std::fs::write(
+        file_file_path.to_fs_path(&workspace_root),
+        "contents on disk",
+    )
+    .unwrap();
+    std::fs::write(
+        file_dir_path.to_fs_path(&workspace_root),
+        "contents on disk",
+    )
+    .unwrap();
+    std::fs::create_dir(dir_file_path.to_fs_path(&workspace_root)).unwrap();
+    std::fs::write(
+        dir_file_path.to_fs_path(&workspace_root).join("file"),
+        "contents on disk",
+    )
+    .unwrap();
+
+    let wc = workspace.working_copy_mut();
+    let stats = wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
+    assert_eq!(
+        stats,
+        CheckoutStats {
+            updated_files: 0,
+            added_files: 3,
+            removed_files: 0,
+            skipped_files: 3,
+        }
+    );
+
+    assert_eq!(
+        std::fs::read_to_string(file_file_path.to_fs_path(&workspace_root)).ok(),
+        Some("contents on disk".to_string())
+    );
+    assert_eq!(
+        std::fs::read_to_string(file_dir_path.to_fs_path(&workspace_root)).ok(),
+        Some("contents on disk".to_string())
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir_file_path.to_fs_path(&workspace_root).join("file")).ok(),
+        Some("contents on disk".to_string())
+    );
 }
 
 #[test]
@@ -637,7 +706,7 @@ fn test_gitignores_checkout_never_overwrites_ignored() {
     // "contents". The exiting contents ("garbage") shouldn't be replaced in the
     // working copy.
     let wc = test_workspace.workspace.working_copy_mut();
-    assert!(wc.check_out(repo.op_id().clone(), None, &tree).is_err());
+    assert!(wc.check_out(repo.op_id().clone(), None, &tree).is_ok());
 
     // Check that the old contents are in the working copy
     let path = workspace_root.join("modified");

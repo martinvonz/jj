@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* Updating the working copy to a commit where a file that's currently ignored
+  in the working copy no longer leads to a crash
+  ([#976](https://github.com/martinvonz/jj/issues/976)).
+
 ## [0.10.0] - 2023-10-04
 
 ### Breaking changes
