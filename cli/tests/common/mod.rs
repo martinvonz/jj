@@ -16,6 +16,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use itertools::Itertools as _;
 use regex::{Captures, Regex};
 use tempfile::TempDir;
 use testutils;
@@ -106,10 +107,7 @@ impl TestEnvironment {
         cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
         cmd.env("JJ_OP_TIMESTAMP", timestamp.to_rfc3339());
 
-        #[cfg(all(windows, target_env = "gnu"))]
-        {
-            use itertools::Itertools as _;
-
+        if cfg!(all(windows, target_env = "gnu")) {
             // MinGW executables cannot run without `mingw\bin` in the PATH (which we're
             // clearing above), so we add it again here.
             if let Ok(path_var) = std::env::var("PATH").or_else(|_| std::env::var("Path")) {
