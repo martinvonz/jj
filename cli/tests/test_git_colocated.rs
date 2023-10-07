@@ -514,6 +514,60 @@ fn test_git_colocated_squash_undo() {
     "###);
 }
 
+#[test]
+fn test_git_colocated_undo_head_move() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&repo_path).unwrap();
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+
+    // Create new HEAD
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().target().unwrap().to_string(),
+        @"230dd059e1b059aefc0da06a2e5a7dbf22362f22");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  65b6b74e08973b88d38404430f119c8c79465250
+    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ◉  0000000000000000000000000000000000000000
+    "###);
+
+    // HEAD should be unset
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    assert!(git_repo.head().is_err());
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ◉  0000000000000000000000000000000000000000
+    "###);
+
+    // Create commit on non-root commit
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  69b19f73cf584f162f078fb0d91c55ca39d10bc7
+    ◉  eb08b363bb5ef8ee549314260488980d7bbe8f63 HEAD@git
+    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ◉  0000000000000000000000000000000000000000
+    "###);
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().target().unwrap().to_string(),
+        @"eb08b363bb5ef8ee549314260488980d7bbe8f63");
+
+    // HEAD should be moved back
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["undo"]), @r###"
+    Working copy now at: royxmykx eb08b363 (empty) (no description set)
+    Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().target().unwrap().to_string(),
+        @"230dd059e1b059aefc0da06a2e5a7dbf22362f22");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  eb08b363bb5ef8ee549314260488980d7bbe8f63
+    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ◉  0000000000000000000000000000000000000000
+    "###);
+}
+
 fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> String {
     let template = r#"
     separate(" ",
