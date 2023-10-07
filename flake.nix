@@ -48,6 +48,7 @@
         jujutsu = ourRustPlatform.buildRustPackage rec {
           pname = "jujutsu";
           version = "unstable-${self.shortRev or "dirty"}";
+
           buildFeatures = [ "packaging" ];
           cargoBuildFlags = ["--bin" "jj"]; # don't build and install the fake editors
           useNextest = true;
@@ -57,9 +58,8 @@
             "^flake\\.lock$"
             "^target/"
           ];
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-          };
+
+          cargoLock.lockFile = ./Cargo.lock;
           nativeBuildInputs = with pkgs; [
             gzip
             installShellFiles
@@ -72,11 +72,14 @@
             darwin.apple_sdk.frameworks.Security
             darwin.apple_sdk.frameworks.SystemConfiguration
             libiconv
-            ];
+          ];
+
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
           NIX_JJ_GIT_HASH = self.rev or "";
           CARGO_INCREMENTAL = "0";
+
+          preCheck = "export RUST_BACKTRACE=1";
           postInstall = ''
             $out/bin/jj util mangen > ./jj.1
             installManPage ./jj.1
@@ -93,11 +96,6 @@
         type = "app";
         program = "${self.packages.${system}.jujutsu}/bin/jj";
       };
-      checks.jujutsu = self.packages.${system}.jujutsu.overrideAttrs ({ ... }: {
-        preCheck = ''
-          export RUST_BACKTRACE=1
-        '';
-      });
       formatter = pkgs.nixpkgs-fmt;
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [

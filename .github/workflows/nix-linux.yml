@@ -10,12 +10,7 @@ permissions: read-all
 
 jobs:
   nix:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-latest ]
-        mode: [ "flake check", "build" ]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     name: nix-build
     timeout-minutes: 20
     steps:
@@ -24,4 +19,4 @@ jobs:
           fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@07ebb8d2749aa2fac2baae7d1cfa011e4acfd8d1
       - uses: DeterminateSystems/magic-nix-cache-action@a04e6275a6bea232cd04fc6f3cbf20d4cb02a3e1
-      - run: nix ${{ matrix.mode }} --print-build-logs --show-trace
+      - run: nix build --print-build-logs --show-trace
