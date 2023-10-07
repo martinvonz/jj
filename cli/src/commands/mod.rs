@@ -3873,7 +3873,7 @@ fn cmd_workspace_update_stale(
                 workspace_command.write_commit_summary(fmt, &desired_wc_commit)
             })?;
             ui.write("\n")?;
-            print_checkout_stats(ui, stats)?;
+            print_checkout_stats(ui, stats, &desired_wc_commit)?;
         }
     }
     Ok(())
@@ -3926,7 +3926,7 @@ fn cmd_sparse_set(
             workspace_command.workspace_root().clone(),
         )
     });
-    let (mut locked_wc, _wc_commit) = workspace_command.start_working_copy_mutation()?;
+    let (mut locked_wc, wc_commit) = workspace_command.start_working_copy_mutation()?;
     let mut new_patterns = HashSet::new();
     if args.reset {
         new_patterns.insert(RepoPath::root());
@@ -3957,7 +3957,7 @@ fn cmd_sparse_set(
     })?;
     let operation_id = locked_wc.old_operation_id().clone();
     locked_wc.finish(operation_id)?;
-    print_checkout_stats(ui, stats)?;
+    print_checkout_stats(ui, stats, &wc_commit)?;
 
     Ok(())
 }

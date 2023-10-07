@@ -82,6 +82,20 @@ pub struct FileState {
 }
 
 impl FileState {
+    /// Indicates that a file exists in the tree but that it needs to be
+    /// re-stat'ed on the next snapshot.
+    fn placeholder() -> Self {
+        #[cfg(unix)]
+        let executable = false;
+        #[cfg(windows)]
+        let executable = ();
+        FileState {
+            file_type: FileType::Normal { executable },
+            mtime: MillisSinceEpoch(0),
+            size: 0,
+        }
+    }
+
     fn for_file(executable: bool, size: u64, metadata: &Metadata) -> Self {
         #[cfg(windows)]
         let executable = {
@@ -207,7 +221,10 @@ fn sparse_patterns_from_proto(proto: &crate::protos::working_copy::TreeState) ->
 /// Note that this does not prevent TOCTOU bugs caused by concurrent checkouts.
 /// Another process may remove the directory created by this function and put a
 /// symlink there.
-fn create_parent_dirs(working_copy_path: &Path, repo_path: &RepoPath) -> Result<(), CheckoutError> {
+fn create_parent_dirs(
+    working_copy_path: &Path,
+    repo_path: &RepoPath,
+) -> Result<bool, CheckoutError> {
     let (_, dir_components) = repo_path
         .components()
         .split_last()
@@ -223,6 +240,9 @@ fn create_parent_dirs(working_copy_path: &Path, repo_path: &RepoPath) -> Result<
                     .map(|m| m.is_dir())
                     .unwrap_or(false) => {}
             Err(err) => {
+                if dir_path.is_file() {
+                    return Ok(true);
+                }
                 return Err(CheckoutError::IoError {
                     message: format!(
                         "Failed to create parent directories for {}",
@@ -233,7 +253,7 @@ fn create_parent_dirs(working_copy_path: &Path, repo_path: &RepoPath) -> Result<
             }
         }
     }
-    Ok(())
+    Ok(false)
 }
 
 fn mtime_from_metadata(metadata: &Metadata) -> MillisSinceEpoch {
@@ -284,6 +304,7 @@ pub struct CheckoutStats {
     pub updated_files: u32,
     pub added_files: u32,
     pub removed_files: u32,
+    pub skipped_files: u32,
 }
 
 #[derive(Debug, Error)]
@@ -342,15 +363,6 @@ impl CheckoutError {
             message: format!("Failed to stat file {}", path.display()),
             err,
         }
-    }
-}
-
-fn suppress_file_exists_error(orig_err: CheckoutError) -> Result<(), CheckoutError> {
-    match orig_err {
-        CheckoutError::IoError { err, .. } if err.kind() == std::io::ErrorKind::AlreadyExists => {
-            Ok(())
-        }
-        _ => Err(orig_err),
     }
 }
 
@@ -1180,7 +1192,7 @@ impl TreeState {
             },
             other => CheckoutError::InternalBackendError(other),
         })?;
-        let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref(), Err)?;
+        let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref())?;
         self.tree_id = new_tree.id();
         Ok(stats)
     }
@@ -1200,22 +1212,19 @@ impl TreeState {
         let added_matcher = DifferenceMatcher::new(&new_matcher, &old_matcher);
         let removed_matcher = DifferenceMatcher::new(&old_matcher, &new_matcher);
         let empty_tree = MergedTree::resolved(Tree::null(self.store.clone(), RepoPath::root()));
-        let added_stats = self.update(
-            &empty_tree,
-            &tree,
-            &added_matcher,
-            suppress_file_exists_error, // Keep un-ignored file and mark it as modified
-        )?;
-        let removed_stats = self.update(&tree, &empty_tree, &removed_matcher, Err)?;
+        let added_stats = self.update(&empty_tree, &tree, &added_matcher)?;
+        let removed_stats = self.update(&tree, &empty_tree, &removed_matcher)?;
         self.sparse_patterns = sparse_patterns;
         assert_eq!(added_stats.updated_files, 0);
         assert_eq!(added_stats.removed_files, 0);
         assert_eq!(removed_stats.updated_files, 0);
         assert_eq!(removed_stats.added_files, 0);
+        assert_eq!(removed_stats.skipped_files, 0);
         Ok(CheckoutStats {
             updated_files: 0,
             added_files: added_stats.added_files,
             removed_files: removed_stats.removed_files,
+            skipped_files: added_stats.skipped_files,
         })
     }
 
@@ -1224,19 +1233,26 @@ impl TreeState {
         old_tree: &MergedTree,
         new_tree: &MergedTree,
         matcher: &dyn Matcher,
-        mut handle_error: impl FnMut(CheckoutError) -> Result<(), CheckoutError>,
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut apply_diff = |path: RepoPath,
                               before: Merge<Option<TreeValue>>,
                               after: Merge<Option<TreeValue>>|
-         -> Result<(), CheckoutError> {
+         -> Result<bool, CheckoutError> {
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
             if before.is_present() {
                 fs::remove_file(&disk_path).ok();
             }
+            if before.is_absent() && disk_path.exists() {
+                self.file_states.insert(path, FileState::placeholder());
+                return Ok(true);
+            }
             if after.is_present() {
-                create_parent_dirs(&self.working_copy_path, &path)?;
+                let skip = create_parent_dirs(&self.working_copy_path, &path)?;
+                if skip {
+                    self.file_states.insert(path, FileState::placeholder());
+                    return Ok(true);
+                }
             }
             // TODO: Check that the file has not changed before overwriting/removing it.
             match after.into_resolved() {
@@ -1274,13 +1290,16 @@ impl TreeState {
                     self.file_states.insert(path, file_state);
                 }
             }
-            Ok(())
+            Ok(false)
         };
 
+        // TODO: maybe it's better not include the skipped counts in the "intended"
+        // counts
         let mut stats = CheckoutStats {
             updated_files: 0,
             added_files: 0,
             removed_files: 0,
+            skipped_files: 0,
         };
         for (path, before, after) in old_tree.diff(new_tree, matcher) {
             if after.is_absent() {
@@ -1290,7 +1309,10 @@ impl TreeState {
             } else {
                 stats.updated_files += 1;
             }
-            apply_diff(path, before, after).or_else(&mut handle_error)?;
+            let skipped = apply_diff(path, before, after)?;
+            if skipped {
+                stats.skipped_files += 1;
+            }
         }
         Ok(stats)
     }

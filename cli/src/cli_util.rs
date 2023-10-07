@@ -1405,7 +1405,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             }
         }
         if let Some(stats) = stats {
-            print_checkout_stats(ui, stats)?;
+            print_checkout_stats(ui, stats, new_commit)?;
         }
         Ok(())
     }
@@ -1760,12 +1760,31 @@ pub fn check_stale_working_copy(
     }
 }
 
-pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std::io::Error> {
+pub fn print_checkout_stats(
+    ui: &mut Ui,
+    stats: CheckoutStats,
+    new_commit: &Commit,
+) -> Result<(), std::io::Error> {
     if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
         writeln!(
             ui,
             "Added {} files, modified {} files, removed {} files",
             stats.added_files, stats.updated_files, stats.removed_files
+        )?;
+    }
+    if stats.skipped_files != 0 {
+        writeln!(
+            ui.warning(),
+            "{} of those updates were skipped because there were conflicting changes in the \
+             working copy.",
+            stats.skipped_files
+        )?;
+        writeln!(
+            ui.hint(),
+            "Hint: Inspect the changes compared to the intended target with `jj diff --from {}`.
+Discard the conflicting changes with `jj restore --from {}`.",
+            short_commit_hash(new_commit.id()),
+            short_commit_hash(new_commit.id())
         )?;
     }
     Ok(())
