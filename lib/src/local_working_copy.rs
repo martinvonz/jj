@@ -1234,10 +1234,22 @@ impl TreeState {
         new_tree: &MergedTree,
         matcher: &dyn Matcher,
     ) -> Result<CheckoutStats, CheckoutError> {
-        let mut apply_diff = |path: RepoPath,
-                              before: Merge<Option<TreeValue>>,
-                              after: Merge<Option<TreeValue>>|
-         -> Result<bool, CheckoutError> {
+        // TODO: maybe it's better not include the skipped counts in the "intended"
+        // counts
+        let mut stats = CheckoutStats {
+            updated_files: 0,
+            added_files: 0,
+            removed_files: 0,
+            skipped_files: 0,
+        };
+        for (path, before, after) in old_tree.diff(new_tree, matcher) {
+            if after.is_absent() {
+                stats.removed_files += 1;
+            } else if before.is_absent() {
+                stats.added_files += 1;
+            } else {
+                stats.updated_files += 1;
+            }
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
             if before.is_present() {
@@ -1245,13 +1257,15 @@ impl TreeState {
             }
             if before.is_absent() && disk_path.exists() {
                 self.file_states.insert(path, FileState::placeholder());
-                return Ok(true);
+                stats.skipped_files += 1;
+                continue;
             }
             if after.is_present() {
                 let skip = create_parent_dirs(&self.working_copy_path, &path)?;
                 if skip {
                     self.file_states.insert(path, FileState::placeholder());
-                    return Ok(true);
+                    stats.skipped_files += 1;
+                    continue;
                 }
             }
             // TODO: Check that the file has not changed before overwriting/removing it.
@@ -1289,29 +1303,6 @@ impl TreeState {
                     let file_state = self.write_conflict(&disk_path, &path, &after_conflict)?;
                     self.file_states.insert(path, file_state);
                 }
-            }
-            Ok(false)
-        };
-
-        // TODO: maybe it's better not include the skipped counts in the "intended"
-        // counts
-        let mut stats = CheckoutStats {
-            updated_files: 0,
-            added_files: 0,
-            removed_files: 0,
-            skipped_files: 0,
-        };
-        for (path, before, after) in old_tree.diff(new_tree, matcher) {
-            if after.is_absent() {
-                stats.removed_files += 1;
-            } else if before.is_absent() {
-                stats.added_files += 1;
-            } else {
-                stats.updated_files += 1;
-            }
-            let skipped = apply_diff(path, before, after)?;
-            if skipped {
-                stats.skipped_files += 1;
             }
         }
         Ok(stats)
