@@ -178,11 +178,14 @@ fn view_with_desired_portions_restored(
     } else {
         current_view.clone()
     };
-    new_view.git_refs = if what.contains(&UndoWhatToRestore::GitTracking) {
-        view_being_restored.git_refs.clone()
+
+    let git_source_view = if what.contains(&UndoWhatToRestore::GitTracking) {
+        view_being_restored
     } else {
-        current_view.git_refs.clone()
+        current_view
     };
+    new_view.git_refs = git_source_view.git_refs.clone();
+    new_view.git_head = git_source_view.git_head.clone();
 
     if what.contains(&UndoWhatToRestore::RemoteTracking) == what.contains(&UndoWhatToRestore::Repo)
     {
