@@ -177,7 +177,7 @@ commit to any other commit using `jj move`.
 
 ## Status
 
-The tool is quite feature-complete, but some important features like (the
+The tool is fairly feature-complete, but some important features like (the
 equivalent of) `git blame` are not yet supported. There
 are also several performance bugs. It's also likely that workflows and setups
 different from what the core developers use are not well supported.
