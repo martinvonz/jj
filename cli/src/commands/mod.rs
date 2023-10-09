@@ -1023,6 +1023,14 @@ struct BackoutArgs {
 }
 
 /// Commands for working with workspaces
+///
+/// Workspaces let you add additional working copies attached to the same repo.
+/// A common use case is so you can run a slow build or test in one workspace
+/// while you're continuing to write code in another workspace.
+///
+/// Each workspace has its own working-copy commit. When you have more than one
+/// workspace attached to a repo, they are indicated by `@<workspace name>` in
+/// `jj log`.
 #[derive(Subcommand, Clone, Debug)]
 enum WorkspaceCommands {
     Add(WorkspaceAddArgs),
