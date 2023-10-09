@@ -17,6 +17,7 @@ use jj_lib::local_working_copy::{CheckoutStats, LocalWorkingCopy};
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
+use jj_lib::working_copy::WorkingCopy;
 use testutils::{create_tree, TestWorkspace};
 
 #[test]

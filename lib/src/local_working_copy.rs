@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::any::Any;
 use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::ffi::OsString;
@@ -58,6 +59,7 @@ use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJo
 use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
+use crate::working_copy::WorkingCopy;
 
 #[cfg(unix)]
 type FileExecutableFlag = bool;
@@ -1373,6 +1375,28 @@ pub struct LocalWorkingCopy {
     tree_state: OnceCell<TreeState>,
 }
 
+impl WorkingCopy for LocalWorkingCopy {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn name(&self) -> &str {
+        "local"
+    }
+
+    fn working_copy_path(&self) -> &Path {
+        &self.working_copy_path
+    }
+
+    fn workspace_id(&self) -> &WorkspaceId {
+        &self.checkout_state().workspace_id
+    }
+
+    fn operation_id(&self) -> &OperationId {
+        &self.checkout_state().operation_id
+    }
+}
+
 impl LocalWorkingCopy {
     /// Initializes a new working copy at `working_copy_path`. The working
     /// copy's state will be stored in the `state_path` directory. The working
@@ -1420,10 +1444,6 @@ impl LocalWorkingCopy {
         }
     }
 
-    pub fn working_copy_path(&self) -> &Path {
-        &self.working_copy_path
-    }
-
     pub fn state_path(&self) -> &Path {
         &self.state_path
     }
@@ -1459,14 +1479,6 @@ impl LocalWorkingCopy {
     fn checkout_state_mut(&mut self) -> &mut CheckoutState {
         self.checkout_state(); // ensure loaded
         self.checkout_state.get_mut().unwrap()
-    }
-
-    pub fn operation_id(&self) -> &OperationId {
-        &self.checkout_state().operation_id
-    }
-
-    pub fn workspace_id(&self) -> &WorkspaceId {
-        &self.checkout_state().workspace_id
     }
 
     #[instrument(skip_all)]

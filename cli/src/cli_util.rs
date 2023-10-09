@@ -63,6 +63,7 @@ use jj_lib::revset::{
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::TreeMergeError;
+use jj_lib::working_copy::WorkingCopy;
 use jj_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader};
 use jj_lib::{dag_walk, file_util, git, revset};
 use once_cell::unsync::OnceCell;

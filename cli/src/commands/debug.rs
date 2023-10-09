@@ -19,6 +19,7 @@ use clap::Subcommand;
 use jj_lib::backend::ObjectId;
 use jj_lib::default_index_store::{DefaultIndexStore, ReadonlyIndexWrapper};
 use jj_lib::revset;
+use jj_lib::working_copy::WorkingCopy;
 
 use crate::cli_util::{resolve_op_for_load, user_error, CommandError, CommandHelper};
 use crate::template_parser;
