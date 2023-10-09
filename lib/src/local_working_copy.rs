@@ -245,12 +245,12 @@ fn create_parent_dirs(
                 if dir_path.is_file() {
                     return Ok(true);
                 }
-                return Err(CheckoutError::IoError {
+                return Err(CheckoutError::Other {
                     message: format!(
                         "Failed to create parent directories for {}",
                         repo_path.to_fs_path(working_copy_path).display(),
                     ),
-                    err,
+                    err: err.into(),
                 });
             }
         }
@@ -347,23 +347,21 @@ pub enum CheckoutError {
     // working copy was read by the current process).
     #[error("Concurrent checkout")]
     ConcurrentCheckout,
+    #[error("Internal backend error: {0}")]
+    InternalBackendError(#[from] BackendError),
     #[error("{message}: {err:?}")]
-    IoError {
+    Other {
         message: String,
         #[source]
-        err: std::io::Error,
+        err: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error("Internal error: {0}")]
-    InternalBackendError(#[from] BackendError),
-    #[error(transparent)]
-    TreeStateError(#[from] TreeStateError),
 }
 
 impl CheckoutError {
     fn for_stat_error(err: std::io::Error, path: &Path) -> Self {
-        CheckoutError::IoError {
+        CheckoutError::Other {
             message: format!("Failed to stat file {}", path.display()),
-            err,
+            err: err.into(),
         }
     }
 }
@@ -1094,16 +1092,15 @@ impl TreeState {
             .write(true)
             .create_new(true) // Don't overwrite un-ignored file. Don't follow symlink.
             .open(disk_path)
-            .map_err(|err| CheckoutError::IoError {
+            .map_err(|err| CheckoutError::Other {
                 message: format!("Failed to open file {} for writing", disk_path.display()),
-                err,
+                err: err.into(),
             })?;
         let mut contents = self.store.read_file(path, id)?;
-        let size =
-            std::io::copy(&mut contents, &mut file).map_err(|err| CheckoutError::IoError {
-                message: format!("Failed to write file {}", disk_path.display()),
-                err,
-            })?;
+        let size = std::io::copy(&mut contents, &mut file).map_err(|err| CheckoutError::Other {
+            message: format!("Failed to write file {}", disk_path.display()),
+            err: err.into(),
+        })?;
         self.set_executable(disk_path, executable)?;
         // Read the file state from the file descriptor. That way, know that the file
         // exists and is of the expected type, and the stat information is most likely
@@ -1130,13 +1127,13 @@ impl TreeState {
         #[cfg(unix)]
         {
             let target = PathBuf::from(&target);
-            symlink(&target, disk_path).map_err(|err| CheckoutError::IoError {
+            symlink(&target, disk_path).map_err(|err| CheckoutError::Other {
                 message: format!(
                     "Failed to create symlink from {} to {}",
                     disk_path.display(),
                     target.display()
                 ),
-                err,
+                err: err.into(),
             })?;
         }
         let metadata = disk_path
@@ -1155,17 +1152,17 @@ impl TreeState {
             .write(true)
             .create_new(true) // Don't overwrite un-ignored file. Don't follow symlink.
             .open(disk_path)
-            .map_err(|err| CheckoutError::IoError {
+            .map_err(|err| CheckoutError::Other {
                 message: format!("Failed to open file {} for writing", disk_path.display()),
-                err,
+                err: err.into(),
             })?;
         let mut conflict_data = vec![];
         conflicts::materialize(conflict, self.store.as_ref(), path, &mut conflict_data)
             .expect("Failed to materialize conflict to in-memory buffer");
         file.write_all(&conflict_data)
-            .map_err(|err| CheckoutError::IoError {
+            .map_err(|err| CheckoutError::Other {
                 message: format!("Failed to write conflict to file {}", disk_path.display()),
-                err,
+                err: err.into(),
             })?;
         let size = conflict_data.len() as u64;
         // TODO: Set the executable bit correctly (when possible) and preserve that on
@@ -1546,7 +1543,10 @@ impl LocalWorkingCopy {
         old_tree_id: Option<&MergedTreeId>,
         new_tree: &MergedTree,
     ) -> Result<CheckoutStats, CheckoutError> {
-        let mut locked_wc = self.start_mutation()?;
+        let mut locked_wc = self.start_mutation().map_err(|err| CheckoutError::Other {
+            message: "Failed to start editing the working copy state".to_string(),
+            err: err.into(),
+        })?;
         // Check if the current working-copy commit has changed on disk compared to what
         // the caller expected. It's safe to check out another commit
         // regardless, but it's probably not what  the caller wanted, so we let
@@ -1557,7 +1557,12 @@ impl LocalWorkingCopy {
             }
         }
         let stats = locked_wc.check_out(new_tree)?;
-        locked_wc.finish(operation_id)?;
+        locked_wc
+            .finish(operation_id)
+            .map_err(|err| CheckoutError::Other {
+                message: "Failed to save the working copy state".to_string(),
+                err: err.into(),
+            })?;
         Ok(stats)
     }
 
@@ -1610,7 +1615,14 @@ impl LockedLocalWorkingCopy<'_> {
     pub fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with the new TreeId so we can
         // continue an interrupted update if we find such a file.
-        let stats = self.wc.tree_state_mut()?.check_out(new_tree)?;
+        let stats = self
+            .wc
+            .tree_state_mut()
+            .map_err(|err| CheckoutError::Other {
+                message: "Failed to load the working copy state".to_string(),
+                err: err.into(),
+            })?
+            .check_out(new_tree)?;
         self.tree_state_dirty = true;
         Ok(stats)
     }
@@ -1633,7 +1645,11 @@ impl LockedLocalWorkingCopy<'_> {
         // continue an interrupted update if we find such a file.
         let stats = self
             .wc
-            .tree_state_mut()?
+            .tree_state_mut()
+            .map_err(|err| CheckoutError::Other {
+                message: "Failed to load the working copy state".to_string(),
+                err: err.into(),
+            })?
             .set_sparse_patterns(new_sparse_patterns)?;
         self.tree_state_dirty = true;
         Ok(stats)
