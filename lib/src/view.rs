@@ -192,7 +192,7 @@ impl View {
 
     /// Iterates remote branch `((name, remote_name), target)`s in
     /// lexicographical order.
-    pub fn remote_branches(&self) -> impl Iterator<Item = ((&str, &str), &RefTarget)> {
+    pub fn all_remote_branches(&self) -> impl Iterator<Item = ((&str, &str), &RefTarget)> {
         // TODO: maybe yield RemoteRef instead of RefTarget?
         op_store::flatten_remote_branches(&self.data.remote_views)
     }

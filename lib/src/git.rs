@@ -341,19 +341,20 @@ fn diff_refs_to_import(
         })
         .collect();
     let mut known_remote_refs: HashMap<RefName, &RefTarget> = itertools::chain(
-        view.remote_branches().map(|((branch, remote), target)| {
-            // TODO: want to abstract local ref as "git" tracking remote, but
-            // we'll probably need to refactor the git_ref_filter API first.
-            let ref_name = if remote == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
-                RefName::LocalBranch(branch.to_owned())
-            } else {
-                RefName::RemoteBranch {
-                    branch: branch.to_owned(),
-                    remote: remote.to_owned(),
-                }
-            };
-            (ref_name, target)
-        }),
+        view.all_remote_branches()
+            .map(|((branch, remote), target)| {
+                // TODO: want to abstract local ref as "git" tracking remote, but
+                // we'll probably need to refactor the git_ref_filter API first.
+                let ref_name = if remote == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
+                    RefName::LocalBranch(branch.to_owned())
+                } else {
+                    RefName::RemoteBranch {
+                        branch: branch.to_owned(),
+                        remote: remote.to_owned(),
+                    }
+                };
+                (ref_name, target)
+            }),
         // TODO: compare to tags stored in the "git" remote view. Since tags should never
         // be moved locally in jj, we can consider local tags as merge base.
         view.tags().iter().map(|(name, target)| {
@@ -588,7 +589,7 @@ fn diff_refs_to_export(
     let mut all_branch_targets: HashMap<RefName, (&RefTarget, &RefTarget)> = itertools::chain(
         view.local_branches()
             .map(|(branch, target)| (RefName::LocalBranch(branch.to_owned()), target)),
-        view.remote_branches()
+        view.all_remote_branches()
             .filter(|&((_, remote), _)| remote != REMOTE_NAME_FOR_LOCAL_GIT_REPO)
             .map(|((branch, remote), target)| {
                 let ref_name = RefName::RemoteBranch {
