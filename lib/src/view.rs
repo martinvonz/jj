@@ -197,6 +197,22 @@ impl View {
         op_store::flatten_remote_branches(&self.data.remote_views)
     }
 
+    /// Iterates branch `(name, target)`s of the specified remote in
+    /// lexicographical order.
+    pub fn remote_branches(&self, remote_name: &str) -> impl Iterator<Item = (&str, &RefTarget)> {
+        // TODO: maybe yield RemoteRef instead of RefTarget?
+        let maybe_remote_view = self.data.remote_views.get(remote_name);
+        maybe_remote_view
+            .map(|remote_view| {
+                remote_view
+                    .branches
+                    .iter()
+                    .map(|(name, remote_ref)| (name.as_ref(), &remote_ref.target))
+            })
+            .into_iter()
+            .flatten()
+    }
+
     pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> &RefTarget {
         // TODO: maybe return RemoteRef instead of RefTarget?
         if let Some(remote_view) = self.data.remote_views.get(remote_name) {
@@ -234,23 +250,13 @@ impl View {
     ) -> impl Iterator<Item = (&'a str, TrackingRefPair<'a>)> + 'a {
         // TODO: maybe untracked remote target can be translated to absent, and rename
         // the method accordingly.
-        let maybe_remote_view = self.data.remote_views.get(remote_name);
-        let remote_branches = maybe_remote_view
-            .map(|remote_view| {
-                remote_view
-                    .branches
-                    .iter()
-                    .map(|(name, remote_ref)| (name, &remote_ref.target))
-            })
-            .into_iter()
-            .flatten();
-        iter_named_ref_pairs(&self.data.local_branches, remote_branches).map(
+        iter_named_ref_pairs(self.local_branches(), self.remote_branches(remote_name)).map(
             |(name, (local_target, remote_target))| {
                 let targets = TrackingRefPair {
                     local_target,
                     remote_target,
                 };
-                (name.as_ref(), targets)
+                (name, targets)
             },
         )
     }
