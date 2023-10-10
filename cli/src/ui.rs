@@ -23,6 +23,32 @@ use crate::cli_util::CommandError;
 use crate::config::CommandNameAndArgs;
 use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
 
+enum UiOutput {
+    Terminal {
+        stdout: Stdout,
+        stderr: Stderr,
+    },
+    Paged {
+        child: Child,
+        child_stdin: ChildStdin,
+    },
+}
+
+impl UiOutput {
+    fn new_terminal() -> UiOutput {
+        UiOutput::Terminal {
+            stdout: io::stdout(),
+            stderr: io::stderr(),
+        }
+    }
+
+    fn new_paged(pager_cmd: &CommandNameAndArgs) -> io::Result<UiOutput> {
+        let mut child = pager_cmd.to_command().stdin(Stdio::piped()).spawn()?;
+        let child_stdin = child.stdin.take().unwrap();
+        Ok(UiOutput::Paged { child, child_stdin })
+    }
+}
+
 #[derive(Debug)]
 pub enum UiStdout<'a> {
     Terminal(StdoutLock<'static>),
@@ -344,32 +370,6 @@ impl Ui {
 
     pub fn term_width(&self) -> Option<u16> {
         term_width()
-    }
-}
-
-enum UiOutput {
-    Terminal {
-        stdout: Stdout,
-        stderr: Stderr,
-    },
-    Paged {
-        child: Child,
-        child_stdin: ChildStdin,
-    },
-}
-
-impl UiOutput {
-    fn new_terminal() -> UiOutput {
-        UiOutput::Terminal {
-            stdout: io::stdout(),
-            stderr: io::stderr(),
-        }
-    }
-
-    fn new_paged(pager_cmd: &CommandNameAndArgs) -> io::Result<UiOutput> {
-        let mut child = pager_cmd.to_command().stdin(Stdio::piped()).spawn()?;
-        let child_stdin = child.stdin.take().unwrap();
-        Ok(UiOutput::Paged { child, child_stdin })
     }
 }
 
