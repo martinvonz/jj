@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::{IsTerminal as _, Stderr, Stdout, Write};
+use std::io::{IsTerminal as _, Stderr, StderrLock, Stdout, StdoutLock, Write};
 use std::process::{Child, ChildStdin, Stdio};
 use std::str::FromStr;
 use std::{env, fmt, io, mem};
@@ -22,6 +22,55 @@ use tracing::instrument;
 use crate::cli_util::CommandError;
 use crate::config::CommandNameAndArgs;
 use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
+
+#[derive(Debug)]
+pub enum UiStdout<'a> {
+    Terminal(StdoutLock<'static>),
+    Paged(&'a ChildStdin),
+}
+
+#[derive(Debug)]
+pub enum UiStderr<'a> {
+    Terminal(StderrLock<'static>),
+    Paged(&'a ChildStdin),
+}
+
+macro_rules! for_outputs {
+    ($ty:ident, $output:expr, $pat:pat => $expr:expr) => {
+        match $output {
+            $ty::Terminal($pat) => $expr,
+            $ty::Paged($pat) => $expr,
+        }
+    };
+}
+
+impl Write for UiStdout<'_> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        for_outputs!(Self, self, w => w.write(buf))
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        for_outputs!(Self, self, w => w.write_all(buf))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        for_outputs!(Self, self, w => w.flush())
+    }
+}
+
+impl Write for UiStderr<'_> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        for_outputs!(Self, self, w => w.write(buf))
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        for_outputs!(Self, self, w => w.write_all(buf))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        for_outputs!(Self, self, w => w.flush())
+    }
+}
 
 pub struct Ui {
     color: bool,
@@ -171,23 +220,33 @@ impl Ui {
         self.formatter_factory.new_formatter(output)
     }
 
+    /// Locked stdout stream.
+    pub fn stdout(&self) -> UiStdout<'_> {
+        match &self.output {
+            UiOutput::Terminal { stdout, .. } => UiStdout::Terminal(stdout.lock()),
+            UiOutput::Paged { child_stdin, .. } => UiStdout::Paged(child_stdin),
+        }
+    }
+
     /// Creates a formatter for the locked stdout stream.
     ///
     /// Labels added to the returned formatter should be removed by caller.
     /// Otherwise the last color would persist.
-    pub fn stdout_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
+    pub fn stdout_formatter(&self) -> Box<dyn Formatter + '_> {
+        for_outputs!(UiStdout, self.stdout(), w => self.new_formatter(w))
+    }
+
+    /// Locked stderr stream.
+    pub fn stderr(&self) -> UiStderr<'_> {
         match &self.output {
-            UiOutput::Terminal { stdout, .. } => self.new_formatter(stdout.lock()),
-            UiOutput::Paged { child_stdin, .. } => self.new_formatter(child_stdin),
+            UiOutput::Terminal { stderr, .. } => UiStderr::Terminal(stderr.lock()),
+            UiOutput::Paged { child_stdin, .. } => UiStderr::Paged(child_stdin),
         }
     }
 
     /// Creates a formatter for the locked stderr stream.
-    pub fn stderr_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
-        match &self.output {
-            UiOutput::Terminal { stderr, .. } => self.new_formatter(stderr.lock()),
-            UiOutput::Paged { child_stdin, .. } => self.new_formatter(child_stdin),
-        }
+    pub fn stderr_formatter(&self) -> Box<dyn Formatter + '_> {
+        for_outputs!(UiStderr, self.stderr(), w => self.new_formatter(w))
     }
 
     /// Stderr stream to be attached to a child process.
@@ -214,26 +273,15 @@ impl Ui {
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
-        let data = text.as_bytes();
-        match &mut self.output {
-            UiOutput::Terminal { stdout, .. } => stdout.write_all(data),
-            UiOutput::Paged { child_stdin, .. } => child_stdin.write_all(data),
-        }
+        self.stdout().write_all(text.as_bytes())
     }
 
     pub fn write_stderr(&mut self, text: &str) -> io::Result<()> {
-        let data = text.as_bytes();
-        match &mut self.output {
-            UiOutput::Terminal { stderr, .. } => stderr.write_all(data),
-            UiOutput::Paged { child_stdin, .. } => child_stdin.write_all(data),
-        }
+        self.stderr().write_all(text.as_bytes())
     }
 
     pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
-        match &mut self.output {
-            UiOutput::Terminal { stdout, .. } => stdout.write_fmt(fmt),
-            UiOutput::Paged { child_stdin, .. } => child_stdin.write_fmt(fmt),
-        }
+        self.stdout().write_fmt(fmt)
     }
 
     pub fn hint(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
@@ -249,10 +297,7 @@ impl Ui {
     }
 
     pub fn flush(&mut self) -> io::Result<()> {
-        match &mut self.output {
-            UiOutput::Terminal { stdout, .. } => stdout.flush(),
-            UiOutput::Paged { child_stdin, .. } => child_stdin.flush(),
-        }
+        self.stdout().flush()
     }
 
     /// Waits for the pager exits.
