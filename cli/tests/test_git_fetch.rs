@@ -45,7 +45,7 @@ fn init_git_remote(test_env: &TestEnvironment, remote: &str) {
 /// Add a remote containing a branch with the same name
 fn add_git_remote(test_env: &TestEnvironment, repo_path: &Path, remote: &str) {
     init_git_remote(test_env, remote);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         repo_path,
         &["git", "remote", "add", remote, &format!("../{remote}")],
     );
@@ -58,14 +58,14 @@ fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
     let descr = format!("descr_for_{name}");
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["new", "root()", "-m", &descr]);
+        test_env.jj_cmd_ok(repo_path, &["new", "root()", "-m", &descr]);
     } else {
         let mut args = vec!["new", "-m", &descr];
         args.extend(parents);
-        test_env.jj_cmd_success(repo_path, &args);
+        test_env.jj_cmd_ok(repo_path, &args);
     }
     std::fs::write(repo_path.join(name), format!("{name}\n")).unwrap();
-    test_env.jj_cmd_success(repo_path, &["branch", "create", name]);
+    test_env.jj_cmd_ok(repo_path, &["branch", "create", name]);
 }
 
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
@@ -76,11 +76,11 @@ fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
 #[test]
 fn test_git_fetch_default_remote() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
 
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin: oputwtnw ffecd2d6 message
     "###);
@@ -89,7 +89,7 @@ fn test_git_fetch_default_remote() {
 #[test]
 fn test_git_fetch_single_remote() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
@@ -106,7 +106,7 @@ fn test_git_fetch_single_remote() {
 #[test]
 fn test_git_fetch_single_remote_all_remotes_flag() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
@@ -122,11 +122,11 @@ fn test_git_fetch_single_remote_all_remotes_flag() {
 #[test]
 fn test_git_fetch_single_remote_from_arg() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote", "rem1"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote", "rem1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: qxosxrvv 6a211027 message
     "###);
@@ -135,12 +135,12 @@ fn test_git_fetch_single_remote_from_arg() {
 #[test]
 fn test_git_fetch_single_remote_from_config() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
     test_env.add_config(r#"git.fetch = "rem1""#);
 
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: qxosxrvv 6a211027 message
     "###);
@@ -149,12 +149,12 @@ fn test_git_fetch_single_remote_from_config() {
 #[test]
 fn test_git_fetch_multiple_remotes() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
     add_git_remote(&test_env, &repo_path, "rem2");
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "fetch", "--remote", "rem1", "--remote", "rem2"],
     );
@@ -167,12 +167,12 @@ fn test_git_fetch_multiple_remotes() {
 #[test]
 fn test_git_fetch_all_remotes() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
     add_git_remote(&test_env, &repo_path, "rem2");
 
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--all-remotes"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--all-remotes"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: qxosxrvv 6a211027 message
     rem2: yszkquru 2497a8a0 message
@@ -182,13 +182,13 @@ fn test_git_fetch_all_remotes() {
 #[test]
 fn test_git_fetch_multiple_remotes_from_config() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
     add_git_remote(&test_env, &repo_path, "rem2");
     test_env.add_config(r#"git.fetch = ["rem1", "rem2"]"#);
 
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: qxosxrvv 6a211027 message
     rem2: yszkquru 2497a8a0 message
@@ -198,7 +198,7 @@ fn test_git_fetch_multiple_remotes_from_config() {
 #[test]
 fn test_git_fetch_nonexistent_remote() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
@@ -216,7 +216,7 @@ fn test_git_fetch_nonexistent_remote() {
 #[test]
 fn test_git_fetch_nonexistent_remote_from_config() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
     test_env.add_config(r#"git.fetch = ["rem1", "rem2"]"#);
@@ -238,7 +238,7 @@ fn test_git_fetch_from_remote_named_git() {
     git_repo.remote("git", "../git").unwrap();
 
     // Existing remote named 'git' shouldn't block the repo initialization.
-    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
 
     // Try fetching from the remote named 'git'.
     let stderr = &test_env.jj_cmd_failure(&repo_path, &["git", "fetch", "--remote=git"]);
@@ -248,8 +248,9 @@ fn test_git_fetch_from_remote_named_git() {
     "###);
 
     // Implicit import shouldn't fail because of the remote ref.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
 
     // Explicit import is an error.
     // (This could be warning if we add mechanism to report ignored refs.)
@@ -259,21 +260,22 @@ fn test_git_fetch_from_remote_named_git() {
     "###);
 
     // The remote can be renamed, and the ref can be imported.
-    test_env.jj_cmd_success(&repo_path, &["git", "remote", "rename", "git", "bar"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "remote", "rename", "git", "bar"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     Done importing changes from the underlying Git repo.
     git: mrylzrtu 76fc7466 message
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_git_fetch_prune_before_updating_tips() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin: oputwtnw ffecd2d6 message
     "###);
@@ -286,7 +288,7 @@ fn test_git_fetch_prune_before_updating_tips() {
         .rename("origin/subname", false)
         .unwrap();
 
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin/subname: oputwtnw ffecd2d6 message
     "###);
@@ -295,18 +297,18 @@ fn test_git_fetch_prune_before_updating_tips() {
 #[test]
 fn test_git_fetch_conflicting_branches() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
     // Create a rem1 branch locally
-    test_env.jj_cmd_success(&repo_path, &["new", "root()"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "rem1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "rem1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: kkmpptxz fcdbbd73 (empty) (no description set)
     "###);
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "fetch", "--remote", "rem1", "--branch", "*"],
     );
@@ -325,18 +327,18 @@ fn test_git_fetch_conflicting_branches_colocated() {
     let repo_path = test_env.env_root().join("repo");
     let _git_repo = git2::Repository::init(&repo_path).unwrap();
     // create_colocated_repo_and_branches_from_trunk1(&test_env, &repo_path);
-    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo", "."]);
     add_git_remote(&test_env, &repo_path, "rem1");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
     // Create a rem1 branch locally
-    test_env.jj_cmd_success(&repo_path, &["new", "root()"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "rem1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "rem1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: zsuskuln f652c321 (empty) (no description set)
     "###);
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "fetch", "--remote", "rem1", "--branch", "rem1"],
     );
@@ -358,7 +360,7 @@ fn create_colocated_repo_and_branches_from_trunk1(
     repo_path: &Path,
 ) -> String {
     // Create a colocated repo in `source` to populate it more easily
-    test_env.jj_cmd_success(repo_path, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(repo_path, &["init", "--git-repo", "."]);
     create_commit(test_env, repo_path, "trunk1", &[]);
     create_commit(test_env, repo_path, "a1", &["trunk1"]);
     create_commit(test_env, repo_path, "a2", &["trunk1"]);
@@ -372,7 +374,7 @@ fn create_colocated_repo_and_branches_from_trunk1(
 fn create_trunk2_and_rebase_branches(test_env: &TestEnvironment, repo_path: &Path) -> String {
     create_commit(test_env, repo_path, "trunk2", &["trunk1"]);
     for br in ["a1", "a2", "b"] {
-        test_env.jj_cmd_success(repo_path, &["rebase", "-b", br, "-d", "trunk2"]);
+        test_env.jj_cmd_ok(repo_path, &["rebase", "-b", br, "-d", "trunk2"]);
     }
     format!(
         "   ===== Source git repo contents =====\n{}",
@@ -388,12 +390,13 @@ fn test_git_fetch_all() {
     let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
 
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
-    let stdout =
-        test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "target"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let target_jj_repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -415,7 +418,9 @@ fn test_git_fetch_all() {
     ◉  000000000000
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @"");
-    insta::assert_snapshot!(test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
     a1: nknoxmzm 359a9a02 descr_for_a1
     a2: qkvnknrk decaa396 descr_for_a2
@@ -449,7 +454,7 @@ fn test_git_fetch_all() {
     ◉  000000000000
     "###);
     // Change a branch in the source repo as well, so that it becomes conflicted.
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &target_jj_repo_path,
         &["describe", "b", "-m=new_descr_for_b_to_create_conflict"],
     );
@@ -473,9 +478,11 @@ fn test_git_fetch_all() {
       @origin (ahead by 1 commits, behind by 1 commits): vpupmnsl c7d4bdcb descr_for_b
     trunk1: zowqyktl ff36dc55 descr_for_trunk1
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stdout, @r###"
     Abandoned 2 commits that are no longer reachable.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
     a1: quxllqov 0424f6df descr_for_a1
     a2: osusxwst 91e46b4b descr_for_a2
@@ -511,12 +518,13 @@ fn test_git_fetch_some_of_many_branches() {
     let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
 
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
-    let stdout =
-        test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "target"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let target_jj_repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -545,8 +553,10 @@ fn test_git_fetch_some_of_many_branches() {
     ◉  000000000000
     "###);
     // Fetch one branch...
-    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     ◉  ff36dc55760e descr_for_trunk1
@@ -559,8 +569,10 @@ fn test_git_fetch_some_of_many_branches() {
     b: vpupmnsl c7d4bdcb descr_for_b
     "###);
     // ...then fetch two others with a glob.
-    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "a*"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "a*"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  decaa3966c83 descr_for_a2 a2
     │ ◉  359a9a02457d descr_for_a1 a1
@@ -573,10 +585,12 @@ fn test_git_fetch_some_of_many_branches() {
     ◉  000000000000
     "###);
     // Fetching the same branch again
-    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "a1"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "a1"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  decaa3966c83 descr_for_a2 a2
     │ ◉  359a9a02457d descr_for_a1 a1
@@ -604,7 +618,7 @@ fn test_git_fetch_some_of_many_branches() {
     ◉  000000000000
     "###);
     // Change a branch in the source repo as well, so that it becomes conflicted.
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &target_jj_repo_path,
         &["describe", "b", "-m=new_descr_for_b_to_create_conflict"],
     );
@@ -621,13 +635,14 @@ fn test_git_fetch_some_of_many_branches() {
     ├─╯
     ◉  000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &target_jj_repo_path,
         &["git", "fetch", "--branch", "b", "--branch", "a1"],
     );
     insta::assert_snapshot!(stdout, @r###"
     Abandoned 1 commits that are no longer reachable.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  13ac032802f1 descr_for_b b?? b@origin
     │ ◉  6f4e1c4dfe29 descr_for_a1 a1
@@ -655,13 +670,14 @@ fn test_git_fetch_some_of_many_branches() {
     "###);
     // Now, let's fetch a2 and double-check that fetching a1 and b again doesn't do
     // anything.
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &target_jj_repo_path,
         &["git", "fetch", "--branch", "b", "--branch", "a*"],
     );
     insta::assert_snapshot!(stdout, @r###"
     Abandoned 1 commits that are no longer reachable.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  010977d69c5b descr_for_a2 a2
     │ ◉  13ac032802f1 descr_for_b b?? b@origin
@@ -696,12 +712,13 @@ fn test_git_fetch_undo() {
     let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
 
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
-    let stdout =
-        test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "target"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let target_jj_repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -718,11 +735,12 @@ fn test_git_fetch_undo() {
     "###);
 
     // Fetch 2 branches
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &target_jj_repo_path,
         &["git", "fetch", "--branch", "b", "--branch", "a1"],
     );
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  359a9a02457d descr_for_a1 a1
@@ -732,15 +750,19 @@ fn test_git_fetch_undo() {
     ├─╯
     ◉  000000000000
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&target_jj_repo_path, &["undo"]), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["undo"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     // The undo works as expected
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     @  230dd059e1b0
     ◉  000000000000
     "###);
     // Now try to fetch just one branch
-    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     ◉  ff36dc55760e descr_for_trunk1
@@ -759,12 +781,13 @@ fn test_fetch_undo_what() {
     let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
 
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
-    let stdout =
-        test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "target"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -786,8 +809,9 @@ fn test_fetch_undo_what() {
     let base_operation_id = test_env.current_operation_id(&repo_path);
 
     // Fetch a branch
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--branch", "b"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     ◉  ff36dc55760e descr_for_trunk1
@@ -800,11 +824,12 @@ fn test_fetch_undo_what() {
     "###);
 
     // We can undo the change in the repo without moving the remote-tracking branch
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
         &["op", "restore", "--what", "repo", &base_operation_id],
     );
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     b (deleted)
       @origin: vpupmnsl c7d4bdcb descr_for_b
@@ -814,7 +839,7 @@ fn test_fetch_undo_what() {
 
     // Now, let's demo restoring just the remote-tracking branch. First, let's
     // change our local repo state...
-    test_env.jj_cmd_success(&repo_path, &["branch", "c", "newbranch"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "newbranch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     b (deleted)
       @origin: vpupmnsl c7d4bdcb descr_for_b
@@ -824,7 +849,7 @@ fn test_fetch_undo_what() {
     "###);
     // Restoring just the remote-tracking state will not affect `newbranch`, but
     // will eliminate `b@origin`.
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
         &[
             "op",
@@ -835,6 +860,7 @@ fn test_fetch_undo_what() {
         ],
     );
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     newbranch: qpvuntsm 230dd059 (empty) (no description set)
     "###);
@@ -843,16 +869,16 @@ fn test_fetch_undo_what() {
 #[test]
 fn test_git_fetch_remove_fetch() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
 
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin (conflicted):
       + qpvuntsm 230dd059 (empty) (no description set)
@@ -860,18 +886,19 @@ fn test_git_fetch_remove_fetch() {
       @origin (behind by 1 commits): oputwtnw ffecd2d6 message
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["git", "remote", "remove", "origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "remote", "remove", "origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin (conflicted):
       + qpvuntsm 230dd059 (empty) (no description set)
       + oputwtnw ffecd2d6 message
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["git", "remote", "add", "origin", "../origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "remote", "add", "origin", "../origin"]);
 
     // Check that origin@origin is properly recreated
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin (conflicted):
       + qpvuntsm 230dd059 (empty) (no description set)
@@ -883,16 +910,16 @@ fn test_git_fetch_remove_fetch() {
 #[test]
 fn test_git_fetch_rename_fetch() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
 
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin (conflicted):
       + qpvuntsm 230dd059 (empty) (no description set)
@@ -900,7 +927,7 @@ fn test_git_fetch_rename_fetch() {
       @origin (behind by 1 commits): oputwtnw ffecd2d6 message
     "###);
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "remote", "rename", "origin", "upstream"],
     );
@@ -912,10 +939,12 @@ fn test_git_fetch_rename_fetch() {
     "###);
 
     // Check that jj indicates that nothing has changed
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote", "upstream"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote", "upstream"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -925,12 +954,13 @@ fn test_git_fetch_removed_branch() {
     let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
 
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
-    let stdout =
-        test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "target"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let target_jj_repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -947,8 +977,9 @@ fn test_git_fetch_removed_branch() {
     "###);
 
     // Fetch all branches
-    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  decaa3966c83 descr_for_a2 a2
@@ -962,13 +993,15 @@ fn test_git_fetch_removed_branch() {
     "###);
 
     // Remove a2 branch in origin
-    test_env.jj_cmd_success(&source_git_repo_path, &["branch", "forget", "a2"]);
+    test_env.jj_cmd_ok(&source_git_repo_path, &["branch", "forget", "a2"]);
 
     // Fetch branch a1 from origin and check that a2 is still there
-    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "a1"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "a1"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  decaa3966c83 descr_for_a2 a2
@@ -982,10 +1015,12 @@ fn test_git_fetch_removed_branch() {
     "###);
 
     // Fetch branches a2 from origin, and check that it has been removed locally
-    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch", "--branch", "a2"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "a2"]);
     insta::assert_snapshot!(stdout, @r###"
     Abandoned 1 commits that are no longer reachable.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  359a9a02457d descr_for_a1 a1
@@ -1004,12 +1039,13 @@ fn test_git_fetch_removed_parent_branch() {
     let _git_repo = git2::Repository::init(source_git_repo_path.clone()).unwrap();
 
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
-    let stdout =
-        test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "target"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let target_jj_repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -1026,8 +1062,9 @@ fn test_git_fetch_removed_parent_branch() {
     "###);
 
     // Fetch all branches
-    let stdout = test_env.jj_cmd_success(&target_jj_repo_path, &["git", "fetch"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  decaa3966c83 descr_for_a2 a2
@@ -1041,12 +1078,12 @@ fn test_git_fetch_removed_parent_branch() {
     "###);
 
     // Remove all branches in origin.
-    test_env.jj_cmd_success(&source_git_repo_path, &["branch", "forget", "--glob", "*"]);
+    test_env.jj_cmd_ok(&source_git_repo_path, &["branch", "forget", "--glob", "*"]);
 
     // Fetch branches master, trunk1 and a1 from origin and check that only those
     // branches have been removed and that others were not rebased because of
     // abandoned commits.
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &target_jj_repo_path,
         &[
             "git", "fetch", "--branch", "master", "--branch", "trunk1", "--branch", "a1",
@@ -1055,6 +1092,7 @@ fn test_git_fetch_removed_parent_branch() {
     insta::assert_snapshot!(stdout, @r###"
     Abandoned 1 commits that are no longer reachable.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  decaa3966c83 descr_for_a2 a2
@@ -1069,7 +1107,7 @@ fn test_git_fetch_removed_parent_branch() {
 #[test]
 fn test_git_fetch_remote_only_branch() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Create non-empty git repo to add as a remote
@@ -1084,7 +1122,7 @@ fn test_git_fetch_remote_only_branch() {
         .unwrap();
     let tree_oid = tree_builder.write().unwrap();
     let tree = git_repo.find_tree(tree_oid).unwrap();
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "remote", "add", "origin", "../git-repo"],
     );
@@ -1101,7 +1139,7 @@ fn test_git_fetch_remote_only_branch() {
         .unwrap();
 
     // Fetch normally
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
     "###);
@@ -1119,7 +1157,7 @@ fn test_git_fetch_remote_only_branch() {
 
     // Fetch using git.auto_local_branch = false
     test_env.add_config("git.auto-local-branch = false");
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
     feature2 (deleted)

@@ -20,20 +20,20 @@ pub mod common;
 
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["new", "root()", "-m", name]);
+        test_env.jj_cmd_ok(repo_path, &["new", "root()", "-m", name]);
     } else {
         let mut args = vec!["new", "-m", name];
         args.extend(parents);
-        test_env.jj_cmd_success(repo_path, &args);
+        test_env.jj_cmd_ok(repo_path, &args);
     }
     std::fs::write(repo_path.join(name), format!("{name}\n")).unwrap();
-    test_env.jj_cmd_success(repo_path, &["branch", "create", name]);
+    test_env.jj_cmd_ok(repo_path, &["branch", "create", name]);
 }
 
 #[test]
 fn test_rebase_branch_with_merge() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "a", &[]);
@@ -54,7 +54,7 @@ fn test_rebase_branch_with_merge() {
     ◉
     "###);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "d"]);
     insta::assert_snapshot!(stdout, @r###"
     Abandoned commit vruxwmqv b7c62f28 d | d
     Rebased 1 descendant commits onto parents of abandoned commits
@@ -63,6 +63,7 @@ fn test_rebase_branch_with_merge() {
     Parent commit      : royxmykx fe2e8e8b c d | c
     Added 0 files, modified 0 files, removed 1 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
@@ -74,14 +75,15 @@ fn test_rebase_branch_with_merge() {
     ◉
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["abandon"] /* abandons `e` */);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon"] /* abandons `e` */);
     insta::assert_snapshot!(stdout, @r###"
     Abandoned commit znkkpsqq 5557ece3 e | e
     Working copy now at: nkmrtpmo 6b527513 (empty) (no description set)
     Parent commit      : rlvkpnrz 2443ea76 a e?? | a
     Added 0 files, modified 0 files, removed 3 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @
     │ ◉  b
@@ -93,8 +95,8 @@ fn test_rebase_branch_with_merge() {
     ◉
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "descendants(c)"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "descendants(c)"]);
     // TODO(ilyagr): Minor Bug: The branch `e` should be shown next
     // to the commit with description `e` below. This is because the commits are
     // printed in the state *after* abandonment. This will be fixed together with
@@ -109,6 +111,7 @@ fn test_rebase_branch_with_merge() {
     Parent commit      : rlvkpnrz 2443ea76 a e?? | a
     Added 0 files, modified 0 files, removed 3 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @
     │ ◉  b
@@ -118,11 +121,12 @@ fn test_rebase_branch_with_merge() {
     "###);
 
     // Test abandoning the same commit twice directly
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "b", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "b", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Abandoned commit zsuskuln 1394f625 b | b
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
@@ -134,8 +138,8 @@ fn test_rebase_branch_with_merge() {
     "###);
 
     // Test abandoning the same commit twice indirectly
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d::", "a::"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "d::", "a::"]);
     insta::assert_snapshot!(stdout, @r###"
     Abandoned the following commits:
       znkkpsqq 5557ece3 e | e
@@ -146,6 +150,7 @@ fn test_rebase_branch_with_merge() {
     Parent commit      : zzzzzzzz 00000000 a b e?? | (empty) (no description set)
     Added 0 files, modified 0 files, removed 4 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @
     │ ◉  c d e??

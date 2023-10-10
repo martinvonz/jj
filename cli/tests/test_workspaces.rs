@@ -22,19 +22,19 @@ pub mod common;
 #[test]
 fn test_workspaces_add_second_workspace() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
     let main_path = test_env.env_root().join("main");
     let secondary_path = test_env.env_root().join("secondary");
 
     std::fs::write(main_path.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&main_path, &["commit", "-m", "initial"]);
+    test_env.jj_cmd_ok(&main_path, &["commit", "-m", "initial"]);
 
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     default: rlvkpnrz e0e6d567 (empty) (no description set)
     "###);
 
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &main_path,
         &["workspace", "add", "--name", "second", "../secondary"],
     );
@@ -44,6 +44,7 @@ fn test_workspaces_add_second_workspace() {
     Parent commit      : qpvuntsm 7d308bc9 initial
     Added 1 files, modified 0 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @"");
 
     // Can see the working-copy commit in each workspace in the log output. The "@"
     // node in the graph indicates the current workspace's working-copy commit.
@@ -75,14 +76,14 @@ fn test_workspaces_add_second_workspace() {
 #[test]
 fn test_workspaces_conflicting_edits() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
     let main_path = test_env.env_root().join("main");
     let secondary_path = test_env.env_root().join("secondary");
 
     std::fs::write(main_path.join("file"), "contents\n").unwrap();
-    test_env.jj_cmd_success(&main_path, &["new"]);
+    test_env.jj_cmd_ok(&main_path, &["new"]);
 
-    test_env.jj_cmd_success(&main_path, &["workspace", "add", "../secondary"]);
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../secondary"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     ◉  265af0cdbcc7bb33e3734ad72565c943ce3fb0d4 secondary@
@@ -97,12 +98,13 @@ fn test_workspaces_conflicting_edits() {
     std::fs::write(secondary_path.join("file"), "changed in second\n").unwrap();
     // Squash the changes from the main workspace into the initial commit (before
     // running any command in the secondary workspace
-    let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl fe8f41ed (empty) (no description set)
     Parent commit      : qpvuntsm c0d4a99e (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // The secondary workspace's working-copy commit was updated
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
@@ -125,7 +127,7 @@ fn test_workspaces_conflicting_edits() {
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);
-    let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "update-stale"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     // It was detected that the working copy is now stale.
     // Since there was an uncommitted change in the working copy, it should
     // have been committed first (causing divergence)
@@ -135,6 +137,7 @@ fn test_workspaces_conflicting_edits() {
     Working copy now at: pmmvwywv a1896a17 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
     ◉  a3c96849ef9f124cbfc2416dc13bf17309d5020a (divergent)
@@ -163,14 +166,14 @@ fn test_workspaces_conflicting_edits() {
 #[test]
 fn test_workspaces_updated_by_other() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
     let main_path = test_env.env_root().join("main");
     let secondary_path = test_env.env_root().join("secondary");
 
     std::fs::write(main_path.join("file"), "contents\n").unwrap();
-    test_env.jj_cmd_success(&main_path, &["new"]);
+    test_env.jj_cmd_ok(&main_path, &["new"]);
 
-    test_env.jj_cmd_success(&main_path, &["workspace", "add", "../secondary"]);
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../secondary"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     ◉  265af0cdbcc7bb33e3734ad72565c943ce3fb0d4 secondary@
@@ -182,12 +185,13 @@ fn test_workspaces_updated_by_other() {
 
     // Rewrite the check-out commit in one workspace.
     std::fs::write(main_path.join("file"), "changed in main\n").unwrap();
-    let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl fe8f41ed (empty) (no description set)
     Parent commit      : qpvuntsm c0d4a99e (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // The secondary workspace's working-copy commit was updated.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
@@ -203,13 +207,14 @@ fn test_workspaces_updated_by_other() {
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);
-    let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "update-stale"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     // It was detected that the working copy is now stale, but clean. So no
     // divergent commit should be created.
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: pmmvwywv a1896a17 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
     ◉  fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
@@ -223,13 +228,14 @@ fn test_workspaces_updated_by_other() {
 #[test]
 fn test_workspaces_update_stale_noop() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
     let main_path = test_env.env_root().join("main");
 
-    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "update-stale"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["workspace", "update-stale"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing to do (the working copy is not stale).
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     let stderr = test_env.jj_cmd_failure(
         &main_path,
@@ -251,25 +257,26 @@ fn test_workspaces_update_stale_noop() {
 #[test]
 fn test_workspaces_update_stale_snapshot() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
     let main_path = test_env.env_root().join("main");
     let secondary_path = test_env.env_root().join("secondary");
 
     std::fs::write(main_path.join("file"), "changed in main\n").unwrap();
-    test_env.jj_cmd_success(&main_path, &["new"]);
-    test_env.jj_cmd_success(&main_path, &["workspace", "add", "../secondary"]);
+    test_env.jj_cmd_ok(&main_path, &["new"]);
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../secondary"]);
 
     // Record new operation in one workspace.
-    test_env.jj_cmd_success(&main_path, &["new"]);
+    test_env.jj_cmd_ok(&main_path, &["new"]);
 
     // Snapshot the other working copy, which unfortunately results in concurrent
     // operations, but should be resolved cleanly.
     std::fs::write(secondary_path.join("file"), "changed in second\n").unwrap();
-    let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "update-stale"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
     Nothing to do (the working copy is not stale).
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
     @  4976dfa88529814c4dd8c06253fbd82d076b79f8 secondary@
@@ -285,15 +292,16 @@ fn test_workspaces_update_stale_snapshot() {
 #[test]
 fn test_workspaces_forget() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
     let main_path = test_env.env_root().join("main");
 
     std::fs::write(main_path.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&main_path, &["new"]);
+    test_env.jj_cmd_ok(&main_path, &["new"]);
 
-    test_env.jj_cmd_success(&main_path, &["workspace", "add", "../secondary"]);
-    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "forget"]);
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../secondary"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["workspace", "forget"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
 
     // When listing workspaces, only the secondary workspace shows up
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
@@ -302,10 +310,11 @@ fn test_workspaces_forget() {
     "###);
 
     // `jj status` tells us that there's no working copy here
-    let stdout = test_env.jj_cmd_success(&main_path, &["st"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["st"]);
     insta::assert_snapshot!(stdout, @r###"
     No working copy
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // The old working copy doesn't get an "@" in the log output
     // TODO: We should abandon the empty working copy commit
@@ -334,8 +343,9 @@ fn test_workspaces_forget() {
     "###);
 
     // Forget the secondary workspace
-    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "forget", "secondary"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["workspace", "forget", "secondary"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     // No workspaces left
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @"");
@@ -345,7 +355,7 @@ fn test_workspaces_forget() {
 #[test]
 fn test_list_workspaces_template() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
     test_env.add_config(
         r#"
         templates.commit_summary = """commit_id.short() ++ " " ++ description.first_line() ++
@@ -356,8 +366,8 @@ fn test_list_workspaces_template() {
     let secondary_path = test_env.env_root().join("secondary");
 
     std::fs::write(main_path.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&main_path, &["commit", "-m", "initial"]);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(&main_path, &["commit", "-m", "initial"]);
+    test_env.jj_cmd_ok(
         &main_path,
         &["workspace", "add", "--name", "second", "../secondary"],
     );
@@ -380,7 +390,7 @@ fn test_list_workspaces_template() {
 #[test]
 fn test_workspaces_root() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
     let main_path = test_env.env_root().join("main");
     let secondary_path = test_env.env_root().join("secondary");
 
@@ -395,7 +405,7 @@ fn test_workspaces_root() {
     $TEST_ENV/main
     "###);
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &main_path,
         &["workspace", "add", "--name", "secondary", "../secondary"],
     );

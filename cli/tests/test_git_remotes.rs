@@ -22,28 +22,31 @@ pub mod common;
 fn test_git_remotes() {
     let test_env = TestEnvironment::default();
 
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "repo"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
     insta::assert_snapshot!(stdout, @"");
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
         &["git", "remote", "add", "foo", "http://example.com/repo/foo"],
     );
     insta::assert_snapshot!(stdout, @"");
-    let stdout = test_env.jj_cmd_success(
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
         &["git", "remote", "add", "bar", "http://example.com/repo/bar"],
     );
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     bar http://example.com/repo/bar
     foo http://example.com/repo/foo
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "remove", "foo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "remote", "remove", "foo"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
     insta::assert_snapshot!(stdout, @"bar http://example.com/repo/bar
 ");
@@ -57,9 +60,9 @@ fn test_git_remotes() {
 fn test_git_remote_add() {
     let test_env = TestEnvironment::default();
 
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "repo"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "repo"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "remote", "add", "foo", "http://example.com/repo/foo"],
     );
@@ -93,13 +96,13 @@ fn test_git_remote_add() {
 fn test_git_remote_rename() {
     let test_env = TestEnvironment::default();
 
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "repo"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "repo"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "remote", "add", "foo", "http://example.com/repo/foo"],
     );
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "remote", "add", "baz", "http://example.com/repo/baz"],
     );
@@ -115,8 +118,10 @@ fn test_git_remote_rename() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Git remote named 'git' is reserved for local Git repository
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "rename", "foo", "bar"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["git", "remote", "rename", "foo", "bar"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     bar http://example.com/repo/foo
@@ -134,12 +139,14 @@ fn test_git_remote_named_git() {
     git_repo
         .remote("git", "http://example.com/repo/repo")
         .unwrap();
-    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "main"]);
 
     // The remote can be renamed.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "rename", "git", "bar"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["git", "remote", "rename", "git", "bar"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     bar http://example.com/repo/repo
@@ -161,11 +168,12 @@ fn test_git_remote_named_git() {
     // Reinitialize the repo with remote named 'git'.
     fs::remove_dir_all(repo_path.join(".jj")).unwrap();
     git_repo.remote_rename("bar", "git").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
 
     // The remote can also be removed.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "remove", "git"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "remote", "remove", "git"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     "###);

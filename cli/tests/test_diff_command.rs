@@ -20,12 +20,12 @@ pub mod common;
 #[test]
 fn test_diff_basic() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
     std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::remove_file(repo_path.join("file1")).unwrap();
     std::fs::write(repo_path.join("file2"), "foo\nbar\n").unwrap();
     std::fs::write(repo_path.join("file3"), "foo\n").unwrap();
@@ -120,7 +120,7 @@ fn test_diff_basic() {
 #[test]
 fn test_diff_empty() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "").unwrap();
@@ -130,7 +130,7 @@ fn test_diff_empty() {
         (empty)
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::remove_file(repo_path.join("file1")).unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -148,24 +148,24 @@ fn test_diff_empty() {
 #[test]
 fn test_diff_types() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let file_path = repo_path.join("foo");
 
     // Missing
-    test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=missing"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m=missing"]);
 
     // Normal file
-    test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=file"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m=file"]);
     std::fs::write(&file_path, "foo").unwrap();
 
     // Conflict (add/add)
-    test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=conflict"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m=conflict"]);
     std::fs::write(&file_path, "foo").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
     std::fs::write(&file_path, "bar").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["move", r#"--to=description("conflict")"#]);
+    test_env.jj_cmd_ok(&repo_path, &["move", r#"--to=description("conflict")"#]);
 
     #[cfg(unix)]
     {
@@ -173,12 +173,12 @@ fn test_diff_types() {
         use std::path::PathBuf;
 
         // Executable
-        test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=executable"]);
+        test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m=executable"]);
         std::fs::write(&file_path, "foo").unwrap();
         std::fs::set_permissions(&file_path, std::fs::Permissions::from_mode(0o755)).unwrap();
 
         // Symlink
-        test_env.jj_cmd_success(&repo_path, &["new", "root()", "-m=symlink"]);
+        test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m=symlink"]);
         std::os::unix::fs::symlink(PathBuf::from("."), &file_path).unwrap();
     }
 
@@ -217,7 +217,7 @@ fn test_diff_types() {
 #[test]
 fn test_diff_bad_args() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["diff", "-s", "--types"]);
@@ -242,7 +242,7 @@ fn test_diff_bad_args() {
 #[test]
 fn test_diff_relative_paths() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::create_dir_all(repo_path.join("dir1").join("subdir1")).unwrap();
@@ -255,7 +255,7 @@ fn test_diff_relative_paths() {
     )
     .unwrap();
     std::fs::write(repo_path.join("dir2").join("file4"), "foo4\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "bar1\n").unwrap();
     std::fs::write(repo_path.join("dir1").join("file2"), "bar2\n").unwrap();
     std::fs::write(
@@ -375,12 +375,12 @@ fn test_diff_relative_paths() {
 #[test]
 fn test_diff_missing_newline() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "foo").unwrap();
     std::fs::write(repo_path.join("file2"), "foo\nbar").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "foo\nbar").unwrap();
     std::fs::write(repo_path.join("file2"), "foo").unwrap();
 
@@ -429,25 +429,25 @@ fn test_diff_missing_newline() {
 #[test]
 fn test_color_words_diff_missing_newline() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Empty"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "=== Empty"]);
     std::fs::write(repo_path.join("file1"), "a\nb\nc\nd\ne\nf\ng\nh\ni").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Add no newline"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "=== Add no newline"]);
     std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\ne\nf\ng\nh\ni").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Modify first line"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "=== Modify first line"]);
     std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\nE\nf\ng\nh\ni").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Modify middle line"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "=== Modify middle line"]);
     std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\nE\nf\ng\nh\nI").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Modify last line"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "=== Modify last line"]);
     std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\nE\nf\ng\nh\nI\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Append newline"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "=== Append newline"]);
     std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\nE\nf\ng\nh\nI").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Remove newline"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "=== Remove newline"]);
     std::fs::write(repo_path.join("file1"), "").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Empty"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "=== Empty"]);
 
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -530,23 +530,23 @@ fn test_color_words_diff_missing_newline() {
 #[test]
 fn test_diff_skipped_context() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "a\nb\nc\nd\ne\nf\ng\nh\ni\nj").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "=== Left side of diffs"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "=== Left side of diffs"]);
 
-    test_env.jj_cmd_success(&repo_path, &["new", "@", "-m", "=== Must skip 2 lines"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@", "-m", "=== Must skip 2 lines"]);
     std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\ne\nf\ng\nh\ni\nJ").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "@-", "-m", "=== Don't skip 1 line"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m", "=== Don't skip 1 line"]);
     std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\ne\nf\ng\nh\nI\nj").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "@-", "-m", "=== No gap to skip"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m", "=== No gap to skip"]);
     std::fs::write(repo_path.join("file1"), "a\nB\nc\nd\ne\nf\ng\nh\nI\nj").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "@-", "-m", "=== No gap to skip"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m", "=== No gap to skip"]);
     std::fs::write(repo_path.join("file1"), "a\nb\nC\nd\ne\nf\ng\nh\nI\nj").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "@-", "-m", "=== 1 line at start"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m", "=== 1 line at start"]);
     std::fs::write(repo_path.join("file1"), "a\nb\nc\nd\nE\nf\ng\nh\ni\nj").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "@-", "-m", "=== 1 line at end"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m", "=== 1 line at end"]);
     std::fs::write(repo_path.join("file1"), "a\nb\nc\nd\ne\nF\ng\nh\ni\nj").unwrap();
 
     let stdout = test_env.jj_cmd_success(
@@ -641,12 +641,12 @@ fn test_diff_skipped_context() {
 #[test]
 fn test_diff_external_tool() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
     std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::remove_file(repo_path.join("file1")).unwrap();
     std::fs::write(repo_path.join("file2"), "foo\nbar\n").unwrap();
     std::fs::write(repo_path.join("file3"), "foo\n").unwrap();
@@ -759,7 +759,7 @@ fn test_diff_external_tool() {
 #[test]
 fn test_diff_stat() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
 
@@ -769,13 +769,13 @@ fn test_diff_stat() {
     1 file changed, 1 insertion(+), 0 deletions(-)
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
     insta::assert_snapshot!(stdout, @"0 files changed, 0 insertions(+), 0 deletions(-)");
 
     std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "bar\n").unwrap();
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
@@ -789,11 +789,11 @@ fn test_diff_stat() {
 fn test_diff_stat_long_name_or_stat() {
     let mut test_env = TestEnvironment::default();
     test_env.add_env_var("COLUMNS", "30");
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let get_stat = |test_env: &TestEnvironment, path_length: usize, stat_size: usize| {
-        test_env.jj_cmd_success(&repo_path, &["new", "root()"]);
+        test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
         let ascii_name = "1234567890".chars().cycle().take(path_length).join("");
         let han_name = "一二三四五六七八九十"
             .chars()

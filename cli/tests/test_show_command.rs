@@ -21,7 +21,7 @@ pub mod common;
 #[test]
 fn test_show() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show"]);
@@ -38,7 +38,7 @@ fn test_show() {
 #[test]
 fn test_show_relative_timestamps() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(

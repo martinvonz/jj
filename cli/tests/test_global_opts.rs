@@ -45,7 +45,7 @@ fn test_non_utf8_arg() {
 #[test]
 fn test_no_subcommand() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Outside of a repo.
@@ -81,10 +81,10 @@ fn test_no_subcommand() {
     assert_eq!(stdout, test_env.jj_cmd_success(&repo_path, &["log"]));
 
     // Command argument that looks like a command name.
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "help"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "log"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "show"]);
-    // TODO: test_env.jj_cmd_success(&repo_path, &["-r", "help"])
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "help"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "log"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "show"]);
+    // TODO: test_env.jj_cmd_ok(&repo_path, &["-r", "help"])
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["-r", "log"]), @r###"
     @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 help log show 230dd059
     │  (empty) (no description set)
@@ -100,7 +100,7 @@ fn test_no_subcommand() {
 #[test]
 fn test_ignore_working_copy() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
 
     let repo_path = test_env.env_root().join("repo");
 
@@ -149,7 +149,7 @@ fn test_repo_arg_with_git_clone() {
 #[test]
 fn test_resolve_workspace_directory() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let subdir = repo_path.join("dir").join("subdir");
     std::fs::create_dir_all(&subdir).unwrap();
@@ -211,7 +211,7 @@ fn test_no_workspace_directory() {
 #[test]
 fn test_broken_repo_structure() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let store_path = repo_path.join(".jj").join("repo").join("store");
     let store_type_path = store_path.join("type");
@@ -253,7 +253,7 @@ fn test_broken_repo_structure() {
 fn test_color_config() {
     let mut test_env = TestEnvironment::default();
 
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Test that --color=always is respected.
@@ -380,7 +380,7 @@ fn test_invalid_config() {
 fn test_no_user_configured() {
     // Test that the user is reminded if they haven't configured their name or email
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let assert = test_env

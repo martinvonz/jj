@@ -55,10 +55,11 @@ fn init_git_repo_with_opts(git_repo_path: &Path, opts: &git2::RepositoryInitOpti
 #[test]
 fn test_init_git_internal() {
     let test_env = TestEnvironment::default();
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     Initialized repo in "repo"
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     let workspace_root = test_env.env_root().join("repo");
     let jj_path = workspace_root.join(".jj");
@@ -82,7 +83,7 @@ fn test_init_git_external(bare: bool) {
     let git_repo_path = test_env.env_root().join("git-repo");
     init_git_repo(&git_repo_path, bare);
 
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         test_env.env_root(),
         &[
             "init",
@@ -98,6 +99,7 @@ fn test_init_git_external(bare: bool) {
         Added 1 files, modified 0 files, removed 0 files
         Initialized repo in "repo"
         "###);
+        insta::assert_snapshot!(stderr, @"");
     }
 
     let workspace_root = test_env.env_root().join("repo");
@@ -162,11 +164,12 @@ fn test_init_git_colocated() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     init_git_repo(&workspace_root, false);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @r###"
     Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     let jj_path = workspace_root.join(".jj");
     let repo_path = jj_path.join("repo");
@@ -190,7 +193,7 @@ fn test_init_git_colocated() {
     "###);
 
     // Check that the Git repo's HEAD moves
-    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     ◉  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 HEAD@git f61b77cd
@@ -210,11 +213,12 @@ fn test_init_git_colocated_gitlink() {
         git2::RepositoryInitOptions::new().workdir_path(&workspace_root),
     );
     assert!(workspace_root.join(".git").is_file());
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @r###"
     Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
@@ -225,7 +229,7 @@ fn test_init_git_colocated_gitlink() {
     "###);
 
     // Check that the Git repo's HEAD moves
-    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     ◉  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 HEAD@git f61b77cd
@@ -244,11 +248,12 @@ fn test_init_git_colocated_symlink_directory() {
     init_git_repo(&git_repo_path, false);
     std::fs::create_dir(&workspace_root).unwrap();
     std::os::unix::fs::symlink(git_repo_path.join(".git"), workspace_root.join(".git")).unwrap();
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @r###"
     Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
@@ -259,7 +264,7 @@ fn test_init_git_colocated_symlink_directory() {
     "###);
 
     // Check that the Git repo's HEAD moves
-    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     ◉  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 HEAD@git f61b77cd
@@ -283,11 +288,12 @@ fn test_init_git_colocated_symlink_gitlink() {
     assert!(git_workdir_path.join(".git").is_file());
     std::fs::create_dir(&workspace_root).unwrap();
     std::os::unix::fs::symlink(git_workdir_path.join(".git"), workspace_root.join(".git")).unwrap();
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @r###"
     Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
@@ -298,7 +304,7 @@ fn test_init_git_colocated_symlink_gitlink() {
     "###);
 
     // Check that the Git repo's HEAD moves
-    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     ◉  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 HEAD@git f61b77cd
@@ -314,13 +320,14 @@ fn test_init_git_external_but_git_dir_exists() {
     let workspace_root = test_env.env_root().join("repo");
     git2::Repository::init(&git_repo_path).unwrap();
     init_git_repo(&workspace_root, false);
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &["init", "--git-repo", git_repo_path.to_str().unwrap()],
     );
     insta::assert_snapshot!(stdout, @r###"
     Initialized repo in "."
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // The local ".git" repository is unrelated, so no commits should be imported
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
@@ -329,7 +336,7 @@ fn test_init_git_external_but_git_dir_exists() {
     "###);
 
     // Check that Git HEAD is not set because this isn't a colocated repo
-    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
@@ -377,10 +384,11 @@ fn test_init_local_disallowed() {
 fn test_init_local() {
     let test_env = TestEnvironment::default();
     test_env.add_config(r#"ui.allow-init-native = true"#);
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["init", "repo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo"]);
     insta::assert_snapshot!(stdout, @r###"
     Initialized repo in "repo"
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     let workspace_root = test_env.env_root().join("repo");
     let jj_path = workspace_root.join(".jj");

@@ -23,17 +23,17 @@ pub mod common;
 #[test]
 fn test_concurrent_operation_divergence() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "message 1"]);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "message 1"]);
+    test_env.jj_cmd_ok(
         &repo_path,
         &["describe", "-m", "message 2", "--at-op", "@-"],
     );
 
     // We should be informed about the concurrent modification
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-T", "description"]);
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
     ◉  message 2
@@ -41,16 +41,17 @@ fn test_concurrent_operation_divergence() {
     ├─╯
     ◉
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_concurrent_operations_auto_rebase() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
     @  cfc96ff553b9 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
@@ -66,45 +67,48 @@ fn test_concurrent_operations_auto_rebase() {
     "###);
     let op_id_hex = stdout[3..15].to_string();
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "rewritten"]);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "rewritten"]);
+    test_env.jj_cmd_ok(
         &repo_path,
         &["new", "--at-op", &op_id_hex, "-m", "new child"],
     );
 
     // We should be informed about the concurrent modification
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
+    insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
     Rebased 1 descendant commits onto commits rewritten by other operation
     ◉  3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
     @  d91437157468ec86bbbc9e6a14a60d3e8d1790ac rewritten
     ◉  0000000000000000000000000000000000000000
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_concurrent_operations_wc_modified() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file"), "contents\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     let op_id_hex = stdout[3..15].to_string();
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["new", "--at-op", &op_id_hex, "-m", "new child1"],
     );
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["new", "--at-op", &op_id_hex, "-m", "new child2"],
     );
     std::fs::write(repo_path.join("file"), "modified\n").unwrap();
 
     // We should be informed about the concurrent modification
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
+    insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
     @  4eb0610031b7cd148ff9f729a673a3f815033170 new child1
     │ ◉  4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
@@ -112,6 +116,7 @@ fn test_concurrent_operations_wc_modified() {
     ◉  52c893bf3cd201e215b23e084e8a871244ca14d5 initial
     ◉  0000000000000000000000000000000000000000
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file b/file
@@ -142,7 +147,7 @@ fn test_concurrent_operations_wc_modified() {
 #[test]
 fn test_concurrent_snapshot_wc_reloadable() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let op_heads_dir = repo_path
         .join(".jj")
@@ -151,11 +156,11 @@ fn test_concurrent_snapshot_wc_reloadable() {
         .join("heads");
 
     std::fs::write(repo_path.join("base"), "").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "initial"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial"]);
 
     // Create new commit and checkout it.
     std::fs::write(repo_path.join("child1"), "").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "new child1"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "new child1"]);
 
     let template = r#"id ++ "\n" ++ description ++ "\n" ++ tags"#;
     let op_log_stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
@@ -189,11 +194,12 @@ fn test_concurrent_snapshot_wc_reloadable() {
     )
     .unwrap();
     std::fs::write(repo_path.join("child2"), "").unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", "new child2"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "new child2"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: kkmpptxz 4011424e new child2
     Parent commit      : rlvkpnrz e08863ee new child1
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Since the repo can be reloaded before snapshotting, "child2" should be
     // a child of "child1", not of "initial".
@@ -210,7 +216,7 @@ fn test_concurrent_snapshot_wc_reloadable() {
     "###);
 }
 
-fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
+fn get_log_output_with_stderr(test_env: &TestEnvironment, cwd: &Path) -> (String, String) {
     let template = r#"commit_id ++ " " ++ description"#;
-    test_env.jj_cmd_success(cwd, &["log", "-T", template])
+    test_env.jj_cmd_ok(cwd, &["log", "-T", template])
 }

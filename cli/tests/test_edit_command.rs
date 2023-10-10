@@ -21,11 +21,11 @@ pub mod common;
 #[test]
 fn test_edit() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     std::fs::write(repo_path.join("file1"), "0").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "second"]);
     std::fs::write(repo_path.join("file1"), "1").unwrap();
 
     // Errors out without argument
@@ -40,27 +40,32 @@ fn test_edit() {
     "###);
 
     // Makes the specified commit the working-copy commit
-    let stdout = test_env.jj_cmd_success(&repo_path, &["edit", "@-"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["edit", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: qpvuntsm f41390a5 first
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
+    insta::assert_snapshot!(stdout, @r###"
     ◉  b2f7e9c549aa second
     @  f41390a5efbf first
     ◉  000000000000
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(read_file(&repo_path.join("file1")), @"0");
 
     // Changes in the working copy are amended into the commit
     std::fs::write(repo_path.join("file2"), "0").unwrap();
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
+    insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits onto updated working copy
     ◉  51d937a3eeb4 second
     @  409306de8f44 first
     ◉  000000000000
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -72,11 +77,11 @@ fn test_edit_current_wc_commit_missing() {
     // Test that we get a reasonable error message when the current working-copy
     // commit is missing
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["edit", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "@-"]);
 
     let wc_id = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-T=commit_id", "-r=@"]);
     let wc_child_id =
@@ -106,7 +111,7 @@ fn read_file(path: &Path) -> String {
     String::from_utf8(std::fs::read(path).unwrap()).unwrap()
 }
 
-fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
+fn get_log_output_with_stderr(test_env: &TestEnvironment, cwd: &Path) -> (String, String) {
     let template = r#"commit_id.short() ++ " " ++ description"#;
-    test_env.jj_cmd_success(cwd, &["log", "-T", template])
+    test_env.jj_cmd_ok(cwd, &["log", "-T", template])
 }

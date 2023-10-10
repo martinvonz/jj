@@ -22,7 +22,7 @@ pub mod common;
 #[test]
 fn test_debug_revset() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "revset", "root()"]);
@@ -59,7 +59,7 @@ fn test_debug_revset() {
 #[test]
 fn test_debug_index() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
     let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "index"]);
     assert_snapshot!(filter_index_stats(&stdout), @r###"
@@ -79,10 +79,10 @@ fn test_debug_index() {
 #[test]
 fn test_debug_reindex() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&workspace_path, &["new"]);
-    test_env.jj_cmd_success(&workspace_path, &["new"]);
+    test_env.jj_cmd_ok(&workspace_path, &["new"]);
+    test_env.jj_cmd_ok(&workspace_path, &["new"]);
     let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "index"]);
     assert_snapshot!(filter_index_stats(&stdout), @r###"
     Number of commits: 4
@@ -99,10 +99,11 @@ fn test_debug_reindex() {
         Name: [hash]
     "###
     );
-    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "reindex"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["debug", "reindex"]);
     assert_snapshot!(stdout, @r###"
     Finished indexing 4 commits.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "index"]);
     assert_snapshot!(filter_index_stats(&stdout), @r###"
     Number of commits: 4
@@ -121,7 +122,7 @@ fn test_debug_reindex() {
 #[test]
 fn test_debug_operation_id() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
     let stdout =
         test_env.jj_cmd_success(&workspace_path, &["debug", "operation", "--display", "id"]);

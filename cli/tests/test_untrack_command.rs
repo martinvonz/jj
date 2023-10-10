@@ -22,7 +22,7 @@ pub mod common;
 fn test_untrack() {
     let test_env = TestEnvironment::default();
     test_env.add_config(r#"ui.allow-init-native = true"#);
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "initial").unwrap();
@@ -35,7 +35,7 @@ fn test_untrack() {
 
     // Run a command so all the files get tracked, then add "*.bak" to the ignore
     // patterns
-    test_env.jj_cmd_success(&repo_path, &["st"]);
+    test_env.jj_cmd_ok(&repo_path, &["st"]);
     std::fs::write(repo_path.join(".gitignore"), "*.bak\n").unwrap();
     let files_before = test_env.jj_cmd_success(&repo_path, &["files"]);
 
@@ -68,8 +68,9 @@ fn test_untrack() {
 
     // Can untrack a single file
     assert!(files_before.contains("file1.bak\n"));
-    let stdout = test_env.jj_cmd_success(&repo_path, &["untrack", "file1.bak"]);
-    assert_eq!(stdout, "");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["untrack", "file1.bak"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
     // The file is no longer tracked
     assert!(!files_after.contains("file1.bak"));
@@ -92,8 +93,9 @@ fn test_untrack() {
 
     // Can untrack after adding to ignore patterns
     std::fs::write(repo_path.join(".gitignore"), ".bak\ntarget/\n").unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["untrack", "target"]);
-    assert_eq!(stdout, "");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["untrack", "target"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
     assert!(!files_after.contains("target"));
 }
@@ -102,7 +104,7 @@ fn test_untrack() {
 fn test_untrack_sparse() {
     let test_env = TestEnvironment::default();
     test_env.add_config(r#"ui.allow-init-native = true"#);
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "contents").unwrap();
@@ -116,9 +118,10 @@ fn test_untrack_sparse() {
     file1
     file2
     "###);
-    test_env.jj_cmd_success(&repo_path, &["sparse", "set", "--clear", "--add", "file1"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["untrack", "file2"]);
+    test_env.jj_cmd_ok(&repo_path, &["sparse", "set", "--clear", "--add", "file1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["untrack", "file2"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["files"]);
     insta::assert_snapshot!(stdout, @r###"
     file1
