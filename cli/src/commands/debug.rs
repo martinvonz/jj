@@ -242,17 +242,17 @@ fn cmd_debug_watchman(
     match subcommand {
         DebugWatchmanSubcommand::QueryClock => {
             let (clock, _changed_files) = workspace_command.working_copy().query_watchman()?;
-            ui.write(&format!("Clock: {clock:?}"))?;
+            writeln!(ui, "Clock: {clock:?}")?;
         }
         DebugWatchmanSubcommand::QueryChangedFiles => {
             let (_clock, changed_files) = workspace_command.working_copy().query_watchman()?;
-            ui.write(&format!("Changed files: {changed_files:?}"))?;
+            writeln!(ui, "Changed files: {changed_files:?}")?;
         }
         DebugWatchmanSubcommand::ResetClock => {
             let (mut locked_wc, _commit) = workspace_command.start_working_copy_mutation()?;
             locked_wc.reset_watchman()?;
             locked_wc.finish(repo.op_id().clone())?;
-            ui.write("Reset Watchman clock")?;
+            writeln!(ui, "Reset Watchman clock")?;
         }
     }
     Ok(())
