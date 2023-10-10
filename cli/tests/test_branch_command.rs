@@ -21,7 +21,7 @@ pub mod common;
 #[test]
 fn test_branch_multiple_names() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo", "bar"]);
@@ -35,10 +35,12 @@ fn test_branch_multiple_names() {
     ◉   000000000000
     "###);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "delete", "foo", "bar", "foo"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo", "bar", "foo"]);
     insta::assert_snapshot!(stdout, @r###"
     Deleted 2 branches.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @   230dd059e1b0
     ◉   000000000000
@@ -48,11 +50,13 @@ fn test_branch_multiple_names() {
 #[test]
 fn test_branch_at_root() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "create", "fred", "-r=root()"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "create", "fred", "-r=root()"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
@@ -66,7 +70,7 @@ fn test_branch_at_root() {
 #[test]
 fn test_branch_empty_name() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "create", ""]);
@@ -80,22 +84,24 @@ fn test_branch_empty_name() {
 #[test]
 fn test_branch_forget_glob() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-1"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "bar-2"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-3"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-4"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-1"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "bar-2"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-3"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-4"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1 foo-3 foo-4 230dd059e1b0
     ◉   000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "--glob", "foo-[1-3]"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "--glob", "foo-[1-3]"]);
     insta::assert_snapshot!(stdout, @r###"
     Forgot 2 branches.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-4 230dd059e1b0
     ◉   000000000000
@@ -103,13 +109,14 @@ fn test_branch_forget_glob() {
 
     // Forgetting a branch via both explicit name and glob pattern, or with
     // multiple glob patterns, shouldn't produce an error.
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
         &[
             "branch", "forget", "foo-4", "--glob", "foo-*", "--glob", "foo-*",
         ],
     );
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 230dd059e1b0
     ◉   000000000000
@@ -141,7 +148,7 @@ fn test_branch_forget_glob() {
 fn test_branch_delete_glob() {
     // Set up a git repo with a branch and a jj repo that has it as a remote.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo_path = test_env.env_root().join("git-repo");
     let git_repo = git2::Repository::init_bare(git_repo_path).unwrap();
@@ -150,27 +157,29 @@ fn test_branch_delete_glob() {
     tree_builder
         .insert("file", file_oid, git2::FileMode::Blob.into())
         .unwrap();
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "remote", "add", "origin", "../git-repo"],
     );
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m=commit"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-1"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "bar-2"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-3"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-4"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m=commit"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-1"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "bar-2"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-3"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-4"]);
     // Push to create remote-tracking branches
-    test_env.jj_cmd_success(&repo_path, &["git", "push", "--all"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "push", "--all"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1 foo-3 foo-4 6fbf398c2d59
     ◉   000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "delete", "--glob", "foo-[1-3]"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "--glob", "foo-[1-3]"]);
     insta::assert_snapshot!(stdout, @r###"
     Deleted 2 branches.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4 6fbf398c2d59
     ◉   000000000000
@@ -185,13 +194,14 @@ fn test_branch_delete_glob() {
 
     // Deleting a branch via both explicit name and glob pattern, or with
     // multiple glob patterns, shouldn't produce an error.
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
         &[
             "branch", "delete", "foo-4", "--glob", "foo-*", "--glob", "foo-*",
         ],
     );
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4@origin 6fbf398c2d59
     ◉   000000000000
@@ -224,14 +234,14 @@ fn test_branch_delete_glob() {
 #[test]
 fn test_branch_delete_export() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo"]);
-    test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
 
-    test_env.jj_cmd_success(&repo_path, &["branch", "delete", "foo"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     foo (deleted)
@@ -239,7 +249,7 @@ fn test_branch_delete_export() {
       (this branch will be deleted from the underlying Git repo on the next `jj git export`)
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     "###);
@@ -248,21 +258,23 @@ fn test_branch_delete_export() {
 #[test]
 fn test_branch_forget_export() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
     "###);
 
     // Exporting the branch to git creates a local-git tracking branch
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "foo"]);
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "foo"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     // Forgetting a branch deletes local and remote-tracking branches including
     // the corresponding git-tracking branch.
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
@@ -276,8 +288,9 @@ fn test_branch_forget_export() {
     // this will happen automatically immediately after a `jj branch forget`.
     // This is demonstrated in `test_git_colocated_branch_forget` in
     // test_git_colocated.rs
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @"");
 }
@@ -289,7 +302,7 @@ fn test_branch_forget_fetched_branch() {
 
     // Set up a git repo with a branch and a jj repo that has it as a remote.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo_path = test_env.env_root().join("git-repo");
     let git_repo = git2::Repository::init_bare(git_repo_path).unwrap();
@@ -302,7 +315,7 @@ fn test_branch_forget_fetched_branch() {
         .unwrap();
     let tree_oid = tree_builder.write().unwrap();
     let tree = git_repo.find_tree(tree_oid).unwrap();
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "remote", "add", "origin", "../git-repo"],
     );
@@ -319,14 +332,14 @@ fn test_branch_forget_fetched_branch() {
         .unwrap();
 
     // Fetch normally
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
     "###);
 
     // TEST 1: with export-import
     // Forget the branch
-    test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "feature1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
     // At this point `jj git export && jj git import` does *not* recreate the
@@ -337,25 +350,31 @@ fn test_branch_forget_fetched_branch() {
     // the ref in jj view's `git_refs` tracking the local git repo's remote-tracking
     // branch.
     // TODO: Show that jj git push is also a no-op
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
+    insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
     // We can fetch feature1 again.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
     "###);
 
     // TEST 2: No export/import (otherwise the same as test 1)
-    test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "feature1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     // Fetch works even without the export-import
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
     "###);
@@ -373,12 +392,14 @@ fn test_branch_forget_fetched_branch() {
             &[&git_repo.find_commit(first_git_repo_commit).unwrap()],
         )
         .unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "feature1"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
 
     // Fetching a moved branch does not create a conflict
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: ooosovrs 38aefb17 (empty) another message
     "###);
@@ -392,7 +413,7 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
     // ======== Beginning of test setup ========
     // Set up a git repo with a branch and a jj repo that has it as a remote.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo_path = test_env.env_root().join("git-repo");
     let git_repo = git2::Repository::init_bare(git_repo_path).unwrap();
@@ -405,7 +426,7 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
         .unwrap();
     let tree_oid = tree_builder.write().unwrap();
     let tree = git_repo.find_tree(tree_oid).unwrap();
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["git", "remote", "add", "origin", "../git-repo"],
     );
@@ -422,8 +443,8 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
         .unwrap();
 
     // Fetch and then delete the branch
-    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "delete", "feature1"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "feature1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1 (deleted)
       @origin: mzyxwzks 9f01a0e0 message
@@ -434,7 +455,7 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
     // ============ End of test setup ============
 
     // We can forget a deleted branch
-    test_env.jj_cmd_success(&repo_path, &["branch", "forget", "feature1"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "feature1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
     // Can't forget a non-existent branch
@@ -452,29 +473,29 @@ fn test_branch_list_filtered_by_revset() {
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
 
     // Initialize remote refs
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "remote", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
     let remote_path = test_env.env_root().join("remote");
     for branch in ["remote-keep", "remote-delete", "remote-rewrite"] {
-        test_env.jj_cmd_success(&remote_path, &["new", "root()", "-m", branch]);
-        test_env.jj_cmd_success(&remote_path, &["branch", "set", branch]);
+        test_env.jj_cmd_ok(&remote_path, &["new", "root()", "-m", branch]);
+        test_env.jj_cmd_ok(&remote_path, &["branch", "set", branch]);
     }
-    test_env.jj_cmd_success(&remote_path, &["new"]);
-    test_env.jj_cmd_success(&remote_path, &["git", "export"]);
+    test_env.jj_cmd_ok(&remote_path, &["new"]);
+    test_env.jj_cmd_ok(&remote_path, &["git", "export"]);
 
     // Initialize local refs
     let mut remote_git_path = remote_path;
     remote_git_path.extend([".jj", "repo", "store", "git"]);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         test_env.env_root(),
         &["git", "clone", remote_git_path.to_str().unwrap(), "local"],
     );
     let local_path = test_env.env_root().join("local");
-    test_env.jj_cmd_success(&local_path, &["new", "root()", "-m", "local-keep"]);
-    test_env.jj_cmd_success(&local_path, &["branch", "set", "local-keep"]);
+    test_env.jj_cmd_ok(&local_path, &["new", "root()", "-m", "local-keep"]);
+    test_env.jj_cmd_ok(&local_path, &["branch", "set", "local-keep"]);
 
     // Mutate refs in local repository
-    test_env.jj_cmd_success(&local_path, &["branch", "delete", "remote-delete"]);
-    test_env.jj_cmd_success(&local_path, &["describe", "-mrewritten", "remote-rewrite"]);
+    test_env.jj_cmd_ok(&local_path, &["branch", "delete", "remote-delete"]);
+    test_env.jj_cmd_ok(&local_path, &["describe", "-mrewritten", "remote-rewrite"]);
 
     let template = r#"separate(" ", commit_id.short(), branches, if(hidden, "(hidden)"))"#;
     insta::assert_snapshot!(

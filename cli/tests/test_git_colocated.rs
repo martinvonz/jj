@@ -57,7 +57,7 @@ fn test_git_colocated() {
     );
 
     // Import the repo
-    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  3e9369cd54227eb88455e1834dbc08aad6a16ac4
     ◉  e61b6729ff4292870702f2f72b2a60165679ef37 master HEAD@git initial
@@ -82,7 +82,7 @@ fn test_git_colocated() {
     );
 
     // Create a new change from jj and check that it's reflected in Git
-    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  9dbb23ff2ff5e66c43880f1042369d704f7a321e
     ◉  b26951a9c6f5c270e4d039880208952fd5faae5e HEAD@git
@@ -114,7 +114,7 @@ fn test_git_colocated_unborn_branch() {
     };
 
     // Initially, HEAD isn't set.
-    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
     assert!(git_repo.head().is_err());
     assert_eq!(
         git_repo.find_reference("HEAD").unwrap().symbolic_target(),
@@ -127,12 +127,13 @@ fn test_git_colocated_unborn_branch() {
 
     // Stage some change, and check out root. This shouldn't clobber the HEAD.
     add_file_to_index("file0", "");
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&workspace_root, &["checkout", "root()"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["checkout", "root()"]);
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: kkmpptxz fcdbbd73 (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     assert!(git_repo.head().is_err());
     assert_eq!(
         git_repo.find_reference("HEAD").unwrap().symbolic_target(),
@@ -155,10 +156,12 @@ fn test_git_colocated_unborn_branch() {
     // Stage some change, and create new HEAD. This shouldn't move the default
     // branch.
     add_file_to_index("file1", "");
-    insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["new"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["new"]);
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: royxmykx 76c60bf0 (empty) (no description set)
     Parent commit      : kkmpptxz f8d5bc77 (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     assert!(git_repo.head().unwrap().symbolic_target().is_none());
     insta::assert_snapshot!(
         git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
@@ -180,17 +183,18 @@ fn test_git_colocated_unborn_branch() {
     "###);
 
     // Assign the default branch. The branch is no longer "unborn".
-    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "-r@-", "master"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "-r@-", "master"]);
 
     // Stage some change, and check out root again. This should unset the HEAD.
     // https://github.com/martinvonz/jj/issues/1495
     add_file_to_index("file2", "");
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&workspace_root, &["checkout", "root()"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["checkout", "root()"]);
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: znkkpsqq 10dd328b (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 0 files, removed 2 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     assert!(git_repo.head().is_err());
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  10dd328bb906e15890e55047740eab2812a3b2f7
@@ -211,10 +215,12 @@ fn test_git_colocated_unborn_branch() {
 
     // New snapshot and commit can be created after the HEAD got unset.
     std::fs::write(workspace_root.join("file3"), "").unwrap();
-    insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["new"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["new"]);
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: wqnwkozp cab23370 (empty) (no description set)
     Parent commit      : znkkpsqq 8f5b2638 (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  cab233704a5c0b21bde070943055f22142fb2043
     ◉  8f5b263819457712a2937428b9c58a2a84afbb1c HEAD@git
@@ -235,11 +241,11 @@ fn test_git_colocated_export_branches_on_snapshot() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     let git_repo = git2::Repository::init(&workspace_root).unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
 
     // Create branch pointing to the initial commit
     std::fs::write(workspace_root.join("file"), "initial").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "foo"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  438471f3fbf1004298d8fb01eeb13663a051a643 foo
     ◉  0000000000000000000000000000000000000000
@@ -265,17 +271,17 @@ fn test_git_colocated_rebase_on_import() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     let git_repo = git2::Repository::init(&workspace_root).unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
 
     // Make some changes in jj and check that they're reflected in git
     std::fs::write(workspace_root.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["commit", "-m", "add a file"]);
+    test_env.jj_cmd_ok(&workspace_root, &["commit", "-m", "add a file"]);
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "master"]);
-    test_env.jj_cmd_success(&workspace_root, &["commit", "-m", "modify a file"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "master"]);
+    test_env.jj_cmd_ok(&workspace_root, &["commit", "-m", "modify a file"]);
     // TODO: We shouldn't need this command here to trigger an import of the
     // refs/heads/master we just exported
-    test_env.jj_cmd_success(&workspace_root, &["st"]);
+    test_env.jj_cmd_ok(&workspace_root, &["st"]);
 
     // Move `master` and HEAD backwards, which should result in commit2 getting
     // hidden, and a new working-copy commit at the new position.
@@ -289,13 +295,15 @@ fn test_git_colocated_rebase_on_import() {
     let commit1 = commit2.parents().next().unwrap();
     git_repo.branch("master", &commit1, true).unwrap();
     git_repo.set_head("refs/heads/master").unwrap();
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r###"
     Abandoned 1 commits that are no longer reachable.
     Done importing changes from the underlying Git repo.
     @  7f96185cfbe36341d0f9a86ebfaeab67a5922c7e
     ◉  4bcbeaba9a4b309c5f45a8807fbf5499b9714315 master HEAD@git add a file
     ◉  0000000000000000000000000000000000000000
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -303,9 +311,9 @@ fn test_git_colocated_branches() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     let git_repo = git2::Repository::init(&workspace_root).unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
-    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "foo"]);
-    test_env.jj_cmd_success(&workspace_root, &["new", "@-", "-m", "bar"]);
+    test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "@-", "-m", "bar"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  3560559274ab431feea00b7b7e0b9250ecce951f bar
     │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda foo
@@ -316,7 +324,7 @@ fn test_git_colocated_branches() {
 
     // Create a branch in jj. It should be exported to Git even though it points to
     // the working- copy commit.
-    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "master"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "master"]);
     insta::assert_snapshot!(
         git_repo.find_reference("refs/heads/master").unwrap().target().unwrap().to_string(),
         @"3560559274ab431feea00b7b7e0b9250ecce951f"
@@ -339,7 +347,8 @@ fn test_git_colocated_branches() {
             "test",
         )
         .unwrap();
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r###"
     Abandoned 1 commits that are no longer reachable.
     Working copy now at: yqosqzyt 096dc80d (empty) (no description set)
     Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
@@ -350,6 +359,7 @@ fn test_git_colocated_branches() {
     ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◉  0000000000000000000000000000000000000000
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -357,9 +367,9 @@ fn test_git_colocated_branch_forget() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     let _git_repo = git2::Repository::init(&workspace_root).unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
-    test_env.jj_cmd_success(&workspace_root, &["new"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "foo"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  65b6b74e08973b88d38404430f119c8c79465250 foo
     ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
@@ -370,8 +380,9 @@ fn test_git_colocated_branch_forget() {
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
     "###);
 
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "forget", "foo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["branch", "forget", "foo"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     // A forgotten branch is deleted in the git repo. For a detailed demo explaining
     // this, see `test_branch_forget_export` in `test_branch_command.rs`.
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
@@ -383,8 +394,8 @@ fn test_git_colocated_conflicting_git_refs() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     git2::Repository::init(&workspace_root).unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "main"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "main/sub"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -401,18 +412,18 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     let test_env = TestEnvironment::default();
     let origin_path = test_env.env_root().join("origin");
     git2::Repository::init(&origin_path).unwrap();
-    test_env.jj_cmd_success(&origin_path, &["init", "--git-repo=."]);
-    test_env.jj_cmd_success(&origin_path, &["describe", "-m=A"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "A"]);
-    test_env.jj_cmd_success(&origin_path, &["new", "-m=B_to_delete"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "B_to_delete"]);
-    test_env.jj_cmd_success(&origin_path, &["new", "-m=original C", "@-"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "C_to_move"]);
+    test_env.jj_cmd_ok(&origin_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&origin_path, &["describe", "-m=A"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "A"]);
+    test_env.jj_cmd_ok(&origin_path, &["new", "-m=B_to_delete"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "B_to_delete"]);
+    test_env.jj_cmd_ok(&origin_path, &["new", "-m=original C", "@-"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "C_to_move"]);
 
     let clone_path = test_env.env_root().join("clone");
     git2::Repository::clone(origin_path.to_str().unwrap(), &clone_path).unwrap();
-    test_env.jj_cmd_success(&clone_path, &["init", "--git-repo=."]);
-    test_env.jj_cmd_success(&clone_path, &["new", "A"]);
+    test_env.jj_cmd_ok(&clone_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&clone_path, &["new", "A"]);
     insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
     @  0335878796213c3a701f1c9c34dcae242bee4131
     │ ◉  8d4e006fd63547965fbc3a26556a9aa531076d32 C_to_move original C
@@ -423,13 +434,14 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     ◉  0000000000000000000000000000000000000000
     "###);
 
-    test_env.jj_cmd_success(&origin_path, &["branch", "delete", "B_to_delete"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "delete", "B_to_delete"]);
     // Move branch C sideways
-    test_env.jj_cmd_success(&origin_path, &["describe", "C_to_move", "-m", "moved C"]);
-    let stdout = test_env.jj_cmd_success(&clone_path, &["git", "fetch"]);
+    test_env.jj_cmd_ok(&origin_path, &["describe", "C_to_move", "-m", "moved C"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&clone_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @r###"
     Abandoned 2 commits that are no longer reachable.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // "original C" and "B_to_delete" are abandoned, as the corresponding branches
     // were deleted or moved on the remote (#864)
     insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
@@ -446,11 +458,11 @@ fn test_git_colocated_external_checkout() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::init(&repo_path).unwrap();
-    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
-    test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "-r@-", "master"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "-m=B", "root()"]);
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["ci", "-m=A"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "-r@-", "master"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m=B", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
 
     // Checked out anonymous branch
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -474,7 +486,8 @@ fn test_git_colocated_external_checkout() {
 
     // The old working-copy commit gets abandoned, but the whole branch should not
     // be abandoned. (#1042)
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
+    insta::assert_snapshot!(stdout, @r###"
     Done importing changes from the underlying Git repo.
     @  adadbd65a794e2294962b3c3da9aada09fe1b472
     ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master HEAD@git A
@@ -482,6 +495,7 @@ fn test_git_colocated_external_checkout() {
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -489,8 +503,8 @@ fn test_git_colocated_squash_undo() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
     git2::Repository::init(&repo_path).unwrap();
-    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
-    test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
+    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["ci", "-m=A"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
     @  rlvkpnrzqnoo 8f71e3b6a3be
@@ -498,13 +512,13 @@ fn test_git_colocated_squash_undo() {
     ◉  zzzzzzzzzzzz 000000000000
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["squash"]);
+    test_env.jj_cmd_ok(&repo_path, &["squash"]);
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
     @  zsuskulnrvyr f0c12b0396d9
     ◉  qpvuntsmwlqt 2f376ea1478c A HEAD@git
     ◉  zzzzzzzzzzzz 000000000000
     "###);
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     // TODO: There should be no divergence here; 2f376ea1478c should be hidden
     // (#922)
     insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
@@ -519,10 +533,10 @@ fn test_git_colocated_undo_head_move() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::init(&repo_path).unwrap();
-    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
 
     // Create new HEAD
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"230dd059e1b059aefc0da06a2e5a7dbf22362f22");
@@ -533,7 +547,7 @@ fn test_git_colocated_undo_head_move() {
     "###);
 
     // HEAD should be unset
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     assert!(git_repo.head().is_err());
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
@@ -541,8 +555,8 @@ fn test_git_colocated_undo_head_move() {
     "###);
 
     // Create commit on non-root commit
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  69b19f73cf584f162f078fb0d91c55ca39d10bc7
     ◉  eb08b363bb5ef8ee549314260488980d7bbe8f63 HEAD@git
@@ -554,10 +568,12 @@ fn test_git_colocated_undo_head_move() {
         @"eb08b363bb5ef8ee549314260488980d7bbe8f63");
 
     // HEAD should be moved back
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["undo"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: royxmykx eb08b363 (empty) (no description set)
     Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"230dd059e1b059aefc0da06a2e5a7dbf22362f22");
@@ -585,6 +601,14 @@ fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> St
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
     let template = r#"separate(" ", commit_id, branches, git_head, description)"#;
     test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
+}
+
+fn get_log_output_with_stderr(
+    test_env: &TestEnvironment,
+    workspace_root: &Path,
+) -> (String, String) {
+    let template = r#"separate(" ", commit_id, branches, git_head, description)"#;
+    test_env.jj_cmd_ok(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
 #[test]
@@ -641,7 +665,7 @@ fn test_git_colocated_unreachable_commits() {
     );
 
     // Import the repo while there is no path to the second commit
-    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  66ae47cee4f8c28ee8d7e4f5d9401b03c07e22f2
     ◉  2ee37513d2b5e549f7478c671a780053614bff19 master HEAD@git initial

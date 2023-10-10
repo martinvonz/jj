@@ -21,16 +21,16 @@ pub mod common;
 #[test]
 fn test_unsquash() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
     std::fs::write(repo_path.join("file1"), "b\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -41,11 +41,12 @@ fn test_unsquash() {
     "###);
 
     // Unsquashes into the working copy from its parent by default
-    let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: mzvwutvl 1b10d78f c | (no description set)
     Parent commit      : qpvuntsm 90aeefd0 a b | (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  1b10d78f6136 c
     ◉  90aeefd03044 a b
@@ -57,13 +58,14 @@ fn test_unsquash() {
     "###);
 
     // Can unsquash into a given commit from its parent
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-r", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl 45b8b3dd c | (no description set)
     Parent commit      : kkmpptxz 9146bcc8 b | (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  45b8b3ddc25a c
     ◉  9146bcc8d996 b
@@ -80,13 +82,13 @@ fn test_unsquash() {
 
     // Cannot unsquash into a merge commit (because it's unclear which parent it
     // should come from)
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    test_env.jj_cmd_success(&repo_path, &["edit", "b"]);
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file2"), "d\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "-m", "merge", "c", "d"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "e"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "merge", "c", "d"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "e"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    1f8f152ff48e e
     ├─╮
@@ -103,14 +105,15 @@ fn test_unsquash() {
     "###);
 
     // Can unsquash from a merge commit
-    test_env.jj_cmd_success(&repo_path, &["co", "e"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "e"]);
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: pzsxstzt 3217340c merge
     Parent commit      : mzvwutvl 90fe0a96 c e?? | (no description set)
     Parent commit      : xznxytkn 5658521e d e?? | (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    3217340cb761
     ├─╮
@@ -130,18 +133,18 @@ fn test_unsquash() {
 #[test]
 fn test_unsquash_partial() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
     std::fs::write(repo_path.join("file1"), "b\n").unwrap();
     std::fs::write(repo_path.join("file2"), "b\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
     // Test the setup
@@ -155,12 +158,13 @@ fn test_unsquash_partial() {
     // If we don't make any changes in the diff-editor, the whole change is moved
     // from the parent
     let edit_script = test_env.set_up_fake_diff_editor();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-r", "b", "-i"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl 37c961d0 c | (no description set)
     Parent commit      : kkmpptxz 000af220 b | (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  37c961d0d1e2 c
     ◉  000af22057b9 b
@@ -173,13 +177,14 @@ fn test_unsquash_partial() {
     "###);
 
     // Can unsquash only some changes in interactive mode
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     std::fs::write(edit_script, "reset file1").unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-i"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: mzvwutvl a8e8fded c | (no description set)
     Parent commit      : kkmpptxz 46cc0667 b | (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  a8e8fded1021 c
     ◉  46cc06672a99 b
@@ -212,7 +217,7 @@ fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
 #[test]
 fn test_unsquash_description() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let edit_script = test_env.set_up_fake_editor();
@@ -221,35 +226,35 @@ fn test_unsquash_description() {
     // If both descriptions are empty, the resulting description is empty
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "b\n").unwrap();
     std::fs::write(repo_path.join("file2"), "b\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["unsquash"]);
+    test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@"), @"");
 
     // If the destination's description is empty and the source's description is
     // non-empty, the resulting description is from the source
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "@-", "-m", "source"]);
-    test_env.jj_cmd_success(&repo_path, &["unsquash"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "@-", "-m", "source"]);
+    test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@"), @r###"
     source
     "###);
 
     // If the destination description is non-empty and the source's description is
     // empty, the resulting description is from the destination
-    test_env.jj_cmd_success(&repo_path, &["op", "restore", "@--"]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "destination"]);
-    test_env.jj_cmd_success(&repo_path, &["unsquash"]);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "destination"]);
+    test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@"), @r###"
     destination
     "###);
 
     // If both descriptions were non-empty, we get asked for a combined description
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "@-", "-m", "source"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "@-", "-m", "source"]);
     std::fs::write(&edit_script, "dump editor0").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["unsquash"]);
+    test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@"), @r###"
     destination
 
@@ -269,7 +274,7 @@ fn test_unsquash_description() {
 
     // If the source's *content* doesn't become empty, then the source remains and
     // both descriptions are unchanged
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
     source
     "###);

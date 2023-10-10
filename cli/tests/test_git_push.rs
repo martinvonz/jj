@@ -20,7 +20,7 @@ pub mod common;
 
 fn set_up() -> (TestEnvironment, PathBuf) {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "origin"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "origin"]);
     let origin_path = test_env.env_root().join("origin");
     let origin_git_repo_path = origin_path
         .join(".jj")
@@ -28,13 +28,13 @@ fn set_up() -> (TestEnvironment, PathBuf) {
         .join("store")
         .join("git");
 
-    test_env.jj_cmd_success(&origin_path, &["describe", "-m=description 1"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "branch1"]);
-    test_env.jj_cmd_success(&origin_path, &["new", "root()", "-m=description 2"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "branch2"]);
-    test_env.jj_cmd_success(&origin_path, &["git", "export"]);
+    test_env.jj_cmd_ok(&origin_path, &["describe", "-m=description 1"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch1"]);
+    test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 2"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch2"]);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         test_env.env_root(),
         &[
             "git",
@@ -51,10 +51,11 @@ fn set_up() -> (TestEnvironment, PathBuf) {
 fn test_git_push_nothing() {
     let (test_env, workspace_root) = set_up();
     // No branches to push yet
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -63,14 +64,14 @@ fn test_git_push_current_branch() {
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     // Update some branches. `branch1` is not a current branch, but `branch2` and
     // `my-branch` are.
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &workspace_root,
         &["describe", "branch1", "-m", "modified branch1 commit"],
     );
-    test_env.jj_cmd_success(&workspace_root, &["co", "branch2"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch2"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "my-branch"]);
-    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["co", "branch2"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch2"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     // Check the setup
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -81,19 +82,21 @@ fn test_git_push_current_branch() {
     my-branch: yostqsxw 10ee3363 (empty) foo
     "###);
     // First dry-run. `branch1` should not get pushed.
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--dry-run"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--dry-run"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Move branch branch2 from 8476341eb395 to 10ee3363b259
       Add branch my-branch to 10ee3363b259
     Dry-run requested, not pushing.
     "###);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Move branch branch2 from 8476341eb395 to 10ee3363b259
       Add branch my-branch to 10ee3363b259
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1: lzmmnrxq 19e00bf6 (empty) modified branch1 commit
@@ -107,24 +110,25 @@ fn test_git_push_current_branch() {
 fn test_git_push_parent_branch() {
     let (test_env, workspace_root) = set_up();
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
-    test_env.jj_cmd_success(&workspace_root, &["edit", "branch1"]);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(&workspace_root, &["edit", "branch1"]);
+    test_env.jj_cmd_ok(
         &workspace_root,
         &["describe", "-m", "modified branch1 commit"],
     );
-    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "non-empty description"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "non-empty description"]);
     std::fs::write(workspace_root.join("file"), "file").unwrap();
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Force branch branch1 from 45a3aa29e907 to d47326d59ee1
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_git_push_no_matching_branch() {
     let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
@@ -137,7 +141,7 @@ fn test_git_push_no_matching_branch() {
 #[test]
 fn test_git_push_matching_branch_unchanged() {
     let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["co", "branch1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["co", "branch1"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
@@ -162,7 +166,7 @@ fn test_git_push_other_remote_has_branch() {
         .join("repo")
         .join("store")
         .join("git");
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &workspace_root,
         &[
             "git",
@@ -173,8 +177,8 @@ fn test_git_push_other_remote_has_branch() {
         ],
     );
     // Modify branch1 and push it to `origin`
-    test_env.jj_cmd_success(&workspace_root, &["edit", "branch1"]);
-    test_env.jj_cmd_success(&workspace_root, &["describe", "-m=modified"]);
+    test_env.jj_cmd_ok(&workspace_root, &["edit", "branch1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m=modified"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
@@ -204,15 +208,15 @@ fn test_git_push_not_fast_forward() {
 
     // Move branch1 forward on the remote
     let origin_path = test_env.env_root().join("origin");
-    test_env.jj_cmd_success(&origin_path, &["new", "branch1", "-m=remote"]);
+    test_env.jj_cmd_ok(&origin_path, &["new", "branch1", "-m=remote"]);
     std::fs::write(origin_path.join("remote"), "remote").unwrap();
-    test_env.jj_cmd_success(&origin_path, &["branch", "set", "branch1"]);
-    test_env.jj_cmd_success(&origin_path, &["git", "export"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "set", "branch1"]);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
 
     // Move branch1 forward to another commit locally
-    test_env.jj_cmd_success(&workspace_root, &["new", "branch1", "-m=local"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "branch1", "-m=local"]);
     std::fs::write(workspace_root.join("local"), "local").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch1"]);
 
     // Pushing should fail
     let assert = test_env
@@ -232,13 +236,13 @@ fn test_git_push_not_fast_forward() {
 #[test]
 fn test_git_push_multiple() {
     let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["branch", "delete", "branch1"]);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch1"]);
+    test_env.jj_cmd_ok(
         &workspace_root,
         &["branch", "set", "--allow-backwards", "branch2"],
     );
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "my-branch"]);
-    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     // Check the setup
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -251,7 +255,8 @@ fn test_git_push_multiple() {
     my-branch: yqosqzyt 15dcdaa4 (empty) foo
     "###);
     // First dry-run
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all", "--dry-run"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all", "--dry-run"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Delete branch branch1 from 45a3aa29e907
@@ -259,8 +264,9 @@ fn test_git_push_multiple() {
       Add branch my-branch to 15dcdaa4f12f
     Dry-run requested, not pushing.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // Dry run requesting two specific branches
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &["git", "push", "-b=branch1", "-b=my-branch", "--dry-run"],
     );
@@ -270,8 +276,9 @@ fn test_git_push_multiple() {
       Add branch my-branch to 15dcdaa4f12f
     Dry-run requested, not pushing.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // Dry run requesting two specific branches twice
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &[
             "git",
@@ -289,7 +296,8 @@ fn test_git_push_multiple() {
       Add branch my-branch to 15dcdaa4f12f
     Dry-run requested, not pushing.
     "###);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all"]);
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Delete branch branch1 from 45a3aa29e907
@@ -297,6 +305,7 @@ fn test_git_push_multiple() {
       Add branch my-branch to 15dcdaa4f12f
     Abandoned 2 commits that are no longer reachable.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     branch2: yqosqzyt 15dcdaa4 (empty) foo
@@ -307,35 +316,38 @@ fn test_git_push_multiple() {
 #[test]
 fn test_git_push_changes() {
     let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     std::fs::write(workspace_root.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "bar"]);
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
 
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--change", "@"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--change", "@"]);
     insta::assert_snapshot!(stdout, @r###"
     Creating branch push-yostqsxwqrlt for revision @
     Branch changes to push to origin:
       Add branch push-yostqsxwqrlt to 28d7620ea63a
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // test pushing two changes at once
     std::fs::write(workspace_root.join("file"), "modified2").unwrap();
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "-c=@", "-c=@-"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-c=@", "-c=@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Creating branch push-yqosqzytrlsw for revision @-
     Branch changes to push to origin:
       Force branch push-yostqsxwqrlt from 28d7620ea63a to 48d8c7948133
       Add branch push-yqosqzytrlsw to fa16a14170fb
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // specifying the same change twice doesn't break things
     std::fs::write(workspace_root.join("file"), "modified3").unwrap();
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "-c=@", "-c=@"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-c=@", "-c=@"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Force branch push-yostqsxwqrlt from 48d8c7948133 to b5f030322b1d
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // Test changing `git.push-branch-prefix`. It causes us to push again.
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &[
             "git",
@@ -350,19 +362,20 @@ fn test_git_push_changes() {
     Branch changes to push to origin:
       Add branch test-yostqsxwqrlt to b5f030322b1d
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_git_push_revisions() {
     let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     std::fs::write(workspace_root.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "bar"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch-1"]);
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "baz"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-2a"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-2b"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "baz"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch-2a"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch-2b"]);
     std::fs::write(workspace_root.join("file"), "modified again").unwrap();
 
     // Push an empty set
@@ -379,14 +392,16 @@ fn test_git_push_revisions() {
     No branches point to the specified revisions.
     "###);
     // Push a revision with a single branch
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "-r=@-", "--dry-run"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-r=@-", "--dry-run"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Add branch branch-1 to 7decc7932d9c
     Dry-run requested, not pushing.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // Push multiple revisions of which some have branches
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &["git", "push", "-r=@--", "-r=@-", "--dry-run"],
     );
@@ -395,16 +410,19 @@ fn test_git_push_revisions() {
       Add branch branch-1 to 7decc7932d9c
     Dry-run requested, not pushing.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // Push a revision with a multiple branches
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "-r=@", "--dry-run"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-r=@", "--dry-run"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Add branch branch-2a to 1b45449e18d0
       Add branch branch-2b to 1b45449e18d0
     Dry-run requested, not pushing.
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // Repeating a commit doesn't result in repeated messages about the branch
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &["git", "push", "-r=@-", "-r=@-", "--dry-run"],
     );
@@ -413,22 +431,23 @@ fn test_git_push_revisions() {
       Add branch branch-1 to 7decc7932d9c
     Dry-run requested, not pushing.
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_git_push_mixed() {
     let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     std::fs::write(workspace_root.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "bar"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch-1"]);
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "baz"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-2a"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "branch-2b"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "baz"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch-2a"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch-2b"]);
     std::fs::write(workspace_root.join("file"), "modified again").unwrap();
 
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &["git", "push", "--change=@--", "--branch=branch-1", "-r=@"],
     );
@@ -440,47 +459,48 @@ fn test_git_push_mixed() {
       Add branch branch-2a to 1b45449e18d0
       Add branch branch-2b to 1b45449e18d0
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_git_push_existing_long_branch() {
     let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     std::fs::write(workspace_root.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &workspace_root,
         &["branch", "create", "push-19b790168e73f7a73a98deae21e807c0"],
     );
 
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--change=@"]);
-
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--change=@"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Add branch push-19b790168e73f7a73a98deae21e807c0 to fa16a14170fb
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_git_push_unsnapshotted_change() {
     let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     std::fs::write(workspace_root.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["git", "push", "--change", "@"]);
+    test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--change", "@"]);
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["git", "push", "--change", "@"]);
+    test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--change", "@"]);
 }
 
 #[test]
 fn test_git_push_conflict() {
     let (test_env, workspace_root) = set_up();
     std::fs::write(workspace_root.join("file"), "first").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&workspace_root, &["commit", "-m", "first"]);
     std::fs::write(workspace_root.join("file"), "second").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&workspace_root, &["commit", "-m", "second"]);
     std::fs::write(workspace_root.join("file"), "third").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["rebase", "-r", "@", "-d", "@--"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "my-branch"]);
-    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "third"]);
+    test_env.jj_cmd_ok(&workspace_root, &["rebase", "-r", "@", "-d", "@--"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "my-branch"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 1973d389875c since it has conflicts
@@ -490,8 +510,8 @@ fn test_git_push_conflict() {
 #[test]
 fn test_git_push_no_description() {
     let (test_env, workspace_root) = set_up();
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "my-branch"]);
-    test_env.jj_cmd_success(&workspace_root, &["describe", "-m="]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m="]);
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch", "my-branch"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -537,15 +557,15 @@ fn test_git_push_missing_committer() {
             .assert()
             .success();
     };
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "missing-name"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "missing-name"]);
     run_without_var("JJ_USER", &["describe", "-m=no committer name"]);
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-name"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 4fd190283d1a since it has no author and/or committer set
     "###);
-    test_env.jj_cmd_success(&workspace_root, &["checkout", "root()"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "missing-email"]);
+    test_env.jj_cmd_ok(&workspace_root, &["checkout", "root()"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "missing-email"]);
     run_without_var("JJ_EMAIL", &["describe", "-m=no committer email"]);
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
@@ -567,17 +587,19 @@ fn test_git_push_missing_committer() {
 fn test_git_push_deleted() {
     let (test_env, workspace_root) = set_up();
 
-    test_env.jj_cmd_success(&workspace_root, &["branch", "delete", "branch1"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--deleted"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--deleted"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Delete branch branch1 from 45a3aa29e907
     Abandoned 1 commits that are no longer reachable.
     "###);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--deleted"]);
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--deleted"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -595,10 +617,10 @@ fn test_git_push_conflicting_branches() {
         .unwrap()
         .delete()
         .unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["git", "import"]);
-    test_env.jj_cmd_success(&workspace_root, &["new", "root()", "-m=description 3"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch2"]);
-    test_env.jj_cmd_success(&workspace_root, &["git", "fetch"]);
+    test_env.jj_cmd_ok(&workspace_root, &["git", "import"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-m=description 3"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch2"]);
+    test_env.jj_cmd_ok(&workspace_root, &["git", "fetch"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["branch", "list"]), @r###"
     branch1: lzmmnrxq 45a3aa29 (empty) description 1
     branch2 (conflicted):
@@ -608,8 +630,8 @@ fn test_git_push_conflicting_branches() {
     "###);
 
     let bump_branch1 = || {
-        test_env.jj_cmd_success(&workspace_root, &["new", "branch1", "-m=bump"]);
-        test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch1"]);
+        test_env.jj_cmd_ok(&workspace_root, &["new", "branch1", "-m=bump"]);
+        test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch1"]);
     };
 
     // Conflicting branch at @

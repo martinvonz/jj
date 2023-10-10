@@ -129,7 +129,7 @@ fn test_config_list_all() {
 #[test]
 fn test_config_layer_override_default() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let config_key = "merge-tools.vimdiff.program";
 
@@ -179,7 +179,7 @@ fn test_config_layer_override_default() {
 #[test]
 fn test_config_layer_override_env() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let config_key = "ui.editor";
 
@@ -234,14 +234,14 @@ fn test_config_layer_override_env() {
 #[test]
 fn test_config_layer_workspace() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
     let main_path = test_env.env_root().join("main");
     let secondary_path = test_env.env_root().join("secondary");
     let config_key = "ui.editor";
 
     std::fs::write(main_path.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&main_path, &["new"]);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(&main_path, &["new"]);
+    test_env.jj_cmd_ok(
         &main_path,
         &["workspace", "add", "--name", "second", "../secondary"],
     );
@@ -281,17 +281,17 @@ fn test_config_set_missing_opts() {
 #[test]
 fn test_config_set_for_user() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     // Point to a config file since `config set` can't handle directories.
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path.to_owned());
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["config", "set", "--user", "test-key", "test-val"],
     );
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["config", "set", "--user", "test-table.foo", "true"],
     );
@@ -310,13 +310,13 @@ fn test_config_set_for_user() {
 #[test]
 fn test_config_set_for_repo() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["config", "set", "--repo", "test-key", "test-val"],
     );
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["config", "set", "--repo", "test-table.foo", "true"],
     );
@@ -340,12 +340,12 @@ fn test_config_set_for_repo() {
 #[test]
 fn test_config_set_type_mismatch() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["config", "set", "--user", "test-table.foo", "test-val"],
     );
@@ -361,12 +361,12 @@ fn test_config_set_type_mismatch() {
 #[test]
 fn test_config_set_nontable_parent() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["config", "set", "--user", "test-nontable", "test-val"],
     );
@@ -396,7 +396,7 @@ fn test_config_edit_missing_opt() {
 #[test]
 fn test_config_edit_user() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let edit_script = test_env.set_up_fake_editor();
 
@@ -405,13 +405,13 @@ fn test_config_edit_user() {
         format!("expectpath\n{}", test_env.config_path().to_str().unwrap()),
     )
     .unwrap();
-    test_env.jj_cmd_success(&repo_path, &["config", "edit", "--user"]);
+    test_env.jj_cmd_ok(&repo_path, &["config", "edit", "--user"]);
 }
 
 #[test]
 fn test_config_edit_repo() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let edit_script = test_env.set_up_fake_editor();
 
@@ -423,7 +423,7 @@ fn test_config_edit_repo() {
         ),
     )
     .unwrap();
-    test_env.jj_cmd_success(&repo_path, &["config", "edit", "--repo"]);
+    test_env.jj_cmd_ok(&repo_path, &["config", "edit", "--repo"]);
 }
 
 #[test]

@@ -23,16 +23,17 @@ pub mod common;
 #[test]
 fn test_resolution_of_git_tracking_branches() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "-r", "main", "-m", "old_message"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-r", "main", "-m", "old_message"]);
 
     // Create local-git tracking branch
-    let stdout = test_env.jj_cmd_success(&repo_path, &["git", "export"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     // Move the local branch somewhere else
-    test_env.jj_cmd_success(&repo_path, &["describe", "-r", "main", "-m", "new_message"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-r", "main", "-m", "new_message"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: qpvuntsm 3af37026 (empty) new_message
       @git (ahead by 1 commits, behind by 1 commits): qpvuntsm 16d541ca (empty) old_message
@@ -60,11 +61,11 @@ fn test_resolution_of_git_tracking_branches() {
 #[test]
 fn test_git_export_conflicting_git_refs() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "main/sub"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main/sub"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -79,15 +80,17 @@ fn test_git_export_conflicting_git_refs() {
 #[test]
 fn test_git_export_undo() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-ra@git"]), @r###"
     @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 a 230dd059
     │  (empty) (no description set)
@@ -96,8 +99,9 @@ fn test_git_export_undo() {
 
     // Exported refs won't be removed by undoing the export, but the git-tracking
     // branch is. This is the same as remote-tracking branches.
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "undo"]), @r###"
-    "###);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "undo"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
     [
         (
@@ -114,7 +118,9 @@ fn test_git_export_undo() {
     "###);
 
     // This would re-export branch "a" and create git-tracking branch.
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-ra@git"]), @r###"
     @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 a 230dd059
     │  (empty) (no description set)
@@ -125,7 +131,7 @@ fn test_git_export_undo() {
 #[test]
 fn test_git_import_undo() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 
@@ -141,18 +147,22 @@ fn test_git_import_undo() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     let base_operation_id = test_env.current_operation_id(&repo_path);
 
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
     // "git import" can be undone by default.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]);
-    insta::assert_snapshot!(stdout, @r###"
-    "###);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "restore", &base_operation_id]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     // Try "git import" again, which should re-import the branch "a".
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
@@ -161,7 +171,7 @@ fn test_git_import_undo() {
 #[test]
 fn test_git_import_move_export_with_default_undo() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 
@@ -178,19 +188,23 @@ fn test_git_import_move_export_with_default_undo() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     let base_operation_id = test_env.current_operation_id(&repo_path);
 
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
     // Move branch "a" and export to git repo
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "a"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: yqosqzyt 096dc80d (empty) (no description set)
       @git (behind by 1 commits): qpvuntsm 230dd059 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "export"]), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: yqosqzyt 096dc80d (empty) (no description set)
     "###);
@@ -198,10 +212,12 @@ fn test_git_import_move_export_with_default_undo() {
     // "git import" can be undone with the default `restore` behavior, as shown in
     // the previous test. However, "git export" can't: the branches in the git
     // repo stay where they were.
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "restore", &base_operation_id]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "restore", &base_operation_id]);
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: qpvuntsm 230dd059 (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
     [
@@ -216,7 +232,9 @@ fn test_git_import_move_export_with_default_undo() {
 
     // The last branch "a" state is imported from git. No idea what's the most
     // intuitive result here.
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["git", "import"]), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: yqosqzyt 096dc80d (empty) (no description set)
     "###);

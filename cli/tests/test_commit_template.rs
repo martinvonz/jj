@@ -20,12 +20,12 @@ pub mod common;
 #[test]
 fn test_log_parents() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "@-"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "@", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@", "@-"]);
 
     let template = r#"commit_id ++ "\nP: " ++ parents.map(|c| c.commit_id()) ++ "\n""#;
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
@@ -78,11 +78,11 @@ fn test_log_parents() {
 #[test]
 fn test_log_author_timestamp() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "second"]);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp()"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -95,11 +95,11 @@ fn test_log_author_timestamp() {
 #[test]
 fn test_log_author_timestamp_ago() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "second"]);
 
     let template = r#"author.timestamp().ago() ++ "\n""#;
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-T", template]);
@@ -113,7 +113,7 @@ fn test_log_author_timestamp_ago() {
 #[test]
 fn test_log_author_timestamp_utc() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp().utc()"]);
@@ -126,13 +126,13 @@ fn test_log_author_timestamp_utc() {
 #[test]
 fn test_log_default() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add a file"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "-m", "description 1"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "my-branch"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "add a file"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "description 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
 
     // Test default log output format
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
@@ -168,7 +168,7 @@ fn test_log_default() {
 #[test]
 fn test_log_builtin_templates() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
 
@@ -233,7 +233,7 @@ fn test_log_builtin_templates() {
 #[test]
 fn test_log_builtin_templates_colored() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render =
         |template| test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T", template]);
@@ -299,11 +299,11 @@ fn test_log_builtin_templates_colored() {
 #[test]
 fn test_log_obslog_divergence() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 1"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     // No divergence
     insta::assert_snapshot!(stdout, @r###"
@@ -313,11 +313,11 @@ fn test_log_obslog_divergence() {
     "###);
 
     // Create divergence
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["describe", "-m", "description 2", "--at-operation", "@-"],
     );
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
     ◉  qpvuntsm?? test.user@example.com 2001-02-03 04:05:10.000 +07:00 8979953d
@@ -326,6 +326,7 @@ fn test_log_obslog_divergence() {
     ├─╯  description 1
     ◉  zzzzzzzz root() 00000000
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
@@ -365,9 +366,9 @@ fn test_log_git_head() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
     git2::Repository::init(&repo_path).unwrap();
-    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
 
-    test_env.jj_cmd_success(&repo_path, &["new", "-m=initial"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m=initial"]);
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -382,10 +383,10 @@ fn test_log_git_head() {
 #[test]
 fn test_log_customize_short_id() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
 
     // Customize both the commit and the change id
     let decl = "template-aliases.'format_short_id(id)'";

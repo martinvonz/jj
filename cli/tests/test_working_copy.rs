@@ -19,7 +19,7 @@ pub mod common;
 #[test]
 fn test_snapshot_large_file() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(r#"snapshot.max-new-file-size = "10""#);

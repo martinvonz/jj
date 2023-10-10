@@ -26,16 +26,16 @@ fn create_commit(
     files: &[(&str, &str)],
 ) {
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["new", "root()", "-m", name]);
+        test_env.jj_cmd_ok(repo_path, &["new", "root()", "-m", name]);
     } else {
         let mut args = vec!["new", "-m", name];
         args.extend(parents);
-        test_env.jj_cmd_success(repo_path, &args);
+        test_env.jj_cmd_ok(repo_path, &args);
     }
     for (name, content) in files {
         std::fs::write(repo_path.join(name), content).unwrap();
     }
-    test_env.jj_cmd_success(repo_path, &["branch", "create", name]);
+    test_env.jj_cmd_ok(repo_path, &["branch", "create", name]);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
@@ -45,7 +45,7 @@ fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
 #[test]
 fn test_resolution() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
@@ -85,13 +85,14 @@ fn test_resolution() {
         ["dump editor0", "write\nresolution\n"].join("\0"),
     )
     .unwrap();
-    insta::assert_snapshot!(
-    test_env.jj_cmd_success(&repo_path, &["resolve"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve"]);
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: vruxwmqv e069f073 conflict | conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     "###);
@@ -113,7 +114,7 @@ fn test_resolution() {
 
     // Check that the output file starts with conflict markers if
     // `merge-tool-edits-conflict-markers=true`
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @"");
     std::fs::write(
@@ -121,7 +122,7 @@ fn test_resolution() {
         ["dump editor1", "write\nresolution\n"].join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &[
             "resolve",
@@ -153,7 +154,7 @@ fn test_resolution() {
 
     // Check that if merge tool leaves conflict markers in output file and
     // `merge-tool-edits-conflict-markers=true`, these markers are properly parsed.
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @"");
     std::fs::write(
@@ -173,16 +174,15 @@ conflict
         .join("\0"),
     )
     .unwrap();
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(
-            &repo_path,
-            &[
-                "resolve",
-                "--config-toml",
-                "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
-            ],
-        ),
-        @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "resolve",
+            "--config-toml",
+            "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: vruxwmqv ff4e8c6b conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
@@ -190,6 +190,7 @@ conflict
     After this operation, some files at this revision still have conflicts:
     file    2-sided conflict
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
     <<<<<<<
@@ -220,7 +221,7 @@ conflict
     // Check that if merge tool leaves conflict markers in output file but
     // `merge-tool-edits-conflict-markers=false` or is not specified,
     // `jj` considers the conflict resolved.
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @"");
     std::fs::write(
@@ -240,13 +241,14 @@ conflict
         .join("\0"),
     )
     .unwrap();
-    insta::assert_snapshot!(
-    test_env.jj_cmd_success(&repo_path, &["resolve"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve"]);
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: vruxwmqv 95418cb8 conflict | conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor3")).unwrap(), @r###"
     "###);
@@ -296,7 +298,7 @@ fn check_resolve_produces_input_file(
 #[test]
 fn test_normal_conflict_input_files() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
@@ -337,7 +339,7 @@ fn test_normal_conflict_input_files() {
 #[test]
 fn test_baseless_conflict_input_files() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "base", &[], &[]);
@@ -377,7 +379,7 @@ fn test_baseless_conflict_input_files() {
 #[test]
 fn test_too_many_parents() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
@@ -404,7 +406,7 @@ fn test_too_many_parents() {
 #[test]
 fn test_edit_delete_conflict_input_files() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
@@ -445,7 +447,7 @@ fn test_edit_delete_conflict_input_files() {
 #[test]
 fn test_file_vs_dir() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
@@ -484,7 +486,7 @@ fn test_file_vs_dir() {
 #[test]
 fn test_description_with_dir_and_deletion() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
@@ -539,7 +541,7 @@ fn test_description_with_dir_and_deletion() {
 #[test]
 fn test_multiple_conflicts() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(
@@ -630,8 +632,8 @@ fn test_multiple_conflicts() {
 
     // Check that we can manually pick which of the conflicts to resolve first
     std::fs::write(&editor_script, "expect\n\0write\nresolution another_file\n").unwrap();
-    insta::assert_snapshot!(
-    test_env.jj_cmd_success(&repo_path, &["resolve", "another_file"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve", "another_file"]);
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: vruxwmqv c3c25bce conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
@@ -639,6 +641,7 @@ fn test_multiple_conflicts() {
     After this operation, some files at this revision still have conflicts:
     this_file_has_a_very_long_name_to_test_padding 2-sided conflict
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in another_file:
@@ -656,19 +659,20 @@ fn test_multiple_conflicts() {
     "###);
 
     // Repeat the above with the `--quiet` option.
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     std::fs::write(&editor_script, "expect\n\0write\nresolution another_file\n").unwrap();
-    insta::assert_snapshot!(
-    test_env.jj_cmd_success(&repo_path, &["resolve", "--quiet", "another_file"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve", "--quiet", "another_file"]);
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: vruxwmqv fd3874cd conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // For the rest of the test, we call `jj resolve` several times in a row to
     // resolve each conflict in the order it chooses.
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @"");
     std::fs::write(
@@ -676,7 +680,7 @@ fn test_multiple_conflicts() {
         "expect\n\0write\nfirst resolution for auto-chosen file\n",
     )
     .unwrap();
-    test_env.jj_cmd_success(&repo_path, &["resolve"]);
+    test_env.jj_cmd_ok(&repo_path, &["resolve"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in another_file:
@@ -698,7 +702,7 @@ fn test_multiple_conflicts() {
     )
     .unwrap();
 
-    test_env.jj_cmd_success(&repo_path, &["resolve"]);
+    test_env.jj_cmd_ok(&repo_path, &["resolve"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in another_file:

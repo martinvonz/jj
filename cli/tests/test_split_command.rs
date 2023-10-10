@@ -21,7 +21,7 @@ pub mod common;
 #[test]
 fn test_split_by_paths() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "foo").unwrap();
@@ -39,13 +39,14 @@ fn test_split_by_paths() {
         ["dump editor0", "next invocation\n", "dump editor1"].join("\0"),
     )
     .unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["split", "file2"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["split", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     First part: qpvuntsm 5eebce1d (no description set)
     Second part: kkmpptxz 45833353 (no description set)
     Working copy now at: kkmpptxz 45833353 (no description set)
     Parent commit      : qpvuntsm 5eebce1d (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     JJ: Enter commit description for the first part (parent).
@@ -75,7 +76,7 @@ fn test_split_by_paths() {
 
     // Insert an empty commit after @- with "split ."
     test_env.set_up_fake_editor();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["split", "-r", "@-", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["split", "-r", "@-", "."]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     First part: qpvuntsm 31425b56 (no description set)
@@ -83,6 +84,7 @@ fn test_split_by_paths() {
     Working copy now at: kkmpptxz 28d4ec20 (no description set)
     Parent commit      : yqosqzyt af096392 (empty) (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  kkmpptxzrspx false
@@ -97,7 +99,7 @@ fn test_split_by_paths() {
     "###);
 
     // Remove newly created empty commit
-    test_env.jj_cmd_success(&repo_path, &["abandon", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["abandon", "@-"]);
 
     // Insert an empty commit before @- with "split nonexistent"
     test_env.set_up_fake_editor();
@@ -129,13 +131,13 @@ fn test_split_by_paths() {
 #[test]
 fn test_split_with_non_empty_description() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
     let workspace_path = test_env.env_root().join("repo");
 
     std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
     std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
-    test_env.jj_cmd_success(&workspace_path, &["describe", "-m", "test"]);
+    test_env.jj_cmd_ok(&workspace_path, &["describe", "-m", "test"]);
     let edit_script = test_env.set_up_fake_editor();
     std::fs::write(
         edit_script,
@@ -149,7 +151,7 @@ fn test_split_with_non_empty_description() {
         .join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_success(&workspace_path, &["split", "file1"]);
+    test_env.jj_cmd_ok(&workspace_path, &["split", "file1"]);
 
     assert_eq!(
         std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
@@ -183,7 +185,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
 #[test]
 fn test_split_with_default_description() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
     let workspace_path = test_env.env_root().join("repo");
 
@@ -195,7 +197,7 @@ fn test_split_with_default_description() {
         ["dump editor1", "next invocation\n", "dump editor2"].join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_success(&workspace_path, &["split", "file1"]);
+    test_env.jj_cmd_ok(&workspace_path, &["split", "file1"]);
 
     assert_eq!(
         std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),

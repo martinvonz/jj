@@ -23,11 +23,13 @@ fn test_git_clone() {
     let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
     // Clone an empty repo
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "empty"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "empty"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/empty"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Set-up a non-empty repo
     let signature =
@@ -52,20 +54,24 @@ fn test_git_clone() {
     git_repo.set_head("refs/heads/main").unwrap();
 
     // Clone with relative source path
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "clone"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
     Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
     Added 1 files, modified 0 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     assert!(test_env.env_root().join("clone").join("file").exists());
 
     // Subsequent fetch should just work even if the source path was relative
-    let stdout = test_env.jj_cmd_success(&test_env.env_root().join("clone"), &["git", "fetch"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&test_env.env_root().join("clone"), &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Failed clone should clean up the destination directory
     std::fs::create_dir(test_env.env_root().join("bad")).unwrap();
@@ -135,7 +141,7 @@ fn test_git_clone_colocate() {
     let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
     // Clone an empty repo
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         test_env.env_root(),
         &["git", "clone", "source", "empty", "--colocate"],
     );
@@ -143,6 +149,7 @@ fn test_git_clone_colocate() {
     Fetching into new repo in "$TEST_ENV/empty"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Set-up a non-empty repo
     let signature =
@@ -167,7 +174,7 @@ fn test_git_clone_colocate() {
     git_repo.set_head("refs/heads/main").unwrap();
 
     // Clone with relative source path
-    let stdout = test_env.jj_cmd_success(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         test_env.env_root(),
         &["git", "clone", "source", "clone", "--colocate"],
     );
@@ -177,6 +184,7 @@ fn test_git_clone_colocate() {
     Parent commit      : mzyxwzks 9f01a0e0 main | message
     Added 1 files, modified 0 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     assert!(test_env.env_root().join("clone").join("file").exists());
     assert!(test_env.env_root().join("clone").join(".git").exists());
 
@@ -217,10 +225,12 @@ fn test_git_clone_colocate() {
     "###);
 
     // Subsequent fetch should just work even if the source path was relative
-    let stdout = test_env.jj_cmd_success(&test_env.env_root().join("clone"), &["git", "fetch"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&test_env.env_root().join("clone"), &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Failed clone should clean up the destination directory
     std::fs::create_dir(test_env.env_root().join("bad")).unwrap();

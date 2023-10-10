@@ -19,15 +19,15 @@ pub mod common;
 #[test]
 fn test_status_merge() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file"), "base").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "-m=left"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "left"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "@-", "-m=right"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m=left"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "left"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m=right"]);
     std::fs::write(repo_path.join("file"), "right").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "left", "@"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "left", "@"]);
 
     // The output should mention each parent, and the diff should be empty (compared
     // to the auto-merged parents)
@@ -44,7 +44,7 @@ fn test_status_merge() {
 #[test]
 fn test_status_ignored_gitignore() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::create_dir(repo_path.join("untracked")).unwrap();

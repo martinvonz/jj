@@ -27,15 +27,15 @@ fn test_next_simple() {
     // third
     //
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     // Create a simple linear history, which we'll traverse.
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     // Move to `first`
-    test_env.jj_cmd_success(&repo_path, &["new", "@--"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["next"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next"]);
     insta::assert_snapshot!(
         stdout,
         @r###"
@@ -43,20 +43,21 @@ fn test_next_simple() {
     Parent commit      : kkmpptxz 3fa8931e (empty) third
     "###
     );
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_next_multiple() {
     // Move from first => fourth.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fourth"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "@---"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["next", "2"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@---"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next", "2"]);
     // We should now be the child of the fourth commit.
     insta::assert_snapshot!(
         stdout,
@@ -65,18 +66,19 @@ fn test_next_multiple() {
     Parent commit      : zsuskuln 009f88bf (empty) fourth
     "###
     );
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_prev_simple() {
     // Move from third => second.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["prev"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev"]);
     // The working copy commit is now a child of "second".
     insta::assert_snapshot!(
         stdout,
@@ -85,19 +87,20 @@ fn test_prev_simple() {
     Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###
     );
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_prev_multiple_without_root() {
     // Move from fourth => second.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fourth"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["prev", "2"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "2"]);
     insta::assert_snapshot!(
         stdout,
         @r###"
@@ -105,18 +108,19 @@ fn test_prev_multiple_without_root() {
     Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###
     );
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_next_exceeding_history() {
     // Try to step beyond the current repos history.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_success(&repo_path, &["edit", "-r", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "-r", "@--"]);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["next", "3"]);
     // `jj next` beyond existing history fails.
     insta::assert_snapshot!(stderr, @r###"
@@ -128,20 +132,20 @@ fn test_next_exceeding_history() {
 fn test_next_fails_on_branching_children() {
     // TODO(#2126): Fix this behavior
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     // Create a main branch for this test
-    test_env.jj_cmd_success(&repo_path, &["branch", "set", "main"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     // Create a branching child.
-    test_env.jj_cmd_success(&repo_path, &["branch", "c", "into-the-future"]);
-    test_env.jj_cmd_success(&repo_path, &["co", "into-the-future"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "42"]);
-    test_env.jj_cmd_success(&repo_path, &["co", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "into-the-future"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "into-the-future"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "42"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "main"]);
     // Make the default branch have two possible children.
-    test_env.jj_cmd_success(&repo_path, &["new", "into-the-future", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "into-the-future", "@-"]);
     // Try to advance the working copy commit.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["next"]);
     insta::assert_snapshot!(stderr,@r###"
@@ -153,16 +157,16 @@ fn test_next_fails_on_branching_children() {
 fn test_prev_fails_on_multiple_parents() {
     // TODO(#2126): Fix this behavior
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "c", "all-about"]);
-    test_env.jj_cmd_success(&repo_path, &["co", "all-about"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "soname"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "all-about"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "all-about"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "soname"]);
     // Create a merge commit, which has two parents.
-    test_env.jj_cmd_success(&repo_path, &["new", "@-", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "@--"]);
     // We have more than one parent, prev fails.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["prev"]);
     insta::assert_snapshot!(stderr,@r###"
@@ -173,12 +177,12 @@ fn test_prev_fails_on_multiple_parents() {
 #[test]
 fn test_prev_onto_root_fails() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fourth"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
     // The root commit is before "first".
     let stderr = test_env.jj_cmd_failure(&repo_path, &["prev", "6"]);
     insta::assert_snapshot!(stderr,@r###"
@@ -190,13 +194,13 @@ fn test_prev_onto_root_fails() {
 fn test_prev_editing() {
     // Edit the third commit.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fourth"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["prev", "--edit"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "--edit"]);
     insta::assert_snapshot!(
         stdout,
         @r###"
@@ -204,20 +208,21 @@ fn test_prev_editing() {
     Parent commit      : kkmpptxz 3fa8931e (empty) third
     "###
     );
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
 fn test_next_editing() {
     // Edit the second commit.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fourth"]);
-    test_env.jj_cmd_success(&repo_path, &["edit", "@--"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["next", "--edit"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "@--"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next", "--edit"]);
     insta::assert_snapshot!(
         stdout,
         @r###"
@@ -225,4 +230,5 @@ fn test_next_editing() {
     Parent commit      : kkmpptxz 3fa8931e (empty) third
     "###
     );
+    insta::assert_snapshot!(stderr, @"");
 }

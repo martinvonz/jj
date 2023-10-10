@@ -23,7 +23,7 @@ fn test_templater_branches() {
     let test_env = TestEnvironment::default();
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
 
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "origin"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "origin"]);
     let origin_path = test_env.env_root().join("origin");
     let origin_git_repo_path = origin_path
         .join(".jj")
@@ -32,14 +32,14 @@ fn test_templater_branches() {
         .join("git");
 
     // Created some branches on the remote
-    test_env.jj_cmd_success(&origin_path, &["describe", "-m=description 1"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "branch1"]);
-    test_env.jj_cmd_success(&origin_path, &["new", "root()", "-m=description 2"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "branch2"]);
-    test_env.jj_cmd_success(&origin_path, &["new", "root()", "-m=description 3"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "branch3"]);
-    test_env.jj_cmd_success(&origin_path, &["git", "export"]);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(&origin_path, &["describe", "-m=description 1"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch1"]);
+    test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 2"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch2"]);
+    test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 3"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch3"]);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
+    test_env.jj_cmd_ok(
         test_env.env_root(),
         &[
             "git",
@@ -52,17 +52,17 @@ fn test_templater_branches() {
 
     // Rewrite branch1, move branch2 forward, create conflict in branch3, add
     // new-branch
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &workspace_root,
         &["describe", "branch1", "-m", "modified branch1 commit"],
     );
-    test_env.jj_cmd_success(&workspace_root, &["new", "branch2"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "branch2"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "new-branch"]);
-    test_env.jj_cmd_success(&workspace_root, &["describe", "branch3", "-m=local"]);
-    test_env.jj_cmd_success(&origin_path, &["describe", "branch3", "-m=origin"]);
-    test_env.jj_cmd_success(&origin_path, &["git", "export"]);
-    test_env.jj_cmd_success(&workspace_root, &["git", "fetch"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "branch2"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch2"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "new-branch"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "branch3", "-m=local"]);
+    test_env.jj_cmd_ok(&origin_path, &["describe", "branch3", "-m=origin"]);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
+    test_env.jj_cmd_ok(&workspace_root, &["git", "fetch"]);
 
     let template = r#"commit_id.short() ++ " " ++ branches"#;
     let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
@@ -82,7 +82,7 @@ fn test_templater_branches() {
 #[test]
 fn test_templater_parsed_tree() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
 
@@ -111,7 +111,7 @@ fn test_templater_parsed_tree() {
 #[test]
 fn test_templater_parse_error() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
 
@@ -267,7 +267,7 @@ fn test_templater_parse_error() {
 #[test]
 fn test_templater_list_method() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
@@ -363,9 +363,9 @@ fn test_templater_list_method() {
 #[test]
 fn test_templater_string_method() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m=description 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m=description 1"]);
     let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
 
     insta::assert_snapshot!(render(r#""fooo".contains("foo")"#), @"true");
@@ -416,18 +416,18 @@ fn test_templater_string_method() {
 #[test]
 fn test_templater_signature() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_template_output(&test_env, &repo_path, "@", template);
 
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
 
     insta::assert_snapshot!(render(r#"author"#), @"Test User <test.user@example.com>");
     insta::assert_snapshot!(render(r#"author.name()"#), @"Test User");
     insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@example.com");
     insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &["--config-toml=user.name='Another Test User'", "new"],
     );
@@ -437,7 +437,7 @@ fn test_templater_signature() {
     insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@example.com");
     insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &[
             "--config-toml=user.email='test.user@invalid@example.com'",
@@ -450,13 +450,13 @@ fn test_templater_signature() {
     insta::assert_snapshot!(render(r#"author.email()"#), @"test.user@invalid@example.com");
     insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
 
-    test_env.jj_cmd_success(&repo_path, &["--config-toml=user.email='test.user'", "new"]);
+    test_env.jj_cmd_ok(&repo_path, &["--config-toml=user.email='test.user'", "new"]);
 
     insta::assert_snapshot!(render(r#"author"#), @"Test User <test.user>");
     insta::assert_snapshot!(render(r#"author.email()"#), @"test.user");
     insta::assert_snapshot!(render(r#"author.username()"#), @"test.user");
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &repo_path,
         &[
             "--config-toml=user.email='test.user+tag@example.com'",
@@ -468,7 +468,7 @@ fn test_templater_signature() {
     insta::assert_snapshot!(render(r#"author.email()"#), @"test.user+tag@example.com");
     insta::assert_snapshot!(render(r#"author.username()"#), @"test.user+tag");
 
-    test_env.jj_cmd_success(&repo_path, &["--config-toml=user.email='x@y'", "new"]);
+    test_env.jj_cmd_ok(&repo_path, &["--config-toml=user.email='x@y'", "new"]);
 
     insta::assert_snapshot!(render(r#"author"#), @"Test User <x@y>");
     insta::assert_snapshot!(render(r#"author.email()"#), @"x@y");
@@ -506,7 +506,7 @@ fn test_templater_signature() {
 #[test]
 fn test_templater_timestamp_method() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
@@ -573,7 +573,7 @@ fn test_templater_timestamp_method() {
 #[test]
 fn test_templater_fill_function() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
@@ -672,7 +672,7 @@ fn test_templater_fill_function() {
 #[test]
 fn test_templater_indent_function() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
@@ -720,7 +720,7 @@ fn test_templater_indent_function() {
 #[test]
 fn test_templater_label_function() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
@@ -739,7 +739,7 @@ fn test_templater_label_function() {
 #[test]
 fn test_templater_concat_function() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
@@ -753,7 +753,7 @@ fn test_templater_concat_function() {
 #[test]
 fn test_templater_separate_function() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
@@ -804,7 +804,7 @@ fn test_templater_separate_function() {
 #[test]
 fn test_templater_upper_lower() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
@@ -818,7 +818,7 @@ fn test_templater_upper_lower() {
 #[test]
 fn test_templater_alias() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
@@ -954,7 +954,7 @@ fn test_templater_alias() {
 #[test]
 fn test_templater_alias_override() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
@@ -984,7 +984,7 @@ fn test_templater_alias_override() {
 #[test]
 fn test_templater_bad_alias_decl() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(

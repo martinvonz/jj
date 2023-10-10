@@ -19,14 +19,14 @@ pub mod common;
 #[test]
 fn test_rewrite_immutable_generic() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     std::fs::write(repo_path.join("file"), "a").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m=a"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "-m=b"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m=a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m=b"]);
     std::fs::write(repo_path.join("file"), "b").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "main-", "-m=c"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "main-", "-m=c"]);
     std::fs::write(repo_path.join("file"), "c").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -84,17 +84,17 @@ fn test_rewrite_immutable_generic() {
 #[test]
 fn test_rewrite_immutable_commands() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     std::fs::write(repo_path.join("file"), "a").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m=a"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "-m=b"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m=a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m=b"]);
     std::fs::write(repo_path.join("file"), "b").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "@-", "-m=c"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m=c"]);
     std::fs::write(repo_path.join("file"), "c").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "all:visible_heads()", "-m=merge"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "description(b)"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "all:visible_heads()", "-m=merge"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "description(b)"]);
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "main""#);
 
     // Log shows mutable commits and immutable heads by default

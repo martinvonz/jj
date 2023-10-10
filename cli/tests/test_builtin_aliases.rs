@@ -20,7 +20,7 @@ pub mod common;
 
 fn set_up(trunk_name: &str) -> (TestEnvironment, PathBuf) {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "origin"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "origin"]);
     let origin_path = test_env.env_root().join("origin");
     let origin_git_repo_path = origin_path
         .join(".jj")
@@ -28,13 +28,13 @@ fn set_up(trunk_name: &str) -> (TestEnvironment, PathBuf) {
         .join("store")
         .join("git");
 
-    test_env.jj_cmd_success(&origin_path, &["describe", "-m=description 1"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", trunk_name]);
-    test_env.jj_cmd_success(&origin_path, &["new", "root()", "-m=description 2"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "unrelated_branch"]);
-    test_env.jj_cmd_success(&origin_path, &["git", "export"]);
+    test_env.jj_cmd_ok(&origin_path, &["describe", "-m=description 1"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", trunk_name]);
+    test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 2"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "unrelated_branch"]);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
 
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         test_env.env_root(),
         &[
             "git",
@@ -87,8 +87,8 @@ fn test_builtin_alias_trunk_matches_trunk() {
 fn test_builtin_alias_trunk_matches_exactly_one_commit() {
     let (test_env, workspace_root) = set_up("main");
     let origin_path = test_env.env_root().join("origin");
-    test_env.jj_cmd_success(&origin_path, &["new", "root()", "-m=description 3"]);
-    test_env.jj_cmd_success(&origin_path, &["branch", "create", "master"]);
+    test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 3"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "master"]);
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"

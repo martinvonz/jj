@@ -21,13 +21,13 @@ pub mod common;
 #[test]
 fn test_restore() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file2"), "b\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::remove_file(repo_path.join("file1")).unwrap();
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
     std::fs::write(repo_path.join("file3"), "c\n").unwrap();
@@ -41,23 +41,24 @@ fn test_restore() {
     "###);
 
     // Restores from parent by default
-    let stdout = test_env.jj_cmd_success(&repo_path, &["restore"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore"]);
     insta::assert_snapshot!(stdout, @r###"
     Created kkmpptxz ed1678e3 (empty) (no description set)
     Working copy now at: kkmpptxz ed1678e3 (empty) (no description set)
     Parent commit      : rlvkpnrz 1a986a27 (no description set)
     Added 1 files, modified 1 files, removed 1 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
 
     // Can restore another revision from its parents
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r=@-"]);
     insta::assert_snapshot!(stdout, @r###"
     A file2
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "-c=@-"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "-c=@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Created rlvkpnrz e25100af (empty) (no description set)
     Rebased 1 descendant commits
@@ -65,32 +66,35 @@ fn test_restore() {
     Parent commit      : rlvkpnrz e25100af (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r=@-"]);
     insta::assert_snapshot!(stdout, @"");
 
     // Can restore this revision from another revision
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @r###"
     Created kkmpptxz 1dd6eb63 (no description set)
     Working copy now at: kkmpptxz 1dd6eb63 (no description set)
     Parent commit      : rlvkpnrz 1a986a27 (no description set)
     Added 1 files, modified 0 files, removed 2 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file2
     "###);
 
     // Can restore into other revision
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--to", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Created rlvkpnrz ec9d5b59 (no description set)
     Rebased 1 descendant commits
     Working copy now at: kkmpptxz d6f3c681 (empty) (no description set)
     Parent commit      : rlvkpnrz ec9d5b59 (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -101,14 +105,16 @@ fn test_restore() {
     "###);
 
     // Can combine `--from` and `--to`
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@", "--to", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["restore", "--from", "@", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Created rlvkpnrz 5f6eb3d5 (no description set)
     Rebased 1 descendant commits
     Working copy now at: kkmpptxz 525afd5d (empty) (no description set)
     Parent commit      : rlvkpnrz 5f6eb3d5 (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -119,14 +125,15 @@ fn test_restore() {
     "###);
 
     // Can restore only specified paths
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "file2", "file3"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "file2", "file3"]);
     insta::assert_snapshot!(stdout, @r###"
     Created kkmpptxz 569ce73d (no description set)
     Working copy now at: kkmpptxz 569ce73d (no description set)
     Parent commit      : rlvkpnrz 1a986a27 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -137,7 +144,7 @@ fn test_restore() {
 #[test]
 fn test_restore_conflicted_merge() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
@@ -182,7 +189,7 @@ fn test_restore_conflicted_merge() {
     "###);
 
     // ...and restore it back again.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "file"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "file"]);
     insta::assert_snapshot!(stdout, @r###"
     Created vruxwmqv b2c9c888 (conflict) (empty) conflict
     Working copy now at: vruxwmqv b2c9c888 conflict | (conflict) (empty) conflict
@@ -190,6 +197,7 @@ fn test_restore_conflicted_merge() {
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
@@ -220,7 +228,7 @@ fn test_restore_conflicted_merge() {
     "###);
 
     // ... and restore it back again.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["restore"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore"]);
     insta::assert_snapshot!(stdout, @r###"
     Created vruxwmqv 4fc10820 (conflict) (empty) conflict
     Working copy now at: vruxwmqv 4fc10820 conflict | (conflict) (empty) conflict
@@ -228,6 +236,7 @@ fn test_restore_conflicted_merge() {
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
@@ -249,16 +258,16 @@ fn create_commit(
     files: &[(&str, &str)],
 ) {
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["new", "root()", "-m", name]);
+        test_env.jj_cmd_ok(repo_path, &["new", "root()", "-m", name]);
     } else {
         let mut args = vec!["new", "-m", name];
         args.extend(parents);
-        test_env.jj_cmd_success(repo_path, &args);
+        test_env.jj_cmd_ok(repo_path, &args);
     }
     for (name, content) in files {
         std::fs::write(repo_path.join(name), content).unwrap();
     }
-    test_env.jj_cmd_success(repo_path, &["branch", "create", name]);
+    test_env.jj_cmd_ok(repo_path, &["branch", "create", name]);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {

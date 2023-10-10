@@ -19,14 +19,14 @@ pub mod common;
 #[test]
 fn test_obslog_with_or_without_diff() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "-m", "my description"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "my description"]);
     std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
     std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "@", "-d", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "@", "-d", "root()"]);
     std::fs::write(repo_path.join("file1"), "resolved\n").unwrap();
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog"]);
@@ -147,7 +147,7 @@ fn test_obslog_with_or_without_diff() {
 #[test]
 fn test_obslog_word_wrap() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |args: &[&str], columns: u32, word_wrap: bool| {
         let mut args = args.to_vec();
@@ -163,7 +163,7 @@ fn test_obslog_word_wrap() {
         get_stdout_string(&assert)
     };
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
 
     // ui.log-word-wrap option applies to both graph/no-graph outputs
     insta::assert_snapshot!(render(&["obslog"], 40, false), @r###"
@@ -201,17 +201,17 @@ fn test_obslog_word_wrap() {
 #[test]
 fn test_obslog_squash() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "second"]);
     std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
 
     let edit_script = test_env.set_up_fake_editor();
     std::fs::write(edit_script, "write\nsquashed").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["squash"]);
+    test_env.jj_cmd_ok(&repo_path, &["squash"]);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"

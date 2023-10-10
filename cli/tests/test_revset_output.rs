@@ -19,7 +19,7 @@ pub mod common;
 #[test]
 fn test_syntax_error() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "x &"]);
@@ -58,7 +58,7 @@ fn test_syntax_error() {
 #[test]
 fn test_bad_function_call() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "all(or::nothing)"]);
@@ -209,7 +209,7 @@ fn test_bad_function_call() {
 #[test]
 fn test_function_name_hint() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let evaluate_err = |expr| test_env.jj_cmd_failure(&repo_path, &["log", "-r", expr]);
 
@@ -248,7 +248,7 @@ fn test_function_name_hint() {
 #[test]
 fn test_alias() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
@@ -348,7 +348,7 @@ fn test_alias() {
 #[test]
 fn test_alias_override() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
@@ -378,7 +378,7 @@ fn test_alias_override() {
 #[test]
 fn test_bad_alias_decl() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(

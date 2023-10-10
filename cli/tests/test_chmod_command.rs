@@ -26,16 +26,16 @@ fn create_commit(
     files: &[(&str, &str)],
 ) {
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["new", "root()", "-m", name]);
+        test_env.jj_cmd_ok(repo_path, &["new", "root()", "-m", name]);
     } else {
         let mut args = vec!["new", "-m", name];
         args.extend(parents);
-        test_env.jj_cmd_success(repo_path, &args);
+        test_env.jj_cmd_ok(repo_path, &args);
     }
     for (name, content) in files {
         std::fs::write(repo_path.join(name), content).unwrap();
     }
-    test_env.jj_cmd_success(repo_path, &["branch", "create", name]);
+    test_env.jj_cmd_ok(repo_path, &["branch", "create", name]);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
@@ -45,14 +45,14 @@ fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
 #[test]
 fn test_chmod_regular_conflict() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
     create_commit(&test_env, &repo_path, "n", &["base"], &[("file", "n\n")]);
     create_commit(&test_env, &repo_path, "x", &["base"], &[("file", "x\n")]);
     // Test chmodding a file. The effect will be visible in the conflict below.
-    test_env.jj_cmd_success(&repo_path, &["chmod", "x", "file", "-r=x"]);
+    test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file", "-r=x"]);
     create_commit(&test_env, &repo_path, "conflict", &["x", "n"], &[]);
 
     // Test the setup
@@ -75,7 +75,7 @@ fn test_chmod_regular_conflict() {
     "###);
 
     // Test chmodding a conflict
-    test_env.jj_cmd_success(&repo_path, &["chmod", "x", "file"]);
+    test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
@@ -84,7 +84,7 @@ fn test_chmod_regular_conflict() {
       Adding executable file with id 587be6b4c3f93f93c489c0111bba5596147a26cb
       Adding executable file with id 8ba3a16384aacc37d01564b28401755ce8053f51
     "###);
-    test_env.jj_cmd_success(&repo_path, &["chmod", "n", "file"]);
+    test_env.jj_cmd_ok(&repo_path, &["chmod", "n", "file"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
@@ -122,7 +122,7 @@ fn test_chmod_regular_conflict() {
 #[test]
 fn test_chmod_file_dir_deletion_conflicts() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
@@ -185,13 +185,15 @@ fn test_chmod_file_dir_deletion_conflicts() {
     -base
     >>>>>>>
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["chmod", "x", "file", "-r=file_deletion"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file", "-r=file_deletion"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: kmkuslsw 8b70a1d2 file_deletion | (conflict) file_deletion
     Parent commit      : zsuskuln c51c9c55 file | file
     Parent commit      : royxmykx 6b18b3c1 deletion | deletion
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_deletion", "file"]);
     insta::assert_snapshot!(stdout,
     @r###"

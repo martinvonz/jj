@@ -24,9 +24,9 @@ pub mod common;
 #[test]
 fn test_op_log() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 0"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 0"]);
 
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -98,8 +98,8 @@ fn test_op_log() {
     Error: Operation ID "" is not a valid hexadecimal prefix
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 1"]);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 1"]);
+    test_env.jj_cmd_ok(
         &repo_path,
         &[
             "describe",
@@ -112,7 +112,7 @@ fn test_op_log() {
     insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@-"]), @r###"
     Error: The "@-" expression resolved to more than one operation
     "###);
-    test_env.jj_cmd_success(&repo_path, &["st"]);
+    test_env.jj_cmd_ok(&repo_path, &["st"]);
     insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@-"]), @r###"
     Error: The "@-" expression resolved to more than one operation
     "###);
@@ -121,7 +121,7 @@ fn test_op_log() {
 #[test]
 fn test_op_log_limit() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-Tdescription", "--limit=1"]);
@@ -133,7 +133,7 @@ fn test_op_log_limit() {
 #[test]
 fn test_op_log_no_graph() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stdout =
@@ -149,10 +149,10 @@ fn test_op_log_no_graph() {
 #[test]
 fn test_op_log_no_graph_null_terminated() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "message1"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "message2"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "message1"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "message2"]);
 
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -170,7 +170,7 @@ fn test_op_log_no_graph_null_terminated() {
 #[test]
 fn test_op_log_template() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
 
@@ -214,10 +214,10 @@ fn test_op_log_template() {
 #[test]
 fn test_op_log_builtin_templates() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 0"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 0"]);
 
     insta::assert_snapshot!(render(r#"builtin_op_log_compact"#), @r###"
     @  98f7262e4a06 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
@@ -246,7 +246,7 @@ fn test_op_log_builtin_templates() {
 #[test]
 fn test_op_log_word_wrap() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |args: &[&str], columns: u32, word_wrap: bool| {
         let mut args = args.to_vec();

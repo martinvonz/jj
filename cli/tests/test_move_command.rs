@@ -21,7 +21,7 @@ pub mod common;
 #[test]
 fn test_move() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Create history like this:
@@ -35,25 +35,25 @@ fn test_move() {
     //
     // When moving changes between e.g. C and F, we should not get unrelated changes
     // from B and D.
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
     std::fs::write(repo_path.join("file3"), "a\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
     std::fs::write(repo_path.join("file3"), "b\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["edit", "a"]);
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "e"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "e"]);
     std::fs::write(repo_path.join("file2"), "e\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "f"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "f"]);
     std::fs::write(repo_path.join("file2"), "f\n").unwrap();
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -84,12 +84,13 @@ fn test_move() {
     "###);
 
     // Can move from sibling, which results in the source being abandoned
-    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "c"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: kmkuslsw 1c03e3d3 f | (no description set)
     Parent commit      : znkkpsqq e9515f21 e | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  1c03e3d3c63f f
     ◉  e9515f21068c e
@@ -111,12 +112,13 @@ fn test_move() {
     "###);
 
     // Can move from ancestor
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: kmkuslsw c8d83075 f | (no description set)
     Parent commit      : znkkpsqq 2c50bfc5 e | (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // The change has been removed from the source (the change pointed to by 'd'
     // became empty and was abandoned)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -136,13 +138,14 @@ fn test_move() {
     "###);
 
     // Can move from descendant
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "e", "--to", "d"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "e", "--to", "d"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     Working copy now at: kmkuslsw 2b723b1d f | (no description set)
     Parent commit      : vruxwmqv 4293930d d e | (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
     // The change has been removed from the source (the change pointed to by 'e'
     // became empty and was abandoned)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -164,7 +167,7 @@ fn test_move() {
 #[test]
 fn test_move_partial() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Create history like this:
@@ -173,20 +176,20 @@ fn test_move_partial() {
     // D B
     // |/
     // A
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
     std::fs::write(repo_path.join("file3"), "a\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
     std::fs::write(repo_path.join("file3"), "b\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["edit", "a"]);
-    test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -201,12 +204,13 @@ fn test_move_partial() {
     let edit_script = test_env.set_up_fake_diff_editor();
 
     // If we don't make any changes in the diff-editor, the whole change is moved
-    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "-i", "--from", "c"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "-i", "--from", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: vruxwmqv 71b69e43 d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     Added 0 files, modified 2 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  71b69e433fbc d
     │ ◉  55171e33db26 b c
@@ -230,14 +234,15 @@ fn test_move_partial() {
     "###);
 
     // Can move only part of the change in interactive mode
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     std::fs::write(&edit_script, "reset file2").unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "-i", "--from", "c"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "-i", "--from", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: vruxwmqv 63f1a6e9 d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  63f1a6e96edb d
     │ ◉  d027c6e3e6bc c
@@ -263,15 +268,16 @@ fn test_move_partial() {
     "###);
 
     // Can move only part of the change from a sibling in non-interactive mode
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     // Clear the script so we know it won't be used
     std::fs::write(&edit_script, "").unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "c", "file1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: vruxwmqv 17c2e663 d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  17c2e6632cc5 d
     │ ◉  6a3ae047a03e c
@@ -297,14 +303,15 @@ fn test_move_partial() {
     "###);
 
     // Can move only part of the change from a descendant in non-interactive mode
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     // Clear the script so we know it won't be used
     std::fs::write(&edit_script, "").unwrap();
-    let stdout =
-        test_env.jj_cmd_success(&repo_path, &["move", "--from", "c", "--to", "b", "file1"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c", "--to", "b", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  21253406d416 c
     ◉  e1cf08aae711 b
@@ -326,12 +333,13 @@ fn test_move_partial() {
 
     // If we specify only a non-existent file, then the move still succeeds and
     // creates unchanged commits.
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "c", "nonexistent"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c", "nonexistent"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: vruxwmqv b670567d d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
@@ -342,7 +350,7 @@ fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
 #[test]
 fn test_move_description() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
     let edit_script = test_env.set_up_fake_editor();
@@ -351,35 +359,35 @@ fn test_move_description() {
     // If both descriptions are empty, the resulting description is empty
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "b\n").unwrap();
     std::fs::write(repo_path.join("file2"), "b\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["move", "--to", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["move", "--to", "@-"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @"");
 
     // If the destination's description is empty and the source's description is
     // non-empty, the resulting description is from the source
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "source"]);
-    test_env.jj_cmd_success(&repo_path, &["move", "--to", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "source"]);
+    test_env.jj_cmd_ok(&repo_path, &["move", "--to", "@-"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
     source
     "###);
 
     // If the destination's description is non-empty and the source's description is
     // empty, the resulting description is from the destination
-    test_env.jj_cmd_success(&repo_path, &["op", "restore", "@--"]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "@-", "-m", "destination"]);
-    test_env.jj_cmd_success(&repo_path, &["move", "--to", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "@-", "-m", "destination"]);
+    test_env.jj_cmd_ok(&repo_path, &["move", "--to", "@-"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
     destination
     "###);
 
     // If both descriptions were non-empty, we get asked for a combined description
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "source"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "source"]);
     std::fs::write(&edit_script, "dump editor0").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["move", "--to", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["move", "--to", "@-"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
     destination
 
@@ -399,9 +407,9 @@ fn test_move_description() {
 
     // If the source's *content* doesn't become empty, then the source remains and
     // both descriptions are unchanged
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
     std::fs::write(repo_path.join("file2"), "b\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["move", "--to", "@-", "file1"]);
+    test_env.jj_cmd_ok(&repo_path, &["move", "--to", "@-", "file1"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
     destination
     "###);

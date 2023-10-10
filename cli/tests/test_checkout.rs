@@ -21,18 +21,19 @@ pub mod common;
 #[test]
 fn test_checkout() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "second"]);
 
     // Check out current commit
-    let stdout = test_env.jj_cmd_success(&repo_path, &["checkout", "@"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["checkout", "@"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: zsuskuln 05ce7118 (empty) (no description set)
     Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  05ce7118568d3007efc9163b055f9cb4a6becfde
     ◉  5c52832c3483e0ace06d047a806024984f28f1d7 second
@@ -41,7 +42,7 @@ fn test_checkout() {
     "###);
 
     // Can provide a description
-    test_env.jj_cmd_success(&repo_path, &["checkout", "@--", "-m", "my message"]);
+    test_env.jj_cmd_ok(&repo_path, &["checkout", "@--", "-m", "my message"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  1191baaf276e3d0b96b1747e885b3a517be80d6f my message
     │ ◉  5c52832c3483e0ace06d047a806024984f28f1d7 second
@@ -54,14 +55,14 @@ fn test_checkout() {
 #[test]
 fn test_checkout_not_single_rev() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fourth"]);
-    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fifth"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fifth"]);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "root()..@"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -103,13 +104,13 @@ fn test_checkout_not_single_rev() {
 #[test]
 fn test_checkout_conflicting_branches() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "one"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "-m", "two", "@-"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "foo"]);
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "one"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "two", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
+    test_env.jj_cmd_ok(
         &repo_path,
         &[
             "--at-op=@-",
@@ -122,7 +123,7 @@ fn test_checkout_conflicting_branches() {
     );
 
     // Trigger resolution of concurrent operations
-    test_env.jj_cmd_success(&repo_path, &["st"]);
+    test_env.jj_cmd_ok(&repo_path, &["st"]);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -138,14 +139,14 @@ fn test_checkout_conflicting_branches() {
 #[test]
 fn test_checkout_conflicting_change_ids() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "one"]);
-    test_env.jj_cmd_success(&repo_path, &["--at-op=@-", "describe", "-m", "two"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "one"]);
+    test_env.jj_cmd_ok(&repo_path, &["--at-op=@-", "describe", "-m", "two"]);
 
     // Trigger resolution of concurrent operations
-    test_env.jj_cmd_success(&repo_path, &["st"]);
+    test_env.jj_cmd_ok(&repo_path, &["st"]);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "qpvuntsm"]);
     insta::assert_snapshot!(stderr, @r###"
