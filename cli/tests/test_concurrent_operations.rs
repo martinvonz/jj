@@ -35,13 +35,14 @@ fn test_concurrent_operation_divergence() {
     // We should be informed about the concurrent modification
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-T", "description"]);
     insta::assert_snapshot!(stdout, @r###"
-    Concurrent modification detected, resolving automatically.
     ◉  message 2
     │ @  message 1
     ├─╯
     ◉
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Concurrent modification detected, resolving automatically.
+    "###);
 }
 
 #[test]
@@ -76,13 +77,14 @@ fn test_concurrent_operations_auto_rebase() {
     // We should be informed about the concurrent modification
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    Concurrent modification detected, resolving automatically.
-    Rebased 1 descendant commits onto commits rewritten by other operation
     ◉  3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
     @  d91437157468ec86bbbc9e6a14a60d3e8d1790ac rewritten
     ◉  0000000000000000000000000000000000000000
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Concurrent modification detected, resolving automatically.
+    Rebased 1 descendant commits onto commits rewritten by other operation
+    "###);
 }
 
 #[test]
@@ -109,14 +111,15 @@ fn test_concurrent_operations_wc_modified() {
     // We should be informed about the concurrent modification
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    Concurrent modification detected, resolving automatically.
     @  4eb0610031b7cd148ff9f729a673a3f815033170 new child1
     │ ◉  4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
     ├─╯
     ◉  52c893bf3cd201e215b23e084e8a871244ca14d5 initial
     ◉  0000000000000000000000000000000000000000
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Concurrent modification detected, resolving automatically.
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file b/file
@@ -195,11 +198,11 @@ fn test_concurrent_snapshot_wc_reloadable() {
     .unwrap();
     std::fs::write(repo_path.join("child2"), "").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "new child2"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: kkmpptxz 4011424e new child2
     Parent commit      : rlvkpnrz e08863ee new child1
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Since the repo can be reloaded before snapshotting, "child2" should be
     // a child of "child1", not of "initial".

@@ -39,10 +39,10 @@ fn test_diffedit() {
     )
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -63,13 +63,13 @@ fn test_diffedit() {
     // Can edit changes to individual files
     std::fs::write(&edit_script, "reset file2").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created kkmpptxz 1930da4a (no description set)
     Working copy now at: kkmpptxz 1930da4a (no description set)
     Parent commit      : rlvkpnrz 613028a4 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -79,14 +79,14 @@ fn test_diffedit() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     std::fs::write(&edit_script, "write file3\nmodified\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created rlvkpnrz c03ae967 (no description set)
     Rebased 1 descendant commits
     Working copy now at: kkmpptxz 2a4dc204 (no description set)
     Parent commit      : rlvkpnrz c03ae967 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let contents = String::from_utf8(std::fs::read(repo_path.join("file3")).unwrap()).unwrap();
     insta::assert_snapshot!(contents, @r###"
     modified
@@ -100,13 +100,13 @@ fn test_diffedit() {
     )
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit", "--from", "@--"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created kkmpptxz 15f2c966 (no description set)
     Working copy now at: kkmpptxz 15f2c966 (no description set)
     Parent commit      : rlvkpnrz 613028a4 (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -134,10 +134,10 @@ fn test_diffedit_new_file() {
     )
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -147,13 +147,13 @@ fn test_diffedit_new_file() {
     // Creating `file1` on the right side is noticed by `jj diffedit`
     std::fs::write(&edit_script, "write file1\nmodified\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created rlvkpnrz 7b849299 (no description set)
     Working copy now at: rlvkpnrz 7b849299 (no description set)
     Parent commit      : qpvuntsm 414e1614 (no description set)
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     M file1
@@ -169,10 +169,10 @@ fn test_diffedit_new_file() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     std::fs::write(&edit_script, "write new_file\nnew file\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -218,10 +218,10 @@ fn test_diffedit_3pane() {
         &repo_path,
         &["diffedit", "--config-toml", &config_with_output_as_after],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -232,10 +232,10 @@ fn test_diffedit_3pane() {
         &repo_path,
         &["diffedit", "--config-toml", &config_with_right_as_after],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -248,13 +248,13 @@ fn test_diffedit_3pane() {
         &repo_path,
         &["diffedit", "--config-toml", &config_with_output_as_after],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created kkmpptxz 1930da4a (no description set)
     Working copy now at: kkmpptxz 1930da4a (no description set)
     Parent commit      : rlvkpnrz 613028a4 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -267,13 +267,13 @@ fn test_diffedit_3pane() {
         &repo_path,
         &["diffedit", "--config-toml", &config_with_output_as_after],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created kkmpptxz ff2907b6 (no description set)
     Working copy now at: kkmpptxz ff2907b6 (no description set)
     Parent commit      : rlvkpnrz 613028a4 (no description set)
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     M file1
@@ -287,10 +287,10 @@ fn test_diffedit_3pane() {
         &repo_path,
         &["diffedit", "--config-toml", &config_with_right_as_after],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -338,14 +338,14 @@ fn test_diffedit_merge() {
     )
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created royxmykx 2b5202ae (conflict) merge
     Rebased 1 descendant commits
     Working copy now at: yqosqzyt 23b1fe1b (conflict) (empty) (no description set)
     Parent commit      : royxmykx 2b5202ae (conflict) merge
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -381,10 +381,10 @@ fn test_diffedit_old_restore_interactive_tests() {
 
     // Nothing happens if we make no changes
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit", "--from", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -407,13 +407,13 @@ fn test_diffedit_old_restore_interactive_tests() {
     // Can restore changes to individual files
     std::fs::write(&edit_script, "reset file2\0reset file3").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit", "--from", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created rlvkpnrz abdbf627 (no description set)
     Working copy now at: rlvkpnrz abdbf627 (no description set)
     Parent commit      : qpvuntsm 2375fa16 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -423,13 +423,13 @@ fn test_diffedit_old_restore_interactive_tests() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     std::fs::write(&edit_script, "write file3\nunrelated\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit", "--from", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created rlvkpnrz e31f7f33 (no description set)
     Working copy now at: rlvkpnrz e31f7f33 (no description set)
     Parent commit      : qpvuntsm 2375fa16 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file1 b/file1

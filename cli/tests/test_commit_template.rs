@@ -319,14 +319,15 @@ fn test_log_obslog_divergence() {
     );
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
-    Concurrent modification detected, resolving automatically.
     ◉  qpvuntsm?? test.user@example.com 2001-02-03 04:05:10.000 +07:00 8979953d
     │  description 2
     │ @  qpvuntsm?? test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e
     ├─╯  description 1
     ◉  zzzzzzzz root() 00000000
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Concurrent modification detected, resolving automatically.
+    "###);
 
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);

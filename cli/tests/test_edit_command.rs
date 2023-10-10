@@ -41,12 +41,12 @@ fn test_edit() {
 
     // Makes the specified commit the working-copy commit
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["edit", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm f41390a5 first
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
     ◉  b2f7e9c549aa second
@@ -60,12 +60,13 @@ fn test_edit() {
     std::fs::write(repo_path.join("file2"), "0").unwrap();
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    Rebased 1 descendant commits onto updated working copy
     ◉  51d937a3eeb4 second
     @  409306de8f44 first
     ◉  000000000000
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 1 descendant commits onto updated working copy
+    "###);
 }
 
 #[test]

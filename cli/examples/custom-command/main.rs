@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write as _;
+
 use jj_cli::cli_util::{CliRunner, CommandError, CommandHelper};
 use jj_cli::ui::Ui;
 
@@ -45,7 +47,7 @@ fn run_custom_command(
                 .write()?;
             tx.finish(ui)?;
             writeln!(
-                ui,
+                ui.stderr(),
                 "Frobnicated revision: {}",
                 workspace_command.format_commit_summary(&new_commit)
             )?;

@@ -85,12 +85,12 @@ fn test_move() {
 
     // Can move from sibling, which results in the source being abandoned
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: kmkuslsw 1c03e3d3 f | (no description set)
     Parent commit      : znkkpsqq e9515f21 e | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  1c03e3d3c63f f
     ◉  e9515f21068c e
@@ -114,11 +114,11 @@ fn test_move() {
     // Can move from ancestor
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "@--"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: kmkuslsw c8d83075 f | (no description set)
     Parent commit      : znkkpsqq 2c50bfc5 e | (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     // The change has been removed from the source (the change pointed to by 'd'
     // became empty and was abandoned)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -140,12 +140,12 @@ fn test_move() {
     // Can move from descendant
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "e", "--to", "d"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
     Working copy now at: kmkuslsw 2b723b1d f | (no description set)
     Parent commit      : vruxwmqv 4293930d d e | (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     // The change has been removed from the source (the change pointed to by 'e'
     // became empty and was abandoned)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -205,12 +205,12 @@ fn test_move_partial() {
 
     // If we don't make any changes in the diff-editor, the whole change is moved
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "-i", "--from", "c"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: vruxwmqv 71b69e43 d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     Added 0 files, modified 2 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  71b69e433fbc d
     │ ◉  55171e33db26 b c
@@ -237,12 +237,12 @@ fn test_move_partial() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     std::fs::write(&edit_script, "reset file2").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "-i", "--from", "c"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: vruxwmqv 63f1a6e9 d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  63f1a6e96edb d
     │ ◉  d027c6e3e6bc c
@@ -272,12 +272,12 @@ fn test_move_partial() {
     // Clear the script so we know it won't be used
     std::fs::write(&edit_script, "").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c", "file1"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: vruxwmqv 17c2e663 d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  17c2e6632cc5 d
     │ ◉  6a3ae047a03e c
@@ -308,10 +308,10 @@ fn test_move_partial() {
     std::fs::write(&edit_script, "").unwrap();
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c", "--to", "b", "file1"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  21253406d416 c
     ◉  e1cf08aae711 b
@@ -335,11 +335,11 @@ fn test_move_partial() {
     // creates unchanged commits.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c", "nonexistent"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: vruxwmqv b670567d d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {

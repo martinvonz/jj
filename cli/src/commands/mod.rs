@@ -1168,7 +1168,7 @@ fn cmd_version(
     command: &CommandHelper,
     _args: &VersionArgs,
 ) -> Result<(), CommandError> {
-    ui.write(&command.app().render_version())?;
+    write!(ui.stdout(), "{}", command.app().render_version())?;
     Ok(())
 }
 
@@ -1250,7 +1250,11 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
     };
     let cwd = command.cwd().canonicalize().unwrap();
     let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
-    writeln!(ui, "Initialized repo in \"{}\"", relative_wc_path.display())?;
+    writeln!(
+        ui.stderr(),
+        "Initialized repo in \"{}\"",
+        relative_wc_path.display()
+    )?;
     if args.git && wc_path.join(".git").exists() {
         writeln!(ui.warning(), "Empty repo created.")?;
         writeln!(
@@ -1306,7 +1310,12 @@ fn cmd_config_list(
         if !args.include_defaults && *source == ConfigSource::Default {
             continue;
         }
-        writeln!(ui, "{}={}", path.join("."), serialize_config_value(value))?;
+        writeln!(
+            ui.stdout(),
+            "{}={}",
+            path.join("."),
+            serialize_config_value(value)
+        )?;
         wrote_values = true;
     }
     if !wrote_values {
@@ -1354,7 +1363,7 @@ fn cmd_config_get(
             }
             err => err.into(),
         })?;
-    writeln!(ui, "{value}")?;
+    writeln!(ui.stdout(), "{value}")?;
     Ok(())
 }
 
@@ -1474,7 +1483,7 @@ Make sure they're ignored, then try again.",
         .write()?;
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
-        writeln!(ui, "Rebased {num_rebased} descendant commits")?;
+        writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }
     let repo = tx.commit();
     locked_working_copy.finish(repo.op_id().clone())?;
@@ -1489,7 +1498,11 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     ui.request_pager();
     for (name, _value) in tree.entries_matching(matcher.as_ref()) {
-        writeln!(ui, "{}", &workspace_command.format_file_path(&name))?;
+        writeln!(
+            ui.stdout(),
+            "{}",
+            &workspace_command.format_file_path(&name)
+        )?;
     }
     Ok(())
 }
@@ -2123,7 +2136,7 @@ fn cmd_describe(
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
     if description == *commit.description() && !args.reset_author {
-        ui.write("Nothing changed.\n")?;
+        writeln!(ui.stderr(), "Nothing changed.")?;
     } else {
         let mut tx =
             workspace_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
@@ -2267,9 +2280,13 @@ fn cmd_duplicate(
     }
 
     for (old, new) in duplicated_old_to_new.iter() {
-        ui.write(&format!("Duplicated {} as ", short_commit_hash(old.id())))?;
-        tx.write_commit_summary(ui.stdout_formatter().as_mut(), new)?;
-        ui.write("\n")?;
+        write!(
+            ui.stderr(),
+            "Duplicated {} as ",
+            short_commit_hash(old.id())
+        )?;
+        tx.write_commit_summary(ui.stderr_formatter().as_mut(), new)?;
+        writeln!(ui.stderr())?;
     }
     tx.finish(ui)?;
     Ok(())
@@ -2300,24 +2317,24 @@ fn cmd_abandon(
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
 
     if to_abandon.len() == 1 {
-        ui.write("Abandoned commit ")?;
+        write!(ui.stderr(), "Abandoned commit ")?;
         tx.base_workspace_helper()
-            .write_commit_summary(ui.stdout_formatter().as_mut(), &to_abandon[0])?;
-        ui.write("\n")?;
+            .write_commit_summary(ui.stderr_formatter().as_mut(), &to_abandon[0])?;
+        writeln!(ui.stderr())?;
     } else if !args.summary {
-        ui.write("Abandoned the following commits:\n")?;
+        writeln!(ui.stderr(), "Abandoned the following commits:")?;
         for commit in to_abandon {
-            ui.write("  ")?;
+            write!(ui.stderr(), "  ")?;
             tx.base_workspace_helper()
-                .write_commit_summary(ui.stdout_formatter().as_mut(), &commit)?;
-            ui.write("\n")?;
+                .write_commit_summary(ui.stderr_formatter().as_mut(), &commit)?;
+            writeln!(ui.stderr())?;
         }
     } else {
-        writeln!(ui, "Abandoned {} commits.", &to_abandon.len())?;
+        writeln!(ui.stderr(), "Abandoned {} commits.", &to_abandon.len())?;
     }
     if num_rebased > 0 {
         writeln!(
-            ui,
+            ui.stderr(),
             "Rebased {num_rebased} descendant commits onto parents of abandoned commits"
         )?;
     }
@@ -2331,7 +2348,7 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
     let new_commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     workspace_command.check_rewritable([&new_commit])?;
     if workspace_command.get_wc_commit_id() == Some(new_commit.id()) {
-        ui.write("Already editing that commit\n")?;
+        writeln!(ui.stderr(), "Already editing that commit")?;
     } else {
         let mut tx =
             workspace_command.start_transaction(&format!("edit commit {}", new_commit.id().hex()));
@@ -2471,7 +2488,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     }
     num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
-        writeln!(ui, "Rebased {num_rebased} descendant commits")?;
+        writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }
     tx.edit(&new_commit).unwrap();
     tx.finish(ui)?;
@@ -3017,10 +3034,13 @@ fn cmd_resolve(
         let new_tree = new_commit.tree()?;
         let new_conflicts = new_tree.conflicts().collect_vec();
         if !new_conflicts.is_empty() {
-            ui.write("After this operation, some files at this revision still have conflicts:\n")?;
+            writeln!(
+                ui.stderr(),
+                "After this operation, some files at this revision still have conflicts:"
+            )?;
             print_conflicted_paths(
                 &new_conflicts,
-                ui.stdout_formatter().as_mut(),
+                ui.stderr_formatter().as_mut(),
                 &workspace_command,
             )?;
         }
@@ -3158,7 +3178,7 @@ fn cmd_restore(
         tree_builder.write_tree(workspace_command.repo().store())?
     };
     if &new_tree_id == to_commit.tree_id() {
-        ui.write("Nothing changed.\n")?;
+        writeln!(ui.stderr(), "Nothing changed.")?;
     } else {
         let mut tx = workspace_command
             .start_transaction(&format!("restore into commit {}", to_commit.id().hex()));
@@ -3167,9 +3187,9 @@ fn cmd_restore(
             .rewrite_commit(command.settings(), &to_commit)
             .set_tree_id(new_tree_id)
             .write()?;
-        ui.write("Created ")?;
-        tx.write_commit_summary(ui.stdout_formatter().as_mut(), &new_commit)?;
-        ui.write("\n")?;
+        write!(ui.stderr(), "Created ")?;
+        tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
+        writeln!(ui.stderr())?;
         tx.finish(ui)?;
     }
     Ok(())
@@ -3217,16 +3237,16 @@ don't make any changes, then the operation will be aborted.",
     let tree = target_commit.tree()?;
     let tree_id = tx.edit_diff(ui, &base_tree, &tree, &EverythingMatcher, &instructions)?;
     if tree_id == *target_commit.tree_id() {
-        ui.write("Nothing changed.\n")?;
+        writeln!(ui.stderr(), "Nothing changed.")?;
     } else {
         let mut_repo = tx.mut_repo();
         let new_commit = mut_repo
             .rewrite_commit(command.settings(), &target_commit)
             .set_tree_id(tree_id)
             .write()?;
-        ui.write("Created ")?;
-        tx.write_commit_summary(ui.stdout_formatter().as_mut(), &new_commit)?;
-        ui.write("\n")?;
+        write!(ui.stderr(), "Created ")?;
+        tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
+        writeln!(ui.stderr())?;
         tx.finish(ui)?;
     }
     Ok(())
@@ -3327,7 +3347,7 @@ don't make any changes, then the operation will be aborted.
         interactive,
     )?;
     if &tree_id == commit.tree_id() && interactive {
-        ui.write("Nothing changed.\n")?;
+        writeln!(ui.stderr(), "Nothing changed.")?;
         return Ok(());
     }
     let middle_tree = tx.repo().store().get_root_tree(&tree_id)?;
@@ -3387,13 +3407,13 @@ don't make any changes, then the operation will be aborted.
     rebaser.rebase_all()?;
     let num_rebased = rebaser.rebased().len();
     if num_rebased > 0 {
-        writeln!(ui, "Rebased {num_rebased} descendant commits")?;
+        writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }
-    ui.write("First part: ")?;
-    tx.write_commit_summary(ui.stdout_formatter().as_mut(), &first_commit)?;
-    ui.write("\nSecond part: ")?;
-    tx.write_commit_summary(ui.stdout_formatter().as_mut(), &second_commit)?;
-    ui.write("\n")?;
+    write!(ui.stderr(), "First part: ")?;
+    tx.write_commit_summary(ui.stderr_formatter().as_mut(), &first_commit)?;
+    write!(ui.stderr(), "\nSecond part: ")?;
+    tx.write_commit_summary(ui.stderr_formatter().as_mut(), &second_commit)?;
+    writeln!(ui.stderr())?;
     tx.finish(ui)?;
     Ok(())
 }
@@ -3515,7 +3535,7 @@ fn rebase_descendants(
         rebase_commit(settings, tx.mut_repo(), old_commit, new_parents)?;
     }
     let num_rebased = old_commits.len() + tx.mut_repo().rebase_descendants(settings)?;
-    writeln!(ui, "Rebased {num_rebased} commits")?;
+    writeln!(ui.stderr(), "Rebased {num_rebased} commits")?;
     tx.finish(ui)?;
     Ok(())
 }
@@ -3587,7 +3607,7 @@ fn rebase_revision(
     num_rebased_descendants += tx.mut_repo().rebase_descendants(settings)?;
     if num_rebased_descendants > 0 {
         writeln!(
-            ui,
+            ui.stderr(),
             "Also rebased {num_rebased_descendants} descendant commits onto parent of rebased \
              commit"
         )?;
@@ -3748,7 +3768,7 @@ fn cmd_workspace_add(
         workspace_id,
     )?;
     writeln!(
-        ui,
+        ui.stderr(),
         "Created workspace in \"{}\"",
         file_util::relative_path(old_workspace_command.workspace_root(), &destination_path)
             .display()
@@ -3813,10 +3833,10 @@ fn cmd_workspace_list(
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     for (workspace_id, wc_commit_id) in repo.view().wc_commit_ids().iter().sorted() {
-        write!(ui, "{}: ", workspace_id.as_str())?;
+        write!(ui.stdout(), "{}: ", workspace_id.as_str())?;
         let commit = repo.store().get_commit(wc_commit_id)?;
         workspace_command.write_commit_summary(ui.stdout_formatter().as_mut(), &commit)?;
-        writeln!(ui)?;
+        writeln!(ui.stdout())?;
     }
     Ok(())
 }
@@ -3832,7 +3852,7 @@ fn cmd_workspace_root(
         .workspace_root()
         .to_str()
         .ok_or_else(|| user_error("The workspace root is not valid UTF-8"))?;
-    writeln!(ui, "{root}")?;
+    writeln!(ui.stdout(), "{root}")?;
     Ok(())
 }
 
@@ -3859,7 +3879,10 @@ fn cmd_workspace_update_stale(
         workspace_command.unchecked_start_working_copy_mutation()?;
     match check_stale_working_copy(&locked_wc, &desired_wc_commit, &repo) {
         Ok(_) => {
-            ui.write("Nothing to do (the working copy is not stale).\n")?;
+            writeln!(
+                ui.stderr(),
+                "Nothing to do (the working copy is not stale)."
+            )?;
         }
         Err(_) => {
             // The same check as start_working_copy_mutation(), but with the stale
@@ -3876,11 +3899,11 @@ fn cmd_workspace_update_stale(
                 ))
             })?;
             locked_wc.finish(repo.op_id().clone())?;
-            ui.write("Working copy now at: ")?;
-            ui.stdout_formatter().with_label("working_copy", |fmt| {
+            write!(ui.stderr(), "Working copy now at: ")?;
+            ui.stderr_formatter().with_label("working_copy", |fmt| {
                 workspace_command.write_commit_summary(fmt, &desired_wc_commit)
             })?;
-            ui.write("\n")?;
+            writeln!(ui.stderr())?;
             print_checkout_stats(ui, stats, &desired_wc_commit)?;
         }
     }
@@ -3904,7 +3927,7 @@ fn cmd_sparse_list(
     let workspace_command = command.workspace_helper(ui)?;
     for path in workspace_command.working_copy().sparse_patterns()? {
         let ui_path = workspace_command.format_file_path(path);
-        writeln!(ui, "{ui_path}")?;
+        writeln!(ui.stdout(), "{ui_path}")?;
     }
     Ok(())
 }

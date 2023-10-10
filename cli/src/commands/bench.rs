@@ -14,6 +14,7 @@
 
 use std::fmt::Debug;
 use std::io;
+use std::io::Write as _;
 use std::time::Instant;
 
 use clap::Subcommand;
@@ -112,7 +113,7 @@ where
     let result = routine();
     let after = Instant::now();
     writeln!(
-        ui,
+        ui.stderr(),
         "First run took {:?} and produced: {:?}",
         after.duration_since(before),
         result
@@ -207,7 +208,7 @@ fn bench_revset<M: Measurement>(
     group: &mut BenchmarkGroup<M>,
     revset: &str,
 ) -> Result<(), CommandError> {
-    writeln!(ui, "----------Testing revset: {revset}----------")?;
+    writeln!(ui.stderr(), "----------Testing revset: {revset}----------")?;
     let expression = workspace_command.parse_revset(revset, Some(ui))?;
     // Time both evaluation and iteration.
     let routine = |workspace_command: &WorkspaceCommandHelper, expression| {
@@ -221,7 +222,7 @@ fn bench_revset<M: Measurement>(
     let result = routine(workspace_command, expression.clone());
     let after = Instant::now();
     writeln!(
-        ui,
+        ui.stderr(),
         "First run took {:?} and produced {result} commits",
         after.duration_since(before),
     )?;

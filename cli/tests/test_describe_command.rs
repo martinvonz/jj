@@ -27,28 +27,28 @@ fn test_describe() {
     // Set a description using `-m` flag
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description from CLI"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm cf3e8673 (empty) description from CLI
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Set the same description using `-m` flag, but with explicit newline
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description from CLI\n"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Check that the text file gets initialized with the current description and
     // make no changes
     std::fs::write(&edit_script, "dump editor0").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     description from CLI
@@ -59,11 +59,11 @@ fn test_describe() {
     // Set a description in editor
     std::fs::write(&edit_script, "write\ndescription from editor").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm 100943ae (empty) description from editor
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Lines in editor starting with "JJ: " are ignored
     std::fs::write(
@@ -72,20 +72,20 @@ fn test_describe() {
     )
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm ccefa58b (empty) description among comment
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Multi-line description
     std::fs::write(&edit_script, "write\nline1\nline2\n\nline4\n\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm e932ba42 (empty) line1
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-Tdescription"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -98,19 +98,19 @@ fn test_describe() {
     // Multi-line description again with CRLF, which should make no changes
     std::fs::write(&edit_script, "write\nline1\r\nline2\r\n\r\nline4\r\n\r\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Multi-line description starting with newlines
     std::fs::write(&edit_script, "write\n\n\nline1\nline2").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @r#"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm 13f903c1 (empty) line1
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
-    "#);
-    insta::assert_snapshot!(stderr, @"");
+    "###);
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-Tdescription"]);
     insta::assert_snapshot!(stdout, @r#"
@@ -120,17 +120,17 @@ fn test_describe() {
 
     // Clear description
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe", "-m", ""]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm 3196270d (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     std::fs::write(&edit_script, "write\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Fails if the editor fails
     std::fs::write(&edit_script, "fail").unwrap();
@@ -190,11 +190,11 @@ fn test_multiple_message_args() {
             "Second Paragraph from CLI",
         ],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm bdee9366 (empty) First Paragraph from CLI
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-Tdescription"]);
@@ -215,10 +215,10 @@ fn test_multiple_message_args() {
             "Second Paragraph from CLI\n",
         ],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Use an empty -m flag between paragraphs to insert an extra blank line
     let (stdout, stderr) = test_env.jj_cmd_ok(
@@ -233,11 +233,11 @@ fn test_multiple_message_args() {
             "Second Paragraph from CLI",
         ],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm a7506fe0 (empty) First Paragraph from CLI
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-Tdescription"]);
@@ -261,11 +261,11 @@ fn test_describe_default_description() {
     let edit_script = test_env.set_up_fake_editor();
     std::fs::write(&edit_script, ["dump editor"].join("\0")).unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @r#"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm 7e780ba8 TESTED=TODO
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
-    "#);
-    insta::assert_snapshot!(stderr, @"");
+    "###);
     assert_eq!(
         std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(),
         r#"

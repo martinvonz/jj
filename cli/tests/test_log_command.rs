@@ -763,13 +763,14 @@ fn test_log_divergence() {
     );
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
-    Concurrent modification detected, resolving automatically.
     ◉  description 2 !divergence!
     │ @  description 1 !divergence!
     ├─╯
     ◉
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Concurrent modification detected, resolving automatically.
+    "###);
 }
 
 #[test]

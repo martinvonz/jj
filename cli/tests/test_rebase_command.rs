@@ -109,10 +109,10 @@ fn test_rebase_branch() {
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "c", "-d", "e"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  d
     │ ◉  c
@@ -126,13 +126,13 @@ fn test_rebase_branch() {
     // Test rebasing multiple branches at once
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=e", "-b=d", "-d=b"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 2 commits
     Working copy now at: znkkpsqq 9ca2a154 e | e
     Parent commit      : zsuskuln 1394f625 b | b
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  d
     │ @  e
@@ -155,13 +155,13 @@ fn test_rebase_branch() {
     Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:e|d').
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=all:e|d", "-d=b"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 2 commits
     Working copy now at: znkkpsqq 817e3fb0 e | e
     Parent commit      : zsuskuln 1394f625 b | b
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  d
     │ @  e
@@ -199,13 +199,13 @@ fn test_rebase_branch_with_merge() {
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "d", "-d", "b"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
     Working copy now at: znkkpsqq 391c91a7 e | e
     Parent commit      : vruxwmqv 1677f795 d | d
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e
     ◉  d
@@ -217,13 +217,13 @@ fn test_rebase_branch_with_merge() {
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d", "b"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
     Working copy now at: znkkpsqq 040ae3a6 e | e
     Parent commit      : vruxwmqv 3d0f3644 d | d
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e
     ◉  d
@@ -262,13 +262,13 @@ fn test_rebase_single_revision() {
     // actually want both to be parents of the same commit. So, only "a" becomes
     // a parent.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "b", "-d", "a"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Also rebased 2 descendant commits onto parent of rebased commit
     Working copy now at: vruxwmqv 7e15b97a d | d
     Parent commit      : royxmykx 934236c8 c | c
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d
     ◉  c
@@ -282,14 +282,14 @@ fn test_rebase_single_revision() {
     // Now, let's try moving the merge commit. After, both parents of "c" ("a" and
     // "b") should become parents of "d".
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "c", "-d", "root()"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
     Working copy now at: vruxwmqv bf87078f d | d
     Parent commit      : zsuskuln d370aee1 b | b
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    d
     ├─╮
@@ -326,14 +326,14 @@ fn test_rebase_single_revision_merge_parent() {
     // Descendants of the rebased commit should be rebased onto parents, and if
     // the descendant is a merge commit, it shouldn't forget its other parents.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "c", "-d", "a"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
     Working copy now at: vruxwmqv c62d0789 d | d
     Parent commit      : zsuskuln d370aee1 b | b
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    d
     ├─╮
@@ -443,12 +443,12 @@ fn test_rebase_with_descendants() {
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "b", "-d", "a"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
     Working copy now at: vruxwmqv 309336ff d | d
     Parent commit      : royxmykx 244fa794 c | c
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d
     ◉  c
@@ -460,13 +460,13 @@ fn test_rebase_with_descendants() {
     // Rebase several subtrees at once.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=c", "-s=d", "-d=a"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 2 commits
     Working copy now at: vruxwmqv 92c2bc9a d | d
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 2 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d
     │ ◉  c
@@ -492,13 +492,13 @@ fn test_rebase_with_descendants() {
     // `d` was a descendant of `b`, and both are moved to be direct descendants of
     // `a`. `c` remains a descendant of `b`.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=b", "-s=d", "-d=a"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
     Working copy now at: vruxwmqv f1e71cb7 d | d
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 2 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  c
     ◉  b
@@ -519,13 +519,13 @@ fn test_rebase_with_descendants() {
     Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:b|d').
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=all:b|d", "-d=a"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
     Working copy now at: vruxwmqv d17539f7 d | d
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 2 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  c
     ◉  b

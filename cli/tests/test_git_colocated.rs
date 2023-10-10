@@ -128,12 +128,12 @@ fn test_git_colocated_unborn_branch() {
     // Stage some change, and check out root. This shouldn't clobber the HEAD.
     add_file_to_index("file0", "");
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["checkout", "root()"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: kkmpptxz fcdbbd73 (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     assert!(git_repo.head().is_err());
     assert_eq!(
         git_repo.find_reference("HEAD").unwrap().symbolic_target(),
@@ -157,11 +157,11 @@ fn test_git_colocated_unborn_branch() {
     // branch.
     add_file_to_index("file1", "");
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: royxmykx 76c60bf0 (empty) (no description set)
     Parent commit      : kkmpptxz f8d5bc77 (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     assert!(git_repo.head().unwrap().symbolic_target().is_none());
     insta::assert_snapshot!(
         git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
@@ -189,12 +189,12 @@ fn test_git_colocated_unborn_branch() {
     // https://github.com/martinvonz/jj/issues/1495
     add_file_to_index("file2", "");
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["checkout", "root()"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: znkkpsqq 10dd328b (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 0 files, removed 2 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     assert!(git_repo.head().is_err());
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  10dd328bb906e15890e55047740eab2812a3b2f7
@@ -216,11 +216,11 @@ fn test_git_colocated_unborn_branch() {
     // New snapshot and commit can be created after the HEAD got unset.
     std::fs::write(workspace_root.join("file3"), "").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: wqnwkozp cab23370 (empty) (no description set)
     Parent commit      : znkkpsqq 8f5b2638 (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  cab233704a5c0b21bde070943055f22142fb2043
     ◉  8f5b263819457712a2937428b9c58a2a84afbb1c HEAD@git
@@ -297,13 +297,14 @@ fn test_git_colocated_rebase_on_import() {
     git_repo.set_head("refs/heads/master").unwrap();
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned 1 commits that are no longer reachable.
-    Done importing changes from the underlying Git repo.
     @  7f96185cfbe36341d0f9a86ebfaeab67a5922c7e
     ◉  4bcbeaba9a4b309c5f45a8807fbf5499b9714315 master HEAD@git add a file
     ◉  0000000000000000000000000000000000000000
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned 1 commits that are no longer reachable.
+    Done importing changes from the underlying Git repo.
+    "###);
 }
 
 #[test]
@@ -349,17 +350,18 @@ fn test_git_colocated_branches() {
         .unwrap();
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned 1 commits that are no longer reachable.
-    Working copy now at: yqosqzyt 096dc80d (empty) (no description set)
-    Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
-    Done importing changes from the underlying Git repo.
     @  096dc80da67094fbaa6683e2a205dddffa31f9a8
     │ ◉  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master foo
     ├─╯
     ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◉  0000000000000000000000000000000000000000
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned 1 commits that are no longer reachable.
+    Working copy now at: yqosqzyt 096dc80d (empty) (no description set)
+    Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
+    Done importing changes from the underlying Git repo.
+    "###);
 }
 
 #[test]
@@ -438,10 +440,10 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     // Move branch C sideways
     test_env.jj_cmd_ok(&origin_path, &["describe", "C_to_move", "-m", "moved C"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&clone_path, &["git", "fetch"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Abandoned 2 commits that are no longer reachable.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     // "original C" and "B_to_delete" are abandoned, as the corresponding branches
     // were deleted or moved on the remote (#864)
     insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
@@ -488,14 +490,15 @@ fn test_git_colocated_external_checkout() {
     // be abandoned. (#1042)
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    Done importing changes from the underlying Git repo.
     @  adadbd65a794e2294962b3c3da9aada09fe1b472
     ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master HEAD@git A
     │ ◉  eccedddfa5152d99fc8ddd1081b375387a8a382a B
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Done importing changes from the underlying Git repo.
+    "###);
 }
 
 #[test]
@@ -569,11 +572,11 @@ fn test_git_colocated_undo_head_move() {
 
     // HEAD should be moved back
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: royxmykx eb08b363 (empty) (no description set)
     Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"230dd059e1b059aefc0da06a2e5a7dbf22362f22");

@@ -187,13 +187,13 @@ fn test_chmod_file_dir_deletion_conflicts() {
     "###);
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file", "-r=file_deletion"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: kmkuslsw 8b70a1d2 file_deletion | (conflict) file_deletion
     Parent commit      : zsuskuln c51c9c55 file | file
     Parent commit      : royxmykx 6b18b3c1 deletion | deletion
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_deletion", "file"]);
     insta::assert_snapshot!(stdout,
     @r###"

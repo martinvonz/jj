@@ -37,10 +37,10 @@ fn test_branch_multiple_names() {
 
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo", "bar", "foo"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Deleted 2 branches.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @   230dd059e1b0
     ◉   000000000000
@@ -58,10 +58,9 @@ fn test_branch_at_root() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
-    insta::assert_snapshot!(stdout, @r###"
-    Nothing changed.
-    "###);
+    insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    Nothing changed.
     Failed to export some branches:
       fred
     "###);
@@ -98,10 +97,10 @@ fn test_branch_forget_glob() {
     "###);
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "--glob", "foo-[1-3]"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Forgot 2 branches.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-4 230dd059e1b0
     ◉   000000000000
@@ -176,10 +175,10 @@ fn test_branch_delete_glob() {
     "###);
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "--glob", "foo-[1-3]"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Deleted 2 branches.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4 6fbf398c2d59
     ◉   000000000000
@@ -354,10 +353,10 @@ fn test_branch_forget_fetched_branch() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
     // We can fetch feature1 again.
