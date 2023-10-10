@@ -298,18 +298,6 @@ impl Ui {
         })
     }
 
-    pub fn write(&mut self, text: &str) -> io::Result<()> {
-        self.stdout().write_all(text.as_bytes())
-    }
-
-    pub fn write_stderr(&mut self, text: &str) -> io::Result<()> {
-        self.stderr().write_all(text.as_bytes())
-    }
-
-    pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
-        self.stdout().write_fmt(fmt)
-    }
-
     pub fn hint(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
         LabeledWriter::new(self.stderr_formatter(), "hint")
     }
@@ -320,10 +308,6 @@ impl Ui {
 
     pub fn error(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
         LabeledWriter::new(self.stderr_formatter(), "error")
-    }
-
-    pub fn flush(&mut self) -> io::Result<()> {
-        self.stdout().flush()
     }
 
     /// Waits for the pager exits.
@@ -351,8 +335,8 @@ impl Ui {
                 "Cannot prompt for input since the output is not connected to a terminal",
             ));
         }
-        write!(self, "{prompt}: ")?;
-        self.flush()?;
+        write!(self.stdout(), "{prompt}: ")?;
+        self.stdout().flush()?;
         let mut buf = String::new();
         io::stdin().read_line(&mut buf)?;
         Ok(buf)
