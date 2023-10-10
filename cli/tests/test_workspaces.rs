@@ -38,13 +38,13 @@ fn test_workspaces_add_second_workspace() {
         &main_path,
         &["workspace", "add", "--name", "second", "../secondary"],
     );
-    insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @"");
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Created workspace in "../secondary"
     Working copy now at: rzvqmyuk 397eac93 (empty) (no description set)
     Parent commit      : qpvuntsm 7d308bc9 initial
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr.replace('\\', "/"), @"");
 
     // Can see the working-copy commit in each workspace in the log output. The "@"
     // node in the graph indicates the current workspace's working-copy commit.
@@ -99,12 +99,12 @@ fn test_workspaces_conflicting_edits() {
     // Squash the changes from the main workspace into the initial commit (before
     // running any command in the secondary workspace
     let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["squash"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl fe8f41ed (empty) (no description set)
     Parent commit      : qpvuntsm c0d4a99e (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // The secondary workspace's working-copy commit was updated
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
@@ -131,13 +131,13 @@ fn test_workspaces_conflicting_edits() {
     // It was detected that the working copy is now stale.
     // Since there was an uncommitted change in the working copy, it should
     // have been committed first (causing divergence)
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
     Rebased 1 descendant commits onto commits rewritten by other operation
     Working copy now at: pmmvwywv a1896a17 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
     ◉  a3c96849ef9f124cbfc2416dc13bf17309d5020a (divergent)
@@ -186,12 +186,12 @@ fn test_workspaces_updated_by_other() {
     // Rewrite the check-out commit in one workspace.
     std::fs::write(main_path.join("file"), "changed in main\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["squash"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl fe8f41ed (empty) (no description set)
     Parent commit      : qpvuntsm c0d4a99e (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // The secondary workspace's working-copy commit was updated.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
@@ -210,11 +210,11 @@ fn test_workspaces_updated_by_other() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     // It was detected that the working copy is now stale, but clean. So no
     // divergent commit should be created.
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: pmmvwywv a1896a17 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
     ◉  fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
@@ -232,10 +232,10 @@ fn test_workspaces_update_stale_noop() {
     let main_path = test_env.env_root().join("main");
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["workspace", "update-stale"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing to do (the working copy is not stale).
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     let stderr = test_env.jj_cmd_failure(
         &main_path,
@@ -272,11 +272,11 @@ fn test_workspaces_update_stale_snapshot() {
     // operations, but should be resolved cleanly.
     std::fs::write(secondary_path.join("file"), "changed in second\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
     Nothing to do (the working copy is not stale).
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
     @  4976dfa88529814c4dd8c06253fbd82d076b79f8 secondary@

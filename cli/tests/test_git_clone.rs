@@ -25,11 +25,11 @@ fn test_git_clone() {
     // Clone an empty repo
     let (stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "empty"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/empty"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Set-up a non-empty repo
     let signature =
@@ -56,22 +56,22 @@ fn test_git_clone() {
     // Clone with relative source path
     let (stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
     Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     assert!(test_env.env_root().join("clone").join("file").exists());
 
     // Subsequent fetch should just work even if the source path was relative
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&test_env.env_root().join("clone"), &["git", "fetch"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Failed clone should clean up the destination directory
     std::fs::create_dir(test_env.env_root().join("bad")).unwrap();
@@ -81,10 +81,9 @@ fn test_git_clone() {
         .code(1);
     let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
     let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
-    insta::assert_snapshot!(stdout, @r###"
-    Fetching into new repo in "$TEST_ENV/failed"
-    "###);
+    insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/failed"
     Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
     "###);
     assert!(!test_env.env_root().join("failed").exists());
@@ -97,10 +96,9 @@ fn test_git_clone() {
         .code(1);
     let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
     let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
-    insta::assert_snapshot!(stdout, @r###"
-    Fetching into new repo in "$TEST_ENV/failed"
-    "###);
+    insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/failed"
     Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
     "###);
     assert!(test_env.env_root().join("failed").exists());
@@ -145,11 +143,11 @@ fn test_git_clone_colocate() {
         test_env.env_root(),
         &["git", "clone", "source", "empty", "--colocate"],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/empty"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Set-up a non-empty repo
     let signature =
@@ -178,13 +176,13 @@ fn test_git_clone_colocate() {
         test_env.env_root(),
         &["git", "clone", "source", "clone", "--colocate"],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
     Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     assert!(test_env.env_root().join("clone").join("file").exists());
     assert!(test_env.env_root().join("clone").join(".git").exists());
 
@@ -227,10 +225,10 @@ fn test_git_clone_colocate() {
     // Subsequent fetch should just work even if the source path was relative
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&test_env.env_root().join("clone"), &["git", "fetch"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // Failed clone should clean up the destination directory
     std::fs::create_dir(test_env.env_root().join("bad")).unwrap();
@@ -243,10 +241,9 @@ fn test_git_clone_colocate() {
         .code(1);
     let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
     let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
-    insta::assert_snapshot!(stdout, @r###"
-    Fetching into new repo in "$TEST_ENV/failed"
-    "###);
+    insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/failed"
     Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
     "###);
     assert!(!test_env.env_root().join("failed").exists());
@@ -262,10 +259,9 @@ fn test_git_clone_colocate() {
         .code(1);
     let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
     let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
-    insta::assert_snapshot!(stdout, @r###"
-    Fetching into new repo in "$TEST_ENV/failed"
-    "###);
+    insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/failed"
     Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
     "###);
     assert!(test_env.env_root().join("failed").exists());

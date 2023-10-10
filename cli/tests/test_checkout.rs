@@ -29,11 +29,11 @@ fn test_checkout() {
 
     // Check out current commit
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["checkout", "@"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: zsuskuln 05ce7118 (empty) (no description set)
     Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  05ce7118568d3007efc9163b055f9cb4a6becfde
     ◉  5c52832c3483e0ace06d047a806024984f28f1d7 second

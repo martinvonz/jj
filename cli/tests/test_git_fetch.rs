@@ -263,10 +263,11 @@ fn test_git_fetch_from_remote_named_git() {
     test_env.jj_cmd_ok(&repo_path, &["git", "remote", "rename", "git", "bar"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    Done importing changes from the underlying Git repo.
     git: mrylzrtu 76fc7466 message
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Done importing changes from the underlying Git repo.
+    "###);
 }
 
 #[test]
@@ -392,11 +393,11 @@ fn test_git_fetch_all() {
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
     let (stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let target_jj_repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -479,10 +480,10 @@ fn test_git_fetch_all() {
     trunk1: zowqyktl ff36dc55 descr_for_trunk1
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Abandoned 2 commits that are no longer reachable.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
     a1: quxllqov 0424f6df descr_for_a1
     a2: osusxwst 91e46b4b descr_for_a2
@@ -520,11 +521,11 @@ fn test_git_fetch_some_of_many_branches() {
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
     let (stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let target_jj_repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -587,10 +588,10 @@ fn test_git_fetch_some_of_many_branches() {
     // Fetching the same branch again
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "a1"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  decaa3966c83 descr_for_a2 a2
     │ ◉  359a9a02457d descr_for_a1 a1
@@ -639,10 +640,10 @@ fn test_git_fetch_some_of_many_branches() {
         &target_jj_repo_path,
         &["git", "fetch", "--branch", "b", "--branch", "a1"],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 commits that are no longer reachable.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  13ac032802f1 descr_for_b b?? b@origin
     │ ◉  6f4e1c4dfe29 descr_for_a1 a1
@@ -674,10 +675,10 @@ fn test_git_fetch_some_of_many_branches() {
         &target_jj_repo_path,
         &["git", "fetch", "--branch", "b", "--branch", "a*"],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 commits that are no longer reachable.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  010977d69c5b descr_for_a2 a2
     │ ◉  13ac032802f1 descr_for_b b?? b@origin
@@ -714,11 +715,11 @@ fn test_git_fetch_undo() {
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
     let (stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let target_jj_repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -783,11 +784,11 @@ fn test_fetch_undo_what() {
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
     let (stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -941,10 +942,10 @@ fn test_git_fetch_rename_fetch() {
     // Check that jj indicates that nothing has changed
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote", "upstream"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -956,11 +957,11 @@ fn test_git_fetch_removed_branch() {
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
     let (stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let target_jj_repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -998,10 +999,10 @@ fn test_git_fetch_removed_branch() {
     // Fetch branch a1 from origin and check that a2 is still there
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "a1"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  decaa3966c83 descr_for_a2 a2
@@ -1017,10 +1018,10 @@ fn test_git_fetch_removed_branch() {
     // Fetch branches a2 from origin, and check that it has been removed locally
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "a2"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 commits that are no longer reachable.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  359a9a02457d descr_for_a1 a1
@@ -1041,11 +1042,11 @@ fn test_git_fetch_removed_parent_branch() {
     // Clone an empty repo. The target repo is a normal `jj` repo, *not* colocated
     let (stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "target"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/target"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let target_jj_repo_path = test_env.env_root().join("target");
 
     let source_log =
@@ -1089,10 +1090,10 @@ fn test_git_fetch_removed_parent_branch() {
             "git", "fetch", "--branch", "master", "--branch", "trunk1", "--branch", "a1",
         ],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 commits that are no longer reachable.
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  decaa3966c83 descr_for_a2 a2

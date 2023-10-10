@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write as _;
+
 use jj_cli::cli_util::{CliRunner, CommandError};
 use jj_cli::ui::Ui;
 
@@ -24,7 +26,7 @@ struct CustomGlobalArgs {
 
 fn process_before(ui: &mut Ui, custom_global_args: CustomGlobalArgs) -> Result<(), CommandError> {
     if custom_global_args.greet {
-        writeln!(ui, "Hello!")?;
+        writeln!(ui.stdout(), "Hello!")?;
     }
     Ok(())
 }

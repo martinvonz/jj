@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::fmt::Debug;
+use std::io::Write as _;
 
 use clap::Subcommand;
 use jj_lib::backend::ObjectId;
@@ -102,19 +103,22 @@ pub fn cmd_debug(
         DebugCommands::WorkingCopy(_wc_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
             let wc = workspace_command.working_copy();
-            writeln!(ui, "Current operation: {:?}", wc.operation_id())?;
-            writeln!(ui, "Current tree: {:?}", wc.current_tree_id()?)?;
+            writeln!(ui.stdout(), "Current operation: {:?}", wc.operation_id())?;
+            writeln!(ui.stdout(), "Current tree: {:?}", wc.current_tree_id()?)?;
             for (file, state) in wc.file_states()? {
                 writeln!(
-                    ui,
+                    ui.stdout(),
                     "{:?} {:13?} {:10?} {:?}",
-                    state.file_type, state.size, state.mtime.0, file
+                    state.file_type,
+                    state.size,
+                    state.mtime.0,
+                    file
                 )?;
             }
         }
         DebugCommands::Template(template_matches) => {
             let node = template_parser::parse_template(&template_matches.template)?;
-            writeln!(ui, "{node:#?}")?;
+            writeln!(ui.stdout(), "{node:#?}")?;
         }
         DebugCommands::Index(_index_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
@@ -123,16 +127,20 @@ pub fn cmd_debug(
                 repo.readonly_index().as_any().downcast_ref();
             if let Some(index_impl) = index_impl {
                 let stats = index_impl.as_composite().stats();
-                writeln!(ui, "Number of commits: {}", stats.num_commits)?;
-                writeln!(ui, "Number of merges: {}", stats.num_merges)?;
-                writeln!(ui, "Max generation number: {}", stats.max_generation_number)?;
-                writeln!(ui, "Number of heads: {}", stats.num_heads)?;
-                writeln!(ui, "Number of changes: {}", stats.num_changes)?;
-                writeln!(ui, "Stats per level:")?;
+                writeln!(ui.stdout(), "Number of commits: {}", stats.num_commits)?;
+                writeln!(ui.stdout(), "Number of merges: {}", stats.num_merges)?;
+                writeln!(
+                    ui.stdout(),
+                    "Max generation number: {}",
+                    stats.max_generation_number
+                )?;
+                writeln!(ui.stdout(), "Number of heads: {}", stats.num_heads)?;
+                writeln!(ui.stdout(), "Number of changes: {}", stats.num_changes)?;
+                writeln!(ui.stdout(), "Stats per level:")?;
                 for (i, level) in stats.levels.iter().enumerate() {
-                    writeln!(ui, "  Level {i}:")?;
-                    writeln!(ui, "    Number of commits: {}", level.num_commits)?;
-                    writeln!(ui, "    Name: {}", level.name.as_ref().unwrap())?;
+                    writeln!(ui.stdout(), "  Level {i}:")?;
+                    writeln!(ui.stdout(), "    Number of commits: {}", level.num_commits)?;
+                    writeln!(ui.stdout(), "    Name: {}", level.name.as_ref().unwrap())?;
                 }
             } else {
                 return Err(user_error(format!(
@@ -155,7 +163,7 @@ pub fn cmd_debug(
                     .downcast_ref()
                     .expect("Default index should be a ReadonlyIndexWrapper");
                 writeln!(
-                    ui,
+                    ui.stderr(),
                     "Finished indexing {:?} commits.",
                     index_impl.as_composite().stats().num_commits
                 )?;
@@ -177,14 +185,14 @@ pub fn cmd_debug(
                 &operation_args.operation,
             )?;
             if operation_args.display == DebugOperationDisplay::Id {
-                writeln!(ui, "{}", op.id().hex())?;
+                writeln!(ui.stdout(), "{}", op.id().hex())?;
                 return Ok(());
             }
             if operation_args.display != DebugOperationDisplay::View {
-                writeln!(ui, "{:#?}", op.store_operation())?;
+                writeln!(ui.stdout(), "{:#?}", op.store_operation())?;
             }
             if operation_args.display != DebugOperationDisplay::Operation {
-                writeln!(ui, "{:#?}", op.view()?.store_view())?;
+                writeln!(ui.stdout(), "{:#?}", op.view()?.store_view())?;
             }
         }
         DebugCommands::Watchman(watchman_subcommand) => {
@@ -204,29 +212,29 @@ fn cmd_debug_revset(
     let repo = workspace_command.repo().as_ref();
 
     let expression = revset::parse(&args.revision, &workspace_ctx)?;
-    writeln!(ui, "-- Parsed:")?;
-    writeln!(ui, "{expression:#?}")?;
-    writeln!(ui)?;
+    writeln!(ui.stdout(), "-- Parsed:")?;
+    writeln!(ui.stdout(), "{expression:#?}")?;
+    writeln!(ui.stdout())?;
 
     let expression = revset::optimize(expression);
-    writeln!(ui, "-- Optimized:")?;
-    writeln!(ui, "{expression:#?}")?;
-    writeln!(ui)?;
+    writeln!(ui.stdout(), "-- Optimized:")?;
+    writeln!(ui.stdout(), "{expression:#?}")?;
+    writeln!(ui.stdout())?;
 
     let symbol_resolver = workspace_command.revset_symbol_resolver()?;
     let expression = expression.resolve_user_expression(repo, &symbol_resolver)?;
-    writeln!(ui, "-- Resolved:")?;
-    writeln!(ui, "{expression:#?}")?;
-    writeln!(ui)?;
+    writeln!(ui.stdout(), "-- Resolved:")?;
+    writeln!(ui.stdout(), "{expression:#?}")?;
+    writeln!(ui.stdout())?;
 
     let revset = expression.evaluate(repo)?;
-    writeln!(ui, "-- Evaluated:")?;
-    writeln!(ui, "{revset:#?}")?;
-    writeln!(ui)?;
+    writeln!(ui.stdout(), "-- Evaluated:")?;
+    writeln!(ui.stdout(), "{revset:#?}")?;
+    writeln!(ui.stdout())?;
 
-    writeln!(ui, "-- Commit IDs:")?;
+    writeln!(ui.stdout(), "-- Commit IDs:")?;
     for commit_id in revset.iter() {
-        writeln!(ui, "{}", commit_id.hex())?;
+        writeln!(ui.stdout(), "{}", commit_id.hex())?;
     }
     Ok(())
 }
@@ -242,17 +250,17 @@ fn cmd_debug_watchman(
     match subcommand {
         DebugWatchmanSubcommand::QueryClock => {
             let (clock, _changed_files) = workspace_command.working_copy().query_watchman()?;
-            writeln!(ui, "Clock: {clock:?}")?;
+            writeln!(ui.stdout(), "Clock: {clock:?}")?;
         }
         DebugWatchmanSubcommand::QueryChangedFiles => {
             let (_clock, changed_files) = workspace_command.working_copy().query_watchman()?;
-            writeln!(ui, "Changed files: {changed_files:?}")?;
+            writeln!(ui.stdout(), "Changed files: {changed_files:?}")?;
         }
         DebugWatchmanSubcommand::ResetClock => {
             let (mut locked_wc, _commit) = workspace_command.start_working_copy_mutation()?;
             locked_wc.reset_watchman()?;
             locked_wc.finish(repo.op_id().clone())?;
-            writeln!(ui, "Reset Watchman clock")?;
+            writeln!(ui.stderr(), "Reset Watchman clock")?;
         }
     }
     Ok(())

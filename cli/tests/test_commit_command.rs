@@ -155,11 +155,10 @@ fn test_commit_paths_warning() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=first", "file3"]);
     insta::assert_snapshot!(stderr, @r###"
     The given paths do not match any file: file3
-    "###);
-    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: rlvkpnrz 67872820 (no description set)
     Parent commit      : qpvuntsm 69542c19 (empty) first
     "###);
+    insta::assert_snapshot!(stdout, @"");
 
     let stdout = test_env.jj_cmd_success(&workspace_path, &["diff"]);
     insta::assert_snapshot!(stdout, @r###"

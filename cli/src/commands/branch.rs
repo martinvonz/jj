@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashSet};
+use std::io::Write as _;
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
@@ -282,7 +283,7 @@ fn cmd_branch_delete(
     }
     tx.finish(ui)?;
     if names.len() > 1 {
-        writeln!(ui, "Deleted {} branches.", names.len())?;
+        writeln!(ui.stderr(), "Deleted {} branches.", names.len())?;
     }
     Ok(())
 }
@@ -308,7 +309,7 @@ fn cmd_branch_forget(
     }
     tx.finish(ui)?;
     if names.len() > 1 {
-        writeln!(ui, "Forgot {} branches.", names.len())?;
+        writeln!(ui.stderr(), "Forgot {} branches.", names.len())?;
     }
     Ok(())
 }

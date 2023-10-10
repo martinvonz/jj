@@ -40,13 +40,13 @@ fn test_split_by_paths() {
     )
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["split", "file2"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     First part: qpvuntsm 5eebce1d (no description set)
     Second part: kkmpptxz 45833353 (no description set)
     Working copy now at: kkmpptxz 45833353 (no description set)
     Parent commit      : qpvuntsm 5eebce1d (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     JJ: Enter commit description for the first part (parent).
@@ -77,14 +77,14 @@ fn test_split_by_paths() {
     // Insert an empty commit after @- with "split ."
     test_env.set_up_fake_editor();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["split", "-r", "@-", "."]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
     First part: qpvuntsm 31425b56 (no description set)
     Second part: yqosqzyt af096392 (empty) (no description set)
     Working copy now at: kkmpptxz 28d4ec20 (no description set)
     Parent commit      : yqosqzyt af096392 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  kkmpptxzrspx false
@@ -104,15 +104,14 @@ fn test_split_by_paths() {
     // Insert an empty commit before @- with "split nonexistent"
     test_env.set_up_fake_editor();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["split", "-r", "@-", "nonexistent"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    The given paths do not match any file: nonexistent
     Rebased 1 descendant commits
     First part: qpvuntsm 0647b2cb (empty) (no description set)
     Second part: kpqxywon d5d77af6 (no description set)
     Working copy now at: kkmpptxz 86f228dc (no description set)
     Parent commit      : kpqxywon d5d77af6 (no description set)
-    "###);
-    insta::assert_snapshot!(stderr, @r###"
-    The given paths do not match any file: nonexistent
     "###);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

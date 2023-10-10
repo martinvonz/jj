@@ -42,11 +42,11 @@ fn test_unsquash() {
 
     // Unsquashes into the working copy from its parent by default
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: mzvwutvl 1b10d78f c | (no description set)
     Parent commit      : qpvuntsm 90aeefd0 a b | (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  1b10d78f6136 c
     ◉  90aeefd03044 a b
@@ -60,12 +60,12 @@ fn test_unsquash() {
     // Can unsquash into a given commit from its parent
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-r", "b"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl 45b8b3dd c | (no description set)
     Parent commit      : kkmpptxz 9146bcc8 b | (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  45b8b3ddc25a c
     ◉  9146bcc8d996 b
@@ -108,12 +108,12 @@ fn test_unsquash() {
     test_env.jj_cmd_ok(&repo_path, &["co", "e"]);
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: pzsxstzt 3217340c merge
     Parent commit      : mzvwutvl 90fe0a96 c e?? | (no description set)
     Parent commit      : xznxytkn 5658521e d e?? | (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    3217340cb761
     ├─╮
@@ -159,12 +159,12 @@ fn test_unsquash_partial() {
     // from the parent
     let edit_script = test_env.set_up_fake_diff_editor();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-r", "b", "-i"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl 37c961d0 c | (no description set)
     Parent commit      : kkmpptxz 000af220 b | (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  37c961d0d1e2 c
     ◉  000af22057b9 b
@@ -180,11 +180,11 @@ fn test_unsquash_partial() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     std::fs::write(edit_script, "reset file1").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-i"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: mzvwutvl a8e8fded c | (no description set)
     Parent commit      : kkmpptxz 46cc0667 b | (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  a8e8fded1021 c
     ◉  46cc06672a99 b

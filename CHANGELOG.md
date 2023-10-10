@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   repository (so called Git-tracking branches.) Use
   `remote_branches(remote=exact:"origin")` to query branches of certain remote.
 
+* Status messages are now printed to stderr.
+
 ### New features
 
 ### Fixed bugs

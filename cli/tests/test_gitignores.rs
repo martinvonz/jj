@@ -88,12 +88,11 @@ fn test_gitignores_ignored_file_in_target_commit() {
 
     // Update to the commit with the "ignored" file
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["edit", "with-file"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm 4a703628 with-file | (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 1 files, modified 0 files, removed 0 files
-    "###);
-    insta::assert_snapshot!(stderr, @r###"
     1 of those updates were skipped because there were conflicting changes in the working copy.
     Hint: Inspect the changes compared to the intended target with `jj diff --from 4a703628bcb2`.
     Discard the conflicting changes with `jj restore --from 4a703628bcb2`.

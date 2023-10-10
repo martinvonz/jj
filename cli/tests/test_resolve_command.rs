@@ -86,13 +86,13 @@ fn test_resolution() {
     )
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: vruxwmqv e069f073 conflict | conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     "###);
@@ -182,7 +182,8 @@ conflict
             "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
         ],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: vruxwmqv ff4e8c6b conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
@@ -190,7 +191,6 @@ conflict
     After this operation, some files at this revision still have conflicts:
     file    2-sided conflict
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
     <<<<<<<
@@ -242,13 +242,13 @@ conflict
     )
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: vruxwmqv 95418cb8 conflict | conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor3")).unwrap(), @r###"
     "###);
@@ -633,7 +633,8 @@ fn test_multiple_conflicts() {
     // Check that we can manually pick which of the conflicts to resolve first
     std::fs::write(&editor_script, "expect\n\0write\nresolution another_file\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve", "another_file"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: vruxwmqv c3c25bce conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
@@ -641,7 +642,6 @@ fn test_multiple_conflicts() {
     After this operation, some files at this revision still have conflicts:
     this_file_has_a_very_long_name_to_test_padding 2-sided conflict
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in another_file:
@@ -662,13 +662,13 @@ fn test_multiple_conflicts() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     std::fs::write(&editor_script, "expect\n\0write\nresolution another_file\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve", "--quiet", "another_file"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: vruxwmqv fd3874cd conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
 
     // For the rest of the test, we call `jj resolve` several times in a row to
     // resolve each conflict in the order it chooses.

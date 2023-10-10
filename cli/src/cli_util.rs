@@ -16,6 +16,7 @@ use std::collections::{HashSet, VecDeque};
 use std::env::{self, ArgsOs, VarError};
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
+use std::io::Write as _;
 use std::iter;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -612,7 +613,7 @@ impl CommandHelper {
                 repo_loader.op_store(),
                 |op_heads| {
                     writeln!(
-                        ui,
+                        ui.stderr(),
                         "Concurrent modification detected, resolving automatically.",
                     )?;
                     let base_repo = repo_loader.load_at(&op_heads[0])?;
@@ -628,7 +629,7 @@ impl CommandHelper {
                         let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
                         if num_rebased > 0 {
                             writeln!(
-                                ui,
+                                ui.stderr(),
                                 "Rebased {num_rebased} descendant commits onto commits rewritten \
                                  by other operation"
                             )?;
@@ -830,7 +831,7 @@ impl WorkspaceCommandHelper {
                 let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
                 if num_rebased > 0 {
                     writeln!(
-                        ui,
+                        ui.stderr(),
                         "Rebased {num_rebased} descendant commits off of commits rewritten from \
                          git"
                     )?;
@@ -838,7 +839,10 @@ impl WorkspaceCommandHelper {
                 self.finish_transaction(ui, tx)?;
             }
         }
-        writeln!(ui, "Done importing changes from the underlying Git repo.")?;
+        writeln!(
+            ui.stderr(),
+            "Done importing changes from the underlying Git repo."
+        )?;
         Ok(())
     }
 
@@ -1361,7 +1365,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
             if num_rebased > 0 {
                 writeln!(
-                    ui,
+                    ui.stderr(),
                     "Rebased {num_rebased} descendant commits onto updated working copy"
                 )?;
             }
@@ -1392,16 +1396,16 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             new_commit,
         )?;
         if Some(new_commit) != maybe_old_commit {
-            ui.write("Working copy now at: ")?;
-            ui.stdout_formatter().with_label("working_copy", |fmt| {
+            write!(ui.stderr(), "Working copy now at: ")?;
+            ui.stderr_formatter().with_label("working_copy", |fmt| {
                 self.write_commit_summary(fmt, new_commit)
             })?;
-            ui.write("\n")?;
+            writeln!(ui.stderr())?;
             for parent in new_commit.parents() {
-                //       "Working copy now at: "
-                ui.write("Parent commit      : ")?;
-                self.write_commit_summary(ui.stdout_formatter().as_mut(), &parent)?;
-                ui.write("\n")?;
+                //                  "Working copy now at: "
+                write!(ui.stderr(), "Parent commit      : ")?;
+                self.write_commit_summary(ui.stderr_formatter().as_mut(), &parent)?;
+                writeln!(ui.stderr())?;
             }
         }
         if let Some(stats) = stats {
@@ -1418,12 +1422,12 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
 
     fn finish_transaction(&mut self, ui: &mut Ui, mut tx: Transaction) -> Result<(), CommandError> {
         if !tx.mut_repo().has_changes() {
-            writeln!(ui, "Nothing changed.")?;
+            writeln!(ui.stderr(), "Nothing changed.")?;
             return Ok(());
         }
         let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
         if num_rebased > 0 {
-            writeln!(ui, "Rebased {num_rebased} descendant commits")?;
+            writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
         }
 
         let maybe_old_wc_commit = tx
@@ -1767,9 +1771,11 @@ pub fn print_checkout_stats(
 ) -> Result<(), std::io::Error> {
     if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
         writeln!(
-            ui,
+            ui.stderr(),
             "Added {} files, modified {} files, removed {} files",
-            stats.added_files, stats.updated_files, stats.removed_files
+            stats.added_files,
+            stats.updated_files,
+            stats.removed_files
         )?;
     }
     if stats.skipped_files != 0 {
@@ -1791,10 +1797,9 @@ Discard the conflicting changes with `jj restore --from {}`.",
 }
 
 pub fn print_git_import_stats(ui: &mut Ui, stats: &GitImportStats) -> Result<(), CommandError> {
-    // TODO: maybe better to write status messages to stderr
     if !stats.abandoned_commits.is_empty() {
         writeln!(
-            ui,
+            ui.stderr(),
             "Abandoned {} commits that are no longer reachable.",
             stats.abandoned_commits.len()
         )?;
@@ -2645,11 +2650,11 @@ pub fn handle_command_result(
             // https://github.com/clap-rs/clap/blob/master/src/error/mod.rs
             match inner.kind() {
                 clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => {
-                    ui.write(&clap_str)?;
+                    write!(ui.stdout(), "{clap_str}")?;
                     Ok(ExitCode::SUCCESS)
                 }
                 _ => {
-                    ui.write_stderr(&clap_str)?;
+                    write!(ui.stderr(), "{clap_str}")?;
                     Ok(ExitCode::from(2))
                 }
             }

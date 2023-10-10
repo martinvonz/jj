@@ -306,7 +306,12 @@ fn cmd_git_remote_list(
     let git_repo = get_git_repo(repo.store())?;
     for remote_name in git_repo.remotes()?.iter().flatten() {
         let remote = git_repo.find_remote(remote_name)?;
-        writeln!(ui, "{} {}", remote_name, remote.url().unwrap_or("<no URL>"))?;
+        writeln!(
+            ui.stdout(),
+            "{} {}",
+            remote_name,
+            remote.url().unwrap_or("<no URL>")
+        )?;
     }
     Ok(())
 }
@@ -522,7 +527,11 @@ fn do_git_clone(
         Workspace::init_internal_git(command.settings(), wc_path)?
     };
     let git_repo = get_git_repo(repo.store())?;
-    writeln!(ui, r#"Fetching into new repo in "{}""#, wc_path.display())?;
+    writeln!(
+        ui.stderr(),
+        r#"Fetching into new repo in "{}""#,
+        wc_path.display()
+    )?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
@@ -735,7 +744,7 @@ fn cmd_git_push(
             match classify_branch_update(branch_name, branch_target, &remote) {
                 Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
                 Ok(None) => writeln!(
-                    ui,
+                    ui.stderr(),
                     "Branch {branch_name}@{remote} already matches {branch_name}",
                 )?,
                 Err(message) => return Err(user_error(message)),
@@ -771,7 +780,7 @@ fn cmd_git_push(
             }
             if view.get_local_branch(&branch_name).is_absent() {
                 writeln!(
-                    ui,
+                    ui.stderr(),
                     "Creating branch {} for revision {}",
                     branch_name,
                     change_str.deref()
@@ -783,7 +792,7 @@ fn cmd_git_push(
             match classify_branch_update(&branch_name, branch_target, &remote) {
                 Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
                 Ok(None) => writeln!(
-                    ui,
+                    ui.stderr(),
                     "Branch {branch_name}@{remote} already matches {branch_name}",
                 )?,
                 Err(message) => return Err(user_error(message)),
@@ -845,7 +854,7 @@ fn cmd_git_push(
         );
     }
     if branch_updates.is_empty() {
-        writeln!(ui, "Nothing changed.")?;
+        writeln!(ui.stderr(), "Nothing changed.")?;
         return Ok(());
     }
 
@@ -922,20 +931,20 @@ fn cmd_git_push(
         }
     }
 
-    writeln!(ui, "Branch changes to push to {}:", &remote)?;
+    writeln!(ui.stderr(), "Branch changes to push to {}:", &remote)?;
     for (branch_name, update) in &branch_updates {
         match (&update.old_target, &update.new_target) {
             (Some(old_target), Some(new_target)) => {
                 if force_pushed_branches.contains(branch_name) {
                     writeln!(
-                        ui,
+                        ui.stderr(),
                         "  Force branch {branch_name} from {} to {}",
                         short_commit_hash(old_target),
                         short_commit_hash(new_target)
                     )?;
                 } else {
                     writeln!(
-                        ui,
+                        ui.stderr(),
                         "  Move branch {branch_name} from {} to {}",
                         short_commit_hash(old_target),
                         short_commit_hash(new_target)
@@ -944,14 +953,14 @@ fn cmd_git_push(
             }
             (Some(old_target), None) => {
                 writeln!(
-                    ui,
+                    ui.stderr(),
                     "  Delete branch {branch_name} from {}",
                     short_commit_hash(old_target)
                 )?;
             }
             (None, Some(new_target)) => {
                 writeln!(
-                    ui,
+                    ui.stderr(),
                     "  Add branch {branch_name} to {}",
                     short_commit_hash(new_target)
                 )?;
@@ -963,7 +972,7 @@ fn cmd_git_push(
     }
 
     if args.dry_run {
-        writeln!(ui, "Dry-run requested, not pushing.")?;
+        writeln!(ui.stderr(), "Dry-run requested, not pushing.")?;
         return Ok(());
     }
 
@@ -1061,7 +1070,7 @@ fn cmd_git_submodule_print_gitmodules(
     let gitmodules_path = RepoPath::from_internal_string(".gitmodules");
     let mut gitmodules_file = match tree.path_value(&gitmodules_path).into_resolved() {
         Ok(None) => {
-            writeln!(ui, "No submodules!")?;
+            writeln!(ui.stderr(), "No submodules!")?;
             return Ok(());
         }
         Ok(Some(TreeValue::File { id, .. })) => repo.store().read_file(&gitmodules_path, &id)?,
@@ -1073,9 +1082,11 @@ fn cmd_git_submodule_print_gitmodules(
     let submodules = parse_gitmodules(&mut gitmodules_file)?;
     for (name, submodule) in submodules {
         writeln!(
-            ui,
+            ui.stdout(),
             "name:{}\nurl:{}\npath:{}\n\n",
-            name, submodule.url, submodule.path
+            name,
+            submodule.url,
+            submodule.path
         )?;
     }
     Ok(())

@@ -55,10 +55,10 @@ fn test_duplicate() {
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Duplicated 2443ea76b0b1 as znkkpsqq 2f6dc5a1 a
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  2f6dc5a1ffc2   a
     │ @    17a00fc21654   c
@@ -74,10 +74,10 @@ fn test_duplicate() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate" /* duplicates `c` */]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Duplicated 17a00fc21654 as wqnwkozp 1dd099ea c
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    1dd099ea963c   c
     ├─╮
@@ -114,11 +114,11 @@ fn test_duplicate_many() {
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "b::"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Duplicated 1394f625cbbd as wqnwkozp 3b74d969 b
     Duplicated 921dde6e55c0 as mouksmqu 8348ddce e
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    8348ddcec733   e
     ├─╮
@@ -137,10 +137,10 @@ fn test_duplicate_many() {
     // Try specifying the same commit twice directly
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "b", "b"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Duplicated 1394f625cbbd as nkmrtpmo 0276d3d7 b
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  0276d3d7c24d   b
     │ @    921dde6e55c0   e
@@ -157,12 +157,12 @@ fn test_duplicate_many() {
     // Try specifying the same commit twice indirectly
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "b::", "d::"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Duplicated 1394f625cbbd as xtnwkqum fa167d18 b
     Duplicated ebd06dba20ec as pqrnrkux 2181781b d
     Duplicated 921dde6e55c0 as ztxkyksq 0f7430f2 e
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    0f7430f2727a   e
     ├─╮
@@ -193,12 +193,12 @@ fn test_duplicate_many() {
     ◉  000000000000
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "d::", "a"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Duplicated 2443ea76b0b1 as nlrtlrxv c6f7f8c4 a
     Duplicated ebd06dba20ec as plymsszl d94e4c55 d
     Duplicated 921dde6e55c0 as urrlptpw 9bd4389f e
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    9bd4389f5d47   e
     ├─╮
@@ -219,14 +219,14 @@ fn test_duplicate_many() {
     // Check for BUG -- makes too many 'a'-s, etc.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a::"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Duplicated 2443ea76b0b1 as uuuvxpvw 0fe67a05 a
     Duplicated 1394f625cbbd as nmpuuozl e13ac0ad b
     Duplicated c0cb3a0b73e7 as kzpokyyw df53fa58 c
     Duplicated ebd06dba20ec as yxrlprzz 2f2442db d
     Duplicated 921dde6e55c0 as mvkzkxrl ee8fe64e e
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    ee8fe64ed254   e
     ├─╮
@@ -261,10 +261,10 @@ fn test_undo_after_duplicate() {
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Duplicated 2443ea76b0b1 as mzvwutvl f5cefcbb a
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  f5cefcbb65a4   a
     │ @  2443ea76b0b1   a
@@ -298,15 +298,15 @@ fn test_rebase_duplicates() {
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "b"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Duplicated 1394f625cbbd as yqosqzyt fdaaf395 b
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "b"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Duplicated 1394f625cbbd as vruxwmqv 870cf438 b
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output_with_ts(&test_env, &repo_path), @r###"
     ◉  870cf438ccbb   b @ 2001-02-03 04:05:14.000 +07:00
     │ ◉  fdaaf3950f07   b @ 2001-02-03 04:05:13.000 +07:00
@@ -318,12 +318,12 @@ fn test_rebase_duplicates() {
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "a", "-d", "a-"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 4 commits
     Working copy now at: zsuskuln 29bd36b6 b | b
     Parent commit      : rlvkpnrz 2f6dc5a1 a | a
     "###);
-    insta::assert_snapshot!(stderr, @"");
     // Some of the duplicate commits' timestamps were changed a little to make them
     // have distinct commit ids.
     insta::assert_snapshot!(get_log_output_with_ts(&test_env, &repo_path), @r###"

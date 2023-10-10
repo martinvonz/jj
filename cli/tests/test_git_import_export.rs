@@ -213,11 +213,11 @@ fn test_git_import_move_export_with_default_undo() {
     // the previous test. However, "git export" can't: the branches in the git
     // repo stay where they were.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "restore", &base_operation_id]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Working copy now at: qpvuntsm 230dd059 (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
     [

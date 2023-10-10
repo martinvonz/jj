@@ -42,13 +42,13 @@ fn test_restore() {
 
     // Restores from parent by default
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created kkmpptxz ed1678e3 (empty) (no description set)
     Working copy now at: kkmpptxz ed1678e3 (empty) (no description set)
     Parent commit      : rlvkpnrz 1a986a27 (no description set)
     Added 1 files, modified 1 files, removed 1 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
 
@@ -59,27 +59,27 @@ fn test_restore() {
     A file2
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "-c=@-"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created rlvkpnrz e25100af (empty) (no description set)
     Rebased 1 descendant commits
     Working copy now at: kkmpptxz e301deb3 (conflict) (no description set)
     Parent commit      : rlvkpnrz e25100af (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r=@-"]);
     insta::assert_snapshot!(stdout, @"");
 
     // Can restore this revision from another revision
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "--from", "@--"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created kkmpptxz 1dd6eb63 (no description set)
     Working copy now at: kkmpptxz 1dd6eb63 (no description set)
     Parent commit      : rlvkpnrz 1a986a27 (no description set)
     Added 1 files, modified 0 files, removed 2 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file2
@@ -88,13 +88,13 @@ fn test_restore() {
     // Can restore into other revision
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "--to", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created rlvkpnrz ec9d5b59 (no description set)
     Rebased 1 descendant commits
     Working copy now at: kkmpptxz d6f3c681 (empty) (no description set)
     Parent commit      : rlvkpnrz ec9d5b59 (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -108,13 +108,13 @@ fn test_restore() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["restore", "--from", "@", "--to", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created rlvkpnrz 5f6eb3d5 (no description set)
     Rebased 1 descendant commits
     Working copy now at: kkmpptxz 525afd5d (empty) (no description set)
     Parent commit      : rlvkpnrz 5f6eb3d5 (no description set)
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -127,13 +127,13 @@ fn test_restore() {
     // Can restore only specified paths
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "file2", "file3"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created kkmpptxz 569ce73d (no description set)
     Working copy now at: kkmpptxz 569ce73d (no description set)
     Parent commit      : rlvkpnrz 1a986a27 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -190,14 +190,14 @@ fn test_restore_conflicted_merge() {
 
     // ...and restore it back again.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "file"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created vruxwmqv b2c9c888 (conflict) (empty) conflict
     Working copy now at: vruxwmqv b2c9c888 conflict | (conflict) (empty) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
@@ -229,14 +229,14 @@ fn test_restore_conflicted_merge() {
 
     // ... and restore it back again.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Created vruxwmqv 4fc10820 (conflict) (empty) conflict
     Working copy now at: vruxwmqv 4fc10820 conflict | (conflict) (empty) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
