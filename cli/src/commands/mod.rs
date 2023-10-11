@@ -1051,6 +1051,10 @@ struct WorkspaceAddArgs {
     /// directory.
     #[arg(long)]
     name: Option<String>,
+    /// The revision that the workspace should be created at; a new working copy
+    /// commit will be created on top of it.
+    #[arg(long, short)]
+    revision: Option<RevisionArg>,
 }
 
 /// Stop tracking a workspace's working-copy commit in the repo
@@ -3779,17 +3783,23 @@ fn cmd_workspace_add(
         "Create initial working-copy commit in workspace {}",
         &name
     ));
-    // Check out a parent of the current workspace's working-copy commit, or the
-    // root if there is no working-copy commit in the current workspace.
-    let new_wc_commit = if let Some(old_wc_commit_id) = tx
-        .base_repo()
-        .view()
-        .get_wc_commit_id(old_workspace_command.workspace_id())
-    {
-        tx.repo().store().get_commit(old_wc_commit_id)?.parents()[0].clone()
+
+    let new_wc_commit = if let Some(specific_rev) = &args.revision {
+        old_workspace_command.resolve_single_rev(specific_rev, ui)?
     } else {
-        tx.repo().store().root_commit()
+        // Check out a parent of the current workspace's working-copy commit, or the
+        // root if there is no working-copy commit in the current workspace.
+        if let Some(old_wc_commit_id) = tx
+            .base_repo()
+            .view()
+            .get_wc_commit_id(old_workspace_command.workspace_id())
+        {
+            tx.repo().store().get_commit(old_wc_commit_id)?.parents()[0].clone()
+        } else {
+            tx.repo().store().root_commit()
+        }
     };
+
     tx.check_out(&new_wc_commit)?;
     tx.finish(ui)?;
     Ok(())

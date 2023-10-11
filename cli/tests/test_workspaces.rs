@@ -71,6 +71,64 @@ fn test_workspaces_add_second_workspace() {
     "###);
 }
 
+/// Test adding a workspace, but at a specific revision using '-r'
+#[test]
+fn test_workspaces_add_workspace_at_revision() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
+    let main_path = test_env.env_root().join("main");
+    let secondary_path = test_env.env_root().join("secondary");
+
+    std::fs::write(main_path.join("file-1"), "contents").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["commit", "-m", "first"]);
+
+    std::fs::write(main_path.join("file-2"), "contents").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["commit", "-m", "second"]);
+
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: kkmpptxz 2801c219 (empty) (no description set)
+    "###);
+
+    let (_, stderr) = test_env.jj_cmd_ok(
+        &main_path,
+        &[
+            "workspace",
+            "add",
+            "--name",
+            "second",
+            "../secondary",
+            "-r",
+            "@--",
+        ],
+    );
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Created workspace in "../secondary"
+    Working copy now at: zxsnswpr e6baf9d9 (empty) (no description set)
+    Parent commit      : qpvuntsm e7d7dbb9 first
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+
+    // Can see the working-copy commit in each workspace in the log output. The "@"
+    // node in the graph indicates the current workspace's working-copy commit.
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    ◉  e6baf9d9cfd0b616eac110fc5826b7eca63cffc5 second@
+    │ @  2801c219094d5d49a2c5697ba1c34b9593d2c2a9 default@
+    │ ◉  4ec5df5a189c813f8cc66aeb35e007929ebb46bc
+    ├─╯
+    ◉  e7d7dbb91c5a543ea680711093e689916d5f31df
+    ◉  0000000000000000000000000000000000000000
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
+    @  e6baf9d9cfd0b616eac110fc5826b7eca63cffc5 second@
+    │ ◉  2801c219094d5d49a2c5697ba1c34b9593d2c2a9 default@
+    │ ◉  4ec5df5a189c813f8cc66aeb35e007929ebb46bc
+    ├─╯
+    ◉  e7d7dbb91c5a543ea680711093e689916d5f31df
+    ◉  0000000000000000000000000000000000000000
+    "###);
+}
+
 /// Test making changes to the working copy in a workspace as it gets rewritten
 /// from another workspace
 #[test]
