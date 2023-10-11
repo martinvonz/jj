@@ -2199,13 +2199,13 @@ pub fn write_config_value_to_file(
                 ))
             })?;
     }
-    // Error out if overwriting non-scalar value for key (table or array).
+    // Error out if overwriting non-scalar value for key (table or array) with
+    // scalar.
     match target_table.get(last_key_part) {
-        None | Some(toml_edit::Item::None) => {}
-        Some(toml_edit::Item::Value(val)) if !val.is_array() && !val.is_inline_table() => {}
-        _ => {
+        None | Some(toml_edit::Item::None | toml_edit::Item::Value(_)) => {}
+        Some(toml_edit::Item::Table(_) | toml_edit::Item::ArrayOfTables(_)) => {
             return Err(user_error(format!(
-                "Failed to set {key}: would overwrite entire non-scalar value with scalar"
+                "Failed to set {key}: would overwrite entire table"
             )));
         }
     }
