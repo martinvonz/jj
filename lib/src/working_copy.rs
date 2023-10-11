@@ -18,6 +18,7 @@
 use std::any::Any;
 use std::path::Path;
 
+use crate::backend::MergedTreeId;
 use crate::op_store::{OperationId, WorkspaceId};
 
 /// The trait all working-copy implementations must implement.
@@ -37,4 +38,16 @@ pub trait WorkingCopy {
 
     /// The operation this working copy was most recently updated to.
     fn operation_id(&self) -> &OperationId;
+}
+
+/// A working copy that's being modified.
+pub trait LockedWorkingCopy {
+    /// Should return `self`. For down-casting purposes.
+    fn as_any(&self) -> &dyn Any;
+
+    /// The operation at the time the lock was taken
+    fn old_operation_id(&self) -> &OperationId;
+
+    /// The tree at the time the lock was taken
+    fn old_tree_id(&self) -> &MergedTreeId;
 }

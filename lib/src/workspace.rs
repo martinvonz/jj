@@ -39,7 +39,7 @@ use crate::repo::{
 };
 use crate::settings::UserSettings;
 use crate::submodule_store::SubmoduleStore;
-use crate::working_copy::WorkingCopy;
+use crate::working_copy::{LockedWorkingCopy, WorkingCopy};
 
 #[derive(Error, Debug)]
 pub enum WorkspaceInitError {

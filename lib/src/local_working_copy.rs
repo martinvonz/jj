@@ -59,7 +59,7 @@ use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJo
 use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
-use crate::working_copy::WorkingCopy;
+use crate::working_copy::{LockedWorkingCopy, WorkingCopy};
 
 #[cfg(unix)]
 type FileExecutableFlag = bool;
@@ -1580,17 +1580,21 @@ pub struct LockedLocalWorkingCopy {
     tree_state_dirty: bool,
 }
 
-impl LockedLocalWorkingCopy {
-    /// The operation at the time the lock was taken
-    pub fn old_operation_id(&self) -> &OperationId {
+impl LockedWorkingCopy for LockedLocalWorkingCopy {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn old_operation_id(&self) -> &OperationId {
         &self.old_operation_id
     }
 
-    /// The tree at the time the lock was taken
-    pub fn old_tree_id(&self) -> &MergedTreeId {
+    fn old_tree_id(&self) -> &MergedTreeId {
         &self.old_tree_id
     }
+}
 
+impl LockedLocalWorkingCopy {
     pub fn reset_watchman(&mut self) -> Result<(), SnapshotError> {
         self.wc
             .tree_state_mut()
