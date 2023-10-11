@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Status messages are now printed to stderr.
 
+* `jj config set` now interprets the value as TOML also if it's a valid TOML
+  array or table. For example, `jj config set --user 'aliases.n' '["new"]'`
+
 ### New features
 
 ### Fixed bugs
