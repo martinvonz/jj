@@ -1159,11 +1159,14 @@ fn test_git_fetch_remote_only_branch() {
     // Fetch using git.auto_local_branch = false
     test_env.add_config("git.auto-local-branch = false");
     test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  9f01a0e04879 message feature1 feature2@origin
+    │ @  230dd059e1b0
+    ├─╯
+    ◉  000000000000
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
-    feature2 (deleted)
-      @origin: mzyxwzks 9f01a0e0 message
-      (this branch will be *deleted permanently* on the remote on the
-       next `jj git push`. Use `jj branch forget` to prevent this)
+    feature2@origin: mzyxwzks 9f01a0e0 message
     "###);
 }
