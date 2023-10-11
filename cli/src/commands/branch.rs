@@ -60,10 +60,10 @@ pub struct BranchDeleteArgs {
 
 /// List branches and their targets
 ///
-/// A remote branch will be included only if its target is different from
-/// the local target. For a conflicted branch (both local and remote), old
-/// target revisions are preceded by a "-" and new target revisions are
-/// preceded by a "+". For information about branches, see
+/// A tracking remote branch will be included only if its target is different
+/// from the local target. For a conflicted branch (both local and remote), old
+/// target revisions are preceded by a "-" and new target revisions are preceded
+/// by a "+". For information about branches, see
 /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchListArgs {
@@ -389,14 +389,22 @@ fn cmd_branch_list(
             .map_or(true, |branch_names| branch_names.contains(name))
     });
     for (name, branch_target) in branches_to_list {
-        write!(formatter.labeled("branch"), "{name}")?;
-        if branch_target.local_target.is_present() {
-            print_branch_target(formatter, branch_target.local_target)?;
-        } else {
-            writeln!(formatter, " (deleted)")?;
+        let (tracking_remote_refs, untracked_remote_refs) =
+            branch_target
+                .remote_refs
+                .into_iter()
+                .partition::<Vec<_>, _>(|&(_, remote_ref)| remote_ref.is_tracking());
+
+        if branch_target.local_target.is_present() || !tracking_remote_refs.is_empty() {
+            write!(formatter.labeled("branch"), "{name}")?;
+            if branch_target.local_target.is_present() {
+                print_branch_target(formatter, branch_target.local_target)?;
+            } else {
+                writeln!(formatter, " (deleted)")?;
+            }
         }
 
-        for &(remote, remote_ref) in &branch_target.remote_refs {
+        for &(remote, remote_ref) in &tracking_remote_refs {
             if remote_ref.target == *branch_target.local_target {
                 continue;
             }
@@ -425,9 +433,8 @@ fn cmd_branch_list(
             print_branch_target(formatter, &remote_ref.target)?;
         }
 
-        if branch_target.local_target.is_absent() {
-            let found_non_git_remote = branch_target
-                .remote_refs
+        if branch_target.local_target.is_absent() && !tracking_remote_refs.is_empty() {
+            let found_non_git_remote = tracking_remote_refs
                 .iter()
                 .any(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
             if found_non_git_remote {
@@ -443,6 +450,12 @@ fn cmd_branch_list(
                      git export`)"
                 )?;
             }
+        }
+
+        // TODO: hide non-tracking remotes by default?
+        for &(remote, remote_ref) in &untracked_remote_refs {
+            write!(formatter.labeled("branch"), "{name}@{remote}")?;
+            print_branch_target(formatter, &remote_ref.target)?;
         }
     }
 
