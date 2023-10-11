@@ -338,6 +338,34 @@ fn test_config_set_for_repo() {
 }
 
 #[test]
+fn test_config_set_toml_types() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let user_config_path = test_env.config_path().join("config.toml");
+    test_env.set_config_path(user_config_path.clone());
+    let repo_path = test_env.env_root().join("repo");
+
+    let set_value = |key, value| {
+        test_env.jj_cmd_success(&repo_path, &["config", "set", "--user", key, value]);
+    };
+    set_value("test-table.integer", "42");
+    set_value("test-table.float", "3.14");
+    set_value("test-table.array", r#"["one", "two"]"#);
+    set_value("test-table.boolean", "true");
+    set_value("test-table.string", r#""foo""#);
+    set_value("test-table.invalid", r"a + b");
+    insta::assert_snapshot!(std::fs::read_to_string(&user_config_path).unwrap(), @r###"
+    [test-table]
+    integer = 42
+    float = 3.14
+    array = ["one", "two"]
+    boolean = true
+    string = "foo"
+    invalid = "a + b"
+    "###);
+}
+
+#[test]
 fn test_config_set_type_mismatch() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

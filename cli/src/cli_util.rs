@@ -2178,13 +2178,10 @@ pub fn write_config_value_to_file(
     })?;
 
     // Apply config value
-    // Interpret value as string unless it's another simple scalar type.
+    // Interpret value as string if it can't be parsed as a TOML value.
     // TODO(#531): Infer types based on schema (w/ --type arg to override).
     let item = match toml_edit::Value::from_str(value_str) {
-        Ok(value @ toml_edit::Value::Boolean(..))
-        | Ok(value @ toml_edit::Value::Integer(..))
-        | Ok(value @ toml_edit::Value::Float(..))
-        | Ok(value @ toml_edit::Value::String(..)) => toml_edit::value(value),
+        Ok(value) => toml_edit::value(value),
         _ => toml_edit::value(value_str),
     };
     let mut target_table = doc.as_table_mut();
@@ -2209,7 +2206,7 @@ pub fn write_config_value_to_file(
         _ => {
             return Err(user_error(format!(
                 "Failed to set {key}: would overwrite entire non-scalar value with scalar"
-            )))
+            )));
         }
     }
     target_table[last_key_part] = item;
