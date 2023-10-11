@@ -311,27 +311,23 @@ pub struct CheckoutStats {
 
 #[derive(Debug, Error)]
 pub enum SnapshotError {
-    #[error("Failed to query the filesystem monitor: {0}")]
-    FsmonitorError(String),
-    #[error("{message}: {err}")]
-    IoError {
-        message: String,
-        #[source]
-        err: std::io::Error,
-    },
     #[error("Working copy path {} is not valid UTF-8", path.to_string_lossy())]
     InvalidUtf8Path { path: OsString },
     #[error("Symlink {path} target is not valid UTF-8")]
     InvalidUtf8SymlinkTarget { path: PathBuf, target: PathBuf },
     #[error("Internal backend error: {0}")]
     InternalBackendError(#[from] BackendError),
-    #[error(transparent)]
-    TreeStateError(#[from] TreeStateError),
     #[error("New file {path} of size ~{size} exceeds snapshot.max-new-file-size ({max_size})")]
     NewFileTooLarge {
         path: PathBuf,
         size: HumanByteSize,
         max_size: HumanByteSize,
+    },
+    #[error("{message}: {err:?}")]
+    Other {
+        message: String,
+        #[source]
+        err: Box<dyn std::error::Error + Send + Sync>,
     },
 }
 
@@ -602,9 +598,9 @@ impl TreeState {
         path: &RepoPath,
         disk_path: &Path,
     ) -> Result<FileId, SnapshotError> {
-        let mut file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
+        let mut file = File::open(disk_path).map_err(|err| SnapshotError::Other {
             message: format!("Failed to open file {}", disk_path.display()),
-            err,
+            err: err.into(),
         })?;
         Ok(self.store.write_file(path, &mut file)?)
     }
@@ -614,12 +610,10 @@ impl TreeState {
         path: &RepoPath,
         disk_path: &Path,
     ) -> Result<SymlinkId, SnapshotError> {
-        let target = disk_path
-            .read_link()
-            .map_err(|err| SnapshotError::IoError {
-                message: format!("Failed to read symlink {}", disk_path.display()),
-                err,
-            })?;
+        let target = disk_path.read_link().map_err(|err| SnapshotError::Other {
+            message: format!("Failed to read symlink {}", disk_path.display()),
+            err: err.into(),
+        })?;
         let str_target =
             target
                 .to_str()
@@ -828,12 +822,12 @@ impl TreeState {
                                     continue;
                                 }
                                 Err(err) => {
-                                    return Err(SnapshotError::IoError {
+                                    return Err(SnapshotError::Other {
                                         message: format!(
                                             "Failed to stat file {}",
                                             disk_path.display()
                                         ),
-                                        err,
+                                        err: err.into(),
                                     });
                                 }
                             };
@@ -885,9 +879,9 @@ impl TreeState {
                         // the ignored paths, then
                         // ignore it.
                     } else {
-                        let metadata = entry.metadata().map_err(|err| SnapshotError::IoError {
+                        let metadata = entry.metadata().map_err(|err| SnapshotError::Other {
                             message: format!("Failed to stat file {}", entry.path().display()),
-                            err,
+                            err: err.into(),
                         })?;
                         if maybe_current_file_state.is_none() && metadata.len() > max_new_file_size
                         {
@@ -939,11 +933,12 @@ impl TreeState {
             },
             #[cfg(not(feature = "watchman"))]
             Some(FsmonitorKind::Watchman) => {
-                return Err(SnapshotError::FsmonitorError(
-                    "Cannot query Watchman because jj was not compiled with the `watchman` \
-                     feature (consider disabling `core.fsmonitor`)"
-                        .to_string(),
-                ));
+                return Err(SnapshotError::Other {
+                    message: "Failed to query the filesystem monitor".to_string(),
+                    err: "Cannot query Watchman because jj was not compiled with the `watchman` \
+                          feature (consider disabling `core.fsmonitor`)"
+                        .into(),
+                });
             }
         };
         let matcher: Option<Box<dyn Matcher>> = match changed_files {
@@ -1046,9 +1041,9 @@ impl TreeState {
             };
             Ok(Merge::normal(TreeValue::File { id, executable }))
         } else if let Some(old_file_ids) = current_tree_values.to_file_merge() {
-            let content = fs::read(disk_path).map_err(|err| SnapshotError::IoError {
+            let content = fs::read(disk_path).map_err(|err| SnapshotError::Other {
                 message: format!("Failed to open file {}", disk_path.display()),
-                err,
+                err: err.into(),
             })?;
             let new_file_ids = conflicts::update_from_content(
                 &old_file_ids,
@@ -1598,7 +1593,13 @@ impl LockedLocalWorkingCopy<'_> {
     }
 
     pub fn reset_watchman(&mut self) -> Result<(), SnapshotError> {
-        self.wc.tree_state_mut()?.reset_watchman();
+        self.wc
+            .tree_state_mut()
+            .map_err(|err| SnapshotError::Other {
+                message: "Failed to read the working copy state".to_string(),
+                err: err.into(),
+            })?
+            .reset_watchman();
         self.tree_state_dirty = true;
         Ok(())
     }
@@ -1607,7 +1608,13 @@ impl LockedLocalWorkingCopy<'_> {
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
     pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
-        let tree_state = self.wc.tree_state_mut()?;
+        let tree_state = self
+            .wc
+            .tree_state_mut()
+            .map_err(|err| SnapshotError::Other {
+                message: "Failed to read the working copy state".to_string(),
+                err: err.into(),
+            })?;
         self.tree_state_dirty |= tree_state.snapshot(options)?;
         Ok(tree_state.current_tree_id().clone())
     }
