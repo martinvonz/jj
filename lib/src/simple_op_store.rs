@@ -30,7 +30,7 @@ use crate::file_util::persist_content_addressed_temp_file;
 use crate::merge::Merge;
 use crate::op_store::{
     OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, RefTarget,
-    RemoteRef, RemoteView, View, ViewId, WorkspaceId,
+    RemoteRef, RemoteRefState, RemoteView, View, ViewId, WorkspaceId,
 };
 use crate::{git, op_store};
 
@@ -370,16 +370,28 @@ fn branch_views_from_proto_legacy(
     let mut local_branches: BTreeMap<String, RefTarget> = BTreeMap::new();
     let mut remote_views: BTreeMap<String, RemoteView> = BTreeMap::new();
     for branch_proto in branches_legacy {
+        let local_target = ref_target_from_proto(branch_proto.local_target);
         for remote_branch in branch_proto.remote_branches {
+            // If local branch doesn't exist, we assume that the remote branch hasn't been
+            // merged because git.auto-local-branch was off. That's probably more common
+            // than deleted but yet-to-be-pushed local branch. Alternatively, we could read
+            // git.auto-local-branch setting here, but that wouldn't always work since the
+            // setting could be toggled after the branch got merged.
+            let is_git_tracking = remote_branch.remote_name == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO;
+            let state = if is_git_tracking || local_target.is_present() {
+                RemoteRefState::Tracking
+            } else {
+                RemoteRefState::New
+            };
             let remote_view = remote_views.entry(remote_branch.remote_name).or_default();
             let remote_ref = RemoteRef {
                 target: ref_target_from_proto(remote_branch.target),
+                state,
             };
             remote_view
                 .branches
                 .insert(branch_proto.name.clone(), remote_ref);
         }
-        let local_target = ref_target_from_proto(branch_proto.local_target);
         if local_target.is_present() {
             local_branches.insert(branch_proto.name, local_target);
         }
@@ -400,6 +412,8 @@ fn migrate_git_refs_to_remote(view: &mut View) {
             assert!(!name.is_empty());
             let remote_ref = RemoteRef {
                 target: target.clone(),
+                // Git-tracking branches should never be untracked.
+                state: RemoteRefState::Tracking,
             };
             git_view.branches.insert(name.to_owned(), remote_ref);
         }
@@ -499,8 +513,13 @@ mod tests {
     use crate::op_store::{OperationMetadata, RefTarget, WorkspaceId};
 
     fn create_view() -> View {
-        let remote_ref = |target: &RefTarget| RemoteRef {
+        let new_remote_ref = |target: &RefTarget| RemoteRef {
             target: target.clone(),
+            state: RemoteRefState::New,
+        };
+        let tracking_remote_ref = |target: &RefTarget| RemoteRef {
+            target: target.clone(),
+            state: RemoteRefState::Tracking,
         };
         let head_id1 = CommitId::from_hex("aaa111");
         let head_id2 = CommitId::from_hex("aaa222");
@@ -529,8 +548,8 @@ mod tests {
             remote_views: btreemap! {
                 "origin".to_string() => RemoteView {
                     branches: btreemap! {
-                        "main".to_string() => remote_ref(&branch_main_origin_target),
-                        "deleted".to_string() => remote_ref(&branch_deleted_origin_target),
+                        "main".to_string() => tracking_remote_ref(&branch_main_origin_target),
+                        "deleted".to_string() => new_remote_ref(&branch_deleted_origin_target),
                     },
                 },
             },
@@ -578,7 +597,7 @@ mod tests {
         // Test exact output so we detect regressions in compatibility
         assert_snapshot!(
             ViewId::new(blake2b_hash(&create_view()).to_vec()).hex(),
-            @"6ef5f01bb0bd239670c79966753c6af9ce18694bba1d5dbd1aa82de7f5c421dfc3bf91c1608eec480ae8e244093485bcff3e95db7acdc3958c7a8ead7a453b54"
+            @"7a7d8e33aff631bc3a8a281358e818f3c962d539ec2ced78a40b8221a42a707d51e546c5a6644c435b5764d8a51b29e63c3c107d5a8926d4be74288ea8ac879d"
         );
     }
 
@@ -613,8 +632,13 @@ mod tests {
 
     #[test]
     fn test_branch_views_legacy_roundtrip() {
-        let remote_ref = |target: &RefTarget| RemoteRef {
+        let new_remote_ref = |target: &RefTarget| RemoteRef {
             target: target.clone(),
+            state: RemoteRefState::New,
+        };
+        let tracking_remote_ref = |target: &RefTarget| RemoteRef {
+            target: target.clone(),
+            state: RemoteRefState::Tracking,
         };
         let local_branch1_target = RefTarget::normal(CommitId::from_hex("111111"));
         let local_branch3_target = RefTarget::normal(CommitId::from_hex("222222"));
@@ -629,18 +653,18 @@ mod tests {
         let remote_views = btreemap! {
             "git".to_owned() => RemoteView {
                 branches: btreemap! {
-                    "branch1".to_owned() => remote_ref(&git_branch1_target),
+                    "branch1".to_owned() => tracking_remote_ref(&git_branch1_target),
                 },
             },
             "remote1".to_owned() => RemoteView {
                 branches: btreemap! {
-                    "branch1".to_owned() => remote_ref(&remote1_branch1_target),
+                    "branch1".to_owned() => tracking_remote_ref(&remote1_branch1_target),
                 },
             },
             "remote2".to_owned() => RemoteView {
                 branches: btreemap! {
-                    "branch2".to_owned() => remote_ref(&remote2_branch2_target),
-                    "branch4".to_owned() => remote_ref(&remote2_branch4_target),
+                    "branch2".to_owned() => new_remote_ref(&remote2_branch2_target),
+                    "branch4".to_owned() => new_remote_ref(&remote2_branch4_target),
                 },
             },
         };
@@ -664,8 +688,13 @@ mod tests {
     #[test]
     fn test_migrate_git_refs_remote_named_git() {
         let normal_ref_target = |id_hex: &str| RefTarget::normal(CommitId::from_hex(id_hex));
-        let normal_remote_ref = |id_hex: &str| RemoteRef {
+        let normal_new_remote_ref = |id_hex: &str| RemoteRef {
             target: normal_ref_target(id_hex),
+            state: RemoteRefState::New,
+        };
+        let normal_tracking_remote_ref = |id_hex: &str| RemoteRef {
+            target: normal_ref_target(id_hex),
+            state: RemoteRefState::Tracking,
         };
         let branch_to_proto =
             |name: &str, local_ref_target, remote_branches| crate::protos::op_store::Branch {
@@ -685,18 +714,26 @@ mod tests {
         };
 
         let proto = crate::protos::op_store::View {
-            branches: vec![branch_to_proto(
-                "main",
-                &normal_ref_target("111111"),
-                vec![
-                    remote_branch_to_proto("git", &normal_ref_target("222222")),
-                    remote_branch_to_proto("gita", &normal_ref_target("333333")),
-                ],
-            )],
+            branches: vec![
+                branch_to_proto(
+                    "main",
+                    &normal_ref_target("111111"),
+                    vec![
+                        remote_branch_to_proto("git", &normal_ref_target("222222")),
+                        remote_branch_to_proto("gita", &normal_ref_target("333333")),
+                    ],
+                ),
+                branch_to_proto(
+                    "untracked",
+                    RefTarget::absent_ref(),
+                    vec![remote_branch_to_proto("gita", &normal_ref_target("777777"))],
+                ),
+            ],
             git_refs: vec![
                 git_ref_to_proto("refs/heads/main", &normal_ref_target("444444")),
                 git_ref_to_proto("refs/remotes/git/main", &normal_ref_target("555555")),
                 git_ref_to_proto("refs/remotes/gita/main", &normal_ref_target("666666")),
+                git_ref_to_proto("refs/remotes/gita/untracked", &normal_ref_target("888888")),
             ],
             has_git_refs_migrated_to_remote: false,
             ..Default::default()
@@ -714,12 +751,13 @@ mod tests {
             btreemap! {
                 "git".to_owned() => RemoteView {
                     branches: btreemap! {
-                        "main".to_owned() => normal_remote_ref("444444"), // refs/heads/main
+                        "main".to_owned() => normal_tracking_remote_ref("444444"), // refs/heads/main
                     },
                 },
                 "gita".to_owned() => RemoteView {
                     branches: btreemap! {
-                        "main".to_owned() => normal_remote_ref("333333"),
+                        "main".to_owned() => normal_tracking_remote_ref("333333"),
+                        "untracked".to_owned() => normal_new_remote_ref("777777"),
                     },
                 },
             },
@@ -729,6 +767,7 @@ mod tests {
             btreemap! {
                 "refs/heads/main".to_owned() => normal_ref_target("444444"),
                 "refs/remotes/gita/main".to_owned() => normal_ref_target("666666"),
+                "refs/remotes/gita/untracked".to_owned() => normal_ref_target("888888"),
             },
         );
 

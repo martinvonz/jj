@@ -1105,6 +1105,7 @@ impl MutableRepo {
             self.view_mut().add_head(added_head);
         }
 
+        // TODO: somehow merge tracking state of remote refs?
         let changed_refs = itertools::chain!(
             diff_named_refs(base.local_branches(), other.local_branches())
                 .map(|(name, diff)| (RefName::LocalBranch(name.to_owned()), diff)),

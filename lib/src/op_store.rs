@@ -23,6 +23,7 @@ use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::backend::{id_type, CommitId, ObjectId, Timestamp};
+use crate::content_hash::ContentHash;
 use crate::merge::Merge;
 
 content_hash! {
@@ -139,7 +140,7 @@ content_hash! {
     #[derive(Clone, Debug, Eq, Hash, PartialEq)]
     pub struct RemoteRef {
         pub target: RefTarget,
-        // TODO: add tracking flag or enum
+        pub state: RemoteRefState,
     }
 }
 
@@ -148,6 +149,7 @@ impl RemoteRef {
     pub fn absent() -> Self {
         RemoteRef {
             target: RefTarget::absent(),
+            state: RemoteRefState::New,
         }
     }
 
@@ -167,6 +169,28 @@ impl RemoteRef {
     /// Returns true if the target points to any commit.
     pub fn is_present(&self) -> bool {
         self.target.is_present()
+    }
+
+    /// Returns true if the ref is supposed to be merged in to the local ref.
+    pub fn is_tracking(&self) -> bool {
+        self.state == RemoteRefState::Tracking
+    }
+}
+
+/// Whether the ref is tracked or not.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+pub enum RemoteRefState {
+    /// Remote ref is not merged in to the local ref.
+    New,
+    /// Remote ref has been merged in to the local ref. Incoming ref will be
+    /// merged, too.
+    Tracking,
+}
+
+impl ContentHash for RemoteRefState {
+    fn hash(&self, state: &mut impl digest::Update) {
+        (*self as u8).hash(state);
     }
 }
 
@@ -384,6 +408,7 @@ mod tests {
     fn test_merge_join_branch_views() {
         let remote_ref = |target: &RefTarget| RemoteRef {
             target: target.clone(),
+            state: RemoteRefState::Tracking, // doesn't matter
         };
         let local_branch1_target = RefTarget::normal(CommitId::from_hex("111111"));
         let local_branch2_target = RefTarget::normal(CommitId::from_hex("222222"));

@@ -31,7 +31,7 @@ use jj_lib::git::{
     GitRefUpdate, SubmoduleConfig,
 };
 use jj_lib::git_backend::GitBackend;
-use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef};
+use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, RemoteRefState};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::{GitSettings, UserSettings};
 use jj_lib::view::RefName;
@@ -129,12 +129,14 @@ fn test_import_refs() {
         view.get_remote_branch("main", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit2)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
         view.get_remote_branch("main", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit1)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
@@ -145,6 +147,7 @@ fn test_import_refs() {
         view.get_remote_branch("feature1", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit3)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert!(view.get_remote_branch("feature1", "origin").is_absent());
@@ -156,6 +159,7 @@ fn test_import_refs() {
         view.get_remote_branch("feature2", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit4)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert!(view.get_remote_branch("feature2", "origin").is_absent());
@@ -168,6 +172,7 @@ fn test_import_refs() {
         view.get_remote_branch("feature3", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit6)),
+            state: RemoteRefState::Tracking,
         },
     );
 
@@ -278,12 +283,14 @@ fn test_import_refs_reimport() {
         view.get_remote_branch("main", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit2)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
         view.get_remote_branch("main", "origin"),
         &RemoteRef {
             target: commit1_target.clone(),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
@@ -294,6 +301,7 @@ fn test_import_refs_reimport() {
         view.get_remote_branch("feature2", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit5)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert!(view.get_remote_branch("feature2", "origin").is_absent());
@@ -487,6 +495,7 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
         view.get_remote_branch("feature-remote-only", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_only)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
@@ -497,12 +506,14 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
         view.get_remote_branch("feature-remote-and-local", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
         view.get_remote_branch("feature-remote-and-local", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert!(view.has_branch("main")); // branch #3 of 3
@@ -530,6 +541,7 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
         view.get_remote_branch("feature-remote-and-local", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert!(view
@@ -599,6 +611,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         view.get_remote_branch("feature-remote-only", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_only)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
@@ -609,12 +622,14 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         view.get_remote_branch("feature-remote-and-local", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
         view.get_remote_branch("feature-remote-and-local", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert!(view.has_branch("main")); // branch #3 of 3
@@ -654,6 +669,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         view.get_remote_branch("feature-remote-only", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&new_commit_remote_only)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
@@ -664,12 +680,14 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         view.get_remote_branch("feature-remote-and-local", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
         view.get_remote_branch("feature-remote-and-local", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&new_commit_remote_and_local)),
+            state: RemoteRefState::Tracking,
         },
     );
     assert!(view.has_branch("main")); // branch #3 of 3
@@ -774,6 +792,7 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
         repo.view().get_remote_branch("main", "origin"),
         &RemoteRef {
             target: RefTarget::from_legacy_form([], [jj_id(&commit1), jj_id(&commit2)]),
+            state: RemoteRefState::Tracking,
         },
     );
 
@@ -789,6 +808,7 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
         repo.view().get_remote_branch("main", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit2)),
+            state: RemoteRefState::Tracking,
         },
     );
 }
@@ -859,15 +879,19 @@ fn test_import_some_refs() {
     assert_eq!(view.branches().count(), 4);
     let commit_feat1_remote_ref = RemoteRef {
         target: RefTarget::normal(jj_id(&commit_feat1)),
+        state: RemoteRefState::Tracking,
     };
     let commit_feat2_remote_ref = RemoteRef {
         target: RefTarget::normal(jj_id(&commit_feat2)),
+        state: RemoteRefState::Tracking,
     };
     let commit_feat3_remote_ref = RemoteRef {
         target: RefTarget::normal(jj_id(&commit_feat3)),
+        state: RemoteRefState::Tracking,
     };
     let commit_feat4_remote_ref = RemoteRef {
         target: RefTarget::normal(jj_id(&commit_feat4)),
+        state: RemoteRefState::Tracking,
     };
     assert_eq!(
         view.get_local_branch("feature1"),
@@ -1363,6 +1387,7 @@ fn test_import_export_no_auto_local_branch() {
         mut_repo.view().get_remote_branch("main", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&git_commit)),
+            state: RemoteRefState::New,
         },
     );
     assert_eq!(
@@ -1424,12 +1449,14 @@ fn test_export_conflicts() {
         mut_repo.get_remote_branch("feature", "git"),
         RemoteRef {
             target: RefTarget::normal(commit_a.id().clone()),
+            state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
         mut_repo.get_remote_branch("main", "git"),
         RemoteRef {
             target: RefTarget::normal(commit_b.id().clone()),
+            state: RemoteRefState::Tracking,
         },
     );
 }
@@ -1504,6 +1531,7 @@ fn test_export_partial_failure() {
         mut_repo.get_remote_branch("main", "git"),
         RemoteRef {
             target: target.clone(),
+            state: RemoteRefState::Tracking,
         },
     );
     assert!(mut_repo.get_remote_branch("main/sub", "git").is_absent());
@@ -1537,6 +1565,7 @@ fn test_export_partial_failure() {
         mut_repo.get_remote_branch("main/sub", "git"),
         RemoteRef {
             target: target.clone(),
+            state: RemoteRefState::Tracking,
         },
     );
 }
@@ -1705,6 +1734,7 @@ fn test_export_undo_reexport() {
         mut_repo.get_remote_branch("main", "git"),
         RemoteRef {
             target: target_a.clone(),
+            state: RemoteRefState::Tracking,
         },
     );
 
@@ -1722,6 +1752,7 @@ fn test_export_undo_reexport() {
         mut_repo.get_remote_branch("main", "git"),
         RemoteRef {
             target: target_a.clone(),
+            state: RemoteRefState::Tracking,
         },
     );
 }
@@ -1865,6 +1896,7 @@ fn test_fetch_initial_commit() {
     let initial_commit_target = RefTarget::normal(jj_id(&initial_git_commit));
     let initial_commit_remote_ref = RemoteRef {
         target: initial_commit_target.clone(),
+        state: RemoteRefState::Tracking,
     };
     assert_eq!(
         *view.git_refs(),
@@ -1938,6 +1970,7 @@ fn test_fetch_success() {
     let new_commit_target = RefTarget::normal(jj_id(&new_git_commit));
     let new_commit_remote_ref = RemoteRef {
         target: new_commit_target.clone(),
+        state: RemoteRefState::Tracking,
     };
     assert_eq!(
         *view.git_refs(),

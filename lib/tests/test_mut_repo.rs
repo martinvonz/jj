@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use jj_lib::backend::CommitId;
-use jj_lib::op_store::{RefTarget, RemoteRef, WorkspaceId};
+use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use maplit::hashset;
 use testutils::{
@@ -444,6 +444,7 @@ fn test_has_changed() {
     let repo = &test_repo.repo;
     let normal_remote_ref = |id: &CommitId| RemoteRef {
         target: RefTarget::normal(id.clone()),
+        state: RemoteRefState::Tracking, // doesn't matter
     };
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -596,6 +597,7 @@ fn test_rename_remote() {
     let commit = write_random_commit(mut_repo, &settings);
     let remote_ref = RemoteRef {
         target: RefTarget::normal(commit.id().clone()),
+        state: RemoteRefState::Tracking, // doesn't matter
     };
     mut_repo.set_remote_branch("main", "origin", remote_ref.clone());
     mut_repo.rename_remote("origin", "upstream");

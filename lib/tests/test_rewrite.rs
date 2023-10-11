@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use itertools::Itertools as _;
-use jj_lib::op_store::{RefTarget, RemoteRef, WorkspaceId};
+use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::rewrite::DescendantRebaser;
@@ -1002,6 +1002,7 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_b_remote_ref = RemoteRef {
         target: RefTarget::normal(commit_b.id().clone()),
+        state: RemoteRefState::Tracking,
     };
     tx.mut_repo()
         .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));

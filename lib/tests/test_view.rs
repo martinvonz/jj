@@ -14,7 +14,7 @@
 
 use std::collections::BTreeMap;
 
-use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, WorkspaceId};
+use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use maplit::{btreemap, hashset};
 use test_case::test_case;
@@ -240,12 +240,15 @@ fn test_merge_views_branches() {
     let main_branch_alternate_tx0 = write_random_commit(mut_repo, &settings);
     let main_branch_origin_tx0_remote_ref = RemoteRef {
         target: RefTarget::normal(main_branch_origin_tx0.id().clone()),
+        state: RemoteRefState::Tracking,
     };
     let main_branch_origin_tx1_remote_ref = RemoteRef {
         target: RefTarget::normal(main_branch_origin_tx1.id().clone()),
+        state: RemoteRefState::Tracking,
     };
     let main_branch_alternate_tx0_remote_ref = RemoteRef {
         target: RefTarget::normal(main_branch_alternate_tx0.id().clone()),
+        state: RemoteRefState::Tracking,
     };
     mut_repo.set_local_branch_target(
         "main",

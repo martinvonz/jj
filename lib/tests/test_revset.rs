@@ -26,7 +26,7 @@ use jj_lib::commit::Commit;
 use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::index::{HexPrefix, PrefixResolution};
-use jj_lib::op_store::{RefTarget, RemoteRef, WorkspaceId};
+use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
@@ -382,7 +382,10 @@ fn test_resolve_symbol_branches() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
-    let remote_ref = |target| RemoteRef { target };
+    let remote_ref = |target| RemoteRef {
+        target,
+        state: RemoteRefState::Tracking, // doesn't matter
+    };
     let normal_remote_ref = |id: &CommitId| remote_ref(RefTarget::normal(id.clone()));
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -1796,7 +1799,10 @@ fn test_evaluate_expression_remote_branches() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
-    let remote_ref = |target| RemoteRef { target };
+    let remote_ref = |target| RemoteRef {
+        target,
+        state: RemoteRefState::Tracking, // doesn't matter
+    };
     let normal_remote_ref = |id: &CommitId| remote_ref(RefTarget::normal(id.clone()));
 
     let mut tx = repo.start_transaction(&settings, "test");

@@ -22,7 +22,9 @@ use itertools::Itertools;
 use crate::backend::CommitId;
 use crate::index::Index;
 use crate::op_store;
-use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRef, WorkspaceId};
+use crate::op_store::{
+    BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRef, RemoteRefState, WorkspaceId,
+};
 use crate::refs::{iter_named_ref_pairs, merge_ref_targets, TrackingRefPair};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
@@ -250,7 +252,10 @@ impl View {
             if let Some(remote_ref) = remote_view.branches.get_mut(name) {
                 remote_ref.target = target;
             } else {
-                let remote_ref = RemoteRef { target };
+                let remote_ref = RemoteRef {
+                    target,
+                    state: RemoteRefState::New,
+                };
                 remote_view.branches.insert(name.to_owned(), remote_ref);
             }
         } else if let Some(remote_view) = self.data.remote_views.get_mut(remote_name) {
