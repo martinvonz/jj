@@ -28,7 +28,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::git_backend::GitBackend;
-use crate::op_store::{RefTarget, RefTargetOptionExt, RemoteRef};
+use crate::op_store::{RefTarget, RefTargetOptionExt, RemoteRef, RemoteRefState};
 use crate::repo::{MutableRepo, Repo};
 use crate::revset::{self, RevsetExpression};
 use crate::settings::GitSettings;
@@ -263,23 +263,25 @@ pub fn import_some_refs(
     for (ref_name, (old_target, new_target)) in &changed_remote_refs {
         let new_remote_ref = RemoteRef {
             target: new_target.clone(),
+            // TODO: preserve the old state
+            state: default_remote_ref_state_for(ref_name, git_settings),
         };
         if let RefName::RemoteBranch { branch, remote } = ref_name {
+            if new_remote_ref.is_tracking() {
+                let local_ref_name = RefName::LocalBranch(branch.clone());
+                mut_repo.merge_single_ref(&local_ref_name, old_target, &new_remote_ref.target);
+            }
             // Remote-tracking branch is the last known state of the branch in the remote.
             // It shouldn't diverge even if we had inconsistent view.
             mut_repo.set_remote_branch(branch, remote, new_remote_ref);
-            // If a git remote-tracking branch changed, apply the change to the local branch
-            // as well.
-            if git_settings.auto_local_branch {
-                let local_ref_name = RefName::LocalBranch(branch.clone());
-                mut_repo.merge_single_ref(&local_ref_name, old_target, new_target);
-            }
         } else {
+            if new_remote_ref.is_tracking() {
+                mut_repo.merge_single_ref(ref_name, old_target, &new_remote_ref.target);
+            }
             if let RefName::LocalBranch(branch) = ref_name {
                 // Update Git-tracking branch like the other remote branches.
                 mut_repo.set_remote_branch(branch, REMOTE_NAME_FOR_LOCAL_GIT_REPO, new_remote_ref);
             }
-            mut_repo.merge_single_ref(ref_name, old_target, new_target);
         }
     }
 
@@ -408,6 +410,21 @@ fn diff_refs_to_import(
         changed_git_refs,
         changed_remote_refs,
     })
+}
+
+fn default_remote_ref_state_for(ref_name: &RefName, git_settings: &GitSettings) -> RemoteRefState {
+    match ref_name {
+        // LocalBranch means Git-tracking branch
+        RefName::LocalBranch(_) | RefName::Tag(_) => RemoteRefState::Tracking,
+        RefName::RemoteBranch { .. } => {
+            if git_settings.auto_local_branch {
+                RemoteRefState::Tracking
+            } else {
+                RemoteRefState::New
+            }
+        }
+        RefName::GitRef(_) => unreachable!(),
+    }
 }
 
 /// Commits referenced by local branches, tags, or HEAD@git.
@@ -565,6 +582,8 @@ fn copy_exportable_local_branches_to_remote_view(
         .view()
         .local_remote_branches(remote_name)
         .filter_map(|(branch, targets)| {
+            // TODO: filter out untracked branches (if we add support for untracked @git
+            // branches)
             let old_target = targets.remote_target;
             let new_target = targets.local_target;
             (!new_target.has_conflict() && old_target != new_target).then_some((branch, new_target))
@@ -573,7 +592,10 @@ fn copy_exportable_local_branches_to_remote_view(
         .map(|(branch, new_target)| (branch.to_owned(), new_target.clone()))
         .collect_vec();
     for (branch, new_target) in new_local_branches {
-        let new_remote_ref = RemoteRef { target: new_target };
+        let new_remote_ref = RemoteRef {
+            target: new_target,
+            state: RemoteRefState::Tracking,
+        };
         mut_repo.set_remote_branch(&branch, remote_name, new_remote_ref);
     }
 }
