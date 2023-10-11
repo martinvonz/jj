@@ -395,8 +395,12 @@ pub enum ResetError {
     },
     #[error("Internal error: {0}")]
     InternalBackendError(#[from] BackendError),
-    #[error(transparent)]
-    TreeStateError(#[from] TreeStateError),
+    #[error("{message}: {err:?}")]
+    Other {
+        message: String,
+        #[source]
+        err: Box<dyn std::error::Error + Send + Sync>,
+    },
 }
 
 struct DirectoryToVisit {
@@ -1635,7 +1639,13 @@ impl LockedLocalWorkingCopy<'_> {
     }
 
     pub fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
-        self.wc.tree_state_mut()?.reset(new_tree)?;
+        self.wc
+            .tree_state_mut()
+            .map_err(|err| ResetError::Other {
+                message: "Failed to read the working copy state".to_string(),
+                err: err.into(),
+            })?
+            .reset(new_tree)?;
         self.tree_state_dirty = true;
         Ok(())
     }
