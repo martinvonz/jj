@@ -340,7 +340,7 @@ fn test_config_set_for_repo() {
 #[test]
 fn test_config_set_toml_types() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
@@ -382,8 +382,26 @@ fn test_config_set_type_mismatch() {
         &["config", "set", "--user", "test-table", "not-a-table"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to set test-table: would overwrite entire non-scalar value with scalar
+    Error: Failed to set test-table: would overwrite entire table
     "###);
+
+    // But it's fine to overwrite arrays and inline tables
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "set", "--user", "test-table.array", "[1,2,3]"],
+    );
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "set", "--user", "test-table.array", "[4,5,6]"],
+    );
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "set", "--user", "test-table.inline", "{ x = 42}"],
+    );
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "set", "--user", "test-table.inline", "42"],
+    );
 }
 
 #[test]
