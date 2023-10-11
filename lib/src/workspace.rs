@@ -27,7 +27,7 @@ use crate::file_util::{IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
 use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
-use crate::local_working_copy::{LocalWorkingCopy, TreeStateError};
+use crate::local_working_copy::{LocalWorkingCopy, WorkingCopyStateError};
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OpStore, WorkspaceId};
 use crate::repo::{
@@ -47,7 +47,7 @@ pub enum WorkspaceInitError {
     #[error(transparent)]
     CheckOutCommit(#[from] CheckOutCommitError),
     #[error(transparent)]
-    TreeState(#[from] TreeStateError),
+    WorkingCopyState(#[from] WorkingCopyStateError),
     #[error(transparent)]
     Path(#[from] PathError),
     #[error(transparent)]

@@ -1356,6 +1356,13 @@ impl TreeState {
     }
 }
 
+#[derive(Debug, Error)]
+#[error("{message}: {err:?}")]
+pub struct WorkingCopyStateError {
+    message: String,
+    err: Box<dyn std::error::Error + Send + Sync>,
+}
+
 /// Working copy state stored in "checkout" file.
 #[derive(Clone, Debug)]
 struct CheckoutState {
@@ -1403,7 +1410,7 @@ impl LocalWorkingCopy {
         state_path: PathBuf,
         operation_id: OperationId,
         workspace_id: WorkspaceId,
-    ) -> Result<LocalWorkingCopy, TreeStateError> {
+    ) -> Result<LocalWorkingCopy, WorkingCopyStateError> {
         let proto = crate::protos::working_copy::Checkout {
             operation_id: operation_id.to_bytes(),
             workspace_id: workspace_id.as_str().to_string(),
@@ -1416,7 +1423,12 @@ impl LocalWorkingCopy {
             .unwrap();
         file.write_all(&proto.encode_to_vec()).unwrap();
         let tree_state =
-            TreeState::init(store.clone(), working_copy_path.clone(), state_path.clone())?;
+            TreeState::init(store.clone(), working_copy_path.clone(), state_path.clone()).map_err(
+                |err| WorkingCopyStateError {
+                    message: "Failed to initialize working copy state".to_string(),
+                    err: err.into(),
+                },
+            )?;
         Ok(LocalWorkingCopy {
             store,
             working_copy_path,
@@ -1478,30 +1490,35 @@ impl LocalWorkingCopy {
     }
 
     #[instrument(skip_all)]
-    fn tree_state(&self) -> Result<&TreeState, TreeStateError> {
-        self.tree_state.get_or_try_init(|| {
-            TreeState::load(
-                self.store.clone(),
-                self.working_copy_path.clone(),
-                self.state_path.clone(),
-            )
-        })
+    fn tree_state(&self) -> Result<&TreeState, WorkingCopyStateError> {
+        self.tree_state
+            .get_or_try_init(|| {
+                TreeState::load(
+                    self.store.clone(),
+                    self.working_copy_path.clone(),
+                    self.state_path.clone(),
+                )
+            })
+            .map_err(|err| WorkingCopyStateError {
+                message: "Failed to read working copy state".to_string(),
+                err: err.into(),
+            })
     }
 
-    fn tree_state_mut(&mut self) -> Result<&mut TreeState, TreeStateError> {
+    fn tree_state_mut(&mut self) -> Result<&mut TreeState, WorkingCopyStateError> {
         self.tree_state()?; // ensure loaded
         Ok(self.tree_state.get_mut().unwrap())
     }
 
-    pub fn current_tree_id(&self) -> Result<&MergedTreeId, TreeStateError> {
+    pub fn current_tree_id(&self) -> Result<&MergedTreeId, WorkingCopyStateError> {
         Ok(self.tree_state()?.current_tree_id())
     }
 
-    pub fn file_states(&self) -> Result<&BTreeMap<RepoPath, FileState>, TreeStateError> {
+    pub fn file_states(&self) -> Result<&BTreeMap<RepoPath, FileState>, WorkingCopyStateError> {
         Ok(self.tree_state()?.file_states())
     }
 
-    pub fn sparse_patterns(&self) -> Result<&[RepoPath], TreeStateError> {
+    pub fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
         Ok(self.tree_state()?.sparse_patterns())
     }
 
@@ -1514,7 +1531,7 @@ impl LocalWorkingCopy {
         });
     }
 
-    pub fn start_mutation(&mut self) -> Result<LockedLocalWorkingCopy, TreeStateError> {
+    pub fn start_mutation(&mut self) -> Result<LockedLocalWorkingCopy, WorkingCopyStateError> {
         let lock_path = self.state_path.join("working_copy.lock");
         let lock = FileLock::lock(lock_path);
 
@@ -1568,8 +1585,13 @@ impl LocalWorkingCopy {
     #[cfg(feature = "watchman")]
     pub fn query_watchman(
         &self,
-    ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), TreeStateError> {
-        self.tree_state()?.query_watchman()
+    ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), WorkingCopyStateError> {
+        self.tree_state()?
+            .query_watchman()
+            .map_err(|err| WorkingCopyStateError {
+                message: "Failed to query watchman".to_string(),
+                err: err.into(),
+            })
     }
 }
 
@@ -1650,7 +1672,7 @@ impl LockedLocalWorkingCopy<'_> {
         Ok(())
     }
 
-    pub fn sparse_patterns(&self) -> Result<&[RepoPath], TreeStateError> {
+    pub fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
         self.wc.sparse_patterns()
     }
 
@@ -1673,10 +1695,16 @@ impl LockedLocalWorkingCopy<'_> {
     }
 
     #[instrument(skip_all)]
-    pub fn finish(mut self, operation_id: OperationId) -> Result<(), TreeStateError> {
+    pub fn finish(mut self, operation_id: OperationId) -> Result<(), WorkingCopyStateError> {
         assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.current_tree_id()?);
         if self.tree_state_dirty {
-            self.wc.tree_state_mut()?.save()?;
+            self.wc
+                .tree_state_mut()?
+                .save()
+                .map_err(|err| WorkingCopyStateError {
+                    message: "Failed to write working copy state".to_string(),
+                    err: Box::new(err),
+                })?;
         }
         if self.old_operation_id != operation_id {
             self.wc.checkout_state_mut().operation_id = operation_id;
