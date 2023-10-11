@@ -43,7 +43,7 @@ use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::local_working_copy::{
     CheckoutStats, LocalWorkingCopy, LockedLocalWorkingCopy, ResetError, SnapshotError,
-    SnapshotOptions, TreeStateError,
+    SnapshotOptions, WorkingCopyStateError,
 };
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
@@ -189,7 +189,7 @@ impl From<WorkspaceInitError> for CommandError {
             WorkspaceInitError::Backend(err) => {
                 user_error(format!("Failed to access the repository: {err}"))
             }
-            WorkspaceInitError::TreeState(err) => {
+            WorkspaceInitError::WorkingCopyState(err) => {
                 CommandError::InternalError(format!("Failed to access the repository: {err}"))
             }
         }
@@ -395,9 +395,9 @@ impl From<GitConfigParseError> for CommandError {
     }
 }
 
-impl From<TreeStateError> for CommandError {
-    fn from(err: TreeStateError) -> Self {
-        CommandError::InternalError(format!("Failed to access tree state: {err}"))
+impl From<WorkingCopyStateError> for CommandError {
+    fn from(err: WorkingCopyStateError) -> Self {
+        CommandError::InternalError(format!("Failed to access working copy state: {err}"))
     }
 }
 
