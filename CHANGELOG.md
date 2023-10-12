@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj config set` now interprets the value as TOML also if it's a valid TOML
   array or table. For example, `jj config set --user 'aliases.n' '["new"]'`
 
+* Remote branches now have tracking or non-tracking flags. The
+  `git.auto-local-branch` setting is applied only to newly fetched remote
+  branches. Existing remote branches are migrated as follows:
+
+  * If local branch exists, the corresponding remote branches are considered
+    tracking branches.
+  * Otherwise, the remote branches are non-tracking branches.
+
+  See [automatic local branch creation](docs/config.md#automatic-local-branch-creation)
+  for details.
+
 ### New features
 
 * `jj workspace add` now takes a `--revision` argument.

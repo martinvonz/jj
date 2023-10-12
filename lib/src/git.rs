@@ -159,9 +159,9 @@ fn resolve_git_ref_to_commit_id(
 struct RefsToImport {
     /// Git ref `(full_name, new_target)`s to be copied to the view.
     changed_git_refs: Vec<(String, RefTarget)>,
-    /// Remote `(ref_name, (old_target, new_target))`s to be merged in to the
-    /// local refs.
-    changed_remote_refs: BTreeMap<RefName, (RefTarget, RefTarget)>,
+    /// Remote `(ref_name, (old_remote_ref, new_target))`s to be merged in to
+    /// the local refs.
+    changed_remote_refs: BTreeMap<RefName, (RemoteRef, RefTarget)>,
 }
 
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
@@ -260,23 +260,27 @@ pub fn import_some_refs(
     for (full_name, new_target) in changed_git_refs {
         mut_repo.set_git_ref_target(&full_name, new_target);
     }
-    for (ref_name, (old_target, new_target)) in &changed_remote_refs {
+    for (ref_name, (old_remote_ref, new_target)) in &changed_remote_refs {
+        let base_target = old_remote_ref.tracking_target();
         let new_remote_ref = RemoteRef {
             target: new_target.clone(),
-            // TODO: preserve the old state
-            state: default_remote_ref_state_for(ref_name, git_settings),
+            state: if old_remote_ref.is_present() {
+                old_remote_ref.state
+            } else {
+                default_remote_ref_state_for(ref_name, git_settings)
+            },
         };
         if let RefName::RemoteBranch { branch, remote } = ref_name {
             if new_remote_ref.is_tracking() {
                 let local_ref_name = RefName::LocalBranch(branch.clone());
-                mut_repo.merge_single_ref(&local_ref_name, old_target, &new_remote_ref.target);
+                mut_repo.merge_single_ref(&local_ref_name, base_target, &new_remote_ref.target);
             }
             // Remote-tracking branch is the last known state of the branch in the remote.
             // It shouldn't diverge even if we had inconsistent view.
             mut_repo.set_remote_branch(branch, remote, new_remote_ref);
         } else {
             if new_remote_ref.is_tracking() {
-                mut_repo.merge_single_ref(ref_name, old_target, &new_remote_ref.target);
+                mut_repo.merge_single_ref(ref_name, base_target, &new_remote_ref.target);
             }
             if let RefName::LocalBranch(branch) = ref_name {
                 // Update Git-tracking branch like the other remote branches.
@@ -289,7 +293,7 @@ pub fn import_some_refs(
     // in jj as well.
     let hidable_git_heads = changed_remote_refs
         .values()
-        .flat_map(|(old_target, _)| old_target.added_ids())
+        .flat_map(|(old_remote_ref, _)| old_remote_ref.target.added_ids())
         .cloned()
         .collect_vec();
     if hidable_git_heads.is_empty() {
@@ -341,7 +345,8 @@ fn diff_refs_to_import(
             git_ref_filter(&ref_name).then_some((full_name.as_ref(), target))
         })
         .collect();
-    let mut known_remote_refs: HashMap<RefName, &RefTarget> = itertools::chain(
+    // TODO: migrate tags to the remote view, and don't destructure &RemoteRef
+    let mut known_remote_refs: HashMap<RefName, (&RefTarget, RemoteRefState)> = itertools::chain(
         view.all_remote_branches()
             .map(|((branch, remote), remote_ref)| {
                 // TODO: want to abstract local ref as "git" tracking remote, but
@@ -354,13 +359,14 @@ fn diff_refs_to_import(
                         remote: remote.to_owned(),
                     }
                 };
-                (ref_name, &remote_ref.target)
+                let RemoteRef { target, state } = remote_ref;
+                (ref_name, (target, *state))
             }),
         // TODO: compare to tags stored in the "git" remote view. Since tags should never
         // be moved locally in jj, we can consider local tags as merge base.
         view.tags().iter().map(|(name, target)| {
             let ref_name = RefName::Tag(name.to_owned());
-            (ref_name, target)
+            (ref_name, (target, RemoteRefState::Tracking))
         }),
     )
     .filter(|(ref_name, _)| git_ref_filter(ref_name))
@@ -395,16 +401,26 @@ fn diff_refs_to_import(
         }
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
-        let old_remote_target = known_remote_refs.remove(&ref_name).flatten();
+        let (old_remote_target, old_remote_state) = known_remote_refs
+            .remove(&ref_name)
+            .unwrap_or_else(|| (RefTarget::absent_ref(), RemoteRefState::New));
         if new_target != *old_remote_target {
-            changed_remote_refs.insert(ref_name, (old_remote_target.clone(), new_target));
+            let old_remote_ref = RemoteRef {
+                target: old_remote_target.clone(),
+                state: old_remote_state,
+            };
+            changed_remote_refs.insert(ref_name, (old_remote_ref, new_target));
         }
     }
     for full_name in known_git_refs.into_keys() {
         changed_git_refs.push((full_name.to_owned(), RefTarget::absent()));
     }
-    for (ref_name, old_target) in known_remote_refs {
-        changed_remote_refs.insert(ref_name, (old_target.clone(), RefTarget::absent()));
+    for (ref_name, (old_target, old_state)) in known_remote_refs {
+        let old_remote_ref = RemoteRef {
+            target: old_target.clone(),
+            state: old_state,
+        };
+        changed_remote_refs.insert(ref_name, (old_remote_ref, RefTarget::absent()));
     }
     Ok(RefsToImport {
         changed_git_refs,

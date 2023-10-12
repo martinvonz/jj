@@ -1365,15 +1365,15 @@ fn test_export_import_sequence() {
 }
 
 #[test]
-fn test_import_export_no_auto_local_branch() {
+fn test_import_export_non_tracking_branch() {
     // Import a remote tracking branch and export it. We should not create a git
     // branch.
     let test_data = GitRepoData::create();
-    let git_settings = GitSettings {
+    let mut git_settings = GitSettings {
         auto_local_branch: false,
     };
     let git_repo = test_data.git_repo;
-    let git_commit = empty_git_commit(&git_repo, "refs/remotes/origin/main", &[]);
+    let commit_main_t0 = empty_git_commit(&git_repo, "refs/remotes/origin/main", &[]);
 
     let mut tx = test_data
         .repo
@@ -1386,18 +1386,72 @@ fn test_import_export_no_auto_local_branch() {
     assert_eq!(
         mut_repo.view().get_remote_branch("main", "origin"),
         &RemoteRef {
-            target: RefTarget::normal(jj_id(&git_commit)),
+            target: RefTarget::normal(jj_id(&commit_main_t0)),
             state: RemoteRefState::New,
         },
     );
     assert_eq!(
         mut_repo.get_git_ref("refs/remotes/origin/main"),
-        RefTarget::normal(jj_id(&git_commit))
+        RefTarget::normal(jj_id(&commit_main_t0))
     );
 
     // Export the branch to git
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(mut_repo.get_git_ref("refs/heads/main"), RefTarget::absent());
+
+    // Reimport with auto-local-branch on. Local branch shouldn't be created for
+    // the known branch "main".
+    let commit_main_t1 =
+        empty_git_commit(&git_repo, "refs/remotes/origin/main", &[&commit_main_t0]);
+    let commit_feat_t1 = empty_git_commit(&git_repo, "refs/remotes/origin/feat", &[]);
+    git_settings.auto_local_branch = true;
+    git::import_refs(mut_repo, &git_repo, &git_settings).unwrap();
+    assert!(mut_repo.view().get_local_branch("main").is_absent());
+    assert_eq!(
+        mut_repo.view().get_local_branch("feat"),
+        &RefTarget::normal(jj_id(&commit_feat_t1))
+    );
+    assert_eq!(
+        mut_repo.view().get_remote_branch("main", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_main_t1)),
+            state: RemoteRefState::New,
+        },
+    );
+    assert_eq!(
+        mut_repo.view().get_remote_branch("feat", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_feat_t1)),
+            state: RemoteRefState::Tracking,
+        },
+    );
+
+    // Reimport with auto-local-branch off. Tracking branch should be imported.
+    let commit_main_t2 =
+        empty_git_commit(&git_repo, "refs/remotes/origin/main", &[&commit_main_t1]);
+    let commit_feat_t2 =
+        empty_git_commit(&git_repo, "refs/remotes/origin/feat", &[&commit_feat_t1]);
+    git_settings.auto_local_branch = false;
+    git::import_refs(mut_repo, &git_repo, &git_settings).unwrap();
+    assert!(mut_repo.view().get_local_branch("main").is_absent());
+    assert_eq!(
+        mut_repo.view().get_local_branch("feat"),
+        &RefTarget::normal(jj_id(&commit_feat_t2))
+    );
+    assert_eq!(
+        mut_repo.view().get_remote_branch("main", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_main_t2)),
+            state: RemoteRefState::New,
+        },
+    );
+    assert_eq!(
+        mut_repo.view().get_remote_branch("feat", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_feat_t2)),
+            state: RemoteRefState::Tracking,
+        },
+    );
 }
 
 #[test]
