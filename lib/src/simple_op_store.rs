@@ -346,12 +346,12 @@ fn branch_views_to_proto_legacy(
         .map(|(name, branch_target)| {
             let local_target = ref_target_to_proto(branch_target.local_target);
             let remote_branches = branch_target
-                .remote_targets
+                .remote_refs
                 .iter()
                 .map(
-                    |&(remote_name, target)| crate::protos::op_store::RemoteBranch {
+                    |&(remote_name, remote_ref)| crate::protos::op_store::RemoteBranch {
                         remote_name: remote_name.to_owned(),
-                        target: ref_target_to_proto(target),
+                        target: ref_target_to_proto(&remote_ref.target),
                     },
                 )
                 .collect();

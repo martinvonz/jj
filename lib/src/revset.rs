@@ -2032,9 +2032,11 @@ fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<
             let local_target = branch_target.local_target;
             let local_symbol = local_target.is_present().then(|| name.to_owned());
             let remote_symbols = branch_target
-                .remote_targets
+                .remote_refs
                 .into_iter()
-                .filter(move |&(_, target)| include_synced_remotes || target != local_target)
+                .filter(move |&(_, remote_ref)| {
+                    include_synced_remotes || remote_ref.target != *local_target
+                })
                 .map(move |(remote_name, _)| format!("{name}@{remote_name}"));
             local_symbol.into_iter().chain(remote_symbols)
         })

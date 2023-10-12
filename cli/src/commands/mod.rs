@@ -1649,7 +1649,7 @@ fn cmd_status(
     let conflicted_remote_branches = repo
         .view()
         .all_remote_branches()
-        .filter(|(_, target)| target.has_conflict())
+        .filter(|(_, remote_ref)| remote_ref.target.has_conflict())
         .map(|(full_name, _)| full_name)
         .collect_vec();
     if !conflicted_local_branches.is_empty() {

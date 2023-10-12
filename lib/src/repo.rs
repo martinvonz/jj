@@ -1108,15 +1108,20 @@ impl MutableRepo {
         let changed_refs = itertools::chain!(
             diff_named_refs(base.local_branches(), other.local_branches())
                 .map(|(name, diff)| (RefName::LocalBranch(name.to_owned()), diff)),
-            diff_named_refs(base.all_remote_branches(), other.all_remote_branches()).map(
-                |((branch, remote), diff)| {
-                    let ref_name = RefName::RemoteBranch {
-                        branch: branch.to_owned(),
-                        remote: remote.to_owned(),
-                    };
-                    (ref_name, diff)
-                }
-            ),
+            diff_named_refs(
+                base.all_remote_branches()
+                    .map(|(full_name, remote_ref)| (full_name, &remote_ref.target)),
+                other
+                    .all_remote_branches()
+                    .map(|(full_name, remote_ref)| (full_name, &remote_ref.target)),
+            )
+            .map(|((branch, remote), diff)| {
+                let ref_name = RefName::RemoteBranch {
+                    branch: branch.to_owned(),
+                    remote: remote.to_owned(),
+                };
+                (ref_name, diff)
+            }),
             diff_named_refs(base.tags(), other.tags())
                 .map(|(name, diff)| (RefName::Tag(name.to_owned()), diff)),
             diff_named_refs(base.git_refs(), other.git_refs())

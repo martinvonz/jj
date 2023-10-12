@@ -190,24 +190,22 @@ impl View {
         }
     }
 
-    /// Iterates remote branch `((name, remote_name), target)`s in
+    /// Iterates remote branch `((name, remote_name), remote_ref)`s in
     /// lexicographical order.
-    pub fn all_remote_branches(&self) -> impl Iterator<Item = ((&str, &str), &RefTarget)> {
-        // TODO: maybe yield RemoteRef instead of RefTarget?
+    pub fn all_remote_branches(&self) -> impl Iterator<Item = ((&str, &str), &RemoteRef)> {
         op_store::flatten_remote_branches(&self.data.remote_views)
     }
 
-    /// Iterates branch `(name, target)`s of the specified remote in
+    /// Iterates branch `(name, remote_ref)`s of the specified remote in
     /// lexicographical order.
-    pub fn remote_branches(&self, remote_name: &str) -> impl Iterator<Item = (&str, &RefTarget)> {
-        // TODO: maybe yield RemoteRef instead of RefTarget?
+    pub fn remote_branches(&self, remote_name: &str) -> impl Iterator<Item = (&str, &RemoteRef)> {
         let maybe_remote_view = self.data.remote_views.get(remote_name);
         maybe_remote_view
             .map(|remote_view| {
                 remote_view
                     .branches
                     .iter()
-                    .map(|(name, remote_ref)| (name.as_ref(), &remote_ref.target))
+                    .map(|(name, remote_ref)| (name.as_ref(), remote_ref))
             })
             .into_iter()
             .flatten()
@@ -250,15 +248,18 @@ impl View {
     ) -> impl Iterator<Item = (&'a str, TrackingRefPair<'a>)> + 'a {
         // TODO: maybe untracked remote target can be translated to absent, and rename
         // the method accordingly.
-        iter_named_ref_pairs(self.local_branches(), self.remote_branches(remote_name)).map(
-            |(name, (local_target, remote_target))| {
-                let targets = TrackingRefPair {
-                    local_target,
-                    remote_target,
-                };
-                (name, targets)
-            },
+        iter_named_ref_pairs(
+            self.local_branches(),
+            self.remote_branches(remote_name)
+                .map(|(name, remote_ref)| (name, &remote_ref.target)),
         )
+        .map(|(name, (local_target, remote_target))| {
+            let targets = TrackingRefPair {
+                local_target,
+                remote_target,
+            };
+            (name, targets)
+        })
     }
 
     pub fn remove_remote(&mut self, remote_name: &str) {

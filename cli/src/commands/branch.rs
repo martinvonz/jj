@@ -396,15 +396,15 @@ fn cmd_branch_list(
             writeln!(formatter, " (deleted)")?;
         }
 
-        for &(remote, remote_target) in &branch_target.remote_targets {
-            if remote_target == branch_target.local_target {
+        for &(remote, remote_ref) in &branch_target.remote_refs {
+            if remote_ref.target == *branch_target.local_target {
                 continue;
             }
             write!(formatter, "  ")?;
             write!(formatter.labeled("branch"), "@{remote}")?;
             let local_target = branch_target.local_target;
             if local_target.is_present() {
-                let remote_added_ids = remote_target.added_ids().cloned().collect_vec();
+                let remote_added_ids = remote_ref.target.added_ids().cloned().collect_vec();
                 let local_added_ids = local_target.added_ids().cloned().collect_vec();
                 let remote_ahead_count =
                     revset::walk_revs(repo.as_ref(), &remote_added_ids, &local_added_ids)?.count();
@@ -422,12 +422,12 @@ fn cmd_branch_list(
                     )?;
                 }
             }
-            print_branch_target(formatter, remote_target)?;
+            print_branch_target(formatter, &remote_ref.target)?;
         }
 
         if branch_target.local_target.is_absent() {
             let found_non_git_remote = branch_target
-                .remote_targets
+                .remote_refs
                 .iter()
                 .any(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
             if found_non_git_remote {

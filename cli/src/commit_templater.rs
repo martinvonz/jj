@@ -361,9 +361,9 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
     for (branch_name, branch_target) in repo.view().branches() {
         let local_target = branch_target.local_target;
         let mut unsynced_remote_targets = branch_target
-            .remote_targets
+            .remote_refs
             .iter()
-            .filter(|&&(_, target)| target != local_target)
+            .filter(|&&(_, remote_ref)| remote_ref.target != *local_target)
             .peekable();
         if local_target.is_present() {
             let decorated_name = if local_target.has_conflict() {
@@ -375,13 +375,13 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
             };
             index.insert(local_target.added_ids(), decorated_name);
         }
-        for &(remote_name, target) in unsynced_remote_targets {
-            let decorated_name = if target.has_conflict() {
+        for &(remote_name, remote_ref) in unsynced_remote_targets {
+            let decorated_name = if remote_ref.target.has_conflict() {
                 format!("{branch_name}@{remote_name}?")
             } else {
                 format!("{branch_name}@{remote_name}")
             };
-            index.insert(target.added_ids(), decorated_name);
+            index.insert(remote_ref.target.added_ids(), decorated_name);
         }
     }
     index
