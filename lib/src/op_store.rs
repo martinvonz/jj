@@ -143,6 +143,33 @@ content_hash! {
     }
 }
 
+impl RemoteRef {
+    /// Creates remote ref pointing to no commit.
+    pub fn absent() -> Self {
+        RemoteRef {
+            target: RefTarget::absent(),
+        }
+    }
+
+    /// Returns remote ref pointing to no commit.
+    ///
+    /// This will typically be used in place of `None` returned by map lookup.
+    pub fn absent_ref() -> &'static Self {
+        static TARGET: Lazy<RemoteRef> = Lazy::new(RemoteRef::absent);
+        &TARGET
+    }
+
+    /// Returns true if the target points to no commit.
+    pub fn is_absent(&self) -> bool {
+        self.target.is_absent()
+    }
+
+    /// Returns true if the target points to any commit.
+    pub fn is_present(&self) -> bool {
+        self.target.is_present()
+    }
+}
+
 /// Helper to strip redundant `Option<T>` from `RefTarget` lookup result.
 pub trait RefTargetOptionExt {
     type Value;
@@ -163,6 +190,22 @@ impl<'a> RefTargetOptionExt for Option<&'a RefTarget> {
 
     fn flatten(self) -> Self::Value {
         self.unwrap_or_else(|| RefTarget::absent_ref())
+    }
+}
+
+impl RefTargetOptionExt for Option<RemoteRef> {
+    type Value = RemoteRef;
+
+    fn flatten(self) -> Self::Value {
+        self.unwrap_or_else(RemoteRef::absent)
+    }
+}
+
+impl<'a> RefTargetOptionExt for Option<&'a RemoteRef> {
+    type Value = &'a RemoteRef;
+
+    fn flatten(self) -> Self::Value {
+        self.unwrap_or_else(|| RemoteRef::absent_ref())
     }
 }
 
