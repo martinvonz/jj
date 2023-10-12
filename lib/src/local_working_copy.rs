@@ -1387,7 +1387,7 @@ impl WorkingCopy for LocalWorkingCopy {
         "local"
     }
 
-    fn working_copy_path(&self) -> &Path {
+    fn path(&self) -> &Path {
         &self.working_copy_path
     }
 

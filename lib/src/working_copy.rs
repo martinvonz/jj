@@ -30,7 +30,7 @@ pub trait WorkingCopy {
     fn name(&self) -> &str;
 
     /// The working copy's root directory.
-    fn working_copy_path(&self) -> &Path;
+    fn path(&self) -> &Path;
 
     /// The working copy's workspace ID.
     fn workspace_id(&self) -> &WorkspaceId;

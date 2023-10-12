@@ -88,7 +88,7 @@ fn test_sparse_checkout() {
     // Reload the state to check that it was persisted
     let mut wc = LocalWorkingCopy::load(
         repo.store().clone(),
-        wc.working_copy_path().to_path_buf(),
+        wc.path().to_path_buf(),
         wc.state_path().to_path_buf(),
     );
     assert_eq!(
