@@ -31,7 +31,7 @@ use jj_lib::git::{
     GitRefUpdate, SubmoduleConfig,
 };
 use jj_lib::git_backend::GitBackend;
-use jj_lib::op_store::{BranchTarget, RefTarget};
+use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::{GitSettings, UserSettings};
 use jj_lib::view::RefName;
@@ -1786,6 +1786,9 @@ fn test_fetch_initial_commit() {
     let view = repo.view();
     assert!(view.heads().contains(&jj_id(&initial_git_commit)));
     let initial_commit_target = RefTarget::normal(jj_id(&initial_git_commit));
+    let initial_commit_remote_ref = RemoteRef {
+        target: initial_commit_target.clone(),
+    };
     assert_eq!(
         *view.git_refs(),
         btreemap! {
@@ -1797,8 +1800,8 @@ fn test_fetch_initial_commit() {
         btreemap! {
             "main" => BranchTarget {
                 local_target: &initial_commit_target,
-                remote_targets: vec![
-                    ("origin", &initial_commit_target),
+                remote_refs: vec![
+                    ("origin", &initial_commit_remote_ref),
                 ],
             },
         }
@@ -1856,6 +1859,9 @@ fn test_fetch_success() {
     let view = repo.view();
     assert!(view.heads().contains(&jj_id(&new_git_commit)));
     let new_commit_target = RefTarget::normal(jj_id(&new_git_commit));
+    let new_commit_remote_ref = RemoteRef {
+        target: new_commit_target.clone(),
+    };
     assert_eq!(
         *view.git_refs(),
         btreemap! {
@@ -1868,8 +1874,8 @@ fn test_fetch_success() {
         btreemap! {
             "main" => BranchTarget {
                 local_target: &new_commit_target,
-                remote_targets: vec![
-                    ("origin", &new_commit_target),
+                remote_refs: vec![
+                    ("origin", &new_commit_remote_ref),
                 ],
             },
         }

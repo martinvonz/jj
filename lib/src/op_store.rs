@@ -171,8 +171,8 @@ impl<'a> RefTargetOptionExt for Option<&'a RefTarget> {
 pub struct BranchTarget<'a> {
     /// The commit the branch points to locally.
     pub local_target: &'a RefTarget,
-    /// `(remote_name, target)` pairs in lexicographical order.
-    pub remote_targets: Vec<(&'a str, &'a RefTarget)>,
+    /// `(remote_name, remote_ref)` pairs in lexicographical order.
+    pub remote_refs: Vec<(&'a str, &'a RemoteRef)>,
 }
 
 content_hash! {
@@ -233,22 +233,23 @@ pub(crate) fn merge_join_branch_views<'a>(
             } else {
                 local_branches_iter.next()?
             };
-        let remote_targets = remote_branches_iter
+        let remote_refs = remote_branches_iter
             .peeking_take_while(|&((remote_branch_name, _), _)| remote_branch_name == branch_name)
-            .map(|((_, remote_name), target)| (remote_name, target))
+            .map(|((_, remote_name), remote_ref)| (remote_name, remote_ref))
             .collect();
         let branch_target = BranchTarget {
             local_target,
-            remote_targets,
+            remote_refs,
         };
         Some((branch_name, branch_target))
     })
 }
 
-/// Iterates branch `((name, remote_name), target)`s in lexicographical order.
+/// Iterates branch `((name, remote_name), remote_ref)`s in lexicographical
+/// order.
 pub(crate) fn flatten_remote_branches(
     remote_views: &BTreeMap<String, RemoteView>,
-) -> impl Iterator<Item = ((&str, &str), &RefTarget)> {
+) -> impl Iterator<Item = ((&str, &str), &RemoteRef)> {
     remote_views
         .iter()
         .map(|(remote_name, remote_view)| {
@@ -257,7 +258,7 @@ pub(crate) fn flatten_remote_branches(
                 .iter()
                 .map(move |(branch_name, remote_ref)| {
                     let full_name = (branch_name.as_str(), remote_name.as_str());
-                    (full_name, &remote_ref.target)
+                    (full_name, remote_ref)
                 })
         })
         .kmerge_by(|(full_name1, _), (full_name2, _)| full_name1 < full_name2)
@@ -343,10 +344,12 @@ mod tests {
         };
         let local_branch1_target = RefTarget::normal(CommitId::from_hex("111111"));
         let local_branch2_target = RefTarget::normal(CommitId::from_hex("222222"));
-        let git_branch1_target = RefTarget::normal(CommitId::from_hex("333333"));
-        let git_branch2_target = RefTarget::normal(CommitId::from_hex("444444"));
-        let remote1_branch1_target = RefTarget::normal(CommitId::from_hex("555555"));
-        let remote2_branch2_target = RefTarget::normal(CommitId::from_hex("666666"));
+        let git_branch1_remote_ref = remote_ref(&RefTarget::normal(CommitId::from_hex("333333")));
+        let git_branch2_remote_ref = remote_ref(&RefTarget::normal(CommitId::from_hex("444444")));
+        let remote1_branch1_remote_ref =
+            remote_ref(&RefTarget::normal(CommitId::from_hex("555555")));
+        let remote2_branch2_remote_ref =
+            remote_ref(&RefTarget::normal(CommitId::from_hex("666666")));
 
         let local_branches = btreemap! {
             "branch1".to_owned() => local_branch1_target.clone(),
@@ -355,18 +358,18 @@ mod tests {
         let remote_views = btreemap! {
             "git".to_owned() => RemoteView {
                 branches: btreemap! {
-                    "branch1".to_owned() => remote_ref(&git_branch1_target),
-                    "branch2".to_owned() => remote_ref(&git_branch2_target),
+                    "branch1".to_owned() => git_branch1_remote_ref.clone(),
+                    "branch2".to_owned() => git_branch2_remote_ref.clone(),
                 },
             },
             "remote1".to_owned() => RemoteView {
                 branches: btreemap! {
-                    "branch1".to_owned() => remote_ref(&remote1_branch1_target),
+                    "branch1".to_owned() => remote1_branch1_remote_ref.clone(),
                 },
             },
             "remote2".to_owned() => RemoteView {
                 branches: btreemap! {
-                    "branch2".to_owned() => remote_ref(&remote2_branch2_target),
+                    "branch2".to_owned() => remote2_branch2_remote_ref.clone(),
                 },
             },
         };
@@ -377,19 +380,19 @@ mod tests {
                     "branch1",
                     BranchTarget {
                         local_target: &local_branch1_target,
-                        remote_targets: vec![
-                            ("git", &git_branch1_target),
-                            ("remote1", &remote1_branch1_target),
+                        remote_refs: vec![
+                            ("git", &git_branch1_remote_ref),
+                            ("remote1", &remote1_branch1_remote_ref),
                         ],
                     },
                 ),
                 (
                     "branch2",
                     BranchTarget {
-                        local_target: &local_branch2_target,
-                        remote_targets: vec![
-                            ("git", &git_branch2_target),
-                            ("remote2", &remote2_branch2_target),
+                        local_target: &local_branch2_target.clone(),
+                        remote_refs: vec![
+                            ("git", &git_branch2_remote_ref),
+                            ("remote2", &remote2_branch2_remote_ref),
                         ],
                     },
                 ),
@@ -407,7 +410,7 @@ mod tests {
                 "branch1",
                 BranchTarget {
                     local_target: &local_branch1_target,
-                    remote_targets: vec![],
+                    remote_refs: vec![],
                 },
             )],
         );
@@ -417,7 +420,7 @@ mod tests {
         let remote_views = btreemap! {
             "remote1".to_owned() => RemoteView {
                 branches: btreemap! {
-                    "branch1".to_owned() => remote_ref(&remote1_branch1_target),
+                    "branch1".to_owned() => remote1_branch1_remote_ref.clone(),
                 },
             },
         };
@@ -427,7 +430,7 @@ mod tests {
                 "branch1",
                 BranchTarget {
                     local_target: RefTarget::absent_ref(),
-                    remote_targets: vec![("remote1", &remote1_branch1_target)],
+                    remote_refs: vec![("remote1", &remote1_branch1_remote_ref)],
                 },
             )],
         );

@@ -896,7 +896,7 @@ fn cmd_git_push(
     let mut old_heads = repo
         .view()
         .remote_branches(&remote)
-        .flat_map(|(_, old_head)| old_head.added_ids())
+        .flat_map(|(_, old_head)| old_head.target.added_ids())
         .cloned()
         .collect_vec();
     if old_heads.is_empty() {

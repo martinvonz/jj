@@ -342,7 +342,7 @@ fn diff_refs_to_import(
         .collect();
     let mut known_remote_refs: HashMap<RefName, &RefTarget> = itertools::chain(
         view.all_remote_branches()
-            .map(|((branch, remote), target)| {
+            .map(|((branch, remote), remote_ref)| {
                 // TODO: want to abstract local ref as "git" tracking remote, but
                 // we'll probably need to refactor the git_ref_filter API first.
                 let ref_name = if remote == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
@@ -353,7 +353,7 @@ fn diff_refs_to_import(
                         remote: remote.to_owned(),
                     }
                 };
-                (ref_name, target)
+                (ref_name, &remote_ref.target)
             }),
         // TODO: compare to tags stored in the "git" remote view. Since tags should never
         // be moved locally in jj, we can consider local tags as merge base.
@@ -591,12 +591,12 @@ fn diff_refs_to_export(
             .map(|(branch, target)| (RefName::LocalBranch(branch.to_owned()), target)),
         view.all_remote_branches()
             .filter(|&((_, remote), _)| remote != REMOTE_NAME_FOR_LOCAL_GIT_REPO)
-            .map(|((branch, remote), target)| {
+            .map(|((branch, remote), remote_ref)| {
                 let ref_name = RefName::RemoteBranch {
                     branch: branch.to_owned(),
                     remote: remote.to_owned(),
                 };
-                (ref_name, target)
+                (ref_name, &remote_ref.target)
             }),
     )
     .map(|(ref_name, new_target)| (ref_name, (RefTarget::absent_ref(), new_target)))
