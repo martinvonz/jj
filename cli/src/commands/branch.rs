@@ -1,5 +1,7 @@
 use std::collections::{BTreeSet, HashSet};
+use std::fmt;
 use std::io::Write as _;
+use std::str::FromStr;
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
@@ -31,6 +33,8 @@ pub enum BranchSubcommand {
     List(BranchListArgs),
     #[command(visible_alias("s"))]
     Set(BranchSetArgs),
+    Track(BranchTrackArgs),
+    Untrack(BranchUntrackArgs),
 }
 
 /// Create a new branch.
@@ -107,6 +111,57 @@ pub struct BranchSetArgs {
     pub names: Vec<String>,
 }
 
+/// Start tracking given remote branches
+///
+/// A tracking remote branch will be imported as a local branch of the same
+/// name. Changes to it will propagate to the existing local branch on future
+/// pulls.
+#[derive(clap::Args, Clone, Debug)]
+pub struct BranchTrackArgs {
+    /// Remote branches to track
+    #[arg(required = true)]
+    pub names: Vec<RemoteBranchName>,
+}
+
+/// Stop tracking given remote branches
+///
+/// A non-tracking remote branch is just a pointer to the last-fetched remote
+/// branch. It won't be imported as a local branch on future pulls.
+#[derive(clap::Args, Clone, Debug)]
+pub struct BranchUntrackArgs {
+    /// Remote branches to untrack
+    #[arg(required = true)]
+    pub names: Vec<RemoteBranchName>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct RemoteBranchName {
+    pub branch: String,
+    pub remote: String,
+}
+
+impl FromStr for RemoteBranchName {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // TODO: maybe reuse revset parser to handle branch/remote name containing @
+        let (branch, remote) = s
+            .rsplit_once('@')
+            .ok_or("remote branch must be specified in branch@remote form")?;
+        Ok(RemoteBranchName {
+            branch: branch.to_owned(),
+            remote: remote.to_owned(),
+        })
+    }
+}
+
+impl fmt::Display for RemoteBranchName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let RemoteBranchName { branch, remote } = self;
+        write!(f, "{branch}@{remote}")
+    }
+}
+
 pub fn cmd_branch(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -117,6 +172,8 @@ pub fn cmd_branch(
         BranchSubcommand::Set(sub_args) => cmd_branch_set(ui, command, sub_args),
         BranchSubcommand::Delete(sub_args) => cmd_branch_delete(ui, command, sub_args),
         BranchSubcommand::Forget(sub_args) => cmd_branch_forget(ui, command, sub_args),
+        BranchSubcommand::Track(sub_args) => cmd_branch_track(ui, command, sub_args),
+        BranchSubcommand::Untrack(sub_args) => cmd_branch_untrack(ui, command, sub_args),
         BranchSubcommand::List(sub_args) => cmd_branch_list(ui, command, sub_args),
     }
 }
@@ -307,6 +364,62 @@ fn cmd_branch_forget(
     if names.len() > 1 {
         writeln!(ui.stderr(), "Forgot {} branches.", names.len())?;
     }
+    Ok(())
+}
+
+fn cmd_branch_track(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &BranchTrackArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let view = workspace_command.repo().view();
+    for name in &args.names {
+        let remote_ref = view.get_remote_branch(&name.branch, &name.remote);
+        if remote_ref.is_absent() {
+            return Err(user_error(format!("No such remote branch: {name}")));
+        }
+        if remote_ref.is_tracking() {
+            return Err(user_error(format!("Remote branch already tracked: {name}")));
+        }
+    }
+    let mut tx = workspace_command
+        .start_transaction(&format!("track remote {}", make_branch_term(&args.names)));
+    for name in &args.names {
+        tx.mut_repo()
+            .track_remote_branch(&name.branch, &name.remote);
+    }
+    tx.finish(ui)?;
+    Ok(())
+}
+
+fn cmd_branch_untrack(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &BranchUntrackArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let view = workspace_command.repo().view();
+    for name in &args.names {
+        if name.remote == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO {
+            // This restriction can be lifted if we want to support untracked @git branches.
+            return Err(user_error("Git-tracking branch cannot be untracked"));
+        }
+        let remote_ref = view.get_remote_branch(&name.branch, &name.remote);
+        if remote_ref.is_absent() {
+            return Err(user_error(format!("No such remote branch: {name}")));
+        }
+        if !remote_ref.is_tracking() {
+            return Err(user_error(format!("Remote branch not tracked yet: {name}")));
+        }
+    }
+    let mut tx = workspace_command
+        .start_transaction(&format!("untrack remote {}", make_branch_term(&args.names)));
+    for name in &args.names {
+        tx.mut_repo()
+            .untrack_remote_branch(&name.branch, &name.remote);
+    }
+    tx.finish(ui)?;
     Ok(())
 }
 

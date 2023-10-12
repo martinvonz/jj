@@ -508,6 +508,17 @@ You can disable this behavior by setting `git.auto-local-branch` like so,
 git.auto-local-branch = false
 ```
 
+This setting is applied only to new remote branches. Existing remote branches
+can be tracked individually by using `jj branch track`/`untrack` commands.
+
+```shell
+# import feature1 branch and start tracking it
+jj branch track feature1@origin
+# delete local gh-pages branch and stop tracking it
+jj branch delete gh-pages
+jj branch untrack gh-pages@upstream
+```
+
 Note that this setting may make it easier to accidentally delete remote
 branches. Since the local branch isn't created, the remote branch will be
 deleted if you push the branch with `jj git push --branch` or `jj git push

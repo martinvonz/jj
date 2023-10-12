@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     tracking branches.
   * Otherwise, the remote branches are non-tracking branches.
 
+  If the deduced tracking flags are wrong, use `jj branch track`/`untrack`
+  commands to fix them up.
+
   See [automatic local branch creation](docs/config.md#automatic-local-branch-creation)
   for details.
 
