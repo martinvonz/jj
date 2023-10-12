@@ -59,7 +59,8 @@ use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
 use crate::working_copy::{
-    LockedWorkingCopy, SnapshotError, SnapshotOptions, SnapshotProgress, WorkingCopy,
+    CheckoutError, CheckoutStats, LockedWorkingCopy, SnapshotError, SnapshotOptions,
+    SnapshotProgress, WorkingCopy,
 };
 
 #[cfg(unix)]
@@ -300,45 +301,6 @@ fn file_state(metadata: &Metadata) -> Option<FileState> {
             size,
         }
     })
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CheckoutStats {
-    pub updated_files: u32,
-    pub added_files: u32,
-    pub removed_files: u32,
-    pub skipped_files: u32,
-}
-
-#[derive(Debug, Error)]
-pub enum CheckoutError {
-    // The current working-copy commit was deleted, maybe by an overly aggressive GC that happened
-    // while the current process was running.
-    #[error("Current working-copy commit not found: {source}")]
-    SourceNotFound {
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-    // Another process checked out a commit while the current process was running (after the
-    // working copy was read by the current process).
-    #[error("Concurrent checkout")]
-    ConcurrentCheckout,
-    #[error("Internal backend error: {0}")]
-    InternalBackendError(#[from] BackendError),
-    #[error("{message}: {err:?}")]
-    Other {
-        message: String,
-        #[source]
-        err: Box<dyn std::error::Error + Send + Sync>,
-    },
-}
-
-impl CheckoutError {
-    fn for_stat_error(err: std::io::Error, path: &Path) -> Self {
-        CheckoutError::Other {
-            message: format!("Failed to stat file {}", path.display()),
-            err: err.into(),
-        }
-    }
 }
 
 struct FsmonitorMatcher {
@@ -1068,7 +1030,7 @@ impl TreeState {
         // mtime is set at write time and won't change when we close the file.)
         let metadata = file
             .metadata()
-            .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
+            .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
         Ok(FileState::for_file(executable, size, &metadata))
     }
 
@@ -1098,7 +1060,7 @@ impl TreeState {
         }
         let metadata = disk_path
             .symlink_metadata()
-            .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
+            .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
         Ok(FileState::for_symlink(&metadata))
     }
 
@@ -1129,7 +1091,7 @@ impl TreeState {
         // Windows like we do with the executable bit for regular files.
         let metadata = file
             .metadata()
-            .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
+            .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
         Ok(FileState::for_file(false, size, &metadata))
     }
 
@@ -1139,7 +1101,7 @@ impl TreeState {
         {
             let mode = if executable { 0o755 } else { 0o644 };
             fs::set_permissions(disk_path, fs::Permissions::from_mode(mode))
-                .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
+                .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
         }
         Ok(())
     }
@@ -1314,6 +1276,13 @@ impl TreeState {
         }
         self.tree_id = new_tree.id();
         Ok(())
+    }
+}
+
+fn checkout_error_for_stat_error(err: std::io::Error, path: &Path) -> CheckoutError {
+    CheckoutError::Other {
+        message: format!("Failed to stat file {}", path.display()),
+        err: err.into(),
     }
 }
 
@@ -1565,6 +1534,21 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         self.tree_state_dirty |= tree_state.snapshot(options)?;
         Ok(tree_state.current_tree_id().clone())
     }
+
+    fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {
+        // TODO: Write a "pending_checkout" file with the new TreeId so we can
+        // continue an interrupted update if we find such a file.
+        let stats = self
+            .wc
+            .tree_state_mut()
+            .map_err(|err| CheckoutError::Other {
+                message: "Failed to load the working copy state".to_string(),
+                err: err.into(),
+            })?
+            .check_out(new_tree)?;
+        self.tree_state_dirty = true;
+        Ok(stats)
+    }
 }
 
 impl LockedLocalWorkingCopy {
@@ -1578,21 +1562,6 @@ impl LockedLocalWorkingCopy {
             .reset_watchman();
         self.tree_state_dirty = true;
         Ok(())
-    }
-
-    pub fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {
-        // TODO: Write a "pending_checkout" file with the new TreeId so we can
-        // continue an interrupted update if we find such a file.
-        let stats = self
-            .wc
-            .tree_state_mut()
-            .map_err(|err| CheckoutError::Other {
-                message: "Failed to load the working copy state".to_string(),
-                err: err.into(),
-            })?
-            .check_out(new_tree)?;
-        self.tree_state_dirty = true;
-        Ok(stats)
     }
 
     pub fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {

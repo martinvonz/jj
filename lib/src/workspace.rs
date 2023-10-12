@@ -27,9 +27,7 @@ use crate::file_util::{self, IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
 use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
-use crate::local_working_copy::{
-    CheckoutError, CheckoutStats, LocalWorkingCopy, LockedLocalWorkingCopy, WorkingCopyStateError,
-};
+use crate::local_working_copy::{LocalWorkingCopy, LockedLocalWorkingCopy, WorkingCopyStateError};
 use crate::merged_tree::MergedTree;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OpStore, OperationId, WorkspaceId};
@@ -39,7 +37,7 @@ use crate::repo::{
 };
 use crate::settings::UserSettings;
 use crate::submodule_store::SubmoduleStore;
-use crate::working_copy::{LockedWorkingCopy, WorkingCopy};
+use crate::working_copy::{CheckoutError, CheckoutStats, LockedWorkingCopy, WorkingCopy};
 
 #[derive(Error, Debug)]
 pub enum WorkspaceInitError {
