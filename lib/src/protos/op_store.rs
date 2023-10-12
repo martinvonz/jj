@@ -53,6 +53,9 @@ pub struct RemoteBranch {
     pub remote_name: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "2")]
     pub target: ::core::option::Option<RefTarget>,
+    /// Introduced in jj 0.11.
+    #[prost(enumeration = "RemoteRefState", optional, tag = "3")]
+    pub state: ::core::option::Option<i32>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -161,4 +164,30 @@ pub struct OperationMetadata {
         ::prost::alloc::string::String,
         ::prost::alloc::string::String,
     >,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum RemoteRefState {
+    New = 0,
+    Tracking = 1,
+}
+impl RemoteRefState {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            RemoteRefState::New => "New",
+            RemoteRefState::Tracking => "Tracking",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "New" => Some(Self::New),
+            "Tracking" => Some(Self::Tracking),
+            _ => None,
+        }
+    }
 }

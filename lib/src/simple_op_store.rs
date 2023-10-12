@@ -352,6 +352,7 @@ fn branch_views_to_proto_legacy(
                     |&(remote_name, remote_ref)| crate::protos::op_store::RemoteBranch {
                         remote_name: remote_name.to_owned(),
                         target: ref_target_to_proto(&remote_ref.target),
+                        state: remote_ref_state_to_proto(remote_ref.state),
                     },
                 )
                 .collect();
@@ -372,17 +373,27 @@ fn branch_views_from_proto_legacy(
     for branch_proto in branches_legacy {
         let local_target = ref_target_from_proto(branch_proto.local_target);
         for remote_branch in branch_proto.remote_branches {
-            // If local branch doesn't exist, we assume that the remote branch hasn't been
-            // merged because git.auto-local-branch was off. That's probably more common
-            // than deleted but yet-to-be-pushed local branch. Alternatively, we could read
-            // git.auto-local-branch setting here, but that wouldn't always work since the
-            // setting could be toggled after the branch got merged.
-            let is_git_tracking = remote_branch.remote_name == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO;
-            let state = if is_git_tracking || local_target.is_present() {
-                RemoteRefState::Tracking
-            } else {
-                RemoteRefState::New
-            };
+            let state = remote_ref_state_from_proto(remote_branch.state).unwrap_or_else(|| {
+                // If local branch doesn't exist, we assume that the remote branch hasn't been
+                // merged because git.auto-local-branch was off. That's probably more common
+                // than deleted but yet-to-be-pushed local branch. Alternatively, we could read
+                // git.auto-local-branch setting here, but that wouldn't always work since the
+                // setting could be toggled after the branch got merged.
+                let is_git_tracking =
+                    remote_branch.remote_name == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO;
+                let default_state = if is_git_tracking || local_target.is_present() {
+                    RemoteRefState::Tracking
+                } else {
+                    RemoteRefState::New
+                };
+                tracing::trace!(
+                    ?branch_proto.name,
+                    ?remote_branch.remote_name,
+                    ?default_state,
+                    "generated tracking state",
+                );
+                default_state
+            });
             let remote_view = remote_views.entry(remote_branch.remote_name).or_default();
             let remote_ref = RemoteRef {
                 target: ref_target_from_proto(remote_branch.target),
@@ -499,6 +510,23 @@ fn ref_target_from_proto(maybe_proto: Option<crate::protos::op_store::RefTarget>
             RefTarget::from_merge(Merge::new(removes, adds))
         }
     }
+}
+
+fn remote_ref_state_to_proto(state: RemoteRefState) -> Option<i32> {
+    let proto_state = match state {
+        RemoteRefState::New => crate::protos::op_store::RemoteRefState::New,
+        RemoteRefState::Tracking => crate::protos::op_store::RemoteRefState::Tracking,
+    };
+    Some(proto_state as i32)
+}
+
+fn remote_ref_state_from_proto(proto_value: Option<i32>) -> Option<RemoteRefState> {
+    let proto_state = proto_value.and_then(crate::protos::op_store::RemoteRefState::from_i32)?;
+    let state = match proto_state {
+        crate::protos::op_store::RemoteRefState::New => RemoteRefState::New,
+        crate::protos::op_store::RemoteRefState::Tracking => RemoteRefState::Tracking,
+    };
+    Some(state)
 }
 
 #[cfg(test)]
@@ -663,8 +691,9 @@ mod tests {
             },
             "remote2".to_owned() => RemoteView {
                 branches: btreemap! {
+                    // "branch2" is non-tracking. "branch4" is tracking, but locally deleted.
                     "branch2".to_owned() => new_remote_ref(&remote2_branch2_target),
-                    "branch4".to_owned() => new_remote_ref(&remote2_branch4_target),
+                    "branch4".to_owned() => tracking_remote_ref(&remote2_branch4_target),
                 },
             },
         };
@@ -706,6 +735,7 @@ mod tests {
             |remote_name: &str, ref_target| crate::protos::op_store::RemoteBranch {
                 remote_name: remote_name.to_owned(),
                 target: ref_target_to_proto(ref_target),
+                state: None, // to be generated based on local branch existence
             };
         let git_ref_to_proto = |name: &str, ref_target| crate::protos::op_store::GitRef {
             name: name.to_owned(),

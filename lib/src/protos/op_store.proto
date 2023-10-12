@@ -38,9 +38,16 @@ message RefTarget {
   }
 }
 
+enum RemoteRefState {
+  New = 0;
+  Tracking = 1;
+}
+
 message RemoteBranch {
   string remote_name = 1;
   RefTarget target = 2;
+  // Introduced in jj 0.11.
+  optional RemoteRefState state = 3;
 }
 
 message Branch {
