@@ -1796,10 +1796,10 @@ fn test_fetch_initial_commit() {
         view.branches().collect::<BTreeMap<_, _>>(),
         btreemap! {
             "main" => BranchTarget {
-                local_target: initial_commit_target.clone(),
-                remote_targets: btreemap! {
-                    "origin".to_string() => initial_commit_target,
-                },
+                local_target: &initial_commit_target,
+                remote_targets: vec![
+                    ("origin", &initial_commit_target),
+                ],
             },
         }
     );
@@ -1867,10 +1867,10 @@ fn test_fetch_success() {
         view.branches().collect::<BTreeMap<_, _>>(),
         btreemap! {
             "main" => BranchTarget {
-                local_target: new_commit_target.clone(),
-                remote_targets: btreemap! {
-                    "origin".to_string() => new_commit_target.clone(),
-                },
+                local_target: &new_commit_target,
+                remote_targets: vec![
+                    ("origin", &new_commit_target),
+                ],
             },
         }
     );

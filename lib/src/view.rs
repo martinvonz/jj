@@ -87,7 +87,7 @@ impl View {
     }
 
     /// Iterates pair of local and remote branches by branch name.
-    pub fn branches(&self) -> impl Iterator<Item = (&str, BranchTarget)> {
+    pub fn branches(&self) -> impl Iterator<Item = (&str, BranchTarget<'_>)> {
         op_store::merge_join_branch_views(&self.data.local_branches, &self.data.remote_views)
     }
 

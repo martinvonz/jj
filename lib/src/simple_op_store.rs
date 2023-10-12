@@ -344,14 +344,14 @@ fn branch_views_to_proto_legacy(
 ) -> Vec<crate::protos::op_store::Branch> {
     op_store::merge_join_branch_views(local_branches, remote_views)
         .map(|(name, branch_target)| {
-            let local_target = ref_target_to_proto(&branch_target.local_target);
+            let local_target = ref_target_to_proto(branch_target.local_target);
             let remote_branches = branch_target
                 .remote_targets
-                .into_iter()
+                .iter()
                 .map(
-                    |(remote_name, target)| crate::protos::op_store::RemoteBranch {
-                        remote_name,
-                        target: ref_target_to_proto(&target),
+                    |&(remote_name, target)| crate::protos::op_store::RemoteBranch {
+                        remote_name: remote_name.to_owned(),
+                        target: ref_target_to_proto(target),
                     },
                 )
                 .collect();
