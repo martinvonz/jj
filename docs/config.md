@@ -493,7 +493,7 @@ conflict is considered fully resolved when there are no conflict markers left.
 
 ### Automatic local branch creation
 
-By default, when `jj` imports a remote-tracking branch from Git, it also
+By default, when `jj` imports a new remote-tracking branch from Git, it also
 creates a local branch with the same name. In some repositories, this
 may be undesirable, e.g.:
 
@@ -502,10 +502,11 @@ may be undesirable, e.g.:
 - There are multiple remotes with conflicting views of that branch,
   resulting in an unhelpful conflicted state.
 
-You can disable this behavior by setting `git.auto-local-branch` like
-so,
+You can disable this behavior by setting `git.auto-local-branch` like so,
 
-    git.auto-local-branch = false
+```toml
+git.auto-local-branch = false
+```
 
 Note that this setting may make it easier to accidentally delete remote
 branches. Since the local branch isn't created, the remote branch will be

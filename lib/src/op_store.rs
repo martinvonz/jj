@@ -175,6 +175,18 @@ impl RemoteRef {
     pub fn is_tracking(&self) -> bool {
         self.state == RemoteRefState::Tracking
     }
+
+    /// Target that should have been merged in to the local ref.
+    ///
+    /// Use this as the base or known target when merging new remote ref in to
+    /// local or pushing local ref to remote.
+    pub fn tracking_target(&self) -> &RefTarget {
+        if self.is_tracking() {
+            &self.target
+        } else {
+            RefTarget::absent_ref()
+        }
+    }
 }
 
 /// Whether the ref is tracked or not.

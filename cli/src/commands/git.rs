@@ -995,6 +995,7 @@ fn cmd_git_push(
         ),
         _ => user_error(err.to_string()),
     })?;
+    // TODO: mark pushed remote branches as tracking
     let stats = git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
     print_git_import_stats(ui, &stats)?;
     tx.finish(ui)?;
