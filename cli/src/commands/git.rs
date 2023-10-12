@@ -491,11 +491,11 @@ fn cmd_git_clone(
 
     let (mut workspace_command, git_repo, stats) = clone_result?;
     if let Some(default_branch) = &stats.default_branch {
-        let default_branch_target = workspace_command
+        let default_branch_remote_ref = workspace_command
             .repo()
             .view()
             .get_remote_branch(default_branch, "origin");
-        if let Some(commit_id) = default_branch_target.as_normal().cloned() {
+        if let Some(commit_id) = default_branch_remote_ref.target.as_normal().cloned() {
             let mut checkout_tx =
                 workspace_command.start_transaction("check out git remote's default branch");
             if args.colocate {
@@ -730,7 +730,7 @@ fn cmd_git_push(
             }
             let targets = TrackingRefPair {
                 local_target: repo.view().get_local_branch(branch_name),
-                remote_target: repo.view().get_remote_branch(branch_name, &remote),
+                remote_target: &repo.view().get_remote_branch(branch_name, &remote).target,
             };
             if targets.local_target.is_absent() && targets.remote_target.is_absent() {
                 return Err(user_error(format!("Branch {branch_name} doesn't exist")));
@@ -784,7 +784,11 @@ fn cmd_git_push(
                 .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
             let targets = TrackingRefPair {
                 local_target: tx.repo().view().get_local_branch(&branch_name),
-                remote_target: tx.repo().view().get_remote_branch(&branch_name, &remote),
+                remote_target: &tx
+                    .repo()
+                    .view()
+                    .get_remote_branch(&branch_name, &remote)
+                    .target,
             };
             match classify_branch_update(&branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),

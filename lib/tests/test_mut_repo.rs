@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::op_store::{RefTarget, WorkspaceId};
+use jj_lib::op_store::{RefTarget, RemoteRef, WorkspaceId};
 use jj_lib::repo::Repo;
 use maplit::hashset;
 use testutils::{
@@ -590,12 +590,14 @@ fn test_rename_remote() {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
     let commit = write_random_commit(mut_repo, &settings);
-    let target = RefTarget::normal(commit.id().clone());
-    mut_repo.set_remote_branch_target("main", "origin", target.clone());
+    let remote_ref = RemoteRef {
+        target: RefTarget::normal(commit.id().clone()),
+    };
+    mut_repo.set_remote_branch_target("main", "origin", remote_ref.target.clone());
     mut_repo.rename_remote("origin", "upstream");
-    assert_eq!(mut_repo.get_remote_branch("main", "upstream"), target);
+    assert_eq!(mut_repo.get_remote_branch("main", "upstream"), remote_ref);
     assert_eq!(
         mut_repo.get_remote_branch("main", "origin"),
-        RefTarget::absent()
+        RemoteRef::absent()
     );
 }
