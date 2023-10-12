@@ -60,7 +60,7 @@ use crate::store::Store;
 use crate::tree::Tree;
 use crate::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
-    SnapshotProgress, WorkingCopy,
+    SnapshotProgress, WorkingCopy, WorkingCopyStateError,
 };
 
 #[cfg(unix)]
@@ -1268,13 +1268,6 @@ fn checkout_error_for_stat_error(err: std::io::Error, path: &Path) -> CheckoutEr
     }
 }
 
-#[derive(Debug, Error)]
-#[error("{message}: {err:?}")]
-pub struct WorkingCopyStateError {
-    message: String,
-    err: Box<dyn std::error::Error + Send + Sync>,
-}
-
 /// Working copy state stored in "checkout" file.
 #[derive(Clone, Debug)]
 struct CheckoutState {
@@ -1309,6 +1302,10 @@ impl WorkingCopy for LocalWorkingCopy {
 
     fn operation_id(&self) -> &OperationId {
         &self.checkout_state().operation_id
+    }
+
+    fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
+        Ok(self.tree_state()?.sparse_patterns())
     }
 }
 
@@ -1430,10 +1427,6 @@ impl LocalWorkingCopy {
         Ok(self.tree_state()?.file_states())
     }
 
-    pub fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
-        Ok(self.tree_state()?.sparse_patterns())
-    }
-
     #[instrument(skip_all)]
     fn save(&mut self) {
         self.write_proto(crate::protos::working_copy::Checkout {
@@ -1543,26 +1536,12 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         self.tree_state_dirty = true;
         Ok(())
     }
-}
 
-impl LockedLocalWorkingCopy {
-    pub fn reset_watchman(&mut self) -> Result<(), SnapshotError> {
-        self.wc
-            .tree_state_mut()
-            .map_err(|err| SnapshotError::Other {
-                message: "Failed to read the working copy state".to_string(),
-                err: err.into(),
-            })?
-            .reset_watchman();
-        self.tree_state_dirty = true;
-        Ok(())
-    }
-
-    pub fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
+    fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
         self.wc.sparse_patterns()
     }
 
-    pub fn set_sparse_patterns(
+    fn set_sparse_patterns(
         &mut self,
         new_sparse_patterns: Vec<RepoPath>,
     ) -> Result<CheckoutStats, CheckoutError> {
@@ -1578,6 +1557,20 @@ impl LockedLocalWorkingCopy {
             .set_sparse_patterns(new_sparse_patterns)?;
         self.tree_state_dirty = true;
         Ok(stats)
+    }
+}
+
+impl LockedLocalWorkingCopy {
+    pub fn reset_watchman(&mut self) -> Result<(), SnapshotError> {
+        self.wc
+            .tree_state_mut()
+            .map_err(|err| SnapshotError::Other {
+                message: "Failed to read the working copy state".to_string(),
+                err: err.into(),
+            })?
+            .reset_watchman();
+        self.tree_state_dirty = true;
+        Ok(())
     }
 
     #[instrument(skip_all)]

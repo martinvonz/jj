@@ -34,7 +34,9 @@ use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::settings::UserSettings;
-use jj_lib::working_copy::{CheckoutStats, LockedWorkingCopy, SnapshotError, SnapshotOptions};
+use jj_lib::working_copy::{
+    CheckoutStats, LockedWorkingCopy, SnapshotError, SnapshotOptions, WorkingCopy,
+};
 use jj_lib::workspace::LockedWorkspace;
 use test_case::test_case;
 use testutils::{create_tree, write_random_commit, TestRepoBackend, TestWorkspace};

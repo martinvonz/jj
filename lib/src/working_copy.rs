@@ -47,6 +47,12 @@ pub trait WorkingCopy {
 
     /// The operation this working copy was most recently updated to.
     fn operation_id(&self) -> &OperationId;
+
+    /// Patterns that decide which paths from the current tree should be checked
+    /// out in the working copy. An empty list means that no paths should be
+    /// checked out in the working copy. A single `RepoPath::root()` entry means
+    /// that all files should be checked out.
+    fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError>;
 }
 
 /// A working copy that's being modified.
@@ -69,6 +75,20 @@ pub trait LockedWorkingCopy {
 
     /// Update to another tree without touching the files in the working copy.
     fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError>;
+
+    /// See `WorkingCopy::sparse_patterns()`
+    fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError>;
+
+    /// Updates the patterns that decide which paths from the current tree
+    /// should be checked out in the working copy.
+    // TODO: Use a different error type here so we can include a
+    // `SparseNotSupported` variants for working copies that don't support sparse
+    // checkouts (e.g. because they use a virtual file system so there's no reason
+    // to use sparse).
+    fn set_sparse_patterns(
+        &mut self,
+        new_sparse_patterns: Vec<RepoPath>,
+    ) -> Result<CheckoutStats, CheckoutError>;
 }
 
 /// An error while snapshotting the working copy.
@@ -219,4 +239,14 @@ pub enum ResetError {
         /// The underlying error.
         err: Box<dyn std::error::Error + Send + Sync>,
     },
+}
+
+/// An error while reading the working copy state.
+#[derive(Debug, Error)]
+#[error("{message}: {err:?}")]
+pub struct WorkingCopyStateError {
+    /// Error message.
+    pub message: String,
+    /// The underlying error.
+    pub err: Box<dyn std::error::Error + Send + Sync>,
 }
