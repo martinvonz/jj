@@ -25,6 +25,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, MergedTreeId};
 use crate::fsmonitor::FsmonitorKind;
 use crate::gitignore::GitIgnoreFile;
+use crate::merged_tree::MergedTree;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::RepoPath;
 use crate::settings::HumanByteSize;
@@ -61,6 +62,10 @@ pub trait LockedWorkingCopy {
 
     /// Snapshot the working copy and return the tree id.
     fn snapshot(&mut self, options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError>;
+
+    /// Check out the specified tree in the working copy.
+    // TODO: Pass a Commit object here because some implementations need that.
+    fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError>;
 }
 
 /// An error while snapshotting the working copy.
@@ -143,3 +148,48 @@ impl SnapshotOptions<'_> {
 
 /// A callback for getting progress updates.
 pub type SnapshotProgress<'a> = dyn Fn(&RepoPath) + 'a + Sync;
+
+/// Stats about a checkout operation on a working copy. All "files" mentioned
+/// below may also be symlinks or materialized conflicts.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CheckoutStats {
+    /// The number of files that were updated in the working copy.
+    /// These files existed before and after the checkout.
+    pub updated_files: u32,
+    /// The number of files added in the working copy.
+    pub added_files: u32,
+    /// The number of files removed in the working copy.
+    pub removed_files: u32,
+    /// The number of files that were supposed to be updated or added in the
+    /// working copy but were skipped because there was an untracked (probably
+    /// ignored) file in its place.
+    pub skipped_files: u32,
+}
+
+/// The working-copy checkout failed.
+#[derive(Debug, Error)]
+pub enum CheckoutError {
+    /// The current working-copy commit was deleted, maybe by an overly
+    /// aggressive GC that happened while the current process was running.
+    #[error("Current working-copy commit not found: {source}")]
+    SourceNotFound {
+        /// The underlying error.
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    /// Another process checked out a commit while the current process was
+    /// running (after the working copy was read by the current process).
+    #[error("Concurrent checkout")]
+    ConcurrentCheckout,
+    /// Reading or writing from the commit backend failed.
+    #[error("Internal backend error: {0}")]
+    InternalBackendError(#[from] BackendError),
+    /// Some other error happened while checking out the working copy.
+    #[error("{message}: {err:?}")]
+    Other {
+        /// Error message.
+        message: String,
+        /// The underlying error.
+        #[source]
+        err: Box<dyn std::error::Error + Send + Sync>,
+    },
+}
