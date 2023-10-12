@@ -42,7 +42,9 @@ use crate::git_backend::GitBackend;
 use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use crate::op_store::{OpStore, OpStoreError, OperationId, RefTarget, RemoteRef, WorkspaceId};
+use crate::op_store::{
+    OpStore, OpStoreError, OperationId, RefTarget, RemoteRef, RemoteRefState, WorkspaceId,
+};
 use crate::operation::Operation;
 use crate::refs::{diff_named_refs, merge_ref_targets};
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
@@ -1006,6 +1008,24 @@ impl MutableRepo {
     pub fn set_remote_branch(&mut self, name: &str, remote_name: &str, remote_ref: RemoteRef) {
         self.view_mut()
             .set_remote_branch(name, remote_name, remote_ref);
+    }
+
+    /// Merges the specified remote branch in to local branch, and starts
+    /// tracking it.
+    pub fn track_remote_branch(&mut self, name: &str, remote_name: &str) {
+        let local_ref_name = RefName::LocalBranch(name.to_owned());
+        let mut remote_ref = self.get_remote_branch(name, remote_name);
+        let base_target = remote_ref.tracking_target();
+        self.merge_single_ref(&local_ref_name, base_target, &remote_ref.target);
+        remote_ref.state = RemoteRefState::Tracking;
+        self.set_remote_branch(name, remote_name, remote_ref);
+    }
+
+    /// Stops tracking the specified remote branch.
+    pub fn untrack_remote_branch(&mut self, name: &str, remote_name: &str) {
+        let mut remote_ref = self.get_remote_branch(name, remote_name);
+        remote_ref.state = RemoteRefState::New;
+        self.set_remote_branch(name, remote_name, remote_ref);
     }
 
     pub fn remove_remote(&mut self, remote_name: &str) {

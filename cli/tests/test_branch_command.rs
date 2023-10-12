@@ -465,6 +465,246 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
 }
 
 #[test]
+fn test_branch_track_untrack() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Set up remote
+    let git_repo_path = test_env.env_root().join("git-repo");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["git", "remote", "add", "origin", "../git-repo"],
+    );
+    let create_remote_commit = |message: &str, data: &[u8], ref_names: &[&str]| {
+        let signature =
+            git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0))
+                .unwrap();
+        let mut tree_builder = git_repo.treebuilder(None).unwrap();
+        let file_oid = git_repo.blob(data).unwrap();
+        tree_builder
+            .insert("file", file_oid, git2::FileMode::Blob.into())
+            .unwrap();
+        let tree_oid = tree_builder.write().unwrap();
+        let tree = git_repo.find_tree(tree_oid).unwrap();
+        // Create commit and branches in the remote
+        let git_commit_oid = git_repo
+            .commit(None, &signature, &signature, message, &tree, &[])
+            .unwrap();
+        for name in ref_names {
+            git_repo.reference(name, git_commit_oid, true, "").unwrap();
+        }
+    };
+
+    // Fetch new commit without auto tracking. No local branches should be
+    // created.
+    create_remote_commit(
+        "commit 1",
+        b"content 1",
+        &[
+            "refs/heads/main",
+            "refs/heads/feature1",
+            "refs/heads/feature2",
+        ],
+    );
+    test_env.add_config("git.auto-local-branch = false");
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1@origin: sptzoqmo 7b33f629 commit 1
+    feature2@origin: sptzoqmo 7b33f629 commit 1
+    main@origin: sptzoqmo 7b33f629 commit 1
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  feature1@origin feature2@origin main@origin 7b33f6295eda
+    │ @   230dd059e1b0
+    ├─╯
+    ◉   000000000000
+    "###);
+
+    // Track new branch. Local branch should be created.
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["branch", "track", "feature1@origin", "main@origin"],
+    );
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: sptzoqmo 7b33f629 commit 1
+    feature2@origin: sptzoqmo 7b33f629 commit 1
+    main: sptzoqmo 7b33f629 commit 1
+    "###);
+
+    // Track existing branch. Local branch should result in conflict.
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "feature2"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "track", "feature2@origin"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: sptzoqmo 7b33f629 commit 1
+    feature2 (conflicted):
+      + qpvuntsm 230dd059 (empty) (no description set)
+      + sptzoqmo 7b33f629 commit 1
+      @origin (behind by 1 commits): sptzoqmo 7b33f629 commit 1
+    main: sptzoqmo 7b33f629 commit 1
+    "###);
+
+    // Untrack existing and locally-deleted branches. Branch targets should be
+    // unchanged
+    test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "feature2"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["branch", "untrack", "feature1@origin", "feature2@origin"],
+    );
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: sptzoqmo 7b33f629 commit 1
+    feature1@origin: sptzoqmo 7b33f629 commit 1
+    feature2@origin: sptzoqmo 7b33f629 commit 1
+    main: sptzoqmo 7b33f629 commit 1
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  feature1 feature2@origin main 7b33f6295eda
+    │ @   230dd059e1b0
+    ├─╯
+    ◉   000000000000
+    "###);
+
+    // Fetch new commit. Only tracking branch "main" should be merged.
+    create_remote_commit(
+        "commit 2",
+        b"content 2",
+        &[
+            "refs/heads/main",
+            "refs/heads/feature1",
+            "refs/heads/feature2",
+        ],
+    );
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: sptzoqmo 7b33f629 commit 1
+    feature1@origin: mmqqkyyt 40dabdaf commit 2
+    feature2@origin: mmqqkyyt 40dabdaf commit 2
+    main: mmqqkyyt 40dabdaf commit 2
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  feature1@origin feature2@origin main 40dabdaf4abe
+    │ ◉  feature1* 7b33f6295eda
+    ├─╯
+    │ @   230dd059e1b0
+    ├─╯
+    ◉   000000000000
+    "###);
+
+    // Fetch new commit with auto tracking. Tracking branch "main" and new
+    // branch "feature3" should be merged.
+    create_remote_commit(
+        "commit 3",
+        b"content 3",
+        &[
+            "refs/heads/main",
+            "refs/heads/feature1",
+            "refs/heads/feature2",
+            "refs/heads/feature3",
+        ],
+    );
+    test_env.add_config("git.auto-local-branch = true");
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned 1 commits that are no longer reachable.
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: sptzoqmo 7b33f629 commit 1
+    feature1@origin: wwnpyzpo 3f0f86fa commit 3
+    feature2@origin: wwnpyzpo 3f0f86fa commit 3
+    feature3: wwnpyzpo 3f0f86fa commit 3
+    main: wwnpyzpo 3f0f86fa commit 3
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  feature1@origin feature2@origin feature3 main 3f0f86fa0e57
+    │ ◉  feature1* 7b33f6295eda
+    ├─╯
+    │ @   230dd059e1b0
+    ├─╯
+    ◉   000000000000
+    "###);
+}
+
+#[test]
+fn test_branch_track_untrack_bad_branches() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Set up remote
+    let git_repo_path = test_env.env_root().join("git-repo");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["git", "remote", "add", "origin", "../git-repo"],
+    );
+
+    // Create remote commit
+    let signature =
+        git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
+    let mut tree_builder = git_repo.treebuilder(None).unwrap();
+    let file_oid = git_repo.blob(b"content").unwrap();
+    tree_builder
+        .insert("file", file_oid, git2::FileMode::Blob.into())
+        .unwrap();
+    let tree_oid = tree_builder.write().unwrap();
+    let tree = git_repo.find_tree(tree_oid).unwrap();
+    // Create commit and branches in the remote
+    let git_commit_oid = git_repo
+        .commit(None, &signature, &signature, "commit", &tree, &[])
+        .unwrap();
+    for name in ["refs/heads/feature1", "refs/heads/feature2"] {
+        git_repo.reference(name, git_commit_oid, true, "").unwrap();
+    }
+
+    // Fetch new commit without auto tracking
+    test_env.add_config("git.auto-local-branch = false");
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stderr, @"");
+
+    // Track local branch
+    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "main"]);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_cli_error(&repo_path, &["branch", "track", "main"]), @r###"
+    error: invalid value 'main' for '<NAMES>...': remote branch must be specified in branch@remote form
+
+    For more information, try '--help'.
+    "###);
+
+    // Track/untrack unknown branch
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["branch", "track", "main@origin"]), @r###"
+    Error: No such remote branch: main@origin
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["branch", "untrack", "main@origin"]), @r###"
+    Error: No such remote branch: main@origin
+    "###);
+
+    // Track already tracked branch
+    test_env.jj_cmd_ok(&repo_path, &["branch", "track", "feature1@origin"]);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["branch", "track", "feature1@origin"]), @r###"
+    Error: Remote branch already tracked: feature1@origin
+    "###);
+
+    // Untrack non-tracking branch
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["branch", "untrack", "feature2@origin"]), @r###"
+    Error: Remote branch not tracked yet: feature2@origin
+    "###);
+
+    // Untrack Git-tracking branch
+    test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["branch", "untrack", "main@git"]), @r###"
+    Error: Git-tracking branch cannot be untracked
+    "###);
+}
+
+#[test]
 fn test_branch_list_filtered_by_revset() {
     let test_env = TestEnvironment::default();
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);

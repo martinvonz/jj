@@ -24,7 +24,7 @@ use std::fmt::Debug;
 use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use std::sync::Arc;
-use std::{fs, io};
+use std::{fmt, fs, io};
 
 use clap::builder::NonEmptyStringValueParser;
 use clap::parser::ValueSource;
@@ -3658,15 +3658,10 @@ fn cmd_backout(
     Ok(())
 }
 
-fn make_branch_term(branch_names: &[impl AsRef<str>]) -> String {
+fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
     match branch_names {
-        [branch_name] => format!("branch {}", branch_name.as_ref()),
-        branch_names => {
-            format!(
-                "branches {}",
-                branch_names.iter().map(AsRef::as_ref).join(", ")
-            )
-        }
+        [branch_name] => format!("branch {}", branch_name),
+        branch_names => format!("branches {}", branch_names.iter().join(", ")),
     }
 }
 
