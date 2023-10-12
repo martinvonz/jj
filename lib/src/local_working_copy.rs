@@ -59,7 +59,7 @@ use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
 use crate::working_copy::{
-    CheckoutError, CheckoutStats, LockedWorkingCopy, SnapshotError, SnapshotOptions,
+    CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
     SnapshotProgress, WorkingCopy,
 };
 
@@ -306,24 +306,6 @@ fn file_state(metadata: &Metadata) -> Option<FileState> {
 struct FsmonitorMatcher {
     matcher: Option<Box<dyn Matcher>>,
     watchman_clock: Option<crate::protos::working_copy::WatchmanClock>,
-}
-
-#[derive(Debug, Error)]
-pub enum ResetError {
-    // The current working-copy commit was deleted, maybe by an overly aggressive GC that happened
-    // while the current process was running.
-    #[error("Current working-copy commit not found: {source}")]
-    SourceNotFound {
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-    #[error("Internal error: {0}")]
-    InternalBackendError(#[from] BackendError),
-    #[error("{message}: {err:?}")]
-    Other {
-        message: String,
-        #[source]
-        err: Box<dyn std::error::Error + Send + Sync>,
-    },
 }
 
 struct DirectoryToVisit {
@@ -1549,6 +1531,18 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         self.tree_state_dirty = true;
         Ok(stats)
     }
+
+    fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
+        self.wc
+            .tree_state_mut()
+            .map_err(|err| ResetError::Other {
+                message: "Failed to read the working copy state".to_string(),
+                err: err.into(),
+            })?
+            .reset(new_tree)?;
+        self.tree_state_dirty = true;
+        Ok(())
+    }
 }
 
 impl LockedLocalWorkingCopy {
@@ -1560,18 +1554,6 @@ impl LockedLocalWorkingCopy {
                 err: err.into(),
             })?
             .reset_watchman();
-        self.tree_state_dirty = true;
-        Ok(())
-    }
-
-    pub fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
-        self.wc
-            .tree_state_mut()
-            .map_err(|err| ResetError::Other {
-                message: "Failed to read the working copy state".to_string(),
-                err: err.into(),
-            })?
-            .reset(new_tree)?;
         self.tree_state_dirty = true;
         Ok(())
     }

@@ -66,6 +66,9 @@ pub trait LockedWorkingCopy {
     /// Check out the specified tree in the working copy.
     // TODO: Pass a Commit object here because some implementations need that.
     fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError>;
+
+    /// Update to another tree without touching the files in the working copy.
+    fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError>;
 }
 
 /// An error while snapshotting the working copy.
@@ -190,6 +193,30 @@ pub enum CheckoutError {
         message: String,
         /// The underlying error.
         #[source]
+        err: Box<dyn std::error::Error + Send + Sync>,
+    },
+}
+
+/// An error while resetting the working copy.
+#[derive(Debug, Error)]
+pub enum ResetError {
+    /// The current working-copy commit was deleted, maybe by an overly
+    /// aggressive GC that happened while the current process was running.
+    #[error("Current working-copy commit not found: {source}")]
+    SourceNotFound {
+        /// The underlying error.
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    /// Reading or writing from the commit backend failed.
+    #[error("Internal error: {0}")]
+    InternalBackendError(#[from] BackendError),
+    /// Some other error happened while checking out the working copy.
+    #[error("{message}: {err:?}")]
+    Other {
+        /// Error message.
+        message: String,
+        #[source]
+        /// The underlying error.
         err: Box<dyn std::error::Error + Send + Sync>,
     },
 }
