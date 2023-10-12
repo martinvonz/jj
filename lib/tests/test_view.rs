@@ -289,22 +289,25 @@ fn test_merge_views_branches() {
     );
 
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
+    let main_branch_origin_tx1_target = RefTarget::normal(main_branch_origin_tx1.id().clone());
+    let main_branch_alternate_tx0_target =
+        RefTarget::normal(main_branch_alternate_tx0.id().clone());
     let expected_main_branch = BranchTarget {
-        local_target: RefTarget::from_legacy_form(
+        local_target: &RefTarget::from_legacy_form(
             [main_branch_local_tx0.id().clone()],
             [
                 main_branch_local_tx1.id().clone(),
                 main_branch_local_tx2.id().clone(),
             ],
         ),
-        remote_targets: btreemap! {
-            "origin".to_string() => RefTarget::normal(main_branch_origin_tx1.id().clone()),
-            "alternate".to_string() => RefTarget::normal(main_branch_alternate_tx0.id().clone()),
-        },
+        remote_targets: vec![
+            ("alternate", &main_branch_alternate_tx0_target),
+            ("origin", &main_branch_origin_tx1_target),
+        ],
     };
     let expected_feature_branch = BranchTarget {
-        local_target: RefTarget::normal(feature_branch_tx1.id().clone()),
-        remote_targets: btreemap! {},
+        local_target: &RefTarget::normal(feature_branch_tx1.id().clone()),
+        remote_targets: vec![],
     };
     assert_eq!(
         repo.view().branches().collect::<BTreeMap<_, _>>(),

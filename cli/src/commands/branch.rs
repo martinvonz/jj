@@ -389,28 +389,20 @@ fn cmd_branch_list(
             .map_or(true, |branch_names| branch_names.contains(name))
     });
     for (name, branch_target) in branches_to_list {
-        let found_non_git_remote = {
-            let pseudo_remote_count = branch_target
-                .remote_targets
-                .contains_key(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO)
-                as usize;
-            branch_target.remote_targets.len() - pseudo_remote_count > 0
-        };
-
         write!(formatter.labeled("branch"), "{name}")?;
         if branch_target.local_target.is_present() {
-            print_branch_target(formatter, &branch_target.local_target)?;
+            print_branch_target(formatter, branch_target.local_target)?;
         } else {
             writeln!(formatter, " (deleted)")?;
         }
 
-        for (remote, remote_target) in branch_target.remote_targets.iter() {
-            if remote_target == &branch_target.local_target {
+        for &(remote, remote_target) in &branch_target.remote_targets {
+            if remote_target == branch_target.local_target {
                 continue;
             }
             write!(formatter, "  ")?;
             write!(formatter.labeled("branch"), "@{remote}")?;
-            let local_target = &branch_target.local_target;
+            let local_target = branch_target.local_target;
             if local_target.is_present() {
                 let remote_added_ids = remote_target.added_ids().cloned().collect_vec();
                 let local_added_ids = local_target.added_ids().cloned().collect_vec();
@@ -434,6 +426,10 @@ fn cmd_branch_list(
         }
 
         if branch_target.local_target.is_absent() {
+            let found_non_git_remote = branch_target
+                .remote_targets
+                .iter()
+                .any(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
             if found_non_git_remote {
                 writeln!(
                     formatter,

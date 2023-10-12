@@ -166,18 +166,13 @@ impl<'a> RefTargetOptionExt for Option<&'a RefTarget> {
     }
 }
 
-content_hash! {
-    #[derive(Default, PartialEq, Eq, Clone, Debug)]
-    pub struct BranchTarget {
-        /// The commit the branch points to locally. `None` if the branch has been
-        /// deleted locally.
-        pub local_target: RefTarget,
-        // TODO: Do we need to support tombstones for remote branches? For example, if the branch
-        // has been deleted locally and you pull from a remote, maybe it should make a difference
-        // whether the branch is known to have existed on the remote. We may not want to resurrect
-        // the branch if the branch's state on the remote was just not known.
-        pub remote_targets: BTreeMap<String, RefTarget>,
-    }
+/// Local and remote branches of the same branch name.
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct BranchTarget<'a> {
+    /// The commit the branch points to locally.
+    pub local_target: &'a RefTarget,
+    /// `(remote_name, target)` pairs in lexicographical order.
+    pub remote_targets: Vec<(&'a str, &'a RefTarget)>,
 }
 
 content_hash! {
@@ -208,6 +203,10 @@ content_hash! {
     /// Represents the state of the remote repo.
     #[derive(Clone, Debug, Default, Eq, PartialEq)]
     pub struct RemoteView {
+        // TODO: Do we need to support tombstones for remote branches? For example, if the branch
+        // has been deleted locally and you pull from a remote, maybe it should make a difference
+        // whether the branch is known to have existed on the remote. We may not want to resurrect
+        // the branch if the branch's state on the remote was just not known.
         pub branches: BTreeMap<String, RemoteRef>,
         // TODO: pub tags: BTreeMap<String, RemoteRef>,
     }
@@ -217,7 +216,7 @@ content_hash! {
 pub(crate) fn merge_join_branch_views<'a>(
     local_branches: &'a BTreeMap<String, RefTarget>,
     remote_views: &'a BTreeMap<String, RemoteView>,
-) -> impl Iterator<Item = (&'a str, BranchTarget)> {
+) -> impl Iterator<Item = (&'a str, BranchTarget<'a>)> {
     let mut local_branches_iter = local_branches
         .iter()
         .map(|(branch_name, target)| (branch_name.as_str(), target))
@@ -234,18 +233,14 @@ pub(crate) fn merge_join_branch_views<'a>(
             } else {
                 local_branches_iter.next()?
             };
-        // TODO: add borrowed version of BranchTarget?
-        let mut branch_target = BranchTarget {
-            local_target: local_target.clone(),
-            ..Default::default()
+        let remote_targets = remote_branches_iter
+            .peeking_take_while(|&((remote_branch_name, _), _)| remote_branch_name == branch_name)
+            .map(|((_, remote_name), target)| (remote_name, target))
+            .collect();
+        let branch_target = BranchTarget {
+            local_target,
+            remote_targets,
         };
-        while let Some(((_, remote_name), target)) = remote_branches_iter
-            .next_if(|&((remote_branch_name, _), _)| remote_branch_name == branch_name)
-        {
-            branch_target
-                .remote_targets
-                .insert(remote_name.to_owned(), target.clone());
-        }
         Some((branch_name, branch_target))
     })
 }
@@ -381,21 +376,21 @@ mod tests {
                 (
                     "branch1",
                     BranchTarget {
-                        local_target: local_branch1_target.clone(),
-                        remote_targets: btreemap! {
-                            "git".to_owned() => git_branch1_target.clone(),
-                            "remote1".to_owned() => remote1_branch1_target.clone(),
-                        },
+                        local_target: &local_branch1_target,
+                        remote_targets: vec![
+                            ("git", &git_branch1_target),
+                            ("remote1", &remote1_branch1_target),
+                        ],
                     },
                 ),
                 (
                     "branch2",
                     BranchTarget {
-                        local_target: local_branch2_target.clone(),
-                        remote_targets: btreemap! {
-                            "git".to_owned() => git_branch2_target.clone(),
-                            "remote2".to_owned() => remote2_branch2_target.clone(),
-                        },
+                        local_target: &local_branch2_target,
+                        remote_targets: vec![
+                            ("git", &git_branch2_target),
+                            ("remote2", &remote2_branch2_target),
+                        ],
                     },
                 ),
             ],
@@ -411,8 +406,8 @@ mod tests {
             vec![(
                 "branch1",
                 BranchTarget {
-                    local_target: local_branch1_target.clone(),
-                    remote_targets: btreemap! {},
+                    local_target: &local_branch1_target,
+                    remote_targets: vec![],
                 },
             )],
         );
@@ -431,10 +426,8 @@ mod tests {
             vec![(
                 "branch1",
                 BranchTarget {
-                    local_target: RefTarget::absent(),
-                    remote_targets: btreemap! {
-                        "remote1".to_owned() => remote1_branch1_target.clone(),
-                    },
+                    local_target: RefTarget::absent_ref(),
+                    remote_targets: vec![("remote1", &remote1_branch1_target)],
                 },
             )],
         );
