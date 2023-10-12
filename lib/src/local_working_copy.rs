@@ -17,7 +17,6 @@
 use std::any::Any;
 use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
-use std::ffi::OsString;
 use std::fs;
 use std::fs::{File, Metadata, OpenOptions};
 use std::io::{Read, Write};
@@ -59,7 +58,9 @@ use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJo
 use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
-use crate::working_copy::{LockedWorkingCopy, WorkingCopy};
+use crate::working_copy::{
+    LockedWorkingCopy, SnapshotError, SnapshotOptions, SnapshotProgress, WorkingCopy,
+};
 
 #[cfg(unix)]
 type FileExecutableFlag = bool;
@@ -310,28 +311,6 @@ pub struct CheckoutStats {
 }
 
 #[derive(Debug, Error)]
-pub enum SnapshotError {
-    #[error("Working copy path {} is not valid UTF-8", path.to_string_lossy())]
-    InvalidUtf8Path { path: OsString },
-    #[error("Symlink {path} target is not valid UTF-8")]
-    InvalidUtf8SymlinkTarget { path: PathBuf, target: PathBuf },
-    #[error("Internal backend error: {0}")]
-    InternalBackendError(#[from] BackendError),
-    #[error("New file {path} of size ~{size} exceeds snapshot.max-new-file-size ({max_size})")]
-    NewFileTooLarge {
-        path: PathBuf,
-        size: HumanByteSize,
-        max_size: HumanByteSize,
-    },
-    #[error("{message}: {err:?}")]
-    Other {
-        message: String,
-        #[source]
-        err: Box<dyn std::error::Error + Send + Sync>,
-    },
-}
-
-#[derive(Debug, Error)]
 pub enum CheckoutError {
     // The current working-copy commit was deleted, maybe by an overly aggressive GC that happened
     // while the current process was running.
@@ -358,24 +337,6 @@ impl CheckoutError {
         CheckoutError::Other {
             message: format!("Failed to stat file {}", path.display()),
             err: err.into(),
-        }
-    }
-}
-
-pub struct SnapshotOptions<'a> {
-    pub base_ignores: Arc<GitIgnoreFile>,
-    pub fsmonitor_kind: Option<FsmonitorKind>,
-    pub progress: Option<&'a SnapshotProgress<'a>>,
-    pub max_new_file_size: u64,
-}
-
-impl SnapshotOptions<'_> {
-    pub fn empty_for_test() -> Self {
-        SnapshotOptions {
-            base_ignores: GitIgnoreFile::empty(),
-            fsmonitor_kind: None,
-            progress: None,
-            max_new_file_size: u64::MAX,
         }
     }
 }
@@ -1592,6 +1553,18 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
     fn old_tree_id(&self) -> &MergedTreeId {
         &self.old_tree_id
     }
+
+    fn snapshot(&mut self, options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
+        let tree_state = self
+            .wc
+            .tree_state_mut()
+            .map_err(|err| SnapshotError::Other {
+                message: "Failed to read the working copy state".to_string(),
+                err: err.into(),
+            })?;
+        self.tree_state_dirty |= tree_state.snapshot(options)?;
+        Ok(tree_state.current_tree_id().clone())
+    }
 }
 
 impl LockedLocalWorkingCopy {
@@ -1605,21 +1578,6 @@ impl LockedLocalWorkingCopy {
             .reset_watchman();
         self.tree_state_dirty = true;
         Ok(())
-    }
-
-    // The base_ignores are passed in here rather than being set on the TreeState
-    // because the TreeState may be long-lived if the library is used in a
-    // long-lived process.
-    pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
-        let tree_state = self
-            .wc
-            .tree_state_mut()
-            .map_err(|err| SnapshotError::Other {
-                message: "Failed to read the working copy state".to_string(),
-                err: err.into(),
-            })?;
-        self.tree_state_dirty |= tree_state.snapshot(options)?;
-        Ok(tree_state.current_tree_id().clone())
     }
 
     pub fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {
@@ -1694,5 +1652,3 @@ impl LockedLocalWorkingCopy {
         Ok(self.wc)
     }
 }
-
-pub type SnapshotProgress<'a> = dyn Fn(&RepoPath) + 'a + Sync;

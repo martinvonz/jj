@@ -35,7 +35,6 @@ use jj_lib::backend::{CommitId, ObjectId, TreeValue};
 use jj_lib::commit::Commit;
 use jj_lib::dag_walk::topo_order_reverse;
 use jj_lib::git_backend::GitBackend;
-use jj_lib::local_working_copy::SnapshotOptions;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
@@ -48,7 +47,7 @@ use jj_lib::revset_graph::{
 };
 use jj_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jj_lib::settings::UserSettings;
-use jj_lib::working_copy::LockedWorkingCopy;
+use jj_lib::working_copy::{LockedWorkingCopy, SnapshotOptions};
 use jj_lib::workspace::Workspace;
 use jj_lib::{conflicts, file_util, revset};
 use maplit::{hashmap, hashset};

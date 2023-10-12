@@ -42,8 +42,7 @@ use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::local_working_copy::{
-    CheckoutStats, LocalWorkingCopy, LockedLocalWorkingCopy, ResetError, SnapshotError,
-    SnapshotOptions, WorkingCopyStateError,
+    CheckoutStats, LocalWorkingCopy, LockedLocalWorkingCopy, ResetError, WorkingCopyStateError,
 };
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
@@ -63,7 +62,7 @@ use jj_lib::revset::{
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::TreeMergeError;
-use jj_lib::working_copy::{LockedWorkingCopy, WorkingCopy};
+use jj_lib::working_copy::{LockedWorkingCopy, SnapshotError, SnapshotOptions, WorkingCopy};
 use jj_lib::workspace::{
     LockedWorkspace, Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader,
 };
