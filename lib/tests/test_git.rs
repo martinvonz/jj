@@ -127,11 +127,15 @@ fn test_import_refs() {
     );
     assert_eq!(
         view.get_remote_branch("main", "git"),
-        &RefTarget::normal(jj_id(&commit2))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit2)),
+        },
     );
     assert_eq!(
         view.get_remote_branch("main", "origin"),
-        &RefTarget::normal(jj_id(&commit1))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit1)),
+        },
     );
     assert_eq!(
         view.get_local_branch("feature1"),
@@ -139,7 +143,9 @@ fn test_import_refs() {
     );
     assert_eq!(
         view.get_remote_branch("feature1", "git"),
-        &RefTarget::normal(jj_id(&commit3))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit3)),
+        },
     );
     assert!(view.get_remote_branch("feature1", "origin").is_absent());
     assert_eq!(
@@ -148,7 +154,9 @@ fn test_import_refs() {
     );
     assert_eq!(
         view.get_remote_branch("feature2", "git"),
-        &RefTarget::normal(jj_id(&commit4))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit4)),
+        },
     );
     assert!(view.get_remote_branch("feature2", "origin").is_absent());
     assert_eq!(
@@ -158,7 +166,9 @@ fn test_import_refs() {
     assert!(view.get_remote_branch("feature3", "git").is_absent());
     assert_eq!(
         view.get_remote_branch("feature3", "origin"),
-        &RefTarget::normal(jj_id(&commit6))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit6)),
+        },
     );
 
     assert_eq!(view.get_tag("v1.0"), &RefTarget::normal(jj_id(&commit5)));
@@ -266,16 +276,25 @@ fn test_import_refs_reimport() {
     );
     assert_eq!(
         view.get_remote_branch("main", "git"),
-        &RefTarget::normal(jj_id(&commit2))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit2)),
+        },
     );
-    assert_eq!(view.get_remote_branch("main", "origin"), &commit1_target);
+    assert_eq!(
+        view.get_remote_branch("main", "origin"),
+        &RemoteRef {
+            target: commit1_target.clone(),
+        },
+    );
     assert_eq!(
         view.get_local_branch("feature2"),
         &RefTarget::from_legacy_form([jj_id(&commit4)], [commit6.id().clone(), jj_id(&commit5)])
     );
     assert_eq!(
         view.get_remote_branch("feature2", "git"),
-        &RefTarget::normal(jj_id(&commit5))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit5)),
+        },
     );
     assert!(view.get_remote_branch("feature2", "origin").is_absent());
 
@@ -466,7 +485,9 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
         .is_absent());
     assert_eq!(
         view.get_remote_branch("feature-remote-only", "origin"),
-        &RefTarget::normal(jj_id(&commit_remote_only))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_only)),
+        },
     );
     assert_eq!(
         view.get_local_branch("feature-remote-and-local"),
@@ -474,11 +495,15 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     );
     assert_eq!(
         view.get_remote_branch("feature-remote-and-local", "git"),
-        &RefTarget::normal(jj_id(&commit_remote_and_local))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+        },
     );
     assert_eq!(
         view.get_remote_branch("feature-remote-and-local", "origin"),
-        &RefTarget::normal(jj_id(&commit_remote_and_local))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+        },
     );
     assert!(view.has_branch("main")); // branch #3 of 3
 
@@ -503,7 +528,9 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
         .is_absent());
     assert_eq!(
         view.get_remote_branch("feature-remote-and-local", "git"),
-        &RefTarget::normal(jj_id(&commit_remote_and_local))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+        },
     );
     assert!(view
         .get_remote_branch("feature-remote-and-local", "origin")
@@ -570,7 +597,9 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         .is_absent());
     assert_eq!(
         view.get_remote_branch("feature-remote-only", "origin"),
-        &RefTarget::normal(jj_id(&commit_remote_only))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_only)),
+        },
     );
     assert_eq!(
         view.get_local_branch("feature-remote-and-local"),
@@ -578,11 +607,15 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
     );
     assert_eq!(
         view.get_remote_branch("feature-remote-and-local", "git"),
-        &RefTarget::normal(jj_id(&commit_remote_and_local))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+        },
     );
     assert_eq!(
         view.get_remote_branch("feature-remote-and-local", "origin"),
-        &RefTarget::normal(jj_id(&commit_remote_and_local))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+        },
     );
     assert!(view.has_branch("main")); // branch #3 of 3
 
@@ -619,7 +652,9 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         .is_absent());
     assert_eq!(
         view.get_remote_branch("feature-remote-only", "origin"),
-        &RefTarget::normal(jj_id(&new_commit_remote_only))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&new_commit_remote_only)),
+        },
     );
     assert_eq!(
         view.get_local_branch("feature-remote-and-local"),
@@ -627,11 +662,15 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
     );
     assert_eq!(
         view.get_remote_branch("feature-remote-and-local", "git"),
-        &RefTarget::normal(jj_id(&commit_remote_and_local))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_and_local)),
+        },
     );
     assert_eq!(
         view.get_remote_branch("feature-remote-and-local", "origin"),
-        &RefTarget::normal(jj_id(&new_commit_remote_and_local))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&new_commit_remote_and_local)),
+        },
     );
     assert!(view.has_branch("main")); // branch #3 of 3
     let expected_heads = hashset! {
@@ -733,7 +772,9 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
     );
     assert_eq!(
         repo.view().get_remote_branch("main", "origin"),
-        &RefTarget::from_legacy_form([], [jj_id(&commit1), jj_id(&commit2)]),
+        &RemoteRef {
+            target: RefTarget::from_legacy_form([], [jj_id(&commit1), jj_id(&commit2)]),
+        },
     );
 
     // The conflict can be resolved by importing the current Git state
@@ -746,7 +787,9 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
     );
     assert_eq!(
         repo.view().get_remote_branch("main", "origin"),
-        &RefTarget::normal(jj_id(&commit2)),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit2)),
+        },
     );
 }
 
@@ -814,17 +857,25 @@ fn test_import_some_refs() {
     // Check that branches feature[1-4] have been locally imported and are known to
     // be present on origin as well.
     assert_eq!(view.branches().count(), 4);
-    let commit_feat1_target = RefTarget::normal(jj_id(&commit_feat1));
-    let commit_feat2_target = RefTarget::normal(jj_id(&commit_feat2));
-    let commit_feat3_target = RefTarget::normal(jj_id(&commit_feat3));
-    let commit_feat4_target = RefTarget::normal(jj_id(&commit_feat4));
+    let commit_feat1_remote_ref = RemoteRef {
+        target: RefTarget::normal(jj_id(&commit_feat1)),
+    };
+    let commit_feat2_remote_ref = RemoteRef {
+        target: RefTarget::normal(jj_id(&commit_feat2)),
+    };
+    let commit_feat3_remote_ref = RemoteRef {
+        target: RefTarget::normal(jj_id(&commit_feat3)),
+    };
+    let commit_feat4_remote_ref = RemoteRef {
+        target: RefTarget::normal(jj_id(&commit_feat4)),
+    };
     assert_eq!(
         view.get_local_branch("feature1"),
         &RefTarget::normal(jj_id(&commit_feat1))
     );
     assert_eq!(
         view.get_remote_branch("feature1", "origin"),
-        &commit_feat1_target
+        &commit_feat1_remote_ref
     );
     assert_eq!(
         view.get_local_branch("feature2"),
@@ -832,7 +883,7 @@ fn test_import_some_refs() {
     );
     assert_eq!(
         view.get_remote_branch("feature2", "origin"),
-        &commit_feat2_target
+        &commit_feat2_remote_ref
     );
     assert_eq!(
         view.get_local_branch("feature3"),
@@ -840,7 +891,7 @@ fn test_import_some_refs() {
     );
     assert_eq!(
         view.get_remote_branch("feature3", "origin"),
-        &commit_feat3_target
+        &commit_feat3_remote_ref
     );
     assert_eq!(
         view.get_local_branch("feature4"),
@@ -848,7 +899,7 @@ fn test_import_some_refs() {
     );
     assert_eq!(
         view.get_remote_branch("feature4", "origin"),
-        &commit_feat4_target
+        &commit_feat4_remote_ref
     );
     assert!(!view.has_branch("main"));
     assert!(!view.heads().contains(&jj_id(&commit_main)));
@@ -1310,7 +1361,9 @@ fn test_import_export_no_auto_local_branch() {
     assert!(mut_repo.view().get_local_branch("main").is_absent());
     assert_eq!(
         mut_repo.view().get_remote_branch("main", "origin"),
-        &RefTarget::normal(jj_id(&git_commit))
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&git_commit)),
+        },
     );
     assert_eq!(
         mut_repo.get_git_ref("refs/remotes/origin/main"),
@@ -1369,11 +1422,15 @@ fn test_export_conflicts() {
     // Conflicted branches shouldn't be copied to the "git" remote
     assert_eq!(
         mut_repo.get_remote_branch("feature", "git"),
-        RefTarget::normal(commit_a.id().clone())
+        RemoteRef {
+            target: RefTarget::normal(commit_a.id().clone()),
+        },
     );
     assert_eq!(
         mut_repo.get_remote_branch("main", "git"),
-        RefTarget::normal(commit_b.id().clone())
+        RemoteRef {
+            target: RefTarget::normal(commit_b.id().clone()),
+        },
     );
 }
 
@@ -1443,7 +1500,12 @@ fn test_export_partial_failure() {
     // Failed branches shouldn't be copied to the "git" remote
     assert!(mut_repo.get_remote_branch("", "git").is_absent());
     assert!(mut_repo.get_remote_branch("HEAD", "git").is_absent());
-    assert_eq!(mut_repo.get_remote_branch("main", "git"), target);
+    assert_eq!(
+        mut_repo.get_remote_branch("main", "git"),
+        RemoteRef {
+            target: target.clone(),
+        },
+    );
     assert!(mut_repo.get_remote_branch("main/sub", "git").is_absent());
 
     // Now remove the `main` branch and make sure that the `main/sub` gets exported
@@ -1471,7 +1533,12 @@ fn test_export_partial_failure() {
     assert!(mut_repo.get_remote_branch("", "git").is_absent());
     assert!(mut_repo.get_remote_branch("HEAD", "git").is_absent());
     assert!(mut_repo.get_remote_branch("main", "git").is_absent());
-    assert_eq!(mut_repo.get_remote_branch("main/sub", "git"), target);
+    assert_eq!(
+        mut_repo.get_remote_branch("main/sub", "git"),
+        RemoteRef {
+            target: target.clone(),
+        },
+    );
 }
 
 #[test]
@@ -1634,7 +1701,12 @@ fn test_export_undo_reexport() {
         Some(git_id(&commit_a))
     );
     assert_eq!(mut_repo.get_git_ref("refs/heads/main"), target_a);
-    assert_eq!(mut_repo.get_remote_branch("main", "git"), target_a);
+    assert_eq!(
+        mut_repo.get_remote_branch("main", "git"),
+        RemoteRef {
+            target: target_a.clone(),
+        },
+    );
 
     // Undo remote changes only
     mut_repo.set_remote_branch_target("main", "git", RefTarget::absent());
@@ -1646,7 +1718,12 @@ fn test_export_undo_reexport() {
         Some(git_id(&commit_a))
     );
     assert_eq!(mut_repo.get_git_ref("refs/heads/main"), target_a);
-    assert_eq!(mut_repo.get_remote_branch("main", "git"), target_a);
+    assert_eq!(
+        mut_repo.get_remote_branch("main", "git"),
+        RemoteRef {
+            target: target_a.clone(),
+        },
+    );
 }
 
 #[test]

@@ -2018,7 +2018,7 @@ fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Ve
     let view = repo.view();
     let target = match (name, remote) {
         ("HEAD", git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => view.git_head(),
-        (name, remote) => view.get_remote_branch(name, remote),
+        (name, remote) => &view.get_remote_branch(name, remote).target,
     };
     target
         .is_present()

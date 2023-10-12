@@ -130,7 +130,9 @@ impl View {
     pub fn get_ref(&self, name: &RefName) -> &RefTarget {
         match &name {
             RefName::LocalBranch(name) => self.get_local_branch(name),
-            RefName::RemoteBranch { branch, remote } => self.get_remote_branch(branch, remote),
+            RefName::RemoteBranch { branch, remote } => {
+                &self.get_remote_branch(branch, remote).target
+            }
             RefName::Tag(name) => self.get_tag(name),
             RefName::GitRef(name) => self.get_git_ref(name),
         }
@@ -211,16 +213,11 @@ impl View {
             .flatten()
     }
 
-    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> &RefTarget {
-        // TODO: maybe return RemoteRef instead of RefTarget?
+    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> &RemoteRef {
         if let Some(remote_view) = self.data.remote_views.get(remote_name) {
-            let maybe_target = remote_view
-                .branches
-                .get(name)
-                .map(|remote_ref| &remote_ref.target);
-            maybe_target.flatten()
+            remote_view.branches.get(name).flatten()
         } else {
-            RefTarget::absent_ref()
+            RemoteRef::absent_ref()
         }
     }
 

@@ -42,7 +42,7 @@ use crate::git_backend::GitBackend;
 use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use crate::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
+use crate::op_store::{OpStore, OpStoreError, OperationId, RefTarget, RemoteRef, WorkspaceId};
 use crate::operation::Operation;
 use crate::refs::{diff_named_refs, merge_ref_targets};
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
@@ -998,7 +998,7 @@ impl MutableRepo {
         self.view_mut().set_local_branch_target(name, target);
     }
 
-    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> RefTarget {
+    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> RemoteRef {
         self.view
             .with_ref(|v| v.get_remote_branch(name, remote_name).clone())
     }
