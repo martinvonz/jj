@@ -464,8 +464,6 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
     "###);
 }
 
-// TODO: Test `jj branch list` with a remote named `git`
-
 #[test]
 fn test_branch_list_filtered_by_revset() {
     let test_env = TestEnvironment::default();
