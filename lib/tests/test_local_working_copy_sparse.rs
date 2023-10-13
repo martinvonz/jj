@@ -49,8 +49,11 @@ fn test_sparse_checkout() {
         ],
     );
 
+    test_workspace
+        .workspace
+        .check_out(repo.op_id().clone(), None, &tree)
+        .unwrap();
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
     // Set sparse patterns to only dir1/
     let mut locked_wc = wc.start_mutation().unwrap();
@@ -152,8 +155,11 @@ fn test_sparse_commit() {
         ],
     );
 
+    test_workspace
+        .workspace
+        .check_out(repo.op_id().clone(), None, &tree)
+        .unwrap();
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
     // Set sparse patterns to only dir1/
     let mut locked_wc = wc.start_mutation().unwrap();

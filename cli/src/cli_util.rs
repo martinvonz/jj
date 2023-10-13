@@ -1392,7 +1392,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         assert!(self.may_update_working_copy);
         let stats = update_working_copy(
             &self.user_repo.repo,
-            self.workspace.working_copy_mut(),
+            &mut self.workspace,
             maybe_old_commit,
             new_commit,
         )?;
@@ -2015,7 +2015,7 @@ pub fn resolve_multiple_nonempty_revsets_default_single(
 
 pub fn update_working_copy(
     repo: &Arc<ReadonlyRepo>,
-    wc: &mut LocalWorkingCopy,
+    workspace: &mut Workspace,
     old_commit: Option<&Commit>,
     new_commit: &Commit,
 ) -> Result<Option<CheckoutStats>, CommandError> {
@@ -2024,7 +2024,7 @@ pub fn update_working_copy(
         // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
         // warning for most commands (but be an error for the checkout command)
         let new_tree = new_commit.tree()?;
-        let stats = wc
+        let stats = workspace
             .check_out(repo.op_id().clone(), old_tree_id.as_ref(), &new_tree)
             .map_err(|err| {
                 CommandError::InternalError(format!(
@@ -2036,7 +2036,7 @@ pub fn update_working_copy(
         Some(stats)
     } else {
         // Record new operation id which represents the latest working-copy state
-        let locked_wc = wc.start_mutation()?;
+        let locked_wc = workspace.working_copy_mut().start_mutation()?;
         locked_wc.finish(repo.op_id().clone())?;
         None
     };

@@ -1553,35 +1553,6 @@ impl LocalWorkingCopy {
         })
     }
 
-    pub fn check_out(
-        &mut self,
-        operation_id: OperationId,
-        old_tree_id: Option<&MergedTreeId>,
-        new_tree: &MergedTree,
-    ) -> Result<CheckoutStats, CheckoutError> {
-        let mut locked_wc = self.start_mutation().map_err(|err| CheckoutError::Other {
-            message: "Failed to start editing the working copy state".to_string(),
-            err: err.into(),
-        })?;
-        // Check if the current working-copy commit has changed on disk compared to what
-        // the caller expected. It's safe to check out another commit
-        // regardless, but it's probably not what  the caller wanted, so we let
-        // them know.
-        if let Some(old_tree_id) = old_tree_id {
-            if *old_tree_id != locked_wc.old_tree_id {
-                return Err(CheckoutError::ConcurrentCheckout);
-            }
-        }
-        let stats = locked_wc.check_out(new_tree)?;
-        locked_wc
-            .finish(operation_id)
-            .map_err(|err| CheckoutError::Other {
-                message: "Failed to save the working copy state".to_string(),
-                err: err.into(),
-            })?;
-        Ok(stats)
-    }
-
     #[cfg(feature = "watchman")]
     pub fn query_watchman(
         &self,
