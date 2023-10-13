@@ -94,7 +94,7 @@ fn test_sparse_checkout() {
     assert_eq!(wc.sparse_patterns().unwrap(), sparse_patterns);
 
     // Reload the state to check that it was persisted
-    let mut wc = LocalWorkingCopy::load(
+    let wc = LocalWorkingCopy::load(
         repo.store().clone(),
         wc.path().to_path_buf(),
         wc.state_path().to_path_buf(),
@@ -129,7 +129,7 @@ fn test_sparse_checkout() {
         .to_fs_path(&working_copy_path)
         .exists());
     assert!(dir2_file1_path.to_fs_path(&working_copy_path).exists());
-    locked_wc.finish(repo.op_id().clone()).unwrap();
+    let wc = locked_wc.finish(repo.op_id().clone()).unwrap();
     assert_eq!(
         wc.file_states().unwrap().keys().collect_vec(),
         vec![&dir1_subdir1_file1_path, &dir2_file1_path, &root_file1_path]

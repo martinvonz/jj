@@ -1531,25 +1531,28 @@ impl LocalWorkingCopy {
         });
     }
 
-    pub fn start_mutation(&mut self) -> Result<LockedLocalWorkingCopy, WorkingCopyStateError> {
+    pub fn start_mutation(&self) -> Result<LockedLocalWorkingCopy, WorkingCopyStateError> {
         let lock_path = self.state_path.join("working_copy.lock");
         let lock = FileLock::lock(lock_path);
 
-        // Re-read from disk after taking the lock
-        self.checkout_state.take();
-        // TODO: It's expensive to reload the whole tree. We should first check if it
-        // has changed.
-        self.tree_state.take();
-        let old_operation_id = self.operation_id().clone();
-        let old_tree_id = self.current_tree_id()?.clone();
-
+        let wc = LocalWorkingCopy {
+            store: self.store.clone(),
+            working_copy_path: self.working_copy_path.clone(),
+            state_path: self.state_path.clone(),
+            // Empty so we re-read the state after taking the lock
+            checkout_state: OnceCell::new(),
+            // TODO: It's expensive to reload the whole tree. We should copy it from `self` if it
+            // hasn't changed.
+            tree_state: OnceCell::new(),
+        };
+        let old_operation_id = wc.operation_id().clone();
+        let old_tree_id = wc.current_tree_id()?.clone();
         Ok(LockedLocalWorkingCopy {
-            wc: self,
+            wc,
             lock,
             old_operation_id,
             old_tree_id,
             tree_state_dirty: false,
-            closed: false,
         })
     }
 
@@ -1568,17 +1571,16 @@ impl LocalWorkingCopy {
 
 /// A working copy that's locked on disk. The lock is held until you call
 /// `finish()` or `discard()`.
-pub struct LockedLocalWorkingCopy<'a> {
-    wc: &'a mut LocalWorkingCopy,
+pub struct LockedLocalWorkingCopy {
+    wc: LocalWorkingCopy,
     #[allow(dead_code)]
     lock: FileLock,
     old_operation_id: OperationId,
     old_tree_id: MergedTreeId,
     tree_state_dirty: bool,
-    closed: bool,
 }
 
-impl LockedLocalWorkingCopy<'_> {
+impl LockedLocalWorkingCopy {
     /// The operation at the time the lock was taken
     pub fn old_operation_id(&self) -> &OperationId {
         &self.old_operation_id
@@ -1666,7 +1668,10 @@ impl LockedLocalWorkingCopy<'_> {
     }
 
     #[instrument(skip_all)]
-    pub fn finish(mut self, operation_id: OperationId) -> Result<(), WorkingCopyStateError> {
+    pub fn finish(
+        mut self,
+        operation_id: OperationId,
+    ) -> Result<LocalWorkingCopy, WorkingCopyStateError> {
         assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.current_tree_id()?);
         if self.tree_state_dirty {
             self.wc
@@ -1683,17 +1688,7 @@ impl LockedLocalWorkingCopy<'_> {
         }
         // TODO: Clear the "pending_checkout" file here.
         self.tree_state_dirty = false;
-        self.closed = true;
-        Ok(())
-    }
-}
-
-impl Drop for LockedLocalWorkingCopy<'_> {
-    fn drop(&mut self) {
-        if !self.closed {
-            // Undo the changes in memory
-            self.wc.tree_state.take();
-        }
+        Ok(self.wc)
     }
 }
 
