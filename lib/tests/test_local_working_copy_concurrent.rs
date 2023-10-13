@@ -28,20 +28,20 @@ fn test_concurrent_checkout() {
     // working-copy commit changed on disk after we read it).
     let settings = testutils::user_settings();
     let mut test_workspace1 = TestWorkspace::init(&settings);
-    let repo1 = test_workspace1.repo.clone();
+    let repo = test_workspace1.repo.clone();
     let workspace1_root = test_workspace1.workspace.workspace_root().clone();
 
-    let tree_id1 = testutils::create_random_tree(&repo1);
-    let tree_id2 = testutils::create_random_tree(&repo1);
-    let tree_id3 = testutils::create_random_tree(&repo1);
-    let tree1 = repo1.store().get_root_tree(&tree_id1).unwrap();
-    let tree2 = repo1.store().get_root_tree(&tree_id2).unwrap();
-    let tree3 = repo1.store().get_root_tree(&tree_id3).unwrap();
+    let tree_id1 = testutils::create_random_tree(&repo);
+    let tree_id2 = testutils::create_random_tree(&repo);
+    let tree_id3 = testutils::create_random_tree(&repo);
+    let tree1 = repo.store().get_root_tree(&tree_id1).unwrap();
+    let tree2 = repo.store().get_root_tree(&tree_id2).unwrap();
+    let tree3 = repo.store().get_root_tree(&tree_id3).unwrap();
 
     // Check out tree1
     let wc1 = test_workspace1.workspace.working_copy_mut();
     // The operation ID is not correct, but that doesn't matter for this test
-    wc1.check_out(repo1.op_id().clone(), None, &tree1).unwrap();
+    wc1.check_out(repo.op_id().clone(), None, &tree1).unwrap();
 
     // Check out tree2 from another process (simulated by another workspace
     // instance)
@@ -53,12 +53,12 @@ fn test_concurrent_checkout() {
     .unwrap();
     workspace2
         .working_copy_mut()
-        .check_out(repo1.op_id().clone(), Some(&tree_id1), &tree2)
+        .check_out(repo.op_id().clone(), Some(&tree_id1), &tree2)
         .unwrap();
 
-    // Checking out another tree (via the first repo instance) should now fail.
+    // Checking out another tree (via the first workspace instance) should now fail.
     assert_matches!(
-        wc1.check_out(repo1.op_id().clone(), Some(&tree_id1), &tree3),
+        wc1.check_out(repo.op_id().clone(), Some(&tree_id1), &tree3),
         Err(CheckoutError::ConcurrentCheckout)
     );
 
