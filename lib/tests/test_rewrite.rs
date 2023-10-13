@@ -1006,7 +1006,7 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     tx.mut_repo()
         .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
     tx.mut_repo()
-        .set_remote_branch_target("main", "origin", commit_b_remote_ref.target.clone());
+        .set_remote_branch("main", "origin", commit_b_remote_ref.clone());
     tx.mut_repo()
         .set_tag_target("v1", RefTarget::normal(commit_b.id().clone()));
     let repo = tx.commit();

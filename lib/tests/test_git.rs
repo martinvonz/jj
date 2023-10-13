@@ -1709,7 +1709,7 @@ fn test_export_undo_reexport() {
     );
 
     // Undo remote changes only
-    mut_repo.set_remote_branch_target("main", "git", RefTarget::absent());
+    mut_repo.set_remote_branch("main", "git", RemoteRef::absent());
 
     // Reexport should update the Git-tracking branch
     assert!(git::export_refs(mut_repo, &git_repo).unwrap().is_empty());

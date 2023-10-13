@@ -221,17 +221,38 @@ impl View {
         }
     }
 
-    /// Sets remote-tracking branch to point to the given target. If the target
+    /// Sets remote-tracking branch to the given target and state. If the target
     /// is absent, the branch will be removed.
-    pub fn set_remote_branch_target(&mut self, name: &str, remote_name: &str, target: RefTarget) {
-        if target.is_present() {
-            let remote_ref = RemoteRef { target }; // TODO: preserve or reset tracking flag?
+    pub fn set_remote_branch(&mut self, name: &str, remote_name: &str, remote_ref: RemoteRef) {
+        if remote_ref.is_present() {
             let remote_view = self
                 .data
                 .remote_views
                 .entry(remote_name.to_owned())
                 .or_default();
             remote_view.branches.insert(name.to_owned(), remote_ref);
+        } else if let Some(remote_view) = self.data.remote_views.get_mut(remote_name) {
+            remote_view.branches.remove(name);
+        }
+    }
+
+    /// Sets remote-tracking branch to point to the given target. If the target
+    /// is absent, the branch will be removed.
+    ///
+    /// If the branch already exists, its tracking state won't be changed.
+    fn set_remote_branch_target(&mut self, name: &str, remote_name: &str, target: RefTarget) {
+        if target.is_present() {
+            let remote_view = self
+                .data
+                .remote_views
+                .entry(remote_name.to_owned())
+                .or_default();
+            if let Some(remote_ref) = remote_view.branches.get_mut(name) {
+                remote_ref.target = target;
+            } else {
+                let remote_ref = RemoteRef { target };
+                remote_view.branches.insert(name.to_owned(), remote_ref);
+            }
         } else if let Some(remote_view) = self.data.remote_views.get_mut(remote_name) {
             remote_view.branches.remove(name);
         }

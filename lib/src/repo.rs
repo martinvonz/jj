@@ -1003,9 +1003,9 @@ impl MutableRepo {
             .with_ref(|v| v.get_remote_branch(name, remote_name).clone())
     }
 
-    pub fn set_remote_branch_target(&mut self, name: &str, remote_name: &str, target: RefTarget) {
+    pub fn set_remote_branch(&mut self, name: &str, remote_name: &str, remote_ref: RemoteRef) {
         self.view_mut()
-            .set_remote_branch_target(name, remote_name, target);
+            .set_remote_branch(name, remote_name, remote_ref);
     }
 
     pub fn remove_remote(&mut self, remote_name: &str) {

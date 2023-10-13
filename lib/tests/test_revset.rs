@@ -26,7 +26,7 @@ use jj_lib::commit::Commit;
 use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::index::{HexPrefix, PrefixResolution};
-use jj_lib::op_store::{RefTarget, WorkspaceId};
+use jj_lib::op_store::{RefTarget, RemoteRef, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
@@ -382,6 +382,8 @@ fn test_resolve_symbol_branches() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
+    let remote_ref = |target| RemoteRef { target };
+    let normal_remote_ref = |id: &CommitId| remote_ref(RefTarget::normal(id.clone()));
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
@@ -393,26 +395,22 @@ fn test_resolve_symbol_branches() {
     let commit5 = write_random_commit(mut_repo, &settings);
 
     mut_repo.set_local_branch_target("local", RefTarget::normal(commit1.id().clone()));
-    mut_repo.set_remote_branch_target("remote", "origin", RefTarget::normal(commit2.id().clone()));
+    mut_repo.set_remote_branch("remote", "origin", normal_remote_ref(commit2.id()));
     mut_repo.set_local_branch_target("local-remote", RefTarget::normal(commit3.id().clone()));
-    mut_repo.set_remote_branch_target(
-        "local-remote",
-        "origin",
-        RefTarget::normal(commit4.id().clone()),
-    );
+    mut_repo.set_remote_branch("local-remote", "origin", normal_remote_ref(commit4.id()));
     mut_repo.set_local_branch_target(
         "local-remote@origin", // not a remote branch
         RefTarget::normal(commit5.id().clone()),
     );
-    mut_repo.set_remote_branch_target(
+    mut_repo.set_remote_branch(
         "local-remote",
         "mirror",
-        mut_repo.get_local_branch("local-remote"),
+        remote_ref(mut_repo.get_local_branch("local-remote")),
     );
-    mut_repo.set_remote_branch_target(
+    mut_repo.set_remote_branch(
         "local-remote",
         git::REMOTE_NAME_FOR_LOCAL_GIT_REPO,
-        mut_repo.get_local_branch("local-remote"),
+        remote_ref(mut_repo.get_local_branch("local-remote")),
     );
 
     mut_repo.set_local_branch_target(
@@ -422,13 +420,13 @@ fn test_resolve_symbol_branches() {
             [commit3.id().clone(), commit2.id().clone()],
         ),
     );
-    mut_repo.set_remote_branch_target(
+    mut_repo.set_remote_branch(
         "remote-conflicted",
         "origin",
-        RefTarget::from_legacy_form(
+        remote_ref(RefTarget::from_legacy_form(
             [commit3.id().clone()],
             [commit5.id().clone(), commit4.id().clone()],
-        ),
+        )),
     );
 
     // Local only
@@ -1798,6 +1796,8 @@ fn test_evaluate_expression_remote_branches() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
+    let remote_ref = |target| RemoteRef { target };
+    let normal_remote_ref = |id: &CommitId| remote_ref(RefTarget::normal(id.clone()));
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
@@ -1810,12 +1810,8 @@ fn test_evaluate_expression_remote_branches() {
     // Can get branches when there are none
     assert_eq!(resolve_commit_ids(mut_repo, "remote_branches()"), vec![]);
     // Can get a few branches
-    mut_repo.set_remote_branch_target("branch1", "origin", RefTarget::normal(commit1.id().clone()));
-    mut_repo.set_remote_branch_target(
-        "branch2",
-        "private",
-        RefTarget::normal(commit2.id().clone()),
-    );
+    mut_repo.set_remote_branch("branch1", "origin", normal_remote_ref(commit1.id()));
+    mut_repo.set_remote_branch("branch2", "private", normal_remote_ref(commit2.id()));
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
@@ -1882,7 +1878,7 @@ fn test_evaluate_expression_remote_branches() {
     );
     // Two branches pointing to the same commit does not result in a duplicate in
     // the revset
-    mut_repo.set_remote_branch_target("branch3", "origin", RefTarget::normal(commit2.id().clone()));
+    mut_repo.set_remote_branch("branch3", "origin", normal_remote_ref(commit2.id()));
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
@@ -1894,23 +1890,23 @@ fn test_evaluate_expression_remote_branches() {
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // Can get branches when there are conflicted refs
-    mut_repo.set_remote_branch_target(
+    mut_repo.set_remote_branch(
         "branch1",
         "origin",
-        RefTarget::from_legacy_form(
+        remote_ref(RefTarget::from_legacy_form(
             [commit1.id().clone()],
             [commit2.id().clone(), commit3.id().clone()],
-        ),
+        )),
     );
-    mut_repo.set_remote_branch_target(
+    mut_repo.set_remote_branch(
         "branch2",
         "private",
-        RefTarget::from_legacy_form(
+        remote_ref(RefTarget::from_legacy_form(
             [commit2.id().clone()],
             [commit3.id().clone(), commit4.id().clone()],
-        ),
+        )),
     );
-    mut_repo.set_remote_branch_target("branch3", "origin", RefTarget::absent());
+    mut_repo.set_remote_branch("branch3", "origin", RemoteRef::absent());
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![

@@ -238,19 +238,24 @@ fn test_merge_views_branches() {
     let main_branch_origin_tx0 = write_random_commit(mut_repo, &settings);
     let main_branch_origin_tx1 = write_random_commit(mut_repo, &settings);
     let main_branch_alternate_tx0 = write_random_commit(mut_repo, &settings);
+    let main_branch_origin_tx0_remote_ref = RemoteRef {
+        target: RefTarget::normal(main_branch_origin_tx0.id().clone()),
+    };
+    let main_branch_origin_tx1_remote_ref = RemoteRef {
+        target: RefTarget::normal(main_branch_origin_tx1.id().clone()),
+    };
+    let main_branch_alternate_tx0_remote_ref = RemoteRef {
+        target: RefTarget::normal(main_branch_alternate_tx0.id().clone()),
+    };
     mut_repo.set_local_branch_target(
         "main",
         RefTarget::normal(main_branch_local_tx0.id().clone()),
     );
-    mut_repo.set_remote_branch_target(
-        "main",
-        "origin",
-        RefTarget::normal(main_branch_origin_tx0.id().clone()),
-    );
-    mut_repo.set_remote_branch_target(
+    mut_repo.set_remote_branch("main", "origin", main_branch_origin_tx0_remote_ref);
+    mut_repo.set_remote_branch(
         "main",
         "alternate",
-        RefTarget::normal(main_branch_alternate_tx0.id().clone()),
+        main_branch_alternate_tx0_remote_ref.clone(),
     );
     let feature_branch_local_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_local_branch_target(
@@ -265,11 +270,8 @@ fn test_merge_views_branches() {
         "main",
         RefTarget::normal(main_branch_local_tx1.id().clone()),
     );
-    tx1.mut_repo().set_remote_branch_target(
-        "main",
-        "origin",
-        RefTarget::normal(main_branch_origin_tx1.id().clone()),
-    );
+    tx1.mut_repo()
+        .set_remote_branch("main", "origin", main_branch_origin_tx1_remote_ref.clone());
     let feature_branch_tx1 = write_random_commit(tx1.mut_repo(), &settings);
     tx1.mut_repo().set_local_branch_target(
         "feature",
@@ -282,19 +284,10 @@ fn test_merge_views_branches() {
         "main",
         RefTarget::normal(main_branch_local_tx2.id().clone()),
     );
-    tx2.mut_repo().set_remote_branch_target(
-        "main",
-        "origin",
-        RefTarget::normal(main_branch_origin_tx1.id().clone()),
-    );
+    tx2.mut_repo()
+        .set_remote_branch("main", "origin", main_branch_origin_tx1_remote_ref.clone());
 
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
-    let main_branch_origin_tx1_remote_ref = RemoteRef {
-        target: RefTarget::normal(main_branch_origin_tx1.id().clone()),
-    };
-    let main_branch_alternate_tx0_remote_ref = RemoteRef {
-        target: RefTarget::normal(main_branch_alternate_tx0.id().clone()),
-    };
     let expected_main_branch = BranchTarget {
         local_target: &RefTarget::from_legacy_form(
             [main_branch_local_tx0.id().clone()],

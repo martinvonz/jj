@@ -28,7 +28,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::git_backend::GitBackend;
-use crate::op_store::{RefTarget, RefTargetOptionExt};
+use crate::op_store::{RefTarget, RefTargetOptionExt, RemoteRef};
 use crate::repo::{MutableRepo, Repo};
 use crate::revset::{self, RevsetExpression};
 use crate::settings::GitSettings;
@@ -261,10 +261,13 @@ pub fn import_some_refs(
         mut_repo.set_git_ref_target(&full_name, new_target);
     }
     for (ref_name, (old_target, new_target)) in &changed_remote_refs {
+        let new_remote_ref = RemoteRef {
+            target: new_target.clone(),
+        };
         if let RefName::RemoteBranch { branch, remote } = ref_name {
             // Remote-tracking branch is the last known state of the branch in the remote.
             // It shouldn't diverge even if we had inconsistent view.
-            mut_repo.set_remote_branch_target(branch, remote, new_target.clone());
+            mut_repo.set_remote_branch(branch, remote, new_remote_ref);
             // If a git remote-tracking branch changed, apply the change to the local branch
             // as well.
             if git_settings.auto_local_branch {
@@ -274,11 +277,7 @@ pub fn import_some_refs(
         } else {
             if let RefName::LocalBranch(branch) = ref_name {
                 // Update Git-tracking branch like the other remote branches.
-                mut_repo.set_remote_branch_target(
-                    branch,
-                    REMOTE_NAME_FOR_LOCAL_GIT_REPO,
-                    new_target.clone(),
-                );
+                mut_repo.set_remote_branch(branch, REMOTE_NAME_FOR_LOCAL_GIT_REPO, new_remote_ref);
             }
             mut_repo.merge_single_ref(ref_name, old_target, new_target);
         }
@@ -574,7 +573,8 @@ fn copy_exportable_local_branches_to_remote_view(
         .map(|(branch, new_target)| (branch.to_owned(), new_target.clone()))
         .collect_vec();
     for (branch, new_target) in new_local_branches {
-        mut_repo.set_remote_branch_target(&branch, remote_name, new_target);
+        let new_remote_ref = RemoteRef { target: new_target };
+        mut_repo.set_remote_branch(&branch, remote_name, new_remote_ref);
     }
 }
 
