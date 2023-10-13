@@ -303,7 +303,10 @@ impl Workspace {
         &mut self,
     ) -> Result<LockedWorkspace, WorkingCopyStateError> {
         let locked_wc = self.working_copy.start_mutation()?;
-        Ok(LockedWorkspace { locked_wc })
+        Ok(LockedWorkspace {
+            base: self,
+            locked_wc,
+        })
     }
 
     pub fn check_out(
@@ -339,16 +342,19 @@ impl Workspace {
 }
 
 pub struct LockedWorkspace<'a> {
-    locked_wc: LockedLocalWorkingCopy<'a>,
+    base: &'a mut Workspace,
+    locked_wc: LockedLocalWorkingCopy,
 }
 
 impl<'a> LockedWorkspace<'a> {
-    pub fn locked_wc(&mut self) -> &mut LockedLocalWorkingCopy<'a> {
+    pub fn locked_wc(&mut self) -> &mut LockedLocalWorkingCopy {
         &mut self.locked_wc
     }
 
     pub fn finish(self, operation_id: OperationId) -> Result<(), WorkingCopyStateError> {
-        self.locked_wc.finish(operation_id)
+        let new_wc = self.locked_wc.finish(operation_id)?;
+        self.base.working_copy = new_wc;
+        Ok(())
     }
 }
 
