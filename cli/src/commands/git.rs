@@ -660,7 +660,7 @@ fn decode_assuan_data(encoded: &str) -> Option<String> {
 #[tracing::instrument]
 fn get_ssh_keys(_username: &str) -> Vec<PathBuf> {
     let mut paths = vec![];
-    if let Ok(home_dir) = std::env::var("HOME") {
+    if let Some(home_dir) = dirs::home_dir() {
         let ssh_dir = Path::new(&home_dir).join(".ssh");
         for filename in ["id_ed25519_sk", "id_ed25519", "id_rsa"] {
             let key_path = ssh_dir.join(filename);
