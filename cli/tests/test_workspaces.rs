@@ -400,13 +400,63 @@ fn test_workspaces_forget() {
     Error: Workspace already exists
     "###);
 
-    // Forget the secondary workspace
-    let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["workspace", "forget", "secondary"]);
+    // Add a third workspace...
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../third"]);
+    // ... and then forget it, and the secondary workspace too
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&main_path, &["workspace", "forget", "secondary", "third"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     // No workspaces left
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @"");
+}
+
+#[test]
+fn test_workspaces_forget_multi_transaction() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
+    let main_path = test_env.env_root().join("main");
+
+    std::fs::write(main_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["new"]);
+
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../second"]);
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../third"]);
+
+    // there should be three workspaces
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: rlvkpnrz e949be04 (empty) (no description set)
+    second: pmmvwywv feda1c4e (empty) (no description set)
+    third: rzvqmyuk 485853ed (empty) (no description set)
+    "###);
+
+    // delete two at once, in a single tx
+    test_env.jj_cmd_ok(&main_path, &["workspace", "forget", "second", "third"]);
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: rlvkpnrz e949be04 (empty) (no description set)
+    "###);
+
+    // the op log should have multiple workspaces forgotten in a single tx
+    let stdout = test_env.jj_cmd_success(&main_path, &["op", "log", "--limit", "1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  e18f223ba3d3 test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
+    │  forget workspaces second, third
+    │  args: jj workspace forget second third
+    "###);
+
+    // now, undo, and that should restore both workspaces
+    test_env.jj_cmd_ok(&main_path, &["op", "undo"]);
+
+    // finally, there should be three workspaces at the end
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: rlvkpnrz e949be04 (empty) (no description set)
+    second: pmmvwywv feda1c4e (empty) (no description set)
+    third: rzvqmyuk 485853ed (empty) (no description set)
+    "###);
 }
 
 /// Test context of commit summary template

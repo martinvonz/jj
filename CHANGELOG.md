@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj workspace add` now takes a `--revision` argument.
 
+* `jj workspace forget` can now forget multiple workspaces at once.
+
 ### Fixed bugs
 
 * Updating the working copy to a commit where a file that's currently ignored

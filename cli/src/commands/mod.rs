@@ -1063,8 +1063,9 @@ struct WorkspaceAddArgs {
 /// before or after running this command.
 #[derive(clap::Args, Clone, Debug)]
 struct WorkspaceForgetArgs {
-    /// Name of the workspace to forget (the current workspace by default)
-    workspace: Option<String>,
+    /// Names of the workspaces to forget. By default, forgets only the current
+    /// workspace.
+    workspaces: Vec<String>,
 }
 
 /// List workspaces
@@ -3812,24 +3813,47 @@ fn cmd_workspace_forget(
     args: &WorkspaceForgetArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    let len = args.workspaces.len();
 
-    let workspace_id = if let Some(workspace_str) = &args.workspace {
-        WorkspaceId::new(workspace_str.to_string())
-    } else {
-        workspace_command.workspace_id().to_owned()
+    let mut wss = Vec::new();
+    let description = match len {
+        // NOTE (aseipp): if there's only 1-or-0 arguments, shortcut. this is
+        // mostly so the oplog description can look good: it removes the need,
+        // in the case of more-than-1 argument, to handle pluralization of the
+        // nouns in the description
+        0 | 1 => {
+            let ws = match len == 0 {
+                true => workspace_command.workspace_id().to_owned(),
+                false => WorkspaceId::new(args.workspaces[0].to_string()),
+            };
+            wss.push(ws.clone());
+            format!("forget workspace {}", ws.as_str())
+        }
+        _ => {
+            args.workspaces
+                .iter()
+                .map(|ws| WorkspaceId::new(ws.to_string()))
+                .for_each(|ws| wss.push(ws));
+
+            format!("forget workspaces {}", args.workspaces.join(", "))
+        }
     };
-    if workspace_command
-        .repo()
-        .view()
-        .get_wc_commit_id(&workspace_id)
-        .is_none()
-    {
-        return Err(user_error("No such workspace"));
+
+    for ws in &wss {
+        if workspace_command
+            .repo()
+            .view()
+            .get_wc_commit_id(ws)
+            .is_none()
+        {
+            return Err(user_error(format!("No such workspace: {}", ws.as_str())));
+        }
     }
 
-    let mut tx =
-        workspace_command.start_transaction(&format!("forget workspace {}", workspace_id.as_str()));
-    tx.mut_repo().remove_wc_commit(&workspace_id);
+    // bundle every workspace forget into a single transaction, so that e.g.
+    // undo correctly restores all of them at once.
+    let mut tx = workspace_command.start_transaction(&description);
+    wss.iter().for_each(|ws| tx.mut_repo().remove_wc_commit(ws));
     tx.finish(ui)?;
     Ok(())
 }
