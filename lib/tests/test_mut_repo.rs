@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jj_lib::backend::CommitId;
 use jj_lib::op_store::{RefTarget, RemoteRef, WorkspaceId};
 use jj_lib::repo::Repo;
 use maplit::hashset;
@@ -441,6 +442,9 @@ fn test_has_changed() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
+    let normal_remote_ref = |id: &CommitId| RemoteRef {
+        target: RefTarget::normal(id.clone()),
+    };
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
@@ -453,7 +457,7 @@ fn test_has_changed() {
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
         .unwrap();
     mut_repo.set_local_branch_target("main", RefTarget::normal(commit1.id().clone()));
-    mut_repo.set_remote_branch_target("main", "origin", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_remote_branch("main", "origin", normal_remote_ref(commit1.id()));
     let repo = tx.commit();
     // Test the setup
     assert_eq!(repo.view().heads(), &hashset! {commit1.id().clone()});
@@ -468,13 +472,13 @@ fn test_has_changed() {
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
         .unwrap();
     mut_repo.set_local_branch_target("main", RefTarget::normal(commit1.id().clone()));
-    mut_repo.set_remote_branch_target("main", "origin", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_remote_branch("main", "origin", normal_remote_ref(commit1.id()));
     assert!(!mut_repo.has_changes());
 
     mut_repo.remove_public_head(commit2.id());
     mut_repo.remove_head(commit2.id());
     mut_repo.set_local_branch_target("stable", RefTarget::absent());
-    mut_repo.set_remote_branch_target("stable", "origin", RefTarget::absent());
+    mut_repo.set_remote_branch("stable", "origin", RemoteRef::absent());
     assert!(!mut_repo.has_changes());
 
     mut_repo.add_head(&commit2);
@@ -504,9 +508,9 @@ fn test_has_changed() {
     mut_repo.set_local_branch_target("main", RefTarget::normal(commit1.id().clone()));
     assert!(!mut_repo.has_changes());
 
-    mut_repo.set_remote_branch_target("main", "origin", RefTarget::normal(commit2.id().clone()));
+    mut_repo.set_remote_branch("main", "origin", normal_remote_ref(commit2.id()));
     assert!(mut_repo.has_changes());
-    mut_repo.set_remote_branch_target("main", "origin", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_remote_branch("main", "origin", normal_remote_ref(commit1.id()));
     assert!(!mut_repo.has_changes());
 }
 
@@ -593,7 +597,7 @@ fn test_rename_remote() {
     let remote_ref = RemoteRef {
         target: RefTarget::normal(commit.id().clone()),
     };
-    mut_repo.set_remote_branch_target("main", "origin", remote_ref.target.clone());
+    mut_repo.set_remote_branch("main", "origin", remote_ref.clone());
     mut_repo.rename_remote("origin", "upstream");
     assert_eq!(mut_repo.get_remote_branch("main", "upstream"), remote_ref);
     assert_eq!(
