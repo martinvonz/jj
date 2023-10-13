@@ -190,10 +190,10 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
     let left_tree = store.get_root_tree(&left_tree_id).unwrap();
     let right_tree = store.get_root_tree(&right_tree_id).unwrap();
 
-    let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &left_tree)
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &left_tree)
         .unwrap();
-    wc.check_out(repo.op_id().clone(), None, &right_tree)
+    ws.check_out(repo.op_id().clone(), None, &right_tree)
         .unwrap();
 
     // Check that the working copy is clean.
@@ -274,9 +274,9 @@ fn test_conflict_subdirectory() {
     let tree2 = create_tree(repo, &[(&path, "1")]);
     let merged_tree = tree1.merge(&empty_tree, &tree2).unwrap();
     let repo = &test_workspace.repo;
-    let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &tree1).unwrap();
-    wc.check_out(repo.op_id().clone(), None, &merged_tree)
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &tree1).unwrap();
+    ws.check_out(repo.op_id().clone(), None, &merged_tree)
         .unwrap();
 }
 
@@ -286,12 +286,11 @@ fn test_tree_builder_file_directory_transition() {
     let test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let store = repo.store();
-    let mut workspace = test_workspace.workspace;
-    let workspace_root = workspace.workspace_root().clone();
+    let mut ws = test_workspace.workspace;
+    let workspace_root = ws.workspace_root().clone();
     let mut check_out_tree = |tree_id: &TreeId| {
         let tree = repo.store().get_tree(&RepoPath::root(), tree_id).unwrap();
-        let wc = workspace.working_copy_mut();
-        wc.check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree))
+        ws.check_out(repo.op_id().clone(), None, &MergedTree::legacy(tree))
             .unwrap();
     };
 
@@ -330,8 +329,8 @@ fn test_conflicting_changes_on_disk() {
     let settings = testutils::user_settings();
     let test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
-    let mut workspace = test_workspace.workspace;
-    let workspace_root = workspace.workspace_root().clone();
+    let mut ws = test_workspace.workspace;
+    let workspace_root = ws.workspace_root().clone();
 
     // file on disk conflicts with file in target commit
     let file_file_path = RepoPath::from_internal_string("file-file");
@@ -368,8 +367,7 @@ fn test_conflicting_changes_on_disk() {
     )
     .unwrap();
 
-    let wc = workspace.working_copy_mut();
-    let stats = wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
+    let stats = ws.check_out(repo.op_id().clone(), None, &tree).unwrap();
     assert_eq!(
         stats,
         CheckoutStats {
@@ -411,9 +409,10 @@ fn test_reset() {
         &[(&gitignore_path, "ignored\n"), (&ignored_path, "code")],
     );
 
-    let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &tree_with_file)
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &tree_with_file)
         .unwrap();
+    let wc = ws.working_copy_mut();
 
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
@@ -432,7 +431,8 @@ fn test_reset() {
 
     // Now test the opposite direction: resetting to a commit where the file is
     // tracked. The file should become tracked (even though it's ignored).
-    let wc = test_workspace.workspace.working_copy_mut();
+    let ws = &mut test_workspace.workspace;
+    let wc = ws.working_copy_mut();
     let mut locked_wc = wc.start_mutation().unwrap();
     locked_wc.reset(&tree_with_file).unwrap();
     locked_wc.finish(op_id.clone()).unwrap();
@@ -459,9 +459,10 @@ fn test_checkout_discard() {
     let tree1 = create_tree(&repo, &[(&file1_path, "contents")]);
     let tree2 = create_tree(&repo, &[(&file2_path, "contents")]);
 
-    let wc = test_workspace.workspace.working_copy_mut();
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &tree1).unwrap();
+    let wc = ws.working_copy_mut();
     let state_path = wc.state_path().to_path_buf();
-    wc.check_out(repo.op_id().clone(), None, &tree1).unwrap();
 
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(file1_path.to_fs_path(&workspace_root).is_file());
@@ -651,8 +652,8 @@ fn test_gitignores_in_ignored_dir() {
     let ignored_path = RepoPath::from_internal_string("ignored/file");
 
     let tree1 = create_tree(&test_workspace.repo, &[(&gitignore_path, "ignored\n")]);
-    let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(op_id.clone(), None, &tree1).unwrap();
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(op_id.clone(), None, &tree1).unwrap();
 
     testutils::write_working_copy_file(&workspace_root, &nested_gitignore_path, "!file\n");
     testutils::write_working_copy_file(&workspace_root, &ignored_path, "contents");
@@ -705,8 +706,8 @@ fn test_gitignores_checkout_never_overwrites_ignored() {
     // Now check out the tree that adds the file "modified" with contents
     // "contents". The exiting contents ("garbage") shouldn't be replaced in the
     // working copy.
-    let wc = test_workspace.workspace.working_copy_mut();
-    assert!(wc.check_out(repo.op_id().clone(), None, &tree).is_ok());
+    let ws = &mut test_workspace.workspace;
+    assert!(ws.check_out(repo.op_id().clone(), None, &tree).is_ok());
 
     // Check that the old contents are in the working copy
     let path = workspace_root.join("modified");
@@ -739,8 +740,8 @@ fn test_gitignores_ignored_directory_already_tracked() {
     );
 
     // Check out the tree with the files in `ignored/`
-    let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
     // Make some changes inside the ignored directory and check that they are
     // detected when we snapshot. The files that are still there should not be
@@ -831,8 +832,8 @@ fn test_gitsubmodule() {
 
     let tree_id = MergedTreeId::Legacy(tree_builder.write_tree());
     let tree = store.get_root_tree(&tree_id).unwrap();
-    let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
     std::fs::create_dir(submodule_path.to_fs_path(&workspace_root)).unwrap();
 
@@ -870,8 +871,8 @@ fn test_existing_directory_symlink() {
     let tree = create_tree(repo, &[(&file_path, "contents")]);
 
     // Checkout should fail because "parent" already exists and is a symlink.
-    let wc = test_workspace.workspace.working_copy_mut();
-    assert!(wc.check_out(repo.op_id().clone(), None, &tree).is_err());
+    let ws = &mut test_workspace.workspace;
+    assert!(ws.check_out(repo.op_id().clone(), None, &tree).is_err());
 
     // Therefore, "../escaped" shouldn't be created.
     assert!(!workspace_root.parent().unwrap().join("escaped").exists());

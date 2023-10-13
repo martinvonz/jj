@@ -22,14 +22,17 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::{Backend, BackendInitError};
+use crate::backend::{Backend, BackendInitError, MergedTreeId};
 use crate::file_util::{self, IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
 use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
-use crate::local_working_copy::{LocalWorkingCopy, WorkingCopyStateError};
+use crate::local_working_copy::{
+    CheckoutError, CheckoutStats, LocalWorkingCopy, WorkingCopyStateError,
+};
+use crate::merged_tree::MergedTree;
 use crate::op_heads_store::OpHeadsStore;
-use crate::op_store::{OpStore, WorkspaceId};
+use crate::op_store::{OpStore, OperationId, WorkspaceId};
 use crate::repo::{
     CheckOutCommitError, ReadonlyRepo, Repo, RepoInitError, RepoLoader, StoreFactories,
     StoreLoadError,
@@ -298,6 +301,38 @@ impl Workspace {
 
     pub fn working_copy_mut(&mut self) -> &mut LocalWorkingCopy {
         &mut self.working_copy
+    }
+
+    pub fn check_out(
+        &mut self,
+        operation_id: OperationId,
+        old_tree_id: Option<&MergedTreeId>,
+        new_tree: &MergedTree,
+    ) -> Result<CheckoutStats, CheckoutError> {
+        let mut locked_wc =
+            self.working_copy
+                .start_mutation()
+                .map_err(|err| CheckoutError::Other {
+                    message: "Failed to start editing the working copy state".to_string(),
+                    err: err.into(),
+                })?;
+        // Check if the current working-copy commit has changed on disk compared to what
+        // the caller expected. It's safe to check out another commit
+        // regardless, but it's probably not what  the caller wanted, so we let
+        // them know.
+        if let Some(old_tree_id) = old_tree_id {
+            if old_tree_id != locked_wc.old_tree_id() {
+                return Err(CheckoutError::ConcurrentCheckout);
+            }
+        }
+        let stats = locked_wc.check_out(new_tree)?;
+        locked_wc
+            .finish(operation_id)
+            .map_err(|err| CheckoutError::Other {
+                message: "Failed to save the working copy state".to_string(),
+                err: err.into(),
+            })?;
+        Ok(stats)
     }
 }
 

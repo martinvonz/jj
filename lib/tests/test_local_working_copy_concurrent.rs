@@ -39,40 +39,35 @@ fn test_concurrent_checkout() {
     let tree3 = repo.store().get_root_tree(&tree_id3).unwrap();
 
     // Check out tree1
-    let wc1 = test_workspace1.workspace.working_copy_mut();
+    let ws1 = &mut test_workspace1.workspace;
     // The operation ID is not correct, but that doesn't matter for this test
-    wc1.check_out(repo.op_id().clone(), None, &tree1).unwrap();
+    ws1.check_out(repo.op_id().clone(), None, &tree1).unwrap();
 
     // Check out tree2 from another process (simulated by another workspace
     // instance)
-    let mut workspace2 = Workspace::load(
+    let mut ws2 = Workspace::load(
         &settings,
         &workspace1_root,
         &TestRepo::default_store_factories(),
     )
     .unwrap();
-    workspace2
-        .working_copy_mut()
-        .check_out(repo.op_id().clone(), Some(&tree_id1), &tree2)
+    ws2.check_out(repo.op_id().clone(), Some(&tree_id1), &tree2)
         .unwrap();
 
     // Checking out another tree (via the first workspace instance) should now fail.
     assert_matches!(
-        wc1.check_out(repo.op_id().clone(), Some(&tree_id1), &tree3),
+        ws1.check_out(repo.op_id().clone(), Some(&tree_id1), &tree3),
         Err(CheckoutError::ConcurrentCheckout)
     );
 
     // Check that the tree2 is still checked out on disk.
-    let workspace3 = Workspace::load(
+    let ws3 = Workspace::load(
         &settings,
         &workspace1_root,
         &TestRepo::default_store_factories(),
     )
     .unwrap();
-    assert_eq!(
-        *workspace3.working_copy().current_tree_id().unwrap(),
-        tree_id2
-    );
+    assert_eq!(*ws3.working_copy().current_tree_id().unwrap(), tree_id2);
 }
 
 #[test]
@@ -100,7 +95,6 @@ fn test_checkout_parallel() {
     );
     test_workspace
         .workspace
-        .working_copy_mut()
         .check_out(repo.op_id().clone(), None, &tree)
         .unwrap();
 
@@ -124,10 +118,7 @@ fn test_checkout_parallel() {
                     .get_root_tree(&tree_id)
                     .unwrap();
                 // The operation ID is not correct, but that doesn't matter for this test
-                let stats = workspace
-                    .working_copy_mut()
-                    .check_out(op_id, None, &tree)
-                    .unwrap();
+                let stats = workspace.check_out(op_id, None, &tree).unwrap();
                 assert_eq!(stats.updated_files, 0);
                 assert_eq!(stats.added_files, 1);
                 assert_eq!(stats.removed_files, 1);
@@ -158,8 +149,8 @@ fn test_racy_checkout() {
 
     let mut num_matches = 0;
     for _ in 0..100 {
-        let wc = test_workspace.workspace.working_copy_mut();
-        wc.check_out(op_id.clone(), None, &tree).unwrap();
+        let ws = &mut test_workspace.workspace;
+        ws.check_out(op_id.clone(), None, &tree).unwrap();
         assert_eq!(
             std::fs::read(path.to_fs_path(&workspace_root)).unwrap(),
             b"1".to_vec()
