@@ -19,7 +19,7 @@ use assert_matches::assert_matches;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
-use jj_lib::workspace::Workspace;
+use jj_lib::workspace::{default_working_copy_factories, Workspace};
 use testutils::{commit_with_tree, create_tree, write_working_copy_file, TestRepo, TestWorkspace};
 
 #[test]
@@ -52,6 +52,7 @@ fn test_concurrent_checkout() {
         &settings,
         &workspace1_root,
         &TestRepo::default_store_factories(),
+        &default_working_copy_factories(),
     )
     .unwrap();
     ws2.check_out(repo.op_id().clone(), Some(&tree_id1), &commit2)
@@ -68,6 +69,7 @@ fn test_concurrent_checkout() {
         &settings,
         &workspace1_root,
         &TestRepo::default_store_factories(),
+        &default_working_copy_factories(),
     )
     .unwrap();
     assert_eq!(*ws3.working_copy().tree_id().unwrap(), tree_id2);
@@ -114,6 +116,7 @@ fn test_checkout_parallel() {
                     &settings,
                     &workspace_root,
                     &TestRepo::default_store_factories(),
+                    &default_working_copy_factories(),
                 )
                 .unwrap();
                 // The operation ID is not correct, but that doesn't matter for this test

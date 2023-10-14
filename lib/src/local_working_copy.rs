@@ -1290,7 +1290,7 @@ impl WorkingCopy for LocalWorkingCopy {
     }
 
     fn name(&self) -> &str {
-        "local"
+        Self::name()
     }
 
     fn path(&self) -> &Path {
@@ -1340,6 +1340,10 @@ impl WorkingCopy for LocalWorkingCopy {
 }
 
 impl LocalWorkingCopy {
+    pub fn name() -> &'static str {
+        "local"
+    }
+
     /// Initializes a new working copy at `working_copy_path`. The working
     /// copy's state will be stored in the `state_path` directory. The working
     /// copy will have the empty tree checked out.

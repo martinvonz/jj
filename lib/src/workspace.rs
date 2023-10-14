@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::{self, Write};
@@ -30,11 +31,12 @@ use crate::local_backend::LocalBackend;
 use crate::local_working_copy::LocalWorkingCopy;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo::{
-    BackendInitializer, CheckOutCommitError, IndexStoreInitializer, OpHeadsStoreInitializer,
-    OpStoreInitializer, ReadonlyRepo, Repo, RepoInitError, RepoLoader, StoreFactories,
-    StoreLoadError, SubmoduleStoreInitializer,
+    read_store_type_compat, BackendInitializer, CheckOutCommitError, IndexStoreInitializer,
+    OpHeadsStoreInitializer, OpStoreInitializer, ReadonlyRepo, Repo, RepoInitError, RepoLoader,
+    StoreFactories, StoreLoadError, SubmoduleStoreInitializer,
 };
 use crate::settings::UserSettings;
+use crate::store::Store;
 use crate::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, WorkingCopy, WorkingCopyStateError,
 };
@@ -271,9 +273,10 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_path: &Path,
         store_factories: &StoreFactories,
+        working_copy_factories: &HashMap<String, WorkingCopyFactory>,
     ) -> Result<Self, WorkspaceLoadError> {
         let loader = WorkspaceLoader::init(workspace_path)?;
-        let workspace = loader.load(user_settings, store_factories)?;
+        let workspace = loader.load(user_settings, store_factories, working_copy_factories)?;
         Ok(workspace)
     }
 
@@ -406,14 +409,51 @@ impl WorkspaceLoader {
         &self,
         user_settings: &UserSettings,
         store_factories: &StoreFactories,
+        working_copy_factories: &HashMap<String, WorkingCopyFactory>,
     ) -> Result<Workspace, WorkspaceLoadError> {
         let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories)?;
-        let working_copy = LocalWorkingCopy::load(
-            repo_loader.store().clone(),
-            self.workspace_root.clone(),
-            self.working_copy_state_path.clone(),
-        );
-        let workspace = Workspace::new(&self.workspace_root, Box::new(working_copy), repo_loader)?;
+        let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factories)?;
+        let workspace = Workspace::new(&self.workspace_root, working_copy, repo_loader)?;
         Ok(workspace)
     }
+
+    fn load_working_copy(
+        &self,
+        store: &Arc<Store>,
+        working_copy_factories: &HashMap<String, WorkingCopyFactory>,
+    ) -> Result<Box<dyn WorkingCopy>, StoreLoadError> {
+        // For compatibility with existing repos. TODO: Delete default in 0.17+
+        let working_copy_type = read_store_type_compat(
+            "working copy",
+            self.working_copy_state_path.join("type"),
+            LocalWorkingCopy::name,
+        )?;
+        let working_copy_factory =
+            working_copy_factories
+                .get(&working_copy_type)
+                .ok_or_else(|| StoreLoadError::UnsupportedType {
+                    store: "working copy",
+                    store_type: working_copy_type.to_string(),
+                })?;
+        let working_copy =
+            working_copy_factory(store, &self.workspace_root, &self.working_copy_state_path);
+        Ok(working_copy)
+    }
 }
+
+pub fn default_working_copy_factories() -> HashMap<String, WorkingCopyFactory> {
+    let mut factories: HashMap<String, WorkingCopyFactory> = HashMap::new();
+    factories.insert(
+        LocalWorkingCopy::name().to_owned(),
+        Box::new(|store, working_copy_path, store_path| {
+            Box::new(LocalWorkingCopy::load(
+                store.clone(),
+                working_copy_path.to_owned(),
+                store_path.to_owned(),
+            ))
+        }),
+    );
+    factories
+}
+
+pub type WorkingCopyFactory = Box<dyn Fn(&Arc<Store>, &Path, &Path) -> Box<dyn WorkingCopy>>;
