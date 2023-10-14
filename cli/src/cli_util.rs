@@ -41,7 +41,7 @@ use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
-use jj_lib::local_working_copy::{LocalWorkingCopy, LockedLocalWorkingCopy};
+use jj_lib::local_working_copy::LockedLocalWorkingCopy;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
@@ -853,7 +853,7 @@ impl WorkspaceCommandHelper {
         &self.user_repo.repo
     }
 
-    pub fn working_copy(&self) -> &LocalWorkingCopy {
+    pub fn working_copy(&self) -> &dyn WorkingCopy {
         self.workspace.working_copy()
     }
 
