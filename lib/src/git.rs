@@ -1064,6 +1064,11 @@ pub fn fetch(
 pub enum GitPushError {
     #[error("No git remote named '{0}'")]
     NoSuchRemote(String),
+    #[error(
+        "Git remote named '{name}' is reserved for local Git repository",
+        name = REMOTE_NAME_FOR_LOCAL_GIT_REPO
+    )]
+    RemoteReservedForLocalGitRepo,
     #[error("Push is not fast-forwardable")]
     NotFastForward,
     #[error("Remote rejected the update of some refs (do you have permission to push to {0:?}?)")]
@@ -1167,6 +1172,9 @@ fn push_refs(
     refspecs: &[String],
     callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
+    if remote_name == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
+        return Err(GitPushError::RemoteReservedForLocalGitRepo);
+    }
     let mut remote = git_repo.find_remote(remote_name).map_err(|err| {
         if is_remote_not_found_err(&err) {
             GitPushError::NoSuchRemote(remote_name.to_string())
