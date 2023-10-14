@@ -27,11 +27,12 @@ use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git;
 use jj_lib::git::{
-    FailedRefExport, FailedRefExportReason, GitFetchError, GitImportError, GitPushError,
-    GitRefUpdate, SubmoduleConfig,
+    FailedRefExport, FailedRefExportReason, GitBranchPushTargets, GitFetchError, GitImportError,
+    GitPushError, GitRefUpdate, SubmoduleConfig,
 };
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, RemoteRefState};
+use jj_lib::refs::BranchPushUpdate;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::{GitSettings, UserSettings};
 use jj_lib::view::RefName;
@@ -2213,6 +2214,7 @@ fn test_fetch_no_such_remote() {
 struct PushTestSetup {
     source_repo_dir: PathBuf,
     jj_repo: Arc<ReadonlyRepo>,
+    initial_commit: Commit,
     new_commit: Commit,
 }
 
@@ -2245,17 +2247,218 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
             jj_repo.store().use_tree_conflict_format(),
         )
         .unwrap();
+    let initial_commit = jj_repo
+        .store()
+        .get_commit(&jj_id(&initial_git_commit))
+        .unwrap();
     let mut tx = jj_repo.start_transaction(settings, "test");
     let new_commit = create_random_commit(tx.mut_repo(), settings)
-        .set_parents(vec![jj_id(&initial_git_commit)])
+        .set_parents(vec![initial_commit.id().clone()])
         .write()
         .unwrap();
     let jj_repo = tx.commit();
     PushTestSetup {
         source_repo_dir,
         jj_repo,
+        initial_commit,
         new_commit,
     }
+}
+
+#[test]
+fn test_push_branches_success() {
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let setup = set_up_push_repos(&settings, &temp_dir);
+    let clone_repo = get_git_repo(&setup.jj_repo);
+
+    let targets = GitBranchPushTargets {
+        branch_updates: vec![(
+            "main".to_owned(),
+            BranchPushUpdate {
+                old_target: Some(setup.initial_commit.id().clone()),
+                new_target: Some(setup.new_commit.id().clone()),
+            },
+        )],
+        force_pushed_branches: hashset! {},
+    };
+    let result = git::push_branches(
+        &clone_repo,
+        "origin",
+        &targets,
+        git::RemoteCallbacks::default(),
+    );
+    assert_eq!(result, Ok(()));
+
+    // Check that the ref got updated in the source repo
+    let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
+    let new_target = source_repo
+        .find_reference("refs/heads/main")
+        .unwrap()
+        .target();
+    let new_oid = git_id(&setup.new_commit);
+    assert_eq!(new_target, Some(new_oid));
+
+    // Check that the ref got updated in the cloned repo. This just tests our
+    // assumptions about libgit2 because we want the refs/remotes/origin/main
+    // branch to be updated.
+    let new_target = clone_repo
+        .find_reference("refs/remotes/origin/main")
+        .unwrap()
+        .target();
+    assert_eq!(new_target, Some(new_oid));
+}
+
+#[test]
+fn test_push_branches_deletion() {
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let setup = set_up_push_repos(&settings, &temp_dir);
+    let clone_repo = get_git_repo(&setup.jj_repo);
+
+    let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
+    // Test the setup
+    assert!(source_repo.find_reference("refs/heads/main").is_ok());
+
+    let targets = GitBranchPushTargets {
+        branch_updates: vec![(
+            "main".to_owned(),
+            BranchPushUpdate {
+                old_target: Some(setup.initial_commit.id().clone()),
+                new_target: None,
+            },
+        )],
+        force_pushed_branches: hashset! {},
+    };
+    let result = git::push_branches(
+        &get_git_repo(&setup.jj_repo),
+        "origin",
+        &targets,
+        git::RemoteCallbacks::default(),
+    );
+    assert_eq!(result, Ok(()));
+
+    // Check that the ref got deleted in the source repo
+    assert!(source_repo.find_reference("refs/heads/main").is_err());
+
+    // Check that the ref got deleted in the cloned repo. This just tests our
+    // assumptions about libgit2 because we want the refs/remotes/origin/main
+    // branch to be deleted.
+    assert!(clone_repo
+        .find_reference("refs/remotes/origin/main")
+        .is_err());
+}
+
+#[test]
+fn test_push_branches_mixed_deletion_and_addition() {
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let setup = set_up_push_repos(&settings, &temp_dir);
+    let clone_repo = get_git_repo(&setup.jj_repo);
+
+    let targets = GitBranchPushTargets {
+        branch_updates: vec![
+            (
+                "main".to_owned(),
+                BranchPushUpdate {
+                    old_target: Some(setup.initial_commit.id().clone()),
+                    new_target: None,
+                },
+            ),
+            (
+                "topic".to_owned(),
+                BranchPushUpdate {
+                    old_target: None,
+                    new_target: Some(setup.new_commit.id().clone()),
+                },
+            ),
+        ],
+        force_pushed_branches: hashset! {},
+    };
+    let result = git::push_branches(
+        &clone_repo,
+        "origin",
+        &targets,
+        git::RemoteCallbacks::default(),
+    );
+    assert_eq!(result, Ok(()));
+
+    // Check that the topic ref got updated in the source repo
+    let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
+    let new_target = source_repo
+        .find_reference("refs/heads/topic")
+        .unwrap()
+        .target();
+    assert_eq!(new_target, Some(git_id(&setup.new_commit)));
+
+    // Check that the main ref got deleted in the source repo
+    assert!(source_repo.find_reference("refs/heads/main").is_err());
+}
+
+#[test]
+fn test_push_branches_not_fast_forward() {
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let mut setup = set_up_push_repos(&settings, &temp_dir);
+    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    let new_commit = write_random_commit(tx.mut_repo(), &settings);
+    setup.jj_repo = tx.commit();
+
+    let targets = GitBranchPushTargets {
+        branch_updates: vec![(
+            "main".to_owned(),
+            BranchPushUpdate {
+                old_target: Some(setup.initial_commit.id().clone()),
+                new_target: Some(new_commit.id().clone()),
+            },
+        )],
+        force_pushed_branches: hashset! {},
+    };
+    let result = git::push_branches(
+        &get_git_repo(&setup.jj_repo),
+        "origin",
+        &targets,
+        git::RemoteCallbacks::default(),
+    );
+    assert_eq!(result, Err(GitPushError::NotFastForward));
+}
+
+#[test]
+fn test_push_branches_not_fast_forward_with_force() {
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let mut setup = set_up_push_repos(&settings, &temp_dir);
+    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    let new_commit = write_random_commit(tx.mut_repo(), &settings);
+    setup.jj_repo = tx.commit();
+
+    let targets = GitBranchPushTargets {
+        branch_updates: vec![(
+            "main".to_owned(),
+            BranchPushUpdate {
+                old_target: Some(setup.initial_commit.id().clone()),
+                new_target: Some(new_commit.id().clone()),
+            },
+        )],
+        force_pushed_branches: hashset! {
+            "main".to_owned(),
+        },
+    };
+    let result = git::push_branches(
+        &get_git_repo(&setup.jj_repo),
+        "origin",
+        &targets,
+        git::RemoteCallbacks::default(),
+    );
+    assert_eq!(result, Ok(()));
+
+    // Check that the ref got updated in the source repo
+    let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
+    let new_target = source_repo
+        .find_reference("refs/heads/main")
+        .unwrap()
+        .target();
+    assert_eq!(new_target, Some(git_id(&new_commit)));
 }
 
 #[test]
@@ -2293,127 +2496,6 @@ fn test_push_updates_success() {
         .unwrap()
         .target();
     assert_eq!(new_target, Some(new_oid));
-}
-
-#[test]
-fn test_push_updates_deletion() {
-    let settings = testutils::user_settings();
-    let temp_dir = testutils::new_temp_dir();
-    let setup = set_up_push_repos(&settings, &temp_dir);
-    let clone_repo = get_git_repo(&setup.jj_repo);
-
-    let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
-    // Test the setup
-    assert!(source_repo.find_reference("refs/heads/main").is_ok());
-
-    let result = git::push_updates(
-        &get_git_repo(&setup.jj_repo),
-        "origin",
-        &[GitRefUpdate {
-            qualified_name: "refs/heads/main".to_string(),
-            force: false,
-            new_target: None,
-        }],
-        git::RemoteCallbacks::default(),
-    );
-    assert_eq!(result, Ok(()));
-
-    // Check that the ref got deleted in the source repo
-    assert!(source_repo.find_reference("refs/heads/main").is_err());
-
-    // Check that the ref got deleted in the cloned repo. This just tests our
-    // assumptions about libgit2 because we want the refs/remotes/origin/main
-    // branch to be deleted.
-    assert!(clone_repo
-        .find_reference("refs/remotes/origin/main")
-        .is_err());
-}
-
-#[test]
-fn test_push_updates_mixed_deletion_and_addition() {
-    let settings = testutils::user_settings();
-    let temp_dir = testutils::new_temp_dir();
-    let setup = set_up_push_repos(&settings, &temp_dir);
-    let clone_repo = get_git_repo(&setup.jj_repo);
-    let result = git::push_updates(
-        &clone_repo,
-        "origin",
-        &[
-            GitRefUpdate {
-                qualified_name: "refs/heads/main".to_string(),
-                force: false,
-                new_target: None,
-            },
-            GitRefUpdate {
-                qualified_name: "refs/heads/topic".to_string(),
-                force: false,
-                new_target: Some(setup.new_commit.id().clone()),
-            },
-        ],
-        git::RemoteCallbacks::default(),
-    );
-    assert_eq!(result, Ok(()));
-
-    // Check that the topic ref got updated in the source repo
-    let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
-    let new_target = source_repo
-        .find_reference("refs/heads/topic")
-        .unwrap()
-        .target();
-    assert_eq!(new_target, Some(git_id(&setup.new_commit)));
-
-    // Check that the main ref got deleted in the source repo
-    assert!(source_repo.find_reference("refs/heads/main").is_err());
-}
-
-#[test]
-fn test_push_updates_not_fast_forward() {
-    let settings = testutils::user_settings();
-    let temp_dir = testutils::new_temp_dir();
-    let mut setup = set_up_push_repos(&settings, &temp_dir);
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
-    let new_commit = write_random_commit(tx.mut_repo(), &settings);
-    setup.jj_repo = tx.commit();
-    let result = git::push_updates(
-        &get_git_repo(&setup.jj_repo),
-        "origin",
-        &[GitRefUpdate {
-            qualified_name: "refs/heads/main".to_string(),
-            force: false,
-            new_target: Some(new_commit.id().clone()),
-        }],
-        git::RemoteCallbacks::default(),
-    );
-    assert_eq!(result, Err(GitPushError::NotFastForward));
-}
-
-#[test]
-fn test_push_updates_not_fast_forward_with_force() {
-    let settings = testutils::user_settings();
-    let temp_dir = testutils::new_temp_dir();
-    let mut setup = set_up_push_repos(&settings, &temp_dir);
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
-    let new_commit = write_random_commit(tx.mut_repo(), &settings);
-    setup.jj_repo = tx.commit();
-    let result = git::push_updates(
-        &get_git_repo(&setup.jj_repo),
-        "origin",
-        &[GitRefUpdate {
-            qualified_name: "refs/heads/main".to_string(),
-            force: true,
-            new_target: Some(new_commit.id().clone()),
-        }],
-        git::RemoteCallbacks::default(),
-    );
-    assert_eq!(result, Ok(()));
-
-    // Check that the ref got updated in the source repo
-    let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
-    let new_target = source_repo
-        .find_reference("refs/heads/main")
-        .unwrap()
-        .target();
-    assert_eq!(new_target, Some(git_id(&new_commit)));
 }
 
 #[test]

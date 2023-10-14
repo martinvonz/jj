@@ -29,6 +29,7 @@ use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::git_backend::GitBackend;
 use crate::op_store::{RefTarget, RefTargetOptionExt, RemoteRef, RemoteRefState};
+use crate::refs::BranchPushUpdate;
 use crate::repo::{MutableRepo, Repo};
 use crate::revset::{self, RevsetExpression};
 use crate::settings::GitSettings;
@@ -1073,6 +1074,12 @@ pub enum GitPushError {
     InternalGitError(#[from] git2::Error),
 }
 
+#[derive(Clone, Debug)]
+pub struct GitBranchPushTargets {
+    pub branch_updates: Vec<(String, BranchPushUpdate)>,
+    pub force_pushed_branches: HashSet<String>,
+}
+
 pub struct GitRefUpdate {
     pub qualified_name: String,
     // TODO: We want this to be a `current_target: Option<CommitId>` for the expected current
@@ -1080,6 +1087,25 @@ pub struct GitRefUpdate {
     // "push negotiation" callback (https://github.com/rust-lang/git2-rs/issues/733).
     pub force: bool,
     pub new_target: Option<CommitId>,
+}
+
+pub fn push_branches(
+    git_repo: &git2::Repository,
+    remote_name: &str,
+    targets: &GitBranchPushTargets,
+    callbacks: RemoteCallbacks<'_>,
+) -> Result<(), GitPushError> {
+    let ref_updates = targets
+        .branch_updates
+        .iter()
+        .map(|(branch_name, update)| GitRefUpdate {
+            qualified_name: format!("refs/heads/{branch_name}"),
+            force: targets.force_pushed_branches.contains(branch_name),
+            new_target: update.new_target.clone(),
+        })
+        .collect_vec();
+    push_updates(git_repo, remote_name, &ref_updates, callbacks)?;
+    Ok(())
 }
 
 pub fn push_updates(
