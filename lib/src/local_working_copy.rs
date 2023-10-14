@@ -1304,6 +1304,10 @@ impl WorkingCopy for LocalWorkingCopy {
         &self.checkout_state().operation_id
     }
 
+    fn tree_id(&self) -> Result<&MergedTreeId, WorkingCopyStateError> {
+        Ok(self.tree_state()?.current_tree_id())
+    }
+
     fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
         Ok(self.tree_state()?.sparse_patterns())
     }
@@ -1323,7 +1327,7 @@ impl WorkingCopy for LocalWorkingCopy {
             tree_state: OnceCell::new(),
         };
         let old_operation_id = wc.operation_id().clone();
-        let old_tree_id = wc.current_tree_id()?.clone();
+        let old_tree_id = wc.tree_id()?.clone();
         Ok(LockedLocalWorkingCopy {
             wc,
             lock,
@@ -1444,10 +1448,6 @@ impl LocalWorkingCopy {
         Ok(self.tree_state.get_mut().unwrap())
     }
 
-    pub fn current_tree_id(&self) -> Result<&MergedTreeId, WorkingCopyStateError> {
-        Ok(self.tree_state()?.current_tree_id())
-    }
-
     pub fn file_states(&self) -> Result<&BTreeMap<RepoPath, FileState>, WorkingCopyStateError> {
         Ok(self.tree_state()?.file_states())
     }
@@ -1564,7 +1564,7 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         mut self,
         operation_id: OperationId,
     ) -> Result<LocalWorkingCopy, WorkingCopyStateError> {
-        assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.current_tree_id()?);
+        assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.tree_id()?);
         if self.tree_state_dirty {
             self.wc
                 .tree_state_mut()?
