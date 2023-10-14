@@ -27,7 +27,7 @@ use crate::file_util::{self, IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
 use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
-use crate::local_working_copy::{LocalWorkingCopy, LockedLocalWorkingCopy};
+use crate::local_working_copy::LocalWorkingCopy;
 use crate::merged_tree::MergedTree;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OpStore, OperationId, WorkspaceId};
@@ -343,12 +343,12 @@ impl Workspace {
 
 pub struct LockedWorkspace<'a> {
     base: &'a mut Workspace,
-    locked_wc: LockedLocalWorkingCopy,
+    locked_wc: Box<dyn LockedWorkingCopy>,
 }
 
 impl<'a> LockedWorkspace<'a> {
-    pub fn locked_wc(&mut self) -> &mut LockedLocalWorkingCopy {
-        &mut self.locked_wc
+    pub fn locked_wc(&mut self) -> &mut dyn LockedWorkingCopy {
+        self.locked_wc.as_mut()
     }
 
     pub fn finish(self, operation_id: OperationId) -> Result<(), WorkingCopyStateError> {

@@ -1312,7 +1312,7 @@ impl WorkingCopy for LocalWorkingCopy {
         Ok(self.tree_state()?.sparse_patterns())
     }
 
-    fn start_mutation(&self) -> Result<LockedLocalWorkingCopy, WorkingCopyStateError> {
+    fn start_mutation(&self) -> Result<Box<dyn LockedWorkingCopy>, WorkingCopyStateError> {
         let lock_path = self.state_path.join("working_copy.lock");
         let lock = FileLock::lock(lock_path);
 
@@ -1328,13 +1328,13 @@ impl WorkingCopy for LocalWorkingCopy {
         };
         let old_operation_id = wc.operation_id().clone();
         let old_tree_id = wc.tree_id()?.clone();
-        Ok(LockedLocalWorkingCopy {
+        Ok(Box::new(LockedLocalWorkingCopy {
             wc,
             lock,
             old_operation_id,
             old_tree_id,
             tree_state_dirty: false,
-        })
+        }))
     }
 }
 
@@ -1565,7 +1565,7 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
 
     #[instrument(skip_all)]
     fn finish(
-        mut self,
+        mut self: Box<Self>,
         operation_id: OperationId,
     ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
         assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.tree_id()?);
