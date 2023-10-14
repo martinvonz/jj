@@ -68,6 +68,10 @@ pub struct LocalBackend {
 }
 
 impl LocalBackend {
+    pub fn name() -> &'static str {
+        "local"
+    }
+
     pub fn init(store_path: &Path) -> Self {
         fs::create_dir(store_path.join("commits")).unwrap();
         fs::create_dir(store_path.join("trees")).unwrap();
@@ -122,7 +126,7 @@ impl Backend for LocalBackend {
     }
 
     fn name(&self) -> &str {
-        "local"
+        Self::name()
     }
 
     fn commit_id_length(&self) -> usize {

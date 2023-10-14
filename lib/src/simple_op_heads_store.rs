@@ -37,6 +37,10 @@ impl Debug for SimpleOpHeadsStore {
 }
 
 impl SimpleOpHeadsStore {
+    pub fn name() -> &'static str {
+        "simple_op_heads_store"
+    }
+
     pub fn init(dir: &Path) -> Self {
         let op_heads_dir = dir.join("heads");
         fs::create_dir(&op_heads_dir).unwrap();
@@ -85,7 +89,7 @@ impl OpHeadsStoreLock<'_> for SimpleOpHeadsStoreLock<'_> {
 
 impl OpHeadsStore for SimpleOpHeadsStore {
     fn name(&self) -> &str {
-        "simple_op_heads_store"
+        Self::name()
     }
 
     fn add_op_head(&self, id: &OperationId) {

@@ -102,6 +102,10 @@ pub struct GitBackend {
 }
 
 impl GitBackend {
+    pub fn name() -> &'static str {
+        "git"
+    }
+
     fn new(repo: git2::Repository, extra_metadata_store: TableStore) -> Self {
         let root_commit_id = CommitId::from_bytes(&[0; HASH_LENGTH]);
         let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_LENGTH]);
@@ -487,7 +491,7 @@ impl Backend for GitBackend {
     }
 
     fn name(&self) -> &str {
-        "git"
+        Self::name()
     }
 
     fn commit_id_length(&self) -> usize {

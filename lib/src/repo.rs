@@ -359,29 +359,29 @@ impl Default for StoreFactories {
 
         // Backends
         factories.add_backend(
-            "local",
+            LocalBackend::name(),
             Box::new(|store_path| Ok(Box::new(LocalBackend::load(store_path)))),
         );
         factories.add_backend(
-            "git",
+            GitBackend::name(),
             Box::new(|store_path| Ok(Box::new(GitBackend::load(store_path)?))),
         );
 
         // OpStores
         factories.add_op_store(
-            "simple_op_store",
+            SimpleOpStore::name(),
             Box::new(|store_path| Box::new(SimpleOpStore::load(store_path))),
         );
 
         // OpHeadsStores
         factories.add_op_heads_store(
-            "simple_op_heads_store",
+            SimpleOpHeadsStore::name(),
             Box::new(|store_path| Box::new(SimpleOpHeadsStore::load(store_path))),
         );
 
         // Index
         factories.add_index_store(
-            "default",
+            DefaultIndexStore::name(),
             Box::new(|store_path| Box::new(DefaultIndexStore::load(store_path))),
         );
 

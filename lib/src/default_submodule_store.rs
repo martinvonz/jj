@@ -45,6 +45,6 @@ impl DefaultSubmoduleStore {
 
 impl SubmoduleStore for DefaultSubmoduleStore {
     fn name(&self) -> &str {
-        DefaultSubmoduleStore::name()
+        Self::name()
     }
 }
