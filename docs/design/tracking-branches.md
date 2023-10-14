@@ -197,8 +197,7 @@ In particular, a merge of local and remote targets is
      * ~`tags`~ (not implemented, but should be the same as `branches`)
   2. Pushes diff to the remote Git repo (as well as remote tracking branches
      in the backing Git repo.)
-  3. Sets `remotes[remote].branches[name].state = tracking`
-  4. Import changes only for `remotes[remote].branches[glob]`
+  3. Updates `remotes[remote]` and `git_refs` reflecting the push.
 
 * `jj git export`
   1. Copies local `branches`/`tags` back to `remotes["git"]`.
@@ -288,25 +287,22 @@ Note: desired behavior of `jj branch forget` is to
 
 * Pushing new branch, remote doesn't exist
   1. Pushes `[local, absent] - [absent]` -> `local`
-  2. Sets `remotes[remote].branches[name].state = tracking`
-  3. `import_refs()` merges `[local, local] - [absent]` -> `local` (noop)
+  2. Sets `remotes[remote].branches[name].target = local`, `.state = tracking`
 * Pushing new branch, untracked remote exists
   1. Pushes `[local, remote] - [absent]`
      * Fails if `local` moved backwards or sideways
-  2. Sets `remotes[remote].branches[name].state = tracking`
-  3. `import_refs()` merges `[local, local] - [remote]` -> `local` (noop)
+  2. Sets `remotes[remote].branches[name].target = local`, `.state = tracking`
 * Pushing existing branch to tracking remote
   1. Pushes `[local, remote] - [remote]` -> `local`
      * Fails if `local` moved backwards or sideways, and if `remote` is out of
        sync
-  2. `import_refs()` merges `[local, local] - [remote]` -> `local` (noop)
+  2. Sets `remotes[remote].branches[name].target = local`
 * Pushing existing branch to untracked remote
   * Same as "new branch"
 * Pushing deleted branch to tracking remote
   1. Pushes `[absent, remote] - [remote]` -> `absent`
      * TODO: Fails if `remote` is out of sync?
-  2. `import_refs()` merges `[absent, absent] - [remote]` -> `absent`
-  3. Removes `remotes[remote].branches[name]` (`target` becomes `absent`)
+  2. Removes `remotes[remote].branches[name]` (`target` becomes `absent`)
 * Pushing deleted branch to untracked remote
   * Noop since `[absent, remote] - [absent]` -> `remote`
   * Perhaps, UI will report error

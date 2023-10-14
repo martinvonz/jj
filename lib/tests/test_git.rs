@@ -2256,6 +2256,20 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
         .set_parents(vec![initial_commit.id().clone()])
         .write()
         .unwrap();
+    tx.mut_repo().set_git_ref_target(
+        "refs/remotes/origin/main",
+        RefTarget::normal(initial_commit.id().clone()),
+    );
+    tx.mut_repo().set_remote_branch(
+        "main",
+        "origin",
+        RemoteRef {
+            target: RefTarget::normal(initial_commit.id().clone()),
+            // Caller expects the main branch is tracked. The corresponding local branch will
+            // be created (or left as deleted) by caller.
+            state: RemoteRefState::Tracking,
+        },
+    );
     let jj_repo = tx.commit();
     PushTestSetup {
         source_repo_dir,
@@ -2269,8 +2283,9 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
 fn test_push_branches_success() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
-    let setup = set_up_push_repos(&settings, &temp_dir);
+    let mut setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = get_git_repo(&setup.jj_repo);
+    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
 
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
@@ -2283,6 +2298,7 @@ fn test_push_branches_success() {
         force_pushed_branches: hashset! {},
     };
     let result = git::push_branches(
+        tx.mut_repo(),
         &clone_repo,
         "origin",
         &targets,
@@ -2307,14 +2323,35 @@ fn test_push_branches_success() {
         .unwrap()
         .target();
     assert_eq!(new_target, Some(new_oid));
+
+    // Check that the repo view got updated
+    let view = tx.mut_repo().view();
+    assert_eq!(
+        *view.get_git_ref("refs/remotes/origin/main"),
+        RefTarget::normal(setup.new_commit.id().clone()),
+    );
+    assert_eq!(
+        *view.get_remote_branch("main", "origin"),
+        RemoteRef {
+            target: RefTarget::normal(setup.new_commit.id().clone()),
+            state: RemoteRefState::Tracking,
+        },
+    );
+
+    // Check that the repo view reflects the changes in the Git repo
+    setup.jj_repo = tx.commit();
+    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    git::import_refs(tx.mut_repo(), &clone_repo, &GitSettings::default()).unwrap();
+    assert!(!tx.mut_repo().has_changes());
 }
 
 #[test]
 fn test_push_branches_deletion() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
-    let setup = set_up_push_repos(&settings, &temp_dir);
+    let mut setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = get_git_repo(&setup.jj_repo);
+    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
 
     let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
     // Test the setup
@@ -2331,6 +2368,7 @@ fn test_push_branches_deletion() {
         force_pushed_branches: hashset! {},
     };
     let result = git::push_branches(
+        tx.mut_repo(),
         &get_git_repo(&setup.jj_repo),
         "origin",
         &targets,
@@ -2347,14 +2385,26 @@ fn test_push_branches_deletion() {
     assert!(clone_repo
         .find_reference("refs/remotes/origin/main")
         .is_err());
+
+    // Check that the repo view got updated
+    let view = tx.mut_repo().view();
+    assert!(view.get_git_ref("refs/remotes/origin/main").is_absent());
+    assert!(view.get_remote_branch("main", "origin").is_absent());
+
+    // Check that the repo view reflects the changes in the Git repo
+    setup.jj_repo = tx.commit();
+    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    git::import_refs(tx.mut_repo(), &clone_repo, &GitSettings::default()).unwrap();
+    assert!(!tx.mut_repo().has_changes());
 }
 
 #[test]
 fn test_push_branches_mixed_deletion_and_addition() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
-    let setup = set_up_push_repos(&settings, &temp_dir);
+    let mut setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = get_git_repo(&setup.jj_repo);
+    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
 
     let targets = GitBranchPushTargets {
         branch_updates: vec![
@@ -2376,6 +2426,7 @@ fn test_push_branches_mixed_deletion_and_addition() {
         force_pushed_branches: hashset! {},
     };
     let result = git::push_branches(
+        tx.mut_repo(),
         &clone_repo,
         "origin",
         &targets,
@@ -2393,6 +2444,28 @@ fn test_push_branches_mixed_deletion_and_addition() {
 
     // Check that the main ref got deleted in the source repo
     assert!(source_repo.find_reference("refs/heads/main").is_err());
+
+    // Check that the repo view got updated
+    let view = tx.mut_repo().view();
+    assert!(view.get_git_ref("refs/remotes/origin/main").is_absent());
+    assert!(view.get_remote_branch("main", "origin").is_absent());
+    assert_eq!(
+        *view.get_git_ref("refs/remotes/origin/topic"),
+        RefTarget::normal(setup.new_commit.id().clone()),
+    );
+    assert_eq!(
+        *view.get_remote_branch("topic", "origin"),
+        RemoteRef {
+            target: RefTarget::normal(setup.new_commit.id().clone()),
+            state: RemoteRefState::Tracking,
+        },
+    );
+
+    // Check that the repo view reflects the changes in the Git repo
+    setup.jj_repo = tx.commit();
+    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    git::import_refs(tx.mut_repo(), &clone_repo, &GitSettings::default()).unwrap();
+    assert!(!tx.mut_repo().has_changes());
 }
 
 #[test]
@@ -2403,6 +2476,7 @@ fn test_push_branches_not_fast_forward() {
     let mut tx = setup.jj_repo.start_transaction(&settings, "test");
     let new_commit = write_random_commit(tx.mut_repo(), &settings);
     setup.jj_repo = tx.commit();
+    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
 
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
@@ -2415,6 +2489,7 @@ fn test_push_branches_not_fast_forward() {
         force_pushed_branches: hashset! {},
     };
     let result = git::push_branches(
+        tx.mut_repo(),
         &get_git_repo(&setup.jj_repo),
         "origin",
         &targets,
@@ -2431,6 +2506,7 @@ fn test_push_branches_not_fast_forward_with_force() {
     let mut tx = setup.jj_repo.start_transaction(&settings, "test");
     let new_commit = write_random_commit(tx.mut_repo(), &settings);
     setup.jj_repo = tx.commit();
+    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
 
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
@@ -2445,6 +2521,7 @@ fn test_push_branches_not_fast_forward_with_force() {
         },
     };
     let result = git::push_branches(
+        tx.mut_repo(),
         &get_git_repo(&setup.jj_repo),
         "origin",
         &targets,

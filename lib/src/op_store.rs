@@ -83,6 +83,11 @@ impl RefTarget {
         &TARGET
     }
 
+    /// Creates non-conflicting target that optionally points to a commit.
+    pub fn resolved(maybe_id: Option<CommitId>) -> Self {
+        Self::from_merge(Merge::resolved(maybe_id))
+    }
+
     /// Creates non-conflicting target pointing to a commit.
     pub fn normal(id: CommitId) -> Self {
         Self::from_merge(Merge::normal(id))

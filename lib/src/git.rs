@@ -1094,7 +1094,9 @@ pub struct GitRefUpdate {
     pub new_target: Option<CommitId>,
 }
 
+/// Pushes the specified branches and updates the repo view accordingly.
 pub fn push_branches(
+    mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     remote_name: &str,
     targets: &GitBranchPushTargets,
@@ -1110,9 +1112,24 @@ pub fn push_branches(
         })
         .collect_vec();
     push_updates(git_repo, remote_name, &ref_updates, callbacks)?;
+
+    // TODO: add support for partially pushed refs? we could update the view
+    // excluding rejected refs, but the transaction would be aborted anyway
+    // if we returned an Err.
+    for (branch_name, update) in &targets.branch_updates {
+        let git_ref_name = format!("refs/remotes/{remote_name}/{branch_name}");
+        let new_remote_ref = RemoteRef {
+            target: RefTarget::resolved(update.new_target.clone()),
+            state: RemoteRefState::Tracking,
+        };
+        mut_repo.set_git_ref_target(&git_ref_name, new_remote_ref.target.clone());
+        mut_repo.set_remote_branch(branch_name, remote_name, new_remote_ref);
+    }
+
     Ok(())
 }
 
+/// Pushes the specified Git refs without updating the repo view.
 pub fn push_updates(
     git_repo: &git2::Repository,
     remote_name: &str,
