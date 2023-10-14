@@ -61,6 +61,10 @@ pub struct SimpleOpStore {
 }
 
 impl SimpleOpStore {
+    pub fn name() -> &'static str {
+        "simple_op_store"
+    }
+
     /// Creates an empty OpStore, panics if it already exists
     pub fn init(store_path: &Path) -> Self {
         fs::create_dir(store_path.join("views")).unwrap();
@@ -88,7 +92,7 @@ impl SimpleOpStore {
 
 impl OpStore for SimpleOpStore {
     fn name(&self) -> &str {
-        "simple_op_store"
+        Self::name()
     }
 
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {

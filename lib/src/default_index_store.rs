@@ -60,6 +60,10 @@ pub struct DefaultIndexStore {
 }
 
 impl DefaultIndexStore {
+    pub fn name() -> &'static str {
+        "default"
+    }
+
     pub fn init(dir: &Path) -> Self {
         std::fs::create_dir(dir.join("operations")).unwrap();
         DefaultIndexStore {
@@ -207,7 +211,7 @@ impl IndexStore for DefaultIndexStore {
     }
 
     fn name(&self) -> &str {
-        "default"
+        Self::name()
     }
 
     fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Box<dyn ReadonlyIndex> {
