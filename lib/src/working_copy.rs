@@ -49,6 +49,9 @@ pub trait WorkingCopy {
     /// The operation this working copy was most recently updated to.
     fn operation_id(&self) -> &OperationId;
 
+    /// The ID of the tree this working copy was most recently updated to.
+    fn tree_id(&self) -> Result<&MergedTreeId, WorkingCopyStateError>;
+
     /// Patterns that decide which paths from the current tree should be checked
     /// out in the working copy. An empty list means that no paths should be
     /// checked out in the working copy. A single `RepoPath::root()` entry means

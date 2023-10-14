@@ -105,7 +105,7 @@ pub fn cmd_debug(
             let workspace_command = command.workspace_helper(ui)?;
             let wc = workspace_command.working_copy();
             writeln!(ui.stdout(), "Current operation: {:?}", wc.operation_id())?;
-            writeln!(ui.stdout(), "Current tree: {:?}", wc.current_tree_id()?)?;
+            writeln!(ui.stdout(), "Current tree: {:?}", wc.tree_id()?)?;
             for (file, state) in wc.file_states()? {
                 writeln!(
                     ui.stdout(),
