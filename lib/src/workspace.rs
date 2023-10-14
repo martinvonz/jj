@@ -78,7 +78,7 @@ pub struct Workspace {
     // working copy files live.
     workspace_root: PathBuf,
     repo_loader: RepoLoader,
-    working_copy: LocalWorkingCopy,
+    working_copy: Box<dyn WorkingCopy>,
 }
 
 fn create_jj_dir(workspace_root: &Path) -> Result<PathBuf, WorkspaceInitError> {
@@ -98,7 +98,7 @@ fn init_working_copy(
     workspace_root: &Path,
     jj_dir: &Path,
     workspace_id: WorkspaceId,
-) -> Result<(LocalWorkingCopy, Arc<ReadonlyRepo>), WorkspaceInitError> {
+) -> Result<(Box<dyn WorkingCopy>, Arc<ReadonlyRepo>), WorkspaceInitError> {
     let working_copy_state_path = jj_dir.join("working_copy");
     std::fs::create_dir(&working_copy_state_path).context(&working_copy_state_path)?;
 
@@ -120,13 +120,13 @@ fn init_working_copy(
         repo.op_id().clone(),
         workspace_id,
     )?;
-    Ok((working_copy, repo))
+    Ok((Box::new(working_copy), repo))
 }
 
 impl Workspace {
     fn new(
         workspace_root: &Path,
-        working_copy: LocalWorkingCopy,
+        working_copy: Box<dyn WorkingCopy>,
         repo_loader: RepoLoader,
     ) -> Result<Workspace, PathError> {
         let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
@@ -295,8 +295,8 @@ impl Workspace {
         &self.repo_loader
     }
 
-    pub fn working_copy(&self) -> &LocalWorkingCopy {
-        &self.working_copy
+    pub fn working_copy(&self) -> &dyn WorkingCopy {
+        self.working_copy.as_ref()
     }
 
     pub fn start_working_copy_mutation(
@@ -415,7 +415,7 @@ impl WorkspaceLoader {
             self.workspace_root.clone(),
             self.working_copy_state_path.clone(),
         );
-        let workspace = Workspace::new(&self.workspace_root, working_copy, repo_loader)?;
+        let workspace = Workspace::new(&self.workspace_root, Box::new(working_copy), repo_loader)?;
         Ok(workspace)
     }
 }

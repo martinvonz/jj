@@ -25,7 +25,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, MergedTreeId};
 use crate::fsmonitor::FsmonitorKind;
 use crate::gitignore::GitIgnoreFile;
-use crate::local_working_copy::{LocalWorkingCopy, LockedLocalWorkingCopy};
+use crate::local_working_copy::LockedLocalWorkingCopy;
 use crate::merged_tree::MergedTree;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::RepoPath;
@@ -69,6 +69,9 @@ pub trait LockedWorkingCopy {
     /// Should return `self`. For down-casting purposes.
     fn as_any(&self) -> &dyn Any;
 
+    /// Should return `self`. For down-casting purposes.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+
     /// The operation at the time the lock was taken
     fn old_operation_id(&self) -> &OperationId;
 
@@ -101,8 +104,10 @@ pub trait LockedWorkingCopy {
 
     /// Finish the modifications to the working copy by writing the updated
     /// states to disk. Returns the new (unlocked) working copy.
-    // TODO: return a `Box<dyn WorkingCopy>` instead
-    fn finish(self, operation_id: OperationId) -> Result<LocalWorkingCopy, WorkingCopyStateError>;
+    fn finish(
+        self,
+        operation_id: OperationId,
+    ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError>;
 }
 
 /// An error while snapshotting the working copy.

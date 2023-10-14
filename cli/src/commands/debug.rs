@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::fmt::Debug;
 use std::io::Write as _;
 
 use clap::Subcommand;
 use jj_lib::backend::ObjectId;
 use jj_lib::default_index_store::{DefaultIndexStore, ReadonlyIndexWrapper};
+use jj_lib::local_working_copy::{LocalWorkingCopy, LockedLocalWorkingCopy};
 use jj_lib::revset;
-use jj_lib::working_copy::WorkingCopy;
+use jj_lib::working_copy::{LockedWorkingCopy, WorkingCopy};
 
 use crate::cli_util::{resolve_op_for_load, user_error, CommandError, CommandHelper};
 use crate::template_parser;
@@ -103,7 +105,7 @@ pub fn cmd_debug(
         DebugCommands::Revset(args) => cmd_debug_revset(ui, command, args)?,
         DebugCommands::WorkingCopy(_wc_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let wc = workspace_command.working_copy();
+            let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
             writeln!(ui.stdout(), "Current operation: {:?}", wc.operation_id())?;
             writeln!(ui.stdout(), "Current tree: {:?}", wc.tree_id()?)?;
             for (file, state) in wc.file_states()? {
@@ -250,16 +252,25 @@ fn cmd_debug_watchman(
     let repo = workspace_command.repo().clone();
     match subcommand {
         DebugWatchmanSubcommand::QueryClock => {
-            let (clock, _changed_files) = workspace_command.working_copy().query_watchman()?;
+            let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
+            let (clock, _changed_files) = wc.query_watchman()?;
             writeln!(ui.stdout(), "Clock: {clock:?}")?;
         }
         DebugWatchmanSubcommand::QueryChangedFiles => {
-            let (_clock, changed_files) = workspace_command.working_copy().query_watchman()?;
+            let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
+            let (_clock, changed_files) = wc.query_watchman()?;
             writeln!(ui.stdout(), "Changed files: {changed_files:?}")?;
         }
         DebugWatchmanSubcommand::ResetClock => {
             let (mut locked_ws, _commit) = workspace_command.start_working_copy_mutation()?;
-            locked_ws.locked_wc().reset_watchman()?;
+            let Some(locked_local_wc): Option<&mut LockedLocalWorkingCopy> =
+                locked_ws.locked_wc().as_any_mut().downcast_mut()
+            else {
+                return Err(user_error(
+                    "This command requires a standard local-disk working copy",
+                ));
+            };
+            locked_local_wc.reset_watchman()?;
             locked_ws.finish(repo.op_id().clone())?;
             writeln!(ui.stderr(), "Reset Watchman clock")?;
         }
@@ -276,4 +287,9 @@ fn cmd_debug_watchman(
     Err(user_error(
         "Cannot query Watchman because jj was not compiled with the `watchman` feature",
     ))
+}
+
+fn check_local_disk_wc(x: &dyn Any) -> Result<&LocalWorkingCopy, CommandError> {
+    x.downcast_ref()
+        .ok_or_else(|| user_error("This command requires a standard local-disk working copy"))
 }

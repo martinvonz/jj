@@ -34,9 +34,7 @@ use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jj_lib::settings::UserSettings;
-use jj_lib::working_copy::{
-    CheckoutStats, LockedWorkingCopy, SnapshotError, SnapshotOptions, WorkingCopy,
-};
+use jj_lib::working_copy::{CheckoutStats, LockedWorkingCopy, SnapshotError, SnapshotOptions};
 use jj_lib::workspace::LockedWorkspace;
 use test_case::test_case;
 use testutils::{create_tree, write_random_commit, TestRepoBackend, TestWorkspace};
@@ -417,7 +415,7 @@ fn test_reset() {
 
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
-    let wc = ws.working_copy();
+    let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert!(wc.file_states().unwrap().contains_key(&ignored_path));
 
     // After we reset to the commit without the file, it should still exist on disk,
@@ -427,7 +425,7 @@ fn test_reset() {
     locked_ws.locked_wc().reset(&tree_without_file).unwrap();
     locked_ws.finish(op_id.clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
-    let wc = ws.working_copy();
+    let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert!(!wc.file_states().unwrap().contains_key(&ignored_path));
     let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(new_tree.id(), tree_without_file.id());
@@ -439,7 +437,7 @@ fn test_reset() {
     locked_ws.locked_wc().reset(&tree_with_file).unwrap();
     locked_ws.finish(op_id.clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
-    let wc = ws.working_copy();
+    let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert!(wc.file_states().unwrap().contains_key(&ignored_path));
     let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(new_tree.id(), tree_with_file.id());
@@ -464,11 +462,12 @@ fn test_checkout_discard() {
 
     let ws = &mut test_workspace.workspace;
     ws.check_out(repo.op_id().clone(), None, &tree1).unwrap();
-    let state_path = ws.working_copy().state_path().to_path_buf();
+    let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
+    let state_path = wc.state_path().to_path_buf();
 
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(file1_path.to_fs_path(&workspace_root).is_file());
-    let wc = ws.working_copy();
+    let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert!(wc.file_states().unwrap().contains_key(&file1_path));
 
     // Start a checkout
@@ -484,7 +483,7 @@ fn test_checkout_discard() {
     drop(locked_ws);
 
     // The change should remain in the working copy, but not in memory and not saved
-    let wc = ws.working_copy();
+    let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert!(wc.file_states().unwrap().contains_key(&file1_path));
     assert!(!wc.file_states().unwrap().contains_key(&file2_path));
     assert!(!file1_path.to_fs_path(&workspace_root).is_file());
@@ -538,6 +537,7 @@ fn test_snapshot_special_file() {
     let mut test_workspace = TestWorkspace::init(&settings);
     let workspace_root = test_workspace.workspace.workspace_root().clone();
     let store = test_workspace.repo.store();
+    let ws = &mut test_workspace.workspace;
 
     let file1_path = RepoPath::from_internal_string("file1");
     let file1_disk_path = file1_path.to_fs_path(&workspace_root);
@@ -552,10 +552,7 @@ fn test_snapshot_special_file() {
     assert!(!socket_disk_path.is_file());
 
     // Snapshot the working copy with the socket file
-    let mut locked_ws = test_workspace
-        .workspace
-        .start_working_copy_mutation()
-        .unwrap();
+    let mut locked_ws = ws.start_working_copy_mutation().unwrap();
     let tree_id = locked_ws
         .locked_wc()
         .snapshot(SnapshotOptions::empty_for_test())
@@ -567,7 +564,7 @@ fn test_snapshot_special_file() {
         tree.entries().map(|(path, _value)| path).collect_vec(),
         vec![file1_path.clone(), file2_path.clone()]
     );
-    let wc = test_workspace.workspace.working_copy();
+    let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert_eq!(
         wc.file_states().unwrap().keys().cloned().collect_vec(),
         vec![file1_path, file2_path.clone()]
@@ -582,7 +579,8 @@ fn test_snapshot_special_file() {
         tree.entries().map(|(path, _value)| path).collect_vec(),
         vec![file2_path.clone()]
     );
-    let wc = test_workspace.workspace.working_copy();
+    let ws = &mut test_workspace.workspace;
+    let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert_eq!(
         wc.file_states().unwrap().keys().cloned().collect_vec(),
         vec![file2_path]

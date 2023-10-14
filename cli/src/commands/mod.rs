@@ -47,7 +47,7 @@ use jj_lib::revset_graph::{
 };
 use jj_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jj_lib::settings::UserSettings;
-use jj_lib::working_copy::{LockedWorkingCopy, SnapshotOptions, WorkingCopy};
+use jj_lib::working_copy::{LockedWorkingCopy, SnapshotOptions};
 use jj_lib::workspace::Workspace;
 use jj_lib::{conflicts, file_util, revset};
 use maplit::{hashmap, hashset};

@@ -1490,6 +1490,10 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         self
     }
 
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn old_operation_id(&self) -> &OperationId {
         &self.old_operation_id
     }
@@ -1563,7 +1567,7 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
     fn finish(
         mut self,
         operation_id: OperationId,
-    ) -> Result<LocalWorkingCopy, WorkingCopyStateError> {
+    ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
         assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.tree_id()?);
         if self.tree_state_dirty {
             self.wc
@@ -1579,7 +1583,7 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
             self.wc.save();
         }
         // TODO: Clear the "pending_checkout" file here.
-        Ok(self.wc)
+        Ok(Box::new(self.wc))
     }
 }
 
