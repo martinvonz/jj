@@ -663,3 +663,23 @@ fn test_git_push_conflicting_branches() {
       Move branch branch1 from fd1d63e031ea to 8263cf992d33
     "###);
 }
+
+#[test]
+fn test_git_push_to_remote_named_git() {
+    let (test_env, workspace_root) = set_up();
+    let git_repo = {
+        let mut git_repo_path = workspace_root.clone();
+        git_repo_path.extend([".jj", "repo", "store", "git"]);
+        git2::Repository::open(&git_repo_path).unwrap()
+    };
+    git_repo.remote_rename("origin", "git").unwrap();
+
+    let stderr =
+        test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all", "--remote=git"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to git:
+      Add branch branch1 to 45a3aa29e907
+      Add branch branch2 to 8476341eb395
+    Error: Git remote named 'git' is reserved for local Git repository
+    "###);
+}
