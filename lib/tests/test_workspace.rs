@@ -15,7 +15,7 @@
 use assert_matches::assert_matches;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
-use jj_lib::workspace::{Workspace, WorkspaceLoadError};
+use jj_lib::workspace::{default_working_copy_factories, Workspace, WorkspaceLoadError};
 use testutils::{TestRepo, TestWorkspace};
 
 #[test]
@@ -28,6 +28,7 @@ fn test_load_bad_path() {
         &settings,
         &workspace_root,
         &TestRepo::default_store_factories(),
+        &default_working_copy_factories(),
     );
     assert_matches!(
         result.err(),
@@ -65,8 +66,12 @@ fn test_init_additional_workspace() {
         workspace.repo_path().canonicalize().unwrap()
     );
     assert_eq!(*ws2.workspace_root(), ws2_root.canonicalize().unwrap());
-    let same_workspace =
-        Workspace::load(&settings, &ws2_root, &TestRepo::default_store_factories());
+    let same_workspace = Workspace::load(
+        &settings,
+        &ws2_root,
+        &TestRepo::default_store_factories(),
+        &default_working_copy_factories(),
+    );
     assert!(same_workspace.is_ok());
     let same_workspace = same_workspace.unwrap();
     assert_eq!(same_workspace.workspace_id(), &ws2_id);

@@ -16,7 +16,7 @@ use std::path::Path;
 
 use itertools::Itertools;
 use jj_lib::repo::{Repo, StoreFactories};
-use jj_lib::workspace::Workspace;
+use jj_lib::workspace::{default_working_copy_factories, Workspace};
 use test_case::test_case;
 use testutils::{create_random_commit, load_repo_at_head, TestRepoBackend, TestWorkspace};
 
@@ -115,8 +115,13 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
     // Simulate a write of a commit that happens on one machine
     let machine1_root = test_workspace.root_dir().join("machine1");
     copy_directory(workspace_root, &machine1_root);
-    let machine1_workspace =
-        Workspace::load(&settings, &machine1_root, &StoreFactories::default()).unwrap();
+    let machine1_workspace = Workspace::load(
+        &settings,
+        &machine1_root,
+        &StoreFactories::default(),
+        &default_working_copy_factories(),
+    )
+    .unwrap();
     let machine1_repo = machine1_workspace
         .repo_loader()
         .load_at_head(&settings)
@@ -131,8 +136,13 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
     // Simulate a write of a commit that happens on another machine
     let machine2_root = test_workspace.root_dir().join("machine2");
     copy_directory(workspace_root, &machine2_root);
-    let machine2_workspace =
-        Workspace::load(&settings, &machine2_root, &StoreFactories::default()).unwrap();
+    let machine2_workspace = Workspace::load(
+        &settings,
+        &machine2_root,
+        &StoreFactories::default(),
+        &default_working_copy_factories(),
+    )
+    .unwrap();
     let machine2_repo = machine2_workspace
         .repo_loader()
         .load_at_head(&settings)
@@ -148,8 +158,13 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
     // both machines
     let merged_path = test_workspace.root_dir().join("merged");
     merge_directories(&machine1_root, workspace_root, &machine2_root, &merged_path);
-    let merged_workspace =
-        Workspace::load(&settings, &merged_path, &StoreFactories::default()).unwrap();
+    let merged_workspace = Workspace::load(
+        &settings,
+        &merged_path,
+        &StoreFactories::default(),
+        &default_working_copy_factories(),
+    )
+    .unwrap();
     let merged_repo = merged_workspace
         .repo_loader()
         .load_at_head(&settings)

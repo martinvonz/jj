@@ -548,7 +548,7 @@ impl StoreFactories {
     }
 }
 
-fn read_store_type_compat(
+pub fn read_store_type_compat(
     store: &'static str,
     path: impl AsRef<Path>,
     default: impl FnOnce() -> &'static str,

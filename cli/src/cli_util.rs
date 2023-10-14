@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::env::{self, ArgsOs, VarError};
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
@@ -64,7 +64,8 @@ use jj_lib::working_copy::{
     WorkingCopyStateError,
 };
 use jj_lib::workspace::{
-    LockedWorkspace, Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader,
+    default_working_copy_factories, LockedWorkspace, WorkingCopyFactory, Workspace,
+    WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader,
 };
 use jj_lib::{dag_walk, file_util, git, revset};
 use once_cell::unsync::OnceCell;
@@ -501,6 +502,7 @@ pub struct CommandHelper {
     layered_configs: LayeredConfigs,
     maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
     store_factories: StoreFactories,
+    working_copy_factories: HashMap<String, WorkingCopyFactory>,
 }
 
 impl CommandHelper {
@@ -515,6 +517,7 @@ impl CommandHelper {
         layered_configs: LayeredConfigs,
         maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
         store_factories: StoreFactories,
+        working_copy_factories: HashMap<String, WorkingCopyFactory>,
     ) -> Self {
         // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
         // to easily compute relative paths between them.
@@ -530,6 +533,7 @@ impl CommandHelper {
             layered_configs,
             maybe_workspace_loader,
             store_factories,
+            working_copy_factories,
         }
     }
 
@@ -599,7 +603,11 @@ impl CommandHelper {
     pub fn load_workspace(&self) -> Result<Workspace, CommandError> {
         let loader = self.workspace_loader()?;
         loader
-            .load(&self.settings, &self.store_factories)
+            .load(
+                &self.settings,
+                &self.store_factories,
+                &self.working_copy_factories,
+            )
             .map_err(|err| map_workspace_load_error(err, &self.global_args))
     }
 
@@ -2789,6 +2797,7 @@ impl CliRunner {
         let config = layered_configs.merge();
         ui.reset(&config)?;
         let settings = UserSettings::from_config(config);
+        let working_copy_factories = default_working_copy_factories();
         let command_helper = CommandHelper::new(
             self.app,
             cwd,
@@ -2799,6 +2808,7 @@ impl CliRunner {
             layered_configs,
             maybe_workspace_loader,
             self.store_factories.unwrap_or_default(),
+            working_copy_factories,
         );
         (self.dispatch_fn)(ui, &command_helper)
     }
