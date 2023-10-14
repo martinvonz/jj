@@ -19,7 +19,7 @@ use itertools::EitherOrBoth;
 use crate::backend::CommitId;
 use crate::index::Index;
 use crate::merge::{trivial_merge, Merge};
-use crate::op_store::RefTarget;
+use crate::op_store::{RefTarget, RemoteRef};
 
 /// Compares `refs1` and `refs2` targets, yields entry if they differ.
 ///
@@ -34,7 +34,7 @@ pub fn diff_named_refs<'a, 'b, K: Ord>(
 /// Iterates `refs1` and `refs2` target pairs by name.
 ///
 /// `refs1` and `refs2` must be sorted by `K`.
-pub fn iter_named_ref_pairs<'a, 'b, K: Ord>(
+fn iter_named_ref_pairs<'a, 'b, K: Ord>(
     refs1: impl IntoIterator<Item = (K, &'a RefTarget)>,
     refs2: impl IntoIterator<Item = (K, &'b RefTarget)>,
 ) -> impl Iterator<Item = (K, (&'a RefTarget, &'b RefTarget))> {
@@ -117,7 +117,7 @@ fn find_pair_to_remove(
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TrackingRefPair<'a> {
     pub local_target: &'a RefTarget,
-    pub remote_target: &'a RefTarget,
+    pub remote_ref: &'a RemoteRef,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -138,7 +138,7 @@ pub enum BranchPushAction {
 /// this branch.
 pub fn classify_branch_push_action(targets: TrackingRefPair) -> BranchPushAction {
     let local_target = targets.local_target;
-    let remote_target = targets.remote_target;
+    let remote_target = &targets.remote_ref.target;
     if local_target == remote_target {
         BranchPushAction::AlreadyMatches
     } else if local_target.has_conflict() {
@@ -157,13 +157,21 @@ pub fn classify_branch_push_action(targets: TrackingRefPair) -> BranchPushAction
 mod tests {
     use super::*;
     use crate::backend::ObjectId;
+    use crate::op_store::RemoteRefState;
+
+    fn tracking_remote_ref(target: RefTarget) -> RemoteRef {
+        RemoteRef {
+            target,
+            state: RemoteRefState::Tracking,
+        }
+    }
 
     #[test]
     fn test_classify_branch_push_action_unchanged() {
         let commit_id1 = CommitId::from_hex("11");
         let targets = TrackingRefPair {
             local_target: &RefTarget::normal(commit_id1.clone()),
-            remote_target: &RefTarget::normal(commit_id1),
+            remote_ref: &tracking_remote_ref(RefTarget::normal(commit_id1)),
         };
         assert_eq!(
             classify_branch_push_action(targets),
@@ -176,7 +184,7 @@ mod tests {
         let commit_id1 = CommitId::from_hex("11");
         let targets = TrackingRefPair {
             local_target: &RefTarget::normal(commit_id1.clone()),
-            remote_target: RefTarget::absent_ref(),
+            remote_ref: RemoteRef::absent_ref(),
         };
         assert_eq!(
             classify_branch_push_action(targets),
@@ -192,7 +200,7 @@ mod tests {
         let commit_id1 = CommitId::from_hex("11");
         let targets = TrackingRefPair {
             local_target: RefTarget::absent_ref(),
-            remote_target: &RefTarget::normal(commit_id1.clone()),
+            remote_ref: &tracking_remote_ref(RefTarget::normal(commit_id1.clone())),
         };
         assert_eq!(
             classify_branch_push_action(targets),
@@ -209,7 +217,7 @@ mod tests {
         let commit_id2 = CommitId::from_hex("22");
         let targets = TrackingRefPair {
             local_target: &RefTarget::normal(commit_id2.clone()),
-            remote_target: &RefTarget::normal(commit_id1.clone()),
+            remote_ref: &tracking_remote_ref(RefTarget::normal(commit_id1.clone())),
         };
         assert_eq!(
             classify_branch_push_action(targets),
@@ -226,7 +234,7 @@ mod tests {
         let commit_id2 = CommitId::from_hex("22");
         let targets = TrackingRefPair {
             local_target: &RefTarget::from_legacy_form([], [commit_id1.clone(), commit_id2]),
-            remote_target: &RefTarget::normal(commit_id1),
+            remote_ref: &tracking_remote_ref(RefTarget::normal(commit_id1)),
         };
         assert_eq!(
             classify_branch_push_action(targets),
@@ -240,7 +248,10 @@ mod tests {
         let commit_id2 = CommitId::from_hex("22");
         let targets = TrackingRefPair {
             local_target: &RefTarget::normal(commit_id1.clone()),
-            remote_target: &RefTarget::from_legacy_form([], [commit_id1, commit_id2]),
+            remote_ref: &tracking_remote_ref(RefTarget::from_legacy_form(
+                [],
+                [commit_id1, commit_id2],
+            )),
         };
         assert_eq!(
             classify_branch_push_action(targets),

@@ -604,7 +604,7 @@ fn copy_exportable_local_branches_to_remote_view(
         .filter_map(|(branch, targets)| {
             // TODO: filter out untracked branches (if we add support for untracked @git
             // branches)
-            let old_target = targets.remote_target;
+            let old_target = &targets.remote_ref.target;
             let new_target = targets.local_target;
             (!new_target.has_conflict() && old_target != new_target).then_some((branch, new_target))
         })

@@ -732,9 +732,9 @@ fn cmd_git_push(
             }
             let targets = TrackingRefPair {
                 local_target: repo.view().get_local_branch(branch_name),
-                remote_target: &repo.view().get_remote_branch(branch_name, &remote).target,
+                remote_ref: repo.view().get_remote_branch(branch_name, &remote),
             };
-            if targets.local_target.is_absent() && targets.remote_target.is_absent() {
+            if targets.local_target.is_absent() && targets.remote_ref.is_absent() {
                 return Err(user_error(format!("Branch {branch_name} doesn't exist")));
             }
             match classify_branch_update(branch_name, &remote, targets) {
@@ -786,11 +786,7 @@ fn cmd_git_push(
                 .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
             let targets = TrackingRefPair {
                 local_target: tx.repo().view().get_local_branch(&branch_name),
-                remote_target: &tx
-                    .repo()
-                    .view()
-                    .get_remote_branch(&branch_name, &remote)
-                    .target,
+                remote_ref: tx.repo().view().get_remote_branch(&branch_name, &remote),
             };
             match classify_branch_update(&branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
