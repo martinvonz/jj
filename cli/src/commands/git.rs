@@ -11,7 +11,7 @@ use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
 use jj_lib::backend::{ObjectId, TreeValue};
 use jj_lib::git::{
-    self, parse_gitmodules, GitFetchError, GitFetchStats, GitPushError, GitRefUpdate,
+    self, parse_gitmodules, GitBranchPushTargets, GitFetchError, GitFetchStats, GitPushError,
 };
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::RefTarget;
@@ -869,11 +869,9 @@ fn cmd_git_push(
 
     tx.set_description(&tx_description);
 
-    let mut ref_updates = vec![];
     let mut new_heads = vec![];
     let mut force_pushed_branches = hashset! {};
     for (branch_name, update) in &branch_updates {
-        let qualified_name = format!("refs/heads/{branch_name}");
         if let Some(new_target) = &update.new_target {
             new_heads.push(new_target.clone());
             let force = match &update.old_target {
@@ -883,17 +881,6 @@ fn cmd_git_push(
             if force {
                 force_pushed_branches.insert(branch_name.to_string());
             }
-            ref_updates.push(GitRefUpdate {
-                qualified_name,
-                force,
-                new_target: Some(new_target.clone()),
-            });
-        } else {
-            ref_updates.push(GitRefUpdate {
-                qualified_name,
-                force: false,
-                new_target: None,
-            });
         }
     }
 
@@ -985,8 +972,12 @@ fn cmd_git_push(
         return Ok(());
     }
 
+    let targets = GitBranchPushTargets {
+        branch_updates,
+        force_pushed_branches,
+    };
     with_remote_callbacks(ui, |cb| {
-        git::push_updates(&git_repo, &remote, &ref_updates, cb)
+        git::push_branches(&git_repo, &remote, &targets, cb)
     })
     .map_err(|err| match err {
         GitPushError::InternalGitError(err) => map_git_error(err),
