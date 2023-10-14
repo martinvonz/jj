@@ -17,7 +17,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
 
 use crate::backend::CommitId;
 use crate::index::Index;
@@ -25,7 +25,7 @@ use crate::op_store;
 use crate::op_store::{
     BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRef, RemoteRefState, WorkspaceId,
 };
-use crate::refs::{iter_named_ref_pairs, merge_ref_targets, TrackingRefPair};
+use crate::refs::{merge_ref_targets, TrackingRefPair};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum RefName {
@@ -263,23 +263,32 @@ impl View {
         }
     }
 
-    /// Iterates local/remote branch `(name, targets)`s of the specified remote
-    /// in lexicographical order.
+    /// Iterates local/remote branch `(name, remote_ref)`s of the specified
+    /// remote in lexicographical order.
     pub fn local_remote_branches<'a>(
         &'a self,
         remote_name: &str,
     ) -> impl Iterator<Item = (&'a str, TrackingRefPair<'a>)> + 'a {
-        // TODO: maybe untracked remote target can be translated to absent, and rename
-        // the method accordingly.
-        iter_named_ref_pairs(
+        itertools::merge_join_by(
             self.local_branches(),
-            self.remote_branches(remote_name)
-                .map(|(name, remote_ref)| (name, &remote_ref.target)),
+            self.remote_branches(remote_name),
+            |(name1, _), (name2, _)| name1.cmp(name2),
         )
-        .map(|(name, (local_target, remote_target))| {
+        .map(|entry| match entry {
+            EitherOrBoth::Both((name, local_target), (_, remote_ref)) => {
+                (name, (local_target, remote_ref))
+            }
+            EitherOrBoth::Left((name, local_target)) => {
+                (name, (local_target, RemoteRef::absent_ref()))
+            }
+            EitherOrBoth::Right((name, remote_ref)) => {
+                (name, (RefTarget::absent_ref(), remote_ref))
+            }
+        })
+        .map(|(name, (local_target, remote_ref))| {
             let targets = TrackingRefPair {
                 local_target,
-                remote_target,
+                remote_ref,
             };
             (name, targets)
         })
