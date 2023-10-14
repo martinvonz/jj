@@ -138,7 +138,7 @@ pub enum BranchPushAction {
 /// this branch.
 pub fn classify_branch_push_action(targets: TrackingRefPair) -> BranchPushAction {
     let local_target = targets.local_target;
-    let remote_target = &targets.remote_ref.target;
+    let remote_target = targets.remote_ref.tracking_target();
     if local_target == remote_target {
         BranchPushAction::AlreadyMatches
     } else if local_target.has_conflict() {
@@ -158,6 +158,13 @@ mod tests {
     use super::*;
     use crate::backend::ObjectId;
     use crate::op_store::RemoteRefState;
+
+    fn new_remote_ref(target: RefTarget) -> RemoteRef {
+        RemoteRef {
+            target,
+            state: RemoteRefState::New,
+        }
+    }
 
     fn tracking_remote_ref(target: RefTarget) -> RemoteRef {
         RemoteRef {
@@ -223,6 +230,36 @@ mod tests {
             classify_branch_push_action(targets),
             BranchPushAction::Update(BranchPushUpdate {
                 old_target: Some(commit_id1),
+                new_target: Some(commit_id2),
+            })
+        );
+    }
+
+    #[test]
+    fn test_classify_branch_push_action_removed_untracked() {
+        let commit_id1 = CommitId::from_hex("11");
+        let targets = TrackingRefPair {
+            local_target: RefTarget::absent_ref(),
+            remote_ref: &new_remote_ref(RefTarget::normal(commit_id1.clone())),
+        };
+        assert_eq!(
+            classify_branch_push_action(targets),
+            BranchPushAction::AlreadyMatches
+        );
+    }
+
+    #[test]
+    fn test_classify_branch_push_action_updated_untracked() {
+        let commit_id1 = CommitId::from_hex("11");
+        let commit_id2 = CommitId::from_hex("22");
+        let targets = TrackingRefPair {
+            local_target: &RefTarget::normal(commit_id2.clone()),
+            remote_ref: &new_remote_ref(RefTarget::normal(commit_id1.clone())),
+        };
+        assert_eq!(
+            classify_branch_push_action(targets),
+            BranchPushAction::Update(BranchPushUpdate {
+                old_target: None,
                 new_target: Some(commit_id2),
             })
         );

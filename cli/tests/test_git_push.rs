@@ -230,6 +230,38 @@ fn test_git_push_not_fast_forward() {
 }
 
 #[test]
+fn test_git_push_locally_created_and_rewritten() {
+    let (test_env, workspace_root) = set_up();
+    // Ensure that remote branches aren't tracked automatically
+    test_env.add_config("git.auto-local-branch = false");
+
+    // Push locally-created branch
+    test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-mlocal 1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "my"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Add branch my to fcc999921ce9
+    "###);
+
+    // Rewrite it and push again, which would fail if the pushed branch weren't
+    // set to "tracking"
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-mlocal 2"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    branch1: lzmmnrxq 45a3aa29 (empty) description 1
+    branch2: rlzusymt 8476341e (empty) description 2
+    my: vruxwmqv bde1d2e4 (empty) local 2
+      @origin (ahead by 1 commits, behind by 1 commits): vruxwmqv fcc99992 (empty) local 1
+    "###);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Force branch my from fcc999921ce9 to bde1d2e44b2a
+    "###);
+}
+
+#[test]
 fn test_git_push_multiple() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch1"]);
@@ -679,6 +711,57 @@ fn test_git_push_conflicting_branches() {
     Branch branch2 is conflicted
     Branch changes to push to origin:
       Move branch branch1 from fd1d63e031ea to 8263cf992d33
+    "###);
+}
+
+#[test]
+fn test_git_push_deleted_untracked() {
+    let (test_env, workspace_root) = set_up();
+
+    // Absent local branch shouldn't be considered "deleted" compared to
+    // non-tracking remote branch.
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch1@origin"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--deleted"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Nothing changed.
+    "###);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=branch1"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Branch branch1 doesn't exist
+    "###);
+}
+
+#[test]
+fn test_git_push_moved_forward_untracked() {
+    let (test_env, workspace_root) = set_up();
+
+    test_env.jj_cmd_ok(&workspace_root, &["new", "branch1", "-mmoved branch1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch1@origin"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Add branch branch1 to a25f24af0d0e
+    "###);
+}
+
+#[test]
+fn test_git_push_moved_sideways_untracked() {
+    let (test_env, workspace_root) = set_up();
+
+    test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-mmoved branch1"]);
+    test_env.jj_cmd_ok(
+        &workspace_root,
+        &["branch", "set", "--allow-backwards", "branch1"],
+    );
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch1@origin"]);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Add branch branch1 to cfbae7608334
+    Error: The push conflicts with changes made on the remote (it is not fast-forwardable).
+    Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
 }
 
