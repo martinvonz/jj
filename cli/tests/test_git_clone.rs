@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::{self, PathBuf};
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -148,6 +150,15 @@ fn test_git_clone_colocate() {
     Fetching into new repo in "$TEST_ENV/empty"
     Nothing changed.
     "###);
+
+    // git_target path should be relative to the store
+    let store_path = test_env
+        .env_root()
+        .join(PathBuf::from_iter(["empty", ".jj", "repo", "store"]));
+    let git_target_file_contents = std::fs::read_to_string(store_path.join("git_target")).unwrap();
+    insta::assert_snapshot!(
+        git_target_file_contents.replace(path::MAIN_SEPARATOR, "/"),
+        @"../../../.git");
 
     // Set-up a non-empty repo
     let signature =

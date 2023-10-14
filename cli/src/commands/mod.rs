@@ -22,7 +22,7 @@ mod operation;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 use std::io::{BufRead, Read, Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io};
 
@@ -1203,14 +1203,6 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
             if !git_store_path.exists() {
                 git_store_path.pop();
             }
-        }
-        // If the git repo is inside the workspace, use a relative path to it so the
-        // whole workspace can be moved without breaking.
-        if let Ok(relative_path) = git_store_path.strip_prefix(&wc_path) {
-            git_store_path = PathBuf::from("..")
-                .join("..")
-                .join("..")
-                .join(relative_path);
         }
         let (workspace, repo) =
             Workspace::init_external_git(command.settings(), &wc_path, &git_store_path)?;

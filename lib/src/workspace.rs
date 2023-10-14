@@ -23,7 +23,7 @@ use std::sync::Arc;
 use thiserror::Error;
 
 use crate::backend::{Backend, BackendInitError};
-use crate::file_util::{IoResultExt as _, PathError};
+use crate::file_util::{self, IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
 use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
@@ -162,9 +162,23 @@ impl Workspace {
         git_repo_path: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_backend(user_settings, workspace_root, |store_path| {
+            // If the git repo is inside the workspace, use a relative path to it so the
+            // whole workspace can be moved without breaking.
+            // TODO: Clean up path normalization. store_path is canonicalized by
+            // ReadonlyRepo::init(). workspace_root will be canonicalized by
+            // Workspace::new(), but it's not yet here.
+            let store_relative_git_repo_path =
+                match (workspace_root.canonicalize(), git_repo_path.canonicalize()) {
+                    (Ok(workspace_root), Ok(git_repo_path))
+                        if git_repo_path.starts_with(&workspace_root) =>
+                    {
+                        file_util::relative_path(store_path, &git_repo_path)
+                    }
+                    _ => git_repo_path.to_owned(),
+                };
             Ok(Box::new(GitBackend::init_external(
                 store_path,
-                git_repo_path,
+                &store_relative_git_repo_path,
             )?))
         })
     }
