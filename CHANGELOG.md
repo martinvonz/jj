@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   See [automatic local branch creation](docs/config.md#automatic-local-branch-creation)
   for details.
 
+* Pushing deleted/moved branches no longer abandons the local commits referenced
+  by the remote branches.
+
 ### New features
 
 * `jj workspace add` now takes a `--revision` argument.

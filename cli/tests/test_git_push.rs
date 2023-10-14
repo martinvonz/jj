@@ -300,12 +300,21 @@ fn test_git_push_multiple() {
       Delete branch branch1 from 45a3aa29e907
       Force branch branch2 from 8476341eb395 to 15dcdaa4f12f
       Add branch my-branch to 15dcdaa4f12f
-    Abandoned 2 commits that are no longer reachable.
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     branch2: yqosqzyt 15dcdaa4 (empty) foo
     my-branch: yqosqzyt 15dcdaa4 (empty) foo
+    "###);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  yqosqzyt test.user@example.com 2001-02-03 04:05:17.000 +07:00 branch2 my-branch 15dcdaa4
+    │  (empty) foo
+    │ ◉  rlzusymt test.user@example.com 2001-02-03 04:05:10.000 +07:00 8476341e
+    ├─╯  (empty) description 2
+    │ ◉  lzmmnrxq test.user@example.com 2001-02-03 04:05:08.000 +07:00 45a3aa29
+    ├─╯  (empty) description 1
+    ◉  zzzzzzzz root() 00000000
     "###);
 }
 
@@ -588,7 +597,16 @@ fn test_git_push_deleted() {
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
       Delete branch branch1 from 45a3aa29e907
-    Abandoned 1 commits that are no longer reachable.
+    "###);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
+    insta::assert_snapshot!(stdout, @r###"
+    ◉  rlzusymt test.user@example.com 2001-02-03 04:05:10.000 +07:00 branch2 8476341e
+    │  (empty) description 2
+    │ ◉  lzmmnrxq test.user@example.com 2001-02-03 04:05:08.000 +07:00 45a3aa29
+    ├─╯  (empty) description 1
+    │ @  yqosqzyt test.user@example.com 2001-02-03 04:05:13.000 +07:00 5b36783c
+    ├─╯  (empty) (no description set)
+    ◉  zzzzzzzz root() 00000000
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--deleted"]);
     insta::assert_snapshot!(stdout, @"");
