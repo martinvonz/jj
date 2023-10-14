@@ -435,9 +435,9 @@ impl StoreFactories {
         // For compatibility with existing repos. TODO: Delete default in 0.8+.
         let backend_type = read_store_type_compat("commit", store_path.join("type"), || {
             if store_path.join("git_target").is_file() {
-                "git"
+                GitBackend::name()
             } else {
-                "local"
+                LocalBackend::name()
             }
         })?;
         let backend_factory = self.backend_factories.get(&backend_type).ok_or_else(|| {
@@ -456,7 +456,7 @@ impl StoreFactories {
     pub fn load_op_store(&self, store_path: &Path) -> Result<Box<dyn OpStore>, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete default in 0.8+.
         let op_store_type =
-            read_store_type_compat("operation", store_path.join("type"), || "simple_op_store")?;
+            read_store_type_compat("operation", store_path.join("type"), SimpleOpStore::name)?;
         let op_store_factory = self.op_store_factories.get(&op_store_type).ok_or_else(|| {
             StoreLoadError::UnsupportedType {
                 store: "operation",
@@ -476,10 +476,11 @@ impl StoreFactories {
         store_path: &Path,
     ) -> Result<Box<dyn OpHeadsStore>, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete default in 0.8+.
-        let op_heads_store_type =
-            read_store_type_compat("operation heads", store_path.join("type"), || {
-                "simple_op_heads_store"
-            })?;
+        let op_heads_store_type = read_store_type_compat(
+            "operation heads",
+            store_path.join("type"),
+            SimpleOpHeadsStore::name,
+        )?;
         let op_heads_store_factory = self
             .op_heads_store_factories
             .get(&op_heads_store_type)
@@ -500,7 +501,7 @@ impl StoreFactories {
     ) -> Result<Box<dyn IndexStore>, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete default in 0.9+
         let index_store_type =
-            read_store_type_compat("index", store_path.join("type"), || "default")?;
+            read_store_type_compat("index", store_path.join("type"), DefaultIndexStore::name)?;
         let index_store_factory = self
             .index_store_factories
             .get(&index_store_type)
