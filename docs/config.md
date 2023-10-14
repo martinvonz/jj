@@ -519,11 +519,6 @@ jj branch delete gh-pages
 jj branch untrack gh-pages@upstream
 ```
 
-Note that this setting may make it easier to accidentally delete remote
-branches. Since the local branch isn't created, the remote branch will be
-deleted if you push the branch with `jj git push --branch` or `jj git push
---all`.
-
 ### Prefix for generated branches on push
 
 `jj git push --change` generates branch names with a prefix of "push-" by

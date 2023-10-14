@@ -734,11 +734,11 @@ fn cmd_git_push(
                 local_target: repo.view().get_local_branch(branch_name),
                 remote_ref: repo.view().get_remote_branch(branch_name, &remote),
             };
-            if targets.local_target.is_absent() && targets.remote_ref.is_absent() {
-                return Err(user_error(format!("Branch {branch_name} doesn't exist")));
-            }
             match classify_branch_update(branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+                Ok(None) if targets.local_target.is_absent() => {
+                    return Err(user_error(format!("Branch {branch_name} doesn't exist")));
+                }
                 Ok(None) => writeln!(
                     ui.stderr(),
                     "Branch {branch_name}@{remote} already matches {branch_name}",
