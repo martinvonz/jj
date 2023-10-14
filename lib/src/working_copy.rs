@@ -25,6 +25,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, MergedTreeId};
 use crate::fsmonitor::FsmonitorKind;
 use crate::gitignore::GitIgnoreFile;
+use crate::local_working_copy::{LocalWorkingCopy, LockedLocalWorkingCopy};
 use crate::merged_tree::MergedTree;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::RepoPath;
@@ -53,6 +54,11 @@ pub trait WorkingCopy {
     /// checked out in the working copy. A single `RepoPath::root()` entry means
     /// that all files should be checked out.
     fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError>;
+
+    /// Locks the working copy and returns an instance with methods for updating
+    /// the working copy files and state.
+    // TODO: return a `Box<dyn LockedWorkingCopy>` instead
+    fn start_mutation(&self) -> Result<LockedLocalWorkingCopy, WorkingCopyStateError>;
 }
 
 /// A working copy that's being modified.
@@ -89,6 +95,11 @@ pub trait LockedWorkingCopy {
         &mut self,
         new_sparse_patterns: Vec<RepoPath>,
     ) -> Result<CheckoutStats, CheckoutError>;
+
+    /// Finish the modifications to the working copy by writing the updated
+    /// states to disk. Returns the new (unlocked) working copy.
+    // TODO: return a `Box<dyn WorkingCopy>` instead
+    fn finish(self, operation_id: OperationId) -> Result<LocalWorkingCopy, WorkingCopyStateError>;
 }
 
 /// An error while snapshotting the working copy.

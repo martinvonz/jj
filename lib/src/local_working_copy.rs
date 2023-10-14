@@ -1307,6 +1307,31 @@ impl WorkingCopy for LocalWorkingCopy {
     fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
         Ok(self.tree_state()?.sparse_patterns())
     }
+
+    fn start_mutation(&self) -> Result<LockedLocalWorkingCopy, WorkingCopyStateError> {
+        let lock_path = self.state_path.join("working_copy.lock");
+        let lock = FileLock::lock(lock_path);
+
+        let wc = LocalWorkingCopy {
+            store: self.store.clone(),
+            working_copy_path: self.working_copy_path.clone(),
+            state_path: self.state_path.clone(),
+            // Empty so we re-read the state after taking the lock
+            checkout_state: OnceCell::new(),
+            // TODO: It's expensive to reload the whole tree. We should copy it from `self` if it
+            // hasn't changed.
+            tree_state: OnceCell::new(),
+        };
+        let old_operation_id = wc.operation_id().clone();
+        let old_tree_id = wc.current_tree_id()?.clone();
+        Ok(LockedLocalWorkingCopy {
+            wc,
+            lock,
+            old_operation_id,
+            old_tree_id,
+            tree_state_dirty: false,
+        })
+    }
 }
 
 impl LocalWorkingCopy {
@@ -1436,31 +1461,6 @@ impl LocalWorkingCopy {
         });
     }
 
-    pub fn start_mutation(&self) -> Result<LockedLocalWorkingCopy, WorkingCopyStateError> {
-        let lock_path = self.state_path.join("working_copy.lock");
-        let lock = FileLock::lock(lock_path);
-
-        let wc = LocalWorkingCopy {
-            store: self.store.clone(),
-            working_copy_path: self.working_copy_path.clone(),
-            state_path: self.state_path.clone(),
-            // Empty so we re-read the state after taking the lock
-            checkout_state: OnceCell::new(),
-            // TODO: It's expensive to reload the whole tree. We should copy it from `self` if it
-            // hasn't changed.
-            tree_state: OnceCell::new(),
-        };
-        let old_operation_id = wc.operation_id().clone();
-        let old_tree_id = wc.current_tree_id()?.clone();
-        Ok(LockedLocalWorkingCopy {
-            wc,
-            lock,
-            old_operation_id,
-            old_tree_id,
-            tree_state_dirty: false,
-        })
-    }
-
     #[cfg(feature = "watchman")]
     pub fn query_watchman(
         &self,
@@ -1558,23 +1558,9 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         self.tree_state_dirty = true;
         Ok(stats)
     }
-}
-
-impl LockedLocalWorkingCopy {
-    pub fn reset_watchman(&mut self) -> Result<(), SnapshotError> {
-        self.wc
-            .tree_state_mut()
-            .map_err(|err| SnapshotError::Other {
-                message: "Failed to read the working copy state".to_string(),
-                err: err.into(),
-            })?
-            .reset_watchman();
-        self.tree_state_dirty = true;
-        Ok(())
-    }
 
     #[instrument(skip_all)]
-    pub fn finish(
+    fn finish(
         mut self,
         operation_id: OperationId,
     ) -> Result<LocalWorkingCopy, WorkingCopyStateError> {
@@ -1594,5 +1580,19 @@ impl LockedLocalWorkingCopy {
         }
         // TODO: Clear the "pending_checkout" file here.
         Ok(self.wc)
+    }
+}
+
+impl LockedLocalWorkingCopy {
+    pub fn reset_watchman(&mut self) -> Result<(), SnapshotError> {
+        self.wc
+            .tree_state_mut()
+            .map_err(|err| SnapshotError::Other {
+                message: "Failed to read the working copy state".to_string(),
+                err: err.into(),
+            })?
+            .reset_watchman();
+        self.tree_state_dirty = true;
+        Ok(())
     }
 }
