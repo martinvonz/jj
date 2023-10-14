@@ -32,7 +32,7 @@ use jj_lib::store::Store;
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::Tree;
 use jj_lib::tree_builder::TreeBuilder;
-use jj_lib::working_copy::{LockedWorkingCopy, SnapshotError, SnapshotOptions};
+use jj_lib::working_copy::{SnapshotError, SnapshotOptions};
 use jj_lib::workspace::Workspace;
 use tempfile::TempDir;
 

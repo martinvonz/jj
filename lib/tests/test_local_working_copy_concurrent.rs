@@ -18,7 +18,7 @@ use std::thread;
 use assert_matches::assert_matches;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::working_copy::{CheckoutError, LockedWorkingCopy, SnapshotOptions};
+use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
 use jj_lib::workspace::Workspace;
 use testutils::{create_tree, write_working_copy_file, TestRepo, TestWorkspace};
 

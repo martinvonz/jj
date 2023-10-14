@@ -25,7 +25,6 @@ use thiserror::Error;
 use crate::backend::{BackendError, MergedTreeId};
 use crate::fsmonitor::FsmonitorKind;
 use crate::gitignore::GitIgnoreFile;
-use crate::local_working_copy::LockedLocalWorkingCopy;
 use crate::merged_tree::MergedTree;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::RepoPath;
@@ -60,8 +59,7 @@ pub trait WorkingCopy {
 
     /// Locks the working copy and returns an instance with methods for updating
     /// the working copy files and state.
-    // TODO: return a `Box<dyn LockedWorkingCopy>` instead
-    fn start_mutation(&self) -> Result<LockedLocalWorkingCopy, WorkingCopyStateError>;
+    fn start_mutation(&self) -> Result<Box<dyn LockedWorkingCopy>, WorkingCopyStateError>;
 }
 
 /// A working copy that's being modified.
@@ -105,7 +103,7 @@ pub trait LockedWorkingCopy {
     /// Finish the modifications to the working copy by writing the updated
     /// states to disk. Returns the new (unlocked) working copy.
     fn finish(
-        self,
+        self: Box<Self>,
         operation_id: OperationId,
     ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError>;
 }
