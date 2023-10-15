@@ -560,7 +560,7 @@ fn test_branch_track_untrack() {
     main: sptzoqmo 7b33f629 commit 1
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  feature1 feature2@origin main 7b33f6295eda
+    ◉  feature1 feature1@origin feature2@origin main 7b33f6295eda
     │ @   230dd059e1b0
     ├─╯
     ◉   000000000000
@@ -586,7 +586,7 @@ fn test_branch_track_untrack() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  feature1@origin feature2@origin main 40dabdaf4abe
-    │ ◉  feature1* 7b33f6295eda
+    │ ◉  feature1 7b33f6295eda
     ├─╯
     │ @   230dd059e1b0
     ├─╯
@@ -619,7 +619,7 @@ fn test_branch_track_untrack() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  feature1@origin feature2@origin feature3 main 3f0f86fa0e57
-    │ ◉  feature1* 7b33f6295eda
+    │ ◉  feature1 7b33f6295eda
     ├─╯
     │ @   230dd059e1b0
     ├─╯
