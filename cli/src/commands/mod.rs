@@ -1428,7 +1428,7 @@ fn cmd_untrack(
         .start_transaction("untrack paths")
         .into_inner();
     let base_ignores = workspace_command.base_ignores();
-    let (mut locked_working_copy, wc_commit) = workspace_command.start_working_copy_mutation()?;
+    let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
     let mut tree_builder = MergedTreeBuilder::new(wc_commit.tree_id().clone());
     let wc_tree = wc_commit.tree()?;
@@ -1438,10 +1438,10 @@ fn cmd_untrack(
     let new_tree_id = tree_builder.write_tree(&store)?;
     let new_tree = store.get_root_tree(&new_tree_id)?;
     // Reset the working copy to the new tree
-    locked_working_copy.reset(&new_tree)?;
+    locked_ws.locked_wc().reset(&new_tree)?;
     // Commit the working copy again so we can inform the user if paths couldn't be
     // untracked because they're not ignored.
-    let wc_tree_id = locked_working_copy.snapshot(SnapshotOptions {
+    let wc_tree_id = locked_ws.locked_wc().snapshot(SnapshotOptions {
         base_ignores,
         fsmonitor_kind: command.settings().fsmonitor_kind()?,
         progress: None,
@@ -1451,7 +1451,7 @@ fn cmd_untrack(
         let wc_tree = store.get_root_tree(&wc_tree_id)?;
         let added_back = wc_tree.entries_matching(matcher.as_ref()).collect_vec();
         if !added_back.is_empty() {
-            drop(locked_working_copy);
+            drop(locked_ws);
             let path = &added_back[0].0;
             let ui_path = workspace_command.format_file_path(path);
             let message = if added_back.len() > 1 {
@@ -1471,7 +1471,7 @@ Make sure they're ignored, then try again.",
         } else {
             // This means there were some concurrent changes made in the working copy. We
             // don't want to mix those in, so reset the working copy again.
-            locked_working_copy.reset(&new_tree)?;
+            locked_ws.locked_wc().reset(&new_tree)?;
         }
     }
     tx.mut_repo()
@@ -1483,7 +1483,7 @@ Make sure they're ignored, then try again.",
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }
     let repo = tx.commit();
-    locked_working_copy.finish(repo.op_id().clone())?;
+    locked_ws.finish(repo.op_id().clone())?;
     Ok(())
 }
 
@@ -3901,9 +3901,9 @@ fn cmd_workspace_update_stale(
     let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
 
     let repo = workspace_command.repo().clone();
-    let (mut locked_wc, desired_wc_commit) =
+    let (mut locked_ws, desired_wc_commit) =
         workspace_command.unchecked_start_working_copy_mutation()?;
-    match check_stale_working_copy(&locked_wc, &desired_wc_commit, &repo) {
+    match check_stale_working_copy(locked_ws.locked_wc(), &desired_wc_commit, &repo) {
         Ok(_) => {
             writeln!(
                 ui.stderr(),
@@ -3913,18 +3913,21 @@ fn cmd_workspace_update_stale(
         Err(_) => {
             // The same check as start_working_copy_mutation(), but with the stale
             // working-copy commit.
-            if known_wc_commit.tree_id() != locked_wc.old_tree_id() {
+            if known_wc_commit.tree_id() != locked_ws.locked_wc().old_tree_id() {
                 return Err(user_error("Concurrent working copy operation. Try again."));
             }
             let desired_tree = desired_wc_commit.tree()?;
-            let stats = locked_wc.check_out(&desired_tree).map_err(|err| {
-                CommandError::InternalError(format!(
-                    "Failed to check out commit {}: {}",
-                    desired_wc_commit.id().hex(),
-                    err
-                ))
-            })?;
-            locked_wc.finish(repo.op_id().clone())?;
+            let stats = locked_ws
+                .locked_wc()
+                .check_out(&desired_tree)
+                .map_err(|err| {
+                    CommandError::InternalError(format!(
+                        "Failed to check out commit {}: {}",
+                        desired_wc_commit.id().hex(),
+                        err
+                    ))
+                })?;
+            locked_ws.finish(repo.op_id().clone())?;
             write!(ui.stderr(), "Working copy now at: ")?;
             ui.stderr_formatter().with_label("working_copy", |fmt| {
                 workspace_command.write_commit_summary(fmt, &desired_wc_commit)
@@ -3983,13 +3986,13 @@ fn cmd_sparse_set(
             workspace_command.workspace_root().clone(),
         )
     });
-    let (mut locked_wc, wc_commit) = workspace_command.start_working_copy_mutation()?;
+    let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     let mut new_patterns = HashSet::new();
     if args.reset {
         new_patterns.insert(RepoPath::root());
     } else {
         if !args.clear {
-            new_patterns.extend(locked_wc.sparse_patterns()?.iter().cloned());
+            new_patterns.extend(locked_ws.locked_wc().sparse_patterns()?.iter().cloned());
             for path in paths_to_remove {
                 new_patterns.remove(&path);
             }
@@ -4009,11 +4012,14 @@ fn cmd_sparse_set(
         )?;
         new_patterns.sort();
     }
-    let stats = locked_wc.set_sparse_patterns(new_patterns).map_err(|err| {
-        CommandError::InternalError(format!("Failed to update working copy paths: {err}"))
-    })?;
-    let operation_id = locked_wc.old_operation_id().clone();
-    locked_wc.finish(operation_id)?;
+    let stats = locked_ws
+        .locked_wc()
+        .set_sparse_patterns(new_patterns)
+        .map_err(|err| {
+            CommandError::InternalError(format!("Failed to update working copy paths: {err}"))
+        })?;
+    let operation_id = locked_ws.locked_wc().old_operation_id().clone();
+    locked_ws.finish(operation_id)?;
     print_checkout_stats(ui, stats, &wc_commit)?;
 
     Ok(())

@@ -64,7 +64,9 @@ use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::TreeMergeError;
 use jj_lib::working_copy::WorkingCopy;
-use jj_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader};
+use jj_lib::workspace::{
+    LockedWorkspace, Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader,
+};
 use jj_lib::{dag_walk, file_util, git, revset};
 use once_cell::unsync::OnceCell;
 use thiserror::Error;
@@ -818,15 +820,15 @@ impl WorkspaceCommandHelper {
                 let new_git_head_commit = tx.mut_repo().store().get_commit(new_git_head_id)?;
                 tx.mut_repo()
                     .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
-                let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation()?;
+                let mut locked_ws = self.workspace.start_working_copy_mutation()?;
                 // The working copy was presumably updated by the git command that updated
                 // HEAD, so we just need to reset our working copy
                 // state to it without updating working copy files.
                 let new_git_head_tree = new_git_head_commit.tree()?;
-                locked_working_copy.reset(&new_git_head_tree)?;
+                locked_ws.locked_wc().reset(&new_git_head_tree)?;
                 tx.mut_repo().rebase_descendants(&self.settings)?;
                 self.user_repo = ReadonlyUserRepo::new(tx.commit());
-                locked_working_copy.finish(self.user_repo.repo.op_id().clone())?;
+                locked_ws.finish(self.user_repo.repo.op_id().clone())?;
             }
             _ => {
                 let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
@@ -857,7 +859,7 @@ impl WorkspaceCommandHelper {
 
     pub fn unchecked_start_working_copy_mutation(
         &mut self,
-    ) -> Result<(LockedLocalWorkingCopy, Commit), CommandError> {
+    ) -> Result<(LockedWorkspace, Commit), CommandError> {
         self.check_working_copy_writable()?;
         let wc_commit = if let Some(wc_commit_id) = self.get_wc_commit_id() {
             self.repo().store().get_commit(wc_commit_id)?
@@ -865,19 +867,19 @@ impl WorkspaceCommandHelper {
             return Err(user_error("Nothing checked out in this workspace"));
         };
 
-        let locked_working_copy = self.workspace.working_copy_mut().start_mutation()?;
+        let locked_ws = self.workspace.start_working_copy_mutation()?;
 
-        Ok((locked_working_copy, wc_commit))
+        Ok((locked_ws, wc_commit))
     }
 
     pub fn start_working_copy_mutation(
         &mut self,
-    ) -> Result<(LockedLocalWorkingCopy, Commit), CommandError> {
-        let (locked_working_copy, wc_commit) = self.unchecked_start_working_copy_mutation()?;
-        if wc_commit.tree_id() != locked_working_copy.old_tree_id() {
+    ) -> Result<(LockedWorkspace, Commit), CommandError> {
+        let (mut locked_ws, wc_commit) = self.unchecked_start_working_copy_mutation()?;
+        if wc_commit.tree_id() != locked_ws.locked_wc().old_tree_id() {
             return Err(user_error("Concurrent working copy operation. Try again."));
         }
-        Ok((locked_working_copy, wc_commit))
+        Ok((locked_ws, wc_commit))
     }
 
     pub fn workspace_root(&self) -> &PathBuf {
@@ -1298,50 +1300,52 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         let base_ignores = self.base_ignores();
 
         // Compare working-copy tree and operation with repo's, and reload as needed.
-        let mut locked_wc = self.workspace.working_copy_mut().start_mutation()?;
-        let old_op_id = locked_wc.old_operation_id().clone();
-        let (repo, wc_commit) = match check_stale_working_copy(&locked_wc, &wc_commit, &repo) {
-            Ok(None) => (repo, wc_commit),
-            Ok(Some(wc_operation)) => {
-                let repo = repo.reload_at(&wc_operation)?;
-                let wc_commit = if let Some(wc_commit) = get_wc_commit(&repo)? {
-                    wc_commit
-                } else {
-                    return Ok(()); // The workspace has been deleted (see above)
-                };
-                (repo, wc_commit)
-            }
-            Err(StaleWorkingCopyError::WorkingCopyStale) => {
-                return Err(user_error_with_hint(
-                    format!(
-                        "The working copy is stale (not updated since operation {}).",
-                        short_operation_hash(&old_op_id)
-                    ),
-                    "Run `jj workspace update-stale` to update it.
+        let mut locked_ws = self.workspace.start_working_copy_mutation()?;
+        let old_op_id = locked_ws.locked_wc().old_operation_id().clone();
+        let (repo, wc_commit) =
+            match check_stale_working_copy(locked_ws.locked_wc(), &wc_commit, &repo) {
+                Ok(None) => (repo, wc_commit),
+                Ok(Some(wc_operation)) => {
+                    let repo = repo.reload_at(&wc_operation)?;
+                    let wc_commit = if let Some(wc_commit) = get_wc_commit(&repo)? {
+                        wc_commit
+                    } else {
+                        return Ok(()); // The workspace has been deleted (see
+                                       // above)
+                    };
+                    (repo, wc_commit)
+                }
+                Err(StaleWorkingCopyError::WorkingCopyStale) => {
+                    return Err(user_error_with_hint(
+                        format!(
+                            "The working copy is stale (not updated since operation {}).",
+                            short_operation_hash(&old_op_id)
+                        ),
+                        "Run `jj workspace update-stale` to update it.
 See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy \
-                     for more information.",
-                ));
-            }
-            Err(StaleWorkingCopyError::SiblingOperation) => {
-                return Err(CommandError::InternalError(format!(
-                    "The repo was loaded at operation {}, which seems to be a sibling of the \
-                     working copy's operation {}",
-                    short_operation_hash(repo.op_id()),
-                    short_operation_hash(&old_op_id)
-                )));
-            }
-            Err(StaleWorkingCopyError::UnrelatedOperation) => {
-                return Err(CommandError::InternalError(format!(
-                    "The repo was loaded at operation {}, which seems unrelated to the working \
-                     copy's operation {}",
-                    short_operation_hash(repo.op_id()),
-                    short_operation_hash(&old_op_id)
-                )));
-            }
-        };
+                         for more information.",
+                    ));
+                }
+                Err(StaleWorkingCopyError::SiblingOperation) => {
+                    return Err(CommandError::InternalError(format!(
+                        "The repo was loaded at operation {}, which seems to be a sibling of the \
+                         working copy's operation {}",
+                        short_operation_hash(repo.op_id()),
+                        short_operation_hash(&old_op_id)
+                    )));
+                }
+                Err(StaleWorkingCopyError::UnrelatedOperation) => {
+                    return Err(CommandError::InternalError(format!(
+                        "The repo was loaded at operation {}, which seems unrelated to the \
+                         working copy's operation {}",
+                        short_operation_hash(repo.op_id()),
+                        short_operation_hash(&old_op_id)
+                    )));
+                }
+            };
         self.user_repo = ReadonlyUserRepo::new(repo);
         let progress = crate::progress::snapshot_progress(ui);
-        let new_tree_id = locked_wc.snapshot(SnapshotOptions {
+        let new_tree_id = locked_ws.locked_wc().snapshot(SnapshotOptions {
             base_ignores,
             fsmonitor_kind: self.settings.fsmonitor_kind()?,
             progress: progress.as_ref().map(|x| x as _),
@@ -1379,7 +1383,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
 
             self.user_repo = ReadonlyUserRepo::new(tx.commit());
         }
-        locked_wc.finish(self.user_repo.repo.op_id().clone())?;
+        locked_ws.finish(self.user_repo.repo.op_id().clone())?;
         Ok(())
     }
 
@@ -2036,8 +2040,8 @@ pub fn update_working_copy(
         Some(stats)
     } else {
         // Record new operation id which represents the latest working-copy state
-        let locked_wc = workspace.working_copy_mut().start_mutation()?;
-        locked_wc.finish(repo.op_id().clone())?;
+        let locked_ws = workspace.start_working_copy_mutation()?;
+        locked_ws.finish(repo.op_id().clone())?;
         None
     };
     Ok(stats)

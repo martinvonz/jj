@@ -258,9 +258,9 @@ fn cmd_debug_watchman(
             writeln!(ui.stdout(), "Changed files: {changed_files:?}")?;
         }
         DebugWatchmanSubcommand::ResetClock => {
-            let (mut locked_wc, _commit) = workspace_command.start_working_copy_mutation()?;
-            locked_wc.reset_watchman()?;
-            locked_wc.finish(repo.op_id().clone())?;
+            let (mut locked_ws, _commit) = workspace_command.start_working_copy_mutation()?;
+            locked_ws.locked_wc().reset_watchman()?;
+            locked_ws.finish(repo.op_id().clone())?;
             writeln!(ui.stderr(), "Reset Watchman clock")?;
         }
     }

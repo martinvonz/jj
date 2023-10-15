@@ -28,7 +28,7 @@ use crate::git_backend::GitBackend;
 use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::local_working_copy::{
-    CheckoutError, CheckoutStats, LocalWorkingCopy, WorkingCopyStateError,
+    CheckoutError, CheckoutStats, LocalWorkingCopy, LockedLocalWorkingCopy, WorkingCopyStateError,
 };
 use crate::merged_tree::MergedTree;
 use crate::op_heads_store::OpHeadsStore;
@@ -299,8 +299,11 @@ impl Workspace {
         &self.working_copy
     }
 
-    pub fn working_copy_mut(&mut self) -> &mut LocalWorkingCopy {
-        &mut self.working_copy
+    pub fn start_working_copy_mutation(
+        &mut self,
+    ) -> Result<LockedWorkspace, WorkingCopyStateError> {
+        let locked_wc = self.working_copy.start_mutation()?;
+        Ok(LockedWorkspace { locked_wc })
     }
 
     pub fn check_out(
@@ -309,9 +312,8 @@ impl Workspace {
         old_tree_id: Option<&MergedTreeId>,
         new_tree: &MergedTree,
     ) -> Result<CheckoutStats, CheckoutError> {
-        let mut locked_wc =
-            self.working_copy
-                .start_mutation()
+        let mut locked_ws =
+            self.start_working_copy_mutation()
                 .map_err(|err| CheckoutError::Other {
                     message: "Failed to start editing the working copy state".to_string(),
                     err: err.into(),
@@ -321,18 +323,32 @@ impl Workspace {
         // regardless, but it's probably not what  the caller wanted, so we let
         // them know.
         if let Some(old_tree_id) = old_tree_id {
-            if old_tree_id != locked_wc.old_tree_id() {
+            if old_tree_id != locked_ws.locked_wc().old_tree_id() {
                 return Err(CheckoutError::ConcurrentCheckout);
             }
         }
-        let stats = locked_wc.check_out(new_tree)?;
-        locked_wc
+        let stats = locked_ws.locked_wc().check_out(new_tree)?;
+        locked_ws
             .finish(operation_id)
             .map_err(|err| CheckoutError::Other {
                 message: "Failed to save the working copy state".to_string(),
                 err: err.into(),
             })?;
         Ok(stats)
+    }
+}
+
+pub struct LockedWorkspace<'a> {
+    locked_wc: LockedLocalWorkingCopy<'a>,
+}
+
+impl<'a> LockedWorkspace<'a> {
+    pub fn locked_wc(&mut self) -> &mut LockedLocalWorkingCopy<'a> {
+        &mut self.locked_wc
+    }
+
+    pub fn finish(self, operation_id: OperationId) -> Result<(), WorkingCopyStateError> {
+        self.locked_wc.finish(operation_id)
     }
 }
 
