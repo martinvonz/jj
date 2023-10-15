@@ -741,8 +741,8 @@ fn test_git_push_moved_forward_untracked() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch1@origin"]);
     let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
-    Branch changes to push to origin:
-      Add branch branch1 to a25f24af0d0e
+    Non-tracking remote branch branch1@origin exists
+    Nothing changed.
     "###);
 }
 
@@ -756,12 +756,10 @@ fn test_git_push_moved_sideways_untracked() {
         &["branch", "set", "--allow-backwards", "branch1"],
     );
     test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch1@origin"]);
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
-    Branch changes to push to origin:
-      Add branch branch1 to cfbae7608334
-    Error: The push conflicts with changes made on the remote (it is not fast-forwardable).
-    Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
+    Non-tracking remote branch branch1@origin exists
+    Nothing changed.
     "###);
 }
 

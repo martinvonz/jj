@@ -132,6 +132,7 @@ pub enum BranchPushAction {
     AlreadyMatches,
     LocalConflicted,
     RemoteConflicted,
+    RemoteUntracked,
 }
 
 /// Figure out what changes (if any) need to be made to the remote when pushing
@@ -145,6 +146,8 @@ pub fn classify_branch_push_action(targets: TrackingRefPair) -> BranchPushAction
         BranchPushAction::LocalConflicted
     } else if remote_target.has_conflict() {
         BranchPushAction::RemoteConflicted
+    } else if targets.remote_ref.is_present() && !targets.remote_ref.is_tracking() {
+        BranchPushAction::RemoteUntracked
     } else {
         BranchPushAction::Update(BranchPushUpdate {
             old_target: remote_target.as_normal().cloned(),
@@ -237,6 +240,8 @@ mod tests {
 
     #[test]
     fn test_classify_branch_push_action_removed_untracked() {
+        // This is not RemoteUntracked error since non-tracking remote branches
+        // have no relation to local branches, and there's nothing to push.
         let commit_id1 = CommitId::from_hex("11");
         let targets = TrackingRefPair {
             local_target: RefTarget::absent_ref(),
@@ -258,10 +263,7 @@ mod tests {
         };
         assert_eq!(
             classify_branch_push_action(targets),
-            BranchPushAction::Update(BranchPushUpdate {
-                old_target: None,
-                new_target: Some(commit_id2),
-            })
+            BranchPushAction::RemoteUntracked
         );
     }
 

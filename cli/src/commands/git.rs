@@ -1018,6 +1018,9 @@ fn classify_branch_update(
         BranchPushAction::RemoteConflicted => {
             Err(format!("Branch {branch_name}@{remote_name} is conflicted"))
         }
+        BranchPushAction::RemoteUntracked => Err(format!(
+            "Non-tracking remote branch {branch_name}@{remote_name} exists"
+        )),
         BranchPushAction::Update(update) => Ok(Some(update)),
     }
 }
