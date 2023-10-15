@@ -1687,7 +1687,6 @@ impl LockedLocalWorkingCopy {
             self.wc.save();
         }
         // TODO: Clear the "pending_checkout" file here.
-        self.tree_state_dirty = false;
         Ok(self.wc)
     }
 }
