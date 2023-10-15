@@ -53,12 +53,13 @@ fn test_sparse_checkout() {
         .workspace
         .check_out(repo.op_id().clone(), None, &tree)
         .unwrap();
-    let wc = test_workspace.workspace.working_copy_mut();
+    let ws = &mut test_workspace.workspace;
 
     // Set sparse patterns to only dir1/
-    let mut locked_wc = wc.start_mutation().unwrap();
+    let mut locked_ws = ws.start_working_copy_mutation().unwrap();
     let sparse_patterns = vec![dir1_path];
-    let stats = locked_wc
+    let stats = locked_ws
+        .locked_wc()
         .set_sparse_patterns(sparse_patterns.clone())
         .unwrap();
     assert_eq!(
@@ -70,7 +71,10 @@ fn test_sparse_checkout() {
             skipped_files: 0,
         }
     );
-    assert_eq!(locked_wc.sparse_patterns().unwrap(), sparse_patterns);
+    assert_eq!(
+        locked_ws.locked_wc().sparse_patterns().unwrap(),
+        sparse_patterns
+    );
     assert!(!root_file1_path.to_fs_path(&working_copy_path).exists());
     assert!(!root_file2_path.to_fs_path(&working_copy_path).exists());
     assert!(dir1_file1_path.to_fs_path(&working_copy_path).exists());
@@ -81,7 +85,8 @@ fn test_sparse_checkout() {
     assert!(!dir2_file1_path.to_fs_path(&working_copy_path).exists());
 
     // Write the new state to disk
-    locked_wc.finish(repo.op_id().clone()).unwrap();
+    locked_ws.finish(repo.op_id().clone()).unwrap();
+    let wc = ws.working_copy();
     assert_eq!(
         wc.file_states().unwrap().keys().collect_vec(),
         vec![&dir1_file1_path, &dir1_file2_path, &dir1_subdir1_file1_path]
@@ -159,13 +164,18 @@ fn test_sparse_commit() {
         .workspace
         .check_out(repo.op_id().clone(), None, &tree)
         .unwrap();
-    let wc = test_workspace.workspace.working_copy_mut();
 
     // Set sparse patterns to only dir1/
-    let mut locked_wc = wc.start_mutation().unwrap();
+    let mut locked_ws = test_workspace
+        .workspace
+        .start_working_copy_mutation()
+        .unwrap();
     let sparse_patterns = vec![dir1_path.clone()];
-    locked_wc.set_sparse_patterns(sparse_patterns).unwrap();
-    locked_wc.finish(repo.op_id().clone()).unwrap();
+    locked_ws
+        .locked_wc()
+        .set_sparse_patterns(sparse_patterns)
+        .unwrap();
+    locked_ws.finish(repo.op_id().clone()).unwrap();
 
     // Write modified version of all files, including files that are not in the
     // sparse patterns.
@@ -182,11 +192,16 @@ fn test_sparse_commit() {
     assert_eq!(diff[0].0, dir1_file1_path);
 
     // Set sparse patterns to also include dir2/
-    let wc = test_workspace.workspace.working_copy_mut();
-    let mut locked_wc = wc.start_mutation().unwrap();
+    let mut locked_ws = test_workspace
+        .workspace
+        .start_working_copy_mutation()
+        .unwrap();
     let sparse_patterns = vec![dir1_path, dir2_path];
-    locked_wc.set_sparse_patterns(sparse_patterns).unwrap();
-    locked_wc.finish(op_id).unwrap();
+    locked_ws
+        .locked_wc()
+        .set_sparse_patterns(sparse_patterns)
+        .unwrap();
+    locked_ws.finish(op_id).unwrap();
 
     // Create a tree from the working copy. Only dir1/file1 and dir2/file1 should be
     // updated in the tree.
@@ -209,13 +224,17 @@ fn test_sparse_commit_gitignore() {
     let dir1_file1_path = RepoPath::from_internal_string("dir1/file1");
     let dir1_file2_path = RepoPath::from_internal_string("dir1/file2");
 
-    let wc = test_workspace.workspace.working_copy_mut();
-
     // Set sparse patterns to only dir1/
-    let mut locked_wc = wc.start_mutation().unwrap();
+    let mut locked_ws = test_workspace
+        .workspace
+        .start_working_copy_mutation()
+        .unwrap();
     let sparse_patterns = vec![dir1_path.clone()];
-    locked_wc.set_sparse_patterns(sparse_patterns).unwrap();
-    locked_wc.finish(repo.op_id().clone()).unwrap();
+    locked_ws
+        .locked_wc()
+        .set_sparse_patterns(sparse_patterns)
+        .unwrap();
+    locked_ws.finish(repo.op_id().clone()).unwrap();
 
     // Write dir1/file1 and dir1/file2 and a .gitignore saying to ignore dir1/file1
     std::fs::write(working_copy_path.join(".gitignore"), "dir1/file1").unwrap();

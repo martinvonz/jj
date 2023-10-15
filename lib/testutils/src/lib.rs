@@ -186,13 +186,13 @@ impl TestWorkspace {
     /// copy state on disk, but does not update the working-copy commit (no
     /// new operation).
     pub fn snapshot(&mut self) -> Result<MergedTree, SnapshotError> {
-        let mut locked_wc = self.workspace.working_copy_mut().start_mutation().unwrap();
-        let tree_id = locked_wc.snapshot(SnapshotOptions {
+        let mut locked_ws = self.workspace.start_working_copy_mutation().unwrap();
+        let tree_id = locked_ws.locked_wc().snapshot(SnapshotOptions {
             max_new_file_size: self.settings.max_new_file_size().unwrap(),
             ..SnapshotOptions::empty_for_test()
         })?;
         // arbitrary operation id
-        locked_wc.finish(self.repo.op_id().clone()).unwrap();
+        locked_ws.finish(self.repo.op_id().clone()).unwrap();
         Ok(self.repo.store().get_root_tree(&tree_id).unwrap())
     }
 }
