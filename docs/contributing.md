@@ -170,15 +170,20 @@ result will look as expected when published to the website.
 
 ### Setting up the prerequisites
 
-To build the website, you must have Python and `poetry` installed. If
-your distribution packages `poetry`, something like `apt install
-python3-poetry` is likely the best way to install it. Otherwise, you
-can download Python from <https://python.org> or follow the [Python
-installation instructions]. Finally, follow the [Poetry installation
-instructions].
+To build the website, you must have Python and `poetry` installed. If your Linux
+distribution packages `poetry`, something like `apt install python3-poetry` is
+likely the best way to install it. Otherwise, you can download Python from
+<https://python.org> or follow the [Python installation instructions]. Finally,
+follow the [Poetry installation instructions].
 
 [Python installation instructions]: https://docs.python.org/3/using/index.html
 [Poetry installation instructions]: https://python-poetry.org/docs/#installation 
+
+**Homebrew users:** We've seen problems when `poetry` is installed via Homebrew.
+See [this
+comment](https://github.com/python-poetry/poetry/issues/8458#issuecomment-1760554898)
+for details. This [may be fixed
+soon](https://github.com/Homebrew/homebrew-core/issues/150812).
 
 Once you have `poetry` installed, you should ask it to install the rest
 of the required tools into a virtual environment as follows:
