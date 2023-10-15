@@ -97,6 +97,7 @@ fn init_working_copy(
     repo: &Arc<ReadonlyRepo>,
     workspace_root: &Path,
     jj_dir: &Path,
+    working_copy_initializer: &WorkingCopyInitializer,
     workspace_id: WorkspaceId,
 ) -> Result<(Box<dyn WorkingCopy>, Arc<ReadonlyRepo>), WorkspaceInitError> {
     let working_copy_state_path = jj_dir.join("working_copy");
@@ -113,14 +114,16 @@ fn init_working_copy(
     )?;
     let repo = tx.commit();
 
-    let working_copy = LocalWorkingCopy::init(
+    let working_copy = working_copy_initializer(
         repo.store().clone(),
         workspace_root.to_path_buf(),
-        working_copy_state_path,
-        repo.op_id().clone(),
+        working_copy_state_path.clone(),
         workspace_id,
+        repo.op_id().clone(),
     )?;
-    Ok((Box::new(working_copy), repo))
+    let working_copy_type_path = working_copy_state_path.join("type");
+    fs::write(&working_copy_type_path, working_copy.name()).context(&working_copy_type_path)?;
+    Ok((working_copy, repo))
 }
 
 impl Workspace {
@@ -195,6 +198,7 @@ impl Workspace {
         op_heads_store_initializer: &OpHeadsStoreInitializer,
         index_store_initializer: &IndexStoreInitializer,
         submodule_store_initializer: &SubmoduleStoreInitializer,
+        working_copy_initializer: &WorkingCopyInitializer,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
@@ -214,8 +218,14 @@ impl Workspace {
                 RepoInitError::Backend(err) => WorkspaceInitError::Backend(err),
                 RepoInitError::Path(err) => WorkspaceInitError::Path(err),
             })?;
-            let (working_copy, repo) =
-                init_working_copy(user_settings, &repo, workspace_root, &jj_dir, workspace_id)?;
+            let (working_copy, repo) = init_working_copy(
+                user_settings,
+                &repo,
+                workspace_root,
+                &jj_dir,
+                working_copy_initializer,
+                workspace_id,
+            )?;
             let repo_loader = repo.loader();
             let workspace = Workspace::new(workspace_root, working_copy, repo_loader)?;
             Ok((workspace, repo))
@@ -239,6 +249,7 @@ impl Workspace {
             ReadonlyRepo::default_op_heads_store_initializer(),
             ReadonlyRepo::default_index_store_initializer(),
             ReadonlyRepo::default_submodule_store_initializer(),
+            default_working_copy_initializer(),
             WorkspaceId::default(),
         )
     }
@@ -247,6 +258,7 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: &Path,
         repo: &Arc<ReadonlyRepo>,
+        working_copy_initializer: &WorkingCopyInitializer,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
@@ -263,8 +275,14 @@ impl Workspace {
             )
             .context(&repo_file_path)?;
 
-        let (working_copy, repo) =
-            init_working_copy(user_settings, repo, workspace_root, &jj_dir, workspace_id)?;
+        let (working_copy, repo) = init_working_copy(
+            user_settings,
+            repo,
+            workspace_root,
+            &jj_dir,
+            working_copy_initializer,
+            workspace_id,
+        )?;
         let workspace = Workspace::new(workspace_root, working_copy, repo.loader())?;
         Ok((workspace, repo))
     }
@@ -441,6 +459,19 @@ impl WorkspaceLoader {
     }
 }
 
+pub fn default_working_copy_initializer() -> &'static WorkingCopyInitializer {
+    &|store: Arc<Store>, working_copy_path, state_path, workspace_id, operation_id| {
+        let wc = LocalWorkingCopy::init(
+            store,
+            working_copy_path,
+            state_path,
+            operation_id,
+            workspace_id,
+        )?;
+        Ok(Box::new(wc))
+    }
+}
+
 pub fn default_working_copy_factories() -> HashMap<String, WorkingCopyFactory> {
     let mut factories: HashMap<String, WorkingCopyFactory> = HashMap::new();
     factories.insert(
@@ -456,4 +487,11 @@ pub fn default_working_copy_factories() -> HashMap<String, WorkingCopyFactory> {
     factories
 }
 
+pub type WorkingCopyInitializer = dyn Fn(
+    Arc<Store>,
+    PathBuf,
+    PathBuf,
+    WorkspaceId,
+    OperationId,
+) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError>;
 pub type WorkingCopyFactory = Box<dyn Fn(&Arc<Store>, &Path, &Path) -> Box<dyn WorkingCopy>>;

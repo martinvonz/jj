@@ -48,7 +48,7 @@ use jj_lib::revset_graph::{
 use jj_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::SnapshotOptions;
-use jj_lib::workspace::Workspace;
+use jj_lib::workspace::{default_working_copy_initializer, Workspace};
 use jj_lib::{conflicts, file_util, revset};
 use maplit::{hashmap, hashset};
 use tracing::instrument;
@@ -3753,10 +3753,12 @@ fn cmd_workspace_add(
             "Workspace named '{name}' already exists"
         )));
     }
+    // TODO: How do we create a workspace with a non-default working copy?
     let (new_workspace, repo) = Workspace::init_workspace_with_existing_repo(
         command.settings(),
         &destination_path,
         repo,
+        default_working_copy_initializer(),
         workspace_id,
     )?;
     writeln!(

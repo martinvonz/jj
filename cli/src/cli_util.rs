@@ -2685,6 +2685,7 @@ pub struct CliRunner {
     app: Command,
     extra_configs: Option<config::Config>,
     store_factories: Option<StoreFactories>,
+    working_copy_factories: Option<HashMap<String, WorkingCopyFactory>>,
     dispatch_fn: CliDispatchFn,
     process_global_args_fns: Vec<ProcessGlobalArgsFn>,
 }
@@ -2704,6 +2705,7 @@ impl CliRunner {
             app: crate::commands::default_app(),
             extra_configs: None,
             store_factories: None,
+            working_copy_factories: None,
             dispatch_fn: Box::new(crate::commands::run_command),
             process_global_args_fns: vec![],
         }
@@ -2724,6 +2726,15 @@ impl CliRunner {
     /// Replaces `StoreFactories` to be used.
     pub fn set_store_factories(mut self, store_factories: StoreFactories) -> Self {
         self.store_factories = Some(store_factories);
+        self
+    }
+
+    /// Replaces working copy factories to be used.
+    pub fn set_working_copy_factories(
+        mut self,
+        working_copy_factories: HashMap<String, WorkingCopyFactory>,
+    ) -> Self {
+        self.working_copy_factories = Some(working_copy_factories);
         self
     }
 
@@ -2797,7 +2808,9 @@ impl CliRunner {
         let config = layered_configs.merge();
         ui.reset(&config)?;
         let settings = UserSettings::from_config(config);
-        let working_copy_factories = default_working_copy_factories();
+        let working_copy_factories = self
+            .working_copy_factories
+            .unwrap_or_else(|| default_working_copy_factories());
         let command_helper = CommandHelper::new(
             self.app,
             cwd,
