@@ -360,22 +360,26 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
     for (branch_name, branch_target) in repo.view().branches() {
         let local_target = branch_target.local_target;
-        let mut unsynced_remote_targets = branch_target
-            .remote_refs
-            .iter()
-            .filter(|&&(_, remote_ref)| remote_ref.target != *local_target)
-            .peekable();
+        let remote_refs = branch_target.remote_refs;
+        let unsynced_remote_refs = remote_refs.iter().copied().filter(|&(_, remote_ref)| {
+            !remote_ref.is_tracking() || remote_ref.target != *local_target
+        });
+        let has_unsynced_tracking_refs = || {
+            remote_refs.iter().any(|&(_, remote_ref)| {
+                remote_ref.is_tracking() && remote_ref.target != *local_target
+            })
+        };
         if local_target.is_present() {
             let decorated_name = if local_target.has_conflict() {
                 format!("{branch_name}??")
-            } else if unsynced_remote_targets.peek().is_some() {
+            } else if has_unsynced_tracking_refs() {
                 format!("{branch_name}*")
             } else {
                 branch_name.to_owned()
             };
             index.insert(local_target.added_ids(), decorated_name);
         }
-        for &(remote_name, remote_ref) in unsynced_remote_targets {
+        for (remote_name, remote_ref) in unsynced_remote_refs {
             let decorated_name = if remote_ref.target.has_conflict() {
                 format!("{branch_name}@{remote_name}?")
             } else {
