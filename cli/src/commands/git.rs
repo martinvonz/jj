@@ -507,6 +507,10 @@ fn cmd_git_clone(
             .get_remote_branch(default_branch, remote_name);
         if let Some(commit_id) = default_branch_remote_ref.target.as_normal().cloned() {
             let mut checkout_tx = workspace_command.start_transaction();
+            // For convenience, create local branch as Git would do.
+            checkout_tx
+                .mut_repo()
+                .track_remote_branch(default_branch, remote_name);
             if let Ok(commit) = checkout_tx.repo().store().get_commit(&commit_id) {
                 checkout_tx.check_out(&commit)?;
             }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::{self, PathBuf};
+use std::path::{self, Path, PathBuf};
 
 use crate::common::TestEnvironment;
 
@@ -213,11 +213,8 @@ fn test_git_clone_colocate() {
     "###);
 
     // The old default branch "master" shouldn't exist.
-    let stdout = test_env.jj_cmd_success(
-        &test_env.env_root().join("clone"),
-        &["branch", "list", "--all"],
-    );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(
+        get_branch_output(&test_env, &test_env.env_root().join("clone")), @r###"
     main: mzyxwzks 9f01a0e0 message
       @git: mzyxwzks 9f01a0e0 message
       @origin: mzyxwzks 9f01a0e0 message
@@ -308,4 +305,60 @@ fn test_git_clone_colocate() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Destination path exists and is not an empty directory
     "###);
+}
+
+#[test]
+fn test_git_clone_remote_default_branch() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("source");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    set_up_non_empty_git_repo(&git_repo);
+    // Create non-default branch in remote
+    let oid = git_repo
+        .find_reference("refs/heads/main")
+        .unwrap()
+        .target()
+        .unwrap();
+    git_repo
+        .reference("refs/heads/feature1", oid, false, "")
+        .unwrap();
+
+    // All fetched branches will be imported if auto-local-branch is on
+    test_env.add_config("git.auto-local-branch = true");
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone1"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/clone1"
+    Working copy now at: sqpuoqvx cad212e1 (empty) (no description set)
+    Parent commit      : mzyxwzks 9f01a0e0 feature1 main | message
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(
+        get_branch_output(&test_env, &test_env.env_root().join("clone1")), @r###"
+    feature1: mzyxwzks 9f01a0e0 message
+      @origin: mzyxwzks 9f01a0e0 message
+    main: mzyxwzks 9f01a0e0 message
+      @origin: mzyxwzks 9f01a0e0 message
+    "###);
+
+    // Only the default branch will be imported if auto-local-branch is off
+    test_env.add_config("git.auto-local-branch = false");
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone2"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/clone2"
+    Working copy now at: pmmvwywv fa729b1e (empty) (no description set)
+    Parent commit      : mzyxwzks 9f01a0e0 feature1@origin main | message
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(
+        get_branch_output(&test_env, &test_env.env_root().join("clone2")), @r###"
+    feature1@origin: mzyxwzks 9f01a0e0 message
+    main: mzyxwzks 9f01a0e0 message
+      @origin: mzyxwzks 9f01a0e0 message
+    "###);
+}
+
+fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
 }
