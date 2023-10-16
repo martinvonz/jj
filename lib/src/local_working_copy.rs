@@ -42,6 +42,7 @@ use tracing::{instrument, trace_span};
 use crate::backend::{
     BackendError, FileId, MergedTreeId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
 };
+use crate::commit::Commit;
 use crate::conflicts;
 #[cfg(feature = "watchman")]
 use crate::fsmonitor::watchman;
@@ -1514,9 +1515,10 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         Ok(tree_state.current_tree_id().clone())
     }
 
-    fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {
+    fn check_out(&mut self, commit: &Commit) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with the new TreeId so we can
         // continue an interrupted update if we find such a file.
+        let new_tree = commit.tree()?;
         let stats = self
             .wc
             .tree_state_mut()
@@ -1524,7 +1526,7 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
                 message: "Failed to load the working copy state".to_string(),
                 err: err.into(),
             })?
-            .check_out(new_tree)?;
+            .check_out(&new_tree)?;
         self.tree_state_dirty = true;
         Ok(stats)
     }

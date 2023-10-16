@@ -23,11 +23,11 @@ use std::sync::Arc;
 use thiserror::Error;
 
 use crate::backend::{Backend, BackendInitError, MergedTreeId};
+use crate::commit::Commit;
 use crate::file_util::{self, IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
 use crate::local_backend::LocalBackend;
 use crate::local_working_copy::LocalWorkingCopy;
-use crate::merged_tree::MergedTree;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo::{
     BackendInitializer, CheckOutCommitError, IndexStoreInitializer, OpHeadsStoreInitializer,
@@ -311,7 +311,7 @@ impl Workspace {
         &mut self,
         operation_id: OperationId,
         old_tree_id: Option<&MergedTreeId>,
-        new_tree: &MergedTree,
+        commit: &Commit,
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut locked_ws =
             self.start_working_copy_mutation()
@@ -328,7 +328,7 @@ impl Workspace {
                 return Err(CheckoutError::ConcurrentCheckout);
             }
         }
-        let stats = locked_ws.locked_wc().check_out(new_tree)?;
+        let stats = locked_ws.locked_wc().check_out(commit)?;
         locked_ws
             .finish(operation_id)
             .map_err(|err| CheckoutError::Other {
