@@ -18,22 +18,7 @@ use crate::common::TestEnvironment;
 
 pub mod common;
 
-#[test]
-fn test_git_clone() {
-    let test_env = TestEnvironment::default();
-    let git_repo_path = test_env.env_root().join("source");
-    let git_repo = git2::Repository::init(git_repo_path).unwrap();
-
-    // Clone an empty repo
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "empty"]);
-    insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Fetching into new repo in "$TEST_ENV/empty"
-    Nothing changed.
-    "###);
-
-    // Set-up a non-empty repo
+fn set_up_non_empty_git_repo(git_repo: &git2::Repository) {
     let signature =
         git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
     let mut tree_builder = git_repo.treebuilder(None).unwrap();
@@ -54,6 +39,24 @@ fn test_git_clone() {
         )
         .unwrap();
     git_repo.set_head("refs/heads/main").unwrap();
+}
+
+#[test]
+fn test_git_clone() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("source");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+
+    // Clone an empty repo
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "empty"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/empty"
+    Nothing changed.
+    "###);
+
+    set_up_non_empty_git_repo(&git_repo);
 
     // Clone with relative source path
     let (stdout, stderr) =
@@ -160,27 +163,7 @@ fn test_git_clone_colocate() {
         git_target_file_contents.replace(path::MAIN_SEPARATOR, "/"),
         @"../../../.git");
 
-    // Set-up a non-empty repo
-    let signature =
-        git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
-    let mut tree_builder = git_repo.treebuilder(None).unwrap();
-    let file_oid = git_repo.blob(b"content").unwrap();
-    tree_builder
-        .insert("file", file_oid, git2::FileMode::Blob.into())
-        .unwrap();
-    let tree_oid = tree_builder.write().unwrap();
-    let tree = git_repo.find_tree(tree_oid).unwrap();
-    git_repo
-        .commit(
-            Some("refs/heads/main"),
-            &signature,
-            &signature,
-            "message",
-            &tree,
-            &[],
-        )
-        .unwrap();
-    git_repo.set_head("refs/heads/main").unwrap();
+    set_up_non_empty_git_repo(&git_repo);
 
     // Clone with relative source path
     let (stdout, stderr) = test_env.jj_cmd_ok(
