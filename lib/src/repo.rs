@@ -119,39 +119,39 @@ pub enum RepoInitError {
 }
 
 impl ReadonlyRepo {
-    pub fn default_op_store_factory() -> impl FnOnce(&Path) -> Box<dyn OpStore> {
-        |store_path| Box::new(SimpleOpStore::init(store_path))
+    pub fn default_op_store_initializer() -> &'static OpStoreInitializer {
+        &|store_path| Box::new(SimpleOpStore::init(store_path))
     }
 
-    pub fn default_op_heads_store_factory() -> impl FnOnce(&Path) -> Box<dyn OpHeadsStore> {
-        |store_path| {
+    pub fn default_op_heads_store_initializer() -> &'static OpHeadsStoreInitializer {
+        &|store_path| {
             let store = SimpleOpHeadsStore::init(store_path);
             Box::new(store)
         }
     }
 
-    pub fn default_index_store_factory() -> impl FnOnce(&Path) -> Box<dyn IndexStore> {
-        |store_path| Box::new(DefaultIndexStore::init(store_path))
+    pub fn default_index_store_initializer() -> &'static IndexStoreInitializer {
+        &|store_path| Box::new(DefaultIndexStore::init(store_path))
     }
 
-    pub fn default_submodule_store_factory() -> impl FnOnce(&Path) -> Box<dyn SubmoduleStore> {
-        |store_path| Box::new(DefaultSubmoduleStore::init(store_path))
+    pub fn default_submodule_store_initializer() -> &'static SubmoduleStoreInitializer {
+        &|store_path| Box::new(DefaultSubmoduleStore::init(store_path))
     }
 
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
-        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendInitError>,
-        op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
-        op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
-        index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
-        submodule_store_factory: impl FnOnce(&Path) -> Box<dyn SubmoduleStore>,
+        backend_initializer: &BackendInitializer,
+        op_store_initializer: &OpStoreInitializer,
+        op_heads_store_initializer: &OpHeadsStoreInitializer,
+        index_store_initializer: &IndexStoreInitializer,
+        submodule_store_initializer: &SubmoduleStoreInitializer,
     ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
         let repo_path = repo_path.canonicalize().context(repo_path)?;
 
         let store_path = repo_path.join("store");
         fs::create_dir(&store_path).context(&store_path)?;
-        let backend = backend_factory(&store_path)?;
+        let backend = backend_initializer(&store_path)?;
         let backend_path = store_path.join("type");
         fs::write(&backend_path, backend.name()).context(&backend_path)?;
         let store = Store::new(backend, user_settings.use_tree_conflict_format());
@@ -159,7 +159,7 @@ impl ReadonlyRepo {
 
         let op_store_path = repo_path.join("op_store");
         fs::create_dir(&op_store_path).context(&op_store_path)?;
-        let op_store = op_store_factory(&op_store_path);
+        let op_store = op_store_initializer(&op_store_path);
         let op_store_type_path = op_store_path.join("type");
         fs::write(&op_store_type_path, op_store.name()).context(&op_store_type_path)?;
         let op_store: Arc<dyn OpStore> = Arc::from(op_store);
@@ -182,7 +182,7 @@ impl ReadonlyRepo {
         };
         let init_operation_id = op_store.write_operation(&init_operation).unwrap();
         let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
-        let op_heads_store = op_heads_store_factory(&op_heads_path);
+        let op_heads_store = op_heads_store_initializer(&op_heads_path);
         op_heads_store.add_op_head(init_operation.id());
         let op_heads_type_path = op_heads_path.join("type");
         fs::write(&op_heads_type_path, op_heads_store.name()).context(&op_heads_type_path)?;
@@ -190,14 +190,14 @@ impl ReadonlyRepo {
 
         let index_path = repo_path.join("index");
         fs::create_dir(&index_path).context(&index_path)?;
-        let index_store = index_store_factory(&index_path);
+        let index_store = index_store_initializer(&index_path);
         let index_type_path = index_path.join("type");
         fs::write(&index_type_path, index_store.name()).context(&index_type_path)?;
         let index_store = Arc::from(index_store);
 
         let submodule_store_path = repo_path.join("submodule_store");
         fs::create_dir(&submodule_store_path).context(&submodule_store_path)?;
-        let submodule_store = submodule_store_factory(&submodule_store_path);
+        let submodule_store = submodule_store_initializer(&submodule_store_path);
         let submodule_store_type_path = submodule_store_path.join("type");
         fs::write(&submodule_store_type_path, submodule_store.name())
             .context(&submodule_store_type_path)?;
@@ -340,6 +340,12 @@ impl Repo for ReadonlyRepo {
         self.change_id_index().shortest_unique_prefix_len(target_id)
     }
 }
+
+pub type BackendInitializer = dyn Fn(&Path) -> Result<Box<dyn Backend>, BackendInitError>;
+pub type OpStoreInitializer = dyn Fn(&Path) -> Box<dyn OpStore>;
+pub type OpHeadsStoreInitializer = dyn Fn(&Path) -> Box<dyn OpHeadsStore>;
+pub type IndexStoreInitializer = dyn Fn(&Path) -> Box<dyn IndexStore>;
+pub type SubmoduleStoreInitializer = dyn Fn(&Path) -> Box<dyn SubmoduleStore>;
 
 type BackendFactory = Box<dyn Fn(&Path) -> Result<Box<dyn Backend>, BackendLoadError>>;
 type OpStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpStore>>;

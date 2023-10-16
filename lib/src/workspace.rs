@@ -25,18 +25,16 @@ use thiserror::Error;
 use crate::backend::{Backend, BackendInitError, MergedTreeId};
 use crate::file_util::{self, IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
-use crate::index::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::local_working_copy::LocalWorkingCopy;
 use crate::merged_tree::MergedTree;
-use crate::op_heads_store::OpHeadsStore;
-use crate::op_store::{OpStore, OperationId, WorkspaceId};
+use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo::{
-    CheckOutCommitError, ReadonlyRepo, Repo, RepoInitError, RepoLoader, StoreFactories,
-    StoreLoadError,
+    BackendInitializer, CheckOutCommitError, IndexStoreInitializer, OpHeadsStoreInitializer,
+    OpStoreInitializer, ReadonlyRepo, Repo, RepoInitError, RepoLoader, StoreFactories,
+    StoreLoadError, SubmoduleStoreInitializer,
 };
 use crate::settings::UserSettings;
-use crate::submodule_store::SubmoduleStore;
 use crate::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, WorkingCopy, WorkingCopyStateError,
 };
@@ -141,9 +139,9 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        Self::init_with_backend(user_settings, workspace_root, |store_path| {
-            Ok(Box::new(LocalBackend::init(store_path)))
-        })
+        let backend_initializer: &'static BackendInitializer =
+            &|store_path| Ok(Box::new(LocalBackend::init(store_path)));
+        Self::init_with_backend(user_settings, workspace_root, backend_initializer)
     }
 
     /// Initializes a workspace with a new Git backend in .jj/git/ (bare Git
@@ -152,9 +150,9 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        Self::init_with_backend(user_settings, workspace_root, |store_path| {
-            Ok(Box::new(GitBackend::init_internal(store_path)?))
-        })
+        let backend_initializer: &'static BackendInitializer =
+            &|store_path| Ok(Box::new(GitBackend::init_internal(store_path)?));
+        Self::init_with_backend(user_settings, workspace_root, backend_initializer)
     }
 
     /// Initializes a workspace with an existing Git backend at the specified
@@ -164,7 +162,9 @@ impl Workspace {
         workspace_root: &Path,
         git_repo_path: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        Self::init_with_backend(user_settings, workspace_root, |store_path| {
+        let workspace_root = workspace_root.to_owned();
+        let git_repo_path = git_repo_path.to_owned();
+        Self::init_with_backend(user_settings, &workspace_root.clone(), &move |store_path| {
             // If the git repo is inside the workspace, use a relative path to it so the
             // whole workspace can be moved without breaking.
             // TODO: Clean up path normalization. store_path is canonicalized by
@@ -179,10 +179,8 @@ impl Workspace {
                     }
                     _ => git_repo_path.to_owned(),
                 };
-            Ok(Box::new(GitBackend::init_external(
-                store_path,
-                &store_relative_git_repo_path,
-            )?))
+            let backend = GitBackend::init_external(store_path, &store_relative_git_repo_path)?;
+            Ok(Box::new(backend) as Box<dyn Backend>)
         })
     }
 
@@ -190,11 +188,11 @@ impl Workspace {
     pub fn init_with_factories(
         user_settings: &UserSettings,
         workspace_root: &Path,
-        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendInitError>,
-        op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
-        op_heads_store_factory: impl FnOnce(&Path) -> Box<dyn OpHeadsStore>,
-        index_store_factory: impl FnOnce(&Path) -> Box<dyn IndexStore>,
-        submodule_store_factory: impl FnOnce(&Path) -> Box<dyn SubmoduleStore>,
+        backend_initializer: &BackendInitializer,
+        op_store_initializer: &OpStoreInitializer,
+        op_heads_store_initializer: &OpHeadsStoreInitializer,
+        index_store_initializer: &IndexStoreInitializer,
+        submodule_store_initializer: &SubmoduleStoreInitializer,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
@@ -204,11 +202,11 @@ impl Workspace {
             let repo = ReadonlyRepo::init(
                 user_settings,
                 &repo_dir,
-                backend_factory,
-                op_store_factory,
-                op_heads_store_factory,
-                index_store_factory,
-                submodule_store_factory,
+                backend_initializer,
+                op_store_initializer,
+                op_heads_store_initializer,
+                index_store_initializer,
+                submodule_store_initializer,
             )
             .map_err(|repo_init_err| match repo_init_err {
                 RepoInitError::Backend(err) => WorkspaceInitError::Backend(err),
@@ -229,16 +227,16 @@ impl Workspace {
     pub fn init_with_backend(
         user_settings: &UserSettings,
         workspace_root: &Path,
-        backend_factory: impl FnOnce(&Path) -> Result<Box<dyn Backend>, BackendInitError>,
+        backend_initializer: &BackendInitializer,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_factories(
             user_settings,
             workspace_root,
-            backend_factory,
-            ReadonlyRepo::default_op_store_factory(),
-            ReadonlyRepo::default_op_heads_store_factory(),
-            ReadonlyRepo::default_index_store_factory(),
-            ReadonlyRepo::default_submodule_store_factory(),
+            backend_initializer,
+            ReadonlyRepo::default_op_store_initializer(),
+            ReadonlyRepo::default_op_heads_store_initializer(),
+            ReadonlyRepo::default_index_store_initializer(),
+            ReadonlyRepo::default_submodule_store_initializer(),
             WorkspaceId::default(),
         )
     }
