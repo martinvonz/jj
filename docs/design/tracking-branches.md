@@ -222,8 +222,7 @@ In particular, a merge of local and remote targets is
 * `jj git clone`
   * Import, track, and merge per `git.auto_local_branch` config.
   * The default branch will be tracked regardless of `git.auto_local_branch`
-    config. (Because local branch is created for the default remote branch,
-    it makes sense to track.)
+    config. This isn't technically needed, but will help users coming from Git.
 
 ### branch
 
