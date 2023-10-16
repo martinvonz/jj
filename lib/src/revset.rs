@@ -2035,7 +2035,9 @@ fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<
                 .remote_refs
                 .into_iter()
                 .filter(move |&(_, remote_ref)| {
-                    include_synced_remotes || remote_ref.target != *local_target
+                    include_synced_remotes
+                        || !remote_ref.is_tracking()
+                        || remote_ref.target != *local_target
                 })
                 .map(move |(remote_name, _)| format!("{name}@{remote_name}"));
             local_symbol.into_iter().chain(remote_symbols)
