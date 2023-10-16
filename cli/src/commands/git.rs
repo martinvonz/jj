@@ -443,6 +443,7 @@ fn cmd_git_clone(
     if command.global_args().repository.is_some() {
         return Err(user_error("'--repository' cannot be used with 'git clone'"));
     }
+    let remote_name = "origin";
     let source = absolute_git_source(command.cwd(), &args.source);
     let wc_path_str = args
         .destination
@@ -466,7 +467,14 @@ fn cmd_git_clone(
     let canonical_wc_path: PathBuf = wc_path
         .canonicalize()
         .map_err(|err| user_error(format!("Failed to create {wc_path_str}: {err}")))?;
-    let clone_result = do_git_clone(ui, command, args.colocate, &source, &canonical_wc_path);
+    let clone_result = do_git_clone(
+        ui,
+        command,
+        args.colocate,
+        remote_name,
+        &source,
+        &canonical_wc_path,
+    );
     if clone_result.is_err() {
         let clean_up_dirs = || -> io::Result<()> {
             fs::remove_dir_all(canonical_wc_path.join(".jj"))?;
@@ -494,7 +502,7 @@ fn cmd_git_clone(
         let default_branch_remote_ref = workspace_command
             .repo()
             .view()
-            .get_remote_branch(default_branch, "origin");
+            .get_remote_branch(default_branch, remote_name);
         if let Some(commit_id) = default_branch_remote_ref.target.as_normal().cloned() {
             let mut checkout_tx =
                 workspace_command.start_transaction("check out git remote's default branch");
@@ -511,6 +519,7 @@ fn do_git_clone(
     ui: &mut Ui,
     command: &CommandHelper,
     colocate: bool,
+    remote_name: &str,
     source: &str,
     wc_path: &Path,
 ) -> Result<(WorkspaceCommandHelper, GitFetchStats), CommandError> {
@@ -528,7 +537,6 @@ fn do_git_clone(
         wc_path.display()
     )?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
-    let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction("fetch from git remote into empty repo");
 
