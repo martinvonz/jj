@@ -18,7 +18,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
 
 use itertools::Itertools;
-use jj_lib::backend::{Backend, BackendInitError, FileId, MergedTreeId, ObjectId, TreeValue};
+use jj_lib::backend::{
+    self, Backend, BackendInitError, ChangeId, FileId, MergedTreeId, MillisSinceEpoch, ObjectId,
+    Signature, Timestamp, TreeValue,
+};
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git_backend::GitBackend;
@@ -120,7 +123,7 @@ impl TestRepo {
         let repo = ReadonlyRepo::init(
             &settings,
             &repo_dir,
-            &move |store_path| -> Result<Box<dyn Backend>, BackendInitError> {
+            &move |store_path: &Path| -> Result<Box<dyn Backend>, BackendInitError> {
                 backend.init_backend(store_path)
             },
             ReadonlyRepo::default_op_store_initializer(),
@@ -298,6 +301,27 @@ pub fn create_random_commit<'repo>(
             tree_id,
         )
         .set_description(format!("random commit {number}"))
+}
+
+pub fn commit_with_tree(store: &Arc<Store>, tree_id: MergedTreeId) -> Commit {
+    let signature = Signature {
+        name: "Some One".to_string(),
+        email: "someone@example.com".to_string(),
+        timestamp: Timestamp {
+            timestamp: MillisSinceEpoch(0),
+            tz_offset: 0,
+        },
+    };
+    let commit = backend::Commit {
+        parents: vec![store.root_commit_id().clone()],
+        predecessors: vec![],
+        root_tree: tree_id,
+        change_id: ChangeId::from_hex("abcd"),
+        description: "description".to_string(),
+        author: signature.clone(),
+        committer: signature,
+    };
+    store.write_commit(commit).unwrap()
 }
 
 pub fn dump_tree(store: &Arc<Store>, tree_id: &MergedTreeId) -> String {

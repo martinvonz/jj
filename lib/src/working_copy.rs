@@ -23,6 +23,7 @@ use std::sync::Arc;
 use thiserror::Error;
 
 use crate::backend::{BackendError, MergedTreeId};
+use crate::commit::Commit;
 use crate::fsmonitor::FsmonitorKind;
 use crate::gitignore::GitIgnoreFile;
 use crate::merged_tree::MergedTree;
@@ -79,9 +80,8 @@ pub trait LockedWorkingCopy {
     /// Snapshot the working copy and return the tree id.
     fn snapshot(&mut self, options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError>;
 
-    /// Check out the specified tree in the working copy.
-    // TODO: Pass a Commit object here because some implementations need that.
-    fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError>;
+    /// Check out the specified commit in the working copy.
+    fn check_out(&mut self, commit: &Commit) -> Result<CheckoutStats, CheckoutError>;
 
     /// Update to another tree without touching the files in the working copy.
     fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError>;

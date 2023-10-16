@@ -18,7 +18,7 @@ use jj_lib::matchers::EverythingMatcher;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
-use testutils::{create_tree, TestWorkspace};
+use testutils::{commit_with_tree, create_tree, TestWorkspace};
 
 #[test]
 fn test_sparse_checkout() {
@@ -48,10 +48,11 @@ fn test_sparse_checkout() {
             (&dir2_file1_path, "contents"),
         ],
     );
+    let commit = commit_with_tree(repo.store(), tree.id());
 
     test_workspace
         .workspace
-        .check_out(repo.op_id().clone(), None, &tree)
+        .check_out(repo.op_id().clone(), None, &commit)
         .unwrap();
     let ws = &mut test_workspace.workspace;
 
@@ -161,9 +162,10 @@ fn test_sparse_commit() {
         ],
     );
 
+    let commit = commit_with_tree(repo.store(), tree.id());
     test_workspace
         .workspace
-        .check_out(repo.op_id().clone(), None, &tree)
+        .check_out(repo.op_id().clone(), None, &commit)
         .unwrap();
 
     // Set sparse patterns to only dir1/

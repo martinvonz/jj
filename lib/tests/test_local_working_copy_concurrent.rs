@@ -20,7 +20,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
 use jj_lib::workspace::Workspace;
-use testutils::{create_tree, write_working_copy_file, TestRepo, TestWorkspace};
+use testutils::{commit_with_tree, create_tree, write_working_copy_file, TestRepo, TestWorkspace};
 
 #[test]
 fn test_concurrent_checkout() {
@@ -37,11 +37,14 @@ fn test_concurrent_checkout() {
     let tree1 = repo.store().get_root_tree(&tree_id1).unwrap();
     let tree2 = repo.store().get_root_tree(&tree_id2).unwrap();
     let tree3 = repo.store().get_root_tree(&tree_id3).unwrap();
+    let commit1 = commit_with_tree(repo.store(), tree1.id());
+    let commit2 = commit_with_tree(repo.store(), tree2.id());
+    let commit3 = commit_with_tree(repo.store(), tree3.id());
 
     // Check out tree1
     let ws1 = &mut test_workspace1.workspace;
     // The operation ID is not correct, but that doesn't matter for this test
-    ws1.check_out(repo.op_id().clone(), None, &tree1).unwrap();
+    ws1.check_out(repo.op_id().clone(), None, &commit1).unwrap();
 
     // Check out tree2 from another process (simulated by another workspace
     // instance)
@@ -51,12 +54,12 @@ fn test_concurrent_checkout() {
         &TestRepo::default_store_factories(),
     )
     .unwrap();
-    ws2.check_out(repo.op_id().clone(), Some(&tree_id1), &tree2)
+    ws2.check_out(repo.op_id().clone(), Some(&tree_id1), &commit2)
         .unwrap();
 
     // Checking out another tree (via the first workspace instance) should now fail.
     assert_matches!(
-        ws1.check_out(repo.op_id().clone(), Some(&tree_id1), &tree3),
+        ws1.check_out(repo.op_id().clone(), Some(&tree_id1), &commit3),
         Err(CheckoutError::ConcurrentCheckout)
     );
 
@@ -93,16 +96,17 @@ fn test_checkout_parallel() {
         repo,
         &[(&RepoPath::from_internal_string("other file"), "contents")],
     );
+    let commit = commit_with_tree(repo.store(), tree.id());
     test_workspace
         .workspace
-        .check_out(repo.op_id().clone(), None, &tree)
+        .check_out(repo.op_id().clone(), None, &commit)
         .unwrap();
 
     thread::scope(|s| {
         for tree_id in &tree_ids {
             let op_id = repo.op_id().clone();
             let tree_ids = tree_ids.clone();
-            let tree_id = tree_id.clone();
+            let commit = commit_with_tree(repo.store(), tree_id.clone());
             let settings = settings.clone();
             let workspace_root = workspace_root.clone();
             s.spawn(move || {
@@ -112,13 +116,8 @@ fn test_checkout_parallel() {
                     &TestRepo::default_store_factories(),
                 )
                 .unwrap();
-                let tree = workspace
-                    .repo_loader()
-                    .store()
-                    .get_root_tree(&tree_id)
-                    .unwrap();
                 // The operation ID is not correct, but that doesn't matter for this test
-                let stats = workspace.check_out(op_id, None, &tree).unwrap();
+                let stats = workspace.check_out(op_id, None, &commit).unwrap();
                 assert_eq!(stats.updated_files, 0);
                 assert_eq!(stats.added_files, 1);
                 assert_eq!(stats.removed_files, 1);
@@ -147,11 +146,12 @@ fn test_racy_checkout() {
 
     let path = RepoPath::from_internal_string("file");
     let tree = create_tree(repo, &[(&path, "1")]);
+    let commit = commit_with_tree(repo.store(), tree.id());
 
     let mut num_matches = 0;
     for _ in 0..100 {
         let ws = &mut test_workspace.workspace;
-        ws.check_out(op_id.clone(), None, &tree).unwrap();
+        ws.check_out(op_id.clone(), None, &commit).unwrap();
         assert_eq!(
             std::fs::read(path.to_fs_path(&workspace_root)).unwrap(),
             b"1".to_vec()
