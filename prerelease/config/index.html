@@ -1949,7 +1949,7 @@ and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.</p>
 <h2 id="git-settings">Git settings<a class="headerlink" href="#git-settings" title="Permanent link">&para;</a></h2>
 <h3 id="automatic-local-branch-creation">Automatic local branch creation<a class="headerlink" href="#automatic-local-branch-creation" title="Permanent link">&para;</a></h3>
-<p>By default, when <code>jj</code> imports a remote-tracking branch from Git, it also
+<p>By default, when <code>jj</code> imports a new remote-tracking branch from Git, it also
 creates a local branch with the same name. In some repositories, this
 may be undesirable, e.g.:</p>
 <ul>
@@ -1958,11 +1958,17 @@ may be undesirable, e.g.:</p>
 <li>There are multiple remotes with conflicting views of that branch,
   resulting in an unhelpful conflicted state.</li>
 </ul>
-<p>You can disable this behavior by setting <code>git.auto-local-branch</code> like
-so,</p>
-<div class="codehilite"><pre><span></span><code>git.auto-local-branch = false
+<p>You can disable this behavior by setting <code>git.auto-local-branch</code> like so,</p>
+<div class="highlight"><pre><span></span><code><span class="n">git</span><span class="p">.</span><span class="n">auto-local-branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 </code></pre></div>
-
+<p>This setting is applied only to new remote branches. Existing remote branches
+can be tracked individually by using <code>jj branch track</code>/<code>untrack</code> commands.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># import feature1 branch and start tracking it</span>
+jj<span class="w"> </span>branch<span class="w"> </span>track<span class="w"> </span>feature1@origin
+<span class="c1"># delete local gh-pages branch and stop tracking it</span>
+jj<span class="w"> </span>branch<span class="w"> </span>delete<span class="w"> </span>gh-pages
+jj<span class="w"> </span>branch<span class="w"> </span>untrack<span class="w"> </span>gh-pages@upstream
+</code></pre></div>
 <p>Note that this setting may make it easier to accidentally delete remote
 branches. Since the local branch isn't created, the remote branch will be
 deleted if you push the branch with <code>jj git push --branch</code> or <code>jj git push
