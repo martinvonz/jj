@@ -382,11 +382,16 @@ fn test_resolve_symbol_branches() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
-    let remote_ref = |target| RemoteRef {
+    let new_remote_ref = |target| RemoteRef {
         target,
-        state: RemoteRefState::Tracking, // doesn't matter
+        state: RemoteRefState::New,
     };
-    let normal_remote_ref = |id: &CommitId| remote_ref(RefTarget::normal(id.clone()));
+    let tracking_remote_ref = |target| RemoteRef {
+        target,
+        state: RemoteRefState::Tracking,
+    };
+    let normal_tracking_remote_ref =
+        |id: &CommitId| tracking_remote_ref(RefTarget::normal(id.clone()));
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
@@ -398,9 +403,13 @@ fn test_resolve_symbol_branches() {
     let commit5 = write_random_commit(mut_repo, &settings);
 
     mut_repo.set_local_branch_target("local", RefTarget::normal(commit1.id().clone()));
-    mut_repo.set_remote_branch("remote", "origin", normal_remote_ref(commit2.id()));
+    mut_repo.set_remote_branch("remote", "origin", normal_tracking_remote_ref(commit2.id()));
     mut_repo.set_local_branch_target("local-remote", RefTarget::normal(commit3.id().clone()));
-    mut_repo.set_remote_branch("local-remote", "origin", normal_remote_ref(commit4.id()));
+    mut_repo.set_remote_branch(
+        "local-remote",
+        "origin",
+        normal_tracking_remote_ref(commit4.id()),
+    );
     mut_repo.set_local_branch_target(
         "local-remote@origin", // not a remote branch
         RefTarget::normal(commit5.id().clone()),
@@ -408,12 +417,17 @@ fn test_resolve_symbol_branches() {
     mut_repo.set_remote_branch(
         "local-remote",
         "mirror",
-        remote_ref(mut_repo.get_local_branch("local-remote")),
+        tracking_remote_ref(mut_repo.get_local_branch("local-remote")),
+    );
+    mut_repo.set_remote_branch(
+        "local-remote",
+        "untracked",
+        new_remote_ref(mut_repo.get_local_branch("local-remote")),
     );
     mut_repo.set_remote_branch(
         "local-remote",
         git::REMOTE_NAME_FOR_LOCAL_GIT_REPO,
-        remote_ref(mut_repo.get_local_branch("local-remote")),
+        tracking_remote_ref(mut_repo.get_local_branch("local-remote")),
     );
 
     mut_repo.set_local_branch_target(
@@ -426,7 +440,7 @@ fn test_resolve_symbol_branches() {
     mut_repo.set_remote_branch(
         "remote-conflicted",
         "origin",
-        remote_ref(RefTarget::from_legacy_form(
+        tracking_remote_ref(RefTarget::from_legacy_form(
             [commit3.id().clone()],
             [commit5.id().clone(), commit4.id().clone()],
         )),
@@ -457,6 +471,7 @@ fn test_resolve_symbol_branches() {
         name: "remote",
         candidates: [
             "local-remote@origin",
+            "local-remote@untracked",
             "remote-conflicted@origin",
             "remote@origin",
         ],
@@ -501,7 +516,9 @@ fn test_resolve_symbol_branches() {
 
     // Typo of local/remote branch name:
     // For "local-emote" (without @remote part), "local-remote@mirror"/"@git" aren't
-    // suggested since they point to the same target as "local-remote".
+    // suggested since they point to the same target as "local-remote". OTOH,
+    // "local-remote@untracked" is suggested because non-tracking branch is
+    // unrelated to the local branch of the same name.
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "local-emote").unwrap_err(), @r###"
     NoSuchRevision {
@@ -511,6 +528,7 @@ fn test_resolve_symbol_branches() {
             "local-conflicted",
             "local-remote",
             "local-remote@origin",
+            "local-remote@untracked",
         ],
     }
     "###);
@@ -524,6 +542,7 @@ fn test_resolve_symbol_branches() {
             "local-remote@git",
             "local-remote@mirror",
             "local-remote@origin",
+            "local-remote@untracked",
             "remote-conflicted@origin",
             "remote@origin",
         ],
@@ -539,6 +558,7 @@ fn test_resolve_symbol_branches() {
             "local-remote@git",
             "local-remote@mirror",
             "local-remote@origin",
+            "local-remote@untracked",
             "remote-conflicted@origin",
             "remote@origin",
         ],
