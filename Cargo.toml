@@ -20,7 +20,7 @@ keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 anyhow = "1.0.75"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
-async-trait = "0.1.73"
+async-trait = "0.1.74"
 backoff = "0.4.0"
 blake2 = "0.10.6"
 byteorder = "1.5.0"
@@ -59,7 +59,7 @@ prost-build = "0.11.9"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rayon = "1.8.0"
-regex = "1.10.0"
+regex = "1.10.2"
 rpassword = "7.2.0"
 rustix = { version = "0.38.19", features = ["fs"] }
 smallvec = { version = "1.11.1", features = [
@@ -78,7 +78,7 @@ textwrap = "0.16.0"
 thiserror = "1.0.49"
 timeago = { version = "0.4.2", default-features = false }
 toml_edit = { version = "0.19.15", features = ["serde"] }
-tracing = "0.1.37"
+tracing = "0.1.39"
 tracing-chrome = "0.7.1"
 tracing-subscriber = { version = "0.3.17", default-features = false, features = [
     "std",
