@@ -708,7 +708,7 @@ fn cmd_git_push(
             match classify_branch_update(branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
-                Err(message) => writeln!(ui.warning(), "{message}")?,
+                Err(reason) => reason.print(ui)?,
             }
         }
         tx_description = format!("push all branches to git remote {remote}");
@@ -720,7 +720,7 @@ fn cmd_git_push(
             match classify_branch_update(branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
-                Err(message) => writeln!(ui.warning(), "{message}")?,
+                Err(reason) => reason.print(ui)?,
             }
         }
         tx_description = format!("push all deleted branches to git remote {remote}");
@@ -743,7 +743,7 @@ fn cmd_git_push(
                     ui.stderr(),
                     "Branch {branch_name}@{remote} already matches {branch_name}",
                 )?,
-                Err(message) => return Err(user_error(message)),
+                Err(reason) => return Err(reason.into()),
             }
         }
 
@@ -794,7 +794,7 @@ fn cmd_git_push(
                     ui.stderr(),
                     "Branch {branch_name}@{remote} already matches {branch_name}",
                 )?,
-                Err(message) => return Err(user_error(message)),
+                Err(reason) => return Err(reason.into()),
             }
         }
 
@@ -837,7 +837,7 @@ fn cmd_git_push(
             match classify_branch_update(branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
-                Err(message) => writeln!(ui.warning(), "{message}")?,
+                Err(reason) => reason.print(ui)?,
             }
         }
         if (!args.revisions.is_empty() || use_default_revset) && branches_targeted.is_empty() {
@@ -1006,21 +1006,53 @@ fn get_default_push_remote(
     }
 }
 
+#[derive(Clone, Debug)]
+struct RejectedBranchUpdateReason {
+    message: String,
+    hint: Option<String>,
+}
+
+impl RejectedBranchUpdateReason {
+    fn print(&self, ui: &Ui) -> io::Result<()> {
+        writeln!(ui.warning(), "{}", self.message)?;
+        if let Some(hint) = &self.hint {
+            writeln!(ui.hint(), "Hint: {hint}")?;
+        }
+        Ok(())
+    }
+}
+
+impl From<RejectedBranchUpdateReason> for CommandError {
+    fn from(reason: RejectedBranchUpdateReason) -> Self {
+        let RejectedBranchUpdateReason { message, hint } = reason;
+        CommandError::UserError { message, hint }
+    }
+}
+
 fn classify_branch_update(
     branch_name: &str,
     remote_name: &str,
     targets: TrackingRefPair,
-) -> Result<Option<BranchPushUpdate>, String> {
+) -> Result<Option<BranchPushUpdate>, RejectedBranchUpdateReason> {
     let push_action = classify_branch_push_action(targets);
     match push_action {
         BranchPushAction::AlreadyMatches => Ok(None),
-        BranchPushAction::LocalConflicted => Err(format!("Branch {branch_name} is conflicted")),
-        BranchPushAction::RemoteConflicted => {
-            Err(format!("Branch {branch_name}@{remote_name} is conflicted"))
-        }
-        BranchPushAction::RemoteUntracked => Err(format!(
-            "Non-tracking remote branch {branch_name}@{remote_name} exists"
-        )),
+        BranchPushAction::LocalConflicted => Err(RejectedBranchUpdateReason {
+            message: format!("Branch {branch_name} is conflicted"),
+            hint: Some(
+                "Run `jj branch list` to inspect, and use `jj branch set` to fix it up.".to_owned(),
+            ),
+        }),
+        BranchPushAction::RemoteConflicted => Err(RejectedBranchUpdateReason {
+            message: format!("Branch {branch_name}@{remote_name} is conflicted"),
+            hint: Some("Run `jj git fetch` to update the conflicted remote branch.".to_owned()),
+        }),
+        BranchPushAction::RemoteUntracked => Err(RejectedBranchUpdateReason {
+            message: format!("Non-tracking remote branch {branch_name}@{remote_name} exists"),
+            hint: Some(format!(
+                "Run `jj branch track {branch_name}@{remote_name}` to import the remote branch."
+            )),
+        }),
         BranchPushAction::Update(update) => Ok(Some(update)),
     }
 }
