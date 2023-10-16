@@ -684,6 +684,7 @@ fn test_git_push_conflicting_branches() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch branch2 is conflicted
+    Hint: Run `jj branch list` to inspect, and use `jj branch set` to fix it up.
     Nothing changed.
     "###);
 
@@ -691,6 +692,7 @@ fn test_git_push_conflicting_branches() {
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch", "branch2"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Branch branch2 is conflicted
+    Hint: Run `jj branch list` to inspect, and use `jj branch set` to fix it up.
     "###);
 
     // --all shouldn't be blocked by conflicting branch
@@ -699,6 +701,7 @@ fn test_git_push_conflicting_branches() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch branch2 is conflicted
+    Hint: Run `jj branch list` to inspect, and use `jj branch set` to fix it up.
     Branch changes to push to origin:
       Move branch branch1 from 45a3aa29e907 to fd1d63e031ea
     "###);
@@ -709,6 +712,7 @@ fn test_git_push_conflicting_branches() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch branch2 is conflicted
+    Hint: Run `jj branch list` to inspect, and use `jj branch set` to fix it up.
     Branch changes to push to origin:
       Move branch branch1 from fd1d63e031ea to 8263cf992d33
     "###);
@@ -742,6 +746,7 @@ fn test_git_push_moved_forward_untracked() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
     Non-tracking remote branch branch1@origin exists
+    Hint: Run `jj branch track branch1@origin` to import the remote branch.
     Nothing changed.
     "###);
 }
@@ -759,6 +764,7 @@ fn test_git_push_moved_sideways_untracked() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
     Non-tracking remote branch branch1@origin exists
+    Hint: Run `jj branch track branch1@origin` to import the remote branch.
     Nothing changed.
     "###);
 }
