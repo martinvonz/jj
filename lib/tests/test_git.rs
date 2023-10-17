@@ -703,6 +703,60 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
 }
 
 #[test]
+fn test_import_refs_reimport_with_moved_untracked_remote_ref() {
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings {
+        auto_local_branch: false,
+    };
+    let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let repo = &test_workspace.repo;
+    let git_repo = get_git_repo(repo);
+
+    // The base commit doesn't have a reference.
+    let remote_ref_name = "refs/remotes/origin/feature";
+    let commit_base = empty_git_commit(&git_repo, remote_ref_name, &[]);
+    let commit_remote_t0 = empty_git_commit(&git_repo, remote_ref_name, &[&commit_base]);
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit();
+    let view = repo.view();
+
+    assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_t0) });
+    assert_eq!(view.local_branches().count(), 0);
+    assert_eq!(view.all_remote_branches().count(), 1);
+    assert_eq!(
+        view.get_remote_branch("feature", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_t0)),
+            state: RemoteRefState::New,
+        },
+    );
+
+    // Move the reference remotely and fetch the changes.
+    delete_git_ref(&git_repo, remote_ref_name);
+    let commit_remote_t1 = empty_git_commit(&git_repo, remote_ref_name, &[&commit_base]);
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit();
+    let view = repo.view();
+
+    // commit_remote_t0 should be abandoned, but commit_base shouldn't because
+    // it's the ancestor of commit_remote_t1.
+    assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_t1) });
+    assert_eq!(view.local_branches().count(), 0);
+    assert_eq!(view.all_remote_branches().count(), 1);
+    assert_eq!(
+        view.get_remote_branch("feature", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_t1)),
+            state: RemoteRefState::New,
+        },
+    );
+}
+
+#[test]
 fn test_import_refs_reimport_git_head_with_fixed_ref() {
     // Simulate external `git checkout` in colocated repo, from named branch.
     let settings = testutils::user_settings();
