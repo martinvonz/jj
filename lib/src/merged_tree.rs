@@ -479,7 +479,7 @@ fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
         let mut tree_removes = vec![];
         for i in 0..merge.removes().len() {
             for (basename, path_conflict) in &conflicts {
-                new_tree.set_or_remove(basename, path_conflict.removes()[i].clone());
+                new_tree.set_or_remove(basename, path_conflict.get_remove(i).unwrap().clone());
             }
             let tree = store.write_tree(dir, new_tree.clone())?;
             tree_removes.push(tree);
@@ -487,7 +487,7 @@ fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
         let mut tree_adds = vec![];
         for i in 0..merge.adds().len() {
             for (basename, path_conflict) in &conflicts {
-                new_tree.set_or_remove(basename, path_conflict.adds()[i].clone());
+                new_tree.set_or_remove(basename, path_conflict.get_add(i).unwrap().clone());
             }
             let tree = store.write_tree(dir, new_tree.clone())?;
             tree_adds.push(tree);

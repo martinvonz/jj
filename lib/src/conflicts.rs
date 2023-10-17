@@ -122,7 +122,7 @@ pub fn materialize_merge_result(
                     output.write_all(CONFLICT_START_LINE)?;
                     let mut add_index = 0;
                     for left in hunk.removes() {
-                        let right1 = if let Some(right1) = hunk.adds().get(add_index) {
+                        let right1 = if let Some(right1) = hunk.get_add(add_index) {
                             right1
                         } else {
                             // If we have no more positive terms, emit the remaining negative
@@ -137,7 +137,7 @@ pub fn materialize_merge_result(
                         // Check if the diff against the next positive term is better. Since
                         // we want to preserve the order of the terms, we don't match against
                         // any later positive terms.
-                        if let Some(right2) = hunk.adds().get(add_index + 1) {
+                        if let Some(right2) = hunk.get_add(add_index + 1) {
                             let diff2 =
                                 Diff::for_tokenizer(&[&left.0, &right2.0], &find_line_ranges)
                                     .hunks()
