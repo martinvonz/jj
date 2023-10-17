@@ -228,7 +228,10 @@ fn test_git_clone_colocate() {
     "###);
 
     // The old default branch "master" shouldn't exist.
-    let stdout = test_env.jj_cmd_success(&test_env.env_root().join("clone"), &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(
+        &test_env.env_root().join("clone"),
+        &["branch", "list", "--include-untracked"],
+    );
     insta::assert_snapshot!(stdout, @r###"
     main: mzyxwzks 9f01a0e0 message
     "###);

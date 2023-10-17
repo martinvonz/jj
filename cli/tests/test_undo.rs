@@ -318,5 +318,5 @@ fn test_git_push_undo_repo_only() {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--include-untracked"])
 }

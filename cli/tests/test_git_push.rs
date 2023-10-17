@@ -247,7 +247,8 @@ fn test_git_push_locally_created_and_rewritten() {
     // Rewrite it and push again, which would fail if the pushed branch weren't
     // set to "tracking"
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-mlocal 2"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    let stdout =
+        test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--include-untracked"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1: lzmmnrxq 45a3aa29 (empty) description 1
     branch2: rlzusymt 8476341e (empty) description 2

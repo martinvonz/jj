@@ -52,7 +52,7 @@ fn add_git_remote(test_env: &TestEnvironment, repo_path: &Path, remote: &str) {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--include-untracked"])
 }
 
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
@@ -248,7 +248,8 @@ fn test_git_fetch_from_remote_named_git() {
     "###);
 
     // Implicit import shouldn't fail because of the remote ref.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "list"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "list", "--include-untracked"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
 
@@ -261,7 +262,8 @@ fn test_git_fetch_from_remote_named_git() {
 
     // The remote can be renamed, and the ref can be imported.
     test_env.jj_cmd_ok(&repo_path, &["git", "remote", "rename", "git", "bar"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "list"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "list", "--include-untracked"]);
     insta::assert_snapshot!(stdout, @r###"
     git: mrylzrtu 76fc7466 message
     "###);

@@ -625,6 +625,14 @@ fn test_branch_track_untrack() {
     ├─╯
     ◉   000000000000
     "###);
+
+    // Non-tracking branches aren't listed by default.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    feature1: sptzoqmo 7b33f629 commit 1
+    feature3: wwnpyzpo 3f0f86fa commit 3
+    main: wwnpyzpo 3f0f86fa commit 3
+    "###);
 }
 
 #[test]
@@ -808,5 +816,5 @@ fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--include-untracked"])
 }

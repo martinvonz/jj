@@ -65,9 +65,12 @@ pub struct BranchDeleteArgs {
 /// List branches and their targets
 ///
 /// A tracking remote branch will be included only if its target is different
-/// from the local target. For a conflicted branch (both local and remote), old
-/// target revisions are preceded by a "-" and new target revisions are preceded
-/// by a "+". For information about branches, see
+/// from the local target. A non-tracking remote branch won't be listed by
+/// default. For a conflicted branch (both local and remote), old target
+/// revisions are preceded by a "-" and new target revisions are preceded by a
+/// "+".
+///
+/// For information about branches, see
 /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchListArgs {
@@ -77,6 +80,10 @@ pub struct BranchListArgs {
     /// wouldn't have a local target.
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
+
+    /// Whether to list non-tracking remote branches
+    #[arg(long)]
+    include_untracked: bool,
 }
 
 /// Forget everything about a branch, including its local and remote
@@ -565,10 +572,11 @@ fn cmd_branch_list(
             }
         }
 
-        // TODO: hide non-tracking remotes by default?
-        for &(remote, remote_ref) in &untracked_remote_refs {
-            write!(formatter.labeled("branch"), "{name}@{remote}")?;
-            print_branch_target(formatter, &remote_ref.target)?;
+        if args.include_untracked {
+            for &(remote, remote_ref) in &untracked_remote_refs {
+                write!(formatter.labeled("branch"), "{name}@{remote}")?;
+                print_branch_target(formatter, &remote_ref.target)?;
+            }
         }
     }
 
