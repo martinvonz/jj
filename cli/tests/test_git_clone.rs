@@ -224,7 +224,9 @@ fn test_git_clone_colocate() {
         .map(|entry| format!("{:?} {}\n", entry.status(), entry.path().unwrap()))
         .collect();
     insta::assert_snapshot!(git_statuses, @r###"
-    IGNORED .jj/
+    IGNORED .jj/.gitignore
+    IGNORED .jj/repo/
+    IGNORED .jj/working_copy/
     "###);
 
     // The old default branch "master" shouldn't exist.
