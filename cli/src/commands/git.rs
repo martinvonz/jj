@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::io::{Read, Seek as _, SeekFrom, Write};
+use std::io::{Read, Write};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -210,43 +210,19 @@ fn map_git_error(err: git2::Error) -> CommandError {
     }
 }
 
-pub fn add_to_git_exclude(ui: &Ui, git_repo: &git2::Repository) -> Result<(), CommandError> {
-    let exclude_file_path = git_repo.path().join("info").join("exclude");
-    if exclude_file_path.exists() {
-        match fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(&exclude_file_path)
-        {
-            Ok(mut exclude_file) => {
-                let mut buf = vec![];
-                exclude_file.read_to_end(&mut buf)?;
-                let pattern = b"\n/.jj/\n";
-                if !buf.windows(pattern.len()).any(|window| window == pattern) {
-                    exclude_file.seek(SeekFrom::End(0))?;
-                    if !buf.ends_with(b"\n") {
-                        exclude_file.write_all(b"\n")?;
-                    }
-                    exclude_file.write_all(b"/.jj/\n")?;
-                }
-            }
-            Err(err) => {
-                writeln!(
-                    ui.error(),
-                    "Failed to add `.jj/` to {}: {}",
-                    exclude_file_path.to_string_lossy(),
-                    err
-                )?;
-            }
-        }
+pub fn maybe_add_gitignore(workspace_command: &WorkspaceCommandHelper) -> Result<(), CommandError> {
+    if workspace_command.working_copy_shared_with_git() {
+        std::fs::write(
+            workspace_command
+                .workspace_root()
+                .join(".jj")
+                .join(".gitignore"),
+            "/*\n",
+        )
+        .map_err(|e| user_error(format!("Failed to write .jj/.gitignore file: {e}")))
     } else {
-        writeln!(
-            ui.error(),
-            "Failed to add `.jj/` to {} because it doesn't exist",
-            exclude_file_path.to_string_lossy()
-        )?;
+        Ok(())
     }
-    Ok(())
 }
 
 fn cmd_git_remote_add(
@@ -525,7 +501,6 @@ fn do_git_clone(
 ) -> Result<(WorkspaceCommandHelper, GitFetchStats), CommandError> {
     let (workspace, repo) = if colocate {
         let git_repo = git2::Repository::init(wc_path)?;
-        add_to_git_exclude(ui, &git_repo)?;
         Workspace::init_external_git(command.settings(), wc_path, git_repo.path())?
     } else {
         Workspace::init_internal_git(command.settings(), wc_path)?
@@ -537,6 +512,7 @@ fn do_git_clone(
         wc_path.display()
     )?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+    maybe_add_gitignore(&workspace_command)?;
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction("fetch from git remote into empty repo");
 
