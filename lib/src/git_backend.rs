@@ -940,12 +940,10 @@ fn write_tree_conflict(
     let entries = itertools::chain(
         conflict
             .removes()
-            .iter()
             .enumerate()
             .map(|(i, tree_id)| (format!(".jjconflict-base-{i}"), tree_id)),
         conflict
             .adds()
-            .iter()
             .enumerate()
             .map(|(i, tree_id)| (format!(".jjconflict-side-{i}"), tree_id)),
     )

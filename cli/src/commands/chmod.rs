@@ -91,7 +91,6 @@ pub(crate) fn cmd_chmod(
         }
         let all_files = tree_value
             .adds()
-            .iter()
             .flatten()
             .all(|tree_value| matches!(tree_value, TreeValue::File { .. }));
         if !all_files {
