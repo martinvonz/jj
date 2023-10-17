@@ -165,7 +165,7 @@ impl<T> Merge<T> {
         &self.removes
     }
 
-    /// The removed values, also called positive terms.
+    /// The added values, also called positive terms.
     pub fn adds(&self) -> &[T] {
         &self.adds
     }
