@@ -132,10 +132,10 @@ impl MergedTree {
                 adds[i + 1].remove(path.clone());
             }
             // Now add the terms that were present in the conflict to the appropriate trees.
-            for (i, term) in conflict.removes().iter().enumerate() {
+            for (i, term) in conflict.removes().enumerate() {
                 removes[i].set_or_remove(path.clone(), term.clone());
             }
-            for (i, term) in conflict.adds().iter().enumerate() {
+            for (i, term) in conflict.adds().enumerate() {
                 adds[i].set_or_remove(path.clone(), term.clone());
             }
         }

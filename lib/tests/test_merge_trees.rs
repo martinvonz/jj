@@ -119,13 +119,13 @@ fn test_same_type() {
                 .read_conflict(&RepoPath::from_internal_string("_ab"), id)
                 .unwrap();
             assert_eq!(
-                conflict.adds(),
-                vec![
-                    side1_tree.value(&component).cloned(),
-                    side2_tree.value(&component).cloned(),
-                ]
+                conflict.adds().map(|v| v.as_ref()).collect_vec(),
+                vec![side1_tree.value(&component), side2_tree.value(&component)]
             );
-            assert_eq!(conflict.removes(), vec![None]);
+            assert_eq!(
+                conflict.removes().map(|v| v.as_ref()).collect_vec(),
+                vec![None]
+            );
         }
         _ => panic!("unexpected value"),
     };
@@ -136,12 +136,12 @@ fn test_same_type() {
                 .read_conflict(&RepoPath::from_internal_string("a_b"), id)
                 .unwrap();
             assert_eq!(
-                conflict.removes(),
-                vec![base_tree.value(&component).cloned()]
+                conflict.removes().map(|v| v.as_ref()).collect_vec(),
+                vec![base_tree.value(&component)]
             );
             assert_eq!(
-                conflict.adds(),
-                vec![side2_tree.value(&component).cloned(), None]
+                conflict.adds().map(|v| v.as_ref()).collect_vec(),
+                vec![side2_tree.value(&component), None]
             );
         }
         _ => panic!("unexpected value"),
@@ -153,12 +153,12 @@ fn test_same_type() {
                 .read_conflict(&RepoPath::from_internal_string("ab_"), id)
                 .unwrap();
             assert_eq!(
-                conflict.removes(),
-                vec![base_tree.value(&component).cloned()]
+                conflict.removes().map(|v| v.as_ref()).collect_vec(),
+                vec![base_tree.value(&component)]
             );
             assert_eq!(
-                conflict.adds(),
-                vec![side1_tree.value(&component).cloned(), None]
+                conflict.adds().map(|v| v.as_ref()).collect_vec(),
+                vec![side1_tree.value(&component), None]
             );
         }
         _ => panic!("unexpected value"),
@@ -170,15 +170,12 @@ fn test_same_type() {
                 .read_conflict(&RepoPath::from_internal_string("abc"), id)
                 .unwrap();
             assert_eq!(
-                conflict.removes(),
-                vec![base_tree.value(&component).cloned()]
+                conflict.removes().map(|v| v.as_ref()).collect_vec(),
+                vec![base_tree.value(&component)]
             );
             assert_eq!(
-                conflict.adds(),
-                vec![
-                    side1_tree.value(&component).cloned(),
-                    side2_tree.value(&component).cloned(),
-                ]
+                conflict.adds().map(|v| v.as_ref()).collect_vec(),
+                vec![side1_tree.value(&component), side2_tree.value(&component)]
             );
         }
         _ => panic!("unexpected value"),
@@ -424,15 +421,12 @@ fn test_types() {
                 )
                 .unwrap();
             assert_eq!(
-                conflict.removes(),
-                vec![base_tree.value(&component).cloned()]
+                conflict.removes().map(|v| v.as_ref()).collect_vec(),
+                vec![base_tree.value(&component)]
             );
             assert_eq!(
-                conflict.adds(),
-                vec![
-                    side1_tree.value(&component).cloned(),
-                    side2_tree.value(&component).cloned(),
-                ]
+                conflict.adds().map(|v| v.as_ref()).collect_vec(),
+                vec![side1_tree.value(&component), side2_tree.value(&component)]
             );
         }
         _ => panic!("unexpected value"),
@@ -444,15 +438,12 @@ fn test_types() {
                 .read_conflict(&RepoPath::from_internal_string("tree_normal_symlink"), id)
                 .unwrap();
             assert_eq!(
-                conflict.removes(),
-                vec![base_tree.value(&component).cloned()]
+                conflict.removes().map(|v| v.as_ref()).collect_vec(),
+                vec![base_tree.value(&component)]
             );
             assert_eq!(
-                conflict.adds(),
-                vec![
-                    side1_tree.value(&component).cloned(),
-                    side2_tree.value(&component).cloned(),
-                ]
+                conflict.adds().map(|v| v.as_ref()).collect_vec(),
+                vec![side1_tree.value(&component), side2_tree.value(&component)]
             );
         }
         _ => panic!("unexpected value"),
@@ -507,14 +498,14 @@ fn test_simplify_conflict() {
                 .read_conflict(&RepoPath::from_components(vec![component.clone()]), id)
                 .unwrap();
             assert_eq!(
-                conflict.removes(),
-                vec![base_tree.value(&component).cloned()]
+                conflict.removes().map(|v| v.as_ref()).collect_vec(),
+                vec![base_tree.value(&component)]
             );
             assert_eq!(
-                conflict.adds(),
+                conflict.adds().map(|v| v.as_ref()).collect_vec(),
                 vec![
-                    branch_tree.value(&component).cloned(),
-                    upstream2_tree.value(&component).cloned(),
+                    branch_tree.value(&component),
+                    upstream2_tree.value(&component),
                 ]
             );
         }
@@ -526,14 +517,14 @@ fn test_simplify_conflict() {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(&path, id).unwrap();
             assert_eq!(
-                conflict.removes(),
-                vec![base_tree.value(&component).cloned()]
+                conflict.removes().map(|v| v.as_ref()).collect_vec(),
+                vec![base_tree.value(&component)]
             );
             assert_eq!(
-                conflict.adds(),
+                conflict.adds().map(|v| v.as_ref()).collect_vec(),
                 vec![
-                    upstream2_tree.value(&component).cloned(),
-                    branch_tree.value(&component).cloned(),
+                    upstream2_tree.value(&component),
+                    branch_tree.value(&component)
                 ]
             );
         }

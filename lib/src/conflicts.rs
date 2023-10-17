@@ -161,7 +161,7 @@ pub fn materialize_merge_result(
                     }
 
                     //  Emit the remaining positive terms as snapshots.
-                    for slice in &hunk.adds()[add_index..] {
+                    for slice in hunk.adds().skip(add_index) {
                         output.write_all(CONFLICT_PLUS_LINE)?;
                         output.write_all(&slice.0)?;
                     }

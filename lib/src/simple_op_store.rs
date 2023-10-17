@@ -444,8 +444,8 @@ fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::Ref
     };
     let merge = value.as_merge();
     let conflict_proto = crate::protos::op_store::RefConflict {
-        removes: merge.removes().iter().map(term_to_proto).collect(),
-        adds: merge.adds().iter().map(term_to_proto).collect(),
+        removes: merge.removes().map(term_to_proto).collect(),
+        adds: merge.adds().map(term_to_proto).collect(),
     };
     let proto = crate::protos::op_store::RefTarget {
         value: Some(crate::protos::op_store::ref_target::Value::Conflict(

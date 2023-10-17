@@ -161,13 +161,13 @@ impl<T> Merge<T> {
     }
 
     /// The removed values, also called negative terms.
-    pub fn removes(&self) -> &[T] {
-        &self.removes
+    pub fn removes(&self) -> impl ExactSizeIterator<Item = &T> {
+        self.removes.iter()
     }
 
     /// The added values, also called positive terms.
-    pub fn adds(&self) -> &[T] {
-        &self.adds
+    pub fn adds(&self) -> impl ExactSizeIterator<Item = &T> {
+        self.adds.iter()
     }
 
     /// Returns the zeroth added value, which is guaranteed to exist.
@@ -427,8 +427,8 @@ impl<T> Merge<Merge<T>> {
 
 impl<T: ContentHash> ContentHash for Merge<T> {
     fn hash(&self, state: &mut impl digest::Update) {
-        self.removes().hash(state);
-        self.adds().hash(state);
+        self.removes.hash(state);
+        self.adds.hash(state);
     }
 }
 
@@ -507,10 +507,10 @@ impl MergedTreeValue {
     /// Give a summary description of the conflict's "removes" and "adds"
     pub fn describe(&self, file: &mut dyn Write) -> std::io::Result<()> {
         file.write_all(b"Conflict:\n")?;
-        for term in self.removes().iter().flatten() {
+        for term in self.removes().flatten() {
             file.write_all(format!("  Removing {}\n", describe_conflict_term(term)).as_bytes())?;
         }
-        for term in self.adds().iter().flatten() {
+        for term in self.adds().flatten() {
             file.write_all(format!("  Adding {}\n", describe_conflict_term(term)).as_bytes())?;
         }
         Ok(())

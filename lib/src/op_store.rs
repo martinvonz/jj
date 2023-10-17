@@ -128,11 +128,11 @@ impl RefTarget {
     }
 
     pub fn removed_ids(&self) -> impl Iterator<Item = &CommitId> {
-        self.merge.removes().iter().flatten()
+        self.merge.removes().flatten()
     }
 
     pub fn added_ids(&self) -> impl Iterator<Item = &CommitId> {
-        self.merge.adds().iter().flatten()
+        self.merge.adds().flatten()
     }
 
     pub fn as_merge(&self) -> &Merge<Option<CommitId>> {
