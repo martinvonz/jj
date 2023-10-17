@@ -1969,10 +1969,6 @@ jj<span class="w"> </span>branch<span class="w"> </span>track<span class="w"> </
 jj<span class="w"> </span>branch<span class="w"> </span>delete<span class="w"> </span>gh-pages
 jj<span class="w"> </span>branch<span class="w"> </span>untrack<span class="w"> </span>gh-pages@upstream
 </code></pre></div>
-<p>Note that this setting may make it easier to accidentally delete remote
-branches. Since the local branch isn't created, the remote branch will be
-deleted if you push the branch with <code>jj git push --branch</code> or <code>jj git push
---all</code>.</p>
 <h3 id="prefix-for-generated-branches-on-push">Prefix for generated branches on push<a class="headerlink" href="#prefix-for-generated-branches-on-push" title="Permanent link">&para;</a></h3>
 <p><code>jj git push --change</code> generates branch names with a prefix of "push-" by
 default. You can pick a different prefix by setting <code>git.push-branch-prefix</code>. For

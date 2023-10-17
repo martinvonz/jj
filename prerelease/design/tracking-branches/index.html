@@ -1557,8 +1557,7 @@ In particular, a merge of local and remote targets is
 <li>~<code>tags</code>~ (not implemented, but should be the same as <code>branches</code>)
   2. Pushes diff to the remote Git repo (as well as remote tracking branches
  in the backing Git repo.)
-  3. Sets <code>remotes[remote].branches[name].state = tracking</code>
-  4. Import changes only for <code>remotes[remote].branches[glob]</code></li>
+  3. Updates <code>remotes[remote]</code> and <code>git_refs</code> reflecting the push.</li>
 </ul>
 </li>
 <li>
@@ -1655,20 +1654,18 @@ In particular, a merge of local and remote targets is
 <ul>
 <li>Pushing new branch, remote doesn't exist
   1. Pushes <code>[local, absent] - [absent]</code> -&gt; <code>local</code>
-  2. Sets <code>remotes[remote].branches[name].state = tracking</code>
-  3. <code>import_refs()</code> merges <code>[local, local] - [absent]</code> -&gt; <code>local</code> (noop)</li>
+  2. Sets <code>remotes[remote].branches[name].target = local</code>, <code>.state = tracking</code></li>
 <li>Pushing new branch, untracked remote exists
   1. Pushes <code>[local, remote] - [absent]</code><ul>
 <li>Fails if <code>local</code> moved backwards or sideways
-  2. Sets <code>remotes[remote].branches[name].state = tracking</code>
-  3. <code>import_refs()</code> merges <code>[local, local] - [remote]</code> -&gt; <code>local</code> (noop)</li>
+  2. Sets <code>remotes[remote].branches[name].target = local</code>, <code>.state = tracking</code></li>
 </ul>
 </li>
 <li>Pushing existing branch to tracking remote
   1. Pushes <code>[local, remote] - [remote]</code> -&gt; <code>local</code><ul>
 <li>Fails if <code>local</code> moved backwards or sideways, and if <code>remote</code> is out of
    sync
-  2. <code>import_refs()</code> merges <code>[local, local] - [remote]</code> -&gt; <code>local</code> (noop)</li>
+  2. Sets <code>remotes[remote].branches[name].target = local</code></li>
 </ul>
 </li>
 <li>Pushing existing branch to untracked remote</li>
@@ -1676,8 +1673,7 @@ In particular, a merge of local and remote targets is
 <li>Pushing deleted branch to tracking remote
   1. Pushes <code>[absent, remote] - [remote]</code> -&gt; <code>absent</code><ul>
 <li>TODO: Fails if <code>remote</code> is out of sync?
-  2. <code>import_refs()</code> merges <code>[absent, absent] - [remote]</code> -&gt; <code>absent</code>
-  3. Removes <code>remotes[remote].branches[name]</code> (<code>target</code> becomes <code>absent</code>)</li>
+  2. Removes <code>remotes[remote].branches[name]</code> (<code>target</code> becomes <code>absent</code>)</li>
 </ul>
 </li>
 <li>Pushing deleted branch to untracked remote</li>
