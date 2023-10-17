@@ -1401,19 +1401,34 @@ mod tests {
         let mut iter = git_tree.iter();
         let entry = iter.next().unwrap();
         assert_eq!(entry.name(), Some(".jjconflict-base-0"));
-        assert_eq!(entry.id().as_bytes(), root_tree.removes()[0].as_bytes());
+        assert_eq!(
+            entry.id().as_bytes(),
+            root_tree.get_remove(0).unwrap().as_bytes()
+        );
         let entry = iter.next().unwrap();
         assert_eq!(entry.name(), Some(".jjconflict-base-1"));
-        assert_eq!(entry.id().as_bytes(), root_tree.removes()[1].as_bytes());
+        assert_eq!(
+            entry.id().as_bytes(),
+            root_tree.get_remove(1).unwrap().as_bytes()
+        );
         let entry = iter.next().unwrap();
         assert_eq!(entry.name(), Some(".jjconflict-side-0"));
-        assert_eq!(entry.id().as_bytes(), root_tree.adds()[0].as_bytes());
+        assert_eq!(
+            entry.id().as_bytes(),
+            root_tree.get_add(0).unwrap().as_bytes()
+        );
         let entry = iter.next().unwrap();
         assert_eq!(entry.name(), Some(".jjconflict-side-1"));
-        assert_eq!(entry.id().as_bytes(), root_tree.adds()[1].as_bytes());
+        assert_eq!(
+            entry.id().as_bytes(),
+            root_tree.get_add(1).unwrap().as_bytes()
+        );
         let entry = iter.next().unwrap();
         assert_eq!(entry.name(), Some(".jjconflict-side-2"));
-        assert_eq!(entry.id().as_bytes(), root_tree.adds()[2].as_bytes());
+        assert_eq!(
+            entry.id().as_bytes(),
+            root_tree.get_add(2).unwrap().as_bytes()
+        );
         assert!(iter.next().is_none());
 
         // When writing a single tree using the new format, it's represented by a

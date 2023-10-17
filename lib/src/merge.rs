@@ -170,6 +170,19 @@ impl<T> Merge<T> {
         &self.adds
     }
 
+    /// Returns the `index`-th removed value, which is considered belonging to
+    /// the `index`-th diff pair.
+    pub fn get_remove(&self, index: usize) -> Option<&T> {
+        self.removes.get(index)
+    }
+
+    /// Returns the `index`-th added value, which is considered belonging to the
+    /// `index-1`-th diff pair. The zeroth add is a diff from the non-existent
+    /// state.
+    pub fn get_add(&self, index: usize) -> Option<&T> {
+        self.adds.get(index)
+    }
+
     /// The number of positive terms in the conflict.
     pub fn num_sides(&self) -> usize {
         self.adds.len()
