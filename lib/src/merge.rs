@@ -22,6 +22,7 @@ use std::hash::Hash;
 use std::io::Write;
 use std::iter::zip;
 use std::sync::Arc;
+use std::{slice, vec};
 
 use itertools::Itertools;
 
@@ -113,20 +114,21 @@ where
 /// remove. The zeroth add is considered a diff from the non-existent state.
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub struct Merge<T> {
-    removes: Vec<T>,
-    adds: Vec<T>,
+    /// Alternates between positive and negative terms, starting with positive.
+    values: Vec<T>,
 }
 
 impl<T: Debug> Debug for Merge<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         // Format like an enum with two variants to make it less verbose in the common
         // case of a resolved state.
-        if self.removes.is_empty() {
-            f.debug_tuple("Resolved").field(&self.adds[0]).finish()
+        if let Some(value) = self.as_resolved() {
+            f.debug_tuple("Resolved").field(value).finish()
         } else {
+            // TODO: just print values?
             f.debug_struct("Conflicted")
-                .field("removes", &self.removes)
-                .field("adds", &self.adds)
+                .field("removes", &self.removes().collect_vec())
+                .field("adds", &self.adds().collect_vec())
                 .finish()
         }
     }
@@ -135,13 +137,18 @@ impl<T: Debug> Debug for Merge<T> {
 impl<T> Merge<T> {
     /// Creates a new merge object from the given removes and adds.
     pub fn new(removes: Vec<T>, adds: Vec<T>) -> Self {
+        // TODO: removes and adds can be just IntoIterator.
+        // TODO: maybe add constructor that takes single values vec, and rename this
         assert_eq!(adds.len(), removes.len() + 1);
-        Merge { removes, adds }
+        let values = itertools::interleave(adds, removes).collect();
+        Merge { values }
     }
 
     /// Creates a `Merge` with a single resolved value.
     pub fn resolved(value: T) -> Self {
-        Merge::new(vec![], vec![value])
+        Merge {
+            values: vec![value],
+        }
     }
 
     /// Create a `Merge` from a `removes` and `adds`, padding with `None` to
@@ -150,6 +157,7 @@ impl<T> Merge<T> {
         removes: impl IntoIterator<Item = T>,
         adds: impl IntoIterator<Item = T>,
     ) -> Merge<Option<T>> {
+        // TODO: no need to build intermediate removes/adds vecs
         let mut removes = removes.into_iter().map(Some).collect_vec();
         let mut adds = adds.into_iter().map(Some).collect_vec();
         while removes.len() + 1 < adds.len() {
@@ -163,51 +171,59 @@ impl<T> Merge<T> {
 
     /// Returns the removes and adds as a pair.
     pub fn take(self) -> (Vec<T>, Vec<T>) {
-        (self.removes, self.adds)
+        let mut removes = Vec::with_capacity(self.values.len() / 2);
+        let mut adds = Vec::with_capacity(self.values.len() / 2 + 1);
+        let mut values = self.values.into_iter();
+        adds.push(values.next().unwrap());
+        while let Some(remove) = values.next() {
+            removes.push(remove);
+            adds.push(values.next().unwrap());
+        }
+        (removes, adds)
     }
 
     /// The removed values, also called negative terms.
     pub fn removes(&self) -> impl ExactSizeIterator<Item = &T> {
-        self.removes.iter()
+        self.values[1..].iter().step_by(2)
     }
 
     /// The added values, also called positive terms.
     pub fn adds(&self) -> impl ExactSizeIterator<Item = &T> {
-        self.adds.iter()
+        self.values.iter().step_by(2)
     }
 
     /// Returns the zeroth added value, which is guaranteed to exist.
     pub fn first(&self) -> &T {
-        &self.adds[0]
+        &self.values[0]
     }
 
     /// Returns the `index`-th removed value, which is considered belonging to
     /// the `index`-th diff pair.
     pub fn get_remove(&self, index: usize) -> Option<&T> {
-        self.removes.get(index)
+        self.values.get(index * 2 + 1)
     }
 
     /// Returns the `index`-th added value, which is considered belonging to the
     /// `index-1`-th diff pair. The zeroth add is a diff from the non-existent
     /// state.
     pub fn get_add(&self, index: usize) -> Option<&T> {
-        self.adds.get(index)
+        self.values.get(index * 2)
     }
 
     /// The number of positive terms in the conflict.
     pub fn num_sides(&self) -> usize {
-        self.adds.len()
+        self.values.len() / 2 + 1
     }
 
     /// Whether this merge is resolved. Does not resolve trivial merges.
     pub fn is_resolved(&self) -> bool {
-        self.removes.is_empty()
+        self.values.len() == 1
     }
 
     /// Returns the resolved value, if this merge is resolved. Does not
     /// resolve trivial merges.
     pub fn as_resolved(&self) -> Option<&T> {
-        if let [value] = &self.adds[..] {
+        if let [value] = &self.values[..] {
             Some(value)
         } else {
             None
@@ -217,8 +233,8 @@ impl<T> Merge<T> {
     /// Returns the resolved value, if this merge is resolved. Otherwise returns
     /// the merge itself as an `Err`. Does not resolve trivial merges.
     pub fn into_resolved(mut self) -> Result<T, Merge<T>> {
-        if self.removes.is_empty() {
-            Ok(self.adds.pop().unwrap())
+        if self.values.len() == 1 {
+            Ok(self.values.pop().unwrap())
         } else {
             Err(self)
         }
@@ -231,16 +247,16 @@ impl<T> Merge<T> {
         T: PartialEq,
     {
         let mut add_index = 0;
-        while add_index < self.adds.len() {
-            let add = &self.adds[add_index];
-            if let Some(remove_index) = self.removes.iter().position(|remove| remove == add) {
-                // Move the value to the `add_index-1`th diff, then delete the `remove_index`th
-                // diff.
-                self.adds.swap(remove_index + 1, add_index);
-                self.removes.remove(remove_index);
-                self.adds.remove(remove_index + 1);
+        while add_index < self.values.len() {
+            let add = &self.values[add_index];
+            let mut removes = self.values.iter().enumerate().skip(1).step_by(2);
+            if let Some((remove_index, _)) = removes.find(|&(_, remove)| remove == add) {
+                // Align the current "add" value to the `remove_index/2`-th diff, then
+                // delete the diff pair.
+                self.values.swap(remove_index + 1, add_index);
+                self.values.drain(remove_index..remove_index + 2);
             } else {
-                add_index += 1;
+                add_index += 2;
             }
         }
         self
@@ -252,7 +268,7 @@ impl<T> Merge<T> {
     where
         T: Eq + Hash,
     {
-        trivial_merge(&self.removes, &self.adds)
+        trivial_merge_inner(self.values.iter(), self.values.len())
     }
 
     /// Pads this merge with to the specified number of sides with the specified
@@ -261,35 +277,35 @@ impl<T> Merge<T> {
     where
         T: Clone,
     {
-        for _ in self.num_sides()..num_sides {
-            self.removes.push(value.clone());
-            self.adds.push(value.clone());
+        if num_sides <= self.num_sides() {
+            return;
         }
+        self.values.resize(num_sides * 2 - 1, value.clone());
     }
 
     /// Returns an iterator over references to the terms. The items will
     /// alternate between positive and negative terms, starting with
     /// positive (since there's one more of those).
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        itertools::interleave(&self.adds, &self.removes)
+    pub fn iter(&self) -> slice::Iter<'_, T> {
+        self.values.iter()
     }
 
     /// A version of `Merge::iter()` that iterates over mutable references.
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        itertools::interleave(self.adds.iter_mut(), self.removes.iter_mut())
+    pub fn iter_mut(&mut self) -> slice::IterMut<'_, T> {
+        self.values.iter_mut()
     }
 
     /// Creates a new merge by applying `f` to each remove and add.
     pub fn map<'a, U>(&'a self, f: impl FnMut(&'a T) -> U) -> Merge<U> {
-        let builder: MergeBuilder<U> = self.iter().map(f).collect();
-        builder.build()
+        let values = self.values.iter().map(f).collect();
+        Merge { values }
     }
 
     /// Creates a new merge by applying `f` to each remove and add, returning
     /// `None if `f` returns `None` for any of them.
     pub fn maybe_map<'a, U>(&'a self, f: impl FnMut(&'a T) -> Option<U>) -> Option<Merge<U>> {
-        let builder: Option<MergeBuilder<U>> = self.iter().map(f).collect();
-        builder.map(MergeBuilder::build)
+        let values = self.values.iter().map(f).collect::<Option<_>>()?;
+        Some(Merge { values })
     }
 
     /// Creates a new merge by applying `f` to each remove and add, returning
@@ -298,8 +314,8 @@ impl<T> Merge<T> {
         &'a self,
         f: impl FnMut(&'a T) -> Result<U, E>,
     ) -> Result<Merge<U>, E> {
-        let builder: MergeBuilder<U> = self.iter().map(f).try_collect()?;
-        Ok(builder.build())
+        let values = self.values.iter().map(f).try_collect()?;
+        Ok(Merge { values })
     }
 }
 
@@ -313,15 +329,13 @@ impl<T> Merge<T> {
 /// the checking until after `from_iter()` (to `MergeBuilder::build()`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MergeBuilder<T> {
-    removes: Vec<T>,
-    adds: Vec<T>,
+    values: Vec<T>,
 }
 
 impl<T> Default for MergeBuilder<T> {
     fn default() -> Self {
         Self {
-            removes: Default::default(),
-            adds: Default::default(),
+            values: Default::default(),
         }
     }
 }
@@ -330,16 +344,19 @@ impl<T> MergeBuilder<T> {
     /// Requires that exactly one more "adds" than "removes" have been added to
     /// this builder.
     pub fn build(self) -> Merge<T> {
-        Merge::new(self.removes, self.adds)
+        assert!(self.values.len() & 1 != 0);
+        Merge {
+            values: self.values,
+        }
     }
 }
 
 impl<T> IntoIterator for Merge<T> {
     type Item = T;
-    type IntoIter = itertools::Interleave<std::vec::IntoIter<T>, std::vec::IntoIter<T>>;
+    type IntoIter = vec::IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        itertools::interleave(self.adds, self.removes)
+        self.values.into_iter()
     }
 }
 
@@ -353,15 +370,7 @@ impl<T> FromIterator<T> for MergeBuilder<T> {
 
 impl<T> Extend<T> for MergeBuilder<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        let (mut curr, mut next) = if self.adds.len() != self.removes.len() {
-            (&mut self.removes, &mut self.adds)
-        } else {
-            (&mut self.adds, &mut self.removes)
-        };
-        for item in iter {
-            curr.push(item);
-            std::mem::swap(&mut curr, &mut next);
-        }
+        self.values.extend(iter)
     }
 }
 
@@ -390,10 +399,16 @@ impl<T> Merge<Option<T>> {
     /// `None` values. Note that the conversion is lossy: the order of `None`
     /// values is not preserved when converting back to a `Merge`.
     pub fn into_legacy_form(self) -> (Vec<T>, Vec<T>) {
-        (
-            self.removes.into_iter().flatten().collect(),
-            self.adds.into_iter().flatten().collect(),
-        )
+        // Allocate the maximum size assuming there would be few `None`s.
+        let mut removes = Vec::with_capacity(self.values.len() / 2);
+        let mut adds = Vec::with_capacity(self.values.len() / 2 + 1);
+        let mut values = self.values.into_iter();
+        adds.extend(values.next().unwrap());
+        while let Some(remove) = values.next() {
+            removes.extend(remove);
+            adds.extend(values.next().unwrap());
+        }
+        (removes, adds)
     }
 }
 
@@ -411,30 +426,35 @@ impl<T> Merge<Merge<T>> {
     ///
     /// 4 5 0 7 8
     ///  3 2 1 6
-    pub fn flatten(mut self) -> Merge<T> {
-        self.removes.reverse();
-        self.adds.reverse();
-        let mut result = self.adds.pop().unwrap();
-        while let Some(mut remove) = self.removes.pop() {
+    pub fn flatten(self) -> Merge<T> {
+        let mut outer_values = self.values.into_iter();
+        let mut result = outer_values.next().unwrap();
+        while let Some(mut remove) = outer_values.next() {
             // Add removes reversed, and with the first element moved last, so we preserve
             // the diffs
-            let first_add = remove.adds.remove(0);
-            result.removes.extend(remove.adds);
-            result.removes.push(first_add);
-            result.adds.extend(remove.removes);
-            let add = self.adds.pop().unwrap();
-            result.removes.extend(add.removes);
-            result.adds.extend(add.adds);
+            remove.values.rotate_left(1);
+            for i in 0..remove.values.len() / 2 {
+                remove.values.swap(i * 2, i * 2 + 1);
+            }
+            result.values.extend(remove.values);
+            let add = outer_values.next().unwrap();
+            result.values.extend(add.values);
         }
-        assert!(self.adds.is_empty());
         result
     }
 }
 
 impl<T: ContentHash> ContentHash for Merge<T> {
     fn hash(&self, state: &mut impl digest::Update) {
-        self.removes.hash(state);
-        self.adds.hash(state);
+        // TODO: just hash values
+        state.update(&(self.removes().len() as u64).to_le_bytes());
+        for value in self.removes() {
+            value.hash(state);
+        }
+        state.update(&(self.adds().len() as u64).to_le_bytes());
+        for value in self.adds() {
+            value.hash(state);
+        }
     }
 }
 
@@ -492,8 +512,8 @@ impl MergedTreeValue {
     /// Creates a new merge with the file ids from the given merge. In other
     /// words, only the executable bits from `self` will be preserved.
     pub fn with_new_file_ids(&self, file_ids: &Merge<Option<FileId>>) -> Self {
-        assert_eq!(self.removes.len(), file_ids.removes.len());
-        let builder: MergeBuilder<Option<TreeValue>> = zip(self.iter(), file_ids.iter())
+        assert_eq!(self.values.len(), file_ids.values.len());
+        let values = zip(self.iter(), file_ids.iter())
             .map(|(tree_value, file_id)| {
                 if let Some(TreeValue::File { id: _, executable }) = tree_value {
                     Some(TreeValue::File {
@@ -507,7 +527,7 @@ impl MergedTreeValue {
                 }
             })
             .collect();
-        builder.build()
+        Merge { values }
     }
 
     /// Give a summary description of the conflict's "removes" and "adds"
