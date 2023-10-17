@@ -302,7 +302,10 @@ pub fn import_some_refs(
         };
         return Ok(stats);
     }
-    let pinned_heads = itertools::chain(
+    let pinned_heads = itertools::chain!(
+        changed_remote_refs
+            .values()
+            .flat_map(|(_, new_target)| new_target.added_ids()),
         pinned_commit_ids(mut_repo.view()),
         iter::once(mut_repo.store().root_commit_id()),
     )
