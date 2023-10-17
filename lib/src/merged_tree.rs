@@ -84,12 +84,10 @@ impl MergedTree {
     /// Creates a new `MergedTree` representing a merge of a set of trees. The
     /// individual trees must not have any conflicts.
     pub fn new(trees: Merge<Tree>) -> Self {
-        debug_assert!(!trees.removes().iter().any(|t| t.has_conflict()));
-        debug_assert!(!trees.adds().iter().any(|t| t.has_conflict()));
-        debug_assert!(itertools::chain(trees.removes(), trees.adds())
-            .map(|tree| tree.dir())
-            .all_equal());
-        debug_assert!(itertools::chain(trees.removes(), trees.adds())
+        debug_assert!(!trees.iter().any(|t| t.has_conflict()));
+        debug_assert!(trees.iter().map(|tree| tree.dir()).all_equal());
+        debug_assert!(trees
+            .iter()
             .map(|tree| Arc::as_ptr(tree.store()))
             .all_equal());
         MergedTree::Merge(trees)
@@ -437,7 +435,8 @@ pub type TreeDiffStream<'matcher> = Pin<
 >;
 
 fn all_tree_conflict_names(trees: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComponent> {
-    itertools::chain(trees.removes(), trees.adds())
+    trees
+        .iter()
         .map(|tree| tree.data().names())
         .kmerge()
         .dedup()
