@@ -34,6 +34,8 @@ pub enum BranchSubcommand {
     Forget(BranchForgetArgs),
     #[command(visible_alias("l"))]
     List(BranchListArgs),
+    #[command(visible_alias("r"))]
+    Rename(BranchRenameArgs),
     #[command(visible_alias("s"))]
     Set(BranchSetArgs),
     Track(BranchTrackArgs),
@@ -120,6 +122,19 @@ pub struct BranchForgetArgs {
     /// Deprecated. Please prefix the pattern with `glob:` instead.
     #[arg(long, hide = true, value_parser = StringPattern::glob)]
     pub glob: Vec<StringPattern>,
+}
+
+/// Rename `old` branch name to `new` branch name.
+///
+/// The new branch name points at the same commit as the old
+/// branch name.
+#[derive(clap::Args, Clone, Debug)]
+pub struct BranchRenameArgs {
+    /// The old name of the branch.
+    pub old: String,
+
+    /// The new name of the branch.
+    pub new: String,
 }
 
 /// Update an existing branch to point to a certain commit.
@@ -248,6 +263,7 @@ pub fn cmd_branch(
 ) -> Result<(), CommandError> {
     match subcommand {
         BranchSubcommand::Create(sub_args) => cmd_branch_create(ui, command, sub_args),
+        BranchSubcommand::Rename(sub_args) => cmd_branch_rename(ui, command, sub_args),
         BranchSubcommand::Set(sub_args) => cmd_branch_set(ui, command, sub_args),
         BranchSubcommand::Delete(sub_args) => cmd_branch_delete(ui, command, sub_args),
         BranchSubcommand::Forget(sub_args) => cmd_branch_forget(ui, command, sub_args),
@@ -296,6 +312,40 @@ fn cmd_branch_create(
             "create {} pointing to commit {}",
             make_branch_term(branch_names),
             target_commit.id().hex()
+        ),
+    )?;
+    Ok(())
+}
+
+fn cmd_branch_rename(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &BranchRenameArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let view = workspace_command.repo().view();
+    let old_branch = &args.old;
+    let ref_target = view.get_local_branch(old_branch).clone();
+    if ref_target.is_absent() {
+        return Err(user_error(format!("No such branch: {old_branch}")));
+    }
+
+    let new_branch = &args.new;
+    if view.get_local_branch(new_branch).is_present() {
+        return Err(user_error(format!("Branch already exists: {new_branch}")));
+    }
+
+    let mut tx = workspace_command.start_transaction();
+    tx.mut_repo()
+        .set_local_branch_target(new_branch, ref_target);
+    tx.mut_repo()
+        .set_local_branch_target(old_branch, RefTarget::absent());
+    tx.finish(
+        ui,
+        format!(
+            "rename {} to {}",
+            make_branch_term(&[old_branch]),
+            make_branch_term(&[new_branch]),
         ),
     )?;
     Ok(())
