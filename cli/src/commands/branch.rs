@@ -64,13 +64,20 @@ pub struct BranchDeleteArgs {
 
 /// List branches and their targets
 ///
-/// A tracking remote branch will be included only if its target is different
-/// from the local target. For a conflicted branch (both local and remote), old
-/// target revisions are preceded by a "-" and new target revisions are preceded
-/// by a "+". For information about branches, see
+/// By default, a tracking remote branch will be included only if its target is
+/// different from the local target. For a conflicted branch (both local and
+/// remote), old target revisions are preceded by a "-" and new target revisions
+/// are preceded by a "+".
+///
+/// For information about branches, see
 /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchListArgs {
+    /// Show all tracking and non-tracking remote branches including the ones
+    /// whose targets are synchronized with the local branches.
+    #[arg(long, short, conflicts_with = "revisions")]
+    all: bool,
+
     /// Show branches whose local targets are in the given revisions.
     ///
     /// Note that `-r deleted_branch` will not work since `deleted_branch`
@@ -518,13 +525,14 @@ fn cmd_branch_list(
         }
 
         for &(remote, remote_ref) in &tracking_remote_refs {
-            if remote_ref.target == *branch_target.local_target {
+            let synced = remote_ref.target == *branch_target.local_target;
+            if !args.all && synced {
                 continue;
             }
             write!(formatter, "  ")?;
             write!(formatter.labeled("branch"), "@{remote}")?;
             let local_target = branch_target.local_target;
-            if local_target.is_present() {
+            if local_target.is_present() && !synced {
                 let remote_added_ids = remote_ref.target.added_ids().cloned().collect_vec();
                 let local_added_ids = local_target.added_ids().cloned().collect_vec();
                 let remote_ahead_count =

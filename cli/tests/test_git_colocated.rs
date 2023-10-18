@@ -377,9 +377,10 @@ fn test_git_colocated_branch_forget() {
     ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◉  0000000000000000000000000000000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
+      @git: rlvkpnrz 65b6b74e (empty) (no description set)
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["branch", "forget", "foo"]);
@@ -387,7 +388,7 @@ fn test_git_colocated_branch_forget() {
     insta::assert_snapshot!(stderr, @"");
     // A forgotten branch is deleted in the git repo. For a detailed demo explaining
     // this, see `test_branch_forget_export` in `test_branch_command.rs`.
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @"");
 }
 

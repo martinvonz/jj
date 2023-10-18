@@ -73,7 +73,7 @@ fn test_git_push_current_branch() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     // Check the setup
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1: lzmmnrxq 19e00bf6 (empty) modified branch1 commit
       @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq 45a3aa29 (empty) description 1
@@ -97,12 +97,14 @@ fn test_git_push_current_branch() {
       Move branch branch2 from 8476341eb395 to 10ee3363b259
       Add branch my-branch to 10ee3363b259
     "###);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1: lzmmnrxq 19e00bf6 (empty) modified branch1 commit
       @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq 45a3aa29 (empty) description 1
     branch2: yostqsxw 10ee3363 (empty) foo
+      @origin: yostqsxw 10ee3363 (empty) foo
     my-branch: yostqsxw 10ee3363 (empty) foo
+      @origin: yostqsxw 10ee3363 (empty) foo
     "###);
 }
 
@@ -247,10 +249,12 @@ fn test_git_push_locally_created_and_rewritten() {
     // Rewrite it and push again, which would fail if the pushed branch weren't
     // set to "tracking"
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-mlocal 2"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1: lzmmnrxq 45a3aa29 (empty) description 1
+      @origin: lzmmnrxq 45a3aa29 (empty) description 1
     branch2: rlzusymt 8476341e (empty) description 2
+      @origin: rlzusymt 8476341e (empty) description 2
     my: vruxwmqv bde1d2e4 (empty) local 2
       @origin (ahead by 1 commits, behind by 1 commits): vruxwmqv fcc99992 (empty) local 1
     "###);
@@ -272,7 +276,7 @@ fn test_git_push_multiple() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     // Check the setup
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1 (deleted)
       @origin: lzmmnrxq 45a3aa29 (empty) description 1
@@ -333,10 +337,12 @@ fn test_git_push_multiple() {
       Force branch branch2 from 8476341eb395 to 15dcdaa4f12f
       Add branch my-branch to 15dcdaa4f12f
     "###);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     branch2: yqosqzyt 15dcdaa4 (empty) foo
+      @origin: yqosqzyt 15dcdaa4 (empty) foo
     my-branch: yqosqzyt 15dcdaa4 (empty) foo
+      @origin: yqosqzyt 15dcdaa4 (empty) foo
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -666,8 +672,10 @@ fn test_git_push_conflicting_branches() {
     test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-m=description 3"]);
     test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch2"]);
     test_env.jj_cmd_ok(&workspace_root, &["git", "fetch"]);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["branch", "list"]), @r###"
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]), @r###"
     branch1: lzmmnrxq 45a3aa29 (empty) description 1
+      @origin: lzmmnrxq 45a3aa29 (empty) description 1
     branch2 (conflicted):
       + yostqsxw 8e670e2d (empty) description 3
       + rlzusymt 8476341e (empty) description 2

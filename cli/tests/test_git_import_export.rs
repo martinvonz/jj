@@ -152,6 +152,7 @@ fn test_git_import_undo() {
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
+      @git: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
     // "git import" can be undone by default.
@@ -165,6 +166,7 @@ fn test_git_import_undo() {
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
+      @git: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 }
 
@@ -193,6 +195,7 @@ fn test_git_import_move_export_with_default_undo() {
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
+      @git: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
     // Move branch "a" and export to git repo
@@ -207,6 +210,7 @@ fn test_git_import_move_export_with_default_undo() {
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: yqosqzyt 096dc80d (empty) (no description set)
+      @git: yqosqzyt 096dc80d (empty) (no description set)
     "###);
 
     // "git import" can be undone with the default `restore` behavior, as shown in
@@ -237,11 +241,12 @@ fn test_git_import_move_export_with_default_undo() {
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: yqosqzyt 096dc80d (empty) (no description set)
+      @git: yqosqzyt 096dc80d (empty) (no description set)
     "###);
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
 }
 
 fn get_git_repo_refs(git_repo: &git2::Repository) -> Vec<(String, CommitId)> {

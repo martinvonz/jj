@@ -84,6 +84,7 @@ fn test_git_push_undo() {
     //    remote-tracking  | BB      |   BB   | BB
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: qpvuntsm 8c05de15 (empty) BB
+      @origin: qpvuntsm 8c05de15 (empty) BB
     "###);
 
     // Undo the push
@@ -156,6 +157,7 @@ fn test_git_push_undo_with_import() {
     //    remote-tracking  | BB      |   BB   | BB
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: qpvuntsm 8c05de15 (empty) BB
+      @origin: qpvuntsm 8c05de15 (empty) BB
     "###);
 
     // Undo the push
@@ -183,6 +185,7 @@ fn test_git_push_undo_with_import() {
     //    remote-tracking  | BB      |   BB   | BB
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: qpvuntsm 8c05de15 (empty) BB
+      @origin: qpvuntsm 8c05de15 (empty) BB
     "###);
     test_env.advance_test_rng_seed_to_multiple_of(100_000);
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "CC"]);
@@ -222,6 +225,7 @@ fn test_git_push_undo_colocated() {
     //    remote-tracking  | AA      |   AA   | AA
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: qpvuntsm 8c05de15 (empty) BB
+      @git: qpvuntsm 8c05de15 (empty) BB
       @origin (ahead by 1 commits, behind by 1 commits): qpvuntsm 0cffb614 (empty) AA
     "###);
     let pre_push_opid = test_env.current_operation_id(&repo_path);
@@ -234,6 +238,8 @@ fn test_git_push_undo_colocated() {
     //    remote-tracking  | BB      |   BB   | BB
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: qpvuntsm 8c05de15 (empty) BB
+      @git: qpvuntsm 8c05de15 (empty) BB
+      @origin: qpvuntsm 8c05de15 (empty) BB
     "###);
 
     // Undo the push
@@ -254,6 +260,7 @@ fn test_git_push_undo_colocated() {
     //    remote-tracking  | AA      |   AA   | AA
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: qpvuntsm 8c05de15 (empty) BB
+      @git: qpvuntsm 8c05de15 (empty) BB
       @origin (ahead by 1 commits, behind by 1 commits): qpvuntsm 0cffb614 (empty) AA
     "###);
     test_env.advance_test_rng_seed_to_multiple_of(100_000);
@@ -289,6 +296,7 @@ fn test_git_push_undo_repo_only() {
     test_env.jj_cmd_ok(&repo_path, &["git", "push"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: qpvuntsm 0cffb614 (empty) AA
+      @origin: qpvuntsm 0cffb614 (empty) AA
     "###);
     test_env.advance_test_rng_seed_to_multiple_of(100_000);
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "BB"]);
@@ -306,6 +314,7 @@ fn test_git_push_undo_repo_only() {
     );
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: qpvuntsm 8c05de15 (empty) BB
+      @origin: qpvuntsm 8c05de15 (empty) BB
     "###);
     test_env.advance_test_rng_seed_to_multiple_of(100_000);
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "CC"]);
@@ -318,5 +327,5 @@ fn test_git_push_undo_repo_only() {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
 }

@@ -209,6 +209,7 @@ fn test_branch_delete_glob() {
     // The deleted branches are still there
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     bar-2: qpvuntsm 6fbf398c (empty) commit
+      @origin: qpvuntsm 6fbf398c (empty) commit
     foo-1 (deleted)
       @origin: qpvuntsm 6fbf398c (empty) commit
       (this branch will be *deleted permanently* on the remote on the
@@ -241,7 +242,7 @@ fn test_branch_delete_export() {
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
 
     test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     foo (deleted)
       @git: rlvkpnrz 65b6b74e (empty) (no description set)
@@ -249,7 +250,7 @@ fn test_branch_delete_export() {
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     "###);
 }
@@ -262,7 +263,7 @@ fn test_branch_forget_export() {
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
     "###);
@@ -276,7 +277,7 @@ fn test_branch_forget_export() {
     insta::assert_snapshot!(stderr, @"");
     // Forgetting a branch deletes local and remote-tracking branches including
     // the corresponding git-tracking branch.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @"");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r=foo", "--no-graph"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -290,7 +291,7 @@ fn test_branch_forget_export() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @"");
 }
 
@@ -334,6 +335,7 @@ fn test_branch_forget_fetched_branch() {
     test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
+      @origin: mzyxwzks 9f01a0e0 message
     "###);
 
     // TEST 1: with export-import
@@ -365,6 +367,7 @@ fn test_branch_forget_fetched_branch() {
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
+      @origin: mzyxwzks 9f01a0e0 message
     "###);
 
     // TEST 2: No export/import (otherwise the same as test 1)
@@ -376,6 +379,7 @@ fn test_branch_forget_fetched_branch() {
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
+      @origin: mzyxwzks 9f01a0e0 message
     "###);
 
     // TEST 3: fetch branch that was moved & forgotten
@@ -401,6 +405,7 @@ fn test_branch_forget_fetched_branch() {
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: ooosovrs 38aefb17 (empty) another message
+      @origin: ooosovrs 38aefb17 (empty) another message
     "###);
 }
 
@@ -530,8 +535,10 @@ fn test_branch_track_untrack() {
     );
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: sptzoqmo 7b33f629 commit 1
+      @origin: sptzoqmo 7b33f629 commit 1
     feature2@origin: sptzoqmo 7b33f629 commit 1
     main: sptzoqmo 7b33f629 commit 1
+      @origin: sptzoqmo 7b33f629 commit 1
     "###);
 
     // Track existing branch. Local branch should result in conflict.
@@ -539,11 +546,13 @@ fn test_branch_track_untrack() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "track", "feature2@origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: sptzoqmo 7b33f629 commit 1
+      @origin: sptzoqmo 7b33f629 commit 1
     feature2 (conflicted):
       + qpvuntsm 230dd059 (empty) (no description set)
       + sptzoqmo 7b33f629 commit 1
       @origin (behind by 1 commits): sptzoqmo 7b33f629 commit 1
     main: sptzoqmo 7b33f629 commit 1
+      @origin: sptzoqmo 7b33f629 commit 1
     "###);
 
     // Untrack existing and locally-deleted branches. Branch targets should be
@@ -558,6 +567,7 @@ fn test_branch_track_untrack() {
     feature1@origin: sptzoqmo 7b33f629 commit 1
     feature2@origin: sptzoqmo 7b33f629 commit 1
     main: sptzoqmo 7b33f629 commit 1
+      @origin: sptzoqmo 7b33f629 commit 1
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  feature1 feature1@origin feature2@origin main 7b33f6295eda
@@ -583,6 +593,7 @@ fn test_branch_track_untrack() {
     feature1@origin: mmqqkyyt 40dabdaf commit 2
     feature2@origin: mmqqkyyt 40dabdaf commit 2
     main: mmqqkyyt 40dabdaf commit 2
+      @origin: mmqqkyyt 40dabdaf commit 2
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  feature1@origin feature2@origin main 40dabdaf4abe
@@ -615,7 +626,9 @@ fn test_branch_track_untrack() {
     feature1@origin: wwnpyzpo 3f0f86fa commit 3
     feature2@origin: wwnpyzpo 3f0f86fa commit 3
     feature3: wwnpyzpo 3f0f86fa commit 3
+      @origin: wwnpyzpo 3f0f86fa commit 3
     main: wwnpyzpo 3f0f86fa commit 3
+      @origin: wwnpyzpo 3f0f86fa commit 3
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  feature1@origin feature2@origin feature3 main 3f0f86fa0e57
@@ -701,6 +714,74 @@ fn test_branch_track_untrack_bad_branches() {
     insta::assert_snapshot!(
         test_env.jj_cmd_failure(&repo_path, &["branch", "untrack", "main@git"]), @r###"
     Error: Git-tracking branch cannot be untracked
+    "###);
+}
+
+#[test]
+fn test_branch_list() {
+    let test_env = TestEnvironment::default();
+
+    // Initialize remote refs
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
+    let remote_path = test_env.env_root().join("remote");
+    for branch in [
+        "remote-sync",
+        "remote-unsync",
+        "remote-untrack",
+        "remote-delete",
+    ] {
+        test_env.jj_cmd_ok(&remote_path, &["new", "root()", "-m", branch]);
+        test_env.jj_cmd_ok(&remote_path, &["branch", "set", branch]);
+    }
+    test_env.jj_cmd_ok(&remote_path, &["new"]);
+    test_env.jj_cmd_ok(&remote_path, &["git", "export"]);
+
+    // Initialize local refs
+    let mut remote_git_path = remote_path;
+    remote_git_path.extend([".jj", "repo", "store", "git"]);
+    test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["git", "clone", remote_git_path.to_str().unwrap(), "local"],
+    );
+    let local_path = test_env.env_root().join("local");
+    test_env.jj_cmd_ok(&local_path, &["new", "root()", "-m", "local-only"]);
+    test_env.jj_cmd_ok(&local_path, &["branch", "set", "local-only"]);
+
+    // Mutate refs in local repository
+    test_env.jj_cmd_ok(&local_path, &["branch", "delete", "remote-delete"]);
+    test_env.jj_cmd_ok(&local_path, &["branch", "delete", "remote-untrack"]);
+    test_env.jj_cmd_ok(&local_path, &["branch", "untrack", "remote-untrack@origin"]);
+    test_env.jj_cmd_ok(
+        &local_path,
+        &["branch", "set", "--allow-backwards", "remote-unsync"],
+    );
+
+    // Synchronized tracking remotes aren't listed by default
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["branch", "list"]), @r###"
+    local-only: wqnwkozp 4e887f78 (empty) local-only
+    remote-delete (deleted)
+      @origin: mnmymoky 203e60eb (empty) remote-delete
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    remote-sync: zwtyzrop c761c7ea (empty) remote-sync
+    remote-unsync: wqnwkozp 4e887f78 (empty) local-only
+      @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
+    remote-untrack@origin: vmortlor 71a16b05 (empty) remote-untrack
+    "###);
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["branch", "list", "--all"]), @r###"
+    local-only: wqnwkozp 4e887f78 (empty) local-only
+    remote-delete (deleted)
+      @origin: mnmymoky 203e60eb (empty) remote-delete
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    remote-sync: zwtyzrop c761c7ea (empty) remote-sync
+      @origin: zwtyzrop c761c7ea (empty) remote-sync
+    remote-unsync: wqnwkozp 4e887f78 (empty) local-only
+      @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
+    remote-untrack@origin: vmortlor 71a16b05 (empty) remote-untrack
     "###);
 }
 
@@ -808,5 +889,5 @@ fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
 }
