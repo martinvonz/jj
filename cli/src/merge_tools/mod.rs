@@ -18,6 +18,7 @@ mod external;
 use std::sync::Arc;
 
 use config::ConfigError;
+use futures::executor::block_on;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::gitignore::GitIgnoreFile;
@@ -112,7 +113,7 @@ pub fn run_mergetool(
             sides: file_merge.num_sides(),
         });
     };
-    let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path);
+    let content = block_on(extract_as_single_hunk(&file_merge, tree.store(), repo_path));
 
     let editor = get_merge_tool_from_settings(ui, settings)?;
     match editor {

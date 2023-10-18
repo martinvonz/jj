@@ -1001,6 +1001,7 @@ dependencies = [
  "crossterm 0.26.1",
  "dirs",
  "esl01-renderdag",
+ "futures 0.3.28",
  "git2",
  "glob",
  "hex",

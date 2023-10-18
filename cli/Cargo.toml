@@ -39,6 +39,7 @@ criterion = { workspace = true, optional = true }
 crossterm = { workspace = true }
 dirs = { workspace = true }
 esl01-renderdag = { workspace = true }
+futures = { workspace = true }
 git2 = { workspace = true }
 glob = { workspace = true }
 hex = { workspace = true }
@@ -89,4 +90,4 @@ watchman = ["jj-lib/watchman"]
 [package.metadata.binstall]
 # The archive name is jj, not jj-cli. Also, `cargo binstall` gets
 # confused by the `v` before versions in archive name.
-pkg-url="{ repo }/releases/download/v{ version }/jj-v{ version }-{ target }.{ archive-format }"
+pkg-url = "{ repo }/releases/download/v{ version }/jj-v{ version }-{ target }.{ archive-format }"

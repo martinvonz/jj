@@ -30,6 +30,7 @@ use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
+use futures::executor::block_on;
 use itertools::Itertools;
 use once_cell::unsync::OnceCell;
 use prost::Message;
@@ -955,12 +956,12 @@ impl TreeState {
                 message: format!("Failed to open file {}", disk_path.display()),
                 err: err.into(),
             })?;
-            let new_file_ids = conflicts::update_from_content(
+            let new_file_ids = block_on(conflicts::update_from_content(
                 &old_file_ids,
                 self.store.as_ref(),
                 repo_path,
                 &content,
-            )?;
+            ))?;
             match new_file_ids.into_resolved() {
                 Ok(file_id) => {
                     #[cfg(windows)]
@@ -1062,8 +1063,13 @@ impl TreeState {
                 err: err.into(),
             })?;
         let mut conflict_data = vec![];
-        conflicts::materialize(conflict, self.store.as_ref(), path, &mut conflict_data)
-            .expect("Failed to materialize conflict to in-memory buffer");
+        block_on(conflicts::materialize(
+            conflict,
+            self.store.as_ref(),
+            path,
+            &mut conflict_data,
+        ))
+        .expect("Failed to materialize conflict to in-memory buffer");
         file.write_all(&conflict_data)
             .map_err(|err| CheckoutError::Other {
                 message: format!("Failed to write conflict to file {}", disk_path.display()),

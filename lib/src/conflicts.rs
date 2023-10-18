@@ -17,6 +17,7 @@
 use std::io::Write;
 use std::iter::zip;
 
+use futures::StreamExt;
 use itertools::Itertools;
 
 use crate::backend::{BackendResult, FileId, TreeValue};
@@ -57,12 +58,13 @@ fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result
     Ok(())
 }
 
-fn get_file_contents(store: &Store, path: &RepoPath, term: &Option<FileId>) -> ContentHunk {
+async fn get_file_contents(store: &Store, path: &RepoPath, term: &Option<FileId>) -> ContentHunk {
     match term {
         Some(id) => {
             let mut content = vec![];
             store
-                .read_file(path, id)
+                .read_file_async(path, id)
+                .await
                 .unwrap()
                 .read_to_end(&mut content)
                 .unwrap();
@@ -74,22 +76,26 @@ fn get_file_contents(store: &Store, path: &RepoPath, term: &Option<FileId>) -> C
     }
 }
 
-pub fn extract_as_single_hunk(
+pub async fn extract_as_single_hunk(
     merge: &Merge<Option<FileId>>,
     store: &Store,
     path: &RepoPath,
 ) -> Merge<ContentHunk> {
-    merge.map(|term| get_file_contents(store, path, term))
+    let builder: MergeBuilder<ContentHunk> = futures::stream::iter(merge.iter())
+        .then(|term| get_file_contents(store, path, term))
+        .collect()
+        .await;
+    builder.build()
 }
 
-pub fn materialize(
+pub async fn materialize(
     conflict: &Merge<Option<TreeValue>>,
     store: &Store,
     path: &RepoPath,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
     if let Some(file_merge) = conflict.to_file_merge() {
-        let content = extract_as_single_hunk(&file_merge, store, path);
+        let content = extract_as_single_hunk(&file_merge, store, path).await;
         materialize_merge_result(&content, output)
     } else {
         // Unless all terms are regular files, we can't do much better than to try to
@@ -285,7 +291,7 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<ContentHunk> {
 /// Parses conflict markers in `content` and returns an updated version of
 /// `file_ids` with the new contents. If no (valid) conflict markers remain, a
 /// single resolves `FileId` will be returned.
-pub fn update_from_content(
+pub async fn update_from_content(
     file_ids: &Merge<Option<FileId>>,
     store: &Store,
     path: &RepoPath,
@@ -297,7 +303,7 @@ pub fn update_from_content(
     // conflicts (for example) are not converted to regular files in the working
     // copy.
     let mut old_content = Vec::with_capacity(content.len());
-    let merge_hunk = extract_as_single_hunk(file_ids, store, path);
+    let merge_hunk = extract_as_single_hunk(file_ids, store, path).await;
     materialize_merge_result(&merge_hunk, &mut old_content).unwrap();
     if content == old_content {
         return Ok(file_ids.clone());
