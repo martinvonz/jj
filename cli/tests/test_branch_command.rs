@@ -190,6 +190,29 @@ fn test_branch_move_conflicting() {
 }
 
 #[test]
+fn test_branch_rename() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "rename", "foo", "bar"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No such branch: foo
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "rename", "foo", "bar"]);
+    insta::assert_snapshot!(stderr, @"");
+
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "conflictfoo"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "rename", "bar", "conflictfoo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Branch already exists: conflictfoo
+    "###);
+}
+
+#[test]
 fn test_branch_forget_glob() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
