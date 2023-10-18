@@ -931,6 +931,7 @@ fn bytes_vec_from_json(value: &serde_json::Value) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use assert_matches::assert_matches;
+    use futures::executor::block_on;
     use test_case::test_case;
 
     use super::*;
@@ -1013,7 +1014,7 @@ mod tests {
             .collect_vec();
         assert_eq!(git_refs, vec![git_commit_id2]);
 
-        let commit = futures::executor::block_on(backend.read_commit(&commit_id)).unwrap();
+        let commit = block_on(backend.read_commit(&commit_id)).unwrap();
         assert_eq!(&commit.change_id, &change_id);
         assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
         assert_eq!(commit.predecessors, vec![]);
@@ -1042,7 +1043,7 @@ mod tests {
         );
         assert_eq!(commit.committer.timestamp.tz_offset, -480);
 
-        let root_tree = futures::executor::block_on(backend.read_tree(
+        let root_tree = block_on(backend.read_tree(
             &RepoPath::root(),
             &TreeId::from_bytes(root_tree_id.as_bytes()),
         ))
@@ -1056,7 +1057,7 @@ mod tests {
             &TreeValue::Tree(TreeId::from_bytes(dir_tree_id.as_bytes()))
         );
 
-        let dir_tree = futures::executor::block_on(backend.read_tree(
+        let dir_tree = block_on(backend.read_tree(
             &RepoPath::from_internal_string("dir"),
             &TreeId::from_bytes(dir_tree_id.as_bytes()),
         ))
@@ -1079,7 +1080,7 @@ mod tests {
             &TreeValue::Symlink(SymlinkId::from_bytes(blob2.as_bytes()))
         );
 
-        let commit2 = futures::executor::block_on(backend.read_commit(&commit_id2)).unwrap();
+        let commit2 = block_on(backend.read_commit(&commit_id2)).unwrap();
         assert_eq!(commit2.parents, vec![commit_id.clone()]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(
@@ -1118,10 +1119,9 @@ mod tests {
 
         // read_commit() without import_head_commits() works as of now. This might be
         // changed later.
-        assert!(futures::executor::block_on(
-            backend.read_commit(&CommitId::from_bytes(git_commit_id.as_bytes()))
-        )
-        .is_ok());
+        assert!(
+            block_on(backend.read_commit(&CommitId::from_bytes(git_commit_id.as_bytes()))).is_ok()
+        );
         assert!(
             backend
                 .cached_extra_metadata_table()
@@ -1209,7 +1209,7 @@ mod tests {
         // Only root commit as parent
         commit.parents = vec![backend.root_commit_id().clone()];
         let first_id = backend.write_commit(commit.clone()).unwrap().0;
-        let first_commit = futures::executor::block_on(backend.read_commit(&first_id)).unwrap();
+        let first_commit = block_on(backend.read_commit(&first_id)).unwrap();
         assert_eq!(first_commit, commit);
         let first_git_commit = git_repo.find_commit(git_id(&first_id)).unwrap();
         assert_eq!(first_git_commit.parent_ids().collect_vec(), vec![]);
@@ -1217,7 +1217,7 @@ mod tests {
         // Only non-root commit as parent
         commit.parents = vec![first_id.clone()];
         let second_id = backend.write_commit(commit.clone()).unwrap().0;
-        let second_commit = futures::executor::block_on(backend.read_commit(&second_id)).unwrap();
+        let second_commit = block_on(backend.read_commit(&second_id)).unwrap();
         assert_eq!(second_commit, commit);
         let second_git_commit = git_repo.find_commit(git_id(&second_id)).unwrap();
         assert_eq!(
@@ -1228,7 +1228,7 @@ mod tests {
         // Merge commit
         commit.parents = vec![first_id.clone(), second_id.clone()];
         let merge_id = backend.write_commit(commit.clone()).unwrap().0;
-        let merge_commit = futures::executor::block_on(backend.read_commit(&merge_id)).unwrap();
+        let merge_commit = block_on(backend.read_commit(&merge_id)).unwrap();
         assert_eq!(merge_commit, commit);
         let merge_git_commit = git_repo.find_commit(git_id(&merge_id)).unwrap();
         assert_eq!(
@@ -1278,8 +1278,7 @@ mod tests {
         // When writing a tree-level conflict, the root tree on the git side has the
         // individual trees as subtrees.
         let read_commit_id = backend.write_commit(commit.clone()).unwrap().0;
-        let read_commit =
-            futures::executor::block_on(backend.read_commit(&read_commit_id)).unwrap();
+        let read_commit = block_on(backend.read_commit(&read_commit_id)).unwrap();
         assert_eq!(read_commit, commit);
         let git_commit = git_repo
             .find_commit(Oid::from_bytes(read_commit_id.as_bytes()).unwrap())
@@ -1308,8 +1307,7 @@ mod tests {
         // regular git tree.
         commit.root_tree = MergedTreeId::resolved(create_tree(5));
         let read_commit_id = backend.write_commit(commit.clone()).unwrap().0;
-        let read_commit =
-            futures::executor::block_on(backend.read_commit(&read_commit_id)).unwrap();
+        let read_commit = block_on(backend.read_commit(&read_commit_id)).unwrap();
         assert_eq!(read_commit, commit);
         let git_commit = git_repo
             .find_commit(Oid::from_bytes(read_commit_id.as_bytes()).unwrap())
@@ -1375,7 +1373,7 @@ mod tests {
         let (commit_id2, mut actual_commit2) = backend.write_commit(commit2.clone()).unwrap();
         // The returned matches the ID
         assert_eq!(
-            futures::executor::block_on(backend.read_commit(&commit_id2)).unwrap(),
+            block_on(backend.read_commit(&commit_id2)).unwrap(),
             actual_commit2
         );
         assert_ne!(commit_id2, commit_id1);
