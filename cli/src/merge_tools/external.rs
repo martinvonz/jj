@@ -6,6 +6,7 @@ use std::process::{Command, ExitStatus, Stdio};
 use std::sync::Arc;
 
 use config::ConfigError;
+use futures::executor::block_on;
 use itertools::Itertools;
 use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
 use jj_lib::conflicts::{self, materialize_merge_result};
@@ -357,12 +358,12 @@ pub fn run_mergetool_external(
     }
 
     let new_file_ids = if editor.merge_tool_edits_conflict_markers {
-        conflicts::update_from_content(
+        block_on(conflicts::update_from_content(
             &file_merge,
             tree.store(),
             repo_path,
             output_file_contents.as_slice(),
-        )?
+        ))?
     } else {
         let new_file_id = tree
             .store()

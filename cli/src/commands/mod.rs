@@ -29,6 +29,7 @@ use std::{fmt, fs, io};
 use clap::builder::NonEmptyStringValueParser;
 use clap::parser::ValueSource;
 use clap::{ArgGroup, Command, CommandFactory, FromArgMatches, Subcommand};
+use futures::executor::block_on;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId, TreeValue};
@@ -1521,7 +1522,13 @@ fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), C
         }
         Err(conflict) => {
             let mut contents = vec![];
-            conflicts::materialize(&conflict, repo.store(), &path, &mut contents).unwrap();
+            block_on(conflicts::materialize(
+                &conflict,
+                repo.store(),
+                &path,
+                &mut contents,
+            ))
+            .unwrap();
             ui.request_pager();
             ui.stdout_formatter().write_all(&contents)?;
         }
