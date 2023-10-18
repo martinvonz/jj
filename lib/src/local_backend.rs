@@ -461,6 +461,7 @@ fn conflict_term_to_proto(part: &ConflictTerm) -> crate::protos::local_store::co
 #[cfg(test)]
 mod tests {
     use assert_matches::assert_matches;
+    use futures::executor::block_on;
 
     use super::*;
     use crate::backend::MillisSinceEpoch;
@@ -492,26 +493,25 @@ mod tests {
         // Only root commit as parent
         commit.parents = vec![backend.root_commit_id().clone()];
         let first_id = backend.write_commit(commit.clone()).unwrap().0;
-        let first_commit = futures::executor::block_on(backend.read_commit(&first_id)).unwrap();
+        let first_commit = block_on(backend.read_commit(&first_id)).unwrap();
         assert_eq!(first_commit, commit);
 
         // Only non-root commit as parent
         commit.parents = vec![first_id.clone()];
         let second_id = backend.write_commit(commit.clone()).unwrap().0;
-        let second_commit = futures::executor::block_on(backend.read_commit(&second_id)).unwrap();
+        let second_commit = block_on(backend.read_commit(&second_id)).unwrap();
         assert_eq!(second_commit, commit);
 
         // Merge commit
         commit.parents = vec![first_id.clone(), second_id.clone()];
         let merge_id = backend.write_commit(commit.clone()).unwrap().0;
-        let merge_commit = futures::executor::block_on(backend.read_commit(&merge_id)).unwrap();
+        let merge_commit = block_on(backend.read_commit(&merge_id)).unwrap();
         assert_eq!(merge_commit, commit);
 
         // Merge commit with root as one parent
         commit.parents = vec![first_id, backend.root_commit_id().clone()];
         let root_merge_id = backend.write_commit(commit.clone()).unwrap().0;
-        let root_merge_commit =
-            futures::executor::block_on(backend.read_commit(&root_merge_id)).unwrap();
+        let root_merge_commit = block_on(backend.read_commit(&root_merge_id)).unwrap();
         assert_eq!(root_merge_commit, commit);
     }
 

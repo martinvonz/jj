@@ -20,6 +20,8 @@ use std::fmt::{Debug, Formatter};
 use std::io::Read;
 use std::sync::{Arc, RwLock};
 
+use futures::executor::block_on;
+
 use crate::backend;
 use crate::backend::{
     Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, MergedTreeId, SymlinkId,
@@ -97,7 +99,7 @@ impl Store {
     }
 
     pub fn get_commit(self: &Arc<Self>, id: &CommitId) -> BackendResult<Commit> {
-        futures::executor::block_on(self.get_commit_async(id))
+        block_on(self.get_commit_async(id))
     }
 
     pub async fn get_commit_async(self: &Arc<Self>, id: &CommitId) -> BackendResult<Commit> {
@@ -132,7 +134,7 @@ impl Store {
     }
 
     pub fn get_tree(self: &Arc<Self>, dir: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
-        futures::executor::block_on(self.get_tree_async(dir, id))
+        block_on(self.get_tree_async(dir, id))
     }
 
     pub async fn get_tree_async(
@@ -192,7 +194,7 @@ impl Store {
     }
 
     pub fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
-        futures::executor::block_on(self.read_file_async(path, id))
+        block_on(self.read_file_async(path, id))
     }
 
     pub async fn read_file_async(
@@ -208,7 +210,7 @@ impl Store {
     }
 
     pub fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {
-        futures::executor::block_on(self.read_symlink_async(path, id))
+        block_on(self.read_symlink_async(path, id))
     }
 
     pub async fn read_symlink_async(
@@ -228,7 +230,7 @@ impl Store {
         path: &RepoPath,
         id: &ConflictId,
     ) -> BackendResult<Merge<Option<TreeValue>>> {
-        let backend_conflict = futures::executor::block_on(self.backend.read_conflict(path, id))?;
+        let backend_conflict = block_on(self.backend.read_conflict(path, id))?;
         Ok(Merge::from_backend_conflict(backend_conflict))
     }
 
