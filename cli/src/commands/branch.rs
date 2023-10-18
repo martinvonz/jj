@@ -65,9 +65,10 @@ pub struct BranchDeleteArgs {
 /// List branches and their targets
 ///
 /// By default, a tracking remote branch will be included only if its target is
-/// different from the local target. For a conflicted branch (both local and
-/// remote), old target revisions are preceded by a "-" and new target revisions
-/// are preceded by a "+".
+/// different from the local target. A non-tracking remote branch won't be
+/// listed. For a conflicted branch (both local and remote), old target
+/// revisions are preceded by a "-" and new target revisions are preceded by a
+/// "+".
 ///
 /// For information about branches, see
 /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
@@ -573,10 +574,11 @@ fn cmd_branch_list(
             }
         }
 
-        // TODO: hide non-tracking remotes by default?
-        for &(remote, remote_ref) in &untracked_remote_refs {
-            write!(formatter.labeled("branch"), "{name}@{remote}")?;
-            print_branch_target(formatter, &remote_ref.target)?;
+        if args.all {
+            for &(remote, remote_ref) in &untracked_remote_refs {
+                write!(formatter.labeled("branch"), "{name}@{remote}")?;
+                print_branch_target(formatter, &remote_ref.target)?;
+            }
         }
     }
 

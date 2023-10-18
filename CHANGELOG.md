@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   See [automatic local branch creation](docs/config.md#automatic-local-branch-creation)
   for details.
 
+* Non-tracking remote branches aren't listed by default. Use `jj branch list
+  --all` to show all local and remote branches.
+
 * It's not allowed to push branches if non-tracking remote branches of the same
   name exist.
 
