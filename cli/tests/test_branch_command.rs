@@ -756,7 +756,8 @@ fn test_branch_list() {
         &["branch", "set", "--allow-backwards", "remote-unsync"],
     );
 
-    // Synchronized tracking remotes aren't listed by default
+    // Synchronized tracking remotes and non-tracking remotes aren't listed by
+    // default
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&local_path, &["branch", "list"]), @r###"
     local-only: wqnwkozp 4e887f78 (empty) local-only
@@ -767,7 +768,6 @@ fn test_branch_list() {
     remote-sync: zwtyzrop c761c7ea (empty) remote-sync
     remote-unsync: wqnwkozp 4e887f78 (empty) local-only
       @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
-    remote-untrack@origin: vmortlor 71a16b05 (empty) remote-untrack
     "###);
 
     insta::assert_snapshot!(
