@@ -473,6 +473,15 @@ pub trait Backend: Send + Sync + Debug {
 
     fn empty_tree_id(&self) -> &TreeId;
 
+    /// An estimate of how many concurrent requests this backend handles well. A
+    /// local backend like the Git backend (at until it supports partial clones)
+    /// may want to set this to 1. A cloud-backed backend may want to set it to
+    /// 100 or so.
+    ///
+    /// It is not guaranteed that at most this number of concurrent requests are
+    /// sent.
+    fn concurrency(&self) -> usize;
+
     async fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>>;
 
     fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId>;

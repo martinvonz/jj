@@ -138,6 +138,11 @@ impl Backend for TestBackend {
         &self.empty_tree_id
     }
 
+    fn concurrency(&self) -> usize {
+        // Not optimal, just for testing the async code more
+        10
+    }
+
     async fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         match self
             .locked_data()
