@@ -379,12 +379,6 @@ impl From<FsPathParseError> for CommandError {
     }
 }
 
-impl From<glob::PatternError> for CommandError {
-    fn from(err: glob::PatternError) -> Self {
-        user_error(format!("Failed to compile glob: {err}"))
-    }
-}
-
 impl From<clap::Error> for CommandError {
     fn from(err: clap::Error) -> Self {
         CommandError::ClapCliError(Arc::new(err))

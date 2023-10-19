@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::HashSet;
 use std::fmt;
 use std::io::Write as _;
 use std::str::FromStr;
@@ -59,8 +59,8 @@ pub struct BranchDeleteArgs {
     names: Vec<String>,
 
     /// A glob pattern indicating branches to delete.
-    #[arg(long)]
-    pub glob: Vec<String>,
+    #[arg(long, value_parser = StringPattern::glob)]
+    pub glob: Vec<StringPattern>,
 }
 
 /// List branches and their targets
@@ -100,8 +100,8 @@ pub struct BranchForgetArgs {
     pub names: Vec<String>,
 
     /// A glob pattern indicating branches to forget.
-    #[arg(long)]
-    pub glob: Vec<String>,
+    #[arg(long, value_parser = StringPattern::glob)]
+    pub glob: Vec<StringPattern>,
 }
 
 /// Update a given branch to point to a certain commit.
@@ -276,20 +276,18 @@ fn cmd_branch_set(
     Ok(())
 }
 
-/// This function may return the same branch more than once
-fn find_globs(
+fn find_branches(
     view: &View,
-    globs: &[String],
+    name_patterns: &[StringPattern],
     allow_deleted: bool,
 ) -> Result<Vec<String>, CommandError> {
     let mut matching_branches: Vec<String> = vec![];
-    let mut failed_globs = vec![];
-    for glob_str in globs {
-        let glob = glob::Pattern::new(glob_str)?;
+    let mut unmatched_patterns = vec![];
+    for pattern in name_patterns {
         let names = view
             .branches()
             .filter_map(|(branch_name, branch_target)| {
-                if glob.matches(branch_name)
+                if pattern.matches(branch_name)
                     && (allow_deleted || branch_target.local_target.is_present())
                 {
                     Some(branch_name.to_owned())
@@ -299,25 +297,22 @@ fn find_globs(
             })
             .collect_vec();
         if names.is_empty() {
-            failed_globs.push(glob);
+            unmatched_patterns.push(pattern);
         }
         matching_branches.extend(names);
     }
-    match &failed_globs[..] {
-        [] => { /* No problem */ }
-        [glob] => {
-            return Err(user_error(format!(
-                "The provided glob '{glob}' did not match any branches"
-            )))
+    match &unmatched_patterns[..] {
+        [] => {
+            matching_branches.sort_unstable();
+            matching_branches.dedup();
+            Ok(matching_branches)
         }
-        globs => {
-            return Err(user_error(format!(
-                "The provided globs '{}' did not match any branches",
-                globs.iter().join("', '")
-            )))
-        }
-    };
-    Ok(matching_branches)
+        [pattern] if pattern.is_exact() => Err(user_error(format!("No such branch: {pattern}"))),
+        patterns => Err(user_error(format!(
+            "No matching branches for patterns: {}",
+            patterns.iter().join(", ")
+        ))),
+    }
 }
 
 fn cmd_branch_delete(
@@ -327,20 +322,14 @@ fn cmd_branch_delete(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
-    for branch_name in &args.names {
-        if workspace_command
-            .repo()
-            .view()
-            .get_local_branch(branch_name)
-            .is_absent()
-        {
-            return Err(user_error(format!("No such branch: {branch_name}")));
-        }
-    }
-    let globbed_names = find_globs(view, &args.glob, false)?;
-    let names: BTreeSet<String> = args.names.iter().cloned().chain(globbed_names).collect();
-    let branch_term = make_branch_term(names.iter().collect_vec().as_slice());
-    let mut tx = workspace_command.start_transaction(&format!("delete {branch_term}"));
+    let name_patterns = itertools::chain(
+        args.names.iter().map(StringPattern::exact),
+        args.glob.iter().cloned(),
+    )
+    .collect_vec();
+    let names = find_branches(view, &name_patterns, false)?;
+    let mut tx =
+        workspace_command.start_transaction(&format!("delete {}", make_branch_term(&names)));
     for branch_name in names.iter() {
         tx.mut_repo()
             .set_local_branch_target(branch_name, RefTarget::absent());
@@ -359,13 +348,14 @@ fn cmd_branch_forget(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
-    if let Some(branch_name) = args.names.iter().find(|name| !view.has_branch(name)) {
-        return Err(user_error(format!("No such branch: {branch_name}")));
-    }
-    let globbed_names = find_globs(view, &args.glob, true)?;
-    let names: BTreeSet<String> = args.names.iter().cloned().chain(globbed_names).collect();
-    let branch_term = make_branch_term(names.iter().collect_vec().as_slice());
-    let mut tx = workspace_command.start_transaction(&format!("forget {branch_term}"));
+    let name_patterns = itertools::chain(
+        args.names.iter().map(StringPattern::exact),
+        args.glob.iter().cloned(),
+    )
+    .collect_vec();
+    let names = find_branches(view, &name_patterns, true)?;
+    let mut tx =
+        workspace_command.start_transaction(&format!("forget {}", make_branch_term(&names)));
     for branch_name in names.iter() {
         tx.mut_repo().remove_branch(branch_name);
     }

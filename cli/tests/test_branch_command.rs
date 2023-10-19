@@ -122,9 +122,11 @@ fn test_branch_forget_glob() {
     "###);
 
     // Malformed glob
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "forget", "--glob", "foo-[1-3"]);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "forget", "--glob", "foo-[1-3"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to compile glob: Pattern syntax error near position 4: invalid range pattern
+    error: invalid value 'foo-[1-3' for '--glob <GLOB>': Pattern syntax error near position 4: invalid range pattern
+
+    For more information, try '--help'.
     "###);
 
     // We get an error if none of the globs match anything
@@ -139,7 +141,7 @@ fn test_branch_forget_glob() {
         ],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Error: The provided globs 'baz*', 'boom*' did not match any branches
+    Error: No matching branches for patterns: baz*, boom*
     "###);
 }
 
@@ -188,7 +190,7 @@ fn test_branch_delete_glob() {
     // forget`, it's not allowed to delete already deleted branches.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "delete", "--glob=foo-[1-3]"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The provided glob 'foo-[1-3]' did not match any branches
+    Error: No matching branches for patterns: foo-[1-3]
     "###);
 
     // Deleting a branch via both explicit name and glob pattern, or with
@@ -225,9 +227,11 @@ fn test_branch_delete_glob() {
     "###);
 
     // Malformed glob
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "delete", "--glob", "foo-[1-3"]);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "delete", "--glob", "foo-[1-3"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to compile glob: Pattern syntax error near position 4: invalid range pattern
+    error: invalid value 'foo-[1-3' for '--glob <GLOB>': Pattern syntax error near position 4: invalid range pattern
+
+    For more information, try '--help'.
     "###);
 }
 
