@@ -313,6 +313,8 @@ fn cmd_git_fetch(
         "fetch from git remote(s) {}",
         remotes.iter().join(",")
     ));
+    // TODO: maybe this should error out if the pattern contained meta
+    // characters and is not prefixed with "glob:".
     let branches = args.branch.iter().map(|b| b.as_str()).collect_vec();
     for remote in remotes {
         let stats = with_remote_callbacks(ui, |cb| {

@@ -10,7 +10,7 @@ use jj_lib::git;
 use jj_lib::op_store::RefTarget;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{self, RevsetExpression};
-use jj_lib::str_util::StringPattern;
+use jj_lib::str_util::{StringPattern, StringPatternParseError};
 use jj_lib::view::View;
 
 use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg};
@@ -54,9 +54,13 @@ pub struct BranchCreateArgs {
 /// next push.
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchDeleteArgs {
-    /// The branches to delete.
-    #[arg(required_unless_present_any(& ["glob"]))]
-    names: Vec<String>,
+    /// The branches to delete
+    ///
+    /// By default, the specified name matches exactly. Use `glob:` prefix to
+    /// select branches by wildcard pattern. For details, see
+    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+    #[arg(required_unless_present_any(&["glob"]), value_parser = parse_name_pattern)]
+    pub names: Vec<StringPattern>,
 
     /// A glob pattern indicating branches to delete.
     #[arg(long, value_parser = StringPattern::glob)]
@@ -95,9 +99,13 @@ pub struct BranchListArgs {
 /// recreated on future pulls if it still exists in the remote.
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchForgetArgs {
-    /// The branches to forget.
-    #[arg(required_unless_present_any(& ["glob"]))]
-    pub names: Vec<String>,
+    /// The branches to forget
+    ///
+    /// By default, the specified name matches exactly. Use `glob:` prefix to
+    /// select branches by wildcard pattern. For details, see
+    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+    #[arg(required_unless_present_any(&["glob"]), value_parser = parse_name_pattern)]
+    pub names: Vec<StringPattern>,
 
     /// A glob pattern indicating branches to forget.
     #[arg(long, value_parser = StringPattern::glob)]
@@ -276,6 +284,14 @@ fn cmd_branch_set(
     Ok(())
 }
 
+fn parse_name_pattern(src: &str) -> Result<StringPattern, StringPatternParseError> {
+    if let Some((kind, pat)) = src.split_once(':') {
+        StringPattern::from_str_kind(pat, kind)
+    } else {
+        Ok(StringPattern::exact(src))
+    }
+}
+
 fn find_local_branches(
     view: &View,
     name_patterns: &[StringPattern],
@@ -331,11 +347,7 @@ fn cmd_branch_delete(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
-    let name_patterns = itertools::chain(
-        args.names.iter().map(StringPattern::exact),
-        args.glob.iter().cloned(),
-    )
-    .collect_vec();
+    let name_patterns = [&args.names[..], &args.glob[..]].concat();
     let names = find_local_branches(view, &name_patterns)?;
     let mut tx =
         workspace_command.start_transaction(&format!("delete {}", make_branch_term(&names)));
@@ -357,11 +369,7 @@ fn cmd_branch_forget(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
-    let name_patterns = itertools::chain(
-        args.names.iter().map(StringPattern::exact),
-        args.glob.iter().cloned(),
-    )
-    .collect_vec();
+    let name_patterns = [&args.names[..], &args.glob[..]].concat();
     let names = find_forgettable_branches(view, &name_patterns)?;
     let mut tx =
         workspace_command.start_transaction(&format!("forget {}", make_branch_term(&names)));

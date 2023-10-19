@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `branches()`/`remote_branches()`/`author()`/`committer()`/`description()`
   revsets now support glob matching.
 
+* `jj branch delete`/`forget` now support [string pattern
+  syntax](docs/revsets.md#string-patterns).
+
 ### Fixed bugs
 
 * Updating the working copy to a commit where a file that's currently ignored
