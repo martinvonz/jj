@@ -14,6 +14,10 @@
 
 //! String helpers.
 
+use std::borrow::Borrow;
+use std::collections::BTreeMap;
+
+use either::Either;
 use thiserror::Error;
 
 /// Error occurred during pattern string parsing.
@@ -64,6 +68,18 @@ impl StringPattern {
         match self {
             StringPattern::Exact(literal) => haystack == literal,
             StringPattern::Substring(needle) => haystack.contains(needle),
+        }
+    }
+
+    /// Iterates entries of the given `map` whose keys matches this pattern.
+    pub fn filter_btree_map<'a: 'b, 'b, K: Borrow<str> + Ord, V>(
+        &'b self,
+        map: &'a BTreeMap<K, V>,
+    ) -> impl Iterator<Item = (&'a K, &'a V)> + 'b {
+        if let Some(key) = self.as_exact() {
+            Either::Left(map.get_key_value(key).into_iter())
+        } else {
+            Either::Right(map.iter().filter(|&(key, _)| self.matches(key.borrow())))
         }
     }
 }

@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::ops::Range;
 use std::path::Path;
@@ -23,7 +23,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::{error, fmt};
 
-use either::Either;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
@@ -1938,21 +1937,6 @@ pub fn walk_revs<'index>(
         .evaluate(repo)
 }
 
-fn filter_map_values_by_key_pattern<'a: 'b, 'b, V>(
-    map: &'a BTreeMap<String, V>,
-    pattern: &'b StringPattern,
-) -> impl Iterator<Item = &'a V> + 'b {
-    if let Some(key) = pattern.as_exact() {
-        Either::Left(map.get(key).into_iter())
-    } else {
-        Either::Right(
-            map.iter()
-                .filter(|(key, _)| pattern.matches(key))
-                .map(|(_, value)| value),
-        )
-    }
-}
-
 fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
     for git_ref_prefix in &["", "refs/"] {
@@ -2152,8 +2136,9 @@ fn resolve_commit_ref(
         RevsetCommitRef::Root => Ok(vec![repo.store().root_commit_id().clone()]),
         RevsetCommitRef::Branches(pattern) => {
             let view_data = repo.view().store_view();
-            let commit_ids = filter_map_values_by_key_pattern(&view_data.local_branches, pattern)
-                .flat_map(|target| target.added_ids())
+            let commit_ids = pattern
+                .filter_btree_map(&view_data.local_branches)
+                .flat_map(|(_, target)| target.added_ids())
                 .cloned()
                 .collect();
             Ok(commit_ids)
@@ -2163,14 +2148,12 @@ fn resolve_commit_ref(
             remote_pattern,
         } => {
             let view_data = repo.view().store_view();
-            let commit_ids =
-                filter_map_values_by_key_pattern(&view_data.remote_views, remote_pattern)
-                    .flat_map(|remote_view| {
-                        filter_map_values_by_key_pattern(&remote_view.branches, branch_pattern)
-                    })
-                    .flat_map(|remote_ref| remote_ref.target.added_ids())
-                    .cloned()
-                    .collect();
+            let commit_ids = remote_pattern
+                .filter_btree_map(&view_data.remote_views)
+                .flat_map(|(_, remote_view)| branch_pattern.filter_btree_map(&remote_view.branches))
+                .flat_map(|(_, remote_ref)| remote_ref.target.added_ids())
+                .cloned()
+                .collect();
             Ok(commit_ids)
         }
         RevsetCommitRef::Tags => {
