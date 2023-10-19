@@ -62,8 +62,8 @@ pub struct BranchDeleteArgs {
     #[arg(required_unless_present_any(&["glob"]), value_parser = parse_name_pattern)]
     pub names: Vec<StringPattern>,
 
-    /// A glob pattern indicating branches to delete.
-    #[arg(long, value_parser = StringPattern::glob)]
+    /// Deprecated. Please prefix the pattern with `glob:` instead.
+    #[arg(long, hide = true, value_parser = StringPattern::glob)]
     pub glob: Vec<StringPattern>,
 }
 
@@ -107,8 +107,8 @@ pub struct BranchForgetArgs {
     #[arg(required_unless_present_any(&["glob"]), value_parser = parse_name_pattern)]
     pub names: Vec<StringPattern>,
 
-    /// A glob pattern indicating branches to forget.
-    #[arg(long, value_parser = StringPattern::glob)]
+    /// Deprecated. Please prefix the pattern with `glob:` instead.
+    #[arg(long, hide = true, value_parser = StringPattern::glob)]
     pub glob: Vec<StringPattern>,
 }
 
@@ -347,6 +347,12 @@ fn cmd_branch_delete(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
+    if !args.glob.is_empty() {
+        writeln!(
+            ui.warning(),
+            "--glob has been deprecated. Please prefix the pattern with `glob:` instead."
+        )?;
+    }
     let name_patterns = [&args.names[..], &args.glob[..]].concat();
     let names = find_local_branches(view, &name_patterns)?;
     let mut tx =
@@ -369,6 +375,12 @@ fn cmd_branch_forget(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
+    if !args.glob.is_empty() {
+        writeln!(
+            ui.warning(),
+            "--glob has been deprecated. Please prefix the pattern with `glob:` instead."
+        )?;
+    }
     let name_patterns = [&args.names[..], &args.glob[..]].concat();
     let names = find_forgettable_branches(view, &name_patterns)?;
     let mut tx =
