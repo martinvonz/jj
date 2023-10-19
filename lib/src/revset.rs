@@ -1478,16 +1478,8 @@ fn parse_function_argument_to_string_pattern(
             else {
                 return Err(make_type_error());
             };
-            match kind.as_ref() {
-                "exact" => StringPattern::Exact(needle.clone()),
-                "substring" => StringPattern::Substring(needle.clone()),
-                _ => {
-                    // TODO: error span can be narrowed to the lhs node
-                    return Err(make_error(format!(
-                        r#"Invalid string pattern kind "{kind}""#
-                    )));
-                }
-            }
+            // TODO: error span can be narrowed to the lhs node
+            StringPattern::from_str_kind(needle, kind).map_err(|err| make_error(err.to_string()))?
         }
         _ => return Err(make_type_error()),
     };
