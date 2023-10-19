@@ -276,27 +276,36 @@ fn cmd_branch_set(
     Ok(())
 }
 
-fn find_branches(
+fn find_local_branches(
     view: &View,
     name_patterns: &[StringPattern],
-    allow_deleted: bool,
+) -> Result<Vec<String>, CommandError> {
+    find_branches_with(name_patterns, |pattern| {
+        view.local_branches_matching(pattern)
+            .map(|(name, _)| name.to_owned())
+    })
+}
+
+fn find_forgettable_branches(
+    view: &View,
+    name_patterns: &[StringPattern],
+) -> Result<Vec<String>, CommandError> {
+    find_branches_with(name_patterns, |pattern| {
+        view.branches()
+            .filter(|(name, _)| pattern.matches(name))
+            .map(|(name, _)| name.to_owned())
+    })
+}
+
+fn find_branches_with<'a, I: Iterator<Item = String>>(
+    name_patterns: &'a [StringPattern],
+    mut find_matches: impl FnMut(&'a StringPattern) -> I,
 ) -> Result<Vec<String>, CommandError> {
     let mut matching_branches: Vec<String> = vec![];
     let mut unmatched_patterns = vec![];
     for pattern in name_patterns {
-        let names = view
-            .branches()
-            .filter_map(|(branch_name, branch_target)| {
-                if pattern.matches(branch_name)
-                    && (allow_deleted || branch_target.local_target.is_present())
-                {
-                    Some(branch_name.to_owned())
-                } else {
-                    None
-                }
-            })
-            .collect_vec();
-        if names.is_empty() {
+        let mut names = find_matches(pattern).peekable();
+        if names.peek().is_none() {
             unmatched_patterns.push(pattern);
         }
         matching_branches.extend(names);
@@ -327,7 +336,7 @@ fn cmd_branch_delete(
         args.glob.iter().cloned(),
     )
     .collect_vec();
-    let names = find_branches(view, &name_patterns, false)?;
+    let names = find_local_branches(view, &name_patterns)?;
     let mut tx =
         workspace_command.start_transaction(&format!("delete {}", make_branch_term(&names)));
     for branch_name in names.iter() {
@@ -353,7 +362,7 @@ fn cmd_branch_forget(
         args.glob.iter().cloned(),
     )
     .collect_vec();
-    let names = find_branches(view, &name_patterns, true)?;
+    let names = find_forgettable_branches(view, &name_patterns)?;
     let mut tx =
         workspace_command.start_transaction(&format!("forget {}", make_branch_term(&names)));
     for branch_name in names.iter() {
