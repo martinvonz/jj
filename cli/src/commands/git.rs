@@ -20,9 +20,10 @@ use jj_lib::refs::{
 };
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::revset::{self, RevsetExpression, RevsetIteratorExt as _, StringPattern};
+use jj_lib::revset::{self, RevsetExpression, RevsetIteratorExt as _};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
+use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
 use maplit::hashset;
 

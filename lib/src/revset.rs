@@ -42,6 +42,7 @@ use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPath};
 use crate::revset_graph::RevsetGraphEdge;
 use crate::store::Store;
+use crate::str_util::StringPattern;
 
 /// Error occurred during symbol resolution.
 #[derive(Debug, Error)]
@@ -304,41 +305,6 @@ fn rename_rules_in_pest_error(mut err: pest::error::Error<Rule>) -> pest::error:
 // assumes index has less than u64::MAX entries.
 pub const GENERATION_RANGE_FULL: Range<u64> = 0..u64::MAX;
 pub const GENERATION_RANGE_EMPTY: Range<u64> = 0..0;
-
-/// Pattern to be tested against string property like commit description or
-/// branch name.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum StringPattern {
-    /// Matches strings exactly equal to `string`.
-    Exact(String),
-    /// Matches strings that contain `substring`.
-    Substring(String),
-}
-
-impl StringPattern {
-    /// Pattern that matches any string.
-    pub fn everything() -> Self {
-        StringPattern::Substring(String::new())
-    }
-
-    /// Returns true if this pattern matches the `haystack`.
-    pub fn matches(&self, haystack: &str) -> bool {
-        match self {
-            StringPattern::Exact(literal) => haystack == literal,
-            StringPattern::Substring(needle) => haystack.contains(needle),
-        }
-    }
-
-    /// Returns a literal pattern if this should match input strings exactly.
-    ///
-    /// This can be used to optimize map lookup by exact key.
-    pub fn as_exact(&self) -> Option<&str> {
-        match self {
-            StringPattern::Exact(literal) => Some(literal),
-            StringPattern::Substring(_) => None,
-        }
-    }
-}
 
 /// Symbol or function to be resolved to `CommitId`s.
 #[derive(Clone, Debug, Eq, PartialEq)]

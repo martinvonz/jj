@@ -9,7 +9,8 @@ use jj_lib::backend::{CommitId, ObjectId};
 use jj_lib::git;
 use jj_lib::op_store::RefTarget;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{self, RevsetExpression, StringPattern};
+use jj_lib::revset::{self, RevsetExpression};
+use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
 use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg};
