@@ -138,8 +138,22 @@ impl GitBackend {
         let extra_path = store_path.join("extra");
         fs::create_dir(&extra_path).context(&extra_path)?;
         let target_path = store_path.join("git_target");
-        fs::write(&target_path, git_repo_path.to_str().unwrap().as_bytes())
-            .context(&target_path)?;
+        if cfg!(windows) && git_repo_path.is_relative() {
+            // When a repository is created in Windows, format the path with *forward
+            // slashes* and not backwards slashes. This makes it possible to use the same
+            // repository under Windows Subsystem for Linux.
+            //
+            // This only works for relative paths. If the path is absolute, there's not much
+            // we can do, and it simply won't work inside and outside WSL at the same time.
+            let git_repo_path_string = git_repo_path
+                .components()
+                .map(|component| component.as_os_str().to_str().unwrap().to_owned())
+                .join("/");
+            fs::write(&target_path, git_repo_path_string.as_bytes()).context(&target_path)?;
+        } else {
+            fs::write(&target_path, git_repo_path.to_str().unwrap().as_bytes())
+                .context(&target_path)?;
+        };
         let repo = git2::Repository::open(store_path.join(git_repo_path))
             .map_err(GitBackendInitError::OpenRepository)?;
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
