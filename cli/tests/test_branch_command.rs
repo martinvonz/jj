@@ -663,7 +663,7 @@ fn test_branch_track_untrack() {
 }
 
 #[test]
-fn test_branch_track_untrack_bad_branches() {
+fn test_branch_track_untrack_patterns() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -717,6 +717,17 @@ fn test_branch_track_untrack_bad_branches() {
         test_env.jj_cmd_failure(&repo_path, &["branch", "untrack", "main@origin"]), @r###"
     Error: No such remote branch: main@origin
     "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["branch", "track", "glob:maine@*"]), @r###"
+    Error: No matching remote branches for patterns: maine@*
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(
+            &repo_path,
+            &["branch", "untrack", "main@origin", "glob:main@o*"],
+        ), @r###"
+    Error: No matching remote branches for patterns: main@origin, main@o*
+    "###);
 
     // Track already tracked branch
     test_env.jj_cmd_ok(&repo_path, &["branch", "track", "feature1@origin"]);
@@ -745,6 +756,35 @@ fn test_branch_track_untrack_bad_branches() {
       @git: omvolwpu 1336caed commit
       @origin: omvolwpu 1336caed commit
     feature2@origin: omvolwpu 1336caed commit
+    main: qpvuntsm 230dd059 (empty) (no description set)
+      @git: qpvuntsm 230dd059 (empty) (no description set)
+    "###);
+
+    // Untrack by pattern
+    let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "untrack", "glob:*@*"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Git-tracking branch cannot be untracked: feature1@git
+    Remote branch not tracked yet: feature2@origin
+    Git-tracking branch cannot be untracked: main@git
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: omvolwpu 1336caed commit
+      @git: omvolwpu 1336caed commit
+    feature1@origin: omvolwpu 1336caed commit
+    feature2@origin: omvolwpu 1336caed commit
+    main: qpvuntsm 230dd059 (empty) (no description set)
+      @git: qpvuntsm 230dd059 (empty) (no description set)
+    "###);
+
+    // Track by pattern
+    let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "track", "glob:feature?@origin"]);
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: omvolwpu 1336caed commit
+      @git: omvolwpu 1336caed commit
+      @origin: omvolwpu 1336caed commit
+    feature2: omvolwpu 1336caed commit
+      @origin: omvolwpu 1336caed commit
     main: qpvuntsm 230dd059 (empty) (no description set)
       @git: qpvuntsm 230dd059 (empty) (no description set)
     "###);

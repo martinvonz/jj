@@ -7,7 +7,7 @@ use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId};
 use jj_lib::git;
-use jj_lib::op_store::RefTarget;
+use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::Repo;
 use jj_lib::revset::{self, RevsetExpression};
 use jj_lib::str_util::{StringPattern, StringPatternParseError};
@@ -136,8 +136,12 @@ pub struct BranchSetArgs {
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchTrackArgs {
     /// Remote branches to track
+    ///
+    /// By default, the specified name matches exactly. Use `glob:` prefix to
+    /// select branches by wildcard pattern. For details, see
+    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
     #[arg(required = true)]
-    pub names: Vec<RemoteBranchName>,
+    pub names: Vec<RemoteBranchNamePattern>,
 }
 
 /// Stop tracking given remote branches
@@ -147,8 +151,12 @@ pub struct BranchTrackArgs {
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchUntrackArgs {
     /// Remote branches to untrack
+    ///
+    /// By default, the specified name matches exactly. Use `glob:` prefix to
+    /// select branches by wildcard pattern. For details, see
+    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
     #[arg(required = true)]
-    pub names: Vec<RemoteBranchName>,
+    pub names: Vec<RemoteBranchNamePattern>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -157,24 +165,57 @@ pub struct RemoteBranchName {
     pub remote: String,
 }
 
-impl FromStr for RemoteBranchName {
-    type Err = &'static str;
+impl fmt::Display for RemoteBranchName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let RemoteBranchName { branch, remote } = self;
+        write!(f, "{branch}@{remote}")
+    }
+}
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+#[derive(Clone, Debug)]
+pub struct RemoteBranchNamePattern {
+    pub branch: StringPattern,
+    pub remote: StringPattern,
+}
+
+impl FromStr for RemoteBranchNamePattern {
+    type Err = String;
+
+    fn from_str(src: &str) -> Result<Self, Self::Err> {
+        // The kind prefix applies to both branch and remote fragments. It's
+        // weird that unanchored patterns like substring:branch@remote is split
+        // into two, but I can't think of a better syntax.
+        // TODO: should we disable substring pattern? what if we added regex?
+        let (maybe_kind, pat) = src
+            .split_once(':')
+            .map_or((None, src), |(kind, pat)| (Some(kind), pat));
+        let to_pattern = |pat: &str| {
+            if let Some(kind) = maybe_kind {
+                StringPattern::from_str_kind(pat, kind).map_err(|err| err.to_string())
+            } else {
+                Ok(StringPattern::exact(pat))
+            }
+        };
         // TODO: maybe reuse revset parser to handle branch/remote name containing @
-        let (branch, remote) = s
+        let (branch, remote) = pat
             .rsplit_once('@')
-            .ok_or("remote branch must be specified in branch@remote form")?;
-        Ok(RemoteBranchName {
-            branch: branch.to_owned(),
-            remote: remote.to_owned(),
+            .ok_or_else(|| "remote branch must be specified in branch@remote form".to_owned())?;
+        Ok(RemoteBranchNamePattern {
+            branch: to_pattern(branch)?,
+            remote: to_pattern(remote)?,
         })
     }
 }
 
-impl fmt::Display for RemoteBranchName {
+impl RemoteBranchNamePattern {
+    pub fn is_exact(&self) -> bool {
+        self.branch.is_exact() && self.remote.is_exact()
+    }
+}
+
+impl fmt::Display for RemoteBranchNamePattern {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let RemoteBranchName { branch, remote } = self;
+        let RemoteBranchNamePattern { branch, remote } = self;
         write!(f, "{branch}@{remote}")
     }
 }
@@ -340,6 +381,44 @@ fn find_branches_with<'a, I: Iterator<Item = String>>(
     }
 }
 
+fn find_remote_branches<'a>(
+    view: &'a View,
+    name_patterns: &[RemoteBranchNamePattern],
+) -> Result<Vec<(RemoteBranchName, &'a RemoteRef)>, CommandError> {
+    let mut matching_branches = vec![];
+    let mut unmatched_patterns = vec![];
+    for pattern in name_patterns {
+        let mut matches = view
+            .remote_branches_matching(&pattern.branch, &pattern.remote)
+            .map(|((branch, remote), remote_ref)| {
+                let name = RemoteBranchName {
+                    branch: branch.to_owned(),
+                    remote: remote.to_owned(),
+                };
+                (name, remote_ref)
+            })
+            .peekable();
+        if matches.peek().is_none() {
+            unmatched_patterns.push(pattern);
+        }
+        matching_branches.extend(matches);
+    }
+    match &unmatched_patterns[..] {
+        [] => {
+            matching_branches.sort_unstable_by(|(name1, _), (name2, _)| name1.cmp(name2));
+            matching_branches.dedup_by(|(name1, _), (name2, _)| name1 == name2);
+            Ok(matching_branches)
+        }
+        [pattern] if pattern.is_exact() => {
+            Err(user_error(format!("No such remote branch: {pattern}")))
+        }
+        patterns => Err(user_error(format!(
+            "No matching remote branches for patterns: {}",
+            patterns.iter().join(", ")
+        ))),
+    }
+}
+
 fn cmd_branch_delete(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -403,19 +482,15 @@ fn cmd_branch_track(
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
     let mut names = Vec::new();
-    for name in &args.names {
-        let remote_ref = view.get_remote_branch(&name.branch, &name.remote);
-        if remote_ref.is_absent() {
-            return Err(user_error(format!("No such remote branch: {name}")));
-        }
+    for (name, remote_ref) in find_remote_branches(view, &args.names)? {
         if remote_ref.is_tracking() {
             writeln!(ui.warning(), "Remote branch already tracked: {name}")?;
         } else {
-            names.push(name.clone());
+            names.push(name);
         }
     }
-    let mut tx = workspace_command
-        .start_transaction(&format!("track remote {}", make_branch_term(&names)));
+    let mut tx =
+        workspace_command.start_transaction(&format!("track remote {}", make_branch_term(&names)));
     for name in &names {
         tx.mut_repo()
             .track_remote_branch(&name.branch, &name.remote);
@@ -432,18 +507,17 @@ fn cmd_branch_untrack(
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
     let mut names = Vec::new();
-    for name in &args.names {
-        let remote_ref = view.get_remote_branch(&name.branch, &name.remote);
-        if remote_ref.is_absent() {
-            return Err(user_error(format!("No such remote branch: {name}")));
-        }
+    for (name, remote_ref) in find_remote_branches(view, &args.names)? {
         if name.remote == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO {
             // This restriction can be lifted if we want to support untracked @git branches.
-            writeln!(ui.warning(), "Git-tracking branch cannot be untracked: {name}")?;
+            writeln!(
+                ui.warning(),
+                "Git-tracking branch cannot be untracked: {name}"
+            )?;
         } else if !remote_ref.is_tracking() {
             writeln!(ui.warning(), "Remote branch not tracked yet: {name}")?;
         } else {
-            names.push(name.clone());
+            names.push(name);
         }
     }
     let mut tx = workspace_command
