@@ -61,7 +61,7 @@ rand_chacha = "0.3.1"
 rayon = "1.8.0"
 regex = "1.10.2"
 rpassword = "7.2.0"
-rustix = { version = "0.38.19", features = ["fs"] }
+rustix = { version = "0.38.20", features = ["fs"] }
 smallvec = { version = "1.11.1", features = [
     "const_generics",
     "const_new",
@@ -78,7 +78,7 @@ textwrap = "0.16.0"
 thiserror = "1.0.49"
 timeago = { version = "0.4.2", default-features = false }
 toml_edit = { version = "0.19.15", features = ["serde"] }
-tracing = "0.1.39"
+tracing = "0.1.40"
 tracing-chrome = "0.7.1"
 tracing-subscriber = { version = "0.3.17", default-features = false, features = [
     "std",
