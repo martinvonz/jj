@@ -14,6 +14,16 @@
 
 //! String helpers.
 
+use thiserror::Error;
+
+/// Error occurred during pattern string parsing.
+#[derive(Debug, Error)]
+pub enum StringPatternParseError {
+    /// Unknown pattern kind is specified.
+    #[error(r#"Invalid string pattern kind "{0}""#)]
+    InvalidKind(String),
+}
+
 /// Pattern to be tested against string property like commit description or
 /// branch name.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -28,6 +38,15 @@ impl StringPattern {
     /// Pattern that matches any string.
     pub const fn everything() -> Self {
         StringPattern::Substring(String::new())
+    }
+
+    /// Parses the given string as pattern of the specified `kind`.
+    pub fn from_str_kind(src: &str, kind: &str) -> Result<Self, StringPatternParseError> {
+        match kind {
+            "exact" => Ok(StringPattern::Exact(src.to_owned())),
+            "substring" => Ok(StringPattern::Substring(src.to_owned())),
+            _ => Err(StringPatternParseError::InvalidKind(kind.to_owned())),
+        }
     }
 
     /// Returns a literal pattern if this should match input strings exactly.
