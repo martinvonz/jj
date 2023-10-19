@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj workspace forget` can now forget multiple workspaces at once.
 
+* `branches()`/`remote_branches()`/`author()`/`committer()`/`description()`
+  revsets now support glob matching.
+
 ### Fixed bugs
 
 * Updating the working copy to a commit where a file that's currently ignored

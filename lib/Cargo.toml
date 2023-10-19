@@ -30,6 +30,7 @@ digest = { workspace = true }
 futures = { workspace = true }
 either = { workspace = true }
 git2 = { workspace = true }
+glob = { workspace = true }
 hex = { workspace = true }
 itertools = { workspace = true }
 maplit = { workspace = true }
