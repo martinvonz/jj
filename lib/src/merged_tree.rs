@@ -342,11 +342,21 @@ impl MergedTree {
         other: &MergedTree,
         matcher: &'matcher dyn Matcher,
     ) -> TreeDiffStream<'matcher> {
-        Box::pin(futures::stream::iter(TreeDiffIterator::new(
-            self.clone(),
-            other.clone(),
-            matcher,
-        )))
+        let concurrency = self.store().concurrency();
+        if concurrency <= 1 {
+            Box::pin(futures::stream::iter(TreeDiffIterator::new(
+                self.clone(),
+                other.clone(),
+                matcher,
+            )))
+        } else {
+            Box::pin(TreeDiffStreamImpl::new(
+                self.clone(),
+                other.clone(),
+                matcher,
+                concurrency,
+            ))
+        }
     }
 
     /// Collects lists of modified, added, and removed files between this tree
@@ -1048,15 +1058,19 @@ impl Ord for DiffStreamKey {
 impl<'matcher> TreeDiffStreamImpl<'matcher> {
     /// Creates a iterator over the differences between two trees. Generally
     /// prefer `MergedTree::diff_stream()` of calling this directly.
-    pub fn new(tree1: MergedTree, tree2: MergedTree, matcher: &'matcher dyn Matcher) -> Self {
+    pub fn new(
+        tree1: MergedTree,
+        tree2: MergedTree,
+        matcher: &'matcher dyn Matcher,
+        max_concurrent_reads: usize,
+    ) -> Self {
         let mut stream = Self {
             matcher,
             legacy_format_before: matches!(tree1, MergedTree::Legacy(_)),
             legacy_format_after: matches!(tree2, MergedTree::Legacy(_)),
             items: BTreeMap::new(),
             pending_trees: VecDeque::new(),
-            // TODO: maybe the backends can suggest the conurrency limit?
-            max_concurrent_reads: 100,
+            max_concurrent_reads,
             max_queued_items: 10000,
         };
         stream.add_dir_diff_items(RepoPath::root(), Ok((tree1, tree2)));

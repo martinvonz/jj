@@ -89,6 +89,10 @@ impl Store {
         self.backend.empty_tree_id()
     }
 
+    pub fn concurrency(&self) -> usize {
+        self.backend.concurrency()
+    }
+
     pub fn empty_merged_tree_id(&self) -> MergedTreeId {
         MergedTreeId::Legacy(self.backend.empty_tree_id().clone())
     }

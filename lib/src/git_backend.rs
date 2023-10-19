@@ -612,6 +612,10 @@ impl Backend for GitBackend {
         &self.empty_tree_id
     }
 
+    fn concurrency(&self) -> usize {
+        1
+    }
+
     async fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         self.read_file_sync(id)
     }

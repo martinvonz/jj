@@ -117,6 +117,10 @@ impl Backend for JitBackend {
         self.inner.empty_tree_id()
     }
 
+    fn concurrency(&self) -> usize {
+        1
+    }
+
     async fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         self.inner.read_file(path, id).await
     }

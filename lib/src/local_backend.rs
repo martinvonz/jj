@@ -149,6 +149,10 @@ impl Backend for LocalBackend {
         &self.empty_tree_id
     }
 
+    fn concurrency(&self) -> usize {
+        1
+    }
+
     async fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         let path = self.file_path(id);
         let file = File::open(path).map_err(|err| map_not_found_err(err, id))?;
