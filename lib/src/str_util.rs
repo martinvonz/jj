@@ -26,6 +26,9 @@ pub enum StringPatternParseError {
     /// Unknown pattern kind is specified.
     #[error(r#"Invalid string pattern kind "{0}""#)]
     InvalidKind(String),
+    /// Failed to parse glob pattern.
+    #[error(transparent)]
+    GlobPattern(glob::PatternError),
 }
 
 /// Pattern to be tested against string property like commit description or
@@ -34,6 +37,8 @@ pub enum StringPatternParseError {
 pub enum StringPattern {
     /// Matches strings exactly equal to `string`.
     Exact(String),
+    /// Unix-style shell wildcard pattern.
+    Glob(glob::Pattern),
     /// Matches strings that contain `substring`.
     Substring(String),
 }
@@ -44,10 +49,20 @@ impl StringPattern {
         StringPattern::Substring(String::new())
     }
 
+    /// Parses the given string as glob pattern.
+    pub fn glob(src: &str) -> Result<Self, StringPatternParseError> {
+        // TODO: might be better to do parsing and compilation separately since
+        // not all backends would use the compiled pattern object.
+        // TODO: if no meta character found, it can be mapped to Exact.
+        let pattern = glob::Pattern::new(src).map_err(StringPatternParseError::GlobPattern)?;
+        Ok(StringPattern::Glob(pattern))
+    }
+
     /// Parses the given string as pattern of the specified `kind`.
     pub fn from_str_kind(src: &str, kind: &str) -> Result<Self, StringPatternParseError> {
         match kind {
             "exact" => Ok(StringPattern::Exact(src.to_owned())),
+            "glob" => StringPattern::glob(src),
             "substring" => Ok(StringPattern::Substring(src.to_owned())),
             _ => Err(StringPatternParseError::InvalidKind(kind.to_owned())),
         }
@@ -59,7 +74,7 @@ impl StringPattern {
     pub fn as_exact(&self) -> Option<&str> {
         match self {
             StringPattern::Exact(literal) => Some(literal),
-            StringPattern::Substring(_) => None,
+            StringPattern::Glob(_) | StringPattern::Substring(_) => None,
         }
     }
 
@@ -67,6 +82,7 @@ impl StringPattern {
     pub fn matches(&self, haystack: &str) -> bool {
         match self {
             StringPattern::Exact(literal) => haystack == literal,
+            StringPattern::Glob(pattern) => pattern.matches(haystack),
             StringPattern::Substring(needle) => haystack.contains(needle),
         }
     }

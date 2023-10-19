@@ -145,6 +145,7 @@ Functions that perform string matching support the following pattern syntax.
 
 * `"string"`, `substring:"string"`: Matches strings that contain `string`.
 * `exact:"string"`: Matches strings exactly equal to `string`.
+* `glob:"pattern"`: Matches strings with Unix-style shell wildcard `pattern`.
 
 ## Aliases
 
