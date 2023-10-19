@@ -1359,7 +1359,7 @@ mv<span class="w"> </span>.jj/repo/store/git<span class="w"> </span>.git
 <span class="c1"># Tell jj where to find it</span>
 <span class="nb">echo</span><span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;../../../.git&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>.jj/repo/store/git_target
 <span class="c1"># Ignore the .jj directory in Git</span>
-<span class="nb">echo</span><span class="w"> </span>/.jj/<span class="w"> </span>&gt;<span class="w"> </span>.git/info/exclude
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;/*&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>.jj/.gitignore
 <span class="c1"># Make the Git repository non-bare and set HEAD</span>
 git<span class="w"> </span>config<span class="w"> </span>--unset<span class="w"> </span>core.bare
 jj<span class="w"> </span>st
