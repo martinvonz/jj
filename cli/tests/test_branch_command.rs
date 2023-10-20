@@ -778,7 +778,9 @@ fn test_branch_track_untrack_patterns() {
 
     // Track by pattern
     let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "track", "glob:feature?@origin"]);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Started tracking 2 remote branches.
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: omvolwpu 1336caed commit
       @git: omvolwpu 1336caed commit

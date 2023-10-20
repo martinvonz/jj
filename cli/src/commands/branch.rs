@@ -496,6 +496,13 @@ fn cmd_branch_track(
             .track_remote_branch(&name.branch, &name.remote);
     }
     tx.finish(ui)?;
+    if names.len() > 1 {
+        writeln!(
+            ui.stderr(),
+            "Started tracking {} remote branches.",
+            names.len()
+        )?;
+    }
     Ok(())
 }
 
@@ -527,6 +534,13 @@ fn cmd_branch_untrack(
             .untrack_remote_branch(&name.branch, &name.remote);
     }
     tx.finish(ui)?;
+    if names.len() > 1 {
+        writeln!(
+            ui.stderr(),
+            "Stopped tracking {} remote branches.",
+            names.len()
+        )?;
+    }
     Ok(())
 }
 
