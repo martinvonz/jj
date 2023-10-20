@@ -720,22 +720,33 @@ fn test_branch_track_untrack_bad_branches() {
 
     // Track already tracked branch
     test_env.jj_cmd_ok(&repo_path, &["branch", "track", "feature1@origin"]);
-    insta::assert_snapshot!(
-        test_env.jj_cmd_failure(&repo_path, &["branch", "track", "feature1@origin"]), @r###"
-    Error: Remote branch already tracked: feature1@origin
+    let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "track", "feature1@origin"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Remote branch already tracked: feature1@origin
+    Nothing changed.
     "###);
 
     // Untrack non-tracking branch
-    insta::assert_snapshot!(
-        test_env.jj_cmd_failure(&repo_path, &["branch", "untrack", "feature2@origin"]), @r###"
-    Error: Remote branch not tracked yet: feature2@origin
+    let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "untrack", "feature2@origin"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Remote branch not tracked yet: feature2@origin
+    Nothing changed.
     "###);
 
     // Untrack Git-tracking branch
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
-    insta::assert_snapshot!(
-        test_env.jj_cmd_failure(&repo_path, &["branch", "untrack", "main@git"]), @r###"
-    Error: Git-tracking branch cannot be untracked
+    let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "untrack", "main@git"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Git-tracking branch cannot be untracked: main@git
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: omvolwpu 1336caed commit
+      @git: omvolwpu 1336caed commit
+      @origin: omvolwpu 1336caed commit
+    feature2@origin: omvolwpu 1336caed commit
+    main: qpvuntsm 230dd059 (empty) (no description set)
+      @git: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 }
 

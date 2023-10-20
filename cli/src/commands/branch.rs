@@ -402,18 +402,21 @@ fn cmd_branch_track(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
+    let mut names = Vec::new();
     for name in &args.names {
         let remote_ref = view.get_remote_branch(&name.branch, &name.remote);
         if remote_ref.is_absent() {
             return Err(user_error(format!("No such remote branch: {name}")));
         }
         if remote_ref.is_tracking() {
-            return Err(user_error(format!("Remote branch already tracked: {name}")));
+            writeln!(ui.warning(), "Remote branch already tracked: {name}")?;
+        } else {
+            names.push(name.clone());
         }
     }
     let mut tx = workspace_command
-        .start_transaction(&format!("track remote {}", make_branch_term(&args.names)));
-    for name in &args.names {
+        .start_transaction(&format!("track remote {}", make_branch_term(&names)));
+    for name in &names {
         tx.mut_repo()
             .track_remote_branch(&name.branch, &name.remote);
     }
@@ -428,22 +431,24 @@ fn cmd_branch_untrack(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
+    let mut names = Vec::new();
     for name in &args.names {
-        if name.remote == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO {
-            // This restriction can be lifted if we want to support untracked @git branches.
-            return Err(user_error("Git-tracking branch cannot be untracked"));
-        }
         let remote_ref = view.get_remote_branch(&name.branch, &name.remote);
         if remote_ref.is_absent() {
             return Err(user_error(format!("No such remote branch: {name}")));
         }
-        if !remote_ref.is_tracking() {
-            return Err(user_error(format!("Remote branch not tracked yet: {name}")));
+        if name.remote == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO {
+            // This restriction can be lifted if we want to support untracked @git branches.
+            writeln!(ui.warning(), "Git-tracking branch cannot be untracked: {name}")?;
+        } else if !remote_ref.is_tracking() {
+            writeln!(ui.warning(), "Remote branch not tracked yet: {name}")?;
+        } else {
+            names.push(name.clone());
         }
     }
     let mut tx = workspace_command
-        .start_transaction(&format!("untrack remote {}", make_branch_term(&args.names)));
-    for name in &args.names {
+        .start_transaction(&format!("untrack remote {}", make_branch_term(&names)));
+    for name in &names {
         tx.mut_repo()
             .untrack_remote_branch(&name.branch, &name.remote);
     }
