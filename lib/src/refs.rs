@@ -28,23 +28,43 @@ pub fn diff_named_refs<'a, 'b, K: Ord>(
     refs1: impl IntoIterator<Item = (K, &'a RefTarget)>,
     refs2: impl IntoIterator<Item = (K, &'b RefTarget)>,
 ) -> impl Iterator<Item = (K, (&'a RefTarget, &'b RefTarget))> {
-    iter_named_ref_pairs(refs1, refs2).filter(|(_, (target1, target2))| target1 != target2)
+    iter_named_pairs(
+        refs1,
+        refs2,
+        || RefTarget::absent_ref(),
+        || RefTarget::absent_ref(),
+    )
+    .filter(|(_, (target1, target2))| target1 != target2)
 }
 
-/// Iterates `refs1` and `refs2` target pairs by name.
+/// Iterates local `refs1` and remote `refs2` pairs by name.
 ///
 /// `refs1` and `refs2` must be sorted by `K`.
-fn iter_named_ref_pairs<'a, 'b, K: Ord>(
+pub fn iter_named_local_remote_refs<'a, 'b, K: Ord>(
     refs1: impl IntoIterator<Item = (K, &'a RefTarget)>,
-    refs2: impl IntoIterator<Item = (K, &'b RefTarget)>,
-) -> impl Iterator<Item = (K, (&'a RefTarget, &'b RefTarget))> {
-    itertools::merge_join_by(refs1, refs2, |(name1, _), (name2, _)| name1.cmp(name2)).map(|entry| {
-        match entry {
+    refs2: impl IntoIterator<Item = (K, &'b RemoteRef)>,
+) -> impl Iterator<Item = (K, (&'a RefTarget, &'b RemoteRef))> {
+    iter_named_pairs(
+        refs1,
+        refs2,
+        || RefTarget::absent_ref(),
+        || RemoteRef::absent_ref(),
+    )
+}
+
+fn iter_named_pairs<K: Ord, V1, V2>(
+    refs1: impl IntoIterator<Item = (K, V1)>,
+    refs2: impl IntoIterator<Item = (K, V2)>,
+    absent_ref1: impl Fn() -> V1,
+    absent_ref2: impl Fn() -> V2,
+) -> impl Iterator<Item = (K, (V1, V2))> {
+    itertools::merge_join_by(refs1, refs2, |(name1, _), (name2, _)| name1.cmp(name2)).map(
+        move |entry| match entry {
             EitherOrBoth::Both((name, target1), (_, target2)) => (name, (target1, target2)),
-            EitherOrBoth::Left((name, target1)) => (name, (target1, RefTarget::absent_ref())),
-            EitherOrBoth::Right((name, target2)) => (name, (RefTarget::absent_ref(), target2)),
-        }
-    })
+            EitherOrBoth::Left((name, target1)) => (name, (target1, absent_ref2())),
+            EitherOrBoth::Right((name, target2)) => (name, (absent_ref1(), target2)),
+        },
+    )
 }
 
 pub fn merge_ref_targets(

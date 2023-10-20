@@ -17,16 +17,16 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
-use itertools::{EitherOrBoth, Itertools};
+use itertools::Itertools;
 
 use crate::backend::CommitId;
 use crate::index::Index;
-use crate::op_store;
 use crate::op_store::{
     BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRef, RemoteRefState, WorkspaceId,
 };
 use crate::refs::{merge_ref_targets, TrackingRefPair};
 use crate::str_util::StringPattern;
+use crate::{op_store, refs};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum RefName {
@@ -302,29 +302,14 @@ impl View {
         &'a self,
         remote_name: &str,
     ) -> impl Iterator<Item = (&'a str, TrackingRefPair<'a>)> + 'a {
-        itertools::merge_join_by(
-            self.local_branches(),
-            self.remote_branches(remote_name),
-            |(name1, _), (name2, _)| name1.cmp(name2),
-        )
-        .map(|entry| match entry {
-            EitherOrBoth::Both((name, local_target), (_, remote_ref)) => {
-                (name, (local_target, remote_ref))
-            }
-            EitherOrBoth::Left((name, local_target)) => {
-                (name, (local_target, RemoteRef::absent_ref()))
-            }
-            EitherOrBoth::Right((name, remote_ref)) => {
-                (name, (RefTarget::absent_ref(), remote_ref))
-            }
-        })
-        .map(|(name, (local_target, remote_ref))| {
-            let targets = TrackingRefPair {
-                local_target,
-                remote_ref,
-            };
-            (name, targets)
-        })
+        refs::iter_named_local_remote_refs(self.local_branches(), self.remote_branches(remote_name))
+            .map(|(name, (local_target, remote_ref))| {
+                let targets = TrackingRefPair {
+                    local_target,
+                    remote_ref,
+                };
+                (name, targets)
+            })
     }
 
     pub fn remove_remote(&mut self, remote_name: &str) {
