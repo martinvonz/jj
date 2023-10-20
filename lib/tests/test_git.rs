@@ -28,14 +28,13 @@ use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git;
 use jj_lib::git::{
     FailedRefExport, FailedRefExportReason, GitBranchPushTargets, GitFetchError, GitImportError,
-    GitPushError, GitRefUpdate, SubmoduleConfig,
+    GitPushError, GitRefUpdate, RefName, SubmoduleConfig,
 };
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, RemoteRefState};
 use jj_lib::refs::BranchPushUpdate;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::{GitSettings, UserSettings};
-use jj_lib::view::RefName;
 use jj_lib::workspace::Workspace;
 use maplit::{btreemap, hashset};
 use tempfile::TempDir;

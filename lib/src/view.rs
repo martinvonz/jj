@@ -15,7 +15,6 @@
 #![allow(missing_docs)]
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fmt;
 
 use itertools::Itertools;
 
@@ -24,26 +23,6 @@ use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRe
 use crate::refs::TrackingRefPair;
 use crate::str_util::StringPattern;
 use crate::{op_store, refs};
-
-// TODO: move to git module?
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
-pub enum RefName {
-    LocalBranch(String),
-    RemoteBranch { branch: String, remote: String },
-    Tag(String),
-    GitRef(String),
-}
-
-impl fmt::Display for RefName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RefName::LocalBranch(name) => write!(f, "{name}"),
-            RefName::RemoteBranch { branch, remote } => write!(f, "{branch}@{remote}"),
-            RefName::Tag(name) => write!(f, "{name}"),
-            RefName::GitRef(name) => write!(f, "{name}"),
-        }
-    }
-}
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct View {
