@@ -31,7 +31,6 @@ use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
 use crate::store::Store;
 use crate::tree::TreeMergeError;
-use crate::view::RefName;
 
 #[instrument(skip(repo))]
 pub fn merge_commit_trees(
@@ -320,12 +319,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             }
             let (old_target, new_target) =
                 DescendantRebaser::ref_target_update(old_commit_id.clone(), new_commit_ids);
-            for branch_name in branch_updates {
-                self.mut_repo.merge_single_ref(
-                    &RefName::LocalBranch(branch_name),
-                    &old_target,
-                    &new_target,
-                );
+            for branch_name in &branch_updates {
+                self.mut_repo
+                    .merge_local_branch(branch_name, &old_target, &new_target);
             }
         }
 

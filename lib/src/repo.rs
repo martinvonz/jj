@@ -58,7 +58,7 @@ use crate::store::Store;
 use crate::submodule_store::SubmoduleStore;
 use crate::transaction::Transaction;
 use crate::tree::TreeMergeError;
-use crate::view::{RefName, View};
+use crate::view::View;
 use crate::{backend, dag_walk, op_store};
 
 pub trait Repo {
@@ -1008,6 +1008,19 @@ impl MutableRepo {
         self.view_mut().set_local_branch_target(name, target);
     }
 
+    pub fn merge_local_branch(
+        &mut self,
+        name: &str,
+        base_target: &RefTarget,
+        other_target: &RefTarget,
+    ) {
+        let view = self.view.get_mut();
+        let index = self.index.as_index();
+        let self_target = view.get_local_branch(name);
+        let new_target = merge_ref_targets(index, self_target, base_target, other_target);
+        view.set_local_branch_target(name, new_target);
+    }
+
     pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> RemoteRef {
         self.view
             .with_ref(|v| v.get_remote_branch(name, remote_name).clone())
@@ -1035,10 +1048,9 @@ impl MutableRepo {
     /// Merges the specified remote branch in to local branch, and starts
     /// tracking it.
     pub fn track_remote_branch(&mut self, name: &str, remote_name: &str) {
-        let local_ref_name = RefName::LocalBranch(name.to_owned());
         let mut remote_ref = self.get_remote_branch(name, remote_name);
         let base_target = remote_ref.tracking_target();
-        self.merge_single_ref(&local_ref_name, base_target, &remote_ref.target);
+        self.merge_local_branch(name, base_target, &remote_ref.target);
         remote_ref.state = RemoteRefState::Tracking;
         self.set_remote_branch(name, remote_name, remote_ref);
     }
@@ -1066,12 +1078,28 @@ impl MutableRepo {
         self.view_mut().set_tag_target(name, target);
     }
 
+    pub fn merge_tag(&mut self, name: &str, base_target: &RefTarget, other_target: &RefTarget) {
+        let view = self.view.get_mut();
+        let index = self.index.as_index();
+        let self_target = view.get_tag(name);
+        let new_target = merge_ref_targets(index, self_target, base_target, other_target);
+        view.set_tag_target(name, new_target);
+    }
+
     pub fn get_git_ref(&self, name: &str) -> RefTarget {
         self.view.with_ref(|v| v.get_git_ref(name).clone())
     }
 
     pub fn set_git_ref_target(&mut self, name: &str, target: RefTarget) {
         self.view_mut().set_git_ref_target(name, target);
+    }
+
+    fn merge_git_ref(&mut self, name: &str, base_target: &RefTarget, other_target: &RefTarget) {
+        let view = self.view.get_mut();
+        let index = self.index.as_index();
+        let self_target = view.get_git_ref(name);
+        let new_target = merge_ref_targets(index, self_target, base_target, other_target);
+        view.set_git_ref_target(name, new_target);
     }
 
     pub fn git_head(&self) -> RefTarget {
@@ -1147,16 +1175,20 @@ impl MutableRepo {
             self.view_mut().add_head(added_head);
         }
 
-        let changed_refs = itertools::chain!(
-            diff_named_ref_targets(base.local_branches(), other.local_branches())
-                .map(|(name, diff)| (RefName::LocalBranch(name.to_owned()), diff)),
-            diff_named_ref_targets(base.tags(), other.tags())
-                .map(|(name, diff)| (RefName::Tag(name.to_owned()), diff)),
-            diff_named_ref_targets(base.git_refs(), other.git_refs())
-                .map(|(name, diff)| (RefName::GitRef(name.to_owned()), diff)),
-        );
-        for (ref_name, (base_target, other_target)) in changed_refs {
-            self.merge_single_ref(&ref_name, base_target, other_target);
+        let changed_local_branches =
+            diff_named_ref_targets(base.local_branches(), other.local_branches());
+        for (name, (base_target, other_target)) in changed_local_branches {
+            self.merge_local_branch(name, base_target, other_target);
+        }
+
+        let changed_tags = diff_named_ref_targets(base.tags(), other.tags());
+        for (name, (base_target, other_target)) in changed_tags {
+            self.merge_tag(name, base_target, other_target);
+        }
+
+        let changed_git_refs = diff_named_ref_targets(base.git_refs(), other.git_refs());
+        for (name, (base_target, other_target)) in changed_git_refs {
+            self.merge_git_ref(name, base_target, other_target);
         }
 
         let changed_remote_branches =
@@ -1220,19 +1252,6 @@ impl MutableRepo {
                 }
             }
         }
-    }
-
-    pub fn merge_single_ref(
-        &mut self,
-        ref_name: &RefName,
-        base_target: &RefTarget,
-        other_target: &RefTarget,
-    ) {
-        let view = self.view.get_mut();
-        let index = self.index.as_index();
-        let self_target = view.get_ref(ref_name);
-        let new_target = merge_ref_targets(index, self_target, base_target, other_target);
-        view.set_ref_target(ref_name, new_target);
     }
 }
 

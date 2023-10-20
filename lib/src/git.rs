@@ -274,23 +274,22 @@ pub fn import_some_refs(
         match ref_name {
             RefName::LocalBranch(branch) => {
                 if new_remote_ref.is_tracking() {
-                    mut_repo.merge_single_ref(ref_name, base_target, &new_remote_ref.target);
+                    mut_repo.merge_local_branch(branch, base_target, &new_remote_ref.target);
                 }
                 // Update Git-tracking branch like the other remote branches.
                 mut_repo.set_remote_branch(branch, REMOTE_NAME_FOR_LOCAL_GIT_REPO, new_remote_ref);
             }
             RefName::RemoteBranch { branch, remote } => {
                 if new_remote_ref.is_tracking() {
-                    let local_ref_name = RefName::LocalBranch(branch.clone());
-                    mut_repo.merge_single_ref(&local_ref_name, base_target, &new_remote_ref.target);
+                    mut_repo.merge_local_branch(branch, base_target, &new_remote_ref.target);
                 }
                 // Remote-tracking branch is the last known state of the branch in the remote.
                 // It shouldn't diverge even if we had inconsistent view.
                 mut_repo.set_remote_branch(branch, remote, new_remote_ref);
             }
-            RefName::Tag(_) => {
+            RefName::Tag(name) => {
                 if new_remote_ref.is_tracking() {
-                    mut_repo.merge_single_ref(ref_name, base_target, &new_remote_ref.target);
+                    mut_repo.merge_tag(name, base_target, &new_remote_ref.target);
                 }
                 // TODO: If we add Git-tracking tag, it will be updated here.
             }
