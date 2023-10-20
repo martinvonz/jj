@@ -326,6 +326,71 @@ fn test_git_push_undo_repo_only() {
     "###);
 }
 
+#[test]
+fn test_branch_track_untrack_undo() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
+    let git_repo_path = test_env.env_root().join("git-repo");
+    git2::Repository::init_bare(git_repo_path).unwrap();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "git-repo", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-mcommit"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "feature1", "feature2"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "push"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "feature2"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: qpvuntsm 270721f5 (empty) commit
+      @origin: qpvuntsm 270721f5 (empty) commit
+    feature2 (deleted)
+      @origin: qpvuntsm 270721f5 (empty) commit
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    "###);
+
+    // Track/untrack can be undone so long as states can be trivially merged.
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["branch", "untrack", "feature1@origin", "feature2@origin"],
+    );
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: qpvuntsm 270721f5 (empty) commit
+    feature1@origin: qpvuntsm 270721f5 (empty) commit
+    feature2@origin: qpvuntsm 270721f5 (empty) commit
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: qpvuntsm 270721f5 (empty) commit
+      @origin: qpvuntsm 270721f5 (empty) commit
+    feature2 (deleted)
+      @origin: qpvuntsm 270721f5 (empty) commit
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: qpvuntsm 270721f5 (empty) commit
+    feature1@origin: qpvuntsm 270721f5 (empty) commit
+    feature2@origin: qpvuntsm 270721f5 (empty) commit
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["branch", "track", "feature1@origin"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: qpvuntsm 270721f5 (empty) commit
+      @origin: qpvuntsm 270721f5 (empty) commit
+    feature2@origin: qpvuntsm 270721f5 (empty) commit
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: qpvuntsm 270721f5 (empty) commit
+    feature1@origin: qpvuntsm 270721f5 (empty) commit
+    feature2@origin: qpvuntsm 270721f5 (empty) commit
+    "###);
+}
+
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
 }
