@@ -17,8 +17,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::default::Default;
 use std::io::Read;
-use std::iter;
 use std::path::PathBuf;
+use std::{fmt, iter};
 
 use git2::Oid;
 use itertools::Itertools;
@@ -33,12 +33,31 @@ use crate::refs::BranchPushUpdate;
 use crate::repo::{MutableRepo, Repo};
 use crate::revset::{self, RevsetExpression};
 use crate::settings::GitSettings;
-use crate::view::{RefName, View};
+use crate::view::View;
 
 /// Reserved remote name for the backing Git repo.
 pub const REMOTE_NAME_FOR_LOCAL_GIT_REPO: &str = "git";
 /// Ref name used as a placeholder to unset HEAD without a commit.
 const UNBORN_ROOT_REF_NAME: &str = "refs/jj/root";
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub enum RefName {
+    LocalBranch(String),
+    RemoteBranch { branch: String, remote: String },
+    Tag(String),
+    GitRef(String),
+}
+
+impl fmt::Display for RefName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RefName::LocalBranch(name) => write!(f, "{name}"),
+            RefName::RemoteBranch { branch, remote } => write!(f, "{branch}@{remote}"),
+            RefName::Tag(name) => write!(f, "{name}"),
+            RefName::GitRef(name) => write!(f, "{name}"),
+        }
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum GitImportError {
