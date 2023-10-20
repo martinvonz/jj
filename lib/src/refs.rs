@@ -24,7 +24,7 @@ use crate::op_store::{RefTarget, RemoteRef};
 /// Compares `refs1` and `refs2` targets, yields entry if they differ.
 ///
 /// `refs1` and `refs2` must be sorted by `K`.
-pub fn diff_named_refs<'a, 'b, K: Ord>(
+pub fn diff_named_ref_targets<'a, 'b, K: Ord>(
     refs1: impl IntoIterator<Item = (K, &'a RefTarget)>,
     refs2: impl IntoIterator<Item = (K, &'b RefTarget)>,
 ) -> impl Iterator<Item = (K, (&'a RefTarget, &'b RefTarget))> {
