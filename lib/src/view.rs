@@ -20,13 +20,12 @@ use std::fmt;
 use itertools::Itertools;
 
 use crate::backend::CommitId;
-use crate::op_store::{
-    BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRef, RemoteRefState, WorkspaceId,
-};
+use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRef, WorkspaceId};
 use crate::refs::TrackingRefPair;
 use crate::str_util::StringPattern;
 use crate::{op_store, refs};
 
+// TODO: move to git module?
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum RefName {
     LocalBranch(String),
@@ -127,30 +126,6 @@ impl View {
 
     pub fn remove_public_head(&mut self, head_id: &CommitId) {
         self.data.public_head_ids.remove(head_id);
-    }
-
-    pub fn get_ref(&self, name: &RefName) -> &RefTarget {
-        match &name {
-            RefName::LocalBranch(name) => self.get_local_branch(name),
-            RefName::RemoteBranch { branch, remote } => {
-                &self.get_remote_branch(branch, remote).target
-            }
-            RefName::Tag(name) => self.get_tag(name),
-            RefName::GitRef(name) => self.get_git_ref(name),
-        }
-    }
-
-    /// Sets reference of the specified kind to point to the given target. If
-    /// the target is absent, the reference will be removed.
-    pub fn set_ref_target(&mut self, name: &RefName, target: RefTarget) {
-        match name {
-            RefName::LocalBranch(name) => self.set_local_branch_target(name, target),
-            RefName::RemoteBranch { branch, remote } => {
-                self.set_remote_branch_target(branch, remote, target)
-            }
-            RefName::Tag(name) => self.set_tag_target(name, target),
-            RefName::GitRef(name) => self.set_git_ref_target(name, target),
-        }
     }
 
     /// Returns true if any local or remote branch of the given `name` exists.
@@ -265,31 +240,6 @@ impl View {
                 .entry(remote_name.to_owned())
                 .or_default();
             remote_view.branches.insert(name.to_owned(), remote_ref);
-        } else if let Some(remote_view) = self.data.remote_views.get_mut(remote_name) {
-            remote_view.branches.remove(name);
-        }
-    }
-
-    /// Sets remote-tracking branch to point to the given target. If the target
-    /// is absent, the branch will be removed.
-    ///
-    /// If the branch already exists, its tracking state won't be changed.
-    fn set_remote_branch_target(&mut self, name: &str, remote_name: &str, target: RefTarget) {
-        if target.is_present() {
-            let remote_view = self
-                .data
-                .remote_views
-                .entry(remote_name.to_owned())
-                .or_default();
-            if let Some(remote_ref) = remote_view.branches.get_mut(name) {
-                remote_ref.target = target;
-            } else {
-                let remote_ref = RemoteRef {
-                    target,
-                    state: RemoteRefState::New,
-                };
-                remote_view.branches.insert(name.to_owned(), remote_ref);
-            }
         } else if let Some(remote_view) = self.data.remote_views.get_mut(remote_name) {
             remote_view.branches.remove(name);
         }
