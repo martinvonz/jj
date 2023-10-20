@@ -1156,12 +1156,7 @@ impl MutableRepo {
                 .map(|(name, diff)| (RefName::GitRef(name.to_owned()), diff)),
         );
         for (ref_name, (base_target, other_target)) in changed_refs {
-            self.view.get_mut().merge_single_ref(
-                self.index.as_index(),
-                &ref_name,
-                base_target,
-                other_target,
-            );
+            self.merge_single_ref(&ref_name, base_target, other_target);
         }
 
         let changed_remote_branches =
@@ -1233,12 +1228,11 @@ impl MutableRepo {
         base_target: &RefTarget,
         other_target: &RefTarget,
     ) {
-        self.view.get_mut().merge_single_ref(
-            self.index.as_index(),
-            ref_name,
-            base_target,
-            other_target,
-        );
+        let view = self.view.get_mut();
+        let index = self.index.as_index();
+        let self_target = view.get_ref(ref_name);
+        let new_target = merge_ref_targets(index, self_target, base_target, other_target);
+        view.set_ref_target(ref_name, new_target);
     }
 }
 
