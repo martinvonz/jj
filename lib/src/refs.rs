@@ -108,6 +108,25 @@ pub fn merge_ref_targets(
     }
 }
 
+pub fn merge_remote_refs(
+    index: &dyn Index,
+    left: &RemoteRef,
+    base: &RemoteRef,
+    right: &RemoteRef,
+) -> RemoteRef {
+    // Just merge target and state fields separately. Strictly speaking, merging
+    // target-only change and state-only change shouldn't automatically mark the
+    // new target as tracking. However, many faulty merges will end up in local
+    // or remote target conflicts (since fast-forwardable move can be safely
+    // "tracked"), and the conflicts will require user intervention anyway. So
+    // there wouldn't be much reason to handle these merges precisely.
+    let target = merge_ref_targets(index, &left.target, &base.target, &right.target);
+    // Merged state shouldn't conflict atm since we only have two states, but if
+    // it does, keep the original state. The choice is arbitrary.
+    let state = *trivial_merge(&[base.state], &[left.state, right.state]).unwrap_or(&base.state);
+    RemoteRef { target, state }
+}
+
 fn merge_ref_targets_non_trivial(
     index: &dyn Index,
     conflict: Merge<Option<CommitId>>,

@@ -46,7 +46,9 @@ use crate::op_store::{
     OpStore, OpStoreError, OperationId, RefTarget, RemoteRef, RemoteRefState, WorkspaceId,
 };
 use crate::operation::Operation;
-use crate::refs::{diff_named_ref_targets, merge_ref_targets};
+use crate::refs::{
+    diff_named_ref_targets, diff_named_remote_refs, merge_ref_targets, merge_remote_refs,
+};
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
@@ -1016,6 +1018,20 @@ impl MutableRepo {
             .set_remote_branch(name, remote_name, remote_ref);
     }
 
+    fn merge_remote_branch(
+        &mut self,
+        name: &str,
+        remote_name: &str,
+        base_ref: &RemoteRef,
+        other_ref: &RemoteRef,
+    ) {
+        let view = self.view.get_mut();
+        let index = self.index.as_index();
+        let self_ref = view.get_remote_branch(name, remote_name);
+        let new_ref = merge_remote_refs(index, self_ref, base_ref, other_ref);
+        view.set_remote_branch(name, remote_name, new_ref);
+    }
+
     /// Merges the specified remote branch in to local branch, and starts
     /// tracking it.
     pub fn track_remote_branch(&mut self, name: &str, remote_name: &str) {
@@ -1131,24 +1147,9 @@ impl MutableRepo {
             self.view_mut().add_head(added_head);
         }
 
-        // TODO: somehow merge tracking state of remote refs?
         let changed_refs = itertools::chain!(
             diff_named_ref_targets(base.local_branches(), other.local_branches())
                 .map(|(name, diff)| (RefName::LocalBranch(name.to_owned()), diff)),
-            diff_named_ref_targets(
-                base.all_remote_branches()
-                    .map(|(full_name, remote_ref)| (full_name, &remote_ref.target)),
-                other
-                    .all_remote_branches()
-                    .map(|(full_name, remote_ref)| (full_name, &remote_ref.target)),
-            )
-            .map(|((branch, remote), diff)| {
-                let ref_name = RefName::RemoteBranch {
-                    branch: branch.to_owned(),
-                    remote: remote.to_owned(),
-                };
-                (ref_name, diff)
-            }),
             diff_named_ref_targets(base.tags(), other.tags())
                 .map(|(name, diff)| (RefName::Tag(name.to_owned()), diff)),
             diff_named_ref_targets(base.git_refs(), other.git_refs())
@@ -1161,6 +1162,12 @@ impl MutableRepo {
                 base_target,
                 other_target,
             );
+        }
+
+        let changed_remote_branches =
+            diff_named_remote_refs(base.all_remote_branches(), other.all_remote_branches());
+        for ((name, remote_name), (base_ref, other_ref)) in changed_remote_branches {
+            self.merge_remote_branch(name, remote_name, base_ref, other_ref);
         }
 
         let new_git_head_target = merge_ref_targets(
