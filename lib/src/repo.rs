@@ -46,7 +46,7 @@ use crate::op_store::{
     OpStore, OpStoreError, OperationId, RefTarget, RemoteRef, RemoteRefState, WorkspaceId,
 };
 use crate::operation::Operation;
-use crate::refs::{diff_named_refs, merge_ref_targets};
+use crate::refs::{diff_named_ref_targets, merge_ref_targets};
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
@@ -1133,9 +1133,9 @@ impl MutableRepo {
 
         // TODO: somehow merge tracking state of remote refs?
         let changed_refs = itertools::chain!(
-            diff_named_refs(base.local_branches(), other.local_branches())
+            diff_named_ref_targets(base.local_branches(), other.local_branches())
                 .map(|(name, diff)| (RefName::LocalBranch(name.to_owned()), diff)),
-            diff_named_refs(
+            diff_named_ref_targets(
                 base.all_remote_branches()
                     .map(|(full_name, remote_ref)| (full_name, &remote_ref.target)),
                 other
@@ -1149,9 +1149,9 @@ impl MutableRepo {
                 };
                 (ref_name, diff)
             }),
-            diff_named_refs(base.tags(), other.tags())
+            diff_named_ref_targets(base.tags(), other.tags())
                 .map(|(name, diff)| (RefName::Tag(name.to_owned()), diff)),
-            diff_named_refs(base.git_refs(), other.git_refs())
+            diff_named_ref_targets(base.git_refs(), other.git_refs())
                 .map(|(name, diff)| (RefName::GitRef(name.to_owned()), diff)),
         );
         for (ref_name, (base_target, other_target)) in changed_refs {
