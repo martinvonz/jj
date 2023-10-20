@@ -26,6 +26,7 @@ use crate::op_store::{
     BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRef, RemoteRefState, WorkspaceId,
 };
 use crate::refs::{merge_ref_targets, TrackingRefPair};
+use crate::str_util::StringPattern;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum RefName {
@@ -180,6 +181,17 @@ impl View {
             .map(|(name, target)| (name.as_ref(), target))
     }
 
+    /// Iterates local branch `(name, target)`s matching the given pattern.
+    /// Entries are sorted by `name`.
+    pub fn local_branches_matching<'a: 'b, 'b>(
+        &'a self,
+        pattern: &'b StringPattern,
+    ) -> impl Iterator<Item = (&'a str, &'a RefTarget)> + 'b {
+        pattern
+            .filter_btree_map(&self.data.local_branches)
+            .map(|(name, target)| (name.as_ref(), target))
+    }
+
     pub fn get_local_branch(&self, name: &str) -> &RefTarget {
         self.data.local_branches.get(name).flatten()
     }
@@ -213,6 +225,27 @@ impl View {
             })
             .into_iter()
             .flatten()
+    }
+
+    /// Iterates remote branch `((name, remote_name), remote_ref)`s matching the
+    /// given patterns. Entries are sorted by `(name, remote_name)`.
+    pub fn remote_branches_matching<'a: 'b, 'b>(
+        &'a self,
+        branch_pattern: &'b StringPattern,
+        remote_pattern: &'b StringPattern,
+    ) -> impl Iterator<Item = ((&'a str, &'a str), &'a RemoteRef)> + 'b {
+        // Use kmerge instead of flat_map for consistency with all_remote_branches().
+        remote_pattern
+            .filter_btree_map(&self.data.remote_views)
+            .map(|(remote_name, remote_view)| {
+                branch_pattern.filter_btree_map(&remote_view.branches).map(
+                    |(branch_name, remote_ref)| {
+                        let full_name = (branch_name.as_ref(), remote_name.as_ref());
+                        (full_name, remote_ref)
+                    },
+                )
+            })
+            .kmerge_by(|(full_name1, _), (full_name2, _)| full_name1 < full_name2)
     }
 
     pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> &RemoteRef {
