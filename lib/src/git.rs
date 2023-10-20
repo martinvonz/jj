@@ -45,7 +45,6 @@ pub enum RefName {
     LocalBranch(String),
     RemoteBranch { branch: String, remote: String },
     Tag(String),
-    GitRef(String),
 }
 
 impl fmt::Display for RefName {
@@ -54,7 +53,6 @@ impl fmt::Display for RefName {
             RefName::LocalBranch(name) => write!(f, "{name}"),
             RefName::RemoteBranch { branch, remote } => write!(f, "{branch}@{remote}"),
             RefName::Tag(name) => write!(f, "{name}"),
-            RefName::GitRef(name) => write!(f, "{name}"),
         }
     }
 }
@@ -117,14 +115,13 @@ fn to_git_ref_name(parsed_ref: &RefName) -> Option<String> {
         RefName::RemoteBranch { branch, remote } => (!branch.is_empty() && branch != "HEAD")
             .then(|| format!("refs/remotes/{remote}/{branch}")),
         RefName::Tag(tag) => Some(format!("refs/tags/{tag}")),
-        RefName::GitRef(name) => Some(name.to_owned()),
     }
 }
 
 fn to_remote_branch<'a>(parsed_ref: &'a RefName, remote_name: &str) -> Option<&'a str> {
     match parsed_ref {
         RefName::RemoteBranch { branch, remote } => (remote == remote_name).then_some(branch),
-        RefName::LocalBranch(..) | RefName::Tag(..) | RefName::GitRef(..) => None,
+        RefName::LocalBranch(..) | RefName::Tag(..) => None,
     }
 }
 
@@ -312,7 +309,6 @@ pub fn import_some_refs(
                 }
                 // TODO: If we add Git-tracking tag, it will be updated here.
             }
-            RefName::GitRef(_) => unreachable!(),
         }
     }
 
@@ -469,7 +465,6 @@ fn default_remote_ref_state_for(ref_name: &RefName, git_settings: &GitSettings) 
                 RemoteRefState::New
             }
         }
-        RefName::GitRef(_) => unreachable!(),
     }
 }
 
