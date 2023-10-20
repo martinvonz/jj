@@ -37,6 +37,22 @@ pub fn diff_named_ref_targets<'a, 'b, K: Ord>(
     .filter(|(_, (target1, target2))| target1 != target2)
 }
 
+/// Compares remote `refs1` and `refs2` pairs, yields entry if they differ.
+///
+/// `refs1` and `refs2` must be sorted by `K`.
+pub fn diff_named_remote_refs<'a, 'b, K: Ord>(
+    refs1: impl IntoIterator<Item = (K, &'a RemoteRef)>,
+    refs2: impl IntoIterator<Item = (K, &'b RemoteRef)>,
+) -> impl Iterator<Item = (K, (&'a RemoteRef, &'b RemoteRef))> {
+    iter_named_pairs(
+        refs1,
+        refs2,
+        || RemoteRef::absent_ref(),
+        || RemoteRef::absent_ref(),
+    )
+    .filter(|(_, (ref1, ref2))| ref1 != ref2)
+}
+
 /// Iterates local `refs1` and remote `refs2` pairs by name.
 ///
 /// `refs1` and `refs2` must be sorted by `K`.
