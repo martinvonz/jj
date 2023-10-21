@@ -163,7 +163,10 @@ There are also operators for getting the parents (`foo-`), children (`foo+`),
 ancestors (`::foo`), descendants (`foo::`), DAG range (`foo::bar`, like
 `git log --ancestry-path`), range (`foo..bar`, same as Git's). There are also a
 few more functions, such as `heads(<set>)`, which filters out revisions in the
-input set if they're ancestors of other revisions in the set.
+input set if they're ancestors of other revisions in the set, and
+`description(foo)`, the commits whose description (commit message) contains `foo`.
+
+See [revsets](revsets.md) for the full documentation on revsets.
 
 ## Conflicts
 
