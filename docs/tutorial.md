@@ -199,10 +199,14 @@ $ jj log
 ~
 ```
 
-We now have a few commits, where A, B1, and B2 modify the same file, while C
-modifies a different file. Let's now rebase B2 directly onto A:
+We now have a few commits, where A, B1, and B2 modify the same file,
+while C modifies a different file. Let's now rebase B2 directly onto
+A. Instead of using the change ID of each commit, which may differ on
+your machine, we select each commit using its description (commit
+message).
+
 ```shell
-$ jj rebase -s puqltuttrvzp -d nuvyytnqlquo
+$ jj rebase -s 'description(B2)' -d 'description(A)'
 Rebased 2 commits
 Working copy now at: 1978b53430cd C
 Added 0 files, modified 1 files, removed 0 files
