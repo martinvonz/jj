@@ -49,10 +49,14 @@ use `jj squash` to amend the previous commit.
 
 For more options see the next question.
 
-### Can I add a portion of the edits I made to a file, similarly to `git add -p` or `hg commit -i`?
+### Can I interactively create a new commit from only some of the changes in the working copy, like `git add -p && git commit` or `hg commit -i`?
 
-At the moment the best options to partially add a file are: `jj split`,
-`jj amend -i` and `jj move -i`.
+Since the changes are already in the working-copy commit, the equivalent to
+`git add -p && git commit`/`git commit -p`/`hg commit -i` is to split the
+working-copy commit with `jj split -i` (or the practically identical
+`jj commit -i`).
+
+For the equivalent of `git commit --amend -p`/`hg amend -i`, use `jj squash -i`.
 
 ### Is there something like `git rebase --interactive` or `hg histedit`?
 
