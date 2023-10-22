@@ -390,8 +390,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#can-i-add-a-portion-of-the-edits-i-made-to-a-file-similarly-to-git-add-p-or-hg-commit-i" class="md-nav__link">
-    Can I add a portion of the edits I made to a file, similarly to git add -p or hg commit -i?
+  <a href="#can-i-interactively-create-a-new-commit-from-only-some-of-the-changes-in-the-working-copy-like-git-add-p-git-commit-or-hg-commit-i" class="md-nav__link">
+    Can I interactively create a new commit from only some of the changes in the working copy, like git add -p &amp;&amp; git commit or hg commit -i?
   </a>
   
 </li>
@@ -1153,8 +1153,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#can-i-add-a-portion-of-the-edits-i-made-to-a-file-similarly-to-git-add-p-or-hg-commit-i" class="md-nav__link">
-    Can I add a portion of the edits I made to a file, similarly to git add -p or hg commit -i?
+  <a href="#can-i-interactively-create-a-new-commit-from-only-some-of-the-changes-in-the-working-copy-like-git-add-p-git-commit-or-hg-commit-i" class="md-nav__link">
+    Can I interactively create a new commit from only some of the changes in the working copy, like git add -p &amp;&amp; git commit or hg commit -i?
   </a>
   
 </li>
@@ -1238,9 +1238,12 @@ have a description.</p>
 former working-copy commit. Whenever you are happy with another set of edits,
 use <code>jj squash</code> to amend the previous commit.</p>
 <p>For more options see the next question.</p>
-<h3 id="can-i-add-a-portion-of-the-edits-i-made-to-a-file-similarly-to-git-add-p-or-hg-commit-i">Can I add a portion of the edits I made to a file, similarly to <code>git add -p</code> or <code>hg commit -i</code>?<a class="headerlink" href="#can-i-add-a-portion-of-the-edits-i-made-to-a-file-similarly-to-git-add-p-or-hg-commit-i" title="Permanent link">&para;</a></h3>
-<p>At the moment the best options to partially add a file are: <code>jj split</code>,
-<code>jj amend -i</code> and <code>jj move -i</code>.</p>
+<h3 id="can-i-interactively-create-a-new-commit-from-only-some-of-the-changes-in-the-working-copy-like-git-add-p-git-commit-or-hg-commit-i">Can I interactively create a new commit from only some of the changes in the working copy, like <code>git add -p &amp;&amp; git commit</code> or <code>hg commit -i</code>?<a class="headerlink" href="#can-i-interactively-create-a-new-commit-from-only-some-of-the-changes-in-the-working-copy-like-git-add-p-git-commit-or-hg-commit-i" title="Permanent link">&para;</a></h3>
+<p>Since the changes are already in the working-copy commit, the equivalent to
+<code>git add -p &amp;&amp; git commit</code>/<code>git commit -p</code>/<code>hg commit -i</code> is to split the
+working-copy commit with <code>jj split -i</code> (or the practically identical
+<code>jj commit -i</code>).</p>
+<p>For the equivalent of <code>git commit --amend -p</code>/<code>hg amend -i</code>, use <code>jj squash -i</code>.</p>
 <h3 id="is-there-something-like-git-rebase-interactive-or-hg-histedit">Is there something like <code>git rebase --interactive</code> or <code>hg histedit</code>?<a class="headerlink" href="#is-there-something-like-git-rebase-interactive-or-hg-histedit" title="Permanent link">&para;</a></h3>
 <p>Not yet, you can check <a href="https://github.com/martinvonz/jj/issues/1531">this issue</a> for updates.</p>
 <p>To reorder commits, it is for now recommended to rebase commits individually,
