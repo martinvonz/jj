@@ -57,6 +57,7 @@ use jj_lib::revset::{
     RevsetParseErrorKind, RevsetResolutionError, RevsetWorkspaceContext,
 };
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
+use jj_lib::str_util::{StringPattern, StringPatternParseError};
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::TreeMergeError;
 use jj_lib::working_copy::{
@@ -1849,6 +1850,14 @@ fn expand_git_path(path_str: String) -> PathBuf {
         }
     }
     PathBuf::from(path_str)
+}
+
+pub fn parse_string_pattern(src: &str) -> Result<StringPattern, StringPatternParseError> {
+    if let Some((kind, pat)) = src.split_once(':') {
+        StringPattern::from_str_kind(pat, kind)
+    } else {
+        Ok(StringPattern::exact(src))
+    }
 }
 
 pub fn resolve_op_for_load(

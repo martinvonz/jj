@@ -10,10 +10,13 @@ use jj_lib::git;
 use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::Repo;
 use jj_lib::revset::{self, RevsetExpression};
-use jj_lib::str_util::{StringPattern, StringPatternParseError};
+use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
-use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{
+    parse_string_pattern, user_error, user_error_with_hint, CommandError, CommandHelper,
+    RevisionArg,
+};
 use crate::commands::make_branch_term;
 use crate::formatter::Formatter;
 use crate::ui::Ui;
@@ -59,7 +62,7 @@ pub struct BranchDeleteArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
-    #[arg(required_unless_present_any(&["glob"]), value_parser = parse_name_pattern)]
+    #[arg(required_unless_present_any(&["glob"]), value_parser = parse_string_pattern)]
     pub names: Vec<StringPattern>,
 
     /// Deprecated. Please prefix the pattern with `glob:` instead.
@@ -104,7 +107,7 @@ pub struct BranchForgetArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
-    #[arg(required_unless_present_any(&["glob"]), value_parser = parse_name_pattern)]
+    #[arg(required_unless_present_any(&["glob"]), value_parser = parse_string_pattern)]
     pub names: Vec<StringPattern>,
 
     /// Deprecated. Please prefix the pattern with `glob:` instead.
@@ -323,14 +326,6 @@ fn cmd_branch_set(
     }
     tx.finish(ui)?;
     Ok(())
-}
-
-fn parse_name_pattern(src: &str) -> Result<StringPattern, StringPatternParseError> {
-    if let Some((kind, pat)) = src.split_once(':') {
-        StringPattern::from_str_kind(pat, kind)
-    } else {
-        Ok(StringPattern::exact(src))
-    }
 }
 
 fn find_local_branches(
