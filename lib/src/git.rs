@@ -33,6 +33,7 @@ use crate::refs::BranchPushUpdate;
 use crate::repo::{MutableRepo, Repo};
 use crate::revset::{self, RevsetExpression};
 use crate::settings::GitSettings;
+use crate::str_util::StringPattern;
 use crate::view::View;
 
 /// Reserved remote name for the backing Git repo.
@@ -968,12 +969,17 @@ fn rename_remote_refs(mut_repo: &mut MutableRepo, old_remote_name: &str, new_rem
     }
 }
 
+const INVALID_REFSPEC_CHARS: [char; 5] = [':', '^', '?', '[', ']'];
+
 #[derive(Error, Debug)]
 pub enum GitFetchError {
     #[error("No git remote named '{0}'")]
     NoSuchRemote(String),
-    #[error("Invalid glob provided. Globs may not contain the characters `:` or `^`.")]
-    InvalidGlob,
+    #[error(
+        "Invalid branch pattern provided. Patterns may not contain the characters `{chars}`",
+        chars = INVALID_REFSPEC_CHARS.iter().join("`, `")
+    )]
+    InvalidBranchPattern,
     #[error("Failed to import Git refs: {0}")]
     GitImportError(#[from] GitImportError),
     // TODO: I'm sure there are other errors possible, such as transport-level errors.
@@ -995,24 +1001,14 @@ pub fn fetch(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     remote_name: &str,
-    branch_name_globs: Option<&[&str]>,
+    branch_names: Option<&[StringPattern]>,
     callbacks: RemoteCallbacks<'_>,
     git_settings: &GitSettings,
 ) -> Result<GitFetchStats, GitFetchError> {
-    let branch_name_filter = {
-        let regex = if let Some(globs) = branch_name_globs {
-            let result = regex::RegexSet::new(
-                globs
-                    .iter()
-                    .map(|glob| format!("^{}$", glob.replace('*', ".*"))),
-            )
-            .map_err(|_| GitFetchError::InvalidGlob)?;
-            tracing::debug!(?globs, ?result, "globs as regex");
-            Some(result)
-        } else {
-            None
-        };
-        move |branch: &str| regex.as_ref().map(|r| r.is_match(branch)).unwrap_or(true)
+    let branch_name_filter = |branch: &str| {
+        branch_names.map_or(true, |patterns| {
+            patterns.iter().any(|pattern| pattern.matches(branch))
+        })
     };
 
     // Perform a `git fetch` on the local git repo, updating the remote-tracking
@@ -1032,9 +1028,17 @@ pub fn fetch(
     fetch_options.remote_callbacks(callbacks);
     let refspecs = {
         // If no globs have been given, import all branches
-        let globs = branch_name_globs.unwrap_or(&["*"]);
-        if globs.iter().any(|g| g.contains(|c| ":^".contains(c))) {
-            return Err(GitFetchError::InvalidGlob);
+        let globs = if let Some(patterns) = branch_names {
+            patterns
+                .iter()
+                .map(|pattern| pattern.to_glob())
+                .collect::<Option<Vec<_>>>()
+                .ok_or(GitFetchError::InvalidBranchPattern)?
+        } else {
+            vec!["*".into()]
+        };
+        if globs.iter().any(|g| g.contains(INVALID_REFSPEC_CHARS)) {
+            return Err(GitFetchError::InvalidBranchPattern);
         }
         // At this point, we are only updating Git's remote tracking branches, not the
         // local branches.
@@ -1071,7 +1075,7 @@ pub fn fetch(
     tracing::debug!("import_refs");
     let import_stats = import_some_refs(mut_repo, git_repo, git_settings, |ref_name| {
         to_remote_branch(ref_name, remote_name)
-            .map(&branch_name_filter)
+            .map(branch_name_filter)
             .unwrap_or_else(|| matches!(ref_name, RefName::Tag(_)))
     })?;
     let stats = GitFetchStats {
