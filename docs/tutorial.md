@@ -134,13 +134,13 @@ IDs because they stay the same when the commit is rewritten.
 
 By default, `jj log` lists your local commits, with some remote commits added
 for context.  The `~` indicates that the commit has parents that are not
-included in the graph. We can use the `-r` flag to select a different set of
-revisions to list. The flag accepts a ["revset"](revsets.md), which is an
-expression in a simple language for specifying revisions. For example, `@`
-refers to the working-copy commit, `root()` refers to the root commit,
-`branches()` refers to all commits pointed to by branches. We can combine
-expressions with `|` for union, `&` for intersection and `~` for difference. For
-example:
+included in the graph. We can use the `--revisions`/`-r` flag to select a
+different set of revisions to list. The flag accepts a ["revset"](revsets.md),
+which is an expression in a simple language for specifying revisions. For
+example, `@` refers to the working-copy commit, `root()` refers to the root
+commit, `branches()` refers to all commits pointed to by branches. We can
+combine expressions with `|` for union, `&` for intersection and `~` for
+difference. For example:
 ```shell
 $ jj log -r '@ | root() | branches()'
 @  mpqrykypylvy martinvonz@google.com 2023-02-12 15:00:22.000 -08:00 aef4df99ea11
@@ -168,7 +168,9 @@ input set if they're ancestors of other revisions in the set.
 ## Conflicts
 
 Now let's see how Jujutsu deals with merge conflicts. We'll start by making some
-commits:
+commits. We use `jj new` with the `--message`/`-m` option to set change
+descriptions (commit messages) right away.
+
 ```shell
 # Start creating a chain of commits off of the `master` branch
 $ jj new master -m A; echo a > file1
@@ -197,7 +199,10 @@ $ jj log
 ```
 
 We now have a few commits, where A, B1, and B2 modify the same file, while C
-modifies a different file. Let's now rebase B2 directly onto A:
+modifies a different file. Let's now rebase B2 directly onto A. We use the
+`--source`/`-s` option on the change ID of B2, and `--destination`/`-d` option
+on A.
+
 ```shell
 $ jj rebase -s puqltuttrvzp -d nuvyytnqlquo
 Rebased 2 commits
@@ -361,7 +366,7 @@ $ jj log -r master::@
 We "forgot" to capitalize "c" in the second commit when we capitalized the other
 letters. We then fixed that in the third commit when we also added "D". It would
 be cleaner to move the capitalization of "c" into the second commit. We can do
-that by running `jj squash -i` (short for `jj squash --interactive`) on the
+that by running `jj squash` with the `--interactive`/`-i` option on the
 third commit. Remember that `jj squash` moves all the changes from one commit
 into its parent. `jj squash -i` moves only part of the changes into its parent.
 Now try that:
