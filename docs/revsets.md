@@ -180,6 +180,9 @@ for a comprehensive list.
   'trunk()' = 'your-branch@your-remote'
   ```
 
+* `immutable_heads()`: Resolves to `trunk() | tags()` by default. See
+  [here](config.md#set-of-immutable-commits) for details.
+
 ## Examples
 
 Show the parent(s) of the working-copy commit (like `git log -1 HEAD`):
