@@ -1372,6 +1372,10 @@ for a comprehensive list.</p>
 <div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
 <span class="s">&#39;trunk()&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#39;your-branch@your-remote&#39;</span>
 </code></pre></div>
+<ul>
+<li><code>immutable_heads()</code>: Resolves to <code>trunk() | tags()</code> by default. See
+  <a href="../config/#set-of-immutable-commits">here</a> for details.</li>
+</ul>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Show the parent(s) of the working-copy commit (like <code>git log -1 HEAD</code>):</p>
 <div class="highlight"><pre><span></span><code>jj log -r @-
