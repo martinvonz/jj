@@ -14,7 +14,7 @@
 
 //! String helpers.
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -98,6 +98,20 @@ impl StringPattern {
         }
     }
 
+    /// Converts this pattern to a glob string. Returns `None` if the pattern
+    /// can't be represented as a glob.
+    pub fn to_glob(&self) -> Option<Cow<'_, str>> {
+        // TODO: If we add Regex pattern, it will return None.
+        match self {
+            StringPattern::Exact(literal) => Some(glob::Pattern::escape(literal).into()),
+            StringPattern::Glob(pattern) => Some(pattern.as_str().into()),
+            StringPattern::Substring(needle) if needle.is_empty() => Some("*".into()),
+            StringPattern::Substring(needle) => {
+                Some(format!("*{}*", glob::Pattern::escape(needle)).into())
+            }
+        }
+    }
+
     /// Returns true if this pattern matches the `haystack`.
     pub fn matches(&self, haystack: &str) -> bool {
         match self {
@@ -124,5 +138,29 @@ impl fmt::Display for StringPattern {
     /// Shows the original string of this pattern.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_string_pattern_to_glob() {
+        assert_eq!(StringPattern::everything().to_glob(), Some("*".into()));
+        assert_eq!(StringPattern::exact("a").to_glob(), Some("a".into()));
+        assert_eq!(StringPattern::exact("*").to_glob(), Some("[*]".into()));
+        assert_eq!(
+            StringPattern::glob("*").unwrap().to_glob(),
+            Some("*".into())
+        );
+        assert_eq!(
+            StringPattern::Substring("a".into()).to_glob(),
+            Some("*a*".into())
+        );
+        assert_eq!(
+            StringPattern::Substring("*".into()).to_glob(),
+            Some("*[*]*".into())
+        );
     }
 }

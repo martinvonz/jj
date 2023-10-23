@@ -28,9 +28,9 @@ use jj_lib::workspace::Workspace;
 use maplit::hashset;
 
 use crate::cli_util::{
-    print_failed_git_export, print_git_import_stats, resolve_multiple_nonempty_revsets,
-    short_change_hash, short_commit_hash, user_error, user_error_with_hint, CommandError,
-    CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    parse_string_pattern, print_failed_git_export, print_git_import_stats,
+    resolve_multiple_nonempty_revsets, short_change_hash, short_commit_hash, user_error,
+    user_error_with_hint, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::commands::make_branch_term;
 use crate::progress::Progress;
@@ -98,10 +98,10 @@ pub struct GitRemoteListArgs {}
 pub struct GitFetchArgs {
     /// Fetch only some of the branches
     ///
-    /// Any `*` in the argument is expanded as a glob. So, one `--branch` can
-    /// match several branches.
-    #[arg(long)]
-    branch: Vec<String>,
+    /// By default, the specified name matches exactly. Use `glob:` prefix to
+    /// expand `*` as a glob. The other wildcard characters aren't supported.
+    #[arg(long, value_parser = parse_string_pattern)]
+    branch: Vec<StringPattern>,
     /// The remote to fetch from (only named remotes are supported, can be
     /// repeated)
     #[arg(long = "remote", value_name = "remote")]
@@ -313,21 +313,32 @@ fn cmd_git_fetch(
         "fetch from git remote(s) {}",
         remotes.iter().join(",")
     ));
-    // TODO: maybe this should error out if the pattern contained meta
-    // characters and is not prefixed with "glob:".
-    let branches = args.branch.iter().map(|b| b.as_str()).collect_vec();
     for remote in remotes {
         let stats = with_remote_callbacks(ui, |cb| {
             git::fetch(
                 tx.mut_repo(),
                 &git_repo,
                 &remote,
-                (!branches.is_empty()).then_some(&*branches),
+                (!args.branch.is_empty()).then_some(&args.branch),
                 cb,
                 &command.settings().git_settings(),
             )
         })
         .map_err(|err| match err {
+            GitFetchError::InvalidBranchPattern => {
+                if args
+                    .branch
+                    .iter()
+                    .any(|pattern| pattern.as_exact().map_or(false, |s| s.contains('*')))
+                {
+                    user_error_with_hint(
+                        err.to_string(),
+                        "Prefix the pattern with `glob:` to expand `*` as a glob",
+                    )
+                } else {
+                    user_error(err.to_string())
+                }
+            }
             GitFetchError::GitImportError(err) => err.into(),
             GitFetchError::InternalGitError(err) => map_git_error(err),
             _ => user_error(err.to_string()),
@@ -535,7 +546,7 @@ fn do_git_clone(
         }
         GitFetchError::GitImportError(err) => CommandError::from(err),
         GitFetchError::InternalGitError(err) => map_git_error(err),
-        GitFetchError::InvalidGlob => {
+        GitFetchError::InvalidBranchPattern => {
             unreachable!("we didn't provide any globs")
         }
     })?;

@@ -47,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Pushing deleted/moved branches no longer abandons the local commits referenced
   by the remote branches.
 
+* `jj git fetch --branch` now requires `glob:` prefix to expand `*` in branch
+  name.
+
 ### New features
 
 * `jj workspace add` now takes a `--revision` argument.

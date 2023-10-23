@@ -326,7 +326,7 @@ fn test_git_fetch_conflicting_branches() {
 
     test_env.jj_cmd_ok(
         &repo_path,
-        &["git", "fetch", "--remote", "rem1", "--branch", "*"],
+        &["git", "fetch", "--remote", "rem1", "--branch", "glob:*"],
     );
     // This should result in a CONFLICTED branch
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
@@ -569,10 +569,17 @@ fn test_git_fetch_some_of_many_branches() {
     "###);
 
     // Test an error message
-    let stderr =
-        test_env.jj_cmd_failure(&target_jj_repo_path, &["git", "fetch", "--branch", "^:a*"]);
+    let stderr = test_env.jj_cmd_failure(
+        &target_jj_repo_path,
+        &["git", "fetch", "--branch", "glob:^:a*"],
+    );
     insta::assert_snapshot!(stderr, @r###"
-    Error: Invalid glob provided. Globs may not contain the characters `:` or `^`.
+    Error: Invalid branch pattern provided. Patterns may not contain the characters `:`, `^`, `?`, `[`, `]`
+    "###);
+    let stderr = test_env.jj_cmd_failure(&target_jj_repo_path, &["git", "fetch", "--branch", "a*"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Invalid branch pattern provided. Patterns may not contain the characters `:`, `^`, `?`, `[`, `]`
+    Hint: Prefix the pattern with `glob:` to expand `*` as a glob
     "###);
 
     // Nothing in our repo before the fetch
@@ -598,8 +605,10 @@ fn test_git_fetch_some_of_many_branches() {
       @origin: vpupmnsl c7d4bdcb descr_for_b
     "###);
     // ...then fetch two others with a glob.
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "a*"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &target_jj_repo_path,
+        &["git", "fetch", "--branch", "glob:a*"],
+    );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
@@ -637,12 +646,12 @@ fn test_git_fetch_some_of_many_branches() {
     let source_log = create_trunk2_and_rebase_branches(&test_env, &source_git_repo_path);
     insta::assert_snapshot!(source_log, @r###"
        ===== Source git repo contents =====
-    ◉  13ac032802f1 descr_for_b b
-    │ ◉  010977d69c5b descr_for_a2 a2
+    ◉  01d115196c39 descr_for_b b
+    │ ◉  31c7d94b1f29 descr_for_a2 a2
     ├─╯
-    │ ◉  6f4e1c4dfe29 descr_for_a1 a1
+    │ ◉  6df2d34cf0da descr_for_a1 a1
     ├─╯
-    @  09430ba04a82 descr_for_trunk2 trunk2
+    @  2bb3ebd2bba3 descr_for_trunk2 trunk2
     ◉  ff36dc55760e descr_for_trunk1 trunk1
     ◉  000000000000
     "###);
@@ -654,7 +663,7 @@ fn test_git_fetch_some_of_many_branches() {
 
     // Our repo before and after fetch of two branches
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ◉  2be688d8c664 new_descr_for_b_to_create_conflict b*
+    ◉  6ebd41dc4f13 new_descr_for_b_to_create_conflict b*
     │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
     │ ◉  359a9a02457d descr_for_a1 a1
@@ -673,11 +682,11 @@ fn test_git_fetch_some_of_many_branches() {
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ◉  13ac032802f1 descr_for_b b?? b@origin
-    │ ◉  6f4e1c4dfe29 descr_for_a1 a1
+    ◉  01d115196c39 descr_for_b b?? b@origin
+    │ ◉  6df2d34cf0da descr_for_a1 a1
     ├─╯
-    ◉  09430ba04a82 descr_for_trunk2
-    │ ◉  2be688d8c664 new_descr_for_b_to_create_conflict b??
+    ◉  2bb3ebd2bba3 descr_for_trunk2
+    │ ◉  6ebd41dc4f13 new_descr_for_b_to_create_conflict b??
     ├─╯
     │ ◉  decaa3966c83 descr_for_a2 a2
     ├─╯
@@ -689,34 +698,34 @@ fn test_git_fetch_some_of_many_branches() {
 
     // We left a2 where it was before, let's see how `jj branch list` sees this.
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
-    a1: kmuktwqx 6f4e1c4d descr_for_a1
-      @origin: kmuktwqx 6f4e1c4d descr_for_a1
+    a1: ypowunwp 6df2d34c descr_for_a1
+      @origin: ypowunwp 6df2d34c descr_for_a1
     a2: qkvnknrk decaa396 descr_for_a2
       @origin: qkvnknrk decaa396 descr_for_a2
     b (conflicted):
       - vpupmnsl c7d4bdcb descr_for_b
-      + vpupmnsl 2be688d8 new_descr_for_b_to_create_conflict
-      + twmruqrv 13ac0328 descr_for_b
-      @origin (behind by 1 commits): twmruqrv 13ac0328 descr_for_b
+      + vpupmnsl 6ebd41dc new_descr_for_b_to_create_conflict
+      + nxrpswuq 01d11519 descr_for_b
+      @origin (behind by 1 commits): nxrpswuq 01d11519 descr_for_b
     "###);
     // Now, let's fetch a2 and double-check that fetching a1 and b again doesn't do
     // anything.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &target_jj_repo_path,
-        &["git", "fetch", "--branch", "b", "--branch", "a*"],
+        &["git", "fetch", "--branch", "b", "--branch", "glob:a*"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
-    ◉  010977d69c5b descr_for_a2 a2
-    │ ◉  13ac032802f1 descr_for_b b?? b@origin
+    ◉  31c7d94b1f29 descr_for_a2 a2
+    │ ◉  01d115196c39 descr_for_b b?? b@origin
     ├─╯
-    │ ◉  6f4e1c4dfe29 descr_for_a1 a1
+    │ ◉  6df2d34cf0da descr_for_a1 a1
     ├─╯
-    ◉  09430ba04a82 descr_for_trunk2
-    │ ◉  2be688d8c664 new_descr_for_b_to_create_conflict b??
+    ◉  2bb3ebd2bba3 descr_for_trunk2
+    │ ◉  6ebd41dc4f13 new_descr_for_b_to_create_conflict b??
     ├─╯
     ◉  ff36dc55760e descr_for_trunk1
     │ @  230dd059e1b0
@@ -724,15 +733,15 @@ fn test_git_fetch_some_of_many_branches() {
     ◉  000000000000
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
-    a1: kmuktwqx 6f4e1c4d descr_for_a1
-      @origin: kmuktwqx 6f4e1c4d descr_for_a1
-    a2: xwxurvnt 010977d6 descr_for_a2
-      @origin: xwxurvnt 010977d6 descr_for_a2
+    a1: ypowunwp 6df2d34c descr_for_a1
+      @origin: ypowunwp 6df2d34c descr_for_a1
+    a2: qrmzolkr 31c7d94b descr_for_a2
+      @origin: qrmzolkr 31c7d94b descr_for_a2
     b (conflicted):
       - vpupmnsl c7d4bdcb descr_for_b
-      + vpupmnsl 2be688d8 new_descr_for_b_to_create_conflict
-      + twmruqrv 13ac0328 descr_for_b
-      @origin (behind by 1 commits): twmruqrv 13ac0328 descr_for_b
+      + vpupmnsl 6ebd41dc new_descr_for_b_to_create_conflict
+      + nxrpswuq 01d11519 descr_for_b
+      @origin (behind by 1 commits): nxrpswuq 01d11519 descr_for_b
     "###);
 }
 
