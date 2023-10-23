@@ -1286,13 +1286,13 @@ to commands that take revisions as arguments. We will generally prefer change
 IDs because they stay the same when the commit is rewritten.</p>
 <p>By default, <code>jj log</code> lists your local commits, with some remote commits added
 for context.  The <code>~</code> indicates that the commit has parents that are not
-included in the graph. We can use the <code>-r</code> flag to select a different set of
-revisions to list. The flag accepts a <a href="../revsets/">"revset"</a>, which is an
-expression in a simple language for specifying revisions. For example, <code>@</code>
-refers to the working-copy commit, <code>root()</code> refers to the root commit,
-<code>branches()</code> refers to all commits pointed to by branches. We can combine
-expressions with <code>|</code> for union, <code>&amp;</code> for intersection and <code>~</code> for difference. For
-example:
+included in the graph. We can use the <code>--revisions</code>/<code>-r</code> flag to select a
+different set of revisions to list. The flag accepts a <a href="../revsets/">"revset"</a>,
+which is an expression in a simple language for specifying revisions. For
+example, <code>@</code> refers to the working-copy commit, <code>root()</code> refers to the root
+commit, <code>branches()</code> refers to all commits pointed to by branches. We can
+combine expressions with <code>|</code> for union, <code>&amp;</code> for intersection and <code>~</code> for
+difference. For example:
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;@ | root() | branches()&#39;</span>
 @<span class="w">  </span>mpqrykypylvy<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:00:22.000<span class="w"> </span>-08:00<span class="w"> </span>aef4df99ea11
 ╷<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
@@ -1310,12 +1310,12 @@ called the "root commit". It's the root commit of every repo. The <code>root()</
 function in the revset matches it.</p>
 <p>There are also operators for getting the parents (<code>foo-</code>), children (<code>foo+</code>),
 ancestors (<code>::foo</code>), descendants (<code>foo::</code>), DAG range (<code>foo::bar</code>, like
-<code>git log --ancestry-path</code>), range (<code>foo..bar</code>, same as Git's). There are also a
-few more functions, such as <code>heads(&lt;set&gt;)</code>, which filters out revisions in the
-input set if they're ancestors of other revisions in the set.</p>
+<code>git log --ancestry-path</code>), range (<code>foo..bar</code>, same as Git's). See
+<a href="../revsets/">the revset documentation</a> for all revset operators and functions.</p>
 <h2 id="conflicts">Conflicts<a class="headerlink" href="#conflicts" title="Permanent link">&para;</a></h2>
 <p>Now let's see how Jujutsu deals with merge conflicts. We'll start by making some
-commits:
+commits. We use <code>jj new</code> with the <code>--message</code>/<code>-m</code> option to set change
+descriptions (commit messages) right away.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Start creating a chain of commits off of the `master` branch</span>
 $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>master<span class="w"> </span>-m<span class="w"> </span>A<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span>a<span class="w"> </span>&gt;<span class="w"> </span>file1
 Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>00a2aeed556a<span class="w"> </span>A
@@ -1340,9 +1340,11 @@ $<span class="w"> </span>jj<span class="w"> </span>log
 ◉<span class="w">  </span>orrkosyozysx<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2012</span>-03-06<span class="w"> </span><span class="m">15</span>:06:50.000<span class="w"> </span>-08:00<span class="w"> </span>master<span class="w"> </span>7fd1a60b01f9
 │<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
 ~
-</code></pre></div></p>
+</code></pre></div>
 <p>We now have a few commits, where A, B1, and B2 modify the same file, while C
-modifies a different file. Let's now rebase B2 directly onto A:
+modifies a different file. Let's now rebase B2 directly onto A. We use the
+<code>--source</code>/<code>-s</code> option on the change ID of B2, and <code>--destination</code>/<code>-d</code> option
+on A.</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>rebase<span class="w"> </span>-s<span class="w"> </span>puqltuttrvzp<span class="w"> </span>-d<span class="w"> </span>nuvyytnqlquo
 Rebased<span class="w"> </span><span class="m">2</span><span class="w"> </span>commits
 Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>1978b53430cd<span class="w"> </span>C
@@ -1361,7 +1363,7 @@ $<span class="w"> </span>jj<span class="w"> </span>log
 ◉<span class="w">  </span>orrkosyozysx<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2012</span>-03-06<span class="w"> </span><span class="m">15</span>:06:50.000<span class="w"> </span>-08:00<span class="w"> </span>master<span class="w"> </span>7fd1a60b01f9
 │<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
 ~
-</code></pre></div></p>
+</code></pre></div>
 <p>There are several things worth noting here. First, the <code>jj rebase</code> command said
 "Rebased 2 commits". That's because we asked it to rebase commit B2 with the
 <code>-s</code> option, which also rebases descendants (commit C in this case). Second,
@@ -1489,7 +1491,7 @@ $<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r
 <p>We "forgot" to capitalize "c" in the second commit when we capitalized the other
 letters. We then fixed that in the third commit when we also added "D". It would
 be cleaner to move the capitalization of "c" into the second commit. We can do
-that by running <code>jj squash -i</code> (short for <code>jj squash --interactive</code>) on the
+that by running <code>jj squash</code> with the <code>--interactive</code>/<code>-i</code> option on the
 third commit. Remember that <code>jj squash</code> moves all the changes from one commit
 into its parent. <code>jj squash -i</code> moves only part of the changes into its parent.
 Now try that:
