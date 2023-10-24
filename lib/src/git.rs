@@ -1001,16 +1001,10 @@ pub fn fetch(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     remote_name: &str,
-    branch_names: Option<&[StringPattern]>,
+    branch_names: &[StringPattern],
     callbacks: RemoteCallbacks<'_>,
     git_settings: &GitSettings,
 ) -> Result<GitFetchStats, GitFetchError> {
-    let branch_name_filter = |branch: &str| {
-        branch_names.map_or(true, |patterns| {
-            patterns.iter().any(|pattern| pattern.matches(branch))
-        })
-    };
-
     // Perform a `git fetch` on the local git repo, updating the remote-tracking
     // branches in the git repo.
     let mut remote = git_repo.find_remote(remote_name).map_err(|err| {
@@ -1026,27 +1020,28 @@ pub fn fetch(
     fetch_options.proxy_options(proxy_options);
     let callbacks = callbacks.into_git();
     fetch_options.remote_callbacks(callbacks);
-    let refspecs = {
-        // If no globs have been given, import all branches
-        let globs = if let Some(patterns) = branch_names {
-            patterns
-                .iter()
-                .map(|pattern| pattern.to_glob())
-                .collect::<Option<Vec<_>>>()
-                .ok_or(GitFetchError::InvalidBranchPattern)?
-        } else {
-            vec!["*".into()]
+    // At this point, we are only updating Git's remote tracking branches, not the
+    // local branches.
+    let refspecs: Vec<_> = branch_names
+        .iter()
+        .map(|pattern| {
+            pattern
+                .to_glob()
+                .filter(|glob| !glob.contains(INVALID_REFSPEC_CHARS))
+                .map(|glob| format!("+refs/heads/{glob}:refs/remotes/{remote_name}/{glob}"))
+        })
+        .collect::<Option<_>>()
+        .ok_or(GitFetchError::InvalidBranchPattern)?;
+    if refspecs.is_empty() {
+        // Don't fall back to the base refspecs.
+        let stats = GitFetchStats {
+            default_branch: None,
+            import_stats: GitImportStats {
+                abandoned_commits: vec![],
+            },
         };
-        if globs.iter().any(|g| g.contains(INVALID_REFSPEC_CHARS)) {
-            return Err(GitFetchError::InvalidBranchPattern);
-        }
-        // At this point, we are only updating Git's remote tracking branches, not the
-        // local branches.
-        globs
-            .iter()
-            .map(|glob| format!("+refs/heads/{glob}:refs/remotes/{remote_name}/{glob}"))
-            .collect_vec()
-    };
+        return Ok(stats);
+    }
     tracing::debug!("remote.download");
     remote.download(&refspecs, Some(&mut fetch_options))?;
     tracing::debug!("remote.prune");
@@ -1075,7 +1070,7 @@ pub fn fetch(
     tracing::debug!("import_refs");
     let import_stats = import_some_refs(mut_repo, git_repo, git_settings, |ref_name| {
         to_remote_branch(ref_name, remote_name)
-            .map(branch_name_filter)
+            .map(|branch| branch_names.iter().any(|pattern| pattern.matches(branch)))
             .unwrap_or_else(|| matches!(ref_name, RefName::Tag(_)))
     })?;
     let stats = GitFetchStats {

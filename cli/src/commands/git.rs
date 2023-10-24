@@ -100,7 +100,7 @@ pub struct GitFetchArgs {
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// expand `*` as a glob. The other wildcard characters aren't supported.
-    #[arg(long, value_parser = parse_string_pattern)]
+    #[arg(long, default_value = "glob:*", value_parser = parse_string_pattern)]
     branch: Vec<StringPattern>,
     /// The remote to fetch from (only named remotes are supported, can be
     /// repeated)
@@ -319,7 +319,7 @@ fn cmd_git_fetch(
                 tx.mut_repo(),
                 &git_repo,
                 &remote,
-                (!args.branch.is_empty()).then_some(&args.branch),
+                &args.branch,
                 cb,
                 &command.settings().git_settings(),
             )
@@ -535,7 +535,7 @@ fn do_git_clone(
             fetch_tx.mut_repo(),
             &git_repo,
             remote_name,
-            None,
+            &[StringPattern::everything()],
             cb,
             &command.settings().git_settings(),
         )
