@@ -318,7 +318,7 @@ fn test_git_push_multiple() {
             "-b=branch1",
             "-b=my-branch",
             "-b=branch1",
-            "-b=my-branch",
+            "-b=glob:my-*",
             "--dry-run",
         ],
     );
@@ -329,6 +329,32 @@ fn test_git_push_multiple() {
       Add branch my-branch to 15dcdaa4f12f
     Dry-run requested, not pushing.
     "###);
+    // Dry run with glob pattern
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "push", "-b=glob:branch?", "--dry-run"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Delete branch branch1 from 45a3aa29e907
+      Force branch branch2 from 8476341eb395 to 15dcdaa4f12f
+    Dry-run requested, not pushing.
+    "###);
+
+    // Unmatched branch name is error
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "-b=foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No such branch: foo
+    "###);
+    let stderr = test_env.jj_cmd_failure(
+        &workspace_root,
+        &["git", "push", "-b=foo", "-b=glob:?branch"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No matching branches for patterns: foo, ?branch
+    "###);
+
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -740,7 +766,7 @@ fn test_git_push_deleted_untracked() {
     "###);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=branch1"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Branch branch1 doesn't exist
+    Error: No such branch: branch1
     "###);
 }
 

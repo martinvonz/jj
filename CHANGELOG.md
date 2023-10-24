@@ -59,9 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `branches()`/`remote_branches()`/`author()`/`committer()`/`description()`
   revsets now support glob matching.
 
-* `jj branch delete`/`forget` now support [string pattern
-  syntax](docs/revsets.md#string-patterns). The `--glob` option is deprecated in
-  favor of `glob:` pattern.
+* `jj branch delete`/`forget`, and `jj git push --branch` now support [string
+  pattern syntax](docs/revsets.md#string-patterns). The `--glob` option is
+  deprecated in favor of `glob:` pattern.
 
 ### Fixed bugs
 

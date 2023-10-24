@@ -240,6 +240,33 @@ impl View {
             })
     }
 
+    /// Iterates local/remote branch `(name, remote_ref)`s of the specified
+    /// remote, matching the given branch name pattern. Entries are sorted by
+    /// `name`.
+    pub fn local_remote_branches_matching<'a: 'b, 'b>(
+        &'a self,
+        branch_pattern: &'b StringPattern,
+        remote_name: &str,
+    ) -> impl Iterator<Item = (&'a str, TrackingRefPair<'a>)> + 'b {
+        // Change remote_name to StringPattern if needed, but merge-join adapter won't
+        // be usable.
+        let maybe_remote_view = self.data.remote_views.get(remote_name);
+        refs::iter_named_local_remote_refs(
+            branch_pattern.filter_btree_map(&self.data.local_branches),
+            maybe_remote_view
+                .map(|remote_view| branch_pattern.filter_btree_map(&remote_view.branches))
+                .into_iter()
+                .flatten(),
+        )
+        .map(|(name, (local_target, remote_ref))| {
+            let targets = TrackingRefPair {
+                local_target,
+                remote_ref,
+            };
+            (name.as_ref(), targets)
+        })
+    }
+
     pub fn remove_remote(&mut self, remote_name: &str) {
         self.data.remote_views.remove(remote_name);
     }
