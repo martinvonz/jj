@@ -1,7 +1,11 @@
 [templates]
 commit_summary = '''
 separate(" ",
-  format_short_change_id(change_id),
+  label(
+    if(hidden, "hidden"),
+    separate(" ",
+      format_short_change_id(change_id),
+      if(hidden, "hidden"))),
   format_short_commit_id(commit_id),
   separate(commit_summary_separator,
     branches,
@@ -16,7 +20,11 @@ separate(" ",
 
 commit_summary_no_branches = '''
 separate(" ",
-  format_short_change_id(change_id),
+  label(
+    if(hidden, "hidden"),
+    separate(" ",
+      format_short_change_id(change_id),
+      if(hidden, "hidden"))),
   format_short_commit_id(commit_id),
   if(conflict, label("conflict", "(conflict)")),
   if(empty, label("empty", "(empty)")),

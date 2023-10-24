@@ -76,7 +76,7 @@ fn test_git_push_current_branch() {
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1: lzmmnrxq 19e00bf6 (empty) modified branch1 commit
-      @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq 45a3aa29 (empty) description 1
+      @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq hidden 45a3aa29 (empty) description 1
     branch2: yostqsxw 10ee3363 (empty) foo
       @origin (behind by 1 commits): rlzusymt 8476341e (empty) description 2
     my-branch: yostqsxw 10ee3363 (empty) foo
@@ -100,7 +100,7 @@ fn test_git_push_current_branch() {
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1: lzmmnrxq 19e00bf6 (empty) modified branch1 commit
-      @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq 45a3aa29 (empty) description 1
+      @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq hidden 45a3aa29 (empty) description 1
     branch2: yostqsxw 10ee3363 (empty) foo
       @origin: yostqsxw 10ee3363 (empty) foo
     my-branch: yostqsxw 10ee3363 (empty) foo
@@ -256,7 +256,7 @@ fn test_git_push_locally_created_and_rewritten() {
     branch2: rlzusymt 8476341e (empty) description 2
       @origin: rlzusymt 8476341e (empty) description 2
     my: vruxwmqv bde1d2e4 (empty) local 2
-      @origin (ahead by 1 commits, behind by 1 commits): vruxwmqv fcc99992 (empty) local 1
+      @origin (ahead by 1 commits, behind by 1 commits): vruxwmqv hidden fcc99992 (empty) local 1
     "###);
     let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"

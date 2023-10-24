@@ -918,7 +918,7 @@ fn test_branch_list_filtered_by_revset() {
        next `jj git push`. Use `jj branch forget` to prevent this)
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
-      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn 3e9a5af6 (empty) remote-rewrite
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
 
     let query = |revset| test_env.jj_cmd_success(&local_path, &["branch", "list", "-r", revset]);
@@ -931,7 +931,7 @@ fn test_branch_list_filtered_by_revset() {
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
-      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn 3e9a5af6 (empty) remote-rewrite
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
 
     // Exclude remote-only branches. "remote-rewrite@origin" is included since
@@ -940,13 +940,13 @@ fn test_branch_list_filtered_by_revset() {
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
-      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn 3e9a5af6 (empty) remote-rewrite
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
 
     // Select branches by name.
     insta::assert_snapshot!(query("branches(remote-rewrite)"), @r###"
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
-      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn 3e9a5af6 (empty) remote-rewrite
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
 
     // Can't select deleted branch.

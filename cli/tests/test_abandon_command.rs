@@ -190,7 +190,7 @@ fn test_double_abandon() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", &commit_id]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Abandoned commit rlvkpnrz 2443ea76 a
+    Abandoned commit rlvkpnrz hidden 2443ea76 a
     Nothing changed.
     "###);
 }
