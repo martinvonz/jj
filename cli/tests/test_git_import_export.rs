@@ -36,7 +36,7 @@ fn test_resolution_of_git_tracking_branches() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-r", "main", "-m", "new_message"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     main: qpvuntsm 3af37026 (empty) new_message
-      @git (ahead by 1 commits, behind by 1 commits): qpvuntsm 16d541ca (empty) old_message
+      @git (ahead by 1 commits, behind by 1 commits): qpvuntsm hidden 16d541ca (empty) old_message
     "###);
 
     // Test that we can address both revisions
