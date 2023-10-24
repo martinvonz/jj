@@ -65,6 +65,11 @@ fn test_chmod_regular_conflict() {
     ◉  base
     ◉
     "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree"]);
+    insta::assert_snapshot!(stdout, 
+    @r###"
+    file: Conflicted { removes: [Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false })], adds: [Some(File { id: FileId("587be6b4c3f93f93c489c0111bba5596147a26cb"), executable: true }), Some(File { id: FileId("8ba3a16384aacc37d01564b28401755ce8053f51"), executable: false })] }
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
@@ -76,6 +81,11 @@ fn test_chmod_regular_conflict() {
 
     // Test chmodding a conflict
     test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree"]);
+    insta::assert_snapshot!(stdout, 
+    @r###"
+    file: Conflicted { removes: [Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: true })], adds: [Some(File { id: FileId("587be6b4c3f93f93c489c0111bba5596147a26cb"), executable: true }), Some(File { id: FileId("8ba3a16384aacc37d01564b28401755ce8053f51"), executable: true })] }
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
@@ -85,6 +95,11 @@ fn test_chmod_regular_conflict() {
       Adding executable file with id 8ba3a16384aacc37d01564b28401755ce8053f51
     "###);
     test_env.jj_cmd_ok(&repo_path, &["chmod", "n", "file"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree"]);
+    insta::assert_snapshot!(stdout, 
+    @r###"
+    file: Conflicted { removes: [Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false })], adds: [Some(File { id: FileId("587be6b4c3f93f93c489c0111bba5596147a26cb"), executable: false }), Some(File { id: FileId("8ba3a16384aacc37d01564b28401755ce8053f51"), executable: false })] }
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
@@ -102,6 +117,11 @@ fn test_chmod_regular_conflict() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["chmod", "x", "nonexistent", "file"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: No such path at 'nonexistent'.
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree"]);
+    insta::assert_snapshot!(stdout, 
+    @r###"
+    file: Conflicted { removes: [Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false })], adds: [Some(File { id: FileId("587be6b4c3f93f93c489c0111bba5596147a26cb"), executable: false }), Some(File { id: FileId("8ba3a16384aacc37d01564b28401755ce8053f51"), executable: false })] }
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
@@ -161,6 +181,11 @@ fn test_chmod_file_dir_deletion_conflicts() {
     "###);
 
     // The file-dir conflict cannot be chmod-ed
+    let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree", "-r=file_dir"]);
+    insta::assert_snapshot!(stdout,
+    @r###"
+    file: Conflicted { removes: [Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false })], adds: [Some(File { id: FileId("78981922613b2afb6025042ff6bd878ac1994e85"), executable: false }), Some(Tree(TreeId("133bb38fc4e4bf6b551f1f04db7e48f04cac2877")))] }
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_dir", "file"]);
     insta::assert_snapshot!(stdout,
     @r###"
@@ -175,6 +200,11 @@ fn test_chmod_file_dir_deletion_conflicts() {
     "###);
 
     // The file_deletion conflict can be chmod-ed
+    let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree", "-r=file_deletion"]);
+    insta::assert_snapshot!(stdout,
+    @r###"
+    file: Conflicted { removes: [Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false })], adds: [Some(File { id: FileId("78981922613b2afb6025042ff6bd878ac1994e85"), executable: false }), None] }
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_deletion", "file"]);
     insta::assert_snapshot!(stdout,
     @r###"
@@ -189,10 +219,15 @@ fn test_chmod_file_dir_deletion_conflicts() {
         test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file", "-r=file_deletion"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: kmkuslsw 8b70a1d2 file_deletion | (conflict) file_deletion
+    Working copy now at: kmkuslsw 4cc432b5 file_deletion | (conflict) file_deletion
     Parent commit      : zsuskuln c51c9c55 file | file
     Parent commit      : royxmykx 6b18b3c1 deletion | deletion
     Added 0 files, modified 1 files, removed 0 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree", "-r=file_deletion"]);
+    insta::assert_snapshot!(stdout,
+    @r###"
+    file: Conflicted { removes: [Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: true })], adds: [Some(File { id: FileId("78981922613b2afb6025042ff6bd878ac1994e85"), executable: true }), None] }
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_deletion", "file"]);
     insta::assert_snapshot!(stdout,

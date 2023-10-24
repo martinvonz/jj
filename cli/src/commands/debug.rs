@@ -23,7 +23,7 @@ use jj_lib::local_working_copy::{LocalWorkingCopy, LockedLocalWorkingCopy};
 use jj_lib::revset;
 use jj_lib::working_copy::WorkingCopy;
 
-use crate::cli_util::{resolve_op_for_load, user_error, CommandError, CommandHelper};
+use crate::cli_util::{resolve_op_for_load, user_error, CommandError, CommandHelper, RevisionArg};
 use crate::template_parser;
 use crate::ui::Ui;
 
@@ -40,6 +40,7 @@ pub enum DebugCommands {
     ReIndex(DebugReIndexArgs),
     #[command(visible_alias = "view")]
     Operation(DebugOperationArgs),
+    Tree(DebugTreeArgs),
     #[command(subcommand)]
     Watchman(DebugWatchmanSubcommand),
 }
@@ -87,6 +88,15 @@ pub enum DebugOperationDisplay {
     View,
     /// Show both the view and the operation
     All,
+}
+
+/// List the recursive entries of a tree.
+#[derive(clap::Args, Clone, Debug)]
+pub struct DebugTreeArgs {
+    #[arg(long, short = 'r', default_value = "@")]
+    revision: RevisionArg,
+    paths: Vec<String>,
+    // TODO: Add an option to include trees that are ancestors of the matched paths
 }
 
 #[derive(Subcommand, Clone, Debug)]
@@ -198,6 +208,7 @@ pub fn cmd_debug(
                 writeln!(ui.stdout(), "{:#?}", op.view()?.store_view())?;
             }
         }
+        DebugCommands::Tree(sub_args) => cmd_debug_tree(ui, command, sub_args)?,
         DebugCommands::Watchman(watchman_subcommand) => {
             cmd_debug_watchman(ui, command, watchman_subcommand)?;
         }
@@ -239,6 +250,23 @@ fn cmd_debug_revset(
     for commit_id in revset.iter() {
         writeln!(ui.stdout(), "{}", commit_id.hex())?;
     }
+    Ok(())
+}
+
+fn cmd_debug_tree(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &DebugTreeArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let tree = commit.tree()?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    for (path, value) in tree.entries_matching(matcher.as_ref()) {
+        let ui_path = workspace_command.format_file_path(&path);
+        writeln!(ui.stdout(), "{ui_path}: {value:?}")?;
+    }
+
     Ok(())
 }
 
