@@ -159,6 +159,42 @@ fn test_rebase_branch_with_merge() {
     "###);
 }
 
+#[test]
+fn test_double_abandon() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    // Test the setup
+    insta::assert_snapshot!(
+    test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r", "a"])
+        , @r###"
+    rlvkpnrz test.user@example.com 2001-02-03 04:05:09.000 +07:00 a 2443ea76
+    a
+    "###);
+
+    let commit_id = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "--no-graph", "--color=never", "-T=commit_id", "-r=a"],
+    );
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", &commit_id]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned commit rlvkpnrz 2443ea76 a | a
+    Working copy now at: royxmykx f37b4afd (empty) (no description set)
+    Parent commit      : zzzzzzzz 00000000 a | (empty) (no description set)
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", &commit_id]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned commit rlvkpnrz 2443ea76 a
+    Nothing changed.
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["log", "-T", "branches"])
 }
