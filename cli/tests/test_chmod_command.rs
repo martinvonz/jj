@@ -73,10 +73,13 @@ fn test_chmod_regular_conflict() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
-    Conflict:
-      Removing file with id df967b96a579e45a18b8251732d16804b2e56a55
-      Adding executable file with id 587be6b4c3f93f93c489c0111bba5596147a26cb
-      Adding file with id 8ba3a16384aacc37d01564b28401755ce8053f51
+    <<<<<<<
+    %%%%%%%
+    -base
+    +x
+    +++++++
+    n
+    >>>>>>>
     "###);
 
     // Test chmodding a conflict
@@ -89,10 +92,13 @@ fn test_chmod_regular_conflict() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
-    Conflict:
-      Removing executable file with id df967b96a579e45a18b8251732d16804b2e56a55
-      Adding executable file with id 587be6b4c3f93f93c489c0111bba5596147a26cb
-      Adding executable file with id 8ba3a16384aacc37d01564b28401755ce8053f51
+    <<<<<<<
+    %%%%%%%
+    -base
+    +x
+    +++++++
+    n
+    >>>>>>>
     "###);
     test_env.jj_cmd_ok(&repo_path, &["chmod", "n", "file"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree"]);
@@ -232,8 +238,11 @@ fn test_chmod_file_dir_deletion_conflicts() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_deletion", "file"]);
     insta::assert_snapshot!(stdout,
     @r###"
-    Conflict:
-      Removing executable file with id df967b96a579e45a18b8251732d16804b2e56a55
-      Adding executable file with id 78981922613b2afb6025042ff6bd878ac1994e85
+    <<<<<<<
+    +++++++
+    a
+    %%%%%%%
+    -base
+    >>>>>>>
     "###);
 }

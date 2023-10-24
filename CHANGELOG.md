@@ -66,6 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in the working copy no longer leads to a crash
   ([#976](https://github.com/martinvonz/jj/issues/976)).
 
+* Conflicts in executable files can now be resolved just like conflicts in
+  non-executable files ([#1279](https://github.com/martinvonz/jj/issues/1279)).
+
 ## [0.10.0] - 2023-10-04
 
 ### Breaking changes
