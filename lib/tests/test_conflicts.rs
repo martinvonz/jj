@@ -304,7 +304,7 @@ line 5 right
         @r###"
     Some(
         [
-            Merge {
+            Conflicted {
                 removes: [
                     "line 1\nline 2\n",
                 ],
@@ -313,13 +313,10 @@ line 5 right
                     "line 1 right\nline 2\n",
                 ],
             },
-            Merge {
-                removes: [],
-                adds: [
-                    "line 3\n",
-                ],
-            },
-            Merge {
+            Resolved(
+                "line 3\n",
+            ),
+            Conflicted {
                 removes: [
                     "line 4\nline 5\n",
                 ],
@@ -464,13 +461,10 @@ line 5
         @r###"
     Some(
         [
-            Merge {
-                removes: [],
-                adds: [
-                    "line 1\n",
-                ],
-            },
-            Merge {
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted {
                 removes: [
                     "line 2\nline 3\nline 4\n",
                 ],
@@ -479,12 +473,9 @@ line 5
                     "right\n",
                 ],
             },
-            Merge {
-                removes: [],
-                adds: [
-                    "line 5\n",
-                ],
-            },
+            Resolved(
+                "line 5\n",
+            ),
         ],
     )
     "###
@@ -517,13 +508,10 @@ line 5
         @r###"
     Some(
         [
-            Merge {
-                removes: [],
-                adds: [
-                    "line 1\n",
-                ],
-            },
-            Merge {
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted {
                 removes: [
                     "line 2\nline 3\nline 4\n",
                     "line 2\nline 3\nline 4\n",
@@ -534,12 +522,9 @@ line 5
                     "line 2\nforward\nline 3\nline 4\n",
                 ],
             },
-            Merge {
-                removes: [],
-                adds: [
-                    "line 5\n",
-                ],
-            },
+            Resolved(
+                "line 5\n",
+            ),
         ],
     )
     "###

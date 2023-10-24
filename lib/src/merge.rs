@@ -17,6 +17,7 @@
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 use std::io::Write;
 use std::iter::zip;
@@ -104,10 +105,25 @@ where
 /// There is exactly one more `adds()` than `removes()`. When interpreted as a
 /// series of diffs, the merge's (i+1)-st add is matched with the i-th
 /// remove. The zeroth add is considered a diff from the non-existent state.
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub struct Merge<T> {
     removes: Vec<T>,
     adds: Vec<T>,
+}
+
+impl<T: Debug> Debug for Merge<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        // Format like an enum with two variants to make it less verbose in the common
+        // case of a resolved state.
+        if self.removes.is_empty() {
+            f.debug_tuple("Resolved").field(&self.adds[0]).finish()
+        } else {
+            f.debug_struct("Conflicted")
+                .field("removes", &self.removes)
+                .field("adds", &self.adds)
+                .finish()
+        }
+    }
 }
 
 impl<T> Merge<T> {
