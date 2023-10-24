@@ -24,6 +24,7 @@ use jj_lib::revset::{self, RevsetExpression, RevsetIteratorExt as _};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
 use jj_lib::str_util::StringPattern;
+use jj_lib::view::View;
 use jj_lib::workspace::Workspace;
 use maplit::hashset;
 
@@ -141,8 +142,12 @@ pub struct GitPushArgs {
     #[arg(long)]
     remote: Option<String>,
     /// Push only this branch (can be repeated)
-    #[arg(long, short)]
-    branch: Vec<String>,
+    ///
+    /// By default, the specified name matches exactly. Use `glob:` prefix to
+    /// select branches by wildcard pattern. For details, see
+    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+    #[arg(long, short, value_parser = parse_string_pattern)]
+    branch: Vec<StringPattern>,
     /// Push all branches (including deleted branches)
     #[arg(long)]
     all: bool,
@@ -716,19 +721,11 @@ fn cmd_git_push(
         tx_description = format!("push all deleted branches to git remote {remote}");
     } else {
         let mut seen_branches = hashset! {};
-        for branch_name in &args.branch {
-            if !seen_branches.insert(branch_name.clone()) {
-                continue;
-            }
-            let targets = TrackingRefPair {
-                local_target: repo.view().get_local_branch(branch_name),
-                remote_ref: repo.view().get_remote_branch(branch_name, &remote),
-            };
+        let branches_by_name =
+            find_branches_to_push(repo.view(), &args.branch, &remote, &mut seen_branches)?;
+        for (branch_name, targets) in branches_by_name {
             match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
-                Ok(None) if targets.local_target.is_absent() => {
-                    return Err(user_error(format!("Branch {branch_name} doesn't exist")));
-                }
+                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => writeln!(
                     ui.stderr(),
                     "Branch {branch_name}@{remote} already matches {branch_name}",
@@ -1044,6 +1041,39 @@ fn classify_branch_update(
             )),
         }),
         BranchPushAction::Update(update) => Ok(Some(update)),
+    }
+}
+
+fn find_branches_to_push<'a>(
+    view: &'a View,
+    branch_patterns: &[StringPattern],
+    remote_name: &str,
+    seen_branches: &mut HashSet<String>,
+) -> Result<Vec<(&'a str, TrackingRefPair<'a>)>, CommandError> {
+    let mut matching_branches = vec![];
+    let mut unmatched_patterns = vec![];
+    for pattern in branch_patterns {
+        let mut matches = view
+            .local_remote_branches_matching(pattern, remote_name)
+            .filter(|(_, targets)| {
+                // If the remote exists but is not tracking, the absent local shouldn't
+                // be considered a deleted branch.
+                targets.local_target.is_present() || targets.remote_ref.is_tracking()
+            })
+            .peekable();
+        if matches.peek().is_none() {
+            unmatched_patterns.push(pattern);
+        }
+        matching_branches
+            .extend(matches.filter(|&(name, _)| seen_branches.insert(name.to_owned())));
+    }
+    match &unmatched_patterns[..] {
+        [] => Ok(matching_branches),
+        [pattern] if pattern.is_exact() => Err(user_error(format!("No such branch: {pattern}"))),
+        patterns => Err(user_error(format!(
+            "No matching branches for patterns: {}",
+            patterns.iter().join(", ")
+        ))),
     }
 }
 
