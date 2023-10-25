@@ -14,13 +14,14 @@ ui.diff-editor = "meld" # default, requires meld to be installed
 # ui.diff-editor = "vimdiff"
 
 ui.merge-editor = "meld" # default
+# ui.merge-editor = "vscode"
 # ui.merge-editor = "vimdiff"
 # ui.merge-editor = "kdiff3"
 
 # Relative timestamp rendered as "x days/hours/seconds ago"
 template-aliases.'format_timestamp(timestamp)' = 'timestamp.ago()'
 
-# The three merge tools above are pre-configured. For detailed information
+# The four merge tools listed above are pre-configured. For detailed information
 # about how to change the default configuration or how to configure another tool,
 # see documentation in config.md. An example:
 
