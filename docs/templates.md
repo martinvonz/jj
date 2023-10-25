@@ -25,7 +25,11 @@ The following keywords can be used in `jj log`/`jj obslog` templates.
   working-copy commit as `<workspace name>@`.
 * `current_working_copy: Boolean`: True for the working-copy commit of the
   current workspace.
-* `branches: List<RefName>`
+* `branches: List<RefName>`: Local and remote branches pointing to the commit.
+  A tracking remote branch will be included only if its target is different
+  from the local one.
+* `local_branches: List<RefName>`: All local branches pointing to the commit.
+* `remote_branches: List<RefName>`: All remote branches pointing to the commit.
 * `tags: List<RefName>`
 * `git_refs: List<RefName>`
 * `git_head: List<RefName>`

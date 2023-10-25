@@ -379,7 +379,7 @@ fn test_log_branches() {
     test_env.jj_cmd_ok(&origin_path, &["describe", "-m=description 1"]);
     test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch1"]);
     test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 2"]);
-    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch2"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch2", "unchanged"]);
     test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 3"]);
     test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch3"]);
     test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
@@ -417,7 +417,7 @@ fn test_log_branches() {
     │ ◉  21c33875443e branch1*
     ├─╯
     │ @  a5b4d15489cc branch2* new-branch
-    │ ◉  8476341eb395 branch2@origin
+    │ ◉  8476341eb395 branch2@origin unchanged
     ├─╯
     ◉  000000000000 (no branches)
     "###);
@@ -431,9 +431,23 @@ fn test_log_branches() {
     │ ◉  branch1
     ├─╯
     │ @  branch2, new-branch
-    │ ◉  origin/branch2
+    │ ◉  origin/branch2, unchanged
     ├─╯
     ◉
+    "###);
+
+    let template = r#"separate(" ", "L:", local_branches, "R:", remote_branches)"#;
+    let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
+    insta::assert_snapshot!(output, @r###"
+    ◉  L: branch3?? R: branch3@origin
+    │ ◉  L: branch3?? R:
+    ├─╯
+    │ ◉  L: branch1* R:
+    ├─╯
+    │ @  L: branch2* new-branch R:
+    │ ◉  L: unchanged R: branch2@origin unchanged@origin
+    ├─╯
+    ◉  L: R:
     "###);
 }
 
