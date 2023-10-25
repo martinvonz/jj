@@ -115,6 +115,13 @@ The following methods are defined.
 
 * `.short([len: Integer]) -> String`
 
+### RefName type
+
+The following methods are defined.
+
+* `.name() -> String`: Local branch or tag name.
+* `.remote() -> String`: Remote name or empty if this is a local ref.
+
 ### ShortestIdPrefix type
 
 The following methods are defined.

@@ -35,7 +35,7 @@ use crate::template_parser::{
     self, FunctionCallNode, TemplateAliasesMap, TemplateParseError, TemplateParseResult,
 };
 use crate::templater::{
-    IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
+    self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
     TemplatePropertyFn,
 };
 use crate::text_util;
@@ -79,6 +79,18 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
                     |item| self.wrap_commit(item),
                 )
             }
+            CommitTemplatePropertyKind::RefName(property) => {
+                build_ref_name_method(self, build_ctx, property, function)
+            }
+            CommitTemplatePropertyKind::RefNameList(property) => {
+                template_builder::build_formattable_list_method(
+                    self,
+                    build_ctx,
+                    property,
+                    function,
+                    |item| self.wrap_ref_name(item),
+                )
+            }
             CommitTemplatePropertyKind::CommitOrChangeId(property) => {
                 build_commit_or_change_id_method(self, build_ctx, property, function)
             }
@@ -106,6 +118,21 @@ impl<'repo> CommitTemplateLanguage<'repo, '_> {
         CommitTemplatePropertyKind::CommitList(Box::new(property))
     }
 
+    fn wrap_ref_name(
+        &self,
+        property: impl TemplateProperty<Commit, Output = RefName> + 'repo,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::RefName(Box::new(property))
+    }
+
+    #[allow(unused)] // TODO
+    fn wrap_ref_name_list(
+        &self,
+        property: impl TemplateProperty<Commit, Output = Vec<RefName>> + 'repo,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::RefNameList(Box::new(property))
+    }
+
     fn wrap_commit_or_change_id(
         &self,
         property: impl TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo,
@@ -125,6 +152,8 @@ enum CommitTemplatePropertyKind<'repo> {
     Core(CoreTemplatePropertyKind<'repo, Commit>),
     Commit(Box<dyn TemplateProperty<Commit, Output = Commit> + 'repo>),
     CommitList(Box<dyn TemplateProperty<Commit, Output = Vec<Commit>> + 'repo>),
+    RefName(Box<dyn TemplateProperty<Commit, Output = RefName> + 'repo>),
+    RefNameList(Box<dyn TemplateProperty<Commit, Output = Vec<RefName>> + 'repo>),
     CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo>),
     ShortestIdPrefix(Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>),
 }
@@ -135,6 +164,10 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
             CommitTemplatePropertyKind::Core(property) => property.try_into_boolean(),
             CommitTemplatePropertyKind::Commit(_) => None,
             CommitTemplatePropertyKind::CommitList(property) => {
+                Some(Box::new(TemplateFunction::new(property, |l| !l.is_empty())))
+            }
+            CommitTemplatePropertyKind::RefName(_) => None,
+            CommitTemplatePropertyKind::RefNameList(property) => {
                 Some(Box::new(TemplateFunction::new(property, |l| !l.is_empty())))
             }
             CommitTemplatePropertyKind::CommitOrChangeId(_) => None,
@@ -166,6 +199,8 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
             CommitTemplatePropertyKind::Core(property) => property.try_into_template(),
             CommitTemplatePropertyKind::Commit(_) => None,
             CommitTemplatePropertyKind::CommitList(_) => None,
+            CommitTemplatePropertyKind::RefName(property) => Some(property.into_template()),
+            CommitTemplatePropertyKind::RefNameList(property) => Some(property.into_template()),
             CommitTemplatePropertyKind::CommitOrChangeId(property) => {
                 Some(property.into_template())
             }
@@ -334,6 +369,74 @@ fn extract_working_copies(repo: &dyn Repo, commit: &Commit) -> String {
         }
     }
     names.join(" ")
+}
+
+/// Branch or tag name with metadata.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RefName {
+    /// Local name.
+    name: String,
+    /// Remote name if this is a remote or Git-tracking ref.
+    remote: Option<String>,
+    /// Ref target has conflicts.
+    conflict: bool,
+    /// Local ref is synchronized with all tracking remotes.
+    synced: bool,
+}
+
+impl RefName {
+    fn is_local(&self) -> bool {
+        self.remote.is_none()
+    }
+}
+
+impl Template<()> for RefName {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        write!(formatter.labeled("name"), "{}", self.name)?;
+        if let Some(remote) = &self.remote {
+            write!(formatter, "@")?;
+            write!(formatter.labeled("remote"), "{remote}")?;
+        }
+        // Don't show both conflict and unsynced sigils as conflicted ref wouldn't
+        // be pushed.
+        if self.conflict {
+            write!(formatter, "??")?;
+        } else if self.is_local() && !self.synced {
+            write!(formatter, "*")?;
+        }
+        Ok(())
+    }
+}
+
+impl Template<()> for Vec<RefName> {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        templater::format_joined(&(), formatter, self, " ")
+    }
+}
+
+fn build_ref_name_method<'repo>(
+    language: &CommitTemplateLanguage<'repo, '_>,
+    _build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
+    self_property: impl TemplateProperty<Commit, Output = RefName> + 'repo,
+    function: &FunctionCallNode,
+) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
+    let property = match function.name {
+        "name" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_string(TemplateFunction::new(self_property, |ref_name| {
+                ref_name.name
+            }))
+        }
+        "remote" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_string(TemplateFunction::new(self_property, |ref_name| {
+                ref_name.remote.unwrap_or_default()
+            }))
+        }
+        // TODO: expose conflict, synced, remote.is_some()
+        _ => return Err(TemplateParseError::no_such_method("RefName", function)),
+    };
+    Ok(property)
 }
 
 /// Cache for reverse lookup refs.
