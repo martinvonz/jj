@@ -372,7 +372,7 @@
       
         <li class="md-nav__item">
   <a href="#updating-the-repository" class="md-nav__link">
-    Updating the repository.
+    Updating the repository
   </a>
   
 </li>
@@ -1216,7 +1216,7 @@
       
         <li class="md-nav__item">
   <a href="#updating-the-repository" class="md-nav__link">
-    Updating the repository.
+    Updating the repository
   </a>
   
 </li>
@@ -1315,14 +1315,14 @@
 <h1 id="using-jujutsu-with-github-and-gitlab-projects">Using Jujutsu with GitHub and GitLab Projects<a class="headerlink" href="#using-jujutsu-with-github-and-gitlab-projects" title="Permanent link">&para;</a></h1>
 <p>This guide assumes a basic understanding of either Git or Mercurial.</p>
 <h2 id="set-up-an-ssh-key">Set up an SSH key<a class="headerlink" href="#set-up-an-ssh-key" title="Permanent link">&para;</a></h2>
-<p>As of December 2022 it's recommended to set up an SSH key to work with GitHub
+<p>As of October 2023 it's recommended to set up an SSH key to work with GitHub
 projects. See <a href="https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent">GitHub's Tutorial</a>. This restriction may be lifted in the
 future, see <a href="https://github.com/martinvonz/jj/issues/469">issue #469</a> for more information and progress on
-authenticated http.</p>
+authenticated HTTP.</p>
 <h2 id="basic-workflow">Basic workflow<a class="headerlink" href="#basic-workflow" title="Permanent link">&para;</a></h2>
 <p>The simplest way to start with Jujutsu is to create a stack of commits first.
-You will only need to create a branch when you need to push the stack to a 
-remote. There are two primary workflows, using a generated branch name or 
+You will only need to create a branch when you need to push the stack to a
+remote. There are two primary workflows: using a generated branch name or
 naming a branch.</p>
 <h3 id="using-a-generated-branch-name">Using a generated branch name<a class="headerlink" href="#using-a-generated-branch-name" title="Permanent link">&para;</a></h3>
 <p>In this example we're letting Jujutsu auto-create a branch.</p>
@@ -1332,7 +1332,9 @@ $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>ma
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;refactor(foo): restructure foo()&#39;</span>
 <span class="c1"># Add a feature, then add a description and start a new commit</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;feat(bar): add support for bar&#39;</span>
-<span class="c1"># Let Jujutsu generate a branch name and push that to GitHub</span>
+<span class="c1"># Let Jujutsu generate a branch name and push that to GitHub. Note that we</span>
+<span class="c1"># push the working-copy commit&#39;s *parent* because the working-copy commit</span>
+<span class="c1"># itself is empty.</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>-c<span class="w"> </span>@-
 </code></pre></div>
 <h3 id="using-a-named-branch">Using a named branch<a class="headerlink" href="#using-a-named-branch" title="Permanent link">&para;</a></h3>
@@ -1343,40 +1345,43 @@ $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>ma
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;refactor(foo): restructure foo()&#39;</span>
 <span class="c1"># Add a feature, then add a description and start a new commit</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;feat(bar): add support for bar&#39;</span>
-<span class="c1"># Create a branch so we can push it to GitHub</span>
-$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>create<span class="w"> </span>bar<span class="w"> </span>-r<span class="w"> </span>@-<span class="w"> </span><span class="c1"># create a branch `bar` that now contains the previous two commits.</span>
+<span class="c1"># Create a branch so we can push it to GitHub. Note that we created the branch</span>
+<span class="c1"># on the working-copy commit&#39;s *parent* because the working copy itself is empty.</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>create<span class="w"> </span>bar<span class="w"> </span>-r<span class="w"> </span>@-<span class="w"> </span><span class="c1"># `bar` now contains the previous two commits.</span>
 <span class="c1"># Push the branch to GitHub (pushes only `bar`)</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
 </code></pre></div>
-<p>While it's possible to create a branch and commit on top of it in a Git-like
-manner, you will then need to move the branch manually when you create a new 
-commits. Unlike Git, Jujutsu will not do it automatically .</p>
-<h2 id="updating-the-repository">Updating the repository.<a class="headerlink" href="#updating-the-repository" title="Permanent link">&para;</a></h2>
-<p>As of December 2022, Jujutsu has no equivalent to a <code>git pull</code> command. Until
-such a command is added, you need to use <code>jj git fetch</code> followed by a
-<code>jj rebase -d $main_branch</code> to update your changes.</p>
+<p>While it's possible to create a branch in advance and commit on top of it in a
+Git-like manner, you will then need to move the branch manually when you create
+a new commits. Unlike Git, Jujutsu will not do it automatically.</p>
+<h2 id="updating-the-repository">Updating the repository<a class="headerlink" href="#updating-the-repository" title="Permanent link">&para;</a></h2>
+<p>As of October 2023, Jujutsu has no equivalent to a <code>git pull</code> command (see
+<a href="https://github.com/martinvonz/jj/issues/1039">issue #1039</a>). Until such a command is added, you need to use
+<code>jj git fetch</code> followed by a <code>jj rebase -d $main_branch</code> to update your
+changes.</p>
 <h2 id="working-in-a-git-co-located-repository">Working in a Git co-located repository<a class="headerlink" href="#working-in-a-git-co-located-repository" title="Permanent link">&para;</a></h2>
-<p>After doing <code>jj init --git-repo=.</code>, git will be in
-a <a href="https://git-scm.com/docs/git-checkout#_detached_head">detached HEAD state</a>, which is unusual, as git mainly works with
-branches. In a co-located repository, <code>jj</code> isn't the source of truth. But
-Jujutsu allows an incremental migration, as <code>jj commit</code> updates the HEAD of the
-git repository.</p>
+<p>After doing <code>jj init --git-repo=.</code>, Git will be in
+a <a href="https://git-scm.com/docs/git-checkout#_detached_head">detached HEAD state</a>, which is unusual, as Git mainly works with
+branches. In a co-located repository, every <code>jj</code> command will automatically
+synchronize Jujutsu's view of the repo with Git's view. For example,
+<code>jj commit</code> updates the HEAD of the Git repository, enabling an incremental
+migration.</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span>nvim<span class="w"> </span>docs/tutorial.md
 $<span class="w"> </span><span class="c1"># Do some more work.</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Update tutorial&quot;</span>
-$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>create<span class="w"> </span>doc-update
-$<span class="w"> </span><span class="c1"># Move the previous revision to doc-update.</span>
-$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span><span class="nb">set</span><span class="w"> </span>doc-update<span class="w"> </span>-r<span class="w"> </span>@-
+<span class="c1"># Create a branch on the working-copy commit&#39;s parent</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>create<span class="w"> </span>doc-update<span class="w"> </span>-r<span class="w"> </span>@-
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
 </code></pre></div>
 <h2 id="working-in-a-jujutsu-repository">Working in a Jujutsu repository<a class="headerlink" href="#working-in-a-jujutsu-repository" title="Permanent link">&para;</a></h2>
 <p>In a Jujutsu repository, the workflow is simplified. If there's no need for
-explicitly named branches, you just can generate one for a change. As Jujutsu is
+explicitly named branches, you can just generate one for a change. As Jujutsu is
 able to create a branch for a revision.</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Do your work</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit
-$<span class="w"> </span><span class="c1"># Push change &quot;mw&quot;, letting Jujutsu automatically create a branch called &quot;push-mwmpwkwknuz&quot;</span>
-$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--change<span class="w"> </span>mw<span class="w"> </span>
+$<span class="w"> </span><span class="c1"># Push change &quot;mw&quot;, letting Jujutsu automatically create a branch called</span>
+$<span class="w"> </span><span class="c1"># &quot;push-mwmpwkwknuz&quot;</span>
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--change<span class="w"> </span>mw
 </code></pre></div>
 <h2 id="addressing-review-comments">Addressing review comments<a class="headerlink" href="#addressing-review-comments" title="Permanent link">&para;</a></h2>
 <p>There are two workflows for addressing review comments, depending on your
@@ -1389,7 +1394,7 @@ force-pushing<sup id="fnref:2"><a class="footnote-ref" href="#fn:2">2</a></sup>.
 top, you can do that by doing something like this:</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the `your-feature` branch from above.</span>
 $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>your-feature
-$<span class="w"> </span><span class="c1"># Address the comments, by updating the code</span>
+$<span class="w"> </span><span class="c1"># Address the comments by updating the code. Then review the changes.</span>
 $<span class="w"> </span>jj<span class="w"> </span>diff
 $<span class="w"> </span><span class="c1"># Give the fix a description and create a new working-copy on top.</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;address pr comments&#39;</span>
@@ -1398,8 +1403,8 @@ $<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span
 $<span class="w"> </span><span class="c1"># Push it to your remote</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
 </code></pre></div>
-<p>Notably, the above workflow creates a new commit for you. The same can be 
-achieved without creating a new commit. </p>
+<p>Notably, the above workflow creates a new commit for you. The same can be
+achieved without creating a new commit.</p>
 <blockquote>
 <p><strong>Warning</strong>
 We strongly suggest to <code>jj new</code> after the example below, as all further edits
@@ -1407,7 +1412,7 @@ still get amended to the previous commit.</p>
 </blockquote>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the `your-feature` branch from above.</span>
 $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>your-feature
-$<span class="w"> </span><span class="c1"># Address the comments, by updating the code</span>
+$<span class="w"> </span><span class="c1"># Address the comments by updating the code. Then review the changes.</span>
 $<span class="w"> </span>jj<span class="w"> </span>diff
 $<span class="w"> </span><span class="c1"># Give the fix a description.</span>
 $<span class="w"> </span>jj<span class="w"> </span>describe<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;address pr comments&#39;</span>
@@ -1420,63 +1425,66 @@ $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>pu
 <p>If your project prefers that you keep commits clean, you can do that by doing
 something like this:</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the second-to-last commit in `your-feature`,</span>
-$<span class="w"> </span><span class="c1"># as reviews requested a fix there.</span>
+$<span class="w"> </span><span class="c1"># as reviewers requested a fix there.</span>
 $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>your-feature-<span class="w"> </span><span class="c1"># NOTE: the trailing hyphen is not a typo!</span>
-$<span class="w"> </span><span class="c1"># Address the comments by updating the code</span>
-$<span class="w"> </span><span class="c1"># Review the changes</span>
+$<span class="w"> </span><span class="c1"># Address the comments by updating the code. Then review the changes.</span>
 $<span class="w"> </span>jj<span class="w"> </span>diff
 $<span class="w"> </span><span class="c1"># Squash the changes into the parent commit</span>
 $<span class="w"> </span>jj<span class="w"> </span>squash
-$<span class="w"> </span><span class="c1"># Push the updated branch to the remote. Jujutsu automatically makes it a force push</span>
+$<span class="w"> </span><span class="c1"># Push the updated branch to the remote. Jujutsu automatically makes it a</span>
+$<span class="w"> </span><span class="c1"># force push</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--branch<span class="w"> </span>your-feature
 </code></pre></div>
-<p>The hyphen after <code>your-feature</code> comes from <a href="https://github.com/martinvonz/jj/blob/main/docs/revsets.md">revset</a> syntax.</p>
+<p>The hyphen after <code>your-feature</code> comes from the
+<a href="https://github.com/martinvonz/jj/blob/main/docs/revsets.md">revset</a> syntax.</p>
 <h2 id="working-with-other-peoples-branches">Working with other people's branches<a class="headerlink" href="#working-with-other-peoples-branches" title="Permanent link">&para;</a></h2>
 <p>By default <code>jj git clone</code> and <code>jj git fetch</code> clone all active branches from
-the remote. This means that if you want to iterate or test another 
+the remote. This means that if you want to iterate or test another
 contributor's branch you can <code>jj new &lt;branchname&gt;</code> onto it.</p>
 <p>If your remote has a large amount of old, inactive branches or this feature is
 undesirable, set <code>git.auto-local-branch = false</code> in the config file.</p>
 <p>You can find more information on that setting <a href="../config/#automatic-local-branch-creation">here</a>.</p>
 <h2 id="using-github-cli">Using GitHub CLI<a class="headerlink" href="#using-github-cli" title="Permanent link">&para;</a></h2>
-<p>GitHub CLI will have trouble finding the proper git repository path in jj repos
+<p>GitHub CLI will have trouble finding the proper Git repository path in jj repos
 that aren't <a href="../git-compatibility/#co-located-jujutsugit-repos">co-located</a>
 (see <a href="https://github.com/martinvonz/jj/issues/1008">issue #1008</a>). You can configure the <code>$GIT_DIR</code> environment variable to
 point it to the right path:</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="nv">GIT_DIR</span><span class="o">=</span>.jj/repo/store/git<span class="w"> </span>gh<span class="w"> </span>issue<span class="w"> </span>list
 </code></pre></div>
 <p>You can make that automatic by installing <a href="https://direnv.net">direnv</a> and
-defining hooks in a .envrc file in the repository root to configure <code>$GIT_DIR</code>.
-Just add this line into .envrc:</p>
+defining hooks in a <code>.envrc</code> file in the repository root to configure <code>$GIT_DIR</code>.
+Just add this line into <code>.envrc</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_DIR</span><span class="o">=</span><span class="nv">$PWD</span>/.jj/repo/store/git
 </code></pre></div>
 <p>and run <code>direnv allow</code> to approve it for direnv to run. Then GitHub CLI will
 work automatically even in repos that aren't co-located so you can execute
 commands like <code>gh issue list</code> normally.</p>
 <h2 id="useful-revsets">Useful Revsets<a class="headerlink" href="#useful-revsets" title="Permanent link">&para;</a></h2>
-<p>Log all revisions across all local branches, which aren't on the main branch nor
-on any remote
-<code>jj log -r 'branches() &amp; ~(main | remote_branches())'</code>
-Log all revisions which you authored, across all branches which aren't on any
-remote
-<code>jj log -r 'mine() &amp; branches() &amp; ~remote_branches()'</code>
-Log all remote branches, which you authored or committed to
-<code>jj log -r 'remote_branches() &amp; (mine() | committer(your@email.com))'</code>
-Log all descendants of the current working copy, which aren't on a remote
-<code>jj log -r '::@ &amp; ~remote_branches()'</code></p>
+<p>Log all revisions across all local branches that aren't on the main branch nor
+on any remote:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;branches() &amp; ~(main | remote_branches())&#39;</span>
+</code></pre></div>
+<p>Log all revisions that you authored, across all branches that aren't on any
+remote:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;mine() &amp; branches() &amp; ~remote_branches()&#39;</span>
+</code></pre></div>
+<p>Log all remote branches that you authored or committed to:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;remote_branches() &amp; (mine() | committer(your@email.com))&#39;</span>
+</code></pre></div>
+<p>Log all descendants of the current working copy that aren't on any remote:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;::@ &amp; ~remote_branches()&#39;</span>
+</code></pre></div>
 <h2 id="merge-conflicts">Merge conflicts<a class="headerlink" href="#merge-conflicts" title="Permanent link">&para;</a></h2>
 <p>For a detailed overview, how Jujutsu handles conflicts, revisit
 the <a href="../tutorial/#Conflicts">tutorial</a>.</p>
 <h2 id="using-several-remotes">Using several remotes<a class="headerlink" href="#using-several-remotes" title="Permanent link">&para;</a></h2>
 <p>It is common to use several remotes when contributing to a shared repository.
-For example,
-"upstream" can designate the remote where the changes will be merged through a
-pull-request while "origin" is your private fork of the project. In this case,
-you might want to
-<code>jj git fetch</code> from "upstream" and to <code>jj git push</code> to "origin".</p>
+For example, "upstream" can designate the remote where the changes will be
+merged through a pull-request while "origin" is your private fork of the
+project. In this case, you might want to <code>jj git fetch</code> from "upstream" and to
+<code>jj git push</code> to "origin".</p>
 <p>You can configure the default remotes to fetch from and push to in your
-configuration file
-(for example <code>.jj/repo/config.toml</code>):</p>
+configuration file (for example <code>.jj/repo/config.toml</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[git]</span>
 <span class="n">fetch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;upstream&quot;</span>
 <span class="n">push</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;origin&quot;</span>
@@ -1486,7 +1494,7 @@ configuration file
 <hr />
 <ol>
 <li id="fn:1">
-<p>This is a GitHub Style review, as GitHub currently only is able to compare
+<p>This is a GitHub-style review, as GitHub currently only is able to compare
 branches.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
 </li>
 <li id="fn:2">
