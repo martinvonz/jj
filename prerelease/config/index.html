@@ -765,6 +765,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#setting-up-a-custom-merge-tool" class="md-nav__link">
+    Setting up a custom merge tool
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#editing-conflict-markers-with-a-tool-or-a-text-editor" class="md-nav__link">
     Editing conflict markers with a tool or a text editor
   </a>
@@ -1537,6 +1544,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#setting-up-a-custom-merge-tool" class="md-nav__link">
+    Setting up a custom merge tool
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#editing-conflict-markers-with-a-tool-or-a-text-editor" class="md-nav__link">
     Editing conflict markers with a tool or a text editor
   </a>
@@ -1895,12 +1909,16 @@ the <a href="https://github.com/will133/vim-dirdiff">DirDiff Vim plugin</a> and/
 <p>The <code>ui.merge-editor</code> key specifies the tool used for three-way merge tools
 by <code>jj resolve</code>. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Use merge-tools.meld.merge-args</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">merge-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;meld&quot;</span><span class="w">  </span><span class="c1"># Or &quot;kdiff3&quot; or &quot;vimdiff&quot;</span>
+<span class="n">ui</span><span class="p">.</span><span class="n">merge-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;meld&quot;</span><span class="w">  </span><span class="c1"># Or &quot;vscode&quot; or &quot;kdiff3&quot; or &quot;vimdiff&quot;</span>
 <span class="c1"># Specify merge-args inline</span>
 <span class="n">ui</span><span class="p">.</span><span class="n">merge-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;meld&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;$base&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;$right&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;-o&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;$output&quot;</span><span class="p">]</span>
 </code></pre></div>
-<p>The "meld", "kdiff3", and "vimdiff" tools can be used out of the box, as long as
-they are installed.</p>
+<p>The "vscode", "meld", "kdiff3", and "vimdiff" tools can be used out of the box,
+as long as they are installed.</p>
+<p>Using VS Code as a merge tool works well with VS Code's <a href="https://code.visualstudio.com/docs/remote/remote-overview">Remote
+Development</a>
+functionality, as long as <code>jj</code> is called from VS Code's terminal.</p>
+<h3 id="setting-up-a-custom-merge-tool">Setting up a custom merge tool<a class="headerlink" href="#setting-up-a-custom-merge-tool" title="Permanent link">&para;</a></h3>
 <p>To use a different tool named <code>TOOL</code>, the arguments to pass to the tool MUST be
 specified either inline or in the <code>merge-tools.TOOL.merge-args</code> key. As an
 example of how to set this key and other tool configuration options, here is
