@@ -385,7 +385,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
         }
         for (remote_name, remote_ref) in unsynced_remote_refs {
             let decorated_name = if remote_ref.target.has_conflict() {
-                format!("{branch_name}@{remote_name}?")
+                format!("{branch_name}@{remote_name}??")
             } else {
                 format!("{branch_name}@{remote_name}")
             };
@@ -401,7 +401,7 @@ fn build_ref_names_index<'a>(
     let mut index = RefNamesIndex::default();
     for (name, target) in ref_pairs {
         let decorated_name = if target.has_conflict() {
-            format!("{name}?")
+            format!("{name}??")
         } else {
             name.clone()
         };
@@ -415,7 +415,7 @@ fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> String {
     let target = repo.view().git_head();
     if target.added_ids().contains(commit.id()) {
         if target.has_conflict() {
-            "HEAD@git?".to_string()
+            "HEAD@git??".to_string()
         } else {
             "HEAD@git".to_string()
         }
