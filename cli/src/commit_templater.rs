@@ -24,7 +24,7 @@ use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
-use jj_lib::rewrite;
+use jj_lib::{git, rewrite};
 use once_cell::unsync::OnceCell;
 
 use crate::formatter::Formatter;
@@ -515,7 +515,7 @@ fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Vec<RefName> {
     if target.added_ids().contains(commit.id()) {
         let ref_name = RefName {
             name: "HEAD".to_owned(),
-            remote: Some("git".to_owned()),
+            remote: Some(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned()),
             conflict: target.has_conflict(),
             synced: false, // has no local counterpart
         };
