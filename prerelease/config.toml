@@ -10,7 +10,8 @@ ui.color = "auto" # the default
 ui.editor = "pico" # the default on Unix
 # ui.editor = "vim"
 
-ui.diff-editor = "meld" # default, requires meld to be installed
+ui.diff-editor = ":builtin" # default, internal TUI tool
+# ui.diff-editor = "meld"
 # ui.diff-editor = "vimdiff"
 
 ui.merge-editor = "meld" # default
