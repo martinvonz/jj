@@ -320,6 +320,28 @@ fn build_commit_keyword_opt<'repo>(
                     .collect()
             }))
         }
+        "local_branches" => {
+            let index = cache.branches_index(repo).clone();
+            language.wrap_ref_name_list(wrap_fn(property, move |commit| {
+                index
+                    .get(commit.id())
+                    .iter()
+                    .filter(|ref_name| ref_name.is_local())
+                    .cloned()
+                    .collect()
+            }))
+        }
+        "remote_branches" => {
+            let index = cache.branches_index(repo).clone();
+            language.wrap_ref_name_list(wrap_fn(property, move |commit| {
+                index
+                    .get(commit.id())
+                    .iter()
+                    .filter(|ref_name| ref_name.is_remote())
+                    .cloned()
+                    .collect()
+            }))
+        }
         "tags" => {
             let index = cache.tags_index(repo).clone();
             language.wrap_ref_name_list(wrap_fn(property, move |commit| {
@@ -392,6 +414,10 @@ struct RefName {
 impl RefName {
     fn is_local(&self) -> bool {
         self.remote.is_none()
+    }
+
+    fn is_remote(&self) -> bool {
+        self.remote.is_some()
     }
 }
 
