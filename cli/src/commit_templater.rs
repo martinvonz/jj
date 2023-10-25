@@ -312,7 +312,12 @@ fn build_commit_keyword_opt<'repo>(
         "branches" => {
             let index = cache.branches_index(repo).clone();
             language.wrap_ref_name_list(wrap_fn(property, move |commit| {
-                index.get(commit.id()).to_vec()
+                index
+                    .get(commit.id())
+                    .iter()
+                    .filter(|ref_name| ref_name.is_local() || !ref_name.synced)
+                    .cloned()
+                    .collect()
             }))
         }
         "tags" => {
@@ -379,7 +384,8 @@ struct RefName {
     remote: Option<String>,
     /// Ref target has conflicts.
     conflict: bool,
-    /// Local ref is synchronized with all tracking remotes.
+    /// Local ref is synchronized with all tracking remotes, or tracking remote
+    /// ref is synchronized with the local.
     synced: bool,
 }
 
@@ -466,9 +472,6 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
     for (branch_name, branch_target) in repo.view().branches() {
         let local_target = branch_target.local_target;
         let remote_refs = branch_target.remote_refs;
-        let unsynced_remote_refs = remote_refs.iter().copied().filter(|&(_, remote_ref)| {
-            !remote_ref.is_tracking() || remote_ref.target != *local_target
-        });
         if local_target.is_present() {
             let ref_name = RefName {
                 name: branch_name.to_owned(),
@@ -480,12 +483,12 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
             };
             index.insert(local_target.added_ids(), ref_name);
         }
-        for (remote_name, remote_ref) in unsynced_remote_refs {
+        for &(remote_name, remote_ref) in &remote_refs {
             let ref_name = RefName {
                 name: branch_name.to_owned(),
                 remote: Some(remote_name.to_owned()),
                 conflict: remote_ref.target.has_conflict(),
-                synced: false,
+                synced: remote_ref.is_tracking() && remote_ref.target == *local_target,
             };
             index.insert(remote_ref.target.added_ids(), ref_name);
         }
