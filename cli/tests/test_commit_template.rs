@@ -408,7 +408,7 @@ fn test_log_branches() {
     test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
     test_env.jj_cmd_ok(&workspace_root, &["git", "fetch"]);
 
-    let template = r#"commit_id.short() ++ " " ++ branches"#;
+    let template = r#"commit_id.short() ++ " " ++ if(branches, branches, "(no branches)")"#;
     let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
     insta::assert_snapshot!(output, @r###"
     ◉  fed794e2ba44 branch3?? branch3@origin
@@ -419,7 +419,21 @@ fn test_log_branches() {
     │ @  a5b4d15489cc branch2* new-branch
     │ ◉  8476341eb395 branch2@origin
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 (no branches)
+    "###);
+
+    let template = r#"branches.map(|b| separate("/", b.remote(), b.name())).join(", ")"#;
+    let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
+    insta::assert_snapshot!(output, @r###"
+    ◉  branch3, origin/branch3
+    │ ◉  branch3
+    ├─╯
+    │ ◉  branch1
+    ├─╯
+    │ @  branch2, new-branch
+    │ ◉  origin/branch2
+    ├─╯
+    ◉
     "###);
 }
 

@@ -63,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pattern syntax](docs/revsets.md#string-patterns). The `--glob` option is
   deprecated in favor of `glob:` pattern.
 
+* The `branches`/`tags`/`git_refs`/`git_head` template keywords now return a
+  list of `RefName`s. They were previously pre-formatted strings.
+
 ### Fixed bugs
 
 * Updating the working copy to a commit where a file that's currently ignored

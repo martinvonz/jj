@@ -25,10 +25,10 @@ The following keywords can be used in `jj log`/`jj obslog` templates.
   working-copy commit as `<workspace name>@`.
 * `current_working_copy: Boolean`: True for the working-copy commit of the
   current workspace.
-* `branches: String`
-* `tags: String`
-* `git_refs: String`
-* `git_head: String`
+* `branches: List<RefName>`
+* `tags: List<RefName>`
+* `git_refs: List<RefName>`
+* `git_head: List<RefName>`
 * `divergent: Boolean`: True if the commit's change id corresponds to multiple
   visible commits.
 * `hidden: Boolean`: True if the commit is not visible (a.k.a. abandoned).
