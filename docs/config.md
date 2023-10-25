@@ -432,13 +432,19 @@ by `jj resolve`. For example:
 
 ```toml
 # Use merge-tools.meld.merge-args
-ui.merge-editor = "meld"  # Or "kdiff3" or "vimdiff"
+ui.merge-editor = "meld"  # Or "vscode" or "kdiff3" or "vimdiff"
 # Specify merge-args inline
 ui.merge-editor = ["meld", "$left", "$base", "$right", "-o", "$output"]
 ```
 
-The "meld", "kdiff3", and "vimdiff" tools can be used out of the box, as long as
-they are installed.
+The "vscode", "meld", "kdiff3", and "vimdiff" tools can be used out of the box,
+as long as they are installed.
+
+Using VS Code as a merge tool works well with VS Code's [Remote
+Development](https://code.visualstudio.com/docs/remote/remote-overview)
+functionality, as long as `jj` is called from VS Code's terminal.
+
+### Setting up a custom merge tool
 
 To use a different tool named `TOOL`, the arguments to pass to the tool MUST be
 specified either inline or in the `merge-tools.TOOL.merge-args` key. As an

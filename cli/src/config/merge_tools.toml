@@ -22,3 +22,11 @@ merge-tool-edits-conflict-markers = true
 # the DirDiff Vim plugin for a better experience, see
 # https://gist.github.com/ilyagr/5d6339fb7dac5e7ab06fe1561ec62d45
 edit-args = ["-f", "-d", "$left", "$right"]
+
+[merge-tools.vscode]
+program = "code"
+merge-args = ["--wait", "--merge", "$left", "$right", "$base", "$output"]
+# VS Code reads the output file and behaves better if it's prepopulated with conflict
+# markers. Unfortunately, it does not seem to be able to output conflict markers when
+# the user only resolves some of the conflicts.
+merge-tool-edits-conflict-markers = true
