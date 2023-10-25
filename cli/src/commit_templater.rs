@@ -125,7 +125,6 @@ impl<'repo> CommitTemplateLanguage<'repo, '_> {
         CommitTemplatePropertyKind::RefName(Box::new(property))
     }
 
-    #[allow(unused)] // TODO
     fn wrap_ref_name_list(
         &self,
         property: impl TemplateProperty<Commit, Output = Vec<RefName>> + 'repo,
@@ -312,23 +311,23 @@ fn build_commit_keyword_opt<'repo>(
         }
         "branches" => {
             let index = cache.branches_index(repo).clone();
-            language.wrap_string(wrap_fn(property, move |commit| {
-                index.get(commit.id()).join(" ") // TODO: return Vec<Branch>?
+            language.wrap_ref_name_list(wrap_fn(property, move |commit| {
+                index.get(commit.id()).to_vec()
             }))
         }
         "tags" => {
             let index = cache.tags_index(repo).clone();
-            language.wrap_string(wrap_fn(property, move |commit| {
-                index.get(commit.id()).join(" ") // TODO: return Vec<NameRef>?
+            language.wrap_ref_name_list(wrap_fn(property, move |commit| {
+                index.get(commit.id()).to_vec()
             }))
         }
         "git_refs" => {
             let index = cache.git_refs_index(repo).clone();
-            language.wrap_string(wrap_fn(property, move |commit| {
-                index.get(commit.id()).join(" ") // TODO: return Vec<NameRef>?
+            language.wrap_ref_name_list(wrap_fn(property, move |commit| {
+                index.get(commit.id()).to_vec()
             }))
         }
-        "git_head" => language.wrap_string(wrap_repo_fn(repo, property, extract_git_head)),
+        "git_head" => language.wrap_ref_name_list(wrap_repo_fn(repo, property, extract_git_head)),
         "divergent" => language.wrap_boolean(wrap_fn(property, |commit| {
             // The given commit could be hidden in e.g. obslog.
             let maybe_entries = repo.resolve_change_id(commit.change_id());
@@ -442,19 +441,18 @@ fn build_ref_name_method<'repo>(
 /// Cache for reverse lookup refs.
 #[derive(Clone, Debug, Default)]
 struct RefNamesIndex {
-    // TODO: store Branch/NameRef type in place of String?
-    index: HashMap<CommitId, Vec<String>>,
+    index: HashMap<CommitId, Vec<RefName>>,
 }
 
 impl RefNamesIndex {
-    fn insert<'a>(&mut self, ids: impl IntoIterator<Item = &'a CommitId>, name: String) {
+    fn insert<'a>(&mut self, ids: impl IntoIterator<Item = &'a CommitId>, name: RefName) {
         for id in ids {
             let ref_names = self.index.entry(id.clone()).or_default();
             ref_names.push(name.clone());
         }
     }
 
-    fn get(&self, id: &CommitId) -> &[String] {
+    fn get(&self, id: &CommitId) -> &[RefName] {
         if let Some(names) = self.index.get(id) {
             names
         } else {
@@ -471,28 +469,25 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
         let unsynced_remote_refs = remote_refs.iter().copied().filter(|&(_, remote_ref)| {
             !remote_ref.is_tracking() || remote_ref.target != *local_target
         });
-        let has_unsynced_tracking_refs = || {
-            remote_refs.iter().any(|&(_, remote_ref)| {
-                remote_ref.is_tracking() && remote_ref.target != *local_target
-            })
-        };
         if local_target.is_present() {
-            let decorated_name = if local_target.has_conflict() {
-                format!("{branch_name}??")
-            } else if has_unsynced_tracking_refs() {
-                format!("{branch_name}*")
-            } else {
-                branch_name.to_owned()
+            let ref_name = RefName {
+                name: branch_name.to_owned(),
+                remote: None,
+                conflict: local_target.has_conflict(),
+                synced: remote_refs.iter().all(|&(_, remote_ref)| {
+                    !remote_ref.is_tracking() || remote_ref.target == *local_target
+                }),
             };
-            index.insert(local_target.added_ids(), decorated_name);
+            index.insert(local_target.added_ids(), ref_name);
         }
         for (remote_name, remote_ref) in unsynced_remote_refs {
-            let decorated_name = if remote_ref.target.has_conflict() {
-                format!("{branch_name}@{remote_name}??")
-            } else {
-                format!("{branch_name}@{remote_name}")
+            let ref_name = RefName {
+                name: branch_name.to_owned(),
+                remote: Some(remote_name.to_owned()),
+                conflict: remote_ref.target.has_conflict(),
+                synced: false,
             };
-            index.insert(remote_ref.target.added_ids(), decorated_name);
+            index.insert(remote_ref.target.added_ids(), ref_name);
         }
     }
     index
@@ -503,27 +498,30 @@ fn build_ref_names_index<'a>(
 ) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
     for (name, target) in ref_pairs {
-        let decorated_name = if target.has_conflict() {
-            format!("{name}??")
-        } else {
-            name.clone()
+        let ref_name = RefName {
+            name: name.to_owned(),
+            remote: None,
+            conflict: target.has_conflict(),
+            synced: true, // has no tracking remotes
         };
-        index.insert(target.added_ids(), decorated_name);
+        index.insert(target.added_ids(), ref_name);
     }
     index
 }
 
-// TODO: return NameRef?
-fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> String {
+// TODO: maybe add option or nullable type?
+fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Vec<RefName> {
     let target = repo.view().git_head();
     if target.added_ids().contains(commit.id()) {
-        if target.has_conflict() {
-            "HEAD@git??".to_string()
-        } else {
-            "HEAD@git".to_string()
-        }
+        let ref_name = RefName {
+            name: "HEAD".to_owned(),
+            remote: Some("git".to_owned()),
+            conflict: target.has_conflict(),
+            synced: false, // has no local counterpart
+        };
+        vec![ref_name]
     } else {
-        "".to_string()
+        vec![]
     }
 }
 
