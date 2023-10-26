@@ -857,7 +857,7 @@ mod tests {
     use jj_lib::backend::MillisSinceEpoch;
 
     use super::*;
-    use crate::formatter::PlainTextFormatter;
+    use crate::formatter::{self, ColorFormatter};
     use crate::template_parser::TemplateAliasesMap;
 
     /// Minimal template language for testing.
@@ -900,6 +900,7 @@ mod tests {
     struct TestTemplateEnv {
         language: TestTemplateLanguage,
         aliases_map: TemplateAliasesMap,
+        color_rules: Vec<(Vec<String>, formatter::Style)>,
     }
 
     impl TestTemplateEnv {
@@ -909,6 +910,15 @@ mod tests {
 
         fn add_alias(&mut self, decl: impl AsRef<str>, defn: impl Into<String>) {
             self.aliases_map.insert(decl, defn).unwrap();
+        }
+
+        fn add_color(&mut self, label: &str, fg_color: crossterm::style::Color) {
+            let labels = label.split_whitespace().map(|s| s.to_owned()).collect();
+            let style = formatter::Style {
+                fg_color: Some(fg_color),
+                ..Default::default()
+            };
+            self.color_rules.push((labels, style));
         }
 
         fn parse(&self, template: &str) -> TemplateParseResult<Box<dyn Template<()>>> {
@@ -924,7 +934,7 @@ mod tests {
         fn render_ok(&self, template: &str) -> String {
             let template = self.parse(template).unwrap();
             let mut output = Vec::new();
-            let mut formatter = PlainTextFormatter::new(&mut output);
+            let mut formatter = ColorFormatter::new(&mut output, self.color_rules.clone().into());
             template.format(&(), &mut formatter).unwrap();
             String::from_utf8(output).unwrap()
         }
@@ -996,5 +1006,28 @@ mod tests {
           |
           = Invalid time format
         "###);
+    }
+
+    #[test]
+    fn test_label_function() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("empty", |language| language.wrap_boolean(Literal(true)));
+        env.add_color("error", crossterm::style::Color::DarkRed);
+        env.add_color("warning", crossterm::style::Color::DarkYellow);
+
+        // Literal
+        insta::assert_snapshot!(
+            env.render_ok(r#"label("error", "text")"#),
+            @"[38;5;1mtext[39m");
+
+        // Evaluated property
+        insta::assert_snapshot!(
+            env.render_ok(r#"label("error".first_line(), "text")"#),
+            @"[38;5;1mtext[39m");
+
+        // Template
+        insta::assert_snapshot!(
+            env.render_ok(r#"label(if(empty, "error", "warning"), "text")"#),
+            @"[38;5;1mtext[39m");
     }
 }
