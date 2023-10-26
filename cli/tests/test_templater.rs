@@ -590,25 +590,6 @@ fn test_templater_indent_function() {
 }
 
 #[test]
-fn test_templater_label_function() {
-    let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
-    let repo_path = test_env.env_root().join("repo");
-    let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
-
-    // Literal
-    insta::assert_snapshot!(render(r#"label("error", "text")"#), @"[38;5;1mtext[39m");
-
-    // Evaluated property
-    insta::assert_snapshot!(
-        render(r#"label("error".first_line(), "text")"#), @"[38;5;1mtext[39m");
-
-    // Template
-    insta::assert_snapshot!(
-        render(r#"label(if(empty, "error", "warning"), "text")"#), @"[38;5;1mtext[39m");
-}
-
-#[test]
 fn test_templater_concat_function() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
