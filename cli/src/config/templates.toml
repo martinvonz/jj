@@ -133,10 +133,16 @@ commit_summary_separator = 'label("separator", " | ")'
   time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp'
 
+# We have "hidden" override "divergent", since a hidden revision does not cause
+# change id conflicts and is not affected by such conflicts; you have to use the
+# commit id to refer to a hidden revision regardless.
 builtin_change_id_with_hidden_and_divergent_info = '''
-label(
-  separate(" ", if(divergent, "divergent"), if(hidden, "hidden")),
-  separate(" ",
-    format_short_change_id(change_id) ++ if(divergent, "??"),
-    if(hidden, "hidden")))
+if(hidden,
+  label("hidden", 
+    format_short_change_id(change_id) ++ " hidden"
+  ),
+  label(if(divergent, "divergent"),
+    format_short_change_id(change_id) ++ if(divergent,"??")
+  )
+)
 '''
