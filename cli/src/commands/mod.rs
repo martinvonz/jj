@@ -17,6 +17,7 @@ mod backout;
 #[cfg(feature = "bench")]
 mod bench;
 mod branch;
+mod cat;
 mod debug;
 mod git;
 mod operation;
@@ -31,7 +32,6 @@ use std::{fmt, fs, io};
 use clap::builder::NonEmptyStringValueParser;
 use clap::parser::ValueSource;
 use clap::{ArgGroup, Command, CommandFactory, FromArgMatches, Subcommand};
-use futures::executor::block_on;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId, TreeValue};
@@ -52,7 +52,7 @@ use jj_lib::rewrite::{merge_commit_trees, rebase_commit, DescendantRebaser};
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::{default_working_copy_initializer, Workspace};
-use jj_lib::{conflicts, file_util, revset};
+use jj_lib::{file_util, revset};
 use maplit::{hashmap, hashset};
 use tracing::instrument;
 
@@ -80,7 +80,7 @@ enum Commands {
     #[command(subcommand)]
     Branch(branch::BranchSubcommand),
     #[command(alias = "print")]
-    Cat(CatArgs),
+    Cat(cat::CatArgs),
     Checkout(CheckoutArgs),
     Chmod(ChmodArgs),
     Commit(CommitArgs),
@@ -287,17 +287,6 @@ struct FilesArgs {
     /// Only list files matching these prefixes (instead of all files)
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
-}
-
-/// Print contents of a file in a revision
-#[derive(clap::Args, Clone, Debug)]
-struct CatArgs {
-    /// The revision to get the file contents from
-    #[arg(long, short, default_value = "@")]
-    revision: RevisionArg,
-    /// The file to print
-    #[arg(value_hint = clap::ValueHint::FilePath)]
-    path: String,
 }
 
 /// Show changes in a revision
@@ -1471,41 +1460,6 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
             "{}",
             &workspace_command.format_file_path(&name)
         )?;
-    }
-    Ok(())
-}
-
-#[instrument(skip_all)]
-fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    let tree = commit.tree()?;
-    let path = workspace_command.parse_file_path(&args.path)?;
-    let repo = workspace_command.repo();
-    match tree.path_value(&path).into_resolved() {
-        Ok(None) => {
-            return Err(user_error("No such path"));
-        }
-        Ok(Some(TreeValue::File { id, .. })) => {
-            let mut contents = repo.store().read_file(&path, &id)?;
-            ui.request_pager();
-            std::io::copy(&mut contents, &mut ui.stdout_formatter().as_mut())?;
-        }
-        Err(conflict) => {
-            let mut contents = vec![];
-            block_on(conflicts::materialize(
-                &conflict,
-                repo.store(),
-                &path,
-                &mut contents,
-            ))
-            .unwrap();
-            ui.request_pager();
-            ui.stdout_formatter().write_all(&contents)?;
-        }
-        _ => {
-            return Err(user_error("Path exists but is not a file"));
-        }
     }
     Ok(())
 }
@@ -3948,7 +3902,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Checkout(sub_args) => cmd_checkout(ui, command_helper, sub_args),
         Commands::Untrack(sub_args) => cmd_untrack(ui, command_helper, sub_args),
         Commands::Files(sub_args) => cmd_files(ui, command_helper, sub_args),
-        Commands::Cat(sub_args) => cmd_cat(ui, command_helper, sub_args),
+        Commands::Cat(sub_args) => cat::cmd_cat(ui, command_helper, sub_args),
         Commands::Diff(sub_args) => cmd_diff(ui, command_helper, sub_args),
         Commands::Show(sub_args) => cmd_show(ui, command_helper, sub_args),
         Commands::Status(sub_args) => cmd_status(ui, command_helper, sub_args),
