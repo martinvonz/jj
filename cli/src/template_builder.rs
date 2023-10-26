@@ -940,11 +940,449 @@ mod tests {
         }
     }
 
+    fn new_signature(name: &str, email: &str) -> Signature {
+        Signature {
+            name: name.to_owned(),
+            email: email.to_owned(),
+            timestamp: new_timestamp(0, 0),
+        }
+    }
+
     fn new_timestamp(msec: i64, tz_offset: i32) -> Timestamp {
         Timestamp {
             timestamp: MillisSinceEpoch(msec),
             tz_offset,
         }
+    }
+
+    #[test]
+    fn test_parsed_tree() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("divergent", |language| {
+            language.wrap_boolean(Literal(false))
+        });
+        env.add_keyword("empty", |language| language.wrap_boolean(Literal(true)));
+        env.add_keyword("hello", |language| {
+            language.wrap_string(Literal("Hello".to_owned()))
+        });
+
+        // Empty
+        insta::assert_snapshot!(env.render_ok(r#"  "#), @"");
+
+        // Single term with whitespace
+        insta::assert_snapshot!(env.render_ok(r#"  hello.upper()  "#), @"HELLO");
+
+        // Multiple terms
+        insta::assert_snapshot!(env.render_ok(r#"  hello.upper()  ++ true "#), @"HELLOtrue");
+
+        // Parenthesized single term
+        insta::assert_snapshot!(env.render_ok(r#"(hello.upper())"#), @"HELLO");
+
+        // Parenthesized multiple terms and concatenation
+        insta::assert_snapshot!(env.render_ok(r#"(hello.upper() ++ " ") ++ empty"#), @"HELLO true");
+
+        // Parenthesized "if" condition
+        insta::assert_snapshot!(env.render_ok(r#"if((divergent), "t", "f")"#), @"f");
+
+        // Parenthesized method chaining
+        insta::assert_snapshot!(env.render_ok(r#"(hello).upper()"#), @"HELLO");
+    }
+
+    #[test]
+    fn test_parse_error() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("description", |language| {
+            language.wrap_string(Literal("".to_owned()))
+        });
+        env.add_keyword("empty", |language| language.wrap_boolean(Literal(true)));
+
+        insta::assert_snapshot!(env.parse_err(r#"description ()"#), @r###"
+         --> 1:13
+          |
+        1 | description ()
+          |             ^---
+          |
+          = expected EOI
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"foo"#), @r###"
+         --> 1:1
+          |
+        1 | foo
+          | ^-^
+          |
+          = Keyword "foo" doesn't exist
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"foo()"#), @r###"
+         --> 1:1
+          |
+        1 | foo()
+          | ^-^
+          |
+          = Function "foo" doesn't exist
+        "###);
+        insta::assert_snapshot!(env.parse_err(r#"false()"#), @r###"
+         --> 1:1
+          |
+        1 | false()
+          | ^---^
+          |
+          = Expected identifier
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"description.first_line().foo()"#), @r###"
+         --> 1:26
+          |
+        1 | description.first_line().foo()
+          |                          ^-^
+          |
+          = Method "foo" doesn't exist for type "String"
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"10000000000000000000"#), @r###"
+         --> 1:1
+          |
+        1 | 10000000000000000000
+          | ^------------------^
+          |
+          = Invalid integer literal: number too large to fit in target type
+        "###);
+        insta::assert_snapshot!(env.parse_err(r#"42.foo()"#), @r###"
+         --> 1:4
+          |
+        1 | 42.foo()
+          |    ^-^
+          |
+          = Method "foo" doesn't exist for type "Integer"
+        "###);
+        insta::assert_snapshot!(env.parse_err(r#"(-empty)"#), @r###"
+         --> 1:2
+          |
+        1 | (-empty)
+          |  ^---
+          |
+          = expected template
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"("foo" ++ "bar").baz()"#), @r###"
+         --> 1:18
+          |
+        1 | ("foo" ++ "bar").baz()
+          |                  ^-^
+          |
+          = Method "baz" doesn't exist for type "Template"
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"description.contains()"#), @r###"
+         --> 1:22
+          |
+        1 | description.contains()
+          |                      ^
+          |
+          = Function "contains": Expected 1 arguments
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"description.first_line("foo")"#), @r###"
+         --> 1:24
+          |
+        1 | description.first_line("foo")
+          |                        ^---^
+          |
+          = Function "first_line": Expected 0 arguments
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"label()"#), @r###"
+         --> 1:7
+          |
+        1 | label()
+          |       ^
+          |
+          = Function "label": Expected 2 arguments
+        "###);
+        insta::assert_snapshot!(env.parse_err(r#"label("foo", "bar", "baz")"#), @r###"
+         --> 1:7
+          |
+        1 | label("foo", "bar", "baz")
+          |       ^-----------------^
+          |
+          = Function "label": Expected 2 arguments
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"if()"#), @r###"
+         --> 1:4
+          |
+        1 | if()
+          |    ^
+          |
+          = Function "if": Expected 2 to 3 arguments
+        "###);
+        insta::assert_snapshot!(env.parse_err(r#"if("foo", "bar", "baz", "quux")"#), @r###"
+         --> 1:4
+          |
+        1 | if("foo", "bar", "baz", "quux")
+          |    ^-------------------------^
+          |
+          = Function "if": Expected 2 to 3 arguments
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"if(label("foo", "bar"), "baz")"#), @r###"
+         --> 1:4
+          |
+        1 | if(label("foo", "bar"), "baz")
+          |    ^-----------------^
+          |
+          = Expected expression of type "Boolean"
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"|x| description"#), @r###"
+         --> 1:1
+          |
+        1 | |x| description
+          | ^-------------^
+          |
+          = Lambda cannot be defined here
+        "###);
+    }
+
+    #[test]
+    fn test_list_method() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("empty", |language| language.wrap_boolean(Literal(true)));
+        env.add_keyword("sep", |language| {
+            language.wrap_string(Literal("sep".to_owned()))
+        });
+
+        insta::assert_snapshot!(env.render_ok(r#""".lines().join("|")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""a\nb\nc".lines().join("|")"#), @"a|b|c");
+        // Null separator
+        insta::assert_snapshot!(env.render_ok(r#""a\nb\nc".lines().join("\0")"#), @"a\0b\0c");
+        // Keyword as separator
+        insta::assert_snapshot!(
+            env.render_ok(r#""a\nb\nc".lines().join(sep.upper())"#),
+            @"aSEPbSEPc");
+
+        insta::assert_snapshot!(
+            env.render_ok(r#""a\nb\nc".lines().map(|s| s ++ s)"#),
+            @"aa bb cc");
+        // Global keyword in item template
+        insta::assert_snapshot!(
+            env.render_ok(r#""a\nb\nc".lines().map(|s| s ++ empty)"#),
+            @"atrue btrue ctrue");
+        // Override global keyword 'empty'
+        insta::assert_snapshot!(
+            env.render_ok(r#""a\nb\nc".lines().map(|empty| empty)"#),
+            @"a b c");
+        // Nested map operations
+        insta::assert_snapshot!(
+            env.render_ok(r#""a\nb\nc".lines().map(|s| "x\ny".lines().map(|t| s ++ t))"#),
+            @"ax ay bx by cx cy");
+        // Nested map/join operations
+        insta::assert_snapshot!(
+            env.render_ok(r#""a\nb\nc".lines().map(|s| "x\ny".lines().map(|t| s ++ t).join(",")).join(";")"#),
+            @"ax,ay;bx,by;cx,cy");
+        // Nested string operations
+        insta::assert_snapshot!(
+            env.render_ok(r#""!a\n!b\nc\nend".remove_suffix("end").lines().map(|s| s.remove_prefix("!"))"#),
+            @"a b c");
+
+        // Lambda expression in alias
+        env.add_alias("identity", "|x| x");
+        insta::assert_snapshot!(env.render_ok(r#""a\nb\nc".lines().map(identity)"#), @"a b c");
+
+        // Not a lambda expression
+        insta::assert_snapshot!(env.parse_err(r#""a".lines().map(empty)"#), @r###"
+         --> 1:17
+          |
+        1 | "a".lines().map(empty)
+          |                 ^---^
+          |
+          = Expected lambda expression
+        "###);
+        // Bad lambda parameter count
+        insta::assert_snapshot!(env.parse_err(r#""a".lines().map(|| "")"#), @r###"
+         --> 1:18
+          |
+        1 | "a".lines().map(|| "")
+          |                  ^
+          |
+          = Expected 1 lambda parameters
+        "###);
+        insta::assert_snapshot!(env.parse_err(r#""a".lines().map(|a, b| "")"#), @r###"
+         --> 1:18
+          |
+        1 | "a".lines().map(|a, b| "")
+          |                  ^--^
+          |
+          = Expected 1 lambda parameters
+        "###);
+        // Error in lambda expression
+        insta::assert_snapshot!(env.parse_err(r#""a".lines().map(|s| s.unknown())"#), @r###"
+         --> 1:23
+          |
+        1 | "a".lines().map(|s| s.unknown())
+          |                       ^-----^
+          |
+          = Method "unknown" doesn't exist for type "String"
+        "###);
+        // Error in lambda alias
+        env.add_alias("too_many_params", "|x, y| x");
+        insta::assert_snapshot!(env.parse_err(r#""a".lines().map(too_many_params)"#), @r###"
+         --> 1:17
+          |
+        1 | "a".lines().map(too_many_params)
+          |                 ^-------------^
+          |
+          = Alias "too_many_params" cannot be expanded
+         --> 1:2
+          |
+        1 | |x, y| x
+          |  ^--^
+          |
+          = Expected 1 lambda parameters
+        "###);
+    }
+
+    #[test]
+    fn test_string_method() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("description", |language| {
+            language.wrap_string(Literal("description 1".to_owned()))
+        });
+
+        insta::assert_snapshot!(env.render_ok(r#""fooo".contains("foo")"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#""foo".contains("fooo")"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"description.contains("description")"#), @"true");
+        insta::assert_snapshot!(
+            env.render_ok(r#""description 123".contains(description.first_line())"#),
+            @"true");
+
+        insta::assert_snapshot!(env.render_ok(r#""".first_line()"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""foo\nbar".first_line()"#), @"foo");
+
+        insta::assert_snapshot!(env.render_ok(r#""".lines()"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""a\nb\nc\n".lines()"#), @"a b c");
+
+        insta::assert_snapshot!(env.render_ok(r#""".starts_with("")"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#""everything".starts_with("")"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#""".starts_with("foo")"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#""foo".starts_with("foo")"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#""foobar".starts_with("foo")"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#""foobar".starts_with("bar")"#), @"false");
+
+        insta::assert_snapshot!(env.render_ok(r#""".ends_with("")"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#""everything".ends_with("")"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#""".ends_with("foo")"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#""foo".ends_with("foo")"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#""foobar".ends_with("foo")"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#""foobar".ends_with("bar")"#), @"true");
+
+        insta::assert_snapshot!(env.render_ok(r#""".remove_prefix("wip: ")"#), @"");
+        insta::assert_snapshot!(
+            env.render_ok(r#""wip: testing".remove_prefix("wip: ")"#),
+            @"testing");
+
+        insta::assert_snapshot!(
+            env.render_ok(r#""bar@my.example.com".remove_suffix("@other.example.com")"#),
+            @"bar@my.example.com");
+        insta::assert_snapshot!(
+            env.render_ok(r#""bar@other.example.com".remove_suffix("@other.example.com")"#),
+            @"bar");
+
+        insta::assert_snapshot!(env.render_ok(r#""foo".substr(0, 0)"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""foo".substr(0, 1)"#), @"f");
+        insta::assert_snapshot!(env.render_ok(r#""foo".substr(0, 99)"#), @"foo");
+        insta::assert_snapshot!(env.render_ok(r#""abcdef".substr(2, -1)"#), @"cde");
+        insta::assert_snapshot!(env.render_ok(r#""abcdef".substr(-3, 99)"#), @"def");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(2, -1)"#), @"c");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(-1, 99)"#), @"💩");
+
+        // ranges with end > start are empty
+        insta::assert_snapshot!(env.render_ok(r#""abcdef".substr(4, 2)"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""abcdef".substr(-2, -4)"#), @"");
+    }
+
+    #[test]
+    fn test_signature() {
+        let mut env = TestTemplateEnv::default();
+
+        env.add_keyword("author", |language| {
+            language.wrap_signature(Literal(new_signature("Test User", "test.user@example.com")))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"author"#), @"Test User <test.user@example.com>");
+        insta::assert_snapshot!(env.render_ok(r#"author.name()"#), @"Test User");
+        insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user@example.com");
+        insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user");
+
+        env.add_keyword("author", |language| {
+            language.wrap_signature(Literal(new_signature(
+                "Another Test User",
+                "test.user@example.com",
+            )))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"author"#), @"Another Test User <test.user@example.com>");
+        insta::assert_snapshot!(env.render_ok(r#"author.name()"#), @"Another Test User");
+        insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user@example.com");
+        insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user");
+
+        env.add_keyword("author", |language| {
+            language.wrap_signature(Literal(new_signature(
+                "Test User",
+                "test.user@invalid@example.com",
+            )))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"author"#), @"Test User <test.user@invalid@example.com>");
+        insta::assert_snapshot!(env.render_ok(r#"author.name()"#), @"Test User");
+        insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user@invalid@example.com");
+        insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user");
+
+        env.add_keyword("author", |language| {
+            language.wrap_signature(Literal(new_signature("Test User", "test.user")))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"author"#), @"Test User <test.user>");
+        insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user");
+        insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user");
+
+        env.add_keyword("author", |language| {
+            language.wrap_signature(Literal(new_signature(
+                "Test User",
+                "test.user+tag@example.com",
+            )))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"author"#), @"Test User <test.user+tag@example.com>");
+        insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user+tag@example.com");
+        insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user+tag");
+
+        env.add_keyword("author", |language| {
+            language.wrap_signature(Literal(new_signature("Test User", "x@y")))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"author"#), @"Test User <x@y>");
+        insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"x@y");
+        insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"x");
+
+        env.add_keyword("author", |language| {
+            language.wrap_signature(Literal(new_signature("", "test.user@example.com")))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"author"#), @"<test.user@example.com>");
+        insta::assert_snapshot!(env.render_ok(r#"author.name()"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user@example.com");
+        insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user");
+
+        env.add_keyword("author", |language| {
+            language.wrap_signature(Literal(new_signature("Test User", "")))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"author"#), @"Test User");
+        insta::assert_snapshot!(env.render_ok(r#"author.name()"#), @"Test User");
+        insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"");
+
+        env.add_keyword("author", |language| {
+            language.wrap_signature(Literal(new_signature("", "")))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"author"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"author.name()"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"");
     }
 
     #[test]
@@ -1009,6 +1447,152 @@ mod tests {
     }
 
     #[test]
+    fn test_fill_function() {
+        let mut env = TestTemplateEnv::default();
+        env.add_color("error", crossterm::style::Color::DarkRed);
+
+        insta::assert_snapshot!(
+            env.render_ok(r#"fill(20, "The quick fox jumps over the " ++
+                                  label("error", "lazy") ++ " dog\n")"#),
+            @r###"
+        The quick fox jumps
+        over the [38;5;1mlazy[39m dog
+        "###);
+
+        // A low value will not chop words, but can chop a label by words
+        insta::assert_snapshot!(
+            env.render_ok(r#"fill(9, "Longlonglongword an some short words " ++
+                                  label("error", "longlonglongword and short words") ++
+                                  " back out\n")"#),
+            @r###"
+        Longlonglongword
+        an some
+        short
+        words
+        [38;5;1mlonglonglongword[39m
+        [38;5;1mand short[39m
+        [38;5;1mwords[39m
+        back out
+        "###);
+
+        // Filling to 0 means breaking at every word
+        insta::assert_snapshot!(
+            env.render_ok(r#"fill(0, "The quick fox jumps over the " ++
+                                  label("error", "lazy") ++ " dog\n")"#),
+            @r###"
+        The
+        quick
+        fox
+        jumps
+        over
+        the
+        [38;5;1mlazy[39m
+        dog
+        "###);
+
+        // Filling to -0 is the same as 0
+        insta::assert_snapshot!(
+            env.render_ok(r#"fill(-0, "The quick fox jumps over the " ++
+                                  label("error", "lazy") ++ " dog\n")"#),
+            @r###"
+        The
+        quick
+        fox
+        jumps
+        over
+        the
+        [38;5;1mlazy[39m
+        dog
+        "###);
+
+        // Filling to negatives are clamped to the same as zero
+        insta::assert_snapshot!(
+            env.render_ok(r#"fill(-10, "The quick fox jumps over the " ++
+                                  label("error", "lazy") ++ " dog\n")"#),
+            @r###"
+        The
+        quick
+        fox
+        jumps
+        over
+        the
+        [38;5;1mlazy[39m
+        dog
+        "###);
+
+        // Word-wrap, then indent
+        insta::assert_snapshot!(
+            env.render_ok(r#""START marker to help insta\n" ++
+                             indent("    ", fill(20, "The quick fox jumps over the " ++
+                                                 label("error", "lazy") ++ " dog\n"))"#),
+            @r###"
+        START marker to help insta
+            The quick fox jumps
+            over the [38;5;1mlazy[39m dog
+        "###);
+
+        // Word-wrap indented (no special handling for leading spaces)
+        insta::assert_snapshot!(
+            env.render_ok(r#""START marker to help insta\n" ++
+                             fill(20, indent("    ", "The quick fox jumps over the " ++
+                                             label("error", "lazy") ++ " dog\n"))"#),
+            @r###"
+        START marker to help insta
+            The quick fox
+        jumps over the [38;5;1mlazy[39m
+        dog
+        "###);
+    }
+
+    #[test]
+    fn test_indent_function() {
+        let mut env = TestTemplateEnv::default();
+        env.add_color("error", crossterm::style::Color::DarkRed);
+        env.add_color("warning", crossterm::style::Color::DarkYellow);
+        env.add_color("hint", crossterm::style::Color::DarkCyan);
+
+        // Empty line shouldn't be indented. Not using insta here because we test
+        // whitespace existence.
+        assert_eq!(env.render_ok(r#"indent("__", "")"#), "");
+        assert_eq!(env.render_ok(r#"indent("__", "\n")"#), "\n");
+        assert_eq!(env.render_ok(r#"indent("__", "a\n\nb")"#), "__a\n\n__b");
+
+        // "\n" at end of labeled text
+        insta::assert_snapshot!(
+            env.render_ok(r#"indent("__", label("error", "a\n") ++ label("warning", "b\n"))"#),
+            @r###"
+        [38;5;1m__a[39m
+        [38;5;3m__b[39m
+        "###);
+
+        // "\n" in labeled text
+        insta::assert_snapshot!(
+            env.render_ok(r#"indent("__", label("error", "a") ++ label("warning", "b\nc"))"#),
+            @r###"
+        [38;5;1m__a[39m[38;5;3mb[39m
+        [38;5;3m__c[39m
+        "###);
+
+        // Labeled prefix + unlabeled content
+        insta::assert_snapshot!(
+            env.render_ok(r#"indent(label("error", "XX"), "a\nb\n")"#),
+            @r###"
+        [38;5;1mXX[39ma
+        [38;5;1mXX[39mb
+        "###);
+
+        // Nested indent, silly but works
+        insta::assert_snapshot!(
+            env.render_ok(r#"indent(label("hint", "A"),
+                                    label("warning", indent(label("hint", "B"),
+                                                            label("error", "x\n") ++ "y")))"#),
+            @r###"
+        [38;5;6mAB[38;5;1mx[39m
+        [38;5;6mAB[38;5;3my[39m
+        "###);
+    }
+
+    #[test]
     fn test_label_function() {
         let mut env = TestTemplateEnv::default();
         env.add_keyword("empty", |language| language.wrap_boolean(Literal(true)));
@@ -1029,5 +1613,81 @@ mod tests {
         insta::assert_snapshot!(
             env.render_ok(r#"label(if(empty, "error", "warning"), "text")"#),
             @"[38;5;1mtext[39m");
+    }
+
+    #[test]
+    fn test_concat_function() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("empty", |language| language.wrap_boolean(Literal(true)));
+        env.add_keyword("hidden", |language| language.wrap_boolean(Literal(false)));
+        env.add_color("empty", crossterm::style::Color::DarkGreen);
+        env.add_color("error", crossterm::style::Color::DarkRed);
+        env.add_color("warning", crossterm::style::Color::DarkYellow);
+
+        insta::assert_snapshot!(env.render_ok(r#"concat()"#), @"");
+        insta::assert_snapshot!(
+            env.render_ok(r#"concat(hidden, empty)"#),
+            @"false[38;5;2mtrue[39m");
+        insta::assert_snapshot!(
+            env.render_ok(r#"concat(label("error", ""), label("warning", "a"), "b")"#),
+            @"[38;5;3ma[39mb");
+    }
+
+    #[test]
+    fn test_separate_function() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("description", |language| {
+            language.wrap_string(Literal("".to_owned()))
+        });
+        env.add_keyword("empty", |language| language.wrap_boolean(Literal(true)));
+        env.add_keyword("hidden", |language| language.wrap_boolean(Literal(false)));
+        env.add_color("empty", crossterm::style::Color::DarkGreen);
+        env.add_color("error", crossterm::style::Color::DarkRed);
+        env.add_color("warning", crossterm::style::Color::DarkYellow);
+
+        insta::assert_snapshot!(env.render_ok(r#"separate(" ")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"separate(" ", "")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"separate(" ", "a")"#), @"a");
+        insta::assert_snapshot!(env.render_ok(r#"separate(" ", "a", "b")"#), @"a b");
+        insta::assert_snapshot!(env.render_ok(r#"separate(" ", "a", "", "b")"#), @"a b");
+        insta::assert_snapshot!(env.render_ok(r#"separate(" ", "a", "b", "")"#), @"a b");
+        insta::assert_snapshot!(env.render_ok(r#"separate(" ", "", "a", "b")"#), @"a b");
+
+        // Labeled
+        insta::assert_snapshot!(
+            env.render_ok(r#"separate(" ", label("error", ""), label("warning", "a"), "b")"#),
+            @"[38;5;3ma[39m b");
+
+        // List template
+        insta::assert_snapshot!(env.render_ok(r#"separate(" ", "a", ("" ++ ""))"#), @"a");
+        insta::assert_snapshot!(env.render_ok(r#"separate(" ", "a", ("" ++ "b"))"#), @"a b");
+
+        // Nested separate
+        insta::assert_snapshot!(
+            env.render_ok(r#"separate(" ", "a", separate("|", "", ""))"#), @"a");
+        insta::assert_snapshot!(
+            env.render_ok(r#"separate(" ", "a", separate("|", "b", ""))"#), @"a b");
+        insta::assert_snapshot!(
+            env.render_ok(r#"separate(" ", "a", separate("|", "b", "c"))"#), @"a b|c");
+
+        // Conditional template
+        insta::assert_snapshot!(
+            env.render_ok(r#"separate(" ", "a", if(true, ""))"#), @"a");
+        insta::assert_snapshot!(
+            env.render_ok(r#"separate(" ", "a", if(true, "", "f"))"#), @"a");
+        insta::assert_snapshot!(
+            env.render_ok(r#"separate(" ", "a", if(false, "t", ""))"#), @"a");
+        insta::assert_snapshot!(
+            env.render_ok(r#"separate(" ", "a", if(true, "t", "f"))"#), @"a t");
+
+        // Separate keywords
+        insta::assert_snapshot!(
+            env.render_ok(r#"separate(" ", hidden, description, empty)"#),
+            @"false [38;5;2mtrue[39m");
+
+        // Keyword as separator
+        insta::assert_snapshot!(
+            env.render_ok(r#"separate(hidden, "X", "Y", "Z")"#),
+            @"XfalseYfalseZ");
     }
 }
