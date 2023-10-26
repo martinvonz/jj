@@ -3191,9 +3191,15 @@ fn cmd_restore(
             .rewrite_commit(command.settings(), &to_commit)
             .set_tree_id(new_tree_id)
             .write()?;
+        // rebase_descendants early; otherwise `new_commit` would always have
+        // a conflicted change id at this point.
+        let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
         write!(ui.stderr(), "Created ")?;
         tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
         writeln!(ui.stderr())?;
+        if num_rebased > 0 {
+            writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
+        }
         tx.finish(ui)?;
     }
     Ok(())
@@ -3248,9 +3254,15 @@ don't make any changes, then the operation will be aborted.",
             .rewrite_commit(command.settings(), &target_commit)
             .set_tree_id(tree_id)
             .write()?;
+        // rebase_descendants early; otherwise `new_commit` would always have
+        // a conflicted change id at this point.
+        let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
         write!(ui.stderr(), "Created ")?;
         tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
         writeln!(ui.stderr())?;
+        if num_rebased > 0 {
+            writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
+        }
         tx.finish(ui)?;
     }
     Ok(())

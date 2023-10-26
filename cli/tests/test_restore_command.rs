@@ -192,7 +192,7 @@ fn test_restore_conflicted_merge() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "file"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created vruxwmqv b2c9c888 (conflict) (empty) conflict
+    Created vruxwmqv b2c9c888 conflict | (conflict) (empty) conflict
     Working copy now at: vruxwmqv b2c9c888 conflict | (conflict) (empty) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
@@ -231,7 +231,7 @@ fn test_restore_conflicted_merge() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created vruxwmqv 4fc10820 (conflict) (empty) conflict
+    Created vruxwmqv 4fc10820 conflict | (conflict) (empty) conflict
     Working copy now at: vruxwmqv 4fc10820 conflict | (conflict) (empty) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
