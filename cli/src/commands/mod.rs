@@ -13,6 +13,7 @@
 // limitations under the License.
 
 mod abandon;
+mod backout;
 #[cfg(feature = "bench")]
 mod bench;
 mod branch;
@@ -47,7 +48,7 @@ use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt}
 use jj_lib::revset_graph::{
     ReverseRevsetGraphIterator, RevsetGraphEdgeType, TopoGroupedRevsetGraphIterator,
 };
-use jj_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
+use jj_lib::rewrite::{merge_commit_trees, rebase_commit, DescendantRebaser};
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::{default_working_copy_initializer, Workspace};
@@ -72,7 +73,7 @@ use crate::ui::Ui;
 #[derive(clap::Parser, Clone, Debug)]
 enum Commands {
     Abandon(abandon::AbandonArgs),
-    Backout(BackoutArgs),
+    Backout(backout::BackoutArgs),
     #[cfg(feature = "bench")]
     #[command(subcommand)]
     Bench(bench::BenchCommands),
@@ -991,19 +992,6 @@ struct RebaseArgs {
     /// Deprecated. Please prefix the revset with `all:` instead.
     #[arg(long, short = 'L', hide = true)]
     allow_large_revsets: bool,
-}
-
-/// Apply the reverse of a revision on top of another revision
-#[derive(clap::Args, Clone, Debug)]
-struct BackoutArgs {
-    /// The revision to apply the reverse of
-    #[arg(long, short, default_value = "@")]
-    revision: RevisionArg,
-    /// The revision to apply the reverse changes on top of
-    // TODO: It seems better to default this to `@-`. Maybe the working
-    // copy should be rebased on top?
-    #[arg(long, short, default_value = "@")]
-    destination: Vec<RevisionArg>,
 }
 
 /// Commands for working with workspaces
@@ -3582,34 +3570,6 @@ fn check_rebase_destinations(
     Ok(())
 }
 
-#[instrument(skip_all)]
-fn cmd_backout(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &BackoutArgs,
-) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let commit_to_back_out = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    let mut parents = vec![];
-    for revision_str in &args.destination {
-        let destination = workspace_command.resolve_single_rev(revision_str, ui)?;
-        parents.push(destination);
-    }
-    let mut tx = workspace_command.start_transaction(&format!(
-        "back out commit {}",
-        commit_to_back_out.id().hex()
-    ));
-    back_out_commit(
-        command.settings(),
-        tx.mut_repo(),
-        &commit_to_back_out,
-        &parents,
-    )?;
-    tx.finish(ui)?;
-
-    Ok(())
-}
-
 fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
     match branch_names {
         [branch_name] => format!("branch {}", branch_name),
@@ -4012,7 +3972,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Split(sub_args) => cmd_split(ui, command_helper, sub_args),
         Commands::Merge(sub_args) => cmd_merge(ui, command_helper, sub_args),
         Commands::Rebase(sub_args) => cmd_rebase(ui, command_helper, sub_args),
-        Commands::Backout(sub_args) => cmd_backout(ui, command_helper, sub_args),
+        Commands::Backout(sub_args) => backout::cmd_backout(ui, command_helper, sub_args),
         Commands::Resolve(sub_args) => cmd_resolve(ui, command_helper, sub_args),
         Commands::Branch(sub_args) => branch::cmd_branch(ui, command_helper, sub_args),
         Commands::Undo(sub_args) => operation::cmd_op_undo(ui, command_helper, sub_args),
