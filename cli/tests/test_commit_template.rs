@@ -363,6 +363,67 @@ fn test_log_obslog_divergence() {
 }
 
 #[test]
+fn test_log_branches() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
+
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "origin"]);
+    let origin_path = test_env.env_root().join("origin");
+    let origin_git_repo_path = origin_path
+        .join(".jj")
+        .join("repo")
+        .join("store")
+        .join("git");
+
+    // Created some branches on the remote
+    test_env.jj_cmd_ok(&origin_path, &["describe", "-m=description 1"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch1"]);
+    test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 2"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch2"]);
+    test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 3"]);
+    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "branch3"]);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
+    test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &[
+            "git",
+            "clone",
+            origin_git_repo_path.to_str().unwrap(),
+            "local",
+        ],
+    );
+    let workspace_root = test_env.env_root().join("local");
+
+    // Rewrite branch1, move branch2 forward, create conflict in branch3, add
+    // new-branch
+    test_env.jj_cmd_ok(
+        &workspace_root,
+        &["describe", "branch1", "-m", "modified branch1 commit"],
+    );
+    test_env.jj_cmd_ok(&workspace_root, &["new", "branch2"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch2"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "new-branch"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "branch3", "-m=local"]);
+    test_env.jj_cmd_ok(&origin_path, &["describe", "branch3", "-m=origin"]);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
+    test_env.jj_cmd_ok(&workspace_root, &["git", "fetch"]);
+
+    let template = r#"commit_id.short() ++ " " ++ branches"#;
+    let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
+    insta::assert_snapshot!(output, @r###"
+    ◉  fed794e2ba44 branch3?? branch3@origin
+    │ ◉  b1bb3766d584 branch3??
+    ├─╯
+    │ ◉  21c33875443e branch1*
+    ├─╯
+    │ @  a5b4d15489cc branch2* new-branch
+    │ ◉  8476341eb395 branch2@origin
+    ├─╯
+    ◉  000000000000
+    "###);
+}
+
+#[test]
 fn test_log_git_head() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
