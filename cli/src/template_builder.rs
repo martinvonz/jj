@@ -849,3 +849,152 @@ pub fn expect_template_expression<'a, L: TemplateLanguage<'a>>(
         .try_into_template()
         .ok_or_else(|| TemplateParseError::expected_type("Template", node.span))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::iter;
+
+    use jj_lib::backend::MillisSinceEpoch;
+
+    use super::*;
+    use crate::formatter::PlainTextFormatter;
+    use crate::template_parser::TemplateAliasesMap;
+
+    /// Minimal template language for testing.
+    #[derive(Clone, Default)]
+    struct TestTemplateLanguage {
+        keywords: HashMap<&'static str, TestTemplateKeywordFn>,
+    }
+
+    impl TemplateLanguage<'static> for TestTemplateLanguage {
+        type Context = ();
+        type Property = CoreTemplatePropertyKind<'static, ()>;
+
+        impl_core_wrap_property_fns!('static);
+
+        fn build_keyword(
+            &self,
+            name: &str,
+            span: pest::Span,
+        ) -> TemplateParseResult<Self::Property> {
+            self.keywords
+                .get(name)
+                .map(|f| f(self))
+                .ok_or_else(|| TemplateParseError::no_such_keyword(name, span))
+        }
+
+        fn build_method(
+            &self,
+            build_ctx: &BuildContext<Self::Property>,
+            property: Self::Property,
+            function: &FunctionCallNode,
+        ) -> TemplateParseResult<Self::Property> {
+            build_core_method(self, build_ctx, property, function)
+        }
+    }
+
+    type TestTemplateKeywordFn = fn(&TestTemplateLanguage) -> CoreTemplatePropertyKind<'static, ()>;
+
+    /// Helper to set up template evaluation environment.
+    #[derive(Clone, Default)]
+    struct TestTemplateEnv {
+        language: TestTemplateLanguage,
+        aliases_map: TemplateAliasesMap,
+    }
+
+    impl TestTemplateEnv {
+        fn add_keyword(&mut self, name: &'static str, f: TestTemplateKeywordFn) {
+            self.language.keywords.insert(name, f);
+        }
+
+        fn add_alias(&mut self, decl: impl AsRef<str>, defn: impl Into<String>) {
+            self.aliases_map.insert(decl, defn).unwrap();
+        }
+
+        fn parse(&self, template: &str) -> TemplateParseResult<Box<dyn Template<()>>> {
+            let node = template_parser::parse(template, &self.aliases_map)?;
+            build(&self.language, &node)
+        }
+
+        fn parse_err(&self, template: &str) -> String {
+            let err = self.parse(template).err().unwrap();
+            iter::successors(Some(&err), |e| e.origin()).join("\n")
+        }
+
+        fn render_ok(&self, template: &str) -> String {
+            let template = self.parse(template).unwrap();
+            let mut output = Vec::new();
+            let mut formatter = PlainTextFormatter::new(&mut output);
+            template.format(&(), &mut formatter).unwrap();
+            String::from_utf8(output).unwrap()
+        }
+    }
+
+    fn new_timestamp(msec: i64, tz_offset: i32) -> Timestamp {
+        Timestamp {
+            timestamp: MillisSinceEpoch(msec),
+            tz_offset,
+        }
+    }
+
+    #[test]
+    fn test_timestamp_method() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("t0", |language| {
+            language.wrap_timestamp(Literal(new_timestamp(0, 0)))
+        });
+
+        insta::assert_snapshot!(
+            env.render_ok(r#"t0.format("%Y%m%d %H:%M:%S")"#),
+            @"19700101 00:00:00");
+
+        // Invalid format string
+        insta::assert_snapshot!(env.parse_err(r#"t0.format("%_")"#), @r###"
+         --> 1:11
+          |
+        1 | t0.format("%_")
+          |           ^--^
+          |
+          = Invalid time format
+        "###);
+
+        // Invalid type
+        insta::assert_snapshot!(env.parse_err(r#"t0.format(0)"#), @r###"
+         --> 1:11
+          |
+        1 | t0.format(0)
+          |           ^
+          |
+          = Expected string literal
+        "###);
+
+        // Dynamic string isn't supported yet
+        insta::assert_snapshot!(env.parse_err(r#"t0.format("%Y" ++ "%m")"#), @r###"
+         --> 1:11
+          |
+        1 | t0.format("%Y" ++ "%m")
+          |           ^----------^
+          |
+          = Expected string literal
+        "###);
+
+        // Literal alias expansion
+        env.add_alias("time_format", r#""%Y-%m-%d""#);
+        env.add_alias("bad_time_format", r#""%_""#);
+        insta::assert_snapshot!(env.render_ok(r#"t0.format(time_format)"#), @"1970-01-01");
+        insta::assert_snapshot!(env.parse_err(r#"t0.format(bad_time_format)"#), @r###"
+         --> 1:11
+          |
+        1 | t0.format(bad_time_format)
+          |           ^-------------^
+          |
+          = Alias "bad_time_format" cannot be expanded
+         --> 1:1
+          |
+        1 | "%_"
+          | ^--^
+          |
+          = Invalid time format
+        "###);
+    }
+}
