@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod abandon;
 #[cfg(feature = "bench")]
 mod bench;
 mod branch;
@@ -70,7 +71,7 @@ use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
 enum Commands {
-    Abandon(AbandonArgs),
+    Abandon(abandon::AbandonArgs),
     Backout(BackoutArgs),
     #[cfg(feature = "bench")]
     #[command(subcommand)]
@@ -488,24 +489,6 @@ struct DuplicateArgs {
     /// The revision(s) to duplicate
     #[arg(default_value = "@")]
     revisions: Vec<RevisionArg>,
-    /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true)]
-    unused_revision: bool,
-}
-
-/// Abandon a revision
-///
-/// Abandon a revision, rebasing descendants onto its parent(s). The behavior is
-/// similar to `jj restore --changes-in`; the difference is that `jj abandon`
-/// gives you a new change, while `jj restore` updates the existing change.
-#[derive(clap::Args, Clone, Debug)]
-struct AbandonArgs {
-    /// The revision(s) to abandon
-    #[arg(default_value = "@")]
-    revisions: Vec<RevisionArg>,
-    /// Do not print every abandoned commit on a separate line
-    #[arg(long, short)]
-    summary: bool,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -2296,56 +2279,6 @@ fn cmd_duplicate(
 }
 
 #[instrument(skip_all)]
-fn cmd_abandon(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &AbandonArgs,
-) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let to_abandon = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?;
-    workspace_command.check_rewritable(to_abandon.iter())?;
-    let transaction_description = if to_abandon.len() == 1 {
-        format!("abandon commit {}", to_abandon[0].id().hex())
-    } else {
-        format!(
-            "abandon commit {} and {} more",
-            to_abandon[0].id().hex(),
-            to_abandon.len() - 1
-        )
-    };
-    let mut tx = workspace_command.start_transaction(&transaction_description);
-    for commit in &to_abandon {
-        tx.mut_repo().record_abandoned_commit(commit.id().clone());
-    }
-    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
-
-    if to_abandon.len() == 1 {
-        write!(ui.stderr(), "Abandoned commit ")?;
-        tx.base_workspace_helper()
-            .write_commit_summary(ui.stderr_formatter().as_mut(), &to_abandon[0])?;
-        writeln!(ui.stderr())?;
-    } else if !args.summary {
-        writeln!(ui.stderr(), "Abandoned the following commits:")?;
-        for commit in to_abandon {
-            write!(ui.stderr(), "  ")?;
-            tx.base_workspace_helper()
-                .write_commit_summary(ui.stderr_formatter().as_mut(), &commit)?;
-            writeln!(ui.stderr())?;
-        }
-    } else {
-        writeln!(ui.stderr(), "Abandoned {} commits.", &to_abandon.len())?;
-    }
-    if num_rebased > 0 {
-        writeln!(
-            ui.stderr(),
-            "Rebased {num_rebased} descendant commits onto parents of abandoned commits"
-        )?;
-    }
-    tx.finish(ui)?;
-    Ok(())
-}
-
-#[instrument(skip_all)]
 fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
@@ -4052,7 +3985,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Describe(sub_args) => cmd_describe(ui, command_helper, sub_args),
         Commands::Commit(sub_args) => cmd_commit(ui, command_helper, sub_args),
         Commands::Duplicate(sub_args) => cmd_duplicate(ui, command_helper, sub_args),
-        Commands::Abandon(sub_args) => cmd_abandon(ui, command_helper, sub_args),
+        Commands::Abandon(sub_args) => abandon::cmd_abandon(ui, command_helper, sub_args),
         Commands::Edit(sub_args) => cmd_edit(ui, command_helper, sub_args),
         Commands::Next(sub_args) => cmd_next(ui, command_helper, sub_args),
         Commands::Prev(sub_args) => cmd_prev(ui, command_helper, sub_args),
