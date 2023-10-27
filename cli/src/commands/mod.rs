@@ -23,12 +23,13 @@ mod chmod;
 mod commit;
 mod config;
 mod debug;
+mod describe;
 mod git;
 mod operation;
 
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
-use std::io::{BufRead, Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, Seek, SeekFrom, Write};
 use std::path::Path;
 use std::sync::Arc;
 use std::{fmt, fs, io};
@@ -89,7 +90,7 @@ enum Commands {
     Config(config::ConfigSubcommand),
     #[command(subcommand)]
     Debug(debug::DebugCommands),
-    Describe(DescribeArgs),
+    Describe(describe::DescribeArgs),
     Diff(DiffArgs),
     Diffedit(DiffeditArgs),
     Duplicate(DuplicateArgs),
@@ -318,37 +319,6 @@ struct InterdiffArgs {
     paths: Vec<String>,
     #[command(flatten)]
     format: DiffFormatArgs,
-}
-
-/// Update the change description or other metadata
-///
-/// Starts an editor to let you edit the description of a change. The editor
-/// will be $EDITOR, or `pico` if that's not defined (`Notepad` on Windows).
-#[derive(clap::Args, Clone, Debug)]
-#[command(visible_aliases = &["desc"])]
-struct DescribeArgs {
-    /// The revision whose description to edit
-    #[arg(default_value = "@")]
-    revision: RevisionArg,
-    /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true)]
-    unused_revision: bool,
-    /// The change description to use (don't open editor)
-    #[arg(long = "message", short, value_name = "MESSAGE")]
-    message_paragraphs: Vec<String>,
-    /// Read the change description from stdin
-    #[arg(long)]
-    stdin: bool,
-    /// Don't open an editor
-    ///
-    /// This is mainly useful in combination with e.g. `--reset-author`.
-    #[arg(long)]
-    no_edit: bool,
-    /// Reset the author to the configured user
-    ///
-    /// This resets the author name, email, and timestamp.
-    #[arg(long)]
-    reset_author: bool,
 }
 
 /// Create a new change with the same content as an existing one
@@ -1741,47 +1711,6 @@ fn edit_sparse(
             )?)
         })
         .try_collect()
-}
-
-#[instrument(skip_all)]
-fn cmd_describe(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &DescribeArgs,
-) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    workspace_command.check_rewritable([&commit])?;
-    let description = if args.stdin {
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer).unwrap();
-        buffer
-    } else if !args.message_paragraphs.is_empty() {
-        cli_util::join_message_paragraphs(&args.message_paragraphs)
-    } else if args.no_edit {
-        commit.description().to_owned()
-    } else {
-        let template =
-            description_template_for_commit(ui, command.settings(), &workspace_command, &commit)?;
-        edit_description(workspace_command.repo(), &template, command.settings())?
-    };
-    if description == *commit.description() && !args.reset_author {
-        writeln!(ui.stderr(), "Nothing changed.")?;
-    } else {
-        let mut tx =
-            workspace_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
-        let mut commit_builder = tx
-            .mut_repo()
-            .rewrite_commit(command.settings(), &commit)
-            .set_description(description);
-        if args.reset_author {
-            let new_author = commit_builder.committer().clone();
-            commit_builder = commit_builder.set_author(new_author);
-        }
-        commit_builder.write()?;
-        tx.finish(ui)?;
-    }
-    Ok(())
 }
 
 #[instrument(skip_all)]
@@ -3465,7 +3394,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Log(sub_args) => cmd_log(ui, command_helper, sub_args),
         Commands::Interdiff(sub_args) => cmd_interdiff(ui, command_helper, sub_args),
         Commands::Obslog(sub_args) => cmd_obslog(ui, command_helper, sub_args),
-        Commands::Describe(sub_args) => cmd_describe(ui, command_helper, sub_args),
+        Commands::Describe(sub_args) => describe::cmd_describe(ui, command_helper, sub_args),
         Commands::Commit(sub_args) => commit::cmd_commit(ui, command_helper, sub_args),
         Commands::Duplicate(sub_args) => cmd_duplicate(ui, command_helper, sub_args),
         Commands::Abandon(sub_args) => abandon::cmd_abandon(ui, command_helper, sub_args),
