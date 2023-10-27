@@ -95,7 +95,8 @@ No methods are defined.
 
 ### List type
 
-The following methods are defined.
+A list can be implicitly converted to `Boolean`. The following methods are
+defined.
 
 * `.join(separator: Template) -> Template`: Concatenate elements with
   the given `separator`.
