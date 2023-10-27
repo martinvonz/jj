@@ -81,7 +81,7 @@ impl IntoTemplateProperty<'static, Operation> for OperationTemplatePropertyKind 
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Operation, Output = bool>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_boolean(),
-            _ => None,
+            OperationTemplatePropertyKind::OperationId(_) => None,
         }
     }
 

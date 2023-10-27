@@ -163,8 +163,14 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
                 Some(Box::new(TemplateFunction::new(property, |s| !s.is_empty())))
             }
             // TODO: should we allow implicit cast of List type?
+            CoreTemplatePropertyKind::StringList(_) => None,
             CoreTemplatePropertyKind::Boolean(property) => Some(property),
-            _ => None,
+            CoreTemplatePropertyKind::Integer(_) => None,
+            CoreTemplatePropertyKind::Signature(_) => None,
+            CoreTemplatePropertyKind::Timestamp(_) => None,
+            CoreTemplatePropertyKind::TimestampRange(_) => None,
+            CoreTemplatePropertyKind::Template(_) => None,
+            CoreTemplatePropertyKind::ListTemplate(_) => None,
         }
     }
 
