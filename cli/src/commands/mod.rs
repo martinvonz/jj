@@ -20,6 +20,7 @@ mod branch;
 mod cat;
 mod checkout;
 mod chmod;
+mod commit;
 mod debug;
 mod git;
 mod operation;
@@ -85,7 +86,7 @@ enum Commands {
     Cat(cat::CatArgs),
     Checkout(checkout::CheckoutArgs),
     Chmod(chmod::ChmodArgs),
-    Commit(CommitArgs),
+    Commit(commit::CommitArgs),
     #[command(subcommand)]
     Config(ConfigSubcommand),
     #[command(subcommand)]
@@ -441,21 +442,6 @@ struct DescribeArgs {
     /// This resets the author name, email, and timestamp.
     #[arg(long)]
     reset_author: bool,
-}
-
-/// Update the description and create a new change on top.
-#[derive(clap::Args, Clone, Debug)]
-#[command(visible_aliases=&["ci"])]
-struct CommitArgs {
-    /// Interactively choose which changes to include in the first commit
-    #[arg(short, long)]
-    interactive: bool,
-    /// The change description to use (don't open editor)
-    #[arg(long = "message", short, value_name = "MESSAGE")]
-    message_paragraphs: Vec<String>,
-    /// Put these paths in the first commit
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
-    paths: Vec<String>,
 }
 
 /// Create a new change with the same content as an existing one
@@ -2014,79 +2000,6 @@ fn cmd_describe(
         commit_builder.write()?;
         tx.finish(ui)?;
     }
-    Ok(())
-}
-
-#[instrument(skip_all)]
-fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-
-    let commit_id = workspace_command
-        .get_wc_commit_id()
-        .ok_or_else(|| user_error("This command requires a working copy"))?;
-    let commit = workspace_command.repo().store().get_commit(commit_id)?;
-    let template =
-        description_template_for_commit(ui, command.settings(), &workspace_command, &commit)?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
-    let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
-    let instructions = format!(
-        "\
-You are splitting the working-copy commit: {}
-
-The diff initially shows all changes. Adjust the right side until it shows the
-contents you want for the first commit. The remainder will be included in the
-new working-copy commit.
-",
-        tx.format_commit_summary(&commit)
-    );
-    let tree_id = tx.select_diff(
-        ui,
-        &base_tree,
-        &commit.tree()?,
-        matcher.as_ref(),
-        &instructions,
-        args.interactive,
-    )?;
-    let middle_tree = tx.repo().store().get_root_tree(&tree_id)?;
-    if !args.paths.is_empty() && middle_tree.id() == base_tree.id() {
-        writeln!(
-            ui.warning(),
-            "The given paths do not match any file: {}",
-            args.paths.join(" ")
-        )?;
-    }
-
-    let description = if !args.message_paragraphs.is_empty() {
-        cli_util::join_message_paragraphs(&args.message_paragraphs)
-    } else {
-        edit_description(tx.base_repo(), &template, command.settings())?
-    };
-
-    let new_commit = tx
-        .mut_repo()
-        .rewrite_commit(command.settings(), &commit)
-        .set_tree_id(tree_id)
-        .set_description(description)
-        .write()?;
-    let workspace_ids = tx
-        .mut_repo()
-        .view()
-        .workspaces_for_wc_commit_id(commit.id());
-    if !workspace_ids.is_empty() {
-        let new_wc_commit = tx
-            .mut_repo()
-            .new_commit(
-                command.settings(),
-                vec![new_commit.id().clone()],
-                commit.tree_id().clone(),
-            )
-            .write()?;
-        for workspace_id in workspace_ids {
-            tx.mut_repo().edit(workspace_id, &new_wc_commit).unwrap();
-        }
-    }
-    tx.finish(ui)?;
     Ok(())
 }
 
@@ -3772,7 +3685,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Interdiff(sub_args) => cmd_interdiff(ui, command_helper, sub_args),
         Commands::Obslog(sub_args) => cmd_obslog(ui, command_helper, sub_args),
         Commands::Describe(sub_args) => cmd_describe(ui, command_helper, sub_args),
-        Commands::Commit(sub_args) => cmd_commit(ui, command_helper, sub_args),
+        Commands::Commit(sub_args) => commit::cmd_commit(ui, command_helper, sub_args),
         Commands::Duplicate(sub_args) => cmd_duplicate(ui, command_helper, sub_args),
         Commands::Abandon(sub_args) => abandon::cmd_abandon(ui, command_helper, sub_args),
         Commands::Edit(sub_args) => cmd_edit(ui, command_helper, sub_args),
