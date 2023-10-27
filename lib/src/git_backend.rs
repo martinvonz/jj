@@ -275,6 +275,16 @@ impl GitBackend {
         }
         self.save_extra_metadata_table(mut_table, &table_lock)
     }
+
+    fn read_file_sync(&self, id: &FileId) -> BackendResult<Box<dyn Read>> {
+        let git_blob_id = validate_git_object_id(id)?;
+        let locked_repo = self.repo.lock().unwrap();
+        let blob = locked_repo
+            .find_blob(git_blob_id)
+            .map_err(|err| map_not_found_err(err, id))?;
+        let content = blob.content().to_owned();
+        Ok(Box::new(Cursor::new(content)))
+    }
 }
 
 fn commit_from_git_without_root_parent(
@@ -529,13 +539,7 @@ impl Backend for GitBackend {
     }
 
     async fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
-        let git_blob_id = validate_git_object_id(id)?;
-        let locked_repo = self.repo.lock().unwrap();
-        let blob = locked_repo
-            .find_blob(git_blob_id)
-            .map_err(|err| map_not_found_err(err, id))?;
-        let content = blob.content().to_owned();
-        Ok(Box::new(Cursor::new(content)))
+        self.read_file_sync(id)
     }
 
     fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
@@ -673,13 +677,8 @@ impl Backend for GitBackend {
         Ok(TreeId::from_bytes(oid.as_bytes()))
     }
 
-    async fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
-        let mut file = self
-            .read_file(
-                &RepoPath::from_internal_string("unused"),
-                &FileId::new(id.to_bytes()),
-            )
-            .await?;
+    fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
+        let mut file = self.read_file_sync(&FileId::new(id.to_bytes()))?;
         let mut data = String::new();
         file.read_to_string(&mut data)
             .map_err(|err| BackendError::ReadObject {

@@ -224,7 +224,7 @@ impl Backend for TestBackend {
         Ok(id)
     }
 
-    async fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
+    fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
         match self
             .locked_data()
             .conflicts

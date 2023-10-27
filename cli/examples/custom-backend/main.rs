@@ -141,8 +141,8 @@ impl Backend for JitBackend {
         self.inner.write_tree(path, contents)
     }
 
-    async fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
-        self.inner.read_conflict(path, id).await
+    fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
+        self.inner.read_conflict(path, id)
     }
 
     fn write_conflict(&self, path: &RepoPath, contents: &Conflict) -> BackendResult<ConflictId> {
