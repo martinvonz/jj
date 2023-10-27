@@ -33,6 +33,29 @@ revision visible again.
 
 See [revsets] and [templates] for further guidance.
 
+### `jj` is said to record the working after `jj log` and every other command. Where can I see these automatic "saves"?  
+
+Indeed, every `jj` command updates the current "working-copy" revision, marked 
+with `@` in `jj log`. You can notice this by how the [commit ID] of the
+working copy revision changes when it's updated. Note that, unless you move to
+another revision (with `jj new` or `jj edit`, for example), the [change ID] will 
+not change.
+
+If you expected to see a historical view of your working-copy changes in 
+`jj log`, as a chain in a parent-child relationship, this is not the case. 
+Instead, each commit gets amended and the commit ID changes.
+
+You can see the history of these changes using `jj obslog`. This will show the 
+history of the commits that were previously the "working-copy commit", since 
+the last time the change id of the working copy commit changed. The obsolete 
+changes will be marked as "hidden". They are still accessible with any `jj` 
+command (`jj diff`, for example), but you will need to use the commit id to 
+refer to hidden commits.
+
+You can also use `jj obslog -r` on revisions that were previously the 
+working-copy revisions. Use `jj obslog -p` as an easy way to see a commit's 
+evolution.
+
 ### Can I prevent Jujutsu from recording my unfinished work? I'm not ready to commit it.
 
 Jujutsu automatically records new files in the current working-copy commit and
@@ -109,11 +132,11 @@ commit, then run `jj restore --from Y --to @-` to restore the parent commit
 to the old state, and `jj restore --from X` to restore the new working-copy
 commit to the new state.
 
-### How do I deal with divergent changes ('??' after the [change ID][glossary_change_id])?
+### How do I deal with divergent changes ('??' after the [change ID])?
 
 A [divergent change][glossary_divergent_change] represents a change that has two
 or more visible commits associated with it. To refer to such commits, you must
-use their [commit ID][glossary_commit_id]. Most commonly, the way to resolve
+use their [commit ID]. Most commonly, the way to resolve
 this is to abandon the unneeded commits (using `jj abandon <commit ID>`). If you
 would like to keep both commits with this change ID, you can `jj duplicate` one
 of them before abandoning it.
@@ -136,13 +159,11 @@ commits associated with it.
 
 [branches_conflicts]: branches.md#conflicts
 
+[change ID]: glossary.md#change-id
+[commit ID]: glossary.md#commit-id
 [config]: config.md
 
 [gitignore]: https://git-scm.com/docs/gitignore
-
-[glossary_change_id]: glossary.md#change-id
-
-[glossary_commit_id]: glossary.md#commit-id
 
 [glossary_divergent_change]: glossary.md#divergent-change
 
