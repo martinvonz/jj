@@ -47,7 +47,7 @@ fn main() -> std::io::Result<()> {
     if let Some((mut git_hash, maybe_date)) = get_git_timestamp_and_hash() {
         git_hash.truncate(16);
         println!(
-            "cargo:rustc-env=JJ_VERSION={}-{}-{}",
+            "cargo:rustc-env=JJ_VERSION={}+{}-{}",
             version,
             maybe_date
                 .map(|d| d.format("%Y%m%d").to_string())
