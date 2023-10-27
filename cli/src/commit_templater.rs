@@ -134,7 +134,10 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_boolean(),
             // TODO: should we allow implicit cast of List type?
-            _ => None,
+            CommitTemplatePropertyKind::Commit(_) => None,
+            CommitTemplatePropertyKind::CommitList(_) => None,
+            CommitTemplatePropertyKind::CommitOrChangeId(_) => None,
+            CommitTemplatePropertyKind::ShortestIdPrefix(_) => None,
         }
     }
 
