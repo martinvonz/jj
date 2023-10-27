@@ -221,7 +221,7 @@ impl Backend for LocalBackend {
         Ok(id)
     }
 
-    async fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
+    fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
         let path = self.conflict_path(id);
         let buf = fs::read(path).map_err(|err| map_not_found_err(err, id))?;
 

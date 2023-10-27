@@ -498,7 +498,9 @@ pub trait Backend: Send + Sync + Debug {
 
     fn write_tree(&self, path: &RepoPath, contents: &Tree) -> BackendResult<TreeId>;
 
-    async fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict>;
+    // Not async because it would force `MergedTree::value()` to be async. We don't
+    // need this to be async anyway because it's only used by legacy repos.
+    fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict>;
 
     fn write_conflict(&self, path: &RepoPath, contents: &Conflict) -> BackendResult<ConflictId>;
 

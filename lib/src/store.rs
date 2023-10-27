@@ -229,7 +229,7 @@ impl Store {
         path: &RepoPath,
         id: &ConflictId,
     ) -> BackendResult<MergedTreeValue> {
-        let backend_conflict = block_on(self.backend.read_conflict(path, id))?;
+        let backend_conflict = self.backend.read_conflict(path, id)?;
         Ok(Merge::from_backend_conflict(backend_conflict))
     }
 
