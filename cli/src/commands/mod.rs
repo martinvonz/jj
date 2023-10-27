@@ -24,6 +24,7 @@ mod commit;
 mod config;
 mod debug;
 mod describe;
+mod diff;
 mod git;
 mod operation;
 
@@ -91,7 +92,7 @@ enum Commands {
     #[command(subcommand)]
     Debug(debug::DebugCommands),
     Describe(describe::DescribeArgs),
-    Diff(DiffArgs),
+    Diff(diff::DiffArgs),
     Diffedit(DiffeditArgs),
     Duplicate(DuplicateArgs),
     Edit(EditArgs),
@@ -181,35 +182,6 @@ struct FilesArgs {
     /// Only list files matching these prefixes (instead of all files)
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
-}
-
-/// Show changes in a revision
-///
-/// With the `-r` option, which is the default, shows the changes compared to
-/// the parent revision. If there are several parent revisions (i.e., the given
-/// revision is a merge), then they will be merged and the changes from the
-/// result to the given revision will be shown.
-///
-/// With the `--from` and/or `--to` options, shows the difference from/to the
-/// given revisions. If either is left out, it defaults to the working-copy
-/// commit. For example, `jj diff --from main` shows the changes from "main"
-/// (perhaps a branch name) to the working-copy commit.
-#[derive(clap::Args, Clone, Debug)]
-struct DiffArgs {
-    /// Show changes in this revision, compared to its parent(s)
-    #[arg(long, short)]
-    revision: Option<RevisionArg>,
-    /// Show changes from this revision
-    #[arg(long, conflicts_with = "revision")]
-    from: Option<RevisionArg>,
-    /// Show changes to this revision
-    #[arg(long, conflicts_with = "revision")]
-    to: Option<RevisionArg>,
-    /// Restrict the diff to these paths
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
-    paths: Vec<String>,
-    #[command(flatten)]
-    format: DiffFormatArgs,
 }
 
 /// Show commit description and changes in a revision
@@ -1133,38 +1105,6 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
             &workspace_command.format_file_path(&name)
         )?;
     }
-    Ok(())
-}
-
-#[instrument(skip_all)]
-fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let from_tree;
-    let to_tree;
-    if args.from.is_some() || args.to.is_some() {
-        let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
-        from_tree = from.tree()?;
-        let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
-        to_tree = to.tree()?;
-    } else {
-        let commit =
-            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
-        let parents = commit.parents();
-        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
-        to_tree = commit.tree()?
-    }
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
-    ui.request_pager();
-    diff_util::show_diff(
-        ui,
-        ui.stdout_formatter().as_mut(),
-        &workspace_command,
-        &from_tree,
-        &to_tree,
-        matcher.as_ref(),
-        &diff_formats,
-    )?;
     Ok(())
 }
 
@@ -3388,7 +3328,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Untrack(sub_args) => cmd_untrack(ui, command_helper, sub_args),
         Commands::Files(sub_args) => cmd_files(ui, command_helper, sub_args),
         Commands::Cat(sub_args) => cat::cmd_cat(ui, command_helper, sub_args),
-        Commands::Diff(sub_args) => cmd_diff(ui, command_helper, sub_args),
+        Commands::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
         Commands::Show(sub_args) => cmd_show(ui, command_helper, sub_args),
         Commands::Status(sub_args) => cmd_status(ui, command_helper, sub_args),
         Commands::Log(sub_args) => cmd_log(ui, command_helper, sub_args),
