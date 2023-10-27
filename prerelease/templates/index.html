@@ -696,6 +696,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#refname-type" class="md-nav__link">
+    RefName type
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#shortestidprefix-type" class="md-nav__link">
     ShortestIdPrefix type
   </a>
@@ -1327,6 +1334,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#refname-type" class="md-nav__link">
+    RefName type
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#shortestidprefix-type" class="md-nav__link">
     ShortestIdPrefix type
   </a>
@@ -1429,10 +1443,10 @@ a follow-up section.</p>
   working-copy commit as <code>&lt;workspace name&gt;@</code>.</li>
 <li><code>current_working_copy: Boolean</code>: True for the working-copy commit of the
   current workspace.</li>
-<li><code>branches: String</code></li>
-<li><code>tags: String</code></li>
-<li><code>git_refs: String</code></li>
-<li><code>git_head: String</code></li>
+<li><code>branches: List&lt;RefName&gt;</code></li>
+<li><code>tags: List&lt;RefName&gt;</code></li>
+<li><code>git_refs: List&lt;RefName&gt;</code></li>
+<li><code>git_head: List&lt;RefName&gt;</code></li>
 <li><code>divergent: Boolean</code>: True if the commit's change id corresponds to multiple
   visible commits.</li>
 <li><code>hidden: Boolean</code>: True if the commit is not visible (a.k.a. abandoned).</li>
@@ -1487,7 +1501,8 @@ methods.</p>
 <h3 id="integer-type">Integer type<a class="headerlink" href="#integer-type" title="Permanent link">&para;</a></h3>
 <p>No methods are defined.</p>
 <h3 id="list-type">List type<a class="headerlink" href="#list-type" title="Permanent link">&para;</a></h3>
-<p>The following methods are defined.</p>
+<p>A list can be implicitly converted to <code>Boolean</code>. The following methods are
+defined.</p>
 <ul>
 <li><code>.join(separator: Template) -&gt; Template</code>: Concatenate elements with
   the given <code>separator</code>.</li>
@@ -1503,6 +1518,12 @@ methods.</p>
 <p>The following methods are defined.</p>
 <ul>
 <li><code>.short([len: Integer]) -&gt; String</code></li>
+</ul>
+<h3 id="refname-type">RefName type<a class="headerlink" href="#refname-type" title="Permanent link">&para;</a></h3>
+<p>The following methods are defined.</p>
+<ul>
+<li><code>.name() -&gt; String</code>: Local branch or tag name.</li>
+<li><code>.remote() -&gt; String</code>: Remote name or empty if this is a local ref.</li>
 </ul>
 <h3 id="shortestidprefix-type">ShortestIdPrefix type<a class="headerlink" href="#shortestidprefix-type" title="Permanent link">&para;</a></h3>
 <p>The following methods are defined.</p>
