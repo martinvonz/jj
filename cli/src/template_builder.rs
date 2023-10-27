@@ -162,13 +162,17 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
             CoreTemplatePropertyKind::String(property) => {
                 Some(Box::new(TemplateFunction::new(property, |s| !s.is_empty())))
             }
-            // TODO: should we allow implicit cast of List type?
-            CoreTemplatePropertyKind::StringList(_) => None,
+            CoreTemplatePropertyKind::StringList(property) => {
+                Some(Box::new(TemplateFunction::new(property, |l| !l.is_empty())))
+            }
             CoreTemplatePropertyKind::Boolean(property) => Some(property),
             CoreTemplatePropertyKind::Integer(_) => None,
             CoreTemplatePropertyKind::Signature(_) => None,
             CoreTemplatePropertyKind::Timestamp(_) => None,
             CoreTemplatePropertyKind::TimestampRange(_) => None,
+            // Template types could also be evaluated to boolean, but it's less likely
+            // to apply label() or .map() and use the result as conditional. It's also
+            // unclear whether ListTemplate should behave as a "list" or a "template".
             CoreTemplatePropertyKind::Template(_) => None,
             CoreTemplatePropertyKind::ListTemplate(_) => None,
         }
@@ -1148,6 +1152,50 @@ mod tests {
           | ^-------------^
           |
           = Lambda cannot be defined here
+        "###);
+    }
+
+    #[test]
+    fn test_boolean_cast() {
+        let mut env = TestTemplateEnv::default();
+
+        insta::assert_snapshot!(env.render_ok(r#"if("", true, false)"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"if("a", true, false)"#), @"true");
+
+        env.add_keyword("sl0", |language| {
+            language.wrap_string_list(Literal::<Vec<String>>(vec![]))
+        });
+        env.add_keyword("sl1", |language| {
+            language.wrap_string_list(Literal(vec!["".to_owned()]))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"if(sl0, true, false)"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"if(sl1, true, false)"#), @"true");
+
+        // No implicit cast of integer
+        insta::assert_snapshot!(env.parse_err(r#"if(0, true, false)"#), @r###"
+         --> 1:4
+          |
+        1 | if(0, true, false)
+          |    ^
+          |
+          = Expected expression of type "Boolean"
+        "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"if(label("", ""), true, false)"#), @r###"
+         --> 1:4
+          |
+        1 | if(label("", ""), true, false)
+          |    ^-----------^
+          |
+          = Expected expression of type "Boolean"
+        "###);
+        insta::assert_snapshot!(env.parse_err(r#"if(sl0.map(|x| x), true, false)"#), @r###"
+         --> 1:4
+          |
+        1 | if(sl0.map(|x| x), true, false)
+          |    ^------------^
+          |
+          = Expected expression of type "Boolean"
         "###);
     }
 

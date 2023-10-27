@@ -133,9 +133,10 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Commit, Output = bool> + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_boolean(),
-            // TODO: should we allow implicit cast of List type?
             CommitTemplatePropertyKind::Commit(_) => None,
-            CommitTemplatePropertyKind::CommitList(_) => None,
+            CommitTemplatePropertyKind::CommitList(property) => {
+                Some(Box::new(TemplateFunction::new(property, |l| !l.is_empty())))
+            }
             CommitTemplatePropertyKind::CommitOrChangeId(_) => None,
             CommitTemplatePropertyKind::ShortestIdPrefix(_) => None,
         }
