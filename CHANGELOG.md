@@ -72,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj workspace add` now preserves all parents of the old working-copy commit
   instead of just the first one.
 
+* `jj rebase -r` gained the ability to rebase a revision `A` onto a descendant
+  of `A`.
+
 ### Fixed bugs
 
 * Updating the working copy to a commit where a file that's currently ignored

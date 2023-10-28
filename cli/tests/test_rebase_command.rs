@@ -72,10 +72,16 @@ fn test_rebase_invalid() {
     For more information, try '--help'.
     "###);
 
-    // Rebase onto descendant with -r
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b"]);
+    // Rebase onto self with -r
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "a"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot rebase 2443ea76b0b1 onto descendant 1394f625cbbd
+    Error: Cannot rebase 2443ea76b0b1 onto itself
+    "###);
+
+    // Rebase root with -r
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "root()", "-d", "a"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The root commit 000000000000 is immutable
     "###);
 
     // Rebase onto descendant with -s
@@ -270,9 +276,9 @@ fn test_rebase_single_revision() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  d
-    ◉  c
-    │ ◉  b
+    ◉  b
+    │ @  d
+    │ ◉  c
     ├─╯
     ◉  a
     ◉
@@ -291,12 +297,12 @@ fn test_rebase_single_revision() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    d
-    ├─╮
-    │ ◉  a
-    ◉ │  b
-    ├─╯
-    │ ◉  c
+    ◉  c
+    │ @    d
+    │ ├─╮
+    │ │ ◉  a
+    ├───╯
+    │ ◉  b
     ├─╯
     ◉
     "###);
@@ -335,15 +341,88 @@ fn test_rebase_single_revision_merge_parent() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    d
-    ├─╮
-    ◉ │  b
-    │ │ ◉  c
-    │ ├─╯
-    │ ◉  a
+    ◉  c
+    │ @  d
+    ╭─┤
+    ◉ │  a
+    │ ◉  b
     ├─╯
     ◉
     "###);
+}
+
+#[test]
+fn test_rebase_revision_onto_descendant() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "base", &[]);
+    create_commit(&test_env, &repo_path, "a", &["base"]);
+    create_commit(&test_env, &repo_path, "b", &["base"]);
+    create_commit(&test_env, &repo_path, "merge", &["b", "a"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @    merge
+    ├─╮
+    │ ◉  a
+    ◉ │  b
+    ├─╯
+    ◉  base
+    ◉
+    "###);
+    let setup_opid = test_env.current_operation_id(&repo_path);
+
+    // Simpler example
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "base", "-d", "a"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Also rebased 3 descendant commits onto parent of rebased commit
+    Working copy now at: vruxwmqv bff4a4eb merge | merge
+    Parent commit      : royxmykx c84e900d b | b
+    Parent commit      : zsuskuln d57db87b a | a
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  base
+    │ @  merge
+    ╭─┤
+    ◉ │  a
+    │ ◉  b
+    ├─╯
+    ◉
+    "###);
+
+    // Now, let's rebase onto the descendant merge
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: vruxwmqv b05964d1 merge | merge
+    Parent commit      : royxmykx cea87a87 b | b
+    Parent commit      : zsuskuln 2c5b7858 a | a
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "base", "-d", "merge"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Also rebased 3 descendant commits onto parent of rebased commit
+    Working copy now at: vruxwmqv 986b7a49 merge | merge
+    Parent commit      : royxmykx c07c677c b | b
+    Parent commit      : zsuskuln abc90087 a | a
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  base
+    @    merge
+    ├─╮
+    │ ◉  a
+    ◉ │  b
+    ├─╯
+    ◉
+    "###);
+
+    // TODO(ilyagr): These will be good tests for `jj rebase --insert-after` and
+    // `--insert-before`, once those are implemented.
 }
 
 #[test]

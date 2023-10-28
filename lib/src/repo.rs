@@ -834,14 +834,32 @@ impl MutableRepo {
         )
     }
 
-    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
+    fn rebase_descendants_return_rebaser<'settings, 'repo>(
+        &'repo mut self,
+        settings: &'settings UserSettings,
+    ) -> Result<Option<DescendantRebaser<'settings, 'repo>>, TreeMergeError> {
         if !self.has_rewrites() {
             // Optimization
-            return Ok(0);
+            return Ok(None);
         }
         let mut rebaser = self.create_descendant_rebaser(settings);
         rebaser.rebase_all()?;
-        Ok(rebaser.rebased().len())
+        Ok(Some(rebaser))
+    }
+
+    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
+        Ok(self
+            .rebase_descendants_return_rebaser(settings)?
+            .map_or(0, |rebaser| rebaser.rebased().len()))
+    }
+
+    pub fn rebase_descendants_return_map(
+        &mut self,
+        settings: &UserSettings,
+    ) -> Result<HashMap<CommitId, CommitId>, TreeMergeError> {
+        Ok(self
+            .rebase_descendants_return_rebaser(settings)?
+            .map_or(HashMap::new(), |rebaser| rebaser.rebased().clone()))
     }
 
     pub fn set_wc_commit(
