@@ -93,7 +93,7 @@ pub(crate) fn cmd_resolve(
         );
     };
 
-    let (repo_path, _) = conflicts.get(0).unwrap();
+    let (repo_path, _) = conflicts.first().unwrap();
     workspace_command.check_rewritable([&commit])?;
     let mut tx = workspace_command.start_transaction(&format!(
         "Resolve conflicts in commit {}",

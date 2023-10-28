@@ -259,7 +259,7 @@ fn test_describe_default_description() {
     std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
     std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
     let edit_script = test_env.set_up_fake_editor();
-    std::fs::write(&edit_script, ["dump editor"].join("\0")).unwrap();
+    std::fs::write(edit_script, ["dump editor"].join("\0")).unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["describe"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
