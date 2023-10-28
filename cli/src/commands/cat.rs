@@ -14,10 +14,10 @@
 
 use std::io::Write;
 
-use futures::executor::block_on;
 use jj_lib::backend::TreeValue;
 use jj_lib::conflicts;
 use jj_lib::repo::Repo;
+use pollster::FutureExt;
 use tracing::instrument;
 
 use crate::cli_util::{user_error, CommandError, CommandHelper, RevisionArg};
@@ -56,13 +56,9 @@ pub(crate) fn cmd_cat(
         }
         Err(conflict) => {
             let mut contents = vec![];
-            block_on(conflicts::materialize(
-                &conflict,
-                repo.store(),
-                &path,
-                &mut contents,
-            ))
-            .unwrap();
+            conflicts::materialize(&conflict, repo.store(), &path, &mut contents)
+                .block_on()
+                .unwrap();
             ui.request_pager();
             ui.stdout_formatter().write_all(&contents)?;
         }

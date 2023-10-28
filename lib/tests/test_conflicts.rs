@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::executor::block_on;
 use jj_lib::backend::FileId;
 use jj_lib::conflicts::{
     extract_as_single_hunk, materialize_merge_result, parse_conflict, update_from_content,
@@ -21,6 +20,7 @@ use jj_lib::merge::Merge;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::store::Store;
+use pollster::FutureExt;
 use testutils::TestRepo;
 
 #[test]
@@ -615,7 +615,11 @@ fn test_update_conflict_from_content() {
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
     let materialized = materialize_conflict_string(store, &path, &conflict);
-    let parse = |content| block_on(update_from_content(&conflict, store, &path, content)).unwrap();
+    let parse = |content| {
+        update_from_content(&conflict, store, &path, content)
+            .block_on()
+            .unwrap()
+    };
     assert_eq!(parse(materialized.as_bytes()), conflict);
 
     // If the conflict is resolved, we get None back to indicate that.
@@ -659,7 +663,11 @@ fn test_update_conflict_from_content_modify_delete() {
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
     let materialized = materialize_conflict_string(store, &path, &conflict);
-    let parse = |content| block_on(update_from_content(&conflict, store, &path, content)).unwrap();
+    let parse = |content| {
+        update_from_content(&conflict, store, &path, content)
+            .block_on()
+            .unwrap()
+    };
     assert_eq!(parse(materialized.as_bytes()), conflict);
 
     // If the conflict is resolved, we get None back to indicate that.
@@ -690,7 +698,7 @@ fn materialize_conflict_string(
     conflict: &Merge<Option<FileId>>,
 ) -> String {
     let mut result: Vec<u8> = vec![];
-    let contents = block_on(extract_as_single_hunk(conflict, store, path));
+    let contents = extract_as_single_hunk(conflict, store, path).block_on();
     materialize_merge_result(&contents, &mut result).unwrap();
     String::from_utf8(result).unwrap()
 }
