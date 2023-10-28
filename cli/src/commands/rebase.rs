@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::io::Write;
 use std::sync::Arc;
 
@@ -137,6 +138,9 @@ pub(crate) struct RebaseArgs {
     revision: Option<RevisionArg>,
     /// The revision(s) to rebase onto (can be repeated to create a merge
     /// commit)
+    ///
+    /// Unlike `-s` or `-b`, you may `jj rebase -r` a revision `A` onto a
+    /// descendant of `A`.
     #[arg(long, short, required = true)]
     destination: Vec<RevisionArg>,
     /// Deprecated. Please prefix the revset with `all:` instead.
@@ -264,7 +268,13 @@ fn rebase_revision(
 ) -> Result<(), CommandError> {
     let old_commit = workspace_command.resolve_single_rev(rev_str, ui)?;
     workspace_command.check_rewritable([&old_commit])?;
-    check_rebase_destinations(workspace_command.repo(), new_parents, &old_commit)?;
+    if new_parents.contains(&old_commit) {
+        return Err(user_error(format!(
+            "Cannot rebase {} onto itself",
+            short_commit_hash(old_commit.id()),
+        )));
+    }
+
     let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
     let child_commits: Vec<_> = children_expression
         .resolve(workspace_command.repo().as_ref())
@@ -274,14 +284,14 @@ fn rebase_revision(
         .iter()
         .commits(workspace_command.repo().store())
         .try_collect()?;
+    // Currently, immutable commits are defied so that a child of a rewriteable
+    // commit is always rewriteable.
+    debug_assert!(workspace_command.check_rewritable(&child_commits).is_ok());
 
+    // First, rebase the children of `old_commit`.
     let mut tx =
         workspace_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
-    rebase_commit(settings, tx.mut_repo(), &old_commit, new_parents)?;
-    // Manually rebase children because we don't want to rebase them onto the
-    // rewritten commit. (But we still want to record the commit as rewritten so
-    // branches and the working copy get updated to the rewritten commit.)
-    let mut num_rebased_descendants = 0;
+    let mut rebased_commit_ids = HashMap::new();
     for child_commit in &child_commits {
         let new_child_parent_ids: Vec<CommitId> = child_commit
             .parents()
@@ -316,10 +326,43 @@ fn rebase_revision(
             .commits(tx.base_repo().store())
             .try_collect()?;
 
-        rebase_commit(settings, tx.mut_repo(), child_commit, &new_child_parents)?;
-        num_rebased_descendants += 1;
+        rebased_commit_ids.insert(
+            child_commit.id().clone(),
+            rebase_commit(settings, tx.mut_repo(), child_commit, &new_child_parents)?
+                .id()
+                .clone(),
+        );
     }
-    num_rebased_descendants += tx.mut_repo().rebase_descendants(settings)?;
+    // Now, rebase the descendants of the children.
+    rebased_commit_ids.extend(tx.mut_repo().rebase_descendants_return_map(settings)?);
+    let num_rebased_descendants = rebased_commit_ids.len();
+
+    // We now update `new_parents` to account for the rebase of all of
+    // `old_commit`'s descendants. Even if some of the original `new_parents` were
+    // descendants of `old_commit`, this will no longer be the case after the
+    // update.
+    //
+    // To make the update simpler, we assume that each commit was rewritten only
+    // once; we don't have a situation where both `(A,B)` and `(B,C)` are in
+    // `rebased_commit_ids`. This assumption relies on the fact that a descendant of
+    // a child of `old_commit` cannot also be a direct child of `old_commit`.
+    let new_parents: Vec<_> = new_parents
+        .iter()
+        .map(|new_parent| {
+            rebased_commit_ids
+                .get(new_parent.id())
+                .map_or(Ok(new_parent.clone()), |rebased_new_parent_id| {
+                    tx.repo().store().get_commit(rebased_new_parent_id)
+                })
+        })
+        .try_collect()?;
+
+    // Finally, it's safe to rebase `old_commit`. At this point, it should no longer
+    // have any children; they have all been rebased and the originals have been
+    // abandoned.
+    rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
+    debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?, 0);
+
     if num_rebased_descendants > 0 {
         writeln!(
             ui.stderr(),
