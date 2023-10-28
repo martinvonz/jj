@@ -6,7 +6,6 @@ use std::process::{Command, ExitStatus, Stdio};
 use std::sync::Arc;
 
 use config::ConfigError;
-use futures::executor::block_on;
 use itertools::Itertools;
 use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
 use jj_lib::conflicts::{self, materialize_merge_result};
@@ -19,6 +18,7 @@ use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
+use pollster::FutureExt;
 use regex::{Captures, Regex};
 use tempfile::TempDir;
 use thiserror::Error;
@@ -358,12 +358,13 @@ pub fn run_mergetool_external(
     }
 
     let new_file_ids = if editor.merge_tool_edits_conflict_markers {
-        block_on(conflicts::update_from_content(
+        conflicts::update_from_content(
             &file_merge,
             tree.store(),
             repo_path,
             output_file_contents.as_slice(),
-        ))?
+        )
+        .block_on()?
     } else {
         let new_file_id = tree
             .store()

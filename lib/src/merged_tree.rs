@@ -20,10 +20,10 @@ use std::iter::zip;
 use std::sync::Arc;
 use std::{iter, vec};
 
-use futures::executor::block_on;
 use futures::stream::StreamExt;
 use futures::TryStreamExt;
 use itertools::Itertools;
+use pollster::FutureExt;
 
 use crate::backend::{BackendError, BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
@@ -898,11 +898,12 @@ impl Iterator for TreeDiffIterator<'_> {
             let tree_after = after.is_tree();
             let post_subdir =
                 if (tree_before || tree_after) && !self.matcher.visit(&path).is_nothing() {
-                    let (before_tree, after_tree) = block_on(async {
+                    let (before_tree, after_tree) = async {
                         let before_tree = Self::tree(dir.tree1.as_ref(), &path, &before);
                         let after_tree = Self::tree(dir.tree2.as_ref(), &path, &after);
                         futures::join!(before_tree, after_tree)
-                    });
+                    }
+                    .block_on();
                     let before_tree = match before_tree {
                         Ok(tree) => tree,
                         Err(err) => {

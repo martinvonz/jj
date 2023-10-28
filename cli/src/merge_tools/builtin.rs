@@ -542,10 +542,10 @@ pub fn edit_merge_builtin(
 
 #[cfg(test)]
 mod tests {
-    use futures::executor::block_on;
     use jj_lib::conflicts::extract_as_single_hunk;
     use jj_lib::merge::MergedTreeValue;
     use jj_lib::repo::Repo;
+    use pollster::FutureExt;
     use testutils::TestRepo;
 
     use super::*;
@@ -726,7 +726,7 @@ mod tests {
                 to_file_id(right_tree.path_value(&path)),
             ],
         );
-        let content = block_on(extract_as_single_hunk(&merge, store, &path));
+        let content = extract_as_single_hunk(&merge, store, &path).block_on();
         let slices = content.map(|ContentHunk(buf)| buf.as_slice());
         let merge_result = files::merge(slices);
         let sections = make_merge_sections(merge_result).unwrap();

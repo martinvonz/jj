@@ -18,7 +18,6 @@ use std::io;
 use std::ops::Range;
 use std::sync::Arc;
 
-use futures::executor::block_on;
 use itertools::Itertools;
 use jj_lib::backend::{ObjectId, TreeValue};
 use jj_lib::commit::Commit;
@@ -31,6 +30,7 @@ use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::{conflicts, diff, files, rewrite};
+use pollster::FutureExt;
 use tracing::instrument;
 use unicode_width::UnicodeWidthStr as _;
 
@@ -364,13 +364,9 @@ fn diff_content(
         }
         None => {
             let mut content = vec![];
-            block_on(conflicts::materialize(
-                value,
-                repo.store(),
-                path,
-                &mut content,
-            ))
-            .unwrap();
+            conflicts::materialize(value, repo.store(), path, &mut content)
+                .block_on()
+                .unwrap();
             Ok(content)
         }
         Some(Some(TreeValue::Tree(_))) | Some(Some(TreeValue::Conflict(_))) => {
@@ -524,13 +520,9 @@ fn git_diff_part(
         None => {
             mode = "100644".to_string();
             hash = "0000000000".to_string();
-            block_on(conflicts::materialize(
-                value,
-                repo.store(),
-                path,
-                &mut content,
-            ))
-            .unwrap();
+            conflicts::materialize(value, repo.store(), path, &mut content)
+                .block_on()
+                .unwrap();
         }
         Some(Some(TreeValue::Tree(_))) | Some(Some(TreeValue::Conflict(_))) | Some(None) => {
             panic!("Unexpected {value:?} in diff at path {path:?}");

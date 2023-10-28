@@ -18,7 +18,6 @@ mod external;
 use std::sync::Arc;
 
 use config::ConfigError;
-use futures::executor::block_on;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::gitignore::GitIgnoreFile;
@@ -27,6 +26,7 @@ use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::working_copy::SnapshotError;
+use pollster::FutureExt;
 use thiserror::Error;
 
 use self::builtin::{edit_diff_builtin, edit_merge_builtin, BuiltinToolError};
@@ -113,7 +113,7 @@ pub fn run_mergetool(
             sides: file_merge.num_sides(),
         });
     };
-    let content = block_on(extract_as_single_hunk(&file_merge, tree.store(), repo_path));
+    let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path).block_on();
 
     let editor = get_merge_tool_from_settings(ui, settings)?;
     match editor {

@@ -20,7 +20,7 @@ use std::fmt::{Debug, Formatter};
 use std::io::Read;
 use std::sync::{Arc, RwLock};
 
-use futures::executor::block_on;
+use pollster::FutureExt;
 
 use crate::backend;
 use crate::backend::{
@@ -98,7 +98,7 @@ impl Store {
     }
 
     pub fn get_commit(self: &Arc<Self>, id: &CommitId) -> BackendResult<Commit> {
-        block_on(self.get_commit_async(id))
+        self.get_commit_async(id).block_on()
     }
 
     pub async fn get_commit_async(self: &Arc<Self>, id: &CommitId) -> BackendResult<Commit> {
@@ -133,7 +133,7 @@ impl Store {
     }
 
     pub fn get_tree(self: &Arc<Self>, dir: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
-        block_on(self.get_tree_async(dir, id))
+        self.get_tree_async(dir, id).block_on()
     }
 
     pub async fn get_tree_async(
@@ -193,7 +193,7 @@ impl Store {
     }
 
     pub fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
-        block_on(self.read_file_async(path, id))
+        self.read_file_async(path, id).block_on()
     }
 
     pub async fn read_file_async(
@@ -209,7 +209,7 @@ impl Store {
     }
 
     pub fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {
-        block_on(self.read_symlink_async(path, id))
+        self.read_symlink_async(path, id).block_on()
     }
 
     pub async fn read_symlink_async(
