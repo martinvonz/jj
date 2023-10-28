@@ -27,6 +27,7 @@ mod describe;
 mod diff;
 mod diffedit;
 mod duplicate;
+mod edit;
 mod git;
 mod operation;
 
@@ -97,7 +98,7 @@ enum Commands {
     Diff(diff::DiffArgs),
     Diffedit(diffedit::DiffeditArgs),
     Duplicate(duplicate::DuplicateArgs),
-    Edit(EditArgs),
+    Edit(edit::EditArgs),
     Files(FilesArgs),
     #[command(subcommand)]
     Git(git::GitCommands),
@@ -293,19 +294,6 @@ struct InterdiffArgs {
     paths: Vec<String>,
     #[command(flatten)]
     format: DiffFormatArgs,
-}
-
-/// Edit a commit in the working copy
-///
-/// Puts the contents of a commit in the working copy for editing. Any changes
-/// you make in the working copy will update (amend) the commit.
-#[derive(clap::Args, Clone, Debug)]
-struct EditArgs {
-    /// The commit to edit
-    revision: RevisionArg,
-    /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true)]
-    unused_revision: bool,
 }
 
 /// Create a new, empty change and edit it in the working copy
@@ -1612,22 +1600,6 @@ fn edit_sparse(
             )?)
         })
         .try_collect()
-}
-
-#[instrument(skip_all)]
-fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let new_commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    workspace_command.check_rewritable([&new_commit])?;
-    if workspace_command.get_wc_commit_id() == Some(new_commit.id()) {
-        writeln!(ui.stderr(), "Already editing that commit")?;
-    } else {
-        let mut tx =
-            workspace_command.start_transaction(&format!("edit commit {}", new_commit.id().hex()));
-        tx.edit(&new_commit)?;
-        tx.finish(ui)?;
-    }
-    Ok(())
 }
 
 /// Resolves revsets into revisions to rebase onto. These revisions don't have
@@ -3171,7 +3143,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Commit(sub_args) => commit::cmd_commit(ui, command_helper, sub_args),
         Commands::Duplicate(sub_args) => duplicate::cmd_duplicate(ui, command_helper, sub_args),
         Commands::Abandon(sub_args) => abandon::cmd_abandon(ui, command_helper, sub_args),
-        Commands::Edit(sub_args) => cmd_edit(ui, command_helper, sub_args),
+        Commands::Edit(sub_args) => edit::cmd_edit(ui, command_helper, sub_args),
         Commands::Next(sub_args) => cmd_next(ui, command_helper, sub_args),
         Commands::Prev(sub_args) => cmd_prev(ui, command_helper, sub_args),
         Commands::New(sub_args) => cmd_new(ui, command_helper, sub_args),
