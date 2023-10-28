@@ -129,7 +129,7 @@ impl TreeBuilder {
             store: &Arc<Store>,
             dir: &RepoPath,
         ) -> &'a Tree {
-            // `if let Some(tree) = ...` doesn't pass lifetime check as of Rust 1.69.0
+            // `if let Some(tree) = ...` doesn't pass lifetime check as of Rust 1.76.0
             if tree_cache.contains_key(dir) {
                 return tree_cache.get(dir).unwrap();
             }

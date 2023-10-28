@@ -29,7 +29,7 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
       with:
-        toolchain:  1.71
+        toolchain:  1.76
     - name: Build
       run: cargo build --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
     - name: Test
