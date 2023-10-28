@@ -26,6 +26,7 @@ mod debug;
 mod describe;
 mod diff;
 mod diffedit;
+mod duplicate;
 mod git;
 mod operation;
 
@@ -38,7 +39,7 @@ use std::{fmt, fs, io};
 
 use clap::parser::ValueSource;
 use clap::{ArgGroup, Command, CommandFactory, FromArgMatches, Subcommand};
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId, TreeValue};
 use jj_lib::commit::Commit;
@@ -64,9 +65,9 @@ use tracing::instrument;
 
 use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, print_git_import_stats,
-    resolve_multiple_nonempty_revsets, resolve_multiple_nonempty_revsets_default_single,
-    run_ui_editor, short_commit_hash, user_error, user_error_with_hint, Args, CommandError,
-    CommandHelper, LogContentFormat, RevisionArg, WorkspaceCommandHelper,
+    resolve_multiple_nonempty_revsets_default_single, run_ui_editor, short_commit_hash, user_error,
+    user_error_with_hint, Args, CommandError, CommandHelper, LogContentFormat, RevisionArg,
+    WorkspaceCommandHelper,
 };
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
@@ -95,7 +96,7 @@ enum Commands {
     Describe(describe::DescribeArgs),
     Diff(diff::DiffArgs),
     Diffedit(diffedit::DiffeditArgs),
-    Duplicate(DuplicateArgs),
+    Duplicate(duplicate::DuplicateArgs),
     Edit(EditArgs),
     Files(FilesArgs),
     #[command(subcommand)]
@@ -292,17 +293,6 @@ struct InterdiffArgs {
     paths: Vec<String>,
     #[command(flatten)]
     format: DiffFormatArgs,
-}
-
-/// Create a new change with the same content as an existing one
-#[derive(clap::Args, Clone, Debug)]
-struct DuplicateArgs {
-    /// The revision(s) to duplicate
-    #[arg(default_value = "@")]
-    revisions: Vec<RevisionArg>,
-    /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true)]
-    unused_revision: bool,
 }
 
 /// Edit a commit in the working copy
@@ -1622,71 +1612,6 @@ fn edit_sparse(
             )?)
         })
         .try_collect()
-}
-
-#[instrument(skip_all)]
-fn cmd_duplicate(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &DuplicateArgs,
-) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let to_duplicate: IndexSet<Commit> =
-        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?;
-    if to_duplicate
-        .iter()
-        .any(|commit| commit.id() == workspace_command.repo().store().root_commit_id())
-    {
-        return Err(user_error("Cannot duplicate the root commit"));
-    }
-    let mut duplicated_old_to_new: IndexMap<Commit, Commit> = IndexMap::new();
-
-    let mut tx = workspace_command
-        .start_transaction(&format!("duplicating {} commit(s)", to_duplicate.len()));
-    let base_repo = tx.base_repo().clone();
-    let store = base_repo.store();
-    let mut_repo = tx.mut_repo();
-
-    for original_commit_id in base_repo
-        .index()
-        .topo_order(&mut to_duplicate.iter().map(|c| c.id()))
-        .into_iter()
-    {
-        // Topological order ensures that any parents of `original_commit` are
-        // either not in `to_duplicate` or were already duplicated.
-        let original_commit = store.get_commit(&original_commit_id).unwrap();
-        let new_parents = original_commit
-            .parents()
-            .iter()
-            .map(|parent| {
-                if let Some(duplicated_parent) = duplicated_old_to_new.get(parent) {
-                    duplicated_parent
-                } else {
-                    parent
-                }
-                .id()
-                .clone()
-            })
-            .collect();
-        let new_commit = mut_repo
-            .rewrite_commit(command.settings(), &original_commit)
-            .generate_new_change_id()
-            .set_parents(new_parents)
-            .write()?;
-        duplicated_old_to_new.insert(original_commit, new_commit);
-    }
-
-    for (old, new) in duplicated_old_to_new.iter() {
-        write!(
-            ui.stderr(),
-            "Duplicated {} as ",
-            short_commit_hash(old.id())
-        )?;
-        tx.write_commit_summary(ui.stderr_formatter().as_mut(), new)?;
-        writeln!(ui.stderr())?;
-    }
-    tx.finish(ui)?;
-    Ok(())
 }
 
 #[instrument(skip_all)]
@@ -3244,7 +3169,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Obslog(sub_args) => cmd_obslog(ui, command_helper, sub_args),
         Commands::Describe(sub_args) => describe::cmd_describe(ui, command_helper, sub_args),
         Commands::Commit(sub_args) => commit::cmd_commit(ui, command_helper, sub_args),
-        Commands::Duplicate(sub_args) => cmd_duplicate(ui, command_helper, sub_args),
+        Commands::Duplicate(sub_args) => duplicate::cmd_duplicate(ui, command_helper, sub_args),
         Commands::Abandon(sub_args) => abandon::cmd_abandon(ui, command_helper, sub_args),
         Commands::Edit(sub_args) => cmd_edit(ui, command_helper, sub_args),
         Commands::Next(sub_args) => cmd_next(ui, command_helper, sub_args),
