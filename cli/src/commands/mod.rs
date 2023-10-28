@@ -28,6 +28,7 @@ mod diff;
 mod diffedit;
 mod duplicate;
 mod edit;
+mod files;
 mod git;
 mod operation;
 
@@ -99,7 +100,7 @@ enum Commands {
     Diffedit(diffedit::DiffeditArgs),
     Duplicate(duplicate::DuplicateArgs),
     Edit(edit::EditArgs),
-    Files(FilesArgs),
+    Files(files::FilesArgs),
     #[command(subcommand)]
     Git(git::GitCommands),
     Init(InitArgs),
@@ -173,17 +174,6 @@ struct InitArgs {
 struct UntrackArgs {
     /// Paths to untrack
     #[arg(required = true, value_hint = clap::ValueHint::AnyPath)]
-    paths: Vec<String>,
-}
-
-/// List files in a revision
-#[derive(clap::Args, Clone, Debug)]
-struct FilesArgs {
-    /// The revision to list files in
-    #[arg(long, short, default_value = "@")]
-    revision: RevisionArg,
-    /// Only list files matching these prefixes (instead of all files)
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1037,23 +1027,6 @@ Make sure they're ignored, then try again.",
     }
     let repo = tx.commit();
     locked_ws.finish(repo.op_id().clone())?;
-    Ok(())
-}
-
-#[instrument(skip_all)]
-fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    let tree = commit.tree()?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    ui.request_pager();
-    for (name, _value) in tree.entries_matching(matcher.as_ref()) {
-        writeln!(
-            ui.stdout(),
-            "{}",
-            &workspace_command.format_file_path(&name)
-        )?;
-    }
     Ok(())
 }
 
@@ -3131,7 +3104,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Config(sub_args) => config::cmd_config(ui, command_helper, sub_args),
         Commands::Checkout(sub_args) => checkout::cmd_checkout(ui, command_helper, sub_args),
         Commands::Untrack(sub_args) => cmd_untrack(ui, command_helper, sub_args),
-        Commands::Files(sub_args) => cmd_files(ui, command_helper, sub_args),
+        Commands::Files(sub_args) => files::cmd_files(ui, command_helper, sub_args),
         Commands::Cat(sub_args) => cat::cmd_cat(ui, command_helper, sub_args),
         Commands::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
         Commands::Show(sub_args) => cmd_show(ui, command_helper, sub_args),
