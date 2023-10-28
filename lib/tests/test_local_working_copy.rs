@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: Remove when MSRV passes 1.72
-// https://github.com/frondeus/test-case/issues/126#issuecomment-1635916592
-#![allow(clippy::items_after_test_module)]
-
 use std::fs::OpenOptions;
 use std::io::Write;
 #[cfg(unix)]

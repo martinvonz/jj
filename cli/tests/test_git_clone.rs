@@ -198,7 +198,6 @@ fn test_git_clone_colocate() {
             .symbolic_target()
     );
     // ".jj" directory should be ignored at Git side.
-    #[allow(unknown_lints)] // Needed for clippy <=1.71
     #[allow(clippy::format_collect)]
     let git_statuses: String = jj_git_repo
         .statuses(None)

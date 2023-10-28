@@ -167,7 +167,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
         index_entry: &IndexEntry<'index>,
     ) -> &[IndexGraphEdge] {
         let position = index_entry.position();
-        // `if let Some(edges) = ...` doesn't pass lifetime check as of Rust 1.71.0
+        // `if let Some(edges) = ...` doesn't pass lifetime check as of Rust 1.76.0
         if self.edges.contains_key(&position) {
             return self.edges.get(&position).unwrap();
         }

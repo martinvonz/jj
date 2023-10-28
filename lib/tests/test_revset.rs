@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// this was supposed to be fixed in 1.71.0, but barely missed the cut.
-// can be released after we bump MSRV to 1.72.0, see:
-// https://github.com/frondeus/test-case/issues/126#issuecomment-1635916592
-#![allow(clippy::items_after_test_module)]
-
 use std::path::Path;
 
 use assert_matches::assert_matches;
