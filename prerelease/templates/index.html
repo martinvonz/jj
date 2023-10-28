@@ -1443,7 +1443,11 @@ a follow-up section.</p>
   working-copy commit as <code>&lt;workspace name&gt;@</code>.</li>
 <li><code>current_working_copy: Boolean</code>: True for the working-copy commit of the
   current workspace.</li>
-<li><code>branches: List&lt;RefName&gt;</code></li>
+<li><code>branches: List&lt;RefName&gt;</code>: Local and remote branches pointing to the commit.
+  A tracking remote branch will be included only if its target is different
+  from the local one.</li>
+<li><code>local_branches: List&lt;RefName&gt;</code>: All local branches pointing to the commit.</li>
+<li><code>remote_branches: List&lt;RefName&gt;</code>: All remote branches pointing to the commit.</li>
 <li><code>tags: List&lt;RefName&gt;</code></li>
 <li><code>git_refs: List&lt;RefName&gt;</code></li>
 <li><code>git_head: List&lt;RefName&gt;</code></li>
