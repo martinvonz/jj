@@ -25,7 +25,7 @@ use tracing::instrument;
 use crate::cli_util::{
     self, short_commit_hash, user_error, CommandError, CommandHelper, RevisionArg,
 };
-use crate::commands::resolve_destination_revs;
+use crate::commands::rebase::resolve_destination_revs;
 use crate::ui::Ui;
 
 /// Create a new, empty change and edit it in the working copy
