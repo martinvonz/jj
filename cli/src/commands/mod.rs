@@ -33,6 +33,7 @@ mod git;
 mod init;
 mod interdiff;
 mod log;
+mod merge;
 mod r#move;
 mod new;
 mod operation;
@@ -1898,20 +1899,6 @@ don't make any changes, then the operation will be aborted.
     Ok(())
 }
 
-#[instrument(skip_all)]
-fn cmd_merge(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &new::NewArgs,
-) -> Result<(), CommandError> {
-    if args.revisions.len() < 2 {
-        return Err(CommandError::CliError(String::from(
-            "Merge requires at least two revisions",
-        )));
-    }
-    new::cmd_new(ui, command, args)
-}
-
 // TODO: Move to run.rs
 fn cmd_run(_ui: &mut Ui, _command: &CommandHelper, _args: &RunArgs) -> Result<(), CommandError> {
     Err(user_error("This is a stub, do not use"))
@@ -2517,7 +2504,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Run(sub_args) => cmd_run(ui, command_helper, sub_args),
         Commands::Diffedit(sub_args) => diffedit::cmd_diffedit(ui, command_helper, sub_args),
         Commands::Split(sub_args) => cmd_split(ui, command_helper, sub_args),
-        Commands::Merge(sub_args) => cmd_merge(ui, command_helper, sub_args),
+        Commands::Merge(sub_args) => merge::cmd_merge(ui, command_helper, sub_args),
         Commands::Rebase(sub_args) => cmd_rebase(ui, command_helper, sub_args),
         Commands::Backout(sub_args) => backout::cmd_backout(ui, command_helper, sub_args),
         Commands::Resolve(sub_args) => cmd_resolve(ui, command_helper, sub_args),
