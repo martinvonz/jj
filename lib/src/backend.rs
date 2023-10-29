@@ -251,9 +251,7 @@ pub enum BackendError {
     InvalidUtf8 {
         object_type: String,
         hash: String,
-        // Box to reduce size for other error types that include this one:
-        // https://rust-lang.github.io/rust-clippy/master/index.html#result_large_err
-        source: Box<std::string::FromUtf8Error>,
+        source: std::str::Utf8Error,
     },
     #[error("Object {hash} of type {object_type} not found: {source}")]
     ObjectNotFound {
