@@ -32,6 +32,7 @@ mod files;
 mod git;
 mod init;
 mod interdiff;
+mod log;
 mod operation;
 
 use std::collections::{BTreeMap, HashSet};
@@ -54,10 +55,7 @@ use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
-use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
-use jj_lib::revset_graph::{
-    ReverseRevsetGraphIterator, RevsetGraphEdgeType, TopoGroupedRevsetGraphIterator,
-};
+use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::rewrite::{merge_commit_trees, rebase_commit, DescendantRebaser};
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::SnapshotOptions;
@@ -106,7 +104,7 @@ enum Commands {
     Git(git::GitCommands),
     Init(init::InitArgs),
     Interdiff(interdiff::InterdiffArgs),
-    Log(LogArgs),
+    Log(log::LogArgs),
     /// Merge work from multiple branches
     ///
     /// Unlike most other VCSs, `jj merge` does not implicitly include the
@@ -184,40 +182,6 @@ struct ShowArgs {
 #[derive(clap::Args, Clone, Debug)]
 #[command(visible_alias = "st")]
 struct StatusArgs {}
-
-/// Show commit history
-#[derive(clap::Args, Clone, Debug)]
-struct LogArgs {
-    /// Which revisions to show. Defaults to the `revsets.log` setting, or
-    /// `@ | ancestors(immutable_heads().., 2) | heads(immutable_heads())` if
-    /// it is not set.
-    #[arg(long, short)]
-    revisions: Vec<RevisionArg>,
-    /// Show commits modifying the given paths
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
-    paths: Vec<String>,
-    /// Show revisions in the opposite order (older revisions first)
-    #[arg(long)]
-    reversed: bool,
-    /// Limit number of revisions to show
-    ///
-    /// Applied after revisions are filtered and reordered.
-    #[arg(long, short)]
-    limit: Option<usize>,
-    /// Don't show the graph, show a flat list of revisions
-    #[arg(long)]
-    no_graph: bool,
-    /// Render each revision using the given template
-    ///
-    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
-    #[arg(long, short = 'T')]
-    template: Option<String>,
-    /// Show patch
-    #[arg(long, short = 'p')]
-    patch: bool,
-    #[command(flatten)]
-    diff_format: DiffFormatArgs,
-}
 
 /// Show how a change has evolved
 ///
@@ -1023,170 +987,6 @@ fn cmd_status(
             formatter,
             "  Use `jj branch list` to see details. Use `jj git fetch` to resolve."
         )?;
-    }
-
-    Ok(())
-}
-
-#[instrument(skip_all)]
-fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-
-    let revset_expression = {
-        let mut expression = if args.revisions.is_empty() {
-            workspace_command.parse_revset(&command.settings().default_revset(), Some(ui))?
-        } else {
-            let expressions: Vec<_> = args
-                .revisions
-                .iter()
-                .map(|revision_str| workspace_command.parse_revset(revision_str, Some(ui)))
-                .try_collect()?;
-            RevsetExpression::union_all(&expressions)
-        };
-        if !args.paths.is_empty() {
-            let repo_paths: Vec<_> = args
-                .paths
-                .iter()
-                .map(|path_arg| workspace_command.parse_file_path(path_arg))
-                .try_collect()?;
-            expression = expression.intersection(&RevsetExpression::filter(
-                RevsetFilterPredicate::File(Some(repo_paths)),
-            ));
-        }
-        revset::optimize(expression)
-    };
-    let repo = workspace_command.repo();
-    let wc_commit_id = workspace_command.get_wc_commit_id();
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let revset = workspace_command.evaluate_revset(revset_expression)?;
-
-    let store = repo.store();
-    let diff_formats =
-        diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
-
-    let template_string = match &args.template {
-        Some(value) => value.to_string(),
-        None => command.settings().config().get_string("templates.log")?,
-    };
-    let template = workspace_command.parse_commit_template(&template_string)?;
-    let with_content_format = LogContentFormat::new(ui, command.settings())?;
-
-    {
-        ui.request_pager();
-        let mut formatter = ui.stdout_formatter();
-        let formatter = formatter.as_mut();
-
-        if !args.no_graph {
-            let mut graph = get_graphlog(command.settings(), formatter.raw());
-            let default_node_symbol = graph.default_node_symbol().to_owned();
-            let forward_iter = TopoGroupedRevsetGraphIterator::new(revset.iter_graph());
-            let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
-                Box::new(ReverseRevsetGraphIterator::new(forward_iter))
-            } else {
-                Box::new(forward_iter)
-            };
-            for (commit_id, edges) in iter.take(args.limit.unwrap_or(usize::MAX)) {
-                let mut graphlog_edges = vec![];
-                // TODO: Should we update RevsetGraphIterator to yield this flag instead of all
-                // the missing edges since we don't care about where they point here
-                // anyway?
-                let mut has_missing = false;
-                for edge in edges {
-                    match edge.edge_type {
-                        RevsetGraphEdgeType::Missing => {
-                            has_missing = true;
-                        }
-                        RevsetGraphEdgeType::Direct => graphlog_edges.push(Edge::Present {
-                            direct: true,
-                            target: edge.target,
-                        }),
-                        RevsetGraphEdgeType::Indirect => graphlog_edges.push(Edge::Present {
-                            direct: false,
-                            target: edge.target,
-                        }),
-                    }
-                }
-                if has_missing {
-                    graphlog_edges.push(Edge::Missing);
-                }
-                let mut buffer = vec![];
-                let commit = store.get_commit(&commit_id)?;
-                with_content_format.write_graph_text(
-                    ui.new_formatter(&mut buffer).as_mut(),
-                    |formatter| template.format(&commit, formatter),
-                    || graph.width(&commit_id, &graphlog_edges),
-                )?;
-                if !buffer.ends_with(b"\n") {
-                    buffer.push(b'\n');
-                }
-                if !diff_formats.is_empty() {
-                    let mut formatter = ui.new_formatter(&mut buffer);
-                    diff_util::show_patch(
-                        ui,
-                        formatter.as_mut(),
-                        &workspace_command,
-                        &commit,
-                        matcher.as_ref(),
-                        &diff_formats,
-                    )?;
-                }
-                let node_symbol = if Some(&commit_id) == wc_commit_id {
-                    "@"
-                } else {
-                    &default_node_symbol
-                };
-
-                graph.add_node(
-                    &commit_id,
-                    &graphlog_edges,
-                    node_symbol,
-                    &String::from_utf8_lossy(&buffer),
-                )?;
-            }
-        } else {
-            let iter: Box<dyn Iterator<Item = CommitId>> = if args.reversed {
-                Box::new(revset.iter().reversed())
-            } else {
-                Box::new(revset.iter())
-            };
-            for commit_or_error in iter.commits(store).take(args.limit.unwrap_or(usize::MAX)) {
-                let commit = commit_or_error?;
-                with_content_format
-                    .write(formatter, |formatter| template.format(&commit, formatter))?;
-                if !diff_formats.is_empty() {
-                    diff_util::show_patch(
-                        ui,
-                        formatter,
-                        &workspace_command,
-                        &commit,
-                        matcher.as_ref(),
-                        &diff_formats,
-                    )?;
-                }
-            }
-        }
-    }
-
-    // Check to see if the user might have specified a path when they intended
-    // to specify a revset.
-    if let ([], [only_path]) = (args.revisions.as_slice(), args.paths.as_slice()) {
-        if only_path == "." && workspace_command.parse_file_path(only_path)?.is_root() {
-            // For users of e.g. Mercurial, where `.` indicates the current commit.
-            writeln!(
-                ui.warning(),
-                "warning: The argument {only_path:?} is being interpreted as a path, but this is \
-                 often not useful because all non-empty commits touch '.'.  If you meant to show \
-                 the working copy commit, pass -r '@' instead."
-            )?;
-        } else if revset.is_empty()
-            && revset::parse(only_path, &workspace_command.revset_parse_context()).is_ok()
-        {
-            writeln!(
-                ui.warning(),
-                "warning: The argument {only_path:?} is being interpreted as a path. To specify a \
-                 revset, pass -r {only_path:?} instead."
-            )?;
-        }
     }
 
     Ok(())
@@ -2959,7 +2759,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
         Commands::Show(sub_args) => cmd_show(ui, command_helper, sub_args),
         Commands::Status(sub_args) => cmd_status(ui, command_helper, sub_args),
-        Commands::Log(sub_args) => cmd_log(ui, command_helper, sub_args),
+        Commands::Log(sub_args) => log::cmd_log(ui, command_helper, sub_args),
         Commands::Interdiff(sub_args) => interdiff::cmd_interdiff(ui, command_helper, sub_args),
         Commands::Obslog(sub_args) => cmd_obslog(ui, command_helper, sub_args),
         Commands::Describe(sub_args) => describe::cmd_describe(ui, command_helper, sub_args),
