@@ -56,8 +56,7 @@ fn test_rewrite_immutable_generic() {
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit 000000000000 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Error: The root commit 000000000000 is immutable
     "###);
     // Error if we redefine immutable_heads() with an argument
     // TODO: This error comes from the built-in definition of

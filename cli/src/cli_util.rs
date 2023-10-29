@@ -1268,10 +1268,19 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         let revset = self.evaluate_revset(to_rewrite_revset.intersection(&immutable_revset))?;
         if let Some(commit) = revset.iter().commits(self.repo().store()).next() {
             let commit = commit?;
-            return Err(user_error_with_hint(
-                format!("Commit {} is immutable", short_commit_hash(commit.id()),),
-                "Configure the set of immutable commits via `revset-aliases.immutable_heads()`.",
-            ));
+            let error = if commit.id() == self.repo().store().root_commit_id() {
+                user_error(format!(
+                    "The root commit {} is immutable",
+                    short_commit_hash(commit.id()),
+                ))
+            } else {
+                user_error_with_hint(
+                    format!("Commit {} is immutable", short_commit_hash(commit.id()),),
+                    "Configure the set of immutable commits via \
+                     `revset-aliases.immutable_heads()`.",
+                )
+            };
+            return Err(error);
         }
 
         Ok(())
