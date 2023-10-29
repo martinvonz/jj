@@ -316,7 +316,9 @@ fn commit_from_git_without_root_parent(
     } else {
         MergedTreeId::Legacy(tree_id)
     };
-    let description = commit.message().unwrap_or("<no message>").to_owned();
+    // Use lossy conversion as commit message with "mojibake" is still better than
+    // nothing.
+    let description = String::from_utf8_lossy(commit.message_bytes()).into_owned();
     let author = signature_from_git(commit.author());
     let committer = signature_from_git(commit.committer());
 
