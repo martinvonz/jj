@@ -992,8 +992,7 @@ impl TreeState {
     fn write_file(
         &self,
         disk_path: &Path,
-        path: &RepoPath,
-        id: &FileId,
+        contents: &mut dyn Read,
         executable: bool,
     ) -> Result<FileState, CheckoutError> {
         let mut file = OpenOptions::new()
@@ -1004,8 +1003,7 @@ impl TreeState {
                 message: format!("Failed to open file {} for writing", disk_path.display()),
                 err: err.into(),
             })?;
-        let mut contents = self.store.read_file(path, id)?;
-        let size = std::io::copy(&mut contents, &mut file).map_err(|err| CheckoutError::Other {
+        let size = std::io::copy(contents, &mut file).map_err(|err| CheckoutError::Other {
             message: format!("Failed to write file {}", disk_path.display()),
             err: err.into(),
         })?;
@@ -1021,16 +1019,10 @@ impl TreeState {
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
-    fn write_symlink(
-        &self,
-        disk_path: &Path,
-        path: &RepoPath,
-        id: &SymlinkId,
-    ) -> Result<FileState, CheckoutError> {
-        let target = self.store.read_symlink(path, id)?;
+    fn write_symlink(&self, disk_path: &Path, target: String) -> Result<FileState, CheckoutError> {
         #[cfg(windows)]
         {
-            println!("ignoring symlink at {:?}", path);
+            println!("ignoring symlink at {}", disk_path.display());
         }
         #[cfg(unix)]
         {
@@ -1053,8 +1045,7 @@ impl TreeState {
     fn write_conflict(
         &self,
         disk_path: &Path,
-        path: &RepoPath,
-        conflict: &MergedTreeValue,
+        conflict_data: Vec<u8>,
     ) -> Result<FileState, CheckoutError> {
         let mut file = OpenOptions::new()
             .write(true)
@@ -1064,10 +1055,6 @@ impl TreeState {
                 message: format!("Failed to open file {} for writing", disk_path.display()),
                 err: err.into(),
             })?;
-        let mut conflict_data = vec![];
-        conflicts::materialize(conflict, self.store.as_ref(), path, &mut conflict_data)
-            .block_on()
-            .expect("Failed to materialize conflict to in-memory buffer");
         file.write_all(&conflict_data)
             .map_err(|err| CheckoutError::Other {
                 message: format!("Failed to write conflict to file {}", disk_path.display()),
@@ -1197,9 +1184,13 @@ impl TreeState {
                 Ok(Some(after)) => {
                     let file_state = match after {
                         TreeValue::File { id, executable } => {
-                            self.write_file(&disk_path, &path, &id, executable)?
+                            let mut contents = self.store.read_file(&path, &id)?;
+                            self.write_file(&disk_path, &mut contents, executable)?
                         }
-                        TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id)?,
+                        TreeValue::Symlink(id) => {
+                            let target = self.store.read_symlink(&path, &id)?;
+                            self.write_symlink(&disk_path, target)?
+                        }
                         TreeValue::Conflict(_) => {
                             panic!("unexpected conflict entry in diff at {path:?}");
                         }
@@ -1214,7 +1205,16 @@ impl TreeState {
                     self.file_states.insert(path, file_state);
                 }
                 Err(after_conflict) => {
-                    let file_state = self.write_conflict(&disk_path, &path, &after_conflict)?;
+                    let mut conflict_data = vec![];
+                    conflicts::materialize(
+                        &after_conflict,
+                        self.store.as_ref(),
+                        &path,
+                        &mut conflict_data,
+                    )
+                    .block_on()
+                    .expect("Failed to materialize conflict to in-memory buffer");
+                    let file_state = self.write_conflict(&disk_path, conflict_data)?;
                     self.file_states.insert(path, file_state);
                 }
             }
