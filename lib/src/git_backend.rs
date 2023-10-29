@@ -16,11 +16,11 @@
 
 use std::any::Any;
 use std::fmt::{Debug, Error, Formatter};
-use std::fs;
 use std::io::{Cursor, Read};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::{fs, str};
 
 use async_trait::async_trait;
 use git2::Oid;
@@ -468,6 +468,14 @@ fn map_not_found_err(err: git2::Error, id: &impl ObjectId) -> BackendError {
     }
 }
 
+fn to_invalid_utf8_err(source: str::Utf8Error, id: &impl ObjectId) -> BackendError {
+    BackendError::InvalidUtf8 {
+        object_type: id.object_type(),
+        hash: id.hex(),
+        source,
+    }
+}
+
 fn import_extra_metadata_entries_from_heads(
     git_repo: &git2::Repository,
     mut_table: &mut MutableTable,
@@ -556,13 +564,9 @@ impl Backend for GitBackend {
         let blob = locked_repo
             .find_blob(git_blob_id)
             .map_err(|err| map_not_found_err(err, id))?;
-        let target = String::from_utf8(blob.content().to_owned()).map_err(|err| {
-            BackendError::InvalidUtf8 {
-                object_type: id.object_type(),
-                hash: id.hex(),
-                source: Box::new(err),
-            }
-        })?;
+        let target = str::from_utf8(blob.content())
+            .map_err(|err| to_invalid_utf8_err(err, id))?
+            .to_owned();
         Ok(target)
     }
 
