@@ -30,6 +30,7 @@ mod duplicate;
 mod edit;
 mod files;
 mod git;
+mod init;
 mod operation;
 
 use std::collections::{BTreeMap, HashSet};
@@ -46,7 +47,6 @@ use itertools::Itertools;
 use jj_lib::backend::{CommitId, ObjectId, TreeValue};
 use jj_lib::commit::Commit;
 use jj_lib::dag_walk::topo_order_reverse;
-use jj_lib::git_backend::GitBackend;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merge::{Merge, MergedTreeValue};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
@@ -66,7 +66,7 @@ use maplit::{hashmap, hashset};
 use tracing::instrument;
 
 use crate::cli_util::{
-    self, check_stale_working_copy, print_checkout_stats, print_git_import_stats,
+    self, check_stale_working_copy, print_checkout_stats,
     resolve_multiple_nonempty_revsets_default_single, run_ui_editor, short_commit_hash, user_error,
     user_error_with_hint, Args, CommandError, CommandHelper, LogContentFormat, RevisionArg,
     WorkspaceCommandHelper,
@@ -103,7 +103,7 @@ enum Commands {
     Files(files::FilesArgs),
     #[command(subcommand)]
     Git(git::GitCommands),
-    Init(InitArgs),
+    Init(init::InitArgs),
     Interdiff(InterdiffArgs),
     Log(LogArgs),
     /// Merge work from multiple branches
@@ -150,24 +150,6 @@ enum Commands {
 /// Display version information
 #[derive(clap::Args, Clone, Debug)]
 struct VersionArgs {}
-
-/// Create a new repo in the given directory
-///
-/// If the given directory does not exist, it will be created. If no directory
-/// is given, the current directory is used.
-#[derive(clap::Args, Clone, Debug)]
-#[command(group(ArgGroup::new("backend").args(&["git", "git_repo"])))]
-struct InitArgs {
-    /// The destination directory
-    #[arg(default_value = ".", value_hint = clap::ValueHint::DirPath)]
-    destination: String,
-    /// Use the Git backend, creating a jj repo backed by a Git repo
-    #[arg(long)]
-    git: bool,
-    /// Path to a git repo the jj repo will be backed by
-    #[arg(long, value_hint = clap::ValueHint::DirPath)]
-    git_repo: Option<String>,
-}
 
 /// Stop tracking specified paths in the working copy
 #[derive(clap::Args, Clone, Debug)]
@@ -868,92 +850,6 @@ fn cmd_version(
     _args: &VersionArgs,
 ) -> Result<(), CommandError> {
     write!(ui.stdout(), "{}", command.app().render_version())?;
-    Ok(())
-}
-
-#[instrument(skip_all)]
-fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(), CommandError> {
-    if command.global_args().repository.is_some() {
-        return Err(user_error("'--repository' cannot be used with 'init'"));
-    }
-    let wc_path = command.cwd().join(&args.destination);
-    match fs::create_dir(&wc_path) {
-        Ok(()) => {}
-        Err(_) if wc_path.is_dir() => {}
-        Err(e) => return Err(user_error(format!("Failed to create workspace: {e}"))),
-    }
-    let wc_path = wc_path
-        .canonicalize()
-        .map_err(|e| user_error(format!("Failed to create workspace: {e}")))?; // raced?
-
-    if let Some(git_store_str) = &args.git_repo {
-        let mut git_store_path = command.cwd().join(git_store_str);
-        git_store_path = git_store_path
-            .canonicalize()
-            .map_err(|_| user_error(format!("{} doesn't exist", git_store_path.display())))?;
-        if !git_store_path.ends_with(".git") {
-            git_store_path.push(".git");
-            // Undo if .git doesn't exist - likely a bare repo.
-            if !git_store_path.exists() {
-                git_store_path.pop();
-            }
-        }
-        let (workspace, repo) =
-            Workspace::init_external_git(command.settings(), &wc_path, &git_store_path)?;
-        let git_repo = repo
-            .store()
-            .backend_impl()
-            .downcast_ref::<GitBackend>()
-            .unwrap()
-            .open_git_repo()?;
-        let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
-        git::maybe_add_gitignore(&workspace_command)?;
-        workspace_command.snapshot(ui)?;
-        if !workspace_command.working_copy_shared_with_git() {
-            let mut tx = workspace_command.start_transaction("import git refs");
-            let stats = jj_lib::git::import_some_refs(
-                tx.mut_repo(),
-                &git_repo,
-                &command.settings().git_settings(),
-                |ref_name| !jj_lib::git::is_reserved_git_remote_ref(ref_name),
-            )?;
-            print_git_import_stats(ui, &stats)?;
-            if let Some(git_head_id) = tx.mut_repo().view().git_head().as_normal().cloned() {
-                let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
-                tx.check_out(&git_head_commit)?;
-            }
-            if tx.mut_repo().has_changes() {
-                tx.finish(ui)?;
-            }
-        }
-    } else if args.git {
-        Workspace::init_internal_git(command.settings(), &wc_path)?;
-    } else {
-        if !command.settings().allow_native_backend() {
-            return Err(user_error_with_hint(
-                "The native backend is disallowed by default.",
-                "Did you mean to pass `--git`?
-Set `ui.allow-init-native` to allow initializing a repo with the native backend.",
-            ));
-        }
-        Workspace::init_local(command.settings(), &wc_path)?;
-    };
-    let cwd = command.cwd().canonicalize().unwrap();
-    let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
-    writeln!(
-        ui.stderr(),
-        "Initialized repo in \"{}\"",
-        relative_wc_path.display()
-    )?;
-    if args.git && wc_path.join(".git").exists() {
-        writeln!(ui.warning(), "Empty repo created.")?;
-        writeln!(
-            ui.hint(),
-            "Hint: To create a repo backed by the existing Git repo, run `jj init --git-repo={}` \
-             instead.",
-            relative_wc_path.display()
-        )?;
-    }
     Ok(())
 }
 
@@ -3100,7 +2996,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::from_arg_matches(command_helper.matches()).unwrap();
     match &derived_subcommands {
         Commands::Version(sub_args) => cmd_version(ui, command_helper, sub_args),
-        Commands::Init(sub_args) => cmd_init(ui, command_helper, sub_args),
+        Commands::Init(sub_args) => init::cmd_init(ui, command_helper, sub_args),
         Commands::Config(sub_args) => config::cmd_config(ui, command_helper, sub_args),
         Commands::Checkout(sub_args) => checkout::cmd_checkout(ui, command_helper, sub_args),
         Commands::Untrack(sub_args) => cmd_untrack(ui, command_helper, sub_args),
