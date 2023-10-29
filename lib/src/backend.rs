@@ -101,11 +101,6 @@ id_type!(pub FileId);
 id_type!(pub SymlinkId);
 id_type!(pub ConflictId);
 
-pub enum Phase {
-    Public,
-    Draft,
-}
-
 content_hash! {
     #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
     pub struct MillisSinceEpoch(pub i64);
