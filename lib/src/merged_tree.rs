@@ -442,6 +442,32 @@ fn all_tree_basenames(trees: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComp
         .dedup()
 }
 
+fn merged_tree_basenames<'a>(
+    tree1: &'a MergedTree,
+    tree2: &'a MergedTree,
+) -> Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> {
+    fn merge_iters<'a>(
+        iter1: impl Iterator<Item = &'a RepoPathComponent> + 'a,
+        iter2: impl Iterator<Item = &'a RepoPathComponent> + 'a,
+    ) -> Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> {
+        Box::new(iter1.merge(iter2).dedup())
+    }
+    match (&tree1, &tree2) {
+        (MergedTree::Legacy(before), MergedTree::Legacy(after)) => {
+            merge_iters(before.data().names(), after.data().names())
+        }
+        (MergedTree::Merge(before), MergedTree::Legacy(after)) => {
+            merge_iters(all_tree_basenames(before), after.data().names())
+        }
+        (MergedTree::Legacy(before), MergedTree::Merge(after)) => {
+            merge_iters(before.data().names(), all_tree_basenames(after))
+        }
+        (MergedTree::Merge(before), MergedTree::Merge(after)) => {
+            merge_iters(all_tree_basenames(before), all_tree_basenames(after))
+        }
+    }
+}
+
 fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
     if let Some(tree) = merge.resolve_trivial() {
         return Ok(Merge::resolved(tree.clone()));
@@ -762,27 +788,7 @@ struct TreeEntryDiffIterator<'a> {
 
 impl<'a> TreeEntryDiffIterator<'a> {
     fn new(before: &'a MergedTree, after: &'a MergedTree) -> Self {
-        fn merge_iters<'a>(
-            iter1: impl Iterator<Item = &'a RepoPathComponent> + 'a,
-            iter2: impl Iterator<Item = &'a RepoPathComponent> + 'a,
-        ) -> Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> {
-            Box::new(iter1.merge(iter2).dedup())
-        }
-        let basename_iter: Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> =
-            match (before, after) {
-                (MergedTree::Legacy(before), MergedTree::Legacy(after)) => {
-                    merge_iters(before.data().names(), after.data().names())
-                }
-                (MergedTree::Merge(before), MergedTree::Legacy(after)) => {
-                    merge_iters(all_tree_basenames(before), after.data().names())
-                }
-                (MergedTree::Legacy(before), MergedTree::Merge(after)) => {
-                    merge_iters(before.data().names(), all_tree_basenames(after))
-                }
-                (MergedTree::Merge(before), MergedTree::Merge(after)) => {
-                    merge_iters(all_tree_basenames(before), all_tree_basenames(after))
-                }
-            };
+        let basename_iter = merged_tree_basenames(before, after);
         TreeEntryDiffIterator {
             before,
             after,
