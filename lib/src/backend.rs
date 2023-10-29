@@ -247,12 +247,6 @@ pub enum BackendError {
         object_type: String,
         hash: String,
     },
-    #[error("Invalid hash for object of type {object_type} with hash {hash}: {source}")]
-    InvalidHash {
-        object_type: String,
-        hash: String,
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
     #[error("Invalid UTF-8 for object {hash} of type {object_type}: {source}")]
     InvalidUtf8 {
         object_type: String,

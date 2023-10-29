@@ -449,12 +449,7 @@ fn validate_git_object_id(id: &impl ObjectId) -> Result<git2::Oid, BackendError>
             hash: id.hex(),
         });
     }
-    let oid = git2::Oid::from_bytes(id.as_bytes()).map_err(|err| BackendError::InvalidHash {
-        object_type: id.object_type(),
-        hash: id.hex(),
-        source: Box::new(err),
-    })?;
-    Ok(oid)
+    Ok(git2::Oid::from_bytes(id.as_bytes()).unwrap())
 }
 
 fn map_not_found_err(err: git2::Error, id: &impl ObjectId) -> BackendError {
