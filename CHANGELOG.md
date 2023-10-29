@@ -69,6 +69,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The new template keywords `local_branches`/`remote_branches` are added to show
   only local/remote branches.
 
+* `jj workspace add` now preserves all parents of the old working-copy commit
+  instead of just the first one.
+
 ### Fixed bugs
 
 * Updating the working copy to a commit where a file that's currently ignored

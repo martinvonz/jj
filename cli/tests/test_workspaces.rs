@@ -71,6 +71,41 @@ fn test_workspaces_add_second_workspace() {
     "###);
 }
 
+/// Test adding a second workspace while the current workspace is editing a
+/// merge
+#[test]
+fn test_workspaces_add_second_workspace_on_merge() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
+    let main_path = test_env.env_root().join("main");
+
+    test_env.jj_cmd_ok(&main_path, &["describe", "-m=left"]);
+    test_env.jj_cmd_ok(&main_path, &["new", "@-", "-m=right"]);
+    test_env.jj_cmd_ok(&main_path, &["new", "all:@-+", "-m=merge"]);
+
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: zsuskuln 21a0ea6d (empty) merge
+    "###);
+
+    test_env.jj_cmd_ok(
+        &main_path,
+        &["workspace", "add", "--name", "second", "../secondary"],
+    );
+
+    // The new workspace's working-copy commit shares all parents with the old one.
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    ◉    6d4c2b8ab610148410b6a346d900cb7ad6298ede second@
+    ├─╮
+    │ │ @  21a0ea6d1c86c413cb30d7f7d216a74754b148c4 default@
+    ╭─┬─╯
+    │ ◉  09ba8d9dfa21b8572c2361e6947ca024d8f0a198
+    ◉ │  1694f2ddf8ecf9e55ca3cd9554bc0654186b07e0
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+}
+
 /// Test adding a workspace, but at a specific revision using '-r'
 #[test]
 fn test_workspaces_add_workspace_at_revision() {

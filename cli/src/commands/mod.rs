@@ -1698,23 +1698,30 @@ fn cmd_workspace_add(
         &name
     ));
 
-    let new_wc_commit = if let Some(specific_rev) = &args.revision {
-        old_workspace_command.resolve_single_rev(specific_rev, ui)?
+    let parents = if let Some(specific_rev) = &args.revision {
+        vec![old_workspace_command.resolve_single_rev(specific_rev, ui)?]
     } else {
-        // Check out a parent of the current workspace's working-copy commit, or the
+        // Check out parents of the current workspace's working-copy commit, or the
         // root if there is no working-copy commit in the current workspace.
         if let Some(old_wc_commit_id) = tx
             .base_repo()
             .view()
             .get_wc_commit_id(old_workspace_command.workspace_id())
         {
-            tx.repo().store().get_commit(old_wc_commit_id)?.parents()[0].clone()
+            tx.repo().store().get_commit(old_wc_commit_id)?.parents()
         } else {
-            tx.repo().store().root_commit()
+            vec![tx.repo().store().root_commit()]
         }
     };
 
-    tx.check_out(&new_wc_commit)?;
+    let tree = merge_commit_trees(tx.repo(), &parents)?;
+    let parent_ids = parents.iter().map(|c| c.id().clone()).collect_vec();
+    let new_wc_commit = tx
+        .mut_repo()
+        .new_commit(command.settings(), parent_ids, tree.id())
+        .write()?;
+
+    tx.edit(&new_wc_commit)?;
     tx.finish(ui)?;
     Ok(())
 }
