@@ -31,6 +31,7 @@ mod edit;
 mod files;
 mod git;
 mod init;
+mod interdiff;
 mod operation;
 
 use std::collections::{BTreeMap, HashSet};
@@ -104,7 +105,7 @@ enum Commands {
     #[command(subcommand)]
     Git(git::GitCommands),
     Init(init::InitArgs),
-    Interdiff(InterdiffArgs),
+    Interdiff(interdiff::InterdiffArgs),
     Log(LogArgs),
     /// Merge work from multiple branches
     ///
@@ -245,27 +246,6 @@ struct ObslogArgs {
     patch: bool,
     #[command(flatten)]
     diff_format: DiffFormatArgs,
-}
-
-/// Compare the changes of two commits
-///
-/// This excludes changes from other commits by temporarily rebasing `--from`
-/// onto `--to`'s parents. If you wish to compare the same change across
-/// versions, consider `jj obslog -p` instead.
-#[derive(clap::Args, Clone, Debug)]
-#[command(group(ArgGroup::new("to_diff").args(&["from", "to"]).multiple(true).required(true)))]
-struct InterdiffArgs {
-    /// Show changes from this revision
-    #[arg(long)]
-    from: Option<RevisionArg>,
-    /// Show changes to this revision
-    #[arg(long)]
-    to: Option<RevisionArg>,
-    /// Restrict the diff to these paths
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
-    paths: Vec<String>,
-    #[command(flatten)]
-    format: DiffFormatArgs,
 }
 
 /// Create a new, empty change and edit it in the working copy
@@ -1316,32 +1296,6 @@ fn show_predecessor_patch(
         &tree,
         &EverythingMatcher,
         diff_formats,
-    )
-}
-
-#[instrument(skip_all)]
-fn cmd_interdiff(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &InterdiffArgs,
-) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
-    let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
-
-    let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
-    let to_tree = to.tree()?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
-    ui.request_pager();
-    diff_util::show_diff(
-        ui,
-        ui.stdout_formatter().as_mut(),
-        &workspace_command,
-        &from_tree,
-        &to_tree,
-        matcher.as_ref(),
-        &diff_formats,
     )
 }
 
@@ -3006,7 +2960,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Show(sub_args) => cmd_show(ui, command_helper, sub_args),
         Commands::Status(sub_args) => cmd_status(ui, command_helper, sub_args),
         Commands::Log(sub_args) => cmd_log(ui, command_helper, sub_args),
-        Commands::Interdiff(sub_args) => cmd_interdiff(ui, command_helper, sub_args),
+        Commands::Interdiff(sub_args) => interdiff::cmd_interdiff(ui, command_helper, sub_args),
         Commands::Obslog(sub_args) => cmd_obslog(ui, command_helper, sub_args),
         Commands::Describe(sub_args) => describe::cmd_describe(ui, command_helper, sub_args),
         Commands::Commit(sub_args) => commit::cmd_commit(ui, command_helper, sub_args),
