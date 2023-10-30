@@ -42,6 +42,7 @@ mod operation;
 mod prev;
 mod rebase;
 mod resolve;
+mod restore;
 
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -60,7 +61,7 @@ use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
-use jj_lib::rewrite::{merge_commit_trees, restore_tree, DescendantRebaser};
+use jj_lib::rewrite::{merge_commit_trees, DescendantRebaser};
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::{default_working_copy_initializer, Workspace};
@@ -126,7 +127,7 @@ enum Commands {
     Prev(prev::PrevArgs),
     Rebase(rebase::RebaseArgs),
     Resolve(resolve::ResolveArgs),
-    Restore(RestoreArgs),
+    Restore(restore::RestoreArgs),
     #[command(hide = true)]
     // TODO: Flesh out.
     Run(RunArgs),
@@ -230,54 +231,6 @@ struct UnsquashArgs {
     // the default.
     #[arg(long, short)]
     interactive: bool,
-}
-
-/// Restore paths from another revision
-///
-/// That means that the paths get the same content in the destination (`--to`)
-/// as they had in the source (`--from`). This is typically used for undoing
-/// changes to some paths in the working copy (`jj restore <paths>`).
-///
-/// If only one of `--from` or `--to` is specified, the other one defaults to
-/// the working copy.
-///
-/// When neither `--from` nor `--to` is specified, the command restores into the
-/// working copy from its parent(s). `jj restore` without arguments is similar
-/// to `jj abandon`, except that it leaves an empty revision with its
-/// description and other metadata preserved.
-///
-/// See `jj diffedit` if you'd like to restore portions of files rather than
-/// entire files.
-#[derive(clap::Args, Clone, Debug)]
-struct RestoreArgs {
-    /// Restore only these paths (instead of all paths)
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
-    paths: Vec<String>,
-    /// Revision to restore from (source)
-    #[arg(long)]
-    from: Option<RevisionArg>,
-    /// Revision to restore into (destination)
-    #[arg(long)]
-    to: Option<RevisionArg>,
-    /// Undo the changes in a revision as compared to the merge of its parents.
-    ///
-    /// This undoes the changes that can be seen with `jj diff -r REVISION`. If
-    /// `REVISION` only has a single parent, this option is equivalent to `jj
-    ///  restore --to REVISION --from REVISION-`.
-    ///
-    /// The default behavior of `jj restore` is equivalent to `jj restore
-    /// --changes-in @`.
-    #[arg(long, short, value_name="REVISION", conflicts_with_all=["to", "from"])]
-    changes_in: Option<RevisionArg>,
-    /// Prints an error. DO NOT USE.
-    ///
-    /// If we followed the pattern of `jj diff` and `jj diffedit`, we would use
-    /// `--revision` instead of `--changes-in` However, that would make it
-    /// likely that someone unfamiliar with this pattern would use `-r` when
-    /// they wanted `--from`. This would make a different revision empty, and
-    /// the user might not even realize something went wrong.
-    #[arg(long, short, hide = true)]
-    revision: Option<RevisionArg>,
 }
 
 /// Run a command across a set of revisions.
@@ -1030,60 +983,6 @@ aborted.
     Ok(())
 }
 
-#[instrument(skip_all)]
-fn cmd_restore(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &RestoreArgs,
-) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let (from_tree, to_commit);
-    if args.revision.is_some() {
-        return Err(user_error(
-            "`jj restore` does not have a `--revision`/`-r` option. If you'd like to modify\nthe \
-             *current* revision, use `--from`. If you'd like to modify a *different* \
-             revision,\nuse `--to` or `--changes-in`.",
-        ));
-    }
-    if args.from.is_some() || args.to.is_some() {
-        to_commit = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
-        from_tree = workspace_command
-            .resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?
-            .tree()?;
-    } else {
-        to_commit =
-            workspace_command.resolve_single_rev(args.changes_in.as_deref().unwrap_or("@"), ui)?;
-        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &to_commit.parents())?;
-    }
-    workspace_command.check_rewritable([&to_commit])?;
-
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let to_tree = to_commit.tree()?;
-    let new_tree_id = restore_tree(&from_tree, &to_tree, matcher.as_ref())?;
-    if &new_tree_id == to_commit.tree_id() {
-        writeln!(ui.stderr(), "Nothing changed.")?;
-    } else {
-        let mut tx = workspace_command
-            .start_transaction(&format!("restore into commit {}", to_commit.id().hex()));
-        let mut_repo = tx.mut_repo();
-        let new_commit = mut_repo
-            .rewrite_commit(command.settings(), &to_commit)
-            .set_tree_id(new_tree_id)
-            .write()?;
-        // rebase_descendants early; otherwise `new_commit` would always have
-        // a conflicted change id at this point.
-        let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
-        write!(ui.stderr(), "Created ")?;
-        tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
-        writeln!(ui.stderr())?;
-        if num_rebased > 0 {
-            writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
-        }
-        tx.finish(ui)?;
-    }
-    Ok(())
-}
-
 fn description_template_for_commit(
     ui: &Ui,
     settings: &UserSettings,
@@ -1658,7 +1557,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Move(sub_args) => r#move::cmd_move(ui, command_helper, sub_args),
         Commands::Squash(sub_args) => cmd_squash(ui, command_helper, sub_args),
         Commands::Unsquash(sub_args) => cmd_unsquash(ui, command_helper, sub_args),
-        Commands::Restore(sub_args) => cmd_restore(ui, command_helper, sub_args),
+        Commands::Restore(sub_args) => restore::cmd_restore(ui, command_helper, sub_args),
         Commands::Run(sub_args) => cmd_run(ui, command_helper, sub_args),
         Commands::Diffedit(sub_args) => diffedit::cmd_diffedit(ui, command_helper, sub_args),
         Commands::Split(sub_args) => cmd_split(ui, command_helper, sub_args),
