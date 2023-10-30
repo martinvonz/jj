@@ -163,7 +163,13 @@ impl GitBackend {
                 .context(&target_path)
                 .map_err(GitBackendInitError::Path)?;
         };
-        let repo = git2::Repository::open(store_path.join(git_repo_path))
+        let canonical_git_repo_path = {
+            let path = store_path.join(git_repo_path);
+            path.canonicalize()
+                .context(&path)
+                .map_err(GitBackendInitError::Path)?
+        };
+        let repo = git2::Repository::open(canonical_git_repo_path)
             .map_err(GitBackendInitError::OpenRepository)?;
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
         Ok(GitBackend::new(repo, extra_metadata_store))
