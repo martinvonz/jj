@@ -309,6 +309,19 @@
     Download pre-built binaries for a release
   </a>
   
+    <nav class="md-nav" aria-label="Download pre-built binaries for a release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cargo-binstall" class="md-nav__link">
+    Cargo BInstall
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -320,8 +333,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#build-using-cargo" class="md-nav__link">
-    Build using cargo
+  <a href="#from-source" class="md-nav__link">
+    From Source
   </a>
   
 </li>
@@ -354,6 +367,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#from-source_1" class="md-nav__link">
+    From Source
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#homebrew_1" class="md-nav__link">
     Homebrew
   </a>
@@ -363,13 +383,6 @@
           <li class="md-nav__item">
   <a href="#macports" class="md-nav__link">
     MacPorts
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#from-source" class="md-nav__link">
-    From Source
   </a>
   
 </li>
@@ -1219,6 +1232,19 @@
     Download pre-built binaries for a release
   </a>
   
+    <nav class="md-nav" aria-label="Download pre-built binaries for a release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cargo-binstall" class="md-nav__link">
+    Cargo BInstall
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1230,8 +1256,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#build-using-cargo" class="md-nav__link">
-    Build using cargo
+  <a href="#from-source" class="md-nav__link">
+    From Source
   </a>
   
 </li>
@@ -1264,6 +1290,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#from-source_1" class="md-nav__link">
+    From Source
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#homebrew_1" class="md-nav__link">
     Homebrew
   </a>
@@ -1273,13 +1306,6 @@
           <li class="md-nav__item">
   <a href="#macports" class="md-nav__link">
     MacPorts
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#from-source" class="md-nav__link">
-    From Source
   </a>
   
 </li>
@@ -1372,8 +1398,16 @@ of the last released version of <code>jj</code> for Windows, Mac, or Linux (the 
 version should work on all distributions).</p>
 <p>If you'd like to install a prerelease version, you'll need to use one of the
 options below.</p>
+<h4 id="cargo-binstall">Cargo BInstall<a class="headerlink" href="#cargo-binstall" title="Permanent link">&para;</a></h4>
+<p>If you use <a href="https://github.com/cargo-bins/cargo-binstall"><code>cargo-binstall</code></a>, you
+can install the same binaries of the last <code>jj</code> release from GitHub as follows:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Will put the jj binary for the latest release in ~/.cargo/bin by default</span>
+cargo<span class="w"> </span>binstall<span class="w"> </span>--strategy<span class="w"> </span>crate-meta-data<span class="w"> </span>jj-cli
+</code></pre></div>
+<p>Without the <code>--strategy</code> option, you may get equivalent binaries that should be
+compiled from the same source code.</p>
 <h3 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
-<h4 id="build-using-cargo">Build using <code>cargo</code><a class="headerlink" href="#build-using-cargo" title="Permanent link">&para;</a></h4>
+<h4 id="from-source">From Source<a class="headerlink" href="#from-source" title="Permanent link">&para;</a></h4>
 <p>First make sure that you have the <code>libssl-dev</code>, <code>openssl</code>, <code>pkg-config</code>, and
 <code>build-essential</code> packages installed by running something like this:</p>
 <div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>libssl-dev<span class="w"> </span>openssl<span class="w"> </span>pkg-config<span class="w"> </span>build-essential
@@ -1404,18 +1438,7 @@ nix<span class="w"> </span>profile<span class="w"> </span>install<span class="w"
 brew<span class="w"> </span>install<span class="w"> </span>jj
 </code></pre></div>
 <h3 id="mac">Mac<a class="headerlink" href="#mac" title="Permanent link">&para;</a></h3>
-<h4 id="homebrew_1">Homebrew<a class="headerlink" href="#homebrew_1" title="Permanent link">&para;</a></h4>
-<p>If you use Homebrew, you can run:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Installs the latest release</span>
-brew<span class="w"> </span>install<span class="w"> </span>jj
-</code></pre></div>
-<h4 id="macports">MacPorts<a class="headerlink" href="#macports" title="Permanent link">&para;</a></h4>
-<p>You can also install <code>jj</code> via <a href="https://ports.macports.org/port/jujutsu/">the MacPorts <code>jujutsu</code>
-port</a>:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Installs the latest release</span>
-sudo<span class="w"> </span>port<span class="w"> </span>install<span class="w"> </span>jujutsu
-</code></pre></div>
-<h4 id="from-source">From Source<a class="headerlink" href="#from-source" title="Permanent link">&para;</a></h4>
+<h4 id="from-source_1">From Source<a class="headerlink" href="#from-source_1" title="Permanent link">&para;</a></h4>
 <p>You may need to run some or all of these:</p>
 <div class="highlight"><pre><span></span><code>xcode-select<span class="w"> </span>--install
 brew<span class="w"> </span>install<span class="w"> </span>openssl
@@ -1429,6 +1452,17 @@ cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"
 <p>or:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># To install the latest release</span>
 cargo<span class="w"> </span>install<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli
+</code></pre></div>
+<h4 id="homebrew_1">Homebrew<a class="headerlink" href="#homebrew_1" title="Permanent link">&para;</a></h4>
+<p>If you use Homebrew, you can run:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Installs the latest release</span>
+brew<span class="w"> </span>install<span class="w"> </span>jj
+</code></pre></div>
+<h4 id="macports">MacPorts<a class="headerlink" href="#macports" title="Permanent link">&para;</a></h4>
+<p>You can also install <code>jj</code> via <a href="https://ports.macports.org/port/jujutsu/">the MacPorts <code>jujutsu</code>
+port</a>:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Installs the latest release</span>
+sudo<span class="w"> </span>port<span class="w"> </span>install<span class="w"> </span>jujutsu
 </code></pre></div>
 <h3 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h3>
 <p>Run either:</p>
