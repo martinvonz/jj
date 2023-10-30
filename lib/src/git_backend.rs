@@ -836,9 +836,8 @@ impl Backend for GitBackend {
                 }
             }
         };
-        // Update the signatures to match the ones that were actually written to the
-        // object store
-        contents.author.timestamp.timestamp = MillisSinceEpoch(author.when().seconds() * 1000);
+        // Update the signature to match the one that was actually written to the object
+        // store
         contents.committer.timestamp.timestamp =
             MillisSinceEpoch(committer.when().seconds() * 1000);
         let mut mut_table = table.start_mutation();
