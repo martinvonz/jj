@@ -154,6 +154,18 @@ fn test_rewrite_immutable_commands() {
     Error: Commit 16ca9d800b08 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
+    // new --insert-before
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "main"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Commit 16ca9d800b08 is immutable
+    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    "###);
+    // new --insert-after parent_of_main
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "--insert-after", "description(b)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Commit 16ca9d800b08 is immutable
+    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    "###);
     // rebase -s
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s=main", "-d=@"]);
     insta::assert_snapshot!(stderr, @r###"

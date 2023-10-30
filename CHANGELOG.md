@@ -78,6 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Conflicts in executable files can now be resolved just like conflicts in
   non-executable files ([#1279](https://github.com/martinvonz/jj/issues/1279)).
 
+* `jj new --insert-before` and `--insert-after` now respect immutable revisions
+  ([#2468](https://github.com/martinvonz/jj/pull/2468)).
+
 ## [0.10.0] - 2023-10-04
 
 ### Breaking changes
