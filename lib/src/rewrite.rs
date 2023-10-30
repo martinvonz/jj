@@ -17,7 +17,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use itertools::{process_results, Itertools};
+use itertools::Itertools;
 use tracing::instrument;
 
 use crate::backend::{BackendError, CommitId, ObjectId};
@@ -401,16 +401,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 .mut_repo
                 .index()
                 .heads(&mut new_parent_ids.iter())
-                .iter()
-                .cloned()
+                .into_iter()
                 .collect();
-            let new_parents = process_results(
-                new_parent_ids
-                    .iter()
-                    .filter(|new_parent| head_set.contains(new_parent))
-                    .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id)),
-                |iter| iter.collect_vec(),
-            )?;
+            let new_parents: Vec<_> = new_parent_ids
+                .iter()
+                .filter(|new_parent| head_set.contains(new_parent))
+                .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id))
+                .try_collect()?;
             let new_commit =
                 rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents)?;
             self.rebased
