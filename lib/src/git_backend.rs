@@ -597,50 +597,47 @@ impl Backend for GitBackend {
         for entry in git_tree.iter() {
             let name =
                 str::from_utf8(entry.name_bytes()).map_err(|err| to_invalid_utf8_err(err, id))?;
-            let (name, value) = match entry.kind().unwrap() {
-                git2::ObjectType::Tree => {
+            let (name, value) = match entry.filemode() {
+                0o040000 => {
                     let id = TreeId::from_bytes(entry.id().as_bytes());
                     (name, TreeValue::Tree(id))
                 }
-                git2::ObjectType::Blob => match entry.filemode() {
-                    0o100644 => {
-                        let id = FileId::from_bytes(entry.id().as_bytes());
-                        if name.ends_with(CONFLICT_SUFFIX) {
-                            (
-                                &name[0..name.len() - CONFLICT_SUFFIX.len()],
-                                TreeValue::Conflict(ConflictId::from_bytes(entry.id().as_bytes())),
-                            )
-                        } else {
-                            (
-                                name,
-                                TreeValue::File {
-                                    id,
-                                    executable: false,
-                                },
-                            )
-                        }
-                    }
-                    0o100755 => {
-                        let id = FileId::from_bytes(entry.id().as_bytes());
+                0o100644 => {
+                    let id = FileId::from_bytes(entry.id().as_bytes());
+                    if name.ends_with(CONFLICT_SUFFIX) {
+                        (
+                            &name[0..name.len() - CONFLICT_SUFFIX.len()],
+                            TreeValue::Conflict(ConflictId::from_bytes(entry.id().as_bytes())),
+                        )
+                    } else {
                         (
                             name,
                             TreeValue::File {
                                 id,
-                                executable: true,
+                                executable: false,
                             },
                         )
                     }
-                    0o120000 => {
-                        let id = SymlinkId::from_bytes(entry.id().as_bytes());
-                        (name, TreeValue::Symlink(id))
-                    }
-                    mode => panic!("unexpected file mode {mode:?}"),
-                },
-                git2::ObjectType::Commit => {
+                }
+                0o100755 => {
+                    let id = FileId::from_bytes(entry.id().as_bytes());
+                    (
+                        name,
+                        TreeValue::File {
+                            id,
+                            executable: true,
+                        },
+                    )
+                }
+                0o120000 => {
+                    let id = SymlinkId::from_bytes(entry.id().as_bytes());
+                    (name, TreeValue::Symlink(id))
+                }
+                0o160000 => {
                     let id = CommitId::from_bytes(entry.id().as_bytes());
                     (name, TreeValue::GitSubmodule(id))
                 }
-                kind => panic!("unexpected object type {kind:?}"),
+                mode => panic!("unexpected file mode {mode:?}"),
             };
             tree.set(RepoPathComponent::from(name), value);
         }
