@@ -56,6 +56,12 @@ fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
 }
 
+fn read_git_target(workspace_root: &Path) -> String {
+    let mut path = workspace_root.to_path_buf();
+    path.extend([".jj", "repo", "store", "git_target"]);
+    std::fs::read_to_string(path).unwrap()
+}
+
 #[test]
 fn test_init_git_internal() {
     let test_env = TestEnvironment::default();
@@ -75,9 +81,7 @@ fn test_init_git_internal() {
     assert!(repo_path.is_dir());
     assert!(store_path.is_dir());
     assert!(store_path.join("git").is_dir());
-    assert!(store_path.join("git_target").is_file());
-    let git_target_file_contents = std::fs::read_to_string(store_path.join("git_target")).unwrap();
-    assert_eq!(git_target_file_contents, "git");
+    assert_eq!(read_git_target(&workspace_root), "git");
 }
 
 #[test_case(false; "full")]
@@ -115,9 +119,7 @@ fn test_init_git_external(bare: bool) {
     assert!(jj_path.join("working_copy").is_dir());
     assert!(repo_path.is_dir());
     assert!(store_path.is_dir());
-    let unix_git_target_file_contents = std::fs::read_to_string(store_path.join("git_target"))
-        .unwrap()
-        .replace('\\', "/");
+    let unix_git_target_file_contents = read_git_target(&workspace_root).replace('\\', "/");
     if bare {
         assert!(unix_git_target_file_contents.ends_with("/git-repo"));
     } else {
@@ -183,8 +185,7 @@ fn test_init_git_colocated() {
     assert!(jj_path.join("working_copy").is_dir());
     assert!(repo_path.is_dir());
     assert!(store_path.is_dir());
-    let git_target_file_contents = std::fs::read_to_string(store_path.join("git_target")).unwrap();
-    assert!(git_target_file_contents
+    assert!(read_git_target(&workspace_root)
         .replace('\\', "/")
         .ends_with("../../../.git"));
 
