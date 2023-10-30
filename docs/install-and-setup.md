@@ -15,7 +15,7 @@ options below.
 
 ### Linux
 
-#### Build using `cargo`
+#### From Source
 
 First make sure that you have the `libssl-dev`, `openssl`, `pkg-config`, and
 `build-essential` packages installed by running something like this:
@@ -69,25 +69,6 @@ brew install jj
 
 ### Mac
 
-#### Homebrew
-
-If you use Homebrew, you can run:
-
-```shell
-# Installs the latest release
-brew install jj
-```
-
-#### MacPorts
-
-You can also install `jj` via [the MacPorts `jujutsu`
-port](https://ports.macports.org/port/jujutsu/):
-
-```shell
-# Installs the latest release
-sudo port install jujutsu
-```
-
 #### From Source
 
 You may need to run some or all of these:
@@ -111,6 +92,26 @@ or:
 ```shell
 # To install the latest release
 cargo install --locked --bin jj jj-cli
+```
+
+
+#### Homebrew
+
+If you use Homebrew, you can run:
+
+```shell
+# Installs the latest release
+brew install jj
+```
+
+#### MacPorts
+
+You can also install `jj` via [the MacPorts `jujutsu`
+port](https://ports.macports.org/port/jujutsu/):
+
+```shell
+# Installs the latest release
+sudo port install jujutsu
 ```
 
 ### Windows
