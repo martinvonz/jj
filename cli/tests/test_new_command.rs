@@ -400,7 +400,8 @@ fn test_new_insert_before_root() {
     let stderr =
         test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "-m", "G", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot insert a commit before the root commit
+    Error: Commit 000000000000 is immutable
+    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
 }
 

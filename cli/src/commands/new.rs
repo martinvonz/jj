@@ -81,17 +81,15 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         .collect_vec();
     let target_ids = target_commits.iter().map(|c| c.id().clone()).collect_vec();
     let mut tx = workspace_command.start_transaction("new empty commit");
-    let mut num_rebased = 0;
+    let mut num_rebased;
     let new_commit;
     if args.insert_before {
         // Instead of having the new commit as a child of the changes given on the
         // command line, add it between the changes' parents and the changes.
         // The parents of the new commit will be the parents of the target commits
         // which are not descendants of other target commits.
-        let root_commit = tx.repo().store().root_commit();
-        if target_ids.contains(root_commit.id()) {
-            return Err(user_error("Cannot insert a commit before the root commit"));
-        }
+        tx.base_workspace_helper()
+            .check_rewritable(&target_commits)?;
         let new_children = RevsetExpression::commits(target_ids.clone());
         let new_parents = new_children.parents();
         if let Some(commit_id) = new_children
@@ -116,6 +114,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         // The git backend does not support creating merge commits involving the root
         // commit.
         if new_parents_commits.len() > 1 {
+            let root_commit = tx.repo().store().root_commit();
             new_parents_commits.retain(|c| c != &root_commit);
         }
         let merged_tree = merge_commit_trees(tx.repo(), &new_parents_commits)?;
@@ -135,43 +134,46 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             )?;
         }
     } else {
+        let old_parents = RevsetExpression::commits(target_ids.clone());
+        let commits_to_rebase: Vec<Commit> = if args.insert_after {
+            // Each child of the targets will be rebased: its set of parents will be updated
+            // so that the targets are replaced by the new commit.
+            // Exclude children that are ancestors of the new commit
+            let to_rebase = old_parents.children().minus(&old_parents.ancestors());
+            to_rebase
+                .resolve(tx.base_repo().as_ref())?
+                .evaluate(tx.base_repo().as_ref())?
+                .iter()
+                .commits(tx.base_repo().store())
+                .try_collect()?
+        } else {
+            vec![]
+        };
+        tx.base_workspace_helper()
+            .check_rewritable(&commits_to_rebase)?;
         let merged_tree = merge_commit_trees(tx.repo(), &target_commits)?;
         new_commit = tx
             .mut_repo()
             .new_commit(command.settings(), target_ids.clone(), merged_tree.id())
             .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs))
             .write()?;
-        if args.insert_after {
-            // Each child of the targets will be rebased: its set of parents will be updated
-            // so that the targets are replaced by the new commit.
-            let old_parents = RevsetExpression::commits(target_ids);
-            // Exclude children that are ancestors of the new commit
-            let to_rebase = old_parents.children().minus(&old_parents.ancestors());
-            let commits_to_rebase: Vec<Commit> = to_rebase
+        num_rebased = commits_to_rebase.len();
+        for child_commit in commits_to_rebase {
+            let commit_parents = RevsetExpression::commits(child_commit.parent_ids().to_owned());
+            let new_parents = commit_parents.minus(&old_parents);
+            let mut new_parent_commits: Vec<Commit> = new_parents
                 .resolve(tx.base_repo().as_ref())?
                 .evaluate(tx.base_repo().as_ref())?
                 .iter()
                 .commits(tx.base_repo().store())
                 .try_collect()?;
-            num_rebased = commits_to_rebase.len();
-            for child_commit in commits_to_rebase {
-                let commit_parents =
-                    RevsetExpression::commits(child_commit.parent_ids().to_owned());
-                let new_parents = commit_parents.minus(&old_parents);
-                let mut new_parent_commits: Vec<Commit> = new_parents
-                    .resolve(tx.base_repo().as_ref())?
-                    .evaluate(tx.base_repo().as_ref())?
-                    .iter()
-                    .commits(tx.base_repo().store())
-                    .try_collect()?;
-                new_parent_commits.push(new_commit.clone());
-                rebase_commit(
-                    command.settings(),
-                    tx.mut_repo(),
-                    &child_commit,
-                    &new_parent_commits,
-                )?;
-            }
+            new_parent_commits.push(new_commit.clone());
+            rebase_commit(
+                command.settings(),
+                tx.mut_repo(),
+                &child_commit,
+                &new_parent_commits,
+            )?;
         }
     }
     num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
