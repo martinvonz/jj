@@ -590,14 +590,17 @@ impl Backend for GitBackend {
         let git_tree_id = validate_git_object_id(id)?;
 
         let locked_repo = self.repo.lock().unwrap();
-        let git_tree = locked_repo.find_tree(git_tree_id).unwrap();
+        let git_tree = locked_repo
+            .find_tree(git_tree_id)
+            .map_err(|err| map_not_found_err(err, id))?;
         let mut tree = Tree::default();
         for entry in git_tree.iter() {
-            let name = entry.name().unwrap();
+            let name =
+                str::from_utf8(entry.name_bytes()).map_err(|err| to_invalid_utf8_err(err, id))?;
             let (name, value) = match entry.kind().unwrap() {
                 git2::ObjectType::Tree => {
                     let id = TreeId::from_bytes(entry.id().as_bytes());
-                    (entry.name().unwrap(), TreeValue::Tree(id))
+                    (name, TreeValue::Tree(id))
                 }
                 git2::ObjectType::Blob => match entry.filemode() {
                     0o100644 => {
