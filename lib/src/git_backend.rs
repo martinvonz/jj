@@ -604,9 +604,9 @@ impl Backend for GitBackend {
                 }
                 0o100644 => {
                     let id = FileId::from_bytes(entry.id().as_bytes());
-                    if name.ends_with(CONFLICT_SUFFIX) {
+                    if let Some(basename) = name.strip_suffix(CONFLICT_SUFFIX) {
                         (
-                            &name[0..name.len() - CONFLICT_SUFFIX.len()],
+                            basename,
                             TreeValue::Conflict(ConflictId::from_bytes(entry.id().as_bytes())),
                         )
                     } else {
