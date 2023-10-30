@@ -37,6 +37,7 @@ mod merge;
 mod r#move;
 mod new;
 mod next;
+mod obslog;
 mod operation;
 mod prev;
 mod rebase;
@@ -53,14 +54,12 @@ use clap::{Command, CommandFactory, FromArgMatches, Subcommand};
 use itertools::Itertools;
 use jj_lib::backend::ObjectId;
 use jj_lib::commit::Commit;
-use jj_lib::dag_walk::topo_order_reverse;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
-use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::rewrite::{merge_commit_trees, DescendantRebaser};
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::SnapshotOptions;
@@ -70,13 +69,11 @@ use maplit::{hashmap, hashset};
 use tracing::instrument;
 
 use crate::cli_util::{
-    self, check_stale_working_copy, print_checkout_stats, run_ui_editor, short_commit_hash,
-    user_error, user_error_with_hint, Args, CommandError, CommandHelper, LogContentFormat,
-    RevisionArg, WorkspaceCommandHelper,
+    self, check_stale_working_copy, print_checkout_stats, run_ui_editor, user_error,
+    user_error_with_hint, Args, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
-use crate::graphlog::{get_graphlog, Edge};
 use crate::text_util;
 use crate::ui::Ui;
 
@@ -122,7 +119,7 @@ enum Commands {
     Move(r#move::MoveArgs),
     New(new::NewArgs),
     Next(next::NextArgs),
-    Obslog(ObslogArgs),
+    Obslog(obslog::ObslogArgs),
     #[command(subcommand)]
     #[command(visible_alias = "op")]
     Operation(operation::OperationCommands),
@@ -186,35 +183,6 @@ struct ShowArgs {
 #[derive(clap::Args, Clone, Debug)]
 #[command(visible_alias = "st")]
 struct StatusArgs {}
-
-/// Show how a change has evolved
-///
-/// Show how a change has evolved as it's been updated, rebased, etc.
-#[derive(clap::Args, Clone, Debug)]
-struct ObslogArgs {
-    #[arg(long, short, default_value = "@")]
-    revision: RevisionArg,
-    /// Limit number of revisions to show
-    #[arg(long, short)]
-    limit: Option<usize>,
-    /// Don't show the graph, show a flat list of revisions
-    #[arg(long)]
-    no_graph: bool,
-    /// Render each revision using the given template
-    ///
-    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
-    #[arg(long, short = 'T')]
-    template: Option<String>,
-    /// Show patch compared to the previous version of this change
-    ///
-    /// If the previous version has different parents, it will be temporarily
-    /// rebased to the parents of the new version, so the diff is not
-    /// contaminated by unrelated changes.
-    #[arg(long, short = 'p')]
-    patch: bool,
-    #[command(flatten)]
-    diff_format: DiffFormatArgs,
-}
 
 /// Move changes from a revision into its parent
 ///
@@ -706,88 +674,6 @@ fn cmd_status(
             formatter,
             "  Use `jj branch list` to see details. Use `jj git fetch` to resolve."
         )?;
-    }
-
-    Ok(())
-}
-
-#[instrument(skip_all)]
-fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-
-    let start_commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    let wc_commit_id = workspace_command.get_wc_commit_id();
-
-    let diff_formats =
-        diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
-
-    let template_string = match &args.template {
-        Some(value) => value.to_string(),
-        None => command.settings().config().get_string("templates.log")?,
-    };
-    let template = workspace_command.parse_commit_template(&template_string)?;
-    let with_content_format = LogContentFormat::new(ui, command.settings())?;
-
-    ui.request_pager();
-    let mut formatter = ui.stdout_formatter();
-    let formatter = formatter.as_mut();
-    formatter.push_label("log")?;
-
-    let mut commits = topo_order_reverse(
-        vec![start_commit],
-        |commit: &Commit| commit.id().clone(),
-        |commit: &Commit| commit.predecessors(),
-    );
-    if let Some(n) = args.limit {
-        commits.truncate(n);
-    }
-    if !args.no_graph {
-        let mut graph = get_graphlog(command.settings(), formatter.raw());
-        let default_node_symbol = graph.default_node_symbol().to_owned();
-        for commit in commits {
-            let mut edges = vec![];
-            for predecessor in &commit.predecessors() {
-                edges.push(Edge::direct(predecessor.id().clone()));
-            }
-            let mut buffer = vec![];
-            with_content_format.write_graph_text(
-                ui.new_formatter(&mut buffer).as_mut(),
-                |formatter| template.format(&commit, formatter),
-                || graph.width(commit.id(), &edges),
-            )?;
-            if !buffer.ends_with(b"\n") {
-                buffer.push(b'\n');
-            }
-            if !diff_formats.is_empty() {
-                let mut formatter = ui.new_formatter(&mut buffer);
-                show_predecessor_patch(
-                    ui,
-                    formatter.as_mut(),
-                    &workspace_command,
-                    &commit,
-                    &diff_formats,
-                )?;
-            }
-            let node_symbol = if Some(commit.id()) == wc_commit_id {
-                "@"
-            } else {
-                &default_node_symbol
-            };
-            graph.add_node(
-                commit.id(),
-                &edges,
-                node_symbol,
-                &String::from_utf8_lossy(&buffer),
-            )?;
-        }
-    } else {
-        for commit in commits {
-            with_content_format
-                .write(formatter, |formatter| template.format(&commit, formatter))?;
-            if !diff_formats.is_empty() {
-                show_predecessor_patch(ui, formatter, &workspace_command, &commit, &diff_formats)?;
-            }
-        }
     }
 
     Ok(())
@@ -1769,7 +1655,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Status(sub_args) => cmd_status(ui, command_helper, sub_args),
         Commands::Log(sub_args) => log::cmd_log(ui, command_helper, sub_args),
         Commands::Interdiff(sub_args) => interdiff::cmd_interdiff(ui, command_helper, sub_args),
-        Commands::Obslog(sub_args) => cmd_obslog(ui, command_helper, sub_args),
+        Commands::Obslog(sub_args) => obslog::cmd_obslog(ui, command_helper, sub_args),
         Commands::Describe(sub_args) => describe::cmd_describe(ui, command_helper, sub_args),
         Commands::Commit(sub_args) => commit::cmd_commit(ui, command_helper, sub_args),
         Commands::Duplicate(sub_args) => duplicate::cmd_duplicate(ui, command_helper, sub_args),
