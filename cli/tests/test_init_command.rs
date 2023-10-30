@@ -230,6 +230,7 @@ fn test_init_git_colocated_gitlink() {
     Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
+    insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
@@ -265,6 +266,7 @@ fn test_init_git_colocated_symlink_directory() {
     Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
+    insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
@@ -303,6 +305,7 @@ fn test_init_git_colocated_symlink_directory_without_bare_config() {
     Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
+    insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
@@ -343,6 +346,7 @@ fn test_init_git_colocated_symlink_gitlink() {
     Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
+    insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);

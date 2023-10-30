@@ -373,7 +373,7 @@ impl GitBackend {
 /// config. This config is usually set, but the "repo" tool will set up such
 /// repositories and symlinks. Opening such repo with fully-canonicalized path
 /// would turn a colocated Git repo into a bare repo.
-fn canonicalize_git_repo_path(path: &Path) -> io::Result<PathBuf> {
+pub fn canonicalize_git_repo_path(path: &Path) -> io::Result<PathBuf> {
     if path.ends_with(".git") {
         let workdir = path.parent().unwrap();
         workdir.canonicalize().map(|dir| dir.join(".git"))
