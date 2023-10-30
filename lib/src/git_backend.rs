@@ -54,12 +54,12 @@ pub enum GitBackendInitError {
     #[error("Failed to open git repository: {0}")]
     OpenRepository(#[source] git2::Error),
     #[error(transparent)]
-    Path(#[from] PathError),
+    Path(PathError),
 }
 
-impl From<GitBackendInitError> for BackendInitError {
-    fn from(err: GitBackendInitError) -> Self {
-        BackendInitError(err.into())
+impl From<Box<GitBackendInitError>> for BackendInitError {
+    fn from(err: Box<GitBackendInitError>) -> Self {
+        BackendInitError(err)
     }
 }
 
@@ -68,12 +68,12 @@ pub enum GitBackendLoadError {
     #[error("Failed to open git repository: {0}")]
     OpenRepository(#[source] git2::Error),
     #[error(transparent)]
-    Path(#[from] PathError),
+    Path(PathError),
 }
 
-impl From<GitBackendLoadError> for BackendLoadError {
-    fn from(err: GitBackendLoadError) -> Self {
-        BackendLoadError(err.into())
+impl From<Box<GitBackendLoadError>> for BackendLoadError {
+    fn from(err: Box<GitBackendLoadError>) -> Self {
+        BackendLoadError(err)
     }
 }
 
@@ -120,13 +120,17 @@ impl GitBackend {
         }
     }
 
-    pub fn init_internal(store_path: &Path) -> Result<Self, GitBackendInitError> {
+    pub fn init_internal(store_path: &Path) -> Result<Self, Box<GitBackendInitError>> {
         let git_repo = git2::Repository::init_bare(store_path.join("git"))
             .map_err(GitBackendInitError::InitRepository)?;
         let extra_path = store_path.join("extra");
-        fs::create_dir(&extra_path).context(&extra_path)?;
+        fs::create_dir(&extra_path)
+            .context(&extra_path)
+            .map_err(GitBackendInitError::Path)?;
         let target_path = store_path.join("git_target");
-        fs::write(&target_path, b"git").context(&target_path)?;
+        fs::write(&target_path, b"git")
+            .context(&target_path)
+            .map_err(GitBackendInitError::Path)?;
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
         Ok(GitBackend::new(git_repo, extra_metadata_store))
     }
@@ -134,9 +138,11 @@ impl GitBackend {
     pub fn init_external(
         store_path: &Path,
         git_repo_path: &Path,
-    ) -> Result<Self, GitBackendInitError> {
+    ) -> Result<Self, Box<GitBackendInitError>> {
         let extra_path = store_path.join("extra");
-        fs::create_dir(&extra_path).context(&extra_path)?;
+        fs::create_dir(&extra_path)
+            .context(&extra_path)
+            .map_err(GitBackendInitError::Path)?;
         let target_path = store_path.join("git_target");
         if cfg!(windows) && git_repo_path.is_relative() {
             // When a repository is created in Windows, format the path with *forward
@@ -149,10 +155,13 @@ impl GitBackend {
                 .components()
                 .map(|component| component.as_os_str().to_str().unwrap().to_owned())
                 .join("/");
-            fs::write(&target_path, git_repo_path_string.as_bytes()).context(&target_path)?;
+            fs::write(&target_path, git_repo_path_string.as_bytes())
+                .context(&target_path)
+                .map_err(GitBackendInitError::Path)?;
         } else {
             fs::write(&target_path, git_repo_path.to_str().unwrap().as_bytes())
-                .context(&target_path)?;
+                .context(&target_path)
+                .map_err(GitBackendInitError::Path)?;
         };
         let repo = git2::Repository::open(store_path.join(git_repo_path))
             .map_err(GitBackendInitError::OpenRepository)?;
@@ -160,12 +169,17 @@ impl GitBackend {
         Ok(GitBackend::new(repo, extra_metadata_store))
     }
 
-    pub fn load(store_path: &Path) -> Result<Self, GitBackendLoadError> {
+    pub fn load(store_path: &Path) -> Result<Self, Box<GitBackendLoadError>> {
         let git_repo_path = {
             let target_path = store_path.join("git_target");
-            let git_repo_path_str = fs::read_to_string(&target_path).context(&target_path)?;
+            let git_repo_path_str = fs::read_to_string(&target_path)
+                .context(&target_path)
+                .map_err(GitBackendLoadError::Path)?;
             let git_repo_path = store_path.join(git_repo_path_str);
-            git_repo_path.canonicalize().context(&git_repo_path)?
+            git_repo_path
+                .canonicalize()
+                .context(&git_repo_path)
+                .map_err(GitBackendLoadError::Path)?
         };
         let repo =
             git2::Repository::open(git_repo_path).map_err(GitBackendLoadError::OpenRepository)?;
