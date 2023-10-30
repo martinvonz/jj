@@ -26,7 +26,7 @@ use thiserror::Error;
 use crate::backend::{Backend, BackendInitError, MergedTreeId};
 use crate::commit::Commit;
 use crate::file_util::{self, IoResultExt as _, PathError};
-use crate::git_backend::GitBackend;
+use crate::git_backend::{canonicalize_git_repo_path, GitBackend};
 use crate::local_backend::LocalBackend;
 use crate::local_working_copy::LocalWorkingCopy;
 use crate::op_store::{OperationId, WorkspaceId};
@@ -204,15 +204,17 @@ impl Workspace {
                 // TODO: Clean up path normalization. store_path is canonicalized by
                 // ReadonlyRepo::init(). workspace_root will be canonicalized by
                 // Workspace::new(), but it's not yet here.
-                let store_relative_git_repo_path =
-                    match (workspace_root.canonicalize(), git_repo_path.canonicalize()) {
-                        (Ok(workspace_root), Ok(git_repo_path))
-                            if git_repo_path.starts_with(&workspace_root) =>
-                        {
-                            file_util::relative_path(store_path, &git_repo_path)
-                        }
-                        _ => git_repo_path.to_owned(),
-                    };
+                let store_relative_git_repo_path = match (
+                    workspace_root.canonicalize(),
+                    canonicalize_git_repo_path(git_repo_path),
+                ) {
+                    (Ok(workspace_root), Ok(git_repo_path))
+                        if git_repo_path.starts_with(&workspace_root) =>
+                    {
+                        file_util::relative_path(store_path, &git_repo_path)
+                    }
+                    _ => git_repo_path.to_owned(),
+                };
                 let backend =
                     GitBackend::init_external(settings, store_path, &store_relative_git_repo_path)?;
                 Ok(Box::new(backend))
