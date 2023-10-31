@@ -17,7 +17,6 @@ use std::env::{self, ArgsOs, VarError};
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
 use std::io::Write as _;
-use std::iter;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -25,6 +24,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
+use std::{iter, str};
 
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
@@ -926,16 +926,18 @@ impl WorkspaceCommandHelper {
         }
     }
 
-    pub fn git_config(&self) -> Result<git2::Config, git2::Error> {
-        if let Some(git_backend) = self.git_backend() {
-            git_backend.git_config()
-        } else {
-            git2::Config::open_default()
-        }
-    }
-
     #[instrument(skip_all)]
     pub fn base_ignores(&self) -> Arc<GitIgnoreFile> {
+        fn get_excludes_file_path(config: &gix::config::File) -> Option<PathBuf> {
+            // TODO: maybe use path_by_key() and interpolate(), which can process non-utf-8
+            // path on Unix.
+            if let Some(value) = config.string_by_key("core.excludesFile") {
+                str::from_utf8(&value).ok().map(expand_git_path)
+            } else {
+                xdg_config_home().ok().map(|x| x.join("git").join("ignore"))
+            }
+        }
+
         fn xdg_config_home() -> Result<PathBuf, VarError> {
             if let Ok(x) = std::env::var("XDG_CONFIG_HOME") {
                 if !x.is_empty() {
@@ -946,20 +948,17 @@ impl WorkspaceCommandHelper {
         }
 
         let mut git_ignores = GitIgnoreFile::empty();
-        if let Ok(excludes_file_path) = self
-            .git_config()
-            .and_then(|git_config| {
-                git_config
-                    .get_string("core.excludesFile")
-                    .map(expand_git_path)
-            })
-            .or_else(|_| xdg_config_home().map(|x| x.join("git").join("ignore")))
-        {
-            git_ignores = git_ignores.chain_with_file("", excludes_file_path);
-        }
         if let Some(git_backend) = self.git_backend() {
+            let git_repo = git_backend.git_repo();
+            if let Some(excludes_file_path) = get_excludes_file_path(&git_repo.config_snapshot()) {
+                git_ignores = git_ignores.chain_with_file("", excludes_file_path);
+            }
             git_ignores = git_ignores
                 .chain_with_file("", git_backend.git_repo_path().join("info").join("exclude"));
+        } else if let Ok(git_config) = gix::config::File::from_globals() {
+            if let Some(excludes_file_path) = get_excludes_file_path(&git_config) {
+                git_ignores = git_ignores.chain_with_file("", excludes_file_path);
+            }
         }
         git_ignores
     }
@@ -1853,7 +1852,7 @@ export or their "parent" branches."#,
 }
 
 /// Expands "~/" to "$HOME/" as Git seems to do for e.g. core.excludesFile.
-fn expand_git_path(path_str: String) -> PathBuf {
+fn expand_git_path(path_str: &str) -> PathBuf {
     if let Some(remainder) = path_str.strip_prefix("~/") {
         if let Ok(home_dir_str) = std::env::var("HOME") {
             return PathBuf::from(home_dir_str).join(remainder);
