@@ -206,17 +206,14 @@ impl GitBackend {
         self.repo.lock().unwrap()
     }
 
-    // TODO: add public API to obtain new gix::Repository from base_repo
+    /// Returns new thread-local instance to access to the underlying Git repo.
+    pub fn git_repo(&self) -> gix::Repository {
+        self.base_repo.to_thread_local()
+    }
 
     /// Creates new owned git repository instance.
     pub fn open_git_repo(&self) -> Result<git2::Repository, git2::Error> {
         git2::Repository::open(self.git_repo_path())
-    }
-
-    /// Git configuration for this repository.
-    pub fn git_config(&self) -> Result<git2::Config, git2::Error> {
-        // TODO: switch to gix config type
-        self.open_git_repo().and_then(|repo| repo.config())
     }
 
     /// Path to the `.git` directory or the repository itself if it's bare.
