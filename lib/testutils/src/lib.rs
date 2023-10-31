@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::env;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -58,6 +59,16 @@ pub fn hermetic_libgit2() {
         git2::opts::set_search_path(git2::ConfigLevel::XDG, "").unwrap();
         git2::opts::set_search_path(git2::ConfigLevel::ProgramData, "").unwrap();
     });
+
+    // Prevent GitBackend from loading user and system configurations. For
+    // gitoxide API use in tests, Config::isolated() is probably better.
+    env::set_var("GIT_CONFIG_SYSTEM", "/dev/null");
+    env::set_var("GIT_CONFIG_GLOBAL", "/dev/null");
+    // gitoxide uses "main" as the default branch name, whereas git and libgit2
+    // uses "master".
+    env::set_var("GIT_CONFIG_KEY_0", "init.defaultBranch");
+    env::set_var("GIT_CONFIG_VALUE_0", "master");
+    env::set_var("GIT_CONFIG_COUNT", "1");
 }
 
 pub fn new_temp_dir() -> TempDir {
