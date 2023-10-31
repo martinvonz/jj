@@ -88,19 +88,23 @@ revsets (expressions) as arguments.
 * `none()`: No commits. This function is rarely useful; it is provided for
   completeness.
 * `branches([pattern])`: All local branch targets. If `pattern` is specified,
-  branches whose name contains the given string are selected. For example,
-  `branches(push)` would match the branches `push-123` and `repushed` but not
-  the branch `main`. If a branch is in a conflicted state, all its possible
-  targets are included.
-* `remote_branches([branch_pattern[, [remote=]remote_pattern]])`: All remote
-  branch targets across all remotes. If just the `branch_pattern` is specified,
-  branches whose name contains the given string across all remotes are
-  selected. If both `branch_pattern` and `remote_pattern` are specified, the
-  selection is further restricted to just the remotes whose name contains
-  `remote_pattern`. For example, `remote_branches(push, ri)` would match the
-  branches `push-123@origin` and `repushed@private` but not `push-123@upstream`
-  or `main@origin` or `main@upstream`. If a branch is in a conflicted state,
-  all its possible targets are included.
+  this selects the branches whose name match the given [string
+  pattern](#string-patterns). For example, `branches(push)` would match the
+  branches `push-123` and `repushed` but not the branch `main`. If a branch is
+  in a conflicted state, all its possible targets are included.
+
+*   `remote_branches([branch_pattern[, [remote=]remote_pattern]])`: All remote
+    branch targets across all remotes. If just the `branch_pattern` is
+    specified, the branches whose names match the given [string
+    pattern](#string-patterns) across all remotes are selected. If both
+    `branch_pattern` and `remote_pattern` are specified, the selection is
+    further restricted to just the remotes whose names match `remote_pattern`.
+    
+    For example, `remote_branches(push, ri)` would match the branches
+    `push-123@origin` and `repushed@private` but not `push-123@upstream` or
+    `main@origin` or `main@upstream`. If a branch is in a conflicted state, all
+    its possible targets are included.
+
 * `tags()`: All tag targets. If a tag is in a conflicted state, all its
   possible targets are included.
 * `git_refs()`:  All Git ref targets as of the last import. If a Git ref
@@ -120,32 +124,40 @@ revsets (expressions) as arguments.
 * `latest(x[, count])`: Latest `count` commits in `x`, based on committer
   timestamp. The default `count` is 1.
 * `merges()`: Merge commits.
-* `description(pattern)`: Commits with the given string in their
-  description.
-* `author(pattern)`: Commits with the given string in the author's name or
-  email.
+* `description(pattern)`: Commits that have a description matching the given
+  [string pattern](#string-patterns).
+* `author(pattern)`: Commits with the author's name or email matching the given
+  [string pattern](#string-patterns).
 * `mine()`: Commits where the author's email matches the email of the current
   user.
-* `committer(pattern)`: Commits with the given string in the committer's
-  name or email.
+* `committer(pattern)`: Commits with the committer's  name or email matching the
+given [string pattern](#string-patterns).
 * `empty()`: Commits modifying no files. This also includes `merges()` without
   user modifications and `root()`.
-* `file(pattern..)`: Commits modifying the paths specified by the `pattern..`.
-  Paths are relative to the directory `jj` was invoked from. A directory name
-  will match all files in that directory and its subdirectories. For example,
-  `file(foo)` will match files `foo`, `foo/bar`, `foo/bar/baz`, but not file
-  `foobar`.
+
+*   `file(relativepath)` or `file("relativepath"[, "relativepath"]...)`: Commits
+    modifying one of the paths specified. Currently, string patterns are *not*
+    supported in the path arguments. 
+    
+    Paths are relative to the directory `jj` was invoked from. A directory name
+    will match all files in that directory and its subdirectories.
+  
+    For example, `file(foo)` will match files `foo`, `foo/bar`, `foo/bar/baz`.
+    It will *not* match `foobar` or `bar/foo`.
+
 * `conflict()`: Commits with conflicts.
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown branch name.)
 
 ## String patterns
 
-Functions that perform string matching support the following pattern syntax.
+Functions that perform string matching support the following pattern syntax:
 
-* `"string"`, `substring:"string"`: Matches strings that contain `string`.
+* `"string"`, or `string` (the quotes are optional), or `substring:"string"`:
+  Matches strings that contain `string`.
 * `exact:"string"`: Matches strings exactly equal to `string`.
-* `glob:"pattern"`: Matches strings with Unix-style shell wildcard `pattern`.
+* `glob:"pattern"`: Matches strings with Unix-style shell [wildcard
+  `pattern`](https://docs.rs/glob/latest/glob/struct.Pattern.html).
 
 ## Aliases
 
