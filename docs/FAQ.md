@@ -109,9 +109,42 @@ commit, then run `jj restore --from Y --to @-` to restore the parent commit
 to the old state, and `jj restore --from X` to restore the new working-copy
 commit to the new state.
 
+### How do I deal with divergent changes ('??' after the [change ID][glossary_change_id])?
+
+A [divergent change][glossary_divergent_change] represents a change that has two
+or more visible commits associated with it. To refer to such commits, you must
+use their [commit ID][glossary_commit_id]. Most commonly, the way to resolve
+this is to abandon the unneeded commits (using `jj abandon <commit ID>`). If you
+would like to keep both commits with this change ID, you can `jj duplicate` one
+of them before abandoning it.
+
+Usually, the different commits associated with the divergent change ID should all
+appear in the log, but due to #2476, they may not. If that happens, you can
+either use `jj log -r 'all()' | grep <change id>` or disable the
+`revsets.short-prefixes` config option.
+
+### How do I deal with conflicted branches ('??' after branch name)?
+
+A [conflicted branch][branches_conflicts] is a branch that refers to multiple
+different commits because jj couldn't fully resolve its desired position.
+Resolving conflicted branches is usually done by setting the branch to the
+correct commit using `jj branch set <commit ID>`.
+
+Usually, the different commits associated with the conflicted branch should all
+appear in the log, but if they don't you can use `jj branch list`to show all the
+commits associated with it.
+
+[branches_conflicts]: branches.md#conflicts
+
 [config]: config.md
 
 [gitignore]: https://git-scm.com/docs/gitignore
+
+[glossary_change_id]: glossary.md#change-id
+
+[glossary_commit_id]: glossary.md#commit-id
+
+[glossary_divergent_change]: glossary.md#divergent-change
 
 [revsets]: revsets.md
 
