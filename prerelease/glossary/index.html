@@ -574,6 +574,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hidden-commits-abandoned-commits" class="md-nav__link">
+    Hidden commits, abandoned commits
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#operation" class="md-nav__link">
     Operation
   </a>
@@ -1316,6 +1323,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hidden-commits-abandoned-commits" class="md-nav__link">
+    Hidden commits, abandoned commits
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#operation" class="md-nav__link">
     Operation
   </a>
@@ -1509,6 +1523,8 @@ within the set <code>X</code> itself. The <a href="#view">view</a> records which
 anonymous heads (heads without a branch pointing to them) are visible at a
 given <a href="#operation">operation</a>. Note that this is quite different from Git's
 <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-References#ref_the_ref">HEAD</a>.</p>
+<h2 id="hidden-commits-abandoned-commits">Hidden commits, abandoned commits<a class="headerlink" href="#hidden-commits-abandoned-commits" title="Permanent link">&para;</a></h2>
+<p>See <a href="#visible-commits">visible commits</a>.</p>
 <h2 id="operation">Operation<a class="headerlink" href="#operation" title="Permanent link">&para;</a></h2>
 <p>A snapshot of the <a href="#visible-commits">visible commits</a> and <a href="#branches">branches</a>
 at a given point in time (technically a <a href="#view">view object</a>), together with
@@ -1555,6 +1571,11 @@ directories contained directly in the directory it represents.</p>
 <p>Visible commits are the commits you see in <code>jj log -r 'all()'</code>. They are the
 commits that are reachable from an anonymous head in the <a href="#view">view</a>.
 Ancestors of a visible commit are implicitly visible.</p>
+<p>Intuitively, visible commits are the "latest versions" of a revision with a
+given <a href="#change-id">change id</a>. A commit that's abandoned or
+<a href="#rewrite">rewritten</a> stops being visible and is labeled as "hidden". Such
+commits are no longer accessible using a change id, but they are still
+accessible by their <a href="#commit-id">commit id</a>.</p>
 <h2 id="view">View<a class="headerlink" href="#view" title="Permanent link">&para;</a></h2>
 <p>A view is a snapshot of branches and their targets, anonymous heads,
 and working-copy commits. The anonymous heads define which commits
