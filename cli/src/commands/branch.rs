@@ -84,8 +84,16 @@ pub struct BranchDeleteArgs {
 pub struct BranchListArgs {
     /// Show all tracking and non-tracking remote branches including the ones
     /// whose targets are synchronized with the local branches.
-    #[arg(long, short, conflicts_with = "revisions")]
+    #[arg(long, short, conflicts_with_all = ["names", "revisions"])]
     all: bool,
+
+    /// Show branches whose local name matches
+    ///
+    /// By default, the specified name matches exactly. Use `glob:` prefix to
+    /// select branches by wildcard pattern. For details, see
+    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+    #[arg(value_parser = parse_string_pattern)]
+    pub names: Vec<StringPattern>,
 
     /// Show branches whose local targets are in the given revisions.
     ///
@@ -547,29 +555,39 @@ fn cmd_branch_list(
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let view = repo.view();
-    let branch_names_to_list: Option<HashSet<&str>> = if !args.revisions.is_empty() {
-        // Match against local targets only, which is consistent with "jj git push".
-        let filter_expressions: Vec<_> = args
-            .revisions
-            .iter()
-            .map(|revision_str| workspace_command.parse_revset(revision_str, Some(ui)))
-            .try_collect()?;
-        let filter_expression = RevsetExpression::union_all(&filter_expressions);
-        // Intersects with the set of local branch targets to minimize the lookup space.
-        let revset_expression = RevsetExpression::branches(StringPattern::everything())
-            .intersection(&filter_expression);
-        let revset_expression = revset::optimize(revset_expression);
-        let revset = workspace_command.evaluate_revset(revset_expression)?;
-        let filtered_targets: HashSet<CommitId> = revset.iter().collect();
-        // TODO: Suppose we have name-based filter like --glob, should these filters
-        // be AND-ed or OR-ed? Maybe OR as "jj git push" would do. Perhaps, we
-        // can consider these options as producers of branch names, not filters
-        // of different kind (which are typically intersected.)
-        let branch_names = view
-            .local_branches()
-            .filter(|(_, target)| target.added_ids().any(|id| filtered_targets.contains(id)))
-            .map(|(name, _)| name)
-            .collect();
+
+    // Like cmd_git_push(), names and revisions are OR-ed.
+    let branch_names_to_list = if !args.names.is_empty() || !args.revisions.is_empty() {
+        let mut branch_names: HashSet<&str> = HashSet::new();
+        if !args.names.is_empty() {
+            branch_names.extend(
+                view.branches()
+                    .filter(|&(name, _)| args.names.iter().any(|pattern| pattern.matches(name)))
+                    .map(|(name, _)| name),
+            );
+        }
+        if !args.revisions.is_empty() {
+            // Match against local targets only, which is consistent with "jj git push".
+            let filter_expressions: Vec<_> = args
+                .revisions
+                .iter()
+                .map(|revision_str| workspace_command.parse_revset(revision_str, Some(ui)))
+                .try_collect()?;
+            let filter_expression = RevsetExpression::union_all(&filter_expressions);
+            // Intersects with the set of local branch targets to minimize the lookup space.
+            let revset_expression = RevsetExpression::branches(StringPattern::everything())
+                .intersection(&filter_expression);
+            let revset_expression = revset::optimize(revset_expression);
+            let revset = workspace_command.evaluate_revset(revset_expression)?;
+            let filtered_targets: HashSet<CommitId> = revset.iter().collect();
+            branch_names.extend(
+                view.local_branches()
+                    .filter(|(_, target)| {
+                        target.added_ids().any(|id| filtered_targets.contains(id))
+                    })
+                    .map(|(name, _)| name),
+            );
+        }
         Some(branch_names)
     } else {
         None
