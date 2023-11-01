@@ -133,14 +133,14 @@ pub(crate) struct RebaseArgs {
     /// Rebase only this revision, rebasing descendants onto this revision's
     /// parent(s)
     ///
+    /// Unlike `-s` or `-b`, you may `jj rebase -r` a revision `A` onto a
+    /// descendant of `A`.
+    ///
     /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
     #[arg(long, short)]
     revision: Option<RevisionArg>,
     /// The revision(s) to rebase onto (can be repeated to create a merge
     /// commit)
-    ///
-    /// Unlike `-s` or `-b`, you may `jj rebase -r` a revision `A` onto a
-    /// descendant of `A`.
     #[arg(long, short, required = true)]
     destination: Vec<RevisionArg>,
     /// Deprecated. Please prefix the revset with `all:` instead.
