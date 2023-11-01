@@ -17,11 +17,12 @@
 use std::cmp::max;
 use std::collections::BTreeMap;
 use std::iter::zip;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::{iter, vec};
 
 use futures::stream::StreamExt;
-use futures::TryStreamExt;
+use futures::{Stream, TryStreamExt};
 use itertools::Itertools;
 use pollster::FutureExt;
 
@@ -336,6 +337,19 @@ impl MergedTree {
         TreeDiffIterator::new(self.clone(), other.clone(), matcher)
     }
 
+    /// Stream of the differences between this tree and another tree.
+    pub fn diff_stream<'matcher>(
+        &self,
+        other: &MergedTree,
+        matcher: &'matcher dyn Matcher,
+    ) -> TreeDiffStream<'matcher> {
+        Box::pin(futures::stream::iter(TreeDiffIterator::new(
+            self.clone(),
+            other.clone(),
+            matcher,
+        )))
+    }
+
     /// Collects lists of modified, added, and removed files between this tree
     /// and another tree.
     pub fn diff_summary(
@@ -412,6 +426,15 @@ impl MergedTree {
         }
     }
 }
+
+/// Type alias for the result from `MergedTree::diff_stream()`. We use a
+/// `Stream` instead of an `Iterator` so high-latency backends (e.g. cloud-based
+/// ones) can fetch trees asynchronously.
+pub type TreeDiffStream<'matcher> = Pin<
+    Box<
+        dyn Stream<Item = (RepoPath, BackendResult<(MergedTreeValue, MergedTreeValue)>)> + 'matcher,
+    >,
+>;
 
 fn all_tree_conflict_names(trees: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComponent> {
     itertools::chain(trees.removes(), trees.adds())

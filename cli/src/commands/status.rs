@@ -61,7 +61,7 @@ pub(crate) fn cmd_status(
             diff_util::show_diff_summary(
                 formatter,
                 &workspace_command,
-                parent_tree.diff(&tree, &EverythingMatcher),
+                parent_tree.diff_stream(&tree, &EverythingMatcher),
             )?;
         }
 
