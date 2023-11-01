@@ -175,6 +175,12 @@ Visible commits are the commits you see in `jj log -r 'all()'`. They are the
 commits that are reachable from an anonymous head in the [view](#view).
 Ancestors of a visible commit are implicitly visible.
 
+Intuitively, visible commits are the "latest versions" of a revision with a
+given [change id](#change-id). A commit that's abandoned or
+[rewritten](#rewrite) stops being visible and is labeled as "hidden". Such
+commits are no longer accessible using a change id, but they are still
+accessible by their [commit id](#commit-id).
+
 ## View
 
 A view is a snapshot of branches and their targets, anonymous heads,
