@@ -109,6 +109,10 @@ anonymous heads (heads without a branch pointing to them) are visible at a
 given [operation](#operation). Note that this is quite different from Git's
 [HEAD](https://git-scm.com/book/en/v2/Git-Internals-Git-References#ref_the_ref).
 
+## Hidden commits, abandoned commits
+
+See [visible commits](#visible-commits).
+
 ## Operation
 
 A snapshot of the [visible commits](#visible-commits) and [branches](#branches)
