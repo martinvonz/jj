@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+### New features
+
+### Fixed bugs
+
+
+## [0.10.0] - 2023-10-04
+
+### Breaking changes
+
 * Conflicts are now stored in a different way. Commits written by a new `jj`
   binary will not be read correctly by older `jj` binaries. The new model
   solves some performance problems with the old model. For example, `jj log`
@@ -88,6 +97,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj new --insert-before` and `--insert-after` now respect immutable revisions
   ([#2468](https://github.com/martinvonz/jj/pull/2468)).
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Antoine Cezar (@AntoineCezar)
+* Austin Seipp (@thoughtpolice)
+* Benjamin Saunders (@Ralith)
+* Gabriel Scherer (@gasche)
+* Ilya Grigoriev (@ilyagr)
+* Infra (@1011X)
+* Isabella Basso (@isinyaaa)
+* Martin von Zweigbergk (@martinvonz)
+* Tal Pressman (@talpr)
+* Waleed Khan (@arxanas)
+* Yuya Nishihara (@yuja)
+
 
 ## [0.10.0] - 2023-10-04
 
