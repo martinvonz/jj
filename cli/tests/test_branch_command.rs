@@ -861,7 +861,7 @@ fn test_branch_list() {
 }
 
 #[test]
-fn test_branch_list_filtered_by_revset() {
+fn test_branch_list_filtered() {
     let test_env = TestEnvironment::default();
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
 
@@ -921,13 +921,14 @@ fn test_branch_list_filtered_by_revset() {
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
 
-    let query = |revset| test_env.jj_cmd_success(&local_path, &["branch", "list", "-r", revset]);
+    let query =
+        |args: &[&str]| test_env.jj_cmd_success(&local_path, &[&["branch", "list"], args].concat());
     let query_error =
-        |revset| test_env.jj_cmd_failure(&local_path, &["branch", "list", "-r", revset]);
+        |args: &[&str]| test_env.jj_cmd_failure(&local_path, &[&["branch", "list"], args].concat());
 
     // "all()" doesn't include deleted branches since they have no local targets.
     // So "all()" is identical to "branches()".
-    insta::assert_snapshot!(query("all()"), @r###"
+    insta::assert_snapshot!(query(&["-rall()"]), @r###"
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
@@ -936,7 +937,7 @@ fn test_branch_list_filtered_by_revset() {
 
     // Exclude remote-only branches. "remote-rewrite@origin" is included since
     // local "remote-rewrite" target matches.
-    insta::assert_snapshot!(query("branches()"), @r###"
+    insta::assert_snapshot!(query(&["-rbranches()"]), @r###"
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
@@ -944,17 +945,49 @@ fn test_branch_list_filtered_by_revset() {
     "###);
 
     // Select branches by name.
-    insta::assert_snapshot!(query("branches(remote-rewrite)"), @r###"
+    insta::assert_snapshot!(query(&["remote-rewrite"]), @r###"
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
+    "###);
+    insta::assert_snapshot!(query(&["-rbranches(remote-rewrite)"]), @r###"
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
 
-    // Can't select deleted branch.
-    insta::assert_snapshot!(query("branches(remote-delete)"), @r###"
+    // Can select deleted branch by name pattern, but not by revset.
+    insta::assert_snapshot!(query(&["remote-delete"]), @r###"
+    remote-delete (deleted)
+      @origin: yxusvupt dad5f298 (empty) remote-delete
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
-    insta::assert_snapshot!(query_error("remote-delete"), @r###"
+    insta::assert_snapshot!(query(&["-rbranches(remote-delete)"]), @r###"
+    "###);
+    insta::assert_snapshot!(query_error(&["-rremote-delete"]), @r###"
     Error: Revision "remote-delete" doesn't exist
     Hint: Did you mean "remote-delete@origin", "remote-keep", "remote-rewrite", "remote-rewrite@origin"?
+    "###);
+
+    // Name patterns are OR-ed.
+    insta::assert_snapshot!(query(&["glob:*-keep", "remote-delete"]), @r###"
+    local-keep: kpqxywon c7b4c09c (empty) local-keep
+    remote-delete (deleted)
+      @origin: yxusvupt dad5f298 (empty) remote-delete
+      (this branch will be *deleted permanently* on the remote on the
+       next `jj git push`. Use `jj branch forget` to prevent this)
+    remote-keep: nlwprzpn 911e9120 (empty) remote-keep
+    "###);
+
+    // Unmatched name pattern shouldn't be an error. A warning can be added later.
+    insta::assert_snapshot!(query(&["local-keep", "glob:push-*"]), @r###"
+    local-keep: kpqxywon c7b4c09c (empty) local-keep
+    "###);
+
+    // Name pattern and revset are OR-ed.
+    insta::assert_snapshot!(query(&["local-keep", "-rbranches(remote-rewrite)"]), @r###"
+    local-keep: kpqxywon c7b4c09c (empty) local-keep
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
 }
 
