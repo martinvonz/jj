@@ -1289,22 +1289,29 @@ revsets (expressions) as arguments.</p>
 <li><code>all()</code>: All visible commits in the repo.</li>
 <li><code>none()</code>: No commits. This function is rarely useful; it is provided for
   completeness.</li>
-<li><code>branches([pattern])</code>: All local branch targets. If <code>pattern</code> is specified,
-  branches whose name contains the given string are selected. For example,
-  <code>branches(push)</code> would match the branches <code>push-123</code> and <code>repushed</code> but not
-  the branch <code>main</code>. If a branch is in a conflicted state, all its possible
-  targets are included.</li>
-<li><code>remote_branches([branch_pattern[, [remote=]remote_pattern]])</code>: All remote
-  branch targets across all remotes. If just the <code>branch_pattern</code> is specified,
-  branches whose name contains the given string across all remotes are
-  selected. If both <code>branch_pattern</code> and <code>remote_pattern</code> are specified, the
-  selection is further restricted to just the remotes whose name contains
-  <code>remote_pattern</code>. For example, <code>remote_branches(push, ri)</code> would match the
-  branches <code>push-123@origin</code> and <code>repushed@private</code> but not <code>push-123@upstream</code>
-  or <code>main@origin</code> or <code>main@upstream</code>. If a branch is in a conflicted state,
-  all its possible targets are included.</li>
-<li><code>tags()</code>: All tag targets. If a tag is in a conflicted state, all its
-  possible targets are included.</li>
+<li>
+<p><code>branches([pattern])</code>: All local branch targets. If <code>pattern</code> is specified,
+  this selects the branches whose name match the given <a href="#string-patterns">string
+  pattern</a>. For example, <code>branches(push)</code> would match the
+  branches <code>push-123</code> and <code>repushed</code> but not the branch <code>main</code>. If a branch is
+  in a conflicted state, all its possible targets are included.</p>
+</li>
+<li>
+<p><code>remote_branches([branch_pattern[, [remote=]remote_pattern]])</code>: All remote
+    branch targets across all remotes. If just the <code>branch_pattern</code> is
+    specified, the branches whose names match the given <a href="#string-patterns">string
+    pattern</a> across all remotes are selected. If both
+    <code>branch_pattern</code> and <code>remote_pattern</code> are specified, the selection is
+    further restricted to just the remotes whose names match <code>remote_pattern</code>.</p>
+<p>For example, <code>remote_branches(push, ri)</code> would match the branches
+<code>push-123@origin</code> and <code>repushed@private</code> but not <code>push-123@upstream</code> or
+<code>main@origin</code> or <code>main@upstream</code>. If a branch is in a conflicted state, all
+its possible targets are included.</p>
+</li>
+<li>
+<p><code>tags()</code>: All tag targets. If a tag is in a conflicted state, all its
+  possible targets are included.</p>
+</li>
 <li><code>git_refs()</code>:  All Git ref targets as of the last import. If a Git ref
   is in a conflicted state, all its possible targets are included.</li>
 <li><code>git_head()</code>: The Git <code>HEAD</code> target as of the last import. Equivalent to
@@ -1322,31 +1329,41 @@ revsets (expressions) as arguments.</p>
 <li><code>latest(x[, count])</code>: Latest <code>count</code> commits in <code>x</code>, based on committer
   timestamp. The default <code>count</code> is 1.</li>
 <li><code>merges()</code>: Merge commits.</li>
-<li><code>description(pattern)</code>: Commits with the given string in their
-  description.</li>
-<li><code>author(pattern)</code>: Commits with the given string in the author's name or
-  email.</li>
+<li><code>description(pattern)</code>: Commits that have a description matching the given
+  <a href="#string-patterns">string pattern</a>.</li>
+<li><code>author(pattern)</code>: Commits with the author's name or email matching the given
+  <a href="#string-patterns">string pattern</a>.</li>
 <li><code>mine()</code>: Commits where the author's email matches the email of the current
   user.</li>
-<li><code>committer(pattern)</code>: Commits with the given string in the committer's
-  name or email.</li>
-<li><code>empty()</code>: Commits modifying no files. This also includes <code>merges()</code> without
-  user modifications and <code>root()</code>.</li>
-<li><code>file(pattern..)</code>: Commits modifying the paths specified by the <code>pattern..</code>.
-  Paths are relative to the directory <code>jj</code> was invoked from. A directory name
-  will match all files in that directory and its subdirectories. For example,
-  <code>file(foo)</code> will match files <code>foo</code>, <code>foo/bar</code>, <code>foo/bar/baz</code>, but not file
-  <code>foobar</code>.</li>
-<li><code>conflict()</code>: Commits with conflicts.</li>
+<li><code>committer(pattern)</code>: Commits with the committer's  name or email matching the
+given <a href="#string-patterns">string pattern</a>.</li>
+<li>
+<p><code>empty()</code>: Commits modifying no files. This also includes <code>merges()</code> without
+  user modifications and <code>root()</code>.</p>
+</li>
+<li>
+<p><code>file(relativepath)</code> or <code>file("relativepath"[, "relativepath"]...)</code>: Commits
+    modifying one of the paths specified. Currently, string patterns are <em>not</em>
+    supported in the path arguments. </p>
+<p>Paths are relative to the directory <code>jj</code> was invoked from. A directory name
+will match all files in that directory and its subdirectories.</p>
+<p>For example, <code>file(foo)</code> will match files <code>foo</code>, <code>foo/bar</code>, <code>foo/bar/baz</code>.
+It will <em>not</em> match <code>foobar</code> or <code>bar/foo</code>.</p>
+</li>
+<li>
+<p><code>conflict()</code>: Commits with conflicts.</p>
+</li>
 <li><code>present(x)</code>: Same as <code>x</code>, but evaluated to <code>none()</code> if any of the commits
   in <code>x</code> doesn't exist (e.g. is an unknown branch name.)</li>
 </ul>
 <h2 id="string-patterns">String patterns<a class="headerlink" href="#string-patterns" title="Permanent link">&para;</a></h2>
-<p>Functions that perform string matching support the following pattern syntax.</p>
+<p>Functions that perform string matching support the following pattern syntax:</p>
 <ul>
-<li><code>"string"</code>, <code>substring:"string"</code>: Matches strings that contain <code>string</code>.</li>
+<li><code>"string"</code>, or <code>string</code> (the quotes are optional), or <code>substring:"string"</code>:
+  Matches strings that contain <code>string</code>.</li>
 <li><code>exact:"string"</code>: Matches strings exactly equal to <code>string</code>.</li>
-<li><code>glob:"pattern"</code>: Matches strings with Unix-style shell wildcard <code>pattern</code>.</li>
+<li><code>glob:"pattern"</code>: Matches strings with Unix-style shell <a href="https://docs.rs/glob/latest/glob/struct.Pattern.html">wildcard
+  <code>pattern</code></a>.</li>
 </ul>
 <h2 id="aliases">Aliases<a class="headerlink" href="#aliases" title="Permanent link">&para;</a></h2>
 <p>New symbols and functions can be defined in the config file, by using any
