@@ -12,7 +12,7 @@ commits) to such commands.
 
 The words "revisions" and "commits" are used interchangeably in this document.
 
-The commits listed by `jj log` without arguments are called "visible commits".
+Most revsets search only the [visible commits](glossary.md#visible-commits).
 Other commits are only included if you explicitly mention them (e.g. by commit
 ID or a Git ref pointing to them).
 
