@@ -216,7 +216,7 @@ impl Style {
 }
 
 #[derive(Clone, Debug)]
-pub struct ColorFormatter<W> {
+pub struct ColorFormatter<W: Write> {
     output: W,
     rules: Arc<Rules>,
     /// The stack of currently applied labels. These determine the desired
@@ -460,6 +460,15 @@ impl<W: Write> Formatter for ColorFormatter<W> {
     }
 }
 
+impl<W: Write> Drop for ColorFormatter<W> {
+    fn drop(&mut self) {
+        // If a `ColorFormatter` was dropped without popping all labels first (perhaps
+        // because of an error), let's still try to reset any currently active style.
+        self.labels.clear();
+        self.write_new_style().ok();
+    }
+}
+
 /// Like buffered formatter, but records `push`/`pop_label()` calls.
 ///
 /// This allows you to manipulate the recorded data without losing labels.
@@ -646,6 +655,7 @@ mod tests {
             formatter.pop_label().unwrap();
             formatter.write_str("\n").unwrap();
         }
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @r###"
         [38;5;0m black [39m
         [38;5;1m red [39m
@@ -682,6 +692,7 @@ mod tests {
         formatter.write_str(" inside ").unwrap();
         formatter.pop_label().unwrap();
         formatter.write_str(" after ").unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @" before [38;5;2m inside [39m after ");
     }
 
@@ -726,6 +737,7 @@ mod tests {
         formatter.pop_label().unwrap();
         formatter.pop_label().unwrap();
         formatter.write_str("\n").unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @r###"
         [38;5;1m fg only [39m
         [48;5;4m bg only [49m
@@ -754,6 +766,7 @@ mod tests {
         formatter.pop_label().unwrap();
         formatter.write_str(" not bold again ").unwrap();
         formatter.pop_label().unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[4m[38;5;1m[48;5;4m not bold [1m bold [0m[4m[38;5;1m[48;5;4m not bold again [24m[39m[49m");
     }
 
@@ -776,6 +789,7 @@ mod tests {
         formatter.write_str("second").unwrap();
         formatter.pop_label().unwrap();
         formatter.write_str("after").unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"before[38;5;1mfirst[39m[38;5;2msecond[39mafter");
     }
 
@@ -794,6 +808,7 @@ mod tests {
             .write_str("\x1b[1mnot actually bold\x1b[0m")
             .unwrap();
         formatter.pop_label().unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;1m␛[1mnot actually bold␛[0m[39m");
     }
 
@@ -820,6 +835,7 @@ mod tests {
         formatter.write_str(" after inner ").unwrap();
         formatter.pop_label().unwrap();
         formatter.write_str(" after outer ").unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
         @" before outer [38;5;4m before inner [38;5;2m inside inner [38;5;4m after inner [39m after outer ");
     }
@@ -841,6 +857,7 @@ mod tests {
         formatter.pop_label().unwrap();
         formatter.write_str(" not colored ").unwrap();
         formatter.pop_label().unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
         @" not colored [38;5;2m colored [39m not colored ");
     }
@@ -885,10 +902,11 @@ mod tests {
         formatter.write_str(" default bg, ").unwrap();
         formatter.pop_label().unwrap();
         formatter.write_str(" and back.").unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
         @r###"
         [38;5;4m[48;5;3mBlue on yellow, [39m default fg, [38;5;4m and back.[39m[49m
-        [38;5;4m[48;5;3mBlue on yellow, [49m default bg, [48;5;3m and back.
+        [38;5;4m[48;5;3mBlue on yellow, [49m default bg, [48;5;3m and back.[39m[49m
         "###);
     }
 
@@ -908,6 +926,7 @@ mod tests {
         formatter.write_str(" hello ").unwrap();
         formatter.pop_label().unwrap();
         formatter.pop_label().unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
         @"[38;5;2m hello [39m");
     }
@@ -927,6 +946,7 @@ mod tests {
         formatter.write_str(" hello ").unwrap();
         formatter.pop_label().unwrap();
         formatter.pop_label().unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @" hello ");
     }
 
@@ -954,8 +974,27 @@ mod tests {
         formatter.pop_label().unwrap();
         formatter.write_str(" a2 ").unwrap();
         formatter.pop_label().unwrap();
+        drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
         @"[38;5;1m a1 [38;5;2m b1 [38;5;3m c [38;5;2m b2 [38;5;1m a2 [39m");
+    }
+
+    #[test]
+    fn test_color_formatter_dropped() {
+        // Test that the style gets reset if the formatter is dropped without popping
+        // all labels.
+        let config = config_from_string(
+            r#"
+        colors.outer = "green"
+        "#,
+        );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
+        formatter.push_label("outer").unwrap();
+        formatter.push_label("inner").unwrap();
+        formatter.write_str(" inside ").unwrap();
+        drop(formatter);
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;2m inside [39m");
     }
 
     #[test]
@@ -977,6 +1016,7 @@ mod tests {
         let mut output: Vec<u8> = vec![];
         let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         recorder.replay(&mut formatter).unwrap();
+        drop(formatter);
         insta::assert_snapshot!(
             String::from_utf8(output).unwrap(),
             @" outer1 [38;5;1m inner1  inner2 [39m outer2 ");
@@ -990,6 +1030,7 @@ mod tests {
                 write!(formatter, "<<{}>>", str::from_utf8(data).unwrap())
             })
             .unwrap();
+        drop(formatter);
         insta::assert_snapshot!(
             String::from_utf8(output).unwrap(),
             @"<< outer1 >>[38;5;1m<< inner1  inner2 >>[39m<< outer2 >>");
