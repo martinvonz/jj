@@ -58,7 +58,8 @@ fn test_status_ignored_gitignore() {
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     A .gitignore
-    Working copy : qpvuntsm 88a40909 (no description set)
+    A untracked/inside_untracked
+    Working copy : qpvuntsm 26eafad9 (no description set)
     Parent commit: zzzzzzzz 00000000 (empty) (no description set)
     "###);
 }

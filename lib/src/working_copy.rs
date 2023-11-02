@@ -25,7 +25,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, MergedTreeId};
 use crate::commit::Commit;
 use crate::fsmonitor::FsmonitorKind;
-use crate::gitignore::GitIgnoreFile;
+use crate::gitignore::{GitIgnoreError, GitIgnoreFile};
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::settings::HumanByteSize;
@@ -162,6 +162,8 @@ pub enum SnapshotError {
         /// The maximum allowed size.
         max_size: HumanByteSize,
     },
+    #[error(transparent)]
+    GitIgnoreError(#[from] GitIgnoreError),
     /// Some other error happened while snapshotting the working copy.
     #[error("{message}")]
     Other {
