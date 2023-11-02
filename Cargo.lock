@@ -1597,6 +1597,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af150ab688ff2122fcef229be89cb50dd66af9e01a4ff320cc137eecc9bacc38"
 
 [[package]]
+name = "jj-cbits"
+version = "0.11.0"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "jj-cli"
 version = "0.11.0"
 dependencies = [
