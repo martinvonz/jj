@@ -48,6 +48,7 @@ mod show;
 mod sparse;
 mod split;
 mod squash;
+mod status;
 
 use std::fmt::Debug;
 use std::io::Write;
@@ -136,7 +137,7 @@ enum Commands {
     Sparse(sparse::SparseArgs),
     Split(split::SplitArgs),
     Squash(squash::SquashArgs),
-    Status(StatusArgs),
+    Status(status::StatusArgs),
     #[command(subcommand)]
     Util(UtilCommands),
     /// Undo an operation (shortcut for `jj op undo`)
@@ -159,18 +160,6 @@ struct UntrackArgs {
     #[arg(required = true, value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
-
-/// Show high-level repo status
-///
-/// This includes:
-///
-///  * The working copy commit and its (first) parent, and a summary of the
-///    changes between them
-///
-///  * Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)
-#[derive(clap::Args, Clone, Debug)]
-#[command(visible_alias = "st")]
-struct StatusArgs {}
 
 /// Move changes from a revision's parent into the revision
 ///
@@ -379,106 +368,6 @@ Make sure they're ignored, then try again.",
     }
     let repo = tx.commit();
     locked_ws.finish(repo.op_id().clone())?;
-    Ok(())
-}
-
-#[instrument(skip_all)]
-fn cmd_status(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    _args: &StatusArgs,
-) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let maybe_wc_commit = workspace_command
-        .get_wc_commit_id()
-        .map(|id| repo.store().get_commit(id))
-        .transpose()?;
-    ui.request_pager();
-    let mut formatter = ui.stdout_formatter();
-    let formatter = formatter.as_mut();
-
-    if let Some(wc_commit) = &maybe_wc_commit {
-        let parent_tree = merge_commit_trees(repo.as_ref(), &wc_commit.parents())?;
-        let tree = wc_commit.tree()?;
-        if tree.id() == parent_tree.id() {
-            formatter.write_str("The working copy is clean\n")?;
-        } else {
-            formatter.write_str("Working copy changes:\n")?;
-            diff_util::show_diff_summary(
-                formatter,
-                &workspace_command,
-                parent_tree.diff(&tree, &EverythingMatcher),
-            )?;
-        }
-
-        let conflicts = wc_commit.tree()?.conflicts().collect_vec();
-        if !conflicts.is_empty() {
-            writeln!(
-                formatter.labeled("conflict"),
-                "There are unresolved conflicts at these paths:"
-            )?;
-            resolve::print_conflicted_paths(&conflicts, formatter, &workspace_command)?
-        }
-
-        formatter.write_str("Working copy : ")?;
-        formatter.with_label("working_copy", |fmt| {
-            workspace_command.write_commit_summary(fmt, wc_commit)
-        })?;
-        formatter.write_str("\n")?;
-        for parent in wc_commit.parents() {
-            formatter.write_str("Parent commit: ")?;
-            workspace_command.write_commit_summary(formatter, &parent)?;
-            formatter.write_str("\n")?;
-        }
-    } else {
-        formatter.write_str("No working copy\n")?;
-    }
-
-    let conflicted_local_branches = repo
-        .view()
-        .local_branches()
-        .filter(|(_, target)| target.has_conflict())
-        .map(|(branch_name, _)| branch_name)
-        .collect_vec();
-    let conflicted_remote_branches = repo
-        .view()
-        .all_remote_branches()
-        .filter(|(_, remote_ref)| remote_ref.target.has_conflict())
-        .map(|(full_name, _)| full_name)
-        .collect_vec();
-    if !conflicted_local_branches.is_empty() {
-        writeln!(
-            formatter.labeled("conflict"),
-            "These branches have conflicts:"
-        )?;
-        for branch_name in conflicted_local_branches {
-            write!(formatter, "  ")?;
-            write!(formatter.labeled("branch"), "{branch_name}")?;
-            writeln!(formatter)?;
-        }
-        writeln!(
-            formatter,
-            "  Use `jj branch list` to see details. Use `jj branch set <name> -r <rev>` to \
-             resolve."
-        )?;
-    }
-    if !conflicted_remote_branches.is_empty() {
-        writeln!(
-            formatter.labeled("conflict"),
-            "These remote branches have conflicts:"
-        )?;
-        for (branch_name, remote_name) in conflicted_remote_branches {
-            write!(formatter, "  ")?;
-            write!(formatter.labeled("branch"), "{branch_name}@{remote_name}")?;
-            writeln!(formatter)?;
-        }
-        writeln!(
-            formatter,
-            "  Use `jj branch list` to see details. Use `jj git fetch` to resolve."
-        )?;
-    }
-
     Ok(())
 }
 
@@ -1008,7 +897,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Cat(sub_args) => cat::cmd_cat(ui, command_helper, sub_args),
         Commands::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
         Commands::Show(sub_args) => show::cmd_show(ui, command_helper, sub_args),
-        Commands::Status(sub_args) => cmd_status(ui, command_helper, sub_args),
+        Commands::Status(sub_args) => status::cmd_status(ui, command_helper, sub_args),
         Commands::Log(sub_args) => log::cmd_log(ui, command_helper, sub_args),
         Commands::Interdiff(sub_args) => interdiff::cmd_interdiff(ui, command_helper, sub_args),
         Commands::Obslog(sub_args) => obslog::cmd_obslog(ui, command_helper, sub_args),
