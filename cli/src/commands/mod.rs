@@ -49,6 +49,7 @@ mod sparse;
 mod split;
 mod squash;
 mod status;
+mod util;
 
 use std::fmt::Debug;
 use std::io::Write;
@@ -139,7 +140,7 @@ enum Commands {
     Squash(squash::SquashArgs),
     Status(status::StatusArgs),
     #[command(subcommand)]
-    Util(UtilCommands),
+    Util(util::UtilCommands),
     /// Undo an operation (shortcut for `jj op undo`)
     Undo(operation::OperationUndoArgs),
     Unsquash(UnsquashArgs),
@@ -243,50 +244,6 @@ struct WorkspaceRootArgs {}
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 struct WorkspaceUpdateStaleArgs {}
-
-/// Infrequently used commands such as for generating shell completions
-#[derive(Subcommand, Clone, Debug)]
-enum UtilCommands {
-    Completion(UtilCompletionArgs),
-    Mangen(UtilMangenArgs),
-    ConfigSchema(UtilConfigSchemaArgs),
-}
-
-/// Print a command-line-completion script
-#[derive(clap::Args, Clone, Debug)]
-struct UtilCompletionArgs {
-    /// Print a completion script for Bash
-    ///
-    /// Apply it by running this:
-    ///
-    /// source <(jj util completion)
-    #[arg(long, verbatim_doc_comment)]
-    bash: bool,
-    /// Print a completion script for Fish
-    ///
-    /// Apply it by running this:
-    ///
-    /// jj util completion --fish | source
-    #[arg(long, verbatim_doc_comment)]
-    fish: bool,
-    /// Print a completion script for Zsh
-    ///
-    /// Apply it by running this:
-    ///
-    /// autoload -U compinit
-    /// compinit
-    /// source <(jj util completion --zsh)
-    #[arg(long, verbatim_doc_comment)]
-    zsh: bool,
-}
-
-/// Print a ROFF (manpage)
-#[derive(clap::Args, Clone, Debug)]
-struct UtilMangenArgs {}
-
-/// Print the JSON schema for the jj TOML config format.
-#[derive(clap::Args, Clone, Debug)]
-struct UtilConfigSchemaArgs {}
 
 #[instrument(skip_all)]
 fn cmd_version(
@@ -603,41 +560,6 @@ fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
 }
 
 #[instrument(skip_all)]
-fn cmd_util(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    subcommand: &UtilCommands,
-) -> Result<(), CommandError> {
-    match subcommand {
-        UtilCommands::Completion(completion_matches) => {
-            let mut app = command.app().clone();
-            let mut buf = vec![];
-            let shell = if completion_matches.zsh {
-                clap_complete::Shell::Zsh
-            } else if completion_matches.fish {
-                clap_complete::Shell::Fish
-            } else {
-                clap_complete::Shell::Bash
-            };
-            clap_complete::generate(shell, &mut app, "jj", &mut buf);
-            ui.stdout_formatter().write_all(&buf)?;
-        }
-        UtilCommands::Mangen(_mangen_matches) => {
-            let mut buf = vec![];
-            let man = clap_mangen::Man::new(command.app().clone());
-            man.render(&mut buf)?;
-            ui.stdout_formatter().write_all(&buf)?;
-        }
-        UtilCommands::ConfigSchema(_config_schema_matches) => {
-            // TODO(#879): Consider generating entire schema dynamically vs. static file.
-            let buf = include_bytes!("../config-schema.json");
-            ui.stdout_formatter().write_all(buf)?;
-        }
-    }
-    Ok(())
-}
-
-#[instrument(skip_all)]
 fn cmd_workspace(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -927,7 +849,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Sparse(sub_args) => sparse::cmd_sparse(ui, command_helper, sub_args),
         Commands::Chmod(sub_args) => chmod::cmd_chmod(ui, command_helper, sub_args),
         Commands::Git(sub_args) => git::cmd_git(ui, command_helper, sub_args),
-        Commands::Util(sub_args) => cmd_util(ui, command_helper, sub_args),
+        Commands::Util(sub_args) => util::cmd_util(ui, command_helper, sub_args),
         #[cfg(feature = "bench")]
         Commands::Bench(sub_args) => bench::cmd_bench(ui, command_helper, sub_args),
         Commands::Debug(sub_args) => debug::cmd_debug(ui, command_helper, sub_args),
