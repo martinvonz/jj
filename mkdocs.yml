@@ -26,6 +26,17 @@ markdown_extensions:
   - admonition
   - codehilite:
       guess_lang: false
+  # Allows list items with several paragraphs to be indented two spaces instead
+  # of four (like GitHub markdown)
+  - mdx_truly_sane_lists:
+      # No, thanks, we'd like only somewhat sane lists :)
+      # With `truly_sane: true`, together with breakless lists, it often splits
+      # a single list in two.
+      truly_sane: false
+  # Fixes weird concatenation of list items that happens sometimes when
+  # there is not a paragraph break between them and one of them has
+  # multiple paragraphs.
+  - mdx_breakless_lists
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.superfences
