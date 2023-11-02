@@ -497,7 +497,7 @@ fn cmd_untrack(
     let mut tx = workspace_command
         .start_transaction("untrack paths")
         .into_inner();
-    let base_ignores = workspace_command.base_ignores();
+    let base_ignores = workspace_command.base_ignores()?;
     let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
     let mut tree_builder = MergedTreeBuilder::new(wc_commit.tree_id().clone());

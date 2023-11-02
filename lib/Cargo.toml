@@ -27,11 +27,12 @@ bytes = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true }
 digest = { workspace = true }
-futures = { workspace = true }
 either = { workspace = true }
+futures = { workspace = true }
 git2 = { workspace = true }
 glob = { workspace = true }
 hex = { workspace = true }
+ignore = { workspace = true }
 itertools = { workspace = true }
 maplit = { workspace = true }
 once_cell = { workspace = true }

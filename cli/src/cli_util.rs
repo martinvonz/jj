@@ -38,7 +38,7 @@ use jj_lib::git::{
     GitImportStats, GitRemoteManagementError,
 };
 use jj_lib::git_backend::GitBackend;
-use jj_lib::gitignore::GitIgnoreFile;
+use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
@@ -395,6 +395,12 @@ impl From<GitConfigParseError> for CommandError {
 impl From<WorkingCopyStateError> for CommandError {
     fn from(err: WorkingCopyStateError) -> Self {
         CommandError::InternalError(format!("Failed to access working copy state: {err}"))
+    }
+}
+
+impl From<GitIgnoreError> for CommandError {
+    fn from(err: GitIgnoreError) -> Self {
+        user_error(format!("Failed to process .gitignore: {err}"))
     }
 }
 
@@ -935,7 +941,7 @@ impl WorkspaceCommandHelper {
     }
 
     #[instrument(skip_all)]
-    pub fn base_ignores(&self) -> Arc<GitIgnoreFile> {
+    pub fn base_ignores(&self) -> Result<Arc<GitIgnoreFile>, GitIgnoreError> {
         fn xdg_config_home() -> Result<PathBuf, VarError> {
             if let Ok(x) = std::env::var("XDG_CONFIG_HOME") {
                 if !x.is_empty() {
@@ -955,13 +961,13 @@ impl WorkspaceCommandHelper {
             })
             .or_else(|_| xdg_config_home().map(|x| x.join("git").join("ignore")))
         {
-            git_ignores = git_ignores.chain_with_file("", excludes_file_path);
+            git_ignores = git_ignores.chain_with_file("", excludes_file_path)?;
         }
         if let Some(git_backend) = self.git_backend() {
             git_ignores = git_ignores
-                .chain_with_file("", git_backend.git_repo_path().join("info").join("exclude"));
+                .chain_with_file("", git_backend.git_repo_path().join("info").join("exclude"))?;
         }
-        git_ignores
+        Ok(git_ignores)
     }
 
     pub fn resolve_single_op(&self, op_str: &str) -> Result<Operation, CommandError> {
@@ -1308,7 +1314,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
             // committing the working copy.
             return Ok(());
         };
-        let base_ignores = self.base_ignores();
+        let base_ignores = self.base_ignores()?;
 
         // Compare working-copy tree and operation with repo's, and reload as needed.
         let mut locked_ws = self.workspace.start_working_copy_mutation()?;
@@ -1547,7 +1553,7 @@ impl WorkspaceCommandTransaction<'_> {
         matcher: &dyn Matcher,
         instructions: &str,
     ) -> Result<MergedTreeId, CommandError> {
-        let base_ignores = self.helper.base_ignores();
+        let base_ignores = self.helper.base_ignores()?;
         let settings = &self.helper.settings;
         Ok(crate::merge_tools::edit_diff(
             ui,

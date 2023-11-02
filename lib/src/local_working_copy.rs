@@ -678,8 +678,8 @@ impl TreeState {
         if matcher.visit(&dir).is_nothing() {
             return Ok(());
         }
-        let git_ignore =
-            git_ignore.chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
+        let git_ignore = git_ignore
+            .chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"))?;
         let dir_entries = disk_dir
             .read_dir()
             .unwrap()
@@ -713,7 +713,7 @@ impl TreeState {
                 }
 
                 if file_type.is_dir() {
-                    if git_ignore.matches(&path.to_internal_dir_string()) {
+                    if git_ignore.matches_dir(&path.to_internal_dir_string()) {
                         // If the whole directory is ignored, visit only paths we're already
                         // tracking.
                         let tracked_paths = self
