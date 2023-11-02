@@ -43,6 +43,7 @@ mod prev;
 mod rebase;
 mod resolve;
 mod restore;
+mod run;
 
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -130,7 +131,7 @@ enum Commands {
     Restore(restore::RestoreArgs),
     #[command(hide = true)]
     // TODO: Flesh out.
-    Run(RunArgs),
+    Run(run::RunArgs),
     Show(ShowArgs),
     #[command(subcommand)]
     Sparse(SparseArgs),
@@ -231,29 +232,6 @@ struct UnsquashArgs {
     // the default.
     #[arg(long, short)]
     interactive: bool,
-}
-
-/// Run a command across a set of revisions.
-///
-///
-/// All recorded state will be persisted in the `.jj` directory, so occasionally
-/// a `jj run --clean` is needed to clean up disk space.
-///
-/// # Example
-///
-/// # Run pre-commit on your local work
-/// $ jj run 'pre-commit.py .github/pre-commit.yaml' -r (main..@) -j 4
-///
-/// This allows pre-commit integration and other funny stuff.
-#[derive(clap::Args, Clone, Debug)]
-#[command(verbatim_doc_comment)]
-struct RunArgs {
-    /// The command to run across all selected revisions.
-    #[arg(long, short, alias = "x")]
-    command: String,
-    /// The revisions to change.
-    #[arg(long, short, default_value = "@")]
-    revisions: Vec<RevisionArg>,
 }
 
 /// Split a revision in two
@@ -1149,11 +1127,6 @@ don't make any changes, then the operation will be aborted.
     Ok(())
 }
 
-// TODO: Move to run.rs
-fn cmd_run(_ui: &mut Ui, _command: &CommandHelper, _args: &RunArgs) -> Result<(), CommandError> {
-    Err(user_error("This is a stub, do not use"))
-}
-
 fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
     match branch_names {
         [branch_name] => format!("branch {}", branch_name),
@@ -1558,7 +1531,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Squash(sub_args) => cmd_squash(ui, command_helper, sub_args),
         Commands::Unsquash(sub_args) => cmd_unsquash(ui, command_helper, sub_args),
         Commands::Restore(sub_args) => restore::cmd_restore(ui, command_helper, sub_args),
-        Commands::Run(sub_args) => cmd_run(ui, command_helper, sub_args),
+        Commands::Run(sub_args) => run::cmd_run(ui, command_helper, sub_args),
         Commands::Diffedit(sub_args) => diffedit::cmd_diffedit(ui, command_helper, sub_args),
         Commands::Split(sub_args) => cmd_split(ui, command_helper, sub_args),
         Commands::Merge(sub_args) => merge::cmd_merge(ui, command_helper, sub_args),
