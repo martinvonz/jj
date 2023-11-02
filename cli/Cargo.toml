@@ -51,6 +51,7 @@ gix = { workspace = true }
 hex = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
+jj-cbits = { workspace = true }
 jj-lib = { workspace = true }
 maplit = { workspace = true }
 minus = { workspace = true }
@@ -90,8 +91,9 @@ testutils = { workspace = true }
 jj-cli = { path = ".", features = ["test-fakes"], default-features = false }
 
 [features]
-default = ["watchman"]
+default = ["watchman", "mimalloc"]
 bench = ["dep:criterion"]
+mimalloc = ["jj-cbits/mimalloc"]
 packaging = []
 test-fakes = ["jj-lib/testing"]
 vendored-openssl = ["git2/vendored-openssl", "jj-lib/vendored-openssl"]
