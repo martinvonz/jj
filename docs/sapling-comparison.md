@@ -25,22 +25,26 @@ Here is a list of some differences between jj and Sapling.
   is [automatically snapshotted by every command](working-copy.md). New files
   are automatically tracked and deleted files are automatically untracked. This
   has several advantages:
-    * The working copy is effectively backed up every time you run a command.
-    * No commands fail because you have changes in the working copy ("abort: 1
-      conflicting file changes: ..."). No need for `sl shelve`.
-    * Simpler and more consistent CLI because the working copy is treated like
-      any other commit.
+
+  * The working copy is effectively backed up every time you run a command.
+  * No commands fail because you have changes in the working copy ("abort: 1
+    conflicting file changes: ..."). No need for `sl shelve`.
+  * Simpler and more consistent CLI because the working copy is treated like any
+    other commit.
+
 * **Conflicts:** Like most VCSs, Sapling requires the user to
   resolve conflicts before committing. jj lets
   you [commit conflicts](conflicts.md). Note that it's a representation of the
   conflict that's committed, not conflict markers (`<<<<<<<` etc.). This also
   has several advantages:
-    * Merge conflicts won't prevent you from checking out another commit.
-    * You can resolve the conflicts when you feel like it.
-    * Rebasing descendants always succeeds. Like jj, Sapling automatically
-      rebases, but it will fail if there are conflicts.
-    * Merge commits can be rebased correctly (Sapling sometimes fails).
-    * You can rebase conflicts and conflict resolutions.
+
+  * Merge conflicts won't prevent you from checking out another commit.
+  * You can resolve the conflicts when you feel like it.
+  * Rebasing descendants always succeeds. Like jj, Sapling automatically
+    rebases, but it will fail if there are conflicts.
+  * Merge commits can be rebased correctly (Sapling sometimes fails).
+  * You can rebase conflicts and conflict resolutions.
+
 * **Undo:** jj's undo is powered by [the operation log](operation-log.md), which
   records how the repo has changed over time. Sapling has a similar feature
   with its [MetaLog](https://sapling-scm.com/docs/internals/metalog).

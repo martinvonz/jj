@@ -78,74 +78,95 @@ You can also specify revisions by using functions. Some functions take other
 revsets (expressions) as arguments.
 
 * `parents(x)`: Same as `x-`.
+
 * `children(x)`: Same as `x+`.
-* `ancestors(x[, depth])`: `ancestors(x)` is the same as `::x`. 
-  `ancestors(x, depth)` returns the ancestors of `x` limited to the given 
+
+* `ancestors(x[, depth])`: `ancestors(x)` is the same as `::x`.
+  `ancestors(x, depth)` returns the ancestors of `x` limited to the given
   `depth`.
+
 * `descendants(x)`: Same as `x::`.
+
 * `connected(x)`: Same as `x::x`. Useful when `x` includes several commits.
+
 * `all()`: All visible commits in the repo.
+
 * `none()`: No commits. This function is rarely useful; it is provided for
   completeness.
+
 * `branches([pattern])`: All local branch targets. If `pattern` is specified,
   this selects the branches whose name match the given [string
   pattern](#string-patterns). For example, `branches(push)` would match the
   branches `push-123` and `repushed` but not the branch `main`. If a branch is
   in a conflicted state, all its possible targets are included.
 
-*   `remote_branches([branch_pattern[, [remote=]remote_pattern]])`: All remote
-    branch targets across all remotes. If just the `branch_pattern` is
-    specified, the branches whose names match the given [string
-    pattern](#string-patterns) across all remotes are selected. If both
-    `branch_pattern` and `remote_pattern` are specified, the selection is
-    further restricted to just the remotes whose names match `remote_pattern`.
-    
-    For example, `remote_branches(push, ri)` would match the branches
-    `push-123@origin` and `repushed@private` but not `push-123@upstream` or
-    `main@origin` or `main@upstream`. If a branch is in a conflicted state, all
-    its possible targets are included.
+* `remote_branches([branch_pattern[, [remote=]remote_pattern]])`: All remote
+  branch targets across all remotes. If just the `branch_pattern` is
+  specified, the branches whose names match the given [string
+  pattern](#string-patterns) across all remotes are selected. If both
+  `branch_pattern` and `remote_pattern` are specified, the selection is
+  further restricted to just the remotes whose names match `remote_pattern`.
+
+  For example, `remote_branches(push, ri)` would match the branches
+  `push-123@origin` and `repushed@private` but not `push-123@upstream` or
+  `main@origin` or `main@upstream`. If a branch is in a conflicted state, all
+  its possible targets are included.
 
 * `tags()`: All tag targets. If a tag is in a conflicted state, all its
   possible targets are included.
+
 * `git_refs()`:  All Git ref targets as of the last import. If a Git ref
   is in a conflicted state, all its possible targets are included.
+
 * `git_head()`: The Git `HEAD` target as of the last import. Equivalent to
   `present(HEAD@git)`.
+
 * `visible_heads()`: All visible heads (same as `heads(all())`).
+
 * `root()`: The virtual commit that is the oldest ancestor of all other commits.
+
 * `heads(x)`: Commits in `x` that are not ancestors of other commits in `x`.
   Note that this is different from
   [Mercurial's](https://repo.mercurial-scm.org/hg/help/revsets) `heads(x)`
   function, which is equivalent to `x ~ x-`.
+
 * `roots(x)`: Commits in `x` that are not descendants of other commits in `x`.
   Note that this is different from
   [Mercurial's](https://repo.mercurial-scm.org/hg/help/revsets) `roots(x)`
   function, which is equivalent to `x ~ x+`.
+
 * `latest(x[, count])`: Latest `count` commits in `x`, based on committer
   timestamp. The default `count` is 1.
+
 * `merges()`: Merge commits.
+
 * `description(pattern)`: Commits that have a description matching the given
   [string pattern](#string-patterns).
+
 * `author(pattern)`: Commits with the author's name or email matching the given
   [string pattern](#string-patterns).
+
 * `mine()`: Commits where the author's email matches the email of the current
   user.
+
 * `committer(pattern)`: Commits with the committer's  name or email matching the
 given [string pattern](#string-patterns).
+
 * `empty()`: Commits modifying no files. This also includes `merges()` without
   user modifications and `root()`.
 
-*   `file(relativepath)` or `file("relativepath"[, "relativepath"]...)`: Commits
-    modifying one of the paths specified. Currently, string patterns are *not*
-    supported in the path arguments. 
-    
-    Paths are relative to the directory `jj` was invoked from. A directory name
-    will match all files in that directory and its subdirectories.
-  
-    For example, `file(foo)` will match files `foo`, `foo/bar`, `foo/bar/baz`.
-    It will *not* match `foobar` or `bar/foo`.
+* `file(relativepath)` or `file("relativepath"[, "relativepath"]...)`: Commits
+  modifying one of the paths specified. Currently, string patterns are *not*
+  supported in the path arguments.
+
+  Paths are relative to the directory `jj` was invoked from. A directory name
+  will match all files in that directory and its subdirectories.
+
+  For example, `file(foo)` will match files `foo`, `foo/bar`, `foo/bar/baz`.
+  It will *not* match `foobar` or `bar/foo`.
 
 * `conflict()`: Commits with conflicts.
+
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown branch name.)
 
