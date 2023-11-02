@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jj_cbits::mimalloc::MiMalloc;
 use jj_cli::cli_util::CliRunner;
+
+#[global_allocator]
+static ALLOC: MiMalloc = MiMalloc;
 
 fn main() -> std::process::ExitCode {
     CliRunner::init().version(env!("JJ_VERSION")).run()
