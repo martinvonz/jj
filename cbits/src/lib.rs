@@ -56,3 +56,6 @@
 // Disable std support to avoid recursive dependencies, since this library
 // contains an allocator.
 #![no_std]
+
+#[cfg(feature = "mimalloc")]
+pub mod mimalloc;
