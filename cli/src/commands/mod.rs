@@ -44,6 +44,7 @@ mod rebase;
 mod resolve;
 mod restore;
 mod run;
+mod show;
 
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -74,7 +75,7 @@ use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, run_ui_editor, user_error,
     user_error_with_hint, Args, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
-use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
+use crate::diff_util::{self, DiffFormat};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::text_util;
 use crate::ui::Ui;
@@ -132,7 +133,7 @@ enum Commands {
     #[command(hide = true)]
     // TODO: Flesh out.
     Run(run::RunArgs),
-    Show(ShowArgs),
+    Show(show::ShowArgs),
     #[command(subcommand)]
     Sparse(SparseArgs),
     Split(SplitArgs),
@@ -159,19 +160,6 @@ struct UntrackArgs {
     /// Paths to untrack
     #[arg(required = true, value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
-}
-
-/// Show commit description and changes in a revision
-#[derive(clap::Args, Clone, Debug)]
-struct ShowArgs {
-    /// Show changes in this revision, compared to its parent(s)
-    #[arg(default_value = "@")]
-    revision: RevisionArg,
-    /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true)]
-    unused_revision: bool,
-    #[command(flatten)]
-    format: DiffFormatArgs,
 }
 
 /// Show high-level repo status
@@ -485,28 +473,6 @@ Make sure they're ignored, then try again.",
     }
     let repo = tx.commit();
     locked_ws.finish(repo.op_id().clone())?;
-    Ok(())
-}
-
-#[instrument(skip_all)]
-fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    let template_string = command.settings().config().get_string("templates.show")?;
-    let template = workspace_command.parse_commit_template(&template_string)?;
-    let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
-    ui.request_pager();
-    let mut formatter = ui.stdout_formatter();
-    let formatter = formatter.as_mut();
-    template.format(&commit, formatter)?;
-    diff_util::show_patch(
-        ui,
-        formatter,
-        &workspace_command,
-        &commit,
-        &EverythingMatcher,
-        &diff_formats,
-    )?;
     Ok(())
 }
 
@@ -1514,7 +1480,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Files(sub_args) => files::cmd_files(ui, command_helper, sub_args),
         Commands::Cat(sub_args) => cat::cmd_cat(ui, command_helper, sub_args),
         Commands::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
-        Commands::Show(sub_args) => cmd_show(ui, command_helper, sub_args),
+        Commands::Show(sub_args) => show::cmd_show(ui, command_helper, sub_args),
         Commands::Status(sub_args) => cmd_status(ui, command_helper, sub_args),
         Commands::Log(sub_args) => log::cmd_log(ui, command_helper, sub_args),
         Commands::Interdiff(sub_args) => interdiff::cmd_interdiff(ui, command_helper, sub_args),
