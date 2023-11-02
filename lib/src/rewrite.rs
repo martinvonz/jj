@@ -20,13 +20,15 @@ use std::sync::Arc;
 use itertools::Itertools;
 use tracing::instrument;
 
-use crate::backend::{BackendError, CommitId, ObjectId};
+use crate::backend::{BackendError, BackendResult, CommitId, MergedTreeId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::index::Index;
-use crate::merged_tree::MergedTree;
+use crate::matchers::{Matcher, Visit};
+use crate::merged_tree::{MergedTree, MergedTreeBuilder};
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
+use crate::repo_path::RepoPath;
 use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
 use crate::store::Store;
@@ -65,6 +67,27 @@ pub fn merge_commit_trees_without_repo(
             new_tree = new_tree.merge(&ancestor_tree, &other_tree)?;
         }
         Ok(new_tree)
+    }
+}
+
+/// Restore matching paths from the source into the destination.
+pub fn restore_tree(
+    source: &MergedTree,
+    destination: &MergedTree,
+    matcher: &dyn Matcher,
+) -> BackendResult<MergedTreeId> {
+    if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
+        // Optimization for a common case
+        Ok(source.id())
+    } else {
+        // TODO: We should be able to not traverse deeper in the diff if the matcher
+        // matches an entire subtree.
+        let mut tree_builder = MergedTreeBuilder::new(destination.id().clone());
+        for (repo_path, diff) in source.diff(destination, matcher) {
+            let (source_value, _destination_value) = diff?;
+            tree_builder.set_or_remove(repo_path, source_value);
+        }
+        tree_builder.write_tree(destination.store())
     }
 }
 
