@@ -47,16 +47,17 @@ mod run;
 mod show;
 mod sparse;
 mod split;
+mod squash;
 
 use std::fmt::Debug;
 use std::io::Write;
 use std::{fmt, fs, io};
 
-use clap::parser::ValueSource;
 use clap::{Command, CommandFactory, FromArgMatches, Subcommand};
 use itertools::Itertools;
 use jj_lib::backend::ObjectId;
 use jj_lib::commit::Commit;
+use jj_lib::file_util;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
@@ -66,11 +67,10 @@ use jj_lib::rewrite::merge_commit_trees;
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::{default_working_copy_initializer, Workspace};
-use jj_lib::{file_util, revset};
 use tracing::instrument;
 
 use crate::cli_util::{
-    self, check_stale_working_copy, print_checkout_stats, run_ui_editor, user_error,
+    check_stale_working_copy, print_checkout_stats, run_ui_editor, user_error,
     user_error_with_hint, Args, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::diff_util::{self, DiffFormat};
@@ -135,7 +135,7 @@ enum Commands {
     #[command(subcommand)]
     Sparse(sparse::SparseArgs),
     Split(split::SplitArgs),
-    Squash(SquashArgs),
+    Squash(squash::SquashArgs),
     Status(StatusArgs),
     #[command(subcommand)]
     Util(UtilCommands),
@@ -171,32 +171,6 @@ struct UntrackArgs {
 #[derive(clap::Args, Clone, Debug)]
 #[command(visible_alias = "st")]
 struct StatusArgs {}
-
-/// Move changes from a revision into its parent
-///
-/// After moving the changes into the parent, the child revision will have the
-/// same content state as before. If that means that the change is now empty
-/// compared to its parent, it will be abandoned.
-/// Without `--interactive`, the child change will always be empty.
-///
-/// If the source became empty and both the source and destination had a
-/// non-empty description, you will be asked for the combined description. If
-/// either was empty, then the other one will be used.
-#[derive(clap::Args, Clone, Debug)]
-#[command(visible_alias = "amend")]
-struct SquashArgs {
-    #[arg(long, short, default_value = "@")]
-    revision: RevisionArg,
-    /// The description to use for squashed revision (don't open editor)
-    #[arg(long = "message", short, value_name = "MESSAGE")]
-    message_paragraphs: Vec<String>,
-    /// Interactively choose which parts to squash
-    #[arg(long, short)]
-    interactive: bool,
-    /// Move only changes to these paths (instead of all paths)
-    #[arg(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
-    paths: Vec<String>,
-}
 
 /// Move changes from a revision's parent into the revision
 ///
@@ -616,102 +590,6 @@ fn combine_messages(
         destination.description().to_string()
     };
     Ok(description)
-}
-
-#[instrument(skip_all)]
-fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    workspace_command.check_rewritable([&commit])?;
-    let parents = commit.parents();
-    if parents.len() != 1 {
-        return Err(user_error("Cannot squash merge commits"));
-    }
-    let parent = &parents[0];
-    workspace_command.check_rewritable(&parents[..1])?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
-    let instructions = format!(
-        "\
-You are moving changes from: {}
-into its parent: {}
-
-The left side of the diff shows the contents of the parent commit. The
-right side initially shows the contents of the commit you're moving
-changes from.
-
-Adjust the right side until the diff shows the changes you want to move
-to the destination. If you don't make any changes, then all the changes
-from the source will be moved into the parent.
-",
-        tx.format_commit_summary(&commit),
-        tx.format_commit_summary(parent)
-    );
-    let parent_tree = parent.tree()?;
-    let tree = commit.tree()?;
-    let new_parent_tree_id = tx.select_diff(
-        ui,
-        &parent_tree,
-        &tree,
-        matcher.as_ref(),
-        &instructions,
-        args.interactive,
-    )?;
-    if &new_parent_tree_id == parent.tree_id() {
-        if args.interactive {
-            return Err(user_error("No changes selected"));
-        }
-
-        if let [only_path] = &args.paths[..] {
-            let (_, matches) = command.matches().subcommand().unwrap();
-            if matches.value_source("revision").unwrap() == ValueSource::DefaultValue
-                && revset::parse(
-                    only_path,
-                    &tx.base_workspace_helper().revset_parse_context(),
-                )
-                .is_ok()
-            {
-                writeln!(
-                    ui.warning(),
-                    "warning: The argument {only_path:?} is being interpreted as a path. To \
-                     specify a revset, pass -r {only_path:?} instead."
-                )?;
-            }
-        }
-    }
-    // Abandon the child if the parent now has all the content from the child
-    // (always the case in the non-interactive case).
-    let abandon_child = &new_parent_tree_id == commit.tree_id();
-    let description = if !args.message_paragraphs.is_empty() {
-        cli_util::join_message_paragraphs(&args.message_paragraphs)
-    } else {
-        combine_messages(
-            tx.base_repo(),
-            &commit,
-            parent,
-            command.settings(),
-            abandon_child,
-        )?
-    };
-    let mut_repo = tx.mut_repo();
-    let new_parent = mut_repo
-        .rewrite_commit(command.settings(), parent)
-        .set_tree_id(new_parent_tree_id)
-        .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
-        .set_description(description)
-        .write()?;
-    if abandon_child {
-        mut_repo.record_abandoned_commit(commit.id().clone());
-    } else {
-        // Commit the remainder on top of the new parent commit.
-        mut_repo
-            .rewrite_commit(command.settings(), &commit)
-            .set_parents(vec![new_parent.id().clone()])
-            .write()?;
-    }
-    tx.finish(ui)?;
-    Ok(())
 }
 
 #[instrument(skip_all)]
@@ -1143,7 +1021,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Prev(sub_args) => prev::cmd_prev(ui, command_helper, sub_args),
         Commands::New(sub_args) => new::cmd_new(ui, command_helper, sub_args),
         Commands::Move(sub_args) => r#move::cmd_move(ui, command_helper, sub_args),
-        Commands::Squash(sub_args) => cmd_squash(ui, command_helper, sub_args),
+        Commands::Squash(sub_args) => squash::cmd_squash(ui, command_helper, sub_args),
         Commands::Unsquash(sub_args) => cmd_unsquash(ui, command_helper, sub_args),
         Commands::Restore(sub_args) => restore::cmd_restore(ui, command_helper, sub_args),
         Commands::Run(sub_args) => run::cmd_run(ui, command_helper, sub_args),
