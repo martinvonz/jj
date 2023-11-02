@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Primary entrypoint for the stock `jj` command-line tool. mimalloc enabled.
+
 use jj_cbits::mimalloc::MiMalloc;
-use jj_cli::cli_util::CliRunner;
+use jj_cli::cli_util::{heap_stats_enable, heap_stats_with_closure, CliRunner};
 
 #[global_allocator]
 static ALLOC: MiMalloc = MiMalloc;
 
 fn main() -> std::process::ExitCode {
-    CliRunner::init().version(env!("JJ_VERSION")).run()
+    heap_stats_with_closure(|| {
+        CliRunner::init()
+            .add_global_args(heap_stats_enable)
+            .version(env!("JJ_VERSION"))
+            .run()
+    })
 }

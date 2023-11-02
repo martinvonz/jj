@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::rc::Rc;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::SystemTime;
 use std::{iter, str};
 
@@ -31,6 +31,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
 use git2::Repository;
 use indexmap::IndexSet;
 use itertools::Itertools;
+use jj_cbits::mimalloc;
 use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId};
 use jj_lib::commit::Commit;
 use jj_lib::git::{
@@ -2409,6 +2410,57 @@ pub struct EarlyArgs {
         help_heading = "Global Options"
     )]
     pub config_toml: Vec<String>,
+}
+
+#[derive(clap::Args, Clone, Debug)]
+pub struct ShowAllocStats {
+    /// Show memory allocation statistics from the internal heap allocator
+    /// on `stdout`, when the program exits.
+    #[arg(long, global = true)]
+    show_heap_stats: bool,
+}
+
+/// Lazy global static. Used only to defer printing mimalloc stats until the
+/// program exits, if set to `true`.
+static PRINT_HEAP_STATS: OnceLock<bool> = OnceLock::new();
+
+/// Enable heap statistics for the user interface; should be used with
+/// [`CliRunner::add_global_args`]. Does nothing if the memory allocator is
+/// unused, i.e. `#[global_allocator]` is not set to mimalloc in your program.
+pub fn heap_stats_enable(_ui: &mut Ui, opts: ShowAllocStats) -> Result<(), CommandError> {
+    if opts.show_heap_stats {
+        PRINT_HEAP_STATS.set(true).unwrap();
+    }
+    Ok(())
+}
+
+/// Reset heap allocation statistics for the memory allocator. Often used at the
+/// very beginning of the program (to clear allocations that may happen before
+/// `_main` execution.)
+pub fn heap_stats_reset() {
+    mimalloc::stats_reset();
+}
+
+/// Print heap allocation statistics to `stderr`, if enabled.
+pub fn heap_stats_print() {
+    // NOTE (aseipp): can we do our own custom printing here? it's kind of ugly
+    if PRINT_HEAP_STATS.get() == Some(&true) {
+        eprintln!("========================================");
+        eprintln!("mimalloc memory allocation statistics:\n");
+        mimalloc::stats_print(&|l| {
+            eprint!("{}", l.to_string_lossy());
+        });
+    }
+}
+
+/// Wrap a given closure with calls to [`heap_stats_reset`] and
+/// [`heap_stats_print`], and return the result of the closure. Useful for
+/// conveiently printing heap allocation statistics for a given function body.
+pub fn heap_stats_with_closure<R>(f: impl FnOnce() -> R) -> R {
+    heap_stats_reset();
+    let result = f();
+    heap_stats_print();
+    result
 }
 
 /// Create a description from a list of paragraphs.
