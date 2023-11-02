@@ -19,4 +19,4 @@ jobs:
           check_filenames: true
           check_hidden: true
           skip: ./target,./.jj,*.lock
-          ignore_words_list: crate
+          ignore_words_list: crate,tread

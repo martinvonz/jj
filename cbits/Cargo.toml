@@ -1,0 +1,18 @@
+[package]
+name = "jj-cbits"
+description = "FFI code needed by Jujutsu - an experimental version control system"
+
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[dependencies]
+libc = { workspace = true }
+
+[build-dependencies]
+cc = { workspace = true }
