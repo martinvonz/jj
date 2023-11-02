@@ -41,8 +41,8 @@ use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
-use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
-use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
+use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jj_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jj_lib::operation::Operation;
@@ -56,6 +56,7 @@ use jj_lib::revset::{
     RevsetExpression, RevsetIteratorExt, RevsetParseContext, RevsetParseError,
     RevsetParseErrorKind, RevsetResolutionError, RevsetWorkspaceContext,
 };
+use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::str_util::{StringPattern, StringPatternParseError};
 use jj_lib::transaction::Transaction;
@@ -1570,16 +1571,9 @@ impl WorkspaceCommandTransaction<'_> {
     ) -> Result<MergedTreeId, CommandError> {
         if interactive {
             self.edit_diff(ui, left_tree, right_tree, matcher, instructions)
-        } else if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
-            // Optimization for a common case
-            Ok(right_tree.id().clone())
         } else {
-            let mut tree_builder = MergedTreeBuilder::new(left_tree.id().clone());
-            for (repo_path, diff) in left_tree.diff(right_tree, matcher) {
-                let (_left, right) = diff?;
-                tree_builder.set_or_remove(repo_path, right);
-            }
-            Ok(tree_builder.write_tree(self.repo().store())?)
+            let new_tree_id = restore_tree(right_tree, left_tree, matcher)?;
+            Ok(new_tree_id)
         }
     }
 

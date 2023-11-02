@@ -60,7 +60,7 @@ use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
-use jj_lib::rewrite::{merge_commit_trees, DescendantRebaser};
+use jj_lib::rewrite::{merge_commit_trees, restore_tree, DescendantRebaser};
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::{default_working_copy_initializer, Workspace};
@@ -1057,18 +1057,9 @@ fn cmd_restore(
     }
     workspace_command.check_rewritable([&to_commit])?;
 
-    let new_tree_id = if args.paths.is_empty() {
-        from_tree.id().clone()
-    } else {
-        let matcher = workspace_command.matcher_from_values(&args.paths)?;
-        let mut tree_builder = MergedTreeBuilder::new(to_commit.tree_id().clone());
-        let to_tree = to_commit.tree()?;
-        for (repo_path, diff) in from_tree.diff(&to_tree, matcher.as_ref()) {
-            let (before, _after) = diff?;
-            tree_builder.set_or_remove(repo_path, before);
-        }
-        tree_builder.write_tree(workspace_command.repo().store())?
-    };
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let to_tree = to_commit.tree()?;
+    let new_tree_id = restore_tree(&from_tree, &to_tree, matcher.as_ref())?;
     if &new_tree_id == to_commit.tree_id() {
         writeln!(ui.stderr(), "Nothing changed.")?;
     } else {

@@ -13,15 +13,58 @@
 // limitations under the License.
 
 use itertools::Itertools as _;
+use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
 use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::rewrite::DescendantRebaser;
+use jj_lib::rewrite::{restore_tree, DescendantRebaser};
 use maplit::{hashmap, hashset};
 use testutils::{
     assert_rebased, create_random_commit, create_tree, write_random_commit, CommitGraphBuilder,
     TestRepo,
 };
+
+#[test]
+fn test_restore_tree() {
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let path1 = RepoPath::from_internal_string("file1");
+    let path2 = RepoPath::from_internal_string("dir1/file2");
+    let path3 = RepoPath::from_internal_string("dir1/file3");
+    let path4 = RepoPath::from_internal_string("dir2/file4");
+    let left = create_tree(
+        repo,
+        &[(&path2, "left"), (&path3, "left"), (&path4, "left")],
+    );
+    let right = create_tree(
+        repo,
+        &[(&path1, "right"), (&path2, "right"), (&path3, "right")],
+    );
+
+    // Restore everything using EverythingMatcher
+    let restored = restore_tree(&left, &right, &EverythingMatcher).unwrap();
+    assert_eq!(restored, left.id());
+
+    // Restore everything using FilesMatcher
+    let restored = restore_tree(
+        &left,
+        &right,
+        &FilesMatcher::new(&[path1.clone(), path2.clone(), path3.clone(), path4.clone()]),
+    )
+    .unwrap();
+    assert_eq!(restored, left.id());
+
+    // Restore some files
+    let restored = restore_tree(
+        &left,
+        &right,
+        &FilesMatcher::new(&[path1.clone(), path2.clone()]),
+    )
+    .unwrap();
+    let expected = create_tree(repo, &[(&path2, "left"), (&path3, "right")]);
+    assert_eq!(restored, expected.id());
+}
 
 #[test]
 fn test_rebase_descendants_sideways() {
