@@ -946,6 +946,7 @@ mod tests {
             let mut output = Vec::new();
             let mut formatter = ColorFormatter::new(&mut output, self.color_rules.clone().into());
             template.format(&(), &mut formatter).unwrap();
+            drop(formatter);
             String::from_utf8(output).unwrap()
         }
     }
