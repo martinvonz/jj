@@ -6,6 +6,7 @@ use std::process::{Command, ExitStatus, Stdio};
 use std::sync::Arc;
 
 use config::ConfigError;
+use futures::StreamExt;
 use itertools::Itertools;
 use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
 use jj_lib::conflicts::{self, materialize_merge_result};
@@ -238,10 +239,11 @@ fn check_out_trees(
     matcher: &dyn Matcher,
     output_is: Option<DiffSide>,
 ) -> Result<DiffWorkingCopies, DiffCheckoutError> {
-    let changed_files = left_tree
-        .diff(right_tree, matcher)
+    let changed_files: Vec<_> = left_tree
+        .diff_stream(right_tree, matcher)
         .map(|(path, _diff)| path)
-        .collect_vec();
+        .collect()
+        .block_on();
 
     let temp_dir = new_utf8_temp_dir("jj-diff-").map_err(DiffCheckoutError::SetUpDir)?;
     let left_wc_dir = temp_dir.path().join("left");

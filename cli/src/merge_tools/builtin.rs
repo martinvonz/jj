@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::sync::Arc;
 
+use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, FileId, MergedTreeId, ObjectId, TreeValue};
 use jj_lib::diff::{find_line_ranges, Diff, DiffHunk};
@@ -11,6 +12,7 @@ use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::store::Store;
+use pollster::FutureExt;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -409,9 +411,10 @@ pub fn edit_diff_builtin(
 ) -> Result<MergedTreeId, BuiltinToolError> {
     let store = left_tree.store().clone();
     let changed_files: Vec<_> = left_tree
-        .diff(right_tree, matcher)
+        .diff_stream(right_tree, matcher)
         .map(|(path, diff)| diff.map(|_| path))
-        .try_collect()?;
+        .try_collect()
+        .block_on()?;
     let files = make_diff_files(&store, left_tree, right_tree, &changed_files)?;
     let recorder = scm_record::Recorder::new(
         scm_record::RecordState {
