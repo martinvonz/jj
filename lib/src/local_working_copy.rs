@@ -30,6 +30,7 @@ use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
+use futures::StreamExt;
 use itertools::Itertools;
 use once_cell::unsync::OnceCell;
 use pollster::FutureExt;
@@ -1099,7 +1100,9 @@ impl TreeState {
             },
             other => CheckoutError::InternalBackendError(other),
         })?;
-        let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref())?;
+        let stats = self
+            .update(&old_tree, new_tree, self.sparse_matcher().as_ref())
+            .block_on()?;
         self.tree_id = new_tree.id();
         Ok(stats)
     }
@@ -1119,8 +1122,10 @@ impl TreeState {
         let added_matcher = DifferenceMatcher::new(&new_matcher, &old_matcher);
         let removed_matcher = DifferenceMatcher::new(&old_matcher, &new_matcher);
         let empty_tree = MergedTree::resolved(Tree::null(self.store.clone(), RepoPath::root()));
-        let added_stats = self.update(&empty_tree, &tree, &added_matcher)?;
-        let removed_stats = self.update(&tree, &empty_tree, &removed_matcher)?;
+        let added_stats = self.update(&empty_tree, &tree, &added_matcher).block_on()?;
+        let removed_stats = self
+            .update(&tree, &empty_tree, &removed_matcher)
+            .block_on()?;
         self.sparse_patterns = sparse_patterns;
         assert_eq!(added_stats.updated_files, 0);
         assert_eq!(added_stats.removed_files, 0);
@@ -1135,7 +1140,7 @@ impl TreeState {
         })
     }
 
-    fn update(
+    async fn update(
         &mut self,
         old_tree: &MergedTree,
         new_tree: &MergedTree,
@@ -1149,7 +1154,8 @@ impl TreeState {
             removed_files: 0,
             skipped_files: 0,
         };
-        for (path, diff) in old_tree.diff(new_tree, matcher) {
+        let mut diff_stream = old_tree.diff_stream(new_tree, matcher);
+        while let Some((path, diff)) = diff_stream.next().await {
             let (before, after) = diff?;
             if after.is_absent() {
                 stats.removed_files += 1;
@@ -1216,7 +1222,7 @@ impl TreeState {
         Ok(stats)
     }
 
-    pub fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
+    pub async fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
         let old_tree = self.current_tree().map_err(|err| match err {
             err @ BackendError::ObjectNotFound { .. } => ResetError::SourceNotFound {
                 source: Box::new(err),
@@ -1224,7 +1230,9 @@ impl TreeState {
             other => ResetError::InternalBackendError(other),
         })?;
 
-        for (path, diff) in old_tree.diff(new_tree, self.sparse_matcher().as_ref()) {
+        let matcher = self.sparse_matcher();
+        let mut diff_stream = old_tree.diff_stream(new_tree, matcher.as_ref());
+        while let Some((path, diff)) = diff_stream.next().await {
             let (_before, after) = diff?;
             if after.is_absent() {
                 self.file_states.remove(&path);
@@ -1547,7 +1555,8 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
                 message: "Failed to read the working copy state".to_string(),
                 err: err.into(),
             })?
-            .reset(new_tree)?;
+            .reset(new_tree)
+            .block_on()?;
         self.tree_state_dirty = true;
         Ok(())
     }
