@@ -73,6 +73,12 @@ impl ContentHash for String {
     }
 }
 
+impl ContentHash for compact_str::CompactString {
+    fn hash(&self, state: &mut impl digest::Update) {
+        self.as_bytes().hash(state);
+    }
+}
+
 impl<T: ContentHash> ContentHash for Option<T> {
     fn hash(&self, state: &mut impl digest::Update) {
         match self {

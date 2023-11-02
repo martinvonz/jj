@@ -26,6 +26,7 @@ byteorder = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true }
+compact_str = { workspace = true }
 digest = { workspace = true }
 futures = { workspace = true }
 either = { workspace = true }
