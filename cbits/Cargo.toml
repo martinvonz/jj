@@ -16,3 +16,7 @@ libc = { workspace = true }
 
 [build-dependencies]
 cc = { workspace = true }
+
+[features]
+default = []
+mimalloc = []
