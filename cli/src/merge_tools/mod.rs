@@ -66,16 +66,16 @@ pub enum ConflictResolveError {
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
     #[error("Couldn't find the path {0:?} in this revision")]
-    PathNotFound(RepoPath),
+    PathNotFound(Box<RepoPath>),
     #[error("Couldn't find any conflicts at {0:?} in this revision")]
-    NotAConflict(RepoPath),
+    NotAConflict(Box<RepoPath>),
     #[error(
         "Only conflicts that involve normal files (not symlinks, not executable, etc.) are \
          supported. Conflict summary for {0:?}:\n{1}"
     )]
-    NotNormalFiles(RepoPath, String),
+    NotNormalFiles(Box<RepoPath>, String),
     #[error("The conflict at {path:?} has {sides} sides. At most 2 sides are supported.")]
-    ConflictTooComplicated { path: RepoPath, sides: usize },
+    ConflictTooComplicated { path: Box<RepoPath>, sides: usize },
     #[error(
         "The output file is either unchanged or empty after the editor quit (run with --verbose \
          to see the exact invocation)."
@@ -93,8 +93,16 @@ pub fn run_mergetool(
 ) -> Result<MergedTreeId, ConflictResolveError> {
     let conflict = match tree.path_value(repo_path).into_resolved() {
         Err(conflict) => conflict,
-        Ok(Some(_)) => return Err(ConflictResolveError::NotAConflict(repo_path.clone())),
-        Ok(None) => return Err(ConflictResolveError::PathNotFound(repo_path.clone())),
+        Ok(Some(_)) => {
+            return Err(ConflictResolveError::NotAConflict(Box::new(
+                repo_path.clone(),
+            )))
+        }
+        Ok(None) => {
+            return Err(ConflictResolveError::PathNotFound(Box::new(
+                repo_path.clone(),
+            )))
+        }
     };
     let file_merge = conflict.to_file_merge().ok_or_else(|| {
         let mut summary_bytes: Vec<u8> = vec![];
@@ -102,14 +110,14 @@ pub fn run_mergetool(
             .describe(&mut summary_bytes)
             .expect("Writing to an in-memory buffer should never fail");
         ConflictResolveError::NotNormalFiles(
-            repo_path.clone(),
+            Box::new(repo_path.clone()),
             String::from_utf8_lossy(summary_bytes.as_slice()).to_string(),
         )
     })?;
     // We only support conflicts with 2 sides (3-way conflicts)
     if file_merge.num_sides() > 2 {
         return Err(ConflictResolveError::ConflictTooComplicated {
-            path: repo_path.clone(),
+            path: Box::new(repo_path.clone()),
             sides: file_merge.num_sides(),
         });
     };

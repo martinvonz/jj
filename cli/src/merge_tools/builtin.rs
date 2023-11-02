@@ -23,7 +23,7 @@ pub enum BuiltinToolError {
     ReadFileBackend(BackendError),
     #[error("Failed to read file {path:?} with ID {id:?}: {source}")]
     ReadFileIo {
-        path: RepoPath,
+        path: Box<RepoPath>,
         id: FileId,
         source: std::io::Error,
     },
@@ -119,7 +119,7 @@ fn read_file_contents(
             reader
                 .read_to_end(&mut buf)
                 .map_err(|err| BuiltinToolError::ReadFileIo {
-                    path: path.clone(),
+                    path: Box::new(path.clone()),
                     id: id.clone(),
                     source: err,
                 })?;

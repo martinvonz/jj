@@ -19,6 +19,7 @@ use std::path::{Component, Path, PathBuf};
 
 use compact_str::CompactString;
 use itertools::Itertools;
+use smallvec::{smallvec, SmallVec};
 use thiserror::Error;
 
 use crate::file_util;
@@ -55,9 +56,11 @@ impl From<String> for RepoPathComponent {
     }
 }
 
+pub type RepoPathComponents = SmallVec<[RepoPathComponent; 4]>;
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RepoPath {
-    components: Vec<RepoPathComponent>,
+    components: RepoPathComponents,
 }
 
 impl Debug for RepoPath {
@@ -68,7 +71,9 @@ impl Debug for RepoPath {
 
 impl RepoPath {
     pub fn root() -> Self {
-        RepoPath { components: vec![] }
+        RepoPath {
+            components: smallvec![],
+        }
     }
 
     pub fn from_internal_string(value: &str) -> Self {
@@ -86,7 +91,7 @@ impl RepoPath {
         }
     }
 
-    pub fn from_components(components: Vec<RepoPathComponent>) -> Self {
+    pub fn from_components(components: RepoPathComponents) -> Self {
         RepoPath { components }
     }
 
@@ -161,7 +166,7 @@ impl RepoPath {
             None
         } else {
             Some(RepoPath {
-                components: self.components[0..self.components.len() - 1].to_vec(),
+                components: SmallVec::from(&self.components[0..self.components.len() - 1]),
             })
         }
     }
@@ -174,7 +179,7 @@ impl RepoPath {
         }
     }
 
-    pub fn components(&self) -> &Vec<RepoPathComponent> {
+    pub fn components(&self) -> &RepoPathComponents {
         &self.components
     }
 }
@@ -284,17 +289,20 @@ mod tests {
 
     #[test]
     fn test_components() {
-        assert_eq!(RepoPath::root().components(), &vec![]);
+        assert_eq!(
+            RepoPath::root().components(),
+            &smallvec![] as &RepoPathComponents
+        );
         assert_eq!(
             RepoPath::from_internal_string("dir").components(),
-            &vec![RepoPathComponent::from("dir")]
+            &smallvec![RepoPathComponent::from("dir")] as &RepoPathComponents
         );
         assert_eq!(
             RepoPath::from_internal_string("dir/subdir").components(),
-            &vec![
+            &smallvec![
                 RepoPathComponent::from("dir"),
                 RepoPathComponent::from("subdir")
-            ]
+            ] as &RepoPathComponents
         );
     }
 
