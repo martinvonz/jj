@@ -99,6 +99,12 @@
       formatter = pkgs.nixpkgs-fmt;
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
+          # The CI checks against the latest nightly rustfmt, so we should too.
+          # NOTE (aseipp): include this FIRST before the rust-version override
+          # below; otherwise, it will be overridden by the rust-version and
+          # we'll get stable rustfmt instead.
+          (rust-bin.selectLatestNightlyWith (toolchain: toolchain.rustfmt))
+
           # Using the minimal profile with explicit "clippy" extension to avoid
           # two versions of rustfmt
           (rust-version.override {
@@ -107,9 +113,6 @@
               "clippy"
             ];
           })
-
-          # The CI checks against the latest nightly rustfmt, so we should too.
-          (rust-bin.selectLatestNightlyWith (toolchain: toolchain.rustfmt))
 
           # Foreign dependencies
           openssl zstd libgit2 libssh2
