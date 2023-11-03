@@ -73,7 +73,7 @@ use crate::cli_util::{
     run_ui_editor, user_error, Args, CommandError, CommandHelper, WorkspaceCommandHelper,
 };
 use crate::diff_util::{self, DiffFormat};
-use crate::formatter::{Formatter, PlainTextFormatter};
+use crate::formatter::PlainTextFormatter;
 use crate::text_util;
 use crate::ui::Ui;
 
@@ -145,31 +145,6 @@ enum Commands {
     Version(version::VersionArgs),
     #[command(subcommand)]
     Workspace(workspace::WorkspaceCommands),
-}
-
-fn show_predecessor_patch(
-    ui: &Ui,
-    formatter: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
-    commit: &Commit,
-    diff_formats: &[DiffFormat],
-) -> Result<(), CommandError> {
-    let predecessors = commit.predecessors();
-    let predecessor = match predecessors.first() {
-        Some(predecessor) => predecessor,
-        None => return Ok(()),
-    };
-    let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
-    let tree = commit.tree()?;
-    diff_util::show_diff(
-        ui,
-        formatter,
-        workspace_command,
-        &predecessor_tree,
-        &tree,
-        &EverythingMatcher,
-        diff_formats,
-    )
 }
 
 fn rebase_to_dest_parent(

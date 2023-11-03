@@ -14,11 +14,15 @@
 
 use jj_lib::commit::Commit;
 use jj_lib::dag_walk::topo_order_reverse;
+use jj_lib::matchers::EverythingMatcher;
 use tracing::instrument;
 
-use super::show_predecessor_patch;
-use crate::cli_util::{CommandError, CommandHelper, LogContentFormat, RevisionArg};
-use crate::diff_util::{self, DiffFormatArgs};
+use super::rebase_to_dest_parent;
+use crate::cli_util::{
+    CommandError, CommandHelper, LogContentFormat, RevisionArg, WorkspaceCommandHelper,
+};
+use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
+use crate::formatter::Formatter;
 use crate::graphlog::{get_graphlog, Edge};
 use crate::ui::Ui;
 
@@ -135,4 +139,29 @@ pub(crate) fn cmd_obslog(
     }
 
     Ok(())
+}
+
+fn show_predecessor_patch(
+    ui: &Ui,
+    formatter: &mut dyn Formatter,
+    workspace_command: &WorkspaceCommandHelper,
+    commit: &Commit,
+    diff_formats: &[DiffFormat],
+) -> Result<(), CommandError> {
+    let predecessors = commit.predecessors();
+    let predecessor = match predecessors.first() {
+        Some(predecessor) => predecessor,
+        None => return Ok(()),
+    };
+    let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
+    let tree = commit.tree()?;
+    diff_util::show_diff(
+        ui,
+        formatter,
+        workspace_command,
+        &predecessor_tree,
+        &tree,
+        &EverythingMatcher,
+        diff_formats,
+    )
 }
