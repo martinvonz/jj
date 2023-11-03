@@ -154,16 +154,14 @@ impl<T> Merge<T> {
         removes: impl IntoIterator<Item = T>,
         adds: impl IntoIterator<Item = T>,
     ) -> Merge<Option<T>> {
-        // TODO: no need to build intermediate removes/adds vecs
-        let mut removes = removes.into_iter().map(Some).collect_vec();
-        let mut adds = adds.into_iter().map(Some).collect_vec();
-        while removes.len() + 1 < adds.len() {
-            removes.push(None);
+        let removes = removes.into_iter();
+        let mut adds = adds.into_iter().fuse();
+        let mut values = smallvec_inline![adds.next()];
+        for diff in removes.zip_longest(adds) {
+            let (remove, add) = diff.map_any(Some, Some).or_default();
+            values.extend([remove, add]);
         }
-        while adds.len() < removes.len() + 1 {
-            adds.push(None);
-        }
-        Merge::new(removes, adds)
+        Merge { values }
     }
 
     /// The removed values, also called negative terms.
