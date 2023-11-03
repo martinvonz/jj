@@ -43,17 +43,28 @@ where
         removes.len() + 1,
         "trivial_merge() requires exactly one more adds than removes"
     );
+    trivial_merge_inner(
+        itertools::interleave(adds, removes),
+        adds.len() + removes.len(),
+    )
+}
 
+fn trivial_merge_inner<T>(mut values: impl Iterator<Item = T>, values_len: usize) -> Option<T>
+where
+    T: Eq + Hash,
+{
     // Optimize the common cases of 3-way merge and 1-way (non-)merge
-    if adds.len() == 1 {
-        return Some(&adds[0]);
-    } else if adds.len() == 2 {
-        return if adds[0] == adds[1] {
-            Some(&adds[0])
-        } else if adds[0] == removes[0] {
-            Some(&adds[1])
-        } else if adds[1] == removes[0] {
-            Some(&adds[0])
+    if values_len == 1 {
+        let add = values.next().unwrap();
+        return Some(add);
+    } else if values_len == 3 {
+        let (add0, remove, add1) = values.next_tuple().unwrap();
+        return if add0 == add1 {
+            Some(add0)
+        } else if add0 == remove {
+            Some(add1)
+        } else if add1 == remove {
+            Some(add0)
         } else {
             None
         };
@@ -62,12 +73,9 @@ where
     // Number of occurrences of each value, with positive indexes counted as +1 and
     // negative as -1, thereby letting positive and negative terms with the same
     // value (i.e. key in the map) cancel each other.
-    let mut counts: HashMap<&T, i32> = HashMap::new();
-    for value in adds.iter() {
-        counts.entry(value).and_modify(|e| *e += 1).or_insert(1);
-    }
-    for value in removes.iter() {
-        counts.entry(value).and_modify(|e| *e -= 1).or_insert(-1);
+    let mut counts: HashMap<T, i32> = HashMap::new();
+    for (value, n) in zip(values, [1, -1].into_iter().cycle()) {
+        counts.entry(value).and_modify(|e| *e += n).or_insert(n);
     }
 
     // Collect non-zero value. Values with a count of 0 means that they have
