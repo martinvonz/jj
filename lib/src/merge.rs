@@ -125,11 +125,7 @@ impl<T: Debug> Debug for Merge<T> {
         if let Some(value) = self.as_resolved() {
             f.debug_tuple("Resolved").field(value).finish()
         } else {
-            // TODO: just print values?
-            f.debug_struct("Conflicted")
-                .field("removes", &self.removes().collect_vec())
-                .field("adds", &self.adds().collect_vec())
-                .finish()
+            f.debug_tuple("Conflicted").field(&self.values).finish()
         }
     }
 }
