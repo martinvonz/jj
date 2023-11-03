@@ -304,27 +304,23 @@ line 5 right
         @r###"
     Some(
         [
-            Conflicted {
-                removes: [
-                    "line 1\nline 2\n",
-                ],
-                adds: [
+            Conflicted(
+                [
                     "line 1 left\nline 2 left\n",
+                    "line 1\nline 2\n",
                     "line 1 right\nline 2\n",
                 ],
-            },
+            ),
             Resolved(
                 "line 3\n",
             ),
-            Conflicted {
-                removes: [
-                    "line 4\nline 5\n",
-                ],
-                adds: [
+            Conflicted(
+                [
                     "line 4\nline 5 left\n",
+                    "line 4\nline 5\n",
                     "line 4 right\nline 5 right\n",
                 ],
-            },
+            ),
         ],
     )
     "###);
@@ -464,15 +460,13 @@ line 5
             Resolved(
                 "line 1\n",
             ),
-            Conflicted {
-                removes: [
-                    "line 2\nline 3\nline 4\n",
-                ],
-                adds: [
+            Conflicted(
+                [
                     "line 2\nleft\nline 4\n",
+                    "line 2\nline 3\nline 4\n",
                     "right\n",
                 ],
-            },
+            ),
             Resolved(
                 "line 5\n",
             ),
@@ -511,17 +505,15 @@ line 5
             Resolved(
                 "line 1\n",
             ),
-            Conflicted {
-                removes: [
-                    "line 2\nline 3\nline 4\n",
-                    "line 2\nline 3\nline 4\n",
-                ],
-                adds: [
+            Conflicted(
+                [
                     "line 2\nleft\nline 4\n",
+                    "line 2\nline 3\nline 4\n",
                     "right\n",
+                    "line 2\nline 3\nline 4\n",
                     "line 2\nforward\nline 3\nline 4\n",
                 ],
-            },
+            ),
             Resolved(
                 "line 5\n",
             ),
