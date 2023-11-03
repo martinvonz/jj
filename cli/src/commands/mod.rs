@@ -63,9 +63,7 @@ use clap::{Command, CommandFactory, FromArgMatches, Subcommand};
 use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::matchers::EverythingMatcher;
-use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::ReadonlyRepo;
-use jj_lib::rewrite::merge_commit_trees;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
@@ -145,24 +143,6 @@ enum Commands {
     Version(version::VersionArgs),
     #[command(subcommand)]
     Workspace(workspace::WorkspaceCommands),
-}
-
-fn rebase_to_dest_parent(
-    workspace_command: &WorkspaceCommandHelper,
-    source: &Commit,
-    destination: &Commit,
-) -> Result<MergedTree, CommandError> {
-    if source.parent_ids() == destination.parent_ids() {
-        Ok(source.tree()?)
-    } else {
-        let destination_parent_tree =
-            merge_commit_trees(workspace_command.repo().as_ref(), &destination.parents())?;
-        let source_parent_tree =
-            merge_commit_trees(workspace_command.repo().as_ref(), &source.parents())?;
-        let source_tree = source.tree()?;
-        let rebased_tree = destination_parent_tree.merge(&source_parent_tree, &source_tree)?;
-        Ok(rebased_tree)
-    }
 }
 
 fn edit_description(

@@ -127,6 +127,22 @@ pub fn rebase_commit(
         .write()?)
 }
 
+pub fn rebase_to_dest_parent(
+    repo: &dyn Repo,
+    source: &Commit,
+    destination: &Commit,
+) -> Result<MergedTree, TreeMergeError> {
+    if source.parent_ids() == destination.parent_ids() {
+        Ok(source.tree()?)
+    } else {
+        let destination_parent_tree = merge_commit_trees(repo, &destination.parents())?;
+        let source_parent_tree = merge_commit_trees(repo, &source.parents())?;
+        let source_tree = source.tree()?;
+        let rebased_tree = destination_parent_tree.merge(&source_parent_tree, &source_tree)?;
+        Ok(rebased_tree)
+    }
+}
+
 pub fn back_out_commit(
     settings: &UserSettings,
     mut_repo: &mut MutableRepo,

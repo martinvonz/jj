@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use clap::ArgGroup;
+use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
 
-use super::rebase_to_dest_parent;
 use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
 use crate::diff_util::{self, DiffFormatArgs};
 use crate::ui::Ui;
@@ -51,7 +51,7 @@ pub(crate) fn cmd_interdiff(
     let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
     let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
 
-    let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
+    let from_tree = rebase_to_dest_parent(workspace_command.repo().as_ref(), &from, &to)?;
     let to_tree = to.tree()?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
