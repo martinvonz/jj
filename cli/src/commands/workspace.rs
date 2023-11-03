@@ -27,7 +27,7 @@ use jj_lib::workspace::{default_working_copy_initializer, Workspace};
 use tracing::instrument;
 
 use crate::cli_util::{
-    check_stale_working_copy, print_checkout_stats, user_error, CommandError, CommandHelper,
+    self, check_stale_working_copy, print_checkout_stats, user_error, CommandError, CommandHelper,
     RevisionArg, WorkspaceCommandHelper,
 };
 use crate::ui::Ui;
@@ -192,13 +192,9 @@ fn cmd_workspace_add(
             vec![tx.repo().store().root_commit()]
         }
     } else {
-        crate::commands::rebase::resolve_destination_revs(
-            &old_workspace_command,
-            ui,
-            &args.revision,
-        )?
-        .into_iter()
-        .collect_vec()
+        cli_util::resolve_all_revs(&old_workspace_command, ui, &args.revision)?
+            .into_iter()
+            .collect_vec()
     };
 
     let tree = merge_commit_trees(tx.repo(), &parents)?;

@@ -27,8 +27,8 @@ use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
 use crate::cli_util::{
-    resolve_multiple_nonempty_revsets_default_single, short_commit_hash, user_error, CommandError,
-    CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    self, resolve_multiple_nonempty_revsets_default_single, short_commit_hash, user_error,
+    CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::ui::Ui;
 
@@ -161,7 +161,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         ));
     }
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_parents = resolve_destination_revs(&workspace_command, ui, &args.destination)?
+    let new_parents = cli_util::resolve_all_revs(&workspace_command, ui, &args.destination)?
         .into_iter()
         .collect_vec();
     if let Some(rev_str) = &args.revision {
@@ -389,21 +389,4 @@ fn check_rebase_destinations(
         }
     }
     Ok(())
-}
-
-/// Resolves revsets into revisions to rebase onto. These revisions don't have
-/// to be rewriteable.
-pub(crate) fn resolve_destination_revs(
-    workspace_command: &WorkspaceCommandHelper,
-    ui: &mut Ui,
-    revisions: &[RevisionArg],
-) -> Result<IndexSet<Commit>, CommandError> {
-    let commits =
-        resolve_multiple_nonempty_revsets_default_single(workspace_command, ui, revisions)?;
-    let root_commit_id = workspace_command.repo().store().root_commit_id();
-    if commits.len() >= 2 && commits.iter().any(|c| c.id() == root_commit_id) {
-        Err(user_error("Cannot merge with root revision"))
-    } else {
-        Ok(commits)
-    }
 }
