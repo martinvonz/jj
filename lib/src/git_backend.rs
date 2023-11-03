@@ -136,6 +136,29 @@ impl GitBackend {
         Self::init_with_repo(store_path, git_repo_path, git_repo)
     }
 
+    /// Initializes backend by creating a new Git repo at the specified
+    /// workspace path. The workspace directory must exist.
+    pub fn init_colocated(
+        store_path: &Path,
+        workspace_root: &Path,
+    ) -> Result<Self, Box<GitBackendInitError>> {
+        let canonical_workspace_root = {
+            let path = store_path.join(workspace_root);
+            path.canonicalize()
+                .context(&path)
+                .map_err(GitBackendInitError::Path)?
+        };
+        let git_repo = gix::ThreadSafeRepository::init(
+            canonical_workspace_root,
+            gix::create::Kind::WithWorktree,
+            gix::create::Options::default(),
+        )
+        .map_err(GitBackendInitError::InitRepository)?;
+        let git_repo_path = workspace_root.join(".git");
+        Self::init_with_repo(store_path, &git_repo_path, git_repo)
+    }
+
+    /// Initializes backend with an existing Git repo at the specified path.
     pub fn init_external(
         store_path: &Path,
         git_repo_path: &Path,

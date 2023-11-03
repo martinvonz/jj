@@ -160,6 +160,32 @@ impl Workspace {
         Self::init_with_backend(user_settings, workspace_root, backend_initializer)
     }
 
+    /// Initializes a workspace with a new Git backend and Git repo that shares
+    /// the same working copy.
+    pub fn init_colocated_git(
+        user_settings: &UserSettings,
+        workspace_root: &Path,
+    ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
+        let backend_initializer = {
+            let workspace_root = workspace_root.to_owned();
+            move |store_path: &Path| -> Result<Box<dyn Backend>, BackendInitError> {
+                // TODO: Clean up path normalization. store_path is canonicalized by
+                // ReadonlyRepo::init(). workspace_root will be canonicalized by
+                // Workspace::new(), but it's not yet here.
+                let store_relative_workspace_root =
+                    if let Ok(workspace_root) = workspace_root.canonicalize() {
+                        file_util::relative_path(store_path, &workspace_root)
+                    } else {
+                        workspace_root.to_owned()
+                    };
+                let backend =
+                    GitBackend::init_colocated(store_path, &store_relative_workspace_root)?;
+                Ok(Box::new(backend))
+            }
+        };
+        Self::init_with_backend(user_settings, workspace_root, &backend_initializer)
+    }
+
     /// Initializes a workspace with an existing Git repo at the specified path.
     pub fn init_external_git(
         user_settings: &UserSettings,

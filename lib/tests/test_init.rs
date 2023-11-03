@@ -76,6 +76,31 @@ fn test_init_internal_git() {
 }
 
 #[test]
+fn test_init_colocated_git() {
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let (canonical, uncanonical) = canonicalize(temp_dir.path());
+    let (workspace, repo) = Workspace::init_colocated_git(&settings, &uncanonical).unwrap();
+    let git_backend = repo
+        .store()
+        .backend_impl()
+        .downcast_ref::<GitBackend>()
+        .unwrap();
+    assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
+    assert_eq!(workspace.workspace_root(), &canonical);
+    assert_eq!(git_backend.git_repo_path(), canonical.join(".git"));
+    assert_eq!(git_backend.git_workdir(), Some(canonical.as_ref()));
+    assert_eq!(
+        std::fs::read_to_string(repo.repo_path().join("store").join("git_target")).unwrap(),
+        "../../../.git"
+    );
+
+    // Just test that we can write a commit to the store
+    let mut tx = repo.start_transaction(&settings, "test");
+    write_random_commit(tx.mut_repo(), &settings);
+}
+
+#[test]
 fn test_init_external_git() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
