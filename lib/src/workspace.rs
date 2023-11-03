@@ -149,8 +149,8 @@ impl Workspace {
         Self::init_with_backend(user_settings, workspace_root, backend_initializer)
     }
 
-    /// Initializes a workspace with a new Git backend in .jj/git/ (bare Git
-    /// repo)
+    /// Initializes a workspace with a new Git backend and bare Git repo in
+    /// `.jj/repo/store/git`.
     pub fn init_internal_git(
         user_settings: &UserSettings,
         workspace_root: &Path,
@@ -160,8 +160,7 @@ impl Workspace {
         Self::init_with_backend(user_settings, workspace_root, backend_initializer)
     }
 
-    /// Initializes a workspace with an existing Git backend at the specified
-    /// path
+    /// Initializes a workspace with an existing Git repo at the specified path.
     pub fn init_external_git(
         user_settings: &UserSettings,
         workspace_root: &Path,
