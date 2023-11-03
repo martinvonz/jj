@@ -164,6 +164,76 @@ fn test_workspaces_add_workspace_at_revision() {
     "###);
 }
 
+/// Test using multiple `workspace add -r` commands to create a workspace at
+/// a merge commit.
+#[test]
+fn test_workspaces_add_workspace_multiple_revisions() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
+    let main_path = test_env.env_root().join("main");
+
+    std::fs::write(main_path.join("file-1"), "contents").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&main_path, &["new", "-r", "root()"]);
+
+    std::fs::write(main_path.join("file-2"), "contents").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&main_path, &["new", "-r", "root()"]);
+
+    std::fs::write(main_path.join("file-3"), "contents").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&main_path, &["new", "-r", "root()"]);
+
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    @  5b36783cd11c4607a329c5e8c2fd9097c9ce2add
+    │ ◉  23881f07b53ce1ea936ca8842e344dea9c3356e5
+    ├─╯
+    │ ◉  1f6a15f0af2a985703864347f5fdf27a82fc3d73
+    ├─╯
+    │ ◉  e7d7dbb91c5a543ea680711093e689916d5f31df
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+
+    let (_, stderr) = test_env.jj_cmd_ok(
+        &main_path,
+        &[
+            "workspace",
+            "add",
+            "--name",
+            "merge",
+            "../merged",
+            "-r",
+            "238",
+            "-r",
+            "1f6",
+            "-r",
+            "e7d",
+        ],
+    );
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Created workspace in "../merged"
+    Working copy now at: wmwvqwsz fa8fdc28 (empty) (no description set)
+    Parent commit      : mzvwutvl 23881f07 third
+    Parent commit      : kkmpptxz 1f6a15f0 second
+    Parent commit      : qpvuntsm e7d7dbb9 first
+    Added 3 files, modified 0 files, removed 0 files
+    "###);
+
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    ◉      fa8fdc28af12d3c96b1e0ed062f5a8f9a99818f0 merge@
+    ├─┬─╮
+    │ │ ◉  e7d7dbb91c5a543ea680711093e689916d5f31df
+    │ ◉ │  1f6a15f0af2a985703864347f5fdf27a82fc3d73
+    │ ├─╯
+    ◉ │  23881f07b53ce1ea936ca8842e344dea9c3356e5
+    ├─╯
+    │ @  5b36783cd11c4607a329c5e8c2fd9097c9ce2add default@
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+}
+
 /// Test making changes to the working copy in a workspace as it gets rewritten
 /// from another workspace
 #[test]

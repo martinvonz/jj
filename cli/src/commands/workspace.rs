@@ -61,10 +61,15 @@ pub(crate) struct WorkspaceAddArgs {
     /// directory.
     #[arg(long)]
     name: Option<String>,
-    /// The revision that the workspace should be created at; a new working copy
-    /// commit will be created on top of it.
+    /// A list of parents that that the workspace should be created from; a new
+    /// working copy commit will be created on top of them. If a single commit
+    /// is provided, the working copy is put on top. If multiple commits are
+    /// provided, they will be merged together and a working copy commit will be
+    /// created on top of the merge commit. If no parents are provided, the new
+    /// working copy commit will be created on top of the current workspace's
+    /// working copy commit.
     #[arg(long, short)]
-    revision: Option<RevisionArg>,
+    revision: Vec<RevisionArg>,
 }
 
 /// Stop tracking a workspace's working-copy commit in the repo
@@ -167,9 +172,9 @@ fn cmd_workspace_add(
         &name
     ));
 
-    let parents = if let Some(specific_rev) = &args.revision {
-        vec![old_workspace_command.resolve_single_rev(specific_rev, ui)?]
-    } else {
+    // check if args.revision is empty, and if so, create a working copy based
+    // on the existing one
+    let parents = if args.revision.is_empty() {
         // Check out parents of the current workspace's working-copy commit, or the
         // root if there is no working-copy commit in the current workspace.
         if let Some(old_wc_commit_id) = tx
@@ -181,6 +186,11 @@ fn cmd_workspace_add(
         } else {
             vec![tx.repo().store().root_commit()]
         }
+    } else {
+        args.revision
+            .iter()
+            .map(|rev| old_workspace_command.resolve_single_rev(rev, ui))
+            .collect::<Result<Vec<_>, _>>()?
     };
 
     let tree = merge_commit_trees(tx.repo(), &parents)?;
