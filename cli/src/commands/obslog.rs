@@ -15,9 +15,9 @@
 use jj_lib::commit::Commit;
 use jj_lib::dag_walk::topo_order_reverse;
 use jj_lib::matchers::EverythingMatcher;
+use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
 
-use super::rebase_to_dest_parent;
 use crate::cli_util::{
     CommandError, CommandHelper, LogContentFormat, RevisionArg, WorkspaceCommandHelper,
 };
@@ -153,7 +153,8 @@ fn show_predecessor_patch(
         Some(predecessor) => predecessor,
         None => return Ok(()),
     };
-    let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
+    let predecessor_tree =
+        rebase_to_dest_parent(workspace_command.repo().as_ref(), predecessor, commit)?;
     let tree = commit.tree()?;
     diff_util::show_diff(
         ui,
