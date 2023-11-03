@@ -52,6 +52,7 @@ mod status;
 mod unsquash;
 mod untrack;
 mod util;
+mod version;
 
 use std::fmt::Debug;
 use std::io::Write;
@@ -145,14 +146,10 @@ enum Commands {
     Undo(operation::OperationUndoArgs),
     Unsquash(unsquash::UnsquashArgs),
     Untrack(untrack::UntrackArgs),
-    Version(VersionArgs),
+    Version(version::VersionArgs),
     #[command(subcommand)]
     Workspace(WorkspaceCommands),
 }
-
-/// Display version information
-#[derive(clap::Args, Clone, Debug)]
-struct VersionArgs {}
 
 /// Commands for working with workspaces
 ///
@@ -214,16 +211,6 @@ struct WorkspaceRootArgs {}
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 struct WorkspaceUpdateStaleArgs {}
-
-#[instrument(skip_all)]
-fn cmd_version(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    _args: &VersionArgs,
-) -> Result<(), CommandError> {
-    write!(ui.stdout(), "{}", command.app().render_version())?;
-    Ok(())
-}
 
 fn show_predecessor_patch(
     ui: &Ui,
@@ -629,7 +616,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
     let derived_subcommands: Commands =
         Commands::from_arg_matches(command_helper.matches()).unwrap();
     match &derived_subcommands {
-        Commands::Version(sub_args) => cmd_version(ui, command_helper, sub_args),
+        Commands::Version(sub_args) => version::cmd_version(ui, command_helper, sub_args),
         Commands::Init(sub_args) => init::cmd_init(ui, command_helper, sub_args),
         Commands::Config(sub_args) => config::cmd_config(ui, command_helper, sub_args),
         Commands::Checkout(sub_args) => checkout::cmd_checkout(ui, command_helper, sub_args),
