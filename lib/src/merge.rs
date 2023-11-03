@@ -21,10 +21,11 @@ use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 use std::io::Write;
 use std::iter::zip;
+use std::slice;
 use std::sync::Arc;
-use std::{slice, vec};
 
 use itertools::Itertools;
+use smallvec::{smallvec_inline, SmallVec};
 
 use crate::backend;
 use crate::backend::{BackendError, FileId, ObjectId, TreeId, TreeValue};
@@ -115,7 +116,7 @@ where
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub struct Merge<T> {
     /// Alternates between positive and negative terms, starting with positive.
-    values: Vec<T>,
+    values: SmallVec<[T; 1]>,
 }
 
 impl<T: Debug> Debug for Merge<T> {
@@ -143,7 +144,7 @@ impl<T> Merge<T> {
     /// Creates a `Merge` with a single resolved value.
     pub fn resolved(value: T) -> Self {
         Merge {
-            values: vec![value],
+            values: smallvec_inline![value],
         }
     }
 
@@ -321,7 +322,7 @@ impl<T> Merge<T> {
 /// the checking until after `from_iter()` (to `MergeBuilder::build()`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MergeBuilder<T> {
-    values: Vec<T>,
+    values: SmallVec<[T; 1]>,
 }
 
 impl<T> Default for MergeBuilder<T> {
@@ -345,7 +346,7 @@ impl<T> MergeBuilder<T> {
 
 impl<T> IntoIterator for Merge<T> {
     type Item = T;
-    type IntoIter = vec::IntoIter<T>;
+    type IntoIter = smallvec::IntoIter<[T; 1]>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.values.into_iter()
