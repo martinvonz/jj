@@ -519,8 +519,7 @@ fn do_git_clone(
     wc_path: &Path,
 ) -> Result<(WorkspaceCommandHelper, GitFetchStats), CommandError> {
     let (workspace, repo) = if colocate {
-        let git_repo = git2::Repository::init(wc_path)?;
-        Workspace::init_external_git(command.settings(), wc_path, git_repo.path())?
+        Workspace::init_colocated_git(command.settings(), wc_path)?
     } else {
         Workspace::init_internal_git(command.settings(), wc_path)?
     };
