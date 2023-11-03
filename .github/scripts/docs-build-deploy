@@ -12,4 +12,6 @@ export "SITE_URL_FOR_MKDOCS=$1"; shift
 # https://github.com/python-poetry/poetry/issues/1917
 export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring
 poetry install  # Only really needed once per environment unless there are updates
-poetry run -- mike deploy "$@"
+# TODO(ilyagr): The new default "alias-type" is symlink, we should consider
+# switching to it.
+poetry run -- mike deploy --alias-type redirect "$@"

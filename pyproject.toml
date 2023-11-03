@@ -20,7 +20,7 @@ mdx-breakless-lists = "^1.0.1"
 # Allows setting up redirects when renaming docs files
 mkdocs-redirects = "^1.2.1"
 # Versioning of documentation
-mike = "^1.1.2"
+mike = "^2.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
