@@ -1907,6 +1907,23 @@ fn resolve_single_op(
     Ok(operation)
 }
 
+/// Resolves revsets into revisions for use; useful for rebases or operations
+/// that take multiple parents.
+pub fn resolve_all_revs(
+    workspace_command: &WorkspaceCommandHelper,
+    ui: &mut Ui,
+    revisions: &[RevisionArg],
+) -> Result<IndexSet<Commit>, CommandError> {
+    let commits =
+        resolve_multiple_nonempty_revsets_default_single(workspace_command, ui, revisions)?;
+    let root_commit_id = workspace_command.repo().store().root_commit_id();
+    if commits.len() >= 2 && commits.iter().any(|c| c.id() == root_commit_id) {
+        Err(user_error("Cannot merge with root revision"))
+    } else {
+        Ok(commits)
+    }
+}
+
 fn find_all_operations(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<dyn OpHeadsStore>,

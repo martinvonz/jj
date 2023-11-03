@@ -25,7 +25,6 @@ use tracing::instrument;
 use crate::cli_util::{
     self, short_commit_hash, user_error, CommandError, CommandHelper, RevisionArg,
 };
-use crate::commands::rebase::resolve_destination_revs;
 use crate::ui::Ui;
 
 /// Create a new, empty change and edit it in the working copy
@@ -76,7 +75,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         !args.revisions.is_empty(),
         "expected a non-empty list from clap"
     );
-    let target_commits = resolve_destination_revs(&workspace_command, ui, &args.revisions)?
+    let target_commits = cli_util::resolve_all_revs(&workspace_command, ui, &args.revisions)?
         .into_iter()
         .collect_vec();
     let target_ids = target_commits.iter().map(|c| c.id().clone()).collect_vec();
