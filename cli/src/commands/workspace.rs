@@ -61,10 +61,20 @@ pub(crate) struct WorkspaceAddArgs {
     /// directory.
     #[arg(long)]
     name: Option<String>,
-    /// The revision that the workspace should be created at; a new working copy
-    /// commit will be created on top of it.
+    /// A list of parent revisions for the working-copy commit of the newly
+    /// created workspace. You may specify nothing, or any number of parents.
+    ///
+    /// If no revisions are specified, the new workspace will be created, and
+    /// its working-copy commit will exist on top of the parent(s) of the
+    /// working-copy commit in the current workspace, i.e. they will share the
+    /// same parent(s).
+    ///
+    /// If any revisions are specified, the new workspace will be created, and
+    /// the new working-copy commit will be created with all these revisions as
+    /// parents, i.e. the working-copy commit will exist as if you had run `jj
+    /// new r1 r2 r3 ...`.
     #[arg(long, short)]
-    revision: Option<RevisionArg>,
+    revision: Vec<RevisionArg>,
 }
 
 /// Stop tracking a workspace's working-copy commit in the repo
@@ -167,9 +177,9 @@ fn cmd_workspace_add(
         &name
     ));
 
-    let parents = if let Some(specific_rev) = &args.revision {
-        vec![old_workspace_command.resolve_single_rev(specific_rev, ui)?]
-    } else {
+    // If no parent revisions are specified, create a working-copy commit based
+    // on the parent of the current working-copy commit.
+    let parents = if args.revision.is_empty() {
         // Check out parents of the current workspace's working-copy commit, or the
         // root if there is no working-copy commit in the current workspace.
         if let Some(old_wc_commit_id) = tx
@@ -181,6 +191,14 @@ fn cmd_workspace_add(
         } else {
             vec![tx.repo().store().root_commit()]
         }
+    } else {
+        crate::commands::rebase::resolve_destination_revs(
+            &old_workspace_command,
+            ui,
+            &args.revision,
+        )?
+        .into_iter()
+        .collect_vec()
     };
 
     let tree = merge_commit_trees(tx.repo(), &parents)?;

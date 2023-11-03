@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* `jj workspace add` can now take _multiple_ `--revision` arguments, which will
+  create a new workspace with its working-copy commit on top of all the parents,
+  as if you had run `jj new r1 r2 r3 ...`.
+
 ### Fixed bugs
 
 
