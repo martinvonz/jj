@@ -10,7 +10,7 @@ authors = []
 [tool.poetry.dependencies]
 python = "^3.8"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 # These can be updated with `poetry add`.
 mkdocs = "^1.5.2"
 mkdocs-material = "^9.4"
