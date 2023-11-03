@@ -625,7 +625,7 @@ mod tests {
         // Test exact output so we detect regressions in compatibility
         assert_snapshot!(
             ViewId::new(blake2b_hash(&create_view()).to_vec()).hex(),
-            @"7a7d8e33aff631bc3a8a281358e818f3c962d539ec2ced78a40b8221a42a707d51e546c5a6644c435b5764d8a51b29e63c3c107d5a8926d4be74288ea8ac879d"
+            @"d6d19f3edcb3b2fed6104801b7938e6be1147ab036e9fa81b7624fd5ff0149a6c221c3abb6fb7380c3f37e077a03b234313b44cbb6faca0b8c76f68f24ea7174"
         );
     }
 

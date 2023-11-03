@@ -446,15 +446,7 @@ impl<T> Merge<Merge<T>> {
 
 impl<T: ContentHash> ContentHash for Merge<T> {
     fn hash(&self, state: &mut impl digest::Update) {
-        // TODO: just hash values
-        state.update(&(self.removes().len() as u64).to_le_bytes());
-        for value in self.removes() {
-            value.hash(state);
-        }
-        state.update(&(self.adds().len() as u64).to_le_bytes());
-        for value in self.adds() {
-            value.hash(state);
-        }
+        self.values.hash(state)
     }
 }
 

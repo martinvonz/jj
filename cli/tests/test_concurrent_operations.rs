@@ -55,15 +55,15 @@ fn test_concurrent_operations_auto_rebase() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  8626e1f87784 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @  cfc96ff553b9 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 123ed18e4c4c0d77428df41112bc02ffc83fb935
     │  args: jj describe -m initial
-    ◉  80b17428029f test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    ◉  65a6c90b9544 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  snapshot working copy
     │  args: jj describe -m initial
-    ◉  d50e0e495b10 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  19b8089fc78b test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  23b83cc0392f test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
        initialize repo
     "###);
     let op_id_hex = stdout[3..15].to_string();
@@ -168,21 +168,21 @@ fn test_concurrent_snapshot_wc_reloadable() {
     let template = r#"id ++ "\n" ++ description ++ "\n" ++ tags"#;
     let op_log_stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
     insta::assert_snapshot!(op_log_stdout, @r###"
-    @  98aae8ac6dabe0f4e97b0708afd5848f22f0831d8f5be3169063120efe0769b27d123b038f505f2a78d1cd92a0b8345eee2bd201ba6d687fb8c9326dac1fcfaa
+    @  9be517934aaabc351597e88ed4119aa9454ae3588ab7f28646a810272c82f3dafb1deb20b3c978dbb58ba9abc8f08fe870fe3c7ce5f682411991e83eee40a77f
     │  commit 323b414dd255b51375d7f4392b7b2641ffe4289f
     │  args: jj commit -m 'new child1'
-    ◉  13ce1be149ff5fe4386896a753f9321e1826cb6603a6310e50eb778aacbaf7080ca50e7eb3c3ddcacb3e433c619e222fe0f7637dec14551350a03b8a6959f739
+    ◉  d967c09eb12b38dad2065a0bc9e251824247f9f84ba406a7356f5405e4c93c21562178a3f00cafedfa1df1435ba496265f39da9d1ccebaccb78bdcb4bd7031e1
     │  snapshot working copy
     │  args: jj commit -m 'new child1'
-    ◉  21126efd140dc442d7663ac963912f664dcde62b397e71bcc1628d914f454c3767a55ae16756a47793303b68099150d4a86344129e32e561f4853f283e745814
+    ◉  b6d168ba4fb4534257b6e58d53eb407582567342358eab07cf5a01a7e4d797313b692f27664c2fb7935b2380d398d0298233c9732f821b8c687e35607ea08a55
     │  commit 3d918700494a9895696e955b85fa05eb0d314cc6
     │  args: jj commit -m initial
-    ◉  f29c2903a0a18deefc8323c6e1ac8c1165c238f74ed508180a7ae77b46ba1c1be0ff13d7112d59368d56a3552564476b8595f7c2b3a6dc26aec1e926d0f280e6
+    ◉  5e9e3f82fc14750ff985c5a39f1935ed8876b973b8800b56bc03d1c9754795e724956d862d1fcb2c533d06ca36abc9fa9f7cb7d3b2b64e993e9a87f80d5af670
     │  snapshot working copy
     │  args: jj commit -m initial
-    ◉  d50e0e495b10b2575e2a9b914fed7045e427254baec051bc769d22f607f2f55f09788e6f6c9e12a4e56ec994ac7a63decb1fa7e353b2c8fd20ce77760777283d
+    ◉  19b8089fc78b7c49171f3c8934248be6f89f52311005e961cab5780f9f138b142456d77b27d223d7ee84d21d8c30c4a80100eaf6735b548b1acd0da688f94c80
     │  add workspace 'default'
-    ◉  23b83cc0392f51ef6b548af289e54efbe8661fe88ab5d8c036444d8c4ec798fb9d4d6063f02c4db768b17bde4608bcae2d75ba79da91ddd59dc57a23d45b5c57
+    ◉  f1c462c494be39f6690928603c5393f908866bc8d81d8cd1ae0bb2ea02cb4f78cafa47165fa5b7cda258e2178f846881de199066991960a80954ba6066ba0821
        initialize repo
     "###);
     let op_log_lines = op_log_stdout.lines().collect_vec();
