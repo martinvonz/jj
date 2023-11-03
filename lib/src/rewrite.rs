@@ -17,7 +17,9 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use futures::StreamExt;
 use itertools::Itertools;
+use pollster::FutureExt;
 use tracing::instrument;
 
 use crate::backend::{BackendError, BackendResult, CommitId, MergedTreeId, ObjectId};
@@ -83,10 +85,15 @@ pub fn restore_tree(
         // TODO: We should be able to not traverse deeper in the diff if the matcher
         // matches an entire subtree.
         let mut tree_builder = MergedTreeBuilder::new(destination.id().clone());
-        for (repo_path, diff) in source.diff(destination, matcher) {
-            let (source_value, _destination_value) = diff?;
-            tree_builder.set_or_remove(repo_path, source_value);
+        async {
+            let mut diff_stream = source.diff_stream(destination, matcher);
+            while let Some((repo_path, diff)) = diff_stream.next().await {
+                let (source_value, _destination_value) = diff?;
+                tree_builder.set_or_remove(repo_path, source_value);
+            }
+            Ok::<(), BackendError>(())
         }
+        .block_on()?;
         tree_builder.write_tree(destination.store())
     }
 }
