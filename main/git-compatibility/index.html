@@ -7,7 +7,9 @@
     <meta http-equiv="refresh" content="1; url=../../prerelease/git-compatibility/" />
   </noscript>
   <script>
-    window.location.replace("../../prerelease/git-compatibility/" + window.location.hash);
+    window.location.replace(
+      "../../prerelease/git-compatibility/" + window.location.search + window.location.hash
+    );
   </script>
 </head>
 <body>

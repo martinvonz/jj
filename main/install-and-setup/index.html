@@ -7,7 +7,9 @@
     <meta http-equiv="refresh" content="1; url=../../prerelease/install-and-setup/" />
   </noscript>
   <script>
-    window.location.replace("../../prerelease/install-and-setup/" + window.location.hash);
+    window.location.replace(
+      "../../prerelease/install-and-setup/" + window.location.search + window.location.hash
+    );
   </script>
 </head>
 <body>

@@ -7,7 +7,9 @@
     <meta http-equiv="refresh" content="1; url=../../prerelease/revsets/" />
   </noscript>
   <script>
-    window.location.replace("../../prerelease/revsets/" + window.location.hash);
+    window.location.replace(
+      "../../prerelease/revsets/" + window.location.search + window.location.hash
+    );
   </script>
 </head>
 <body>
