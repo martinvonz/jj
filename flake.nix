@@ -42,6 +42,13 @@
         cargo = rust-version;
       };
 
+      # these are needed in both devShell and buildInputs
+      darwinDeps = with pkgs; lib.optionals stdenv.isDarwin [
+        darwin.apple_sdk.frameworks.Security
+        darwin.apple_sdk.frameworks.SystemConfiguration
+        libiconv
+      ];
+
     in
     {
       packages = {
@@ -68,11 +75,7 @@
           ];
           buildInputs = with pkgs; [
             openssl zstd libgit2 libssh2
-          ] ++ lib.optionals stdenv.isDarwin [
-            darwin.apple_sdk.frameworks.Security
-            darwin.apple_sdk.frameworks.SystemConfiguration
-            libiconv
-          ];
+          ] ++ darwinDeps;
 
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
@@ -129,7 +132,7 @@
 
           # For building the documentation website
           poetry
-        ];
+        ] ++ darwinDeps;
 
         shellHook = ''
           export RUST_BACKTRACE=1
