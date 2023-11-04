@@ -166,26 +166,29 @@ impl Workspace {
         workspace_root: &Path,
         git_repo_path: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let workspace_root = workspace_root.to_owned();
-        let git_repo_path = git_repo_path.to_owned();
-        Self::init_with_backend(user_settings, &workspace_root.clone(), &move |store_path| {
-            // If the git repo is inside the workspace, use a relative path to it so the
-            // whole workspace can be moved without breaking.
-            // TODO: Clean up path normalization. store_path is canonicalized by
-            // ReadonlyRepo::init(). workspace_root will be canonicalized by
-            // Workspace::new(), but it's not yet here.
-            let store_relative_git_repo_path =
-                match (workspace_root.canonicalize(), git_repo_path.canonicalize()) {
-                    (Ok(workspace_root), Ok(git_repo_path))
-                        if git_repo_path.starts_with(&workspace_root) =>
-                    {
-                        file_util::relative_path(store_path, &git_repo_path)
-                    }
-                    _ => git_repo_path.to_owned(),
-                };
-            let backend = GitBackend::init_external(store_path, &store_relative_git_repo_path)?;
-            Ok(Box::new(backend) as Box<dyn Backend>)
-        })
+        let backend_initializer = {
+            let workspace_root = workspace_root.to_owned();
+            let git_repo_path = git_repo_path.to_owned();
+            move |store_path: &Path| -> Result<Box<dyn Backend>, BackendInitError> {
+                // If the git repo is inside the workspace, use a relative path to it so the
+                // whole workspace can be moved without breaking.
+                // TODO: Clean up path normalization. store_path is canonicalized by
+                // ReadonlyRepo::init(). workspace_root will be canonicalized by
+                // Workspace::new(), but it's not yet here.
+                let store_relative_git_repo_path =
+                    match (workspace_root.canonicalize(), git_repo_path.canonicalize()) {
+                        (Ok(workspace_root), Ok(git_repo_path))
+                            if git_repo_path.starts_with(&workspace_root) =>
+                        {
+                            file_util::relative_path(store_path, &git_repo_path)
+                        }
+                        _ => git_repo_path.to_owned(),
+                    };
+                let backend = GitBackend::init_external(store_path, &store_relative_git_repo_path)?;
+                Ok(Box::new(backend))
+            }
+        };
+        Self::init_with_backend(user_settings, workspace_root, &backend_initializer)
     }
 
     #[allow(clippy::too_many_arguments)]
