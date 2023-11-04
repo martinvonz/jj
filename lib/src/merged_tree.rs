@@ -25,7 +25,6 @@ use std::{iter, vec};
 use futures::stream::StreamExt;
 use futures::{Future, Stream, TryStreamExt};
 use itertools::Itertools;
-use pollster::FutureExt;
 
 use crate::backend::{BackendError, BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
@@ -771,29 +770,25 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         Self { stack, matcher }
     }
 
-    async fn single_tree(
+    fn single_tree(
         store: &Arc<Store>,
         dir: &RepoPath,
         value: Option<&TreeValue>,
     ) -> BackendResult<Tree> {
         match value {
-            Some(TreeValue::Tree(tree_id)) => store.get_tree_async(dir, tree_id).await,
+            Some(TreeValue::Tree(tree_id)) => store.get_tree(dir, tree_id),
             _ => Ok(Tree::null(store.clone(), dir.to_owned())),
         }
     }
 
     /// Gets the given tree if `value` is a tree, otherwise an empty tree.
-    async fn tree(
+    fn tree(
         tree: &MergedTree,
         dir: &RepoPath,
         values: &MergedTreeValue,
     ) -> BackendResult<MergedTree> {
         let trees = if values.is_tree() {
-            let builder: MergeBuilder<Tree> = futures::stream::iter(values.iter())
-                .then(|value| Self::single_tree(tree.store(), dir, value.as_ref()))
-                .try_collect()
-                .await?;
-            builder.build()
+            values.try_map(|value| Self::single_tree(tree.store(), dir, value.as_ref()))?
         } else {
             Merge::resolved(Tree::null(tree.store().clone(), dir.to_owned()))
         };
@@ -878,23 +873,13 @@ impl Iterator for TreeDiffIterator<'_> {
             let tree_before = before.is_tree();
             let tree_after = after.is_tree();
             let post_subdir = if tree_before || tree_after {
-                let (before_tree, after_tree) = async {
-                    let before_tree = Self::tree(&dir.tree1, &path, &before);
-                    let after_tree = Self::tree(&dir.tree2, &path, &after);
-                    futures::join!(before_tree, after_tree)
-                }
-                .block_on();
-                let before_tree = match before_tree {
+                let before_tree = match Self::tree(&dir.tree1, &path, &before) {
                     Ok(tree) => tree,
-                    Err(err) => {
-                        return Some((path, Err(err)));
-                    }
+                    Err(err) => return Some((path, Err(err))),
                 };
-                let after_tree = match after_tree {
+                let after_tree = match Self::tree(&dir.tree2, &path, &after) {
                     Ok(tree) => tree,
-                    Err(err) => {
-                        return Some((path, Err(err)));
-                    }
+                    Err(err) => return Some((path, Err(err))),
                 };
                 let subdir =
                     TreeDiffDirItem::from_trees(&path, before_tree, after_tree, self.matcher);
@@ -1016,6 +1001,17 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
         stream
     }
 
+    async fn single_tree(
+        store: &Arc<Store>,
+        dir: &RepoPath,
+        value: Option<&TreeValue>,
+    ) -> BackendResult<Tree> {
+        match value {
+            Some(TreeValue::Tree(tree_id)) => store.get_tree_async(dir, tree_id).await,
+            _ => Ok(Tree::null(store.clone(), dir.to_owned())),
+        }
+    }
+
     /// Gets the given tree if `value` is a tree, otherwise an empty tree.
     async fn tree(
         store: Arc<Store>,
@@ -1025,7 +1021,7 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
     ) -> BackendResult<MergedTree> {
         let trees = if values.is_tree() {
             let builder: MergeBuilder<Tree> = futures::stream::iter(values.iter())
-                .then(|value| TreeDiffIterator::single_tree(&store, &dir, value.as_ref()))
+                .then(|value| Self::single_tree(&store, &dir, value.as_ref()))
                 .try_collect()
                 .await?;
             builder.build()
