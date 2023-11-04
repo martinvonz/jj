@@ -126,27 +126,35 @@ impl GitBackend {
     }
 
     pub fn init_internal(store_path: &Path) -> Result<Self, Box<GitBackendInitError>> {
+        let git_repo_path = Path::new("git");
         let git_repo = gix::ThreadSafeRepository::init(
-            store_path.join("git"),
+            store_path.join(git_repo_path),
             gix::create::Kind::Bare,
             gix::create::Options::default(),
         )
         .map_err(GitBackendInitError::InitRepository)?;
-        let extra_path = store_path.join("extra");
-        fs::create_dir(&extra_path)
-            .context(&extra_path)
-            .map_err(GitBackendInitError::Path)?;
-        let target_path = store_path.join("git_target");
-        fs::write(&target_path, b"git")
-            .context(&target_path)
-            .map_err(GitBackendInitError::Path)?;
-        let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
-        Ok(GitBackend::new(git_repo, extra_metadata_store))
+        Self::init_with_repo(store_path, git_repo_path, git_repo)
     }
 
     pub fn init_external(
         store_path: &Path,
         git_repo_path: &Path,
+    ) -> Result<Self, Box<GitBackendInitError>> {
+        let canonical_git_repo_path = {
+            let path = store_path.join(git_repo_path);
+            path.canonicalize()
+                .context(&path)
+                .map_err(GitBackendInitError::Path)?
+        };
+        let git_repo = gix::ThreadSafeRepository::open(canonical_git_repo_path)
+            .map_err(GitBackendInitError::OpenRepository)?;
+        Self::init_with_repo(store_path, git_repo_path, git_repo)
+    }
+
+    fn init_with_repo(
+        store_path: &Path,
+        git_repo_path: &Path,
+        git_repo: gix::ThreadSafeRepository,
     ) -> Result<Self, Box<GitBackendInitError>> {
         let extra_path = store_path.join("extra");
         fs::create_dir(&extra_path)
@@ -172,16 +180,8 @@ impl GitBackend {
                 .context(&target_path)
                 .map_err(GitBackendInitError::Path)?;
         };
-        let canonical_git_repo_path = {
-            let path = store_path.join(git_repo_path);
-            path.canonicalize()
-                .context(&path)
-                .map_err(GitBackendInitError::Path)?
-        };
-        let repo = gix::ThreadSafeRepository::open(canonical_git_repo_path)
-            .map_err(GitBackendInitError::OpenRepository)?;
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
-        Ok(GitBackend::new(repo, extra_metadata_store))
+        Ok(GitBackend::new(git_repo, extra_metadata_store))
     }
 
     pub fn load(store_path: &Path) -> Result<Self, Box<GitBackendLoadError>> {
