@@ -22,6 +22,7 @@ use std::result::Result;
 use std::vec::Vec;
 
 use async_trait::async_trait;
+use itertools::Itertools;
 use thiserror::Error;
 
 use crate::content_hash::ContentHash;
@@ -199,6 +200,33 @@ impl MergedTreeId {
         match self {
             MergedTreeId::Legacy(tree_id) => Merge::resolved(tree_id.clone()),
             MergedTreeId::Merge(tree_ids) => tree_ids.clone(),
+        }
+    }
+
+    /// Represent a `MergeTreeId` in a way that it may be used as a working-copy
+    /// name. This makes no stability guarantee, as the format may change at
+    /// any time.
+    pub fn to_wc_name(&self) -> String {
+        match self {
+            MergedTreeId::Legacy(tree_id) => tree_id.hex(),
+            MergedTreeId::Merge(tree_ids) => {
+                let ids = tree_ids
+                    .map(|id| id.hex())
+                    .iter_mut()
+                    .enumerate()
+                    .map(|(i, s)| {
+                        // Incredibly "smart" way to say, append "-" if the number is odd "+"
+                        // otherwise.
+                        if i & 1 != 0 {
+                            s.push('-');
+                        } else {
+                            s.push('+');
+                        }
+                        s.to_owned()
+                    })
+                    .collect_vec();
+                ids.concat()
+            }
         }
     }
 }
