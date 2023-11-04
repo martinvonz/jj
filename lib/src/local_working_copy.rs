@@ -1301,22 +1301,34 @@ impl TreeState {
         };
         let mut changed_file_states = Vec::new();
         let mut deleted_files = HashSet::new();
-        let mut diff_stream = old_tree.diff_stream(new_tree, matcher);
-        while let Some((path, diff)) = diff_stream.next().await {
-            let (before, after) = diff?;
+        let mut diff_stream = Box::pin(
+            old_tree
+                .diff_stream(new_tree, matcher)
+                .map(|(path, diff)| async {
+                    match diff {
+                        Ok((before, after)) => {
+                            let result = materialize_tree_value(&self.store, &path, after).await;
+                            (path, result.map(|value| (before.is_present(), value)))
+                        }
+                        Err(err) => (path, Err(err)),
+                    }
+                })
+                .buffered(self.store.concurrency().max(1)),
+        );
+        while let Some((path, data)) = diff_stream.next().await {
+            let (present_before, after) = data?;
             if after.is_absent() {
                 stats.removed_files += 1;
-            } else if before.is_absent() {
+            } else if !present_before {
                 stats.added_files += 1;
             } else {
                 stats.updated_files += 1;
             }
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
-            if before.is_present() {
+            if present_before {
                 fs::remove_file(&disk_path).ok();
-            }
-            if before.is_absent() && disk_path.exists() {
+            } else if disk_path.exists() {
                 changed_file_states.push((path, FileState::placeholder()));
                 stats.skipped_files += 1;
                 continue;
@@ -1330,8 +1342,7 @@ impl TreeState {
                 }
             }
             // TODO: Check that the file has not changed before overwriting/removing it.
-            let materialized = materialize_tree_value(&self.store, &path, after).await?;
-            let file_state = match materialized {
+            let file_state = match after {
                 MaterializedTreeValue::Absent => {
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
