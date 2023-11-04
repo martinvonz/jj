@@ -249,6 +249,11 @@
                     "type": "string",
                     "description": "The remote to which commits are pushed",
                     "default": "origin"
+                },
+                "colocate": {
+                    "type": "boolean",
+                    "description": "Automatically colocate all Git-backed repositories",
+                    "default": false
                 }
             }
         },

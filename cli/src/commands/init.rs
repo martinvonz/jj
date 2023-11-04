@@ -65,6 +65,12 @@ pub(crate) fn cmd_init(
         .canonicalize()
         .map_err(|e| user_error(format!("Failed to create workspace: {e}")))?; // raced?
 
+    let colocate = if command.settings().git_settings().colocate {
+        true
+    } else {
+        args.git
+    };
+
     if let Some(git_store_str) = &args.git_repo {
         let mut git_store_path = command.cwd().join(git_store_str);
         git_store_path = git_store_path
@@ -105,7 +111,7 @@ pub(crate) fn cmd_init(
                 tx.finish(ui)?;
             }
         }
-    } else if args.git {
+    } else if colocate {
         Workspace::init_internal_git(command.settings(), &wc_path)?;
     } else {
         if !command.settings().allow_native_backend() {
@@ -124,7 +130,7 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
         "Initialized repo in \"{}\"",
         relative_wc_path.display()
     )?;
-    if args.git && wc_path.join(".git").exists() {
+    if colocate && wc_path.join(".git").exists() {
         writeln!(ui.warning(), "Empty repo created.")?;
         writeln!(
             ui.hint(),

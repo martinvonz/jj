@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* Git repositories created with `jj git clone` or `jj init --git` can now be
+  automatically colocated on creation with the setting `git.colocate = true`.
+  The default is `false`.
+
 ### Fixed bugs
 
 

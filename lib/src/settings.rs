@@ -40,12 +40,14 @@ pub struct RepoSettings {
 #[derive(Debug, Clone)]
 pub struct GitSettings {
     pub auto_local_branch: bool,
+    pub colocate: bool,
 }
 
 impl GitSettings {
     pub fn from_config(config: &config::Config) -> Self {
         GitSettings {
             auto_local_branch: config.get_bool("git.auto-local-branch").unwrap_or(true),
+            colocate: config.get_bool("git.colocate").unwrap_or(false),
         }
     }
 }
@@ -54,6 +56,7 @@ impl Default for GitSettings {
     fn default() -> Self {
         GitSettings {
             auto_local_branch: true,
+            colocate: false,
         }
     }
 }

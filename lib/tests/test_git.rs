@@ -708,6 +708,7 @@ fn test_import_refs_reimport_with_moved_untracked_remote_ref() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
         auto_local_branch: false,
+        colocate: false,
     };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
@@ -1426,6 +1427,7 @@ fn test_import_export_non_tracking_branch() {
     let test_data = GitRepoData::create();
     let mut git_settings = GitSettings {
         auto_local_branch: false,
+        colocate: false,
     };
     let git_repo = test_data.git_repo;
     let commit_main_t0 = empty_git_commit(&git_repo, "refs/remotes/origin/main", &[]);

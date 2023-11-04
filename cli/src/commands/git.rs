@@ -457,6 +457,12 @@ fn cmd_git_clone(
         ));
     }
 
+    let colocate = if command.settings().git_settings().colocate {
+        true
+    } else {
+        args.colocate
+    };
+
     // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
     // `/some/path/.`
     let canonical_wc_path: PathBuf = wc_path
@@ -465,7 +471,7 @@ fn cmd_git_clone(
     let clone_result = do_git_clone(
         ui,
         command,
-        args.colocate,
+        colocate,
         remote_name,
         &source,
         &canonical_wc_path,
@@ -473,7 +479,7 @@ fn cmd_git_clone(
     if clone_result.is_err() {
         let clean_up_dirs = || -> io::Result<()> {
             fs::remove_dir_all(canonical_wc_path.join(".jj"))?;
-            if args.colocate {
+            if colocate {
                 fs::remove_dir_all(canonical_wc_path.join(".git"))?;
             }
             if !wc_path_existed {
