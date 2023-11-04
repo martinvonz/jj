@@ -53,15 +53,24 @@ fn test_init_internal_git() {
     let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
     let (workspace, repo) = Workspace::init_internal_git(&settings, &uncanonical).unwrap();
-    assert!(repo
+    let git_backend = repo
         .store()
         .backend_impl()
         .downcast_ref::<GitBackend>()
-        .is_some());
+        .unwrap();
     assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
     assert_eq!(workspace.workspace_root(), &canonical);
+    assert_eq!(
+        git_backend.git_repo_path(),
+        canonical.join(PathBuf::from_iter([".jj", "repo", "store", "git"])),
+    );
+    assert!(git_backend.git_workdir().is_none());
+    assert_eq!(
+        std::fs::read_to_string(repo.repo_path().join("store").join("git_target")).unwrap(),
+        "git"
+    );
 
-    // Just test that we ca write a commit to the store
+    // Just test that we can write a commit to the store
     let mut tx = repo.start_transaction(&settings, "test");
     write_random_commit(tx.mut_repo(), &settings);
 }
@@ -76,17 +85,24 @@ fn test_init_external_git() {
     std::fs::create_dir(uncanonical.join("jj")).unwrap();
     let (workspace, repo) =
         Workspace::init_external_git(&settings, &uncanonical.join("jj"), &git_repo_path).unwrap();
-
-    assert!(repo
+    let git_backend = repo
         .store()
         .backend_impl()
         .downcast_ref::<GitBackend>()
-        .is_some());
+        .unwrap();
     assert_eq!(
         repo.repo_path(),
         &canonical.join("jj").join(".jj").join("repo")
     );
     assert_eq!(workspace.workspace_root(), &canonical.join("jj"));
+    assert_eq!(
+        git_backend.git_repo_path(),
+        canonical.join("git").join(".git")
+    );
+    assert_eq!(
+        git_backend.git_workdir(),
+        Some(canonical.join("git").as_ref())
+    );
 
     // Just test that we can write a commit to the store
     let mut tx = repo.start_transaction(&settings, "test");
