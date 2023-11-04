@@ -16,7 +16,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.4.7">
     
     
       
@@ -24,7 +24,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.0e669242.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.4b4a2bd9.min.css">
       
       
 
@@ -215,14 +215,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
+          
           <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
@@ -335,14 +337,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
+          
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
@@ -476,14 +480,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
+          
           <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
@@ -577,14 +583,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
+          
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
@@ -698,14 +706,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
         
+          
           <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
             
   
@@ -799,14 +809,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
+          
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
             
   
@@ -882,14 +894,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
         
+          
           <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
             
   
@@ -1385,9 +1399,11 @@
 <a href="https://github.com/martinvonz/jj/issues/1136">#1136</a>, this doesn't interact nicely with Git if we have multiple Git remotes
 with a number of branches. The <code>git.auto-local-branch</code> config can mitigate this
 problem, but we'll get locally-deleted branches instead.</p>
-<p>The goal of this plan is to implement
-* proper support for tracking/non-tracking remote branches
-* logically consistent data model for importing/exporting Git refs</p>
+<p>The goal of this plan is to implement</p>
+<ul>
+<li>proper support for tracking/non-tracking remote branches</li>
+<li>logically consistent data model for importing/exporting Git refs</li>
+</ul>
 <h2 id="current-data-model-as-of-jj-080">Current data model (as of jj 0.8.0)<a class="headerlink" href="#current-data-model-as-of-jj-080" title="Permanent link">&para;</a></h2>
 <p>Under the current model, all remote branches are "tracking" branches, and
 remote changes are merged into the local counterparts.</p>
@@ -1407,9 +1423,11 @@ git_head: target?
 <ul>
 <li>Remote branches are stored in both <code>branches[name].remote_targets</code> and
   <code>git_refs["refs/remotes"]</code>. These two are mostly kept in sync, but there
-  are two scenarios where remote-tracking branches and git refs can diverge:
-  1. <code>jj branch forget</code>
-  2. <code>jj op undo</code>/<code>restore</code> in colocated repo</li>
+  are two scenarios where remote-tracking branches and git refs can diverge:<ol>
+<li><code>jj branch forget</code></li>
+<li><code>jj op undo</code>/<code>restore</code> in colocated repo</li>
+</ol>
+</li>
 <li>Pseudo <code>@git</code> tracking branches are stored in <code>git_refs["refs/heads"]</code>. We
   need special case to resolve <code>@git</code> branches, and their behavior is slightly
   different from the other remote-tracking branches.</li>
@@ -1446,9 +1464,11 @@ git_refs                                    # last imported/exported refs
   [&quot;refs/remotes/{remote}/{name}&quot;]: target
   [&quot;refs/tags/{name}&quot;]: target
 </code></pre></div>
-<p>With the proposed data model, we can
-* naturally support remote branches which have no local counterparts
-* deduplicate <code>branches[name].remote_targets</code> and <code>git_refs["refs/remotes"]</code></p>
+<p>With the proposed data model, we can</p>
+<ul>
+<li>naturally support remote branches which have no local counterparts</li>
+<li>deduplicate <code>branches[name].remote_targets</code> and <code>git_refs["refs/remotes"]</code></li>
+</ul>
 <h3 id="importexport-data-flow">Import/export data flow<a class="headerlink" href="#importexport-data-flow" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>       export flow                              import flow
        -----------                              -----------
@@ -1517,227 +1537,315 @@ In particular, a merge of local and remote targets is
 <h3 id="fetchimport">fetch/import<a class="headerlink" href="#fetchimport" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
-<p><code>jj git fetch</code>
-  1. Fetches remote changes to the backing Git repo.
-  2. Import changes only for <code>remotes[remote].branches[glob]</code> (see below)</p>
-<ul>
+<p><code>jj git fetch</code></p>
+<ol>
+<li>Fetches remote changes to the backing Git repo.</li>
+<li>Import changes only for <code>remotes[remote].branches[glob]</code> (see below)<ul>
 <li>TODO: how about fetched <code>.tags</code>?</li>
 </ul>
 </li>
+</ol>
+</li>
 <li>
-<p><code>jj git import</code>
-  1. Copies <code>git_refs</code> from the backing Git repo.
-  2. Calculates diff from the known <code>remotes</code> to the new <code>git_refs</code>.</p>
-<ul>
+<p><code>jj git import</code></p>
+<ol>
+<li>Copies <code>git_refs</code> from the backing Git repo.</li>
+<li>Calculates diff from the known <code>remotes</code> to the new <code>git_refs</code>.<ul>
 <li><code>git_refs["refs/heads"] - remotes["git"].branches</code></li>
 <li><code>git_refs["refs/tags"] - remotes["git"].tags</code></li>
 <li>TBD: <code>"HEAD" - remotes["git"].head</code> (unused)</li>
-<li><code>git_refs["refs/remotes/{remote}"] - remotes[remote]</code>
-  3. Merges diff in local <code>branches</code> and <code>tags</code> if <code>state</code> is <code>tracking</code>.</li>
-<li>If the known <code>target</code> is <code>absent</code>, the default <code>state</code> should be
-   calculated. This also applies to previously-forgotten branches.
-  4. Updates <code>remotes</code> reflecting the import.
-  5. Abandons commits that are no longer referenced.</li>
+<li><code>git_refs["refs/remotes/{remote}"] - remotes[remote]</code></li>
 </ul>
+</li>
+<li>Merges diff in local <code>branches</code> and <code>tags</code> if <code>state</code> is <code>tracking</code>.<ul>
+<li>If the known <code>target</code> is <code>absent</code>, the default <code>state</code> should be
+   calculated. This also applies to previously-forgotten branches.</li>
+</ul>
+</li>
+<li>Updates <code>remotes</code> reflecting the import.</li>
+<li>Abandons commits that are no longer referenced.</li>
+</ol>
 </li>
 </ul>
 <h3 id="pushexport">push/export<a class="headerlink" href="#pushexport" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
-<p><code>jj git push</code>
-  1. Calculates diff from the known <code>remotes[remote]</code> to the local changes.</p>
-<ul>
-<li><code>branches - remotes[remote].branches</code></li>
+<p><code>jj git push</code></p>
+<ol>
+<li>Calculates diff from the known <code>remotes[remote]</code> to the local changes.<ul>
+<li><code>branches - remotes[remote].branches</code><ul>
 <li>If <code>state</code> is <code>new</code> (i.e. untracked), the known remote branch <code>target</code>
-     is considered <code>absent</code>.</li>
+   is considered <code>absent</code>.</li>
 <li>If <code>state</code> is <code>new</code>, and if the local branch <code>target</code> is <code>absent</code>, the
-     diff <code>[absent, remote] - absent</code> is noop. So it's not allowed to push
-     deleted branch to untracked remote.</li>
+   diff <code>[absent, remote] - absent</code> is noop. So it's not allowed to push
+   deleted branch to untracked remote.</li>
 <li>TODO: Copy Git's <code>--force-with-lease</code> behavior?</li>
-<li>~<code>tags</code>~ (not implemented, but should be the same as <code>branches</code>)
-  2. Pushes diff to the remote Git repo (as well as remote tracking branches
- in the backing Git repo.)
-  3. Updates <code>remotes[remote]</code> and <code>git_refs</code> reflecting the push.</li>
 </ul>
 </li>
+<li>~<code>tags</code>~ (not implemented, but should be the same as <code>branches</code>)</li>
+</ul>
+</li>
+<li>Pushes diff to the remote Git repo (as well as remote tracking branches
+   in the backing Git repo.)</li>
+<li>Updates <code>remotes[remote]</code> and <code>git_refs</code> reflecting the push.</li>
+</ol>
+</li>
 <li>
-<p><code>jj git export</code>
-  1. Copies local <code>branches</code>/<code>tags</code> back to <code>remotes["git"]</code>.</p>
-<ul>
+<p><code>jj git export</code></p>
+<ol>
+<li>Copies local <code>branches</code>/<code>tags</code> back to <code>remotes["git"]</code>.<ul>
 <li>Conceptually, <code>remotes["git"].branches[name].state</code> can be set to
    untracked. Untracked local branches won't be exported to Git.</li>
 <li>If <code>remotes["git"].branches[name]</code> is <code>absent</code>, the default
    <code>state = tracking</code> applies. This also applies to forgotten branches.</li>
-<li>~<code>tags</code>~ (not implemented, but should be the same as <code>branches</code>)
-  2. Calculates diff from the known <code>git_refs</code> to the new <code>remotes[remote]</code>.
-  3. Applies diff to the backing Git repo.
-  4. Updates <code>git_refs</code> reflecting the export.</li>
+<li>~<code>tags</code>~ (not implemented, but should be the same as <code>branches</code>)</li>
 </ul>
 </li>
-</ul>
+<li>Calculates diff from the known <code>git_refs</code> to the new <code>remotes[remote]</code>.</li>
+<li>Applies diff to the backing Git repo.</li>
+<li>Updates <code>git_refs</code> reflecting the export.</li>
+</ol>
 <p>If a ref failed to export at the step 3, the preceding steps should also be
-  rolled back for that ref.</p>
+rolled back for that ref.</p>
+</li>
+</ul>
 <h3 id="initclone">init/clone<a class="headerlink" href="#initclone" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>jj init</code></li>
-<li>Import, track, and merge per <code>git.auto_local_branch</code> config.</li>
 <li>
-<p>If <code>!git.auto_local_branch</code>, no <code>tracking</code> state will be set.</p>
+<p><code>jj init</code></p>
+<ul>
+<li>Import, track, and merge per <code>git.auto_local_branch</code> config.</li>
+<li>If <code>!git.auto_local_branch</code>, no <code>tracking</code> state will be set.</li>
+</ul>
 </li>
 <li>
 <p><code>jj git clone</code></p>
-</li>
+<ul>
 <li>Import, track, and merge per <code>git.auto_local_branch</code> config.</li>
 <li>The default branch will be tracked regardless of <code>git.auto_local_branch</code>
-    config. (Because local branch is created for the default remote branch,
-    it makes sense to track.)</li>
+  config. (Because local branch is created for the default remote branch,
+  it makes sense to track.)</li>
+</ul>
+</li>
 </ul>
 <h3 id="branch">branch<a class="headerlink" href="#branch" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>jj branch set {name}</code>
-  1. Sets local <code>branches[name]</code> entry.</li>
-<li><code>jj branch delete {name}</code>
-  1. Removes local <code>branches[name]</code> entry.</li>
-<li><code>jj branch forget {name}</code>
-  1. Removes local <code>branches[name]</code> entry if exists.
-  2. Removes <code>remotes[remote].branches[name]</code> entries if exist.
-     TODO: maybe better to not remove non-tracking remote branches?</li>
-<li><code>jj branch track {name}@{remote}</code> (new command)
-  1. Merges <code>[local, remote] - [absent]</code> in local branch.<ul>
-<li>Same as "fetching/importing existing branch from untracked remote".
-  2. Sets <code>remotes[remote].branches[name].state = tracking</code>.</li>
+<li><code>jj branch set {name}</code><ol>
+<li>Sets local <code>branches[name]</code> entry.</li>
+</ol>
+</li>
+<li><code>jj branch delete {name}</code><ol>
+<li>Removes local <code>branches[name]</code> entry.</li>
+</ol>
+</li>
+<li><code>jj branch forget {name}</code><ol>
+<li>Removes local <code>branches[name]</code> entry if exists.</li>
+<li>Removes <code>remotes[remote].branches[name]</code> entries if exist.
+   TODO: maybe better to not remove non-tracking remote branches?</li>
+</ol>
+</li>
+<li><code>jj branch track {name}@{remote}</code> (new command)<ol>
+<li>Merges <code>[local, remote] - [absent]</code> in local branch.<ul>
+<li>Same as "fetching/importing existing branch from untracked remote".</li>
 </ul>
 </li>
-<li><code>jj branch untrack {name}@{remote}</code> (new command)
-  1. Sets <code>remotes[remote].branches[name].state = new</code>.</li>
-<li><code>jj branch list</code></li>
+<li>Sets <code>remotes[remote].branches[name].state = tracking</code>.</li>
+</ol>
+</li>
+<li><code>jj branch untrack {name}@{remote}</code> (new command)<ol>
+<li>Sets <code>remotes[remote].branches[name].state = new</code>.</li>
+</ol>
+</li>
+<li><code>jj branch list</code><ul>
 <li>TODO: hide non-tracking branches by default? ...</li>
 </ul>
-<p>Note: desired behavior of <code>jj branch forget</code> is to
-* discard both local and remote branches (without actually removing branches
-  at remotes)
-* not abandon commits which belongs to those branches (even if the branch is
-  removed at a remote)</p>
+</li>
+</ul>
+<p>Note: desired behavior of <code>jj branch forget</code> is to</p>
+<ul>
+<li>discard both local and remote branches (without actually removing branches
+  at remotes)</li>
+<li>not abandon commits which belongs to those branches (even if the branch is
+  removed at a remote)</li>
+</ul>
 <h2 id="command-behavior-examples">Command behavior examples<a class="headerlink" href="#command-behavior-examples" title="Permanent link">&para;</a></h2>
 <h3 id="fetchimport_1">fetch/import<a class="headerlink" href="#fetchimport_1" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Fetching/importing new branch
-  1. Decides new <code>state = new|tracking</code> based on <code>git.auto_local_branch</code>
-  2. If new <code>state</code> is <code>tracking</code>, merges <code>[absent, new_remote] - [absent]</code>
-     (i.e. creates local branch with <code>new_remote</code> target)
-  3. Sets <code>remotes[remote].branches[name].state</code></li>
-<li>Fetching/importing existing branch from tracking remote
-  1. Merges <code>[local, new_remote] - [known_remote]</code></li>
-<li>Fetching/importing existing branch from untracked remote
-  1. Decides new <code>state = new|tracking</code> based on <code>git.auto_local_branch</code>
-  2. If new <code>state</code> is <code>tracking</code>, merges <code>[local, new_remote] - [absent]</code>
-  3. Sets <code>remotes[remote].branches[name].state</code></li>
-<li>Fetching/importing remotely-deleted branch from tracking remote
-  1. Merges <code>[local, absent] - [known_remote]</code>
-  2. Removes <code>remotes[remote].branches[name]</code> (<code>target</code> becomes <code>absent</code>)
-     (i.e. the remote branch is no longer tracked)
-  3. Abandons commits in the deleted branch</li>
-<li>Fetching/importing remotely-deleted branch from untracked remote
-  1. Decides new <code>state = new|tracking</code> based on <code>git.auto_local_branch</code>
-  2. Noop anyway since <code>[local, absent] - [absent]</code> -&gt; <code>local</code></li>
-<li>Fetching previously-forgotten branch from remote
-  1. Decides new <code>state = new|tracking</code> based on <code>git.auto_local_branch</code>
-  2. If new <code>state</code> is <code>tracking</code>, merges
-    <code>[absent, new_remote] - [absent]</code> -&gt; <code>new_remote</code>
-  3. Sets <code>remotes[remote].branches[name].state</code></li>
-<li>Fetching forgotten and remotely-deleted branch</li>
+<li>Fetching/importing new branch<ol>
+<li>Decides new <code>state = new|tracking</code> based on <code>git.auto_local_branch</code></li>
+<li>If new <code>state</code> is <code>tracking</code>, merges <code>[absent, new_remote] - [absent]</code>
+   (i.e. creates local branch with <code>new_remote</code> target)</li>
+<li>Sets <code>remotes[remote].branches[name].state</code></li>
+</ol>
+</li>
+<li>Fetching/importing existing branch from tracking remote<ol>
+<li>Merges <code>[local, new_remote] - [known_remote]</code></li>
+</ol>
+</li>
+<li>Fetching/importing existing branch from untracked remote<ol>
+<li>Decides new <code>state = new|tracking</code> based on <code>git.auto_local_branch</code></li>
+<li>If new <code>state</code> is <code>tracking</code>, merges <code>[local, new_remote] - [absent]</code></li>
+<li>Sets <code>remotes[remote].branches[name].state</code></li>
+</ol>
+</li>
+<li>Fetching/importing remotely-deleted branch from tracking remote<ol>
+<li>Merges <code>[local, absent] - [known_remote]</code></li>
+<li>Removes <code>remotes[remote].branches[name]</code> (<code>target</code> becomes <code>absent</code>)
+   (i.e. the remote branch is no longer tracked)</li>
+<li>Abandons commits in the deleted branch</li>
+</ol>
+</li>
+<li>Fetching/importing remotely-deleted branch from untracked remote<ol>
+<li>Decides new <code>state = new|tracking</code> based on <code>git.auto_local_branch</code></li>
+<li>Noop anyway since <code>[local, absent] - [absent]</code> -&gt; <code>local</code></li>
+</ol>
+</li>
+<li>Fetching previously-forgotten branch from remote<ol>
+<li>Decides new <code>state = new|tracking</code> based on <code>git.auto_local_branch</code></li>
+<li>If new <code>state</code> is <code>tracking</code>, merges
+  <code>[absent, new_remote] - [absent]</code> -&gt; <code>new_remote</code></li>
+<li>Sets <code>remotes[remote].branches[name].state</code></li>
+</ol>
+</li>
+<li>Fetching forgotten and remotely-deleted branch<ul>
 <li>Same as "remotely-deleted branch from untracked remote" since forgotten
-    remote branch should be <code>state = new</code></li>
+  remote branch should be <code>state = new</code></li>
 <li>Therefore, no local commits should be abandoned</li>
+</ul>
+</li>
 </ul>
 <h3 id="push">push<a class="headerlink" href="#push" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Pushing new branch, remote doesn't exist
-  1. Pushes <code>[local, absent] - [absent]</code> -&gt; <code>local</code>
-  2. Sets <code>remotes[remote].branches[name].target = local</code>, <code>.state = tracking</code></li>
-<li>Pushing new branch, untracked remote exists
-  1. Pushes <code>[local, remote] - [absent]</code><ul>
-<li>Fails if <code>local</code> moved backwards or sideways
-  2. Sets <code>remotes[remote].branches[name].target = local</code>, <code>.state = tracking</code></li>
+<li>Pushing new branch, remote doesn't exist<ol>
+<li>Pushes <code>[local, absent] - [absent]</code> -&gt; <code>local</code></li>
+<li>Sets <code>remotes[remote].branches[name].target = local</code>, <code>.state = tracking</code></li>
+</ol>
+</li>
+<li>Pushing new branch, untracked remote exists<ol>
+<li>Pushes <code>[local, remote] - [absent]</code><ul>
+<li>Fails if <code>local</code> moved backwards or sideways</li>
 </ul>
 </li>
-<li>Pushing existing branch to tracking remote
-  1. Pushes <code>[local, remote] - [remote]</code> -&gt; <code>local</code><ul>
+<li>Sets <code>remotes[remote].branches[name].target = local</code>, <code>.state = tracking</code></li>
+</ol>
+</li>
+<li>Pushing existing branch to tracking remote<ol>
+<li>Pushes <code>[local, remote] - [remote]</code> -&gt; <code>local</code><ul>
 <li>Fails if <code>local</code> moved backwards or sideways, and if <code>remote</code> is out of
-   sync
-  2. Sets <code>remotes[remote].branches[name].target = local</code></li>
+   sync</li>
 </ul>
 </li>
-<li>Pushing existing branch to untracked remote</li>
+<li>Sets <code>remotes[remote].branches[name].target = local</code></li>
+</ol>
+</li>
+<li>Pushing existing branch to untracked remote<ul>
 <li>Same as "new branch"</li>
-<li>Pushing deleted branch to tracking remote
-  1. Pushes <code>[absent, remote] - [remote]</code> -&gt; <code>absent</code><ul>
-<li>TODO: Fails if <code>remote</code> is out of sync?
-  2. Removes <code>remotes[remote].branches[name]</code> (<code>target</code> becomes <code>absent</code>)</li>
 </ul>
 </li>
-<li>Pushing deleted branch to untracked remote</li>
+<li>Pushing deleted branch to tracking remote<ol>
+<li>Pushes <code>[absent, remote] - [remote]</code> -&gt; <code>absent</code><ul>
+<li>TODO: Fails if <code>remote</code> is out of sync?</li>
+</ul>
+</li>
+<li>Removes <code>remotes[remote].branches[name]</code> (<code>target</code> becomes <code>absent</code>)</li>
+</ol>
+</li>
+<li>Pushing deleted branch to untracked remote<ul>
 <li>Noop since <code>[absent, remote] - [absent]</code> -&gt; <code>remote</code></li>
 <li>Perhaps, UI will report error</li>
-<li>Pushing forgotten branch to untracked remote</li>
+</ul>
+</li>
+<li>Pushing forgotten branch to untracked remote<ul>
 <li>Same as "deleted branch to untracked remote"</li>
-<li>Pushing previously-forgotten branch to remote</li>
+</ul>
+</li>
+<li>Pushing previously-forgotten branch to remote<ul>
 <li>Same as "new branch, untracked remote exists"</li>
 <li>The <code>target</code> of forgotten remote branch is <code>absent</code></li>
 </ul>
+</li>
+</ul>
 <h3 id="export">export<a class="headerlink" href="#export" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Exporting new local branch, git branch doesn't exist
-  1. Sets <code>remotes["git"].branches[name].target = local</code>, <code>.state = tracking</code>
-  2. Exports <code>[local, absent] - [absent]</code> -&gt; <code>local</code></li>
-<li>Exporting new local branch, git branch is out of sync
-  1. Exports <code>[local, git] - [absent]</code> -&gt; fail</li>
-<li>Exporting existing local branch, git branch is synced
-  1. Sets <code>remotes["git"].branches[name].target = local</code>
-  2. Exports <code>[local, git] - [git]</code> -&gt; <code>local</code></li>
-<li>Exporting deleted local branch, git branch is synced
-  1. Removes <code>remotes["git"].branches[name]</code>
-  2. Exports <code>[absent, git] - [git]</code> -&gt; <code>absent</code></li>
-<li>Exporting forgotten branches, git branches are synced
-  1. Exports <code>[absent, git] - [git]</code> -&gt; <code>absent</code> for forgotten local/remote
-     branches</li>
+<li>Exporting new local branch, git branch doesn't exist<ol>
+<li>Sets <code>remotes["git"].branches[name].target = local</code>, <code>.state = tracking</code></li>
+<li>Exports <code>[local, absent] - [absent]</code> -&gt; <code>local</code></li>
+</ol>
+</li>
+<li>Exporting new local branch, git branch is out of sync<ol>
+<li>Exports <code>[local, git] - [absent]</code> -&gt; fail</li>
+</ol>
+</li>
+<li>Exporting existing local branch, git branch is synced<ol>
+<li>Sets <code>remotes["git"].branches[name].target = local</code></li>
+<li>Exports <code>[local, git] - [git]</code> -&gt; <code>local</code></li>
+</ol>
+</li>
+<li>Exporting deleted local branch, git branch is synced<ol>
+<li>Removes <code>remotes["git"].branches[name]</code></li>
+<li>Exports <code>[absent, git] - [git]</code> -&gt; <code>absent</code></li>
+</ol>
+</li>
+<li>Exporting forgotten branches, git branches are synced<ol>
+<li>Exports <code>[absent, git] - [git]</code> -&gt; <code>absent</code> for forgotten local/remote
+   branches</li>
+</ol>
+</li>
 </ul>
 <h3 id="undo-fetch">undo fetch<a class="headerlink" href="#undo-fetch" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Exporting undone fetch, git branches are synced
-  1. Exports <code>[old, git] - [git]</code> -&gt; <code>old</code> for undone local/remote branches</li>
-<li>Redoing undone fetch without exporting</li>
+<li>Exporting undone fetch, git branches are synced<ol>
+<li>Exports <code>[old, git] - [git]</code> -&gt; <code>old</code> for undone local/remote branches</li>
+</ol>
+</li>
+<li>Redoing undone fetch without exporting<ul>
 <li>Same as plain fetch since the known <code>git_refs</code> isn't diffed against the
-    refs in the backing Git repo.</li>
+  refs in the backing Git repo.</li>
+</ul>
+</li>
 </ul>
 <h3 id="git-remote"><code>@git</code> remote<a class="headerlink" href="#git-remote" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>jj branch untrack {name}@git</code></li>
+<li><code>jj branch untrack {name}@git</code><ul>
 <li>Maybe rejected (to avoid confusion)?</li>
 <li>Allowing this would mean different local branches of the same name coexist
-    in jj and git.</li>
-<li><code>jj git fetch --remote git</code></li>
+  in jj and git.</li>
+</ul>
+</li>
+<li><code>jj git fetch --remote git</code><ul>
 <li>Rejected. The implementation is different.</li>
 <li>Conceptually, it's <code>git::import_refs()</code> only for local branches.</li>
-<li><code>jj git push --remote git</code></li>
+</ul>
+</li>
+<li><code>jj git push --remote git</code><ul>
 <li>Rejected. The implementation is different.</li>
 <li>Conceptually, it's <code>jj branch track</code> and <code>git::export_refs()</code> only for
-    local branches.</li>
+  local branches.</li>
+</ul>
+</li>
 </ul>
 <h2 id="remaining-issues">Remaining issues<a class="headerlink" href="#remaining-issues" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>git.auto_local_branch = false</code> by default to help Git interop?</li>
+<li><code>git.auto_local_branch = false</code> by default to help Git interop?<ul>
 <li>https://github.com/martinvonz/jj/issues/1862</li>
-<li>https://github.com/martinvonz/jj/issues/1278 pushing to tracked remote</li>
+</ul>
+</li>
+<li>https://github.com/martinvonz/jj/issues/1278 pushing to tracked remote<ul>
 <li>Option could be added to push to all <code>tracking</code> remotes?</li>
-<li>Track remote branch locally with different name</li>
+</ul>
+</li>
+<li>Track remote branch locally with different name<ul>
 <li>Local branch name could be stored per remote branch</li>
 <li>Consider UI complexity</li>
-<li>"private" state (suggested by @ilyagr)</li>
+</ul>
+</li>
+<li>"private" state (suggested by @ilyagr)<ul>
 <li>"private" branches can be pushed to their own remote, but not to the
-    upstream repo</li>
+  upstream repo</li>
 <li>This might be a state attached to a local branch (similar to Mercurial's
-    "secret" phase)</li>
+  "secret" phase)</li>
+</ul>
+</li>
 </ul>
 <h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1784,10 +1892,11 @@ In particular, a merge of local and remote targets is
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.dfff1995.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.f886a092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.78eede0e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.aecac24b.min.js"></script>
       
     
   </body>

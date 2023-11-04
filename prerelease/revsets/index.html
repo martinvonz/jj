@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.4.7">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.0e669242.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.4b4a2bd9.min.css">
       
       
 
@@ -217,14 +217,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
+          
           <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
@@ -337,14 +339,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
+          
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
@@ -480,14 +484,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
+          
           <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
@@ -689,14 +695,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
+          
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
@@ -810,14 +818,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
         
+          
           <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
             
   
@@ -911,14 +921,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
+          
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
             
   
@@ -992,14 +1004,16 @@
     
     
     
+    
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
+          
           <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
             
   
@@ -1279,16 +1293,30 @@ only symbols.</p>
 <p>You can also specify revisions by using functions. Some functions take other
 revsets (expressions) as arguments.</p>
 <ul>
-<li><code>parents(x)</code>: Same as <code>x-</code>.</li>
-<li><code>children(x)</code>: Same as <code>x+</code>.</li>
-<li><code>ancestors(x[, depth])</code>: <code>ancestors(x)</code> is the same as <code>::x</code>. 
-  <code>ancestors(x, depth)</code> returns the ancestors of <code>x</code> limited to the given 
-  <code>depth</code>.</li>
-<li><code>descendants(x)</code>: Same as <code>x::</code>.</li>
-<li><code>connected(x)</code>: Same as <code>x::x</code>. Useful when <code>x</code> includes several commits.</li>
-<li><code>all()</code>: All visible commits in the repo.</li>
-<li><code>none()</code>: No commits. This function is rarely useful; it is provided for
-  completeness.</li>
+<li>
+<p><code>parents(x)</code>: Same as <code>x-</code>.</p>
+</li>
+<li>
+<p><code>children(x)</code>: Same as <code>x+</code>.</p>
+</li>
+<li>
+<p><code>ancestors(x[, depth])</code>: <code>ancestors(x)</code> is the same as <code>::x</code>.
+  <code>ancestors(x, depth)</code> returns the ancestors of <code>x</code> limited to the given
+  <code>depth</code>.</p>
+</li>
+<li>
+<p><code>descendants(x)</code>: Same as <code>x::</code>.</p>
+</li>
+<li>
+<p><code>connected(x)</code>: Same as <code>x::x</code>. Useful when <code>x</code> includes several commits.</p>
+</li>
+<li>
+<p><code>all()</code>: All visible commits in the repo.</p>
+</li>
+<li>
+<p><code>none()</code>: No commits. This function is rarely useful; it is provided for
+  completeness.</p>
+</li>
 <li>
 <p><code>branches([pattern])</code>: All local branch targets. If <code>pattern</code> is specified,
   this selects the branches whose name match the given <a href="#string-patterns">string
@@ -1298,11 +1326,11 @@ revsets (expressions) as arguments.</p>
 </li>
 <li>
 <p><code>remote_branches([branch_pattern[, [remote=]remote_pattern]])</code>: All remote
-    branch targets across all remotes. If just the <code>branch_pattern</code> is
-    specified, the branches whose names match the given <a href="#string-patterns">string
-    pattern</a> across all remotes are selected. If both
-    <code>branch_pattern</code> and <code>remote_pattern</code> are specified, the selection is
-    further restricted to just the remotes whose names match <code>remote_pattern</code>.</p>
+  branch targets across all remotes. If just the <code>branch_pattern</code> is
+  specified, the branches whose names match the given <a href="#string-patterns">string
+  pattern</a> across all remotes are selected. If both
+  <code>branch_pattern</code> and <code>remote_pattern</code> are specified, the selection is
+  further restricted to just the remotes whose names match <code>remote_pattern</code>.</p>
 <p>For example, <code>remote_branches(push, ri)</code> would match the branches
 <code>push-123@origin</code> and <code>repushed@private</code> but not <code>push-123@upstream</code> or
 <code>main@origin</code> or <code>main@upstream</code>. If a branch is in a conflicted state, all
@@ -1312,39 +1340,63 @@ its possible targets are included.</p>
 <p><code>tags()</code>: All tag targets. If a tag is in a conflicted state, all its
   possible targets are included.</p>
 </li>
-<li><code>git_refs()</code>:  All Git ref targets as of the last import. If a Git ref
-  is in a conflicted state, all its possible targets are included.</li>
-<li><code>git_head()</code>: The Git <code>HEAD</code> target as of the last import. Equivalent to
-  <code>present(HEAD@git)</code>.</li>
-<li><code>visible_heads()</code>: All visible heads (same as <code>heads(all())</code>).</li>
-<li><code>root()</code>: The virtual commit that is the oldest ancestor of all other commits.</li>
-<li><code>heads(x)</code>: Commits in <code>x</code> that are not ancestors of other commits in <code>x</code>.
+<li>
+<p><code>git_refs()</code>:  All Git ref targets as of the last import. If a Git ref
+  is in a conflicted state, all its possible targets are included.</p>
+</li>
+<li>
+<p><code>git_head()</code>: The Git <code>HEAD</code> target as of the last import. Equivalent to
+  <code>present(HEAD@git)</code>.</p>
+</li>
+<li>
+<p><code>visible_heads()</code>: All visible heads (same as <code>heads(all())</code>).</p>
+</li>
+<li>
+<p><code>root()</code>: The virtual commit that is the oldest ancestor of all other commits.</p>
+</li>
+<li>
+<p><code>heads(x)</code>: Commits in <code>x</code> that are not ancestors of other commits in <code>x</code>.
   Note that this is different from
   <a href="https://repo.mercurial-scm.org/hg/help/revsets">Mercurial's</a> <code>heads(x)</code>
-  function, which is equivalent to <code>x ~ x-</code>.</li>
-<li><code>roots(x)</code>: Commits in <code>x</code> that are not descendants of other commits in <code>x</code>.
+  function, which is equivalent to <code>x ~ x-</code>.</p>
+</li>
+<li>
+<p><code>roots(x)</code>: Commits in <code>x</code> that are not descendants of other commits in <code>x</code>.
   Note that this is different from
   <a href="https://repo.mercurial-scm.org/hg/help/revsets">Mercurial's</a> <code>roots(x)</code>
-  function, which is equivalent to <code>x ~ x+</code>.</li>
-<li><code>latest(x[, count])</code>: Latest <code>count</code> commits in <code>x</code>, based on committer
-  timestamp. The default <code>count</code> is 1.</li>
-<li><code>merges()</code>: Merge commits.</li>
-<li><code>description(pattern)</code>: Commits that have a description matching the given
-  <a href="#string-patterns">string pattern</a>.</li>
-<li><code>author(pattern)</code>: Commits with the author's name or email matching the given
-  <a href="#string-patterns">string pattern</a>.</li>
-<li><code>mine()</code>: Commits where the author's email matches the email of the current
-  user.</li>
-<li><code>committer(pattern)</code>: Commits with the committer's  name or email matching the
-given <a href="#string-patterns">string pattern</a>.</li>
+  function, which is equivalent to <code>x ~ x+</code>.</p>
+</li>
+<li>
+<p><code>latest(x[, count])</code>: Latest <code>count</code> commits in <code>x</code>, based on committer
+  timestamp. The default <code>count</code> is 1.</p>
+</li>
+<li>
+<p><code>merges()</code>: Merge commits.</p>
+</li>
+<li>
+<p><code>description(pattern)</code>: Commits that have a description matching the given
+  <a href="#string-patterns">string pattern</a>.</p>
+</li>
+<li>
+<p><code>author(pattern)</code>: Commits with the author's name or email matching the given
+  <a href="#string-patterns">string pattern</a>.</p>
+</li>
+<li>
+<p><code>mine()</code>: Commits where the author's email matches the email of the current
+  user.</p>
+</li>
+<li>
+<p><code>committer(pattern)</code>: Commits with the committer's  name or email matching the
+given <a href="#string-patterns">string pattern</a>.</p>
+</li>
 <li>
 <p><code>empty()</code>: Commits modifying no files. This also includes <code>merges()</code> without
   user modifications and <code>root()</code>.</p>
 </li>
 <li>
 <p><code>file(relativepath)</code> or <code>file("relativepath"[, "relativepath"]...)</code>: Commits
-    modifying one of the paths specified. Currently, string patterns are <em>not</em>
-    supported in the path arguments. </p>
+  modifying one of the paths specified. Currently, string patterns are <em>not</em>
+  supported in the path arguments.</p>
 <p>Paths are relative to the directory <code>jj</code> was invoked from. A directory name
 will match all files in that directory and its subdirectories.</p>
 <p>For example, <code>file(foo)</code> will match files <code>foo</code>, <code>foo/bar</code>, <code>foo/bar/baz</code>.
@@ -1353,8 +1405,10 @@ It will <em>not</em> match <code>foobar</code> or <code>bar/foo</code>.</p>
 <li>
 <p><code>conflict()</code>: Commits with conflicts.</p>
 </li>
-<li><code>present(x)</code>: Same as <code>x</code>, but evaluated to <code>none()</code> if any of the commits
-  in <code>x</code> doesn't exist (e.g. is an unknown branch name.)</li>
+<li>
+<p><code>present(x)</code>: Same as <code>x</code>, but evaluated to <code>none()</code> if any of the commits
+  in <code>x</code> doesn't exist (e.g. is an unknown branch name.)</p>
+</li>
 </ul>
 <h2 id="string-patterns">String patterns<a class="headerlink" href="#string-patterns" title="Permanent link">&para;</a></h2>
 <p>Functions that perform string matching support the following pattern syntax:</p>
@@ -1379,19 +1433,21 @@ are defined as aliases in order to allow you to overwrite them as needed.
 See <a href="https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.toml">revsets.toml</a>
 for a comprehensive list.</p>
 <ul>
-<li><code>trunk()</code>: Resolves to the head commit for the trunk branch of the remote
+<li>
+<p><code>trunk()</code>: Resolves to the head commit for the trunk branch of the remote
   named <code>origin</code> or <code>upstream</code>. The branches <code>main</code>, <code>master</code>, and <code>trunk</code> are
   tried. If more than one potential trunk commit exists, the newest one is
-  chosen. If none of the branches exist, the revset evaluates to <code>root()</code>.</li>
-</ul>
+  chosen. If none of the branches exist, the revset evaluates to <code>root()</code>.</p>
 <p>You can <a href="../config/">override</a> this as appropriate. If you do, make sure it
-  always resolves to exactly one commit. For example:</p>
+always resolves to exactly one commit. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
 <span class="s">&#39;trunk()&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&#39;your-branch@your-remote&#39;</span>
 </code></pre></div>
-<ul>
-<li><code>immutable_heads()</code>: Resolves to <code>trunk() | tags()</code> by default. See
-  <a href="../config/#set-of-immutable-commits">here</a> for details.</li>
+</li>
+<li>
+<p><code>immutable_heads()</code>: Resolves to <code>trunk() | tags()</code> by default. See
+  <a href="../config/#set-of-immutable-commits">here</a> for details.</p>
+</li>
 </ul>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Show the parent(s) of the working-copy commit (like <code>git log -1 HEAD</code>):</p>
@@ -1457,10 +1513,11 @@ description:</p>
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.dfff1995.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.f886a092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.78eede0e.min.js"></script>
+      <script src="../assets/javascripts/bundle.aecac24b.min.js"></script>
       
     
   </body>
