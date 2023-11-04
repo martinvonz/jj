@@ -191,13 +191,16 @@ Once you have `poetry` installed, you should ask it to install the rest
 of the required tools into a virtual environment as follows:
 
 ```shell
-poetry install
+# --no-root avoids a harmless error message starting with Poetry 1.7
+poetry install --no-root
 ```
 
-If you get requests to "unlock a keyring" or error messages about failing to do
-so, this is a [known `poetry`
-bug](https://github.com/python-poetry/poetry/issues/1917). The workaround is to
-run the following and then to try `poetry install` again:
+You may get requests to "unlock a keyring", [an error messages about failing to
+do so](https://github.com/python-poetry/poetry/issues/1917), or, in the case of
+Poetry 1.7, it may [simply hang
+indefinitely](https://github.com/python-poetry/poetry/issues/8623). The
+workaround is to either to unlock the keyring or to run the following, and then
+to try `poetry install --no-root` again:
 
 ```shell
 # For sh-compatible shells or recent versions of `fish`
