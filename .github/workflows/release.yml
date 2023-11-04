@@ -91,7 +91,7 @@ jobs:
           poetry-version: latest
       - name: Compile docs and zip them up
         run: |
-          poetry install
+          poetry install --no-root
           poetry run -- mkdocs build -f mkdocs-offline.yml
           archive="jj-${{ github.event.release.tag_name }}-docs-html.tar.gz"
           tar czf "$archive" -C "rendered-docs" .

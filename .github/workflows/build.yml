@@ -75,7 +75,7 @@ jobs:
         with:
           poetry-version: latest
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --no-root
       - name: Check that `mkdocs` can build the docs
         run: poetry run -- mkdocs build --strict
 
