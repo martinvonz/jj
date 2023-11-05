@@ -313,18 +313,24 @@ pub fn import_some_refs(
         }
     }
 
-    // Find commits that are no longer referenced in the git repo and abandon them
-    // in jj as well.
+    let abandoned_commits = abandon_unreachable_commits(mut_repo, &changed_remote_refs);
+    let stats = GitImportStats { abandoned_commits };
+    Ok(stats)
+}
+
+/// Finds commits that used to be reachable in git that no longer are reachable.
+/// Those commits will be recorded as abandoned in the `MutableRepo`.
+fn abandon_unreachable_commits(
+    mut_repo: &mut MutableRepo,
+    changed_remote_refs: &BTreeMap<RefName, (RemoteRef, RefTarget)>,
+) -> Vec<CommitId> {
     let hidable_git_heads = changed_remote_refs
         .values()
         .flat_map(|(old_remote_ref, _)| old_remote_ref.target.added_ids())
         .cloned()
         .collect_vec();
     if hidable_git_heads.is_empty() {
-        let stats = GitImportStats {
-            abandoned_commits: vec![],
-        };
-        return Ok(stats);
+        return vec![];
     }
     let pinned_heads = itertools::chain!(
         changed_remote_refs
@@ -335,10 +341,6 @@ pub fn import_some_refs(
     )
     .cloned()
     .collect_vec();
-    // We could use mut_repo.record_rewrites() here but we know we only need to care
-    // about abandoned commits for now. We may want to change this if we ever
-    // add a way of preserving change IDs across rewrites by `git` (e.g. by
-    // putting them in the commit message).
     let abandoned_expression = RevsetExpression::commits(pinned_heads)
         .range(&RevsetExpression::commits(hidable_git_heads))
         .intersection(&RevsetExpression::visible_heads().ancestors());
@@ -352,9 +354,7 @@ pub fn import_some_refs(
     for abandoned_commit in &abandoned_commits {
         mut_repo.record_abandoned_commit(abandoned_commit.clone());
     }
-
-    let stats = GitImportStats { abandoned_commits };
-    Ok(stats)
+    abandoned_commits
 }
 
 /// Calculates diff of git refs to be imported.
