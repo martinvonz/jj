@@ -15,7 +15,7 @@
 use itertools::Itertools;
 use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
 use jj_lib::files::MergeResult;
-use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
+use jj_lib::matchers::{EverythingMatcher, FilesMatcher, PrefixMatcher};
 use jj_lib::merge::{Merge, MergeBuilder};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder, MergedTreeVal};
 use jj_lib::repo::Repo;
@@ -1035,6 +1035,73 @@ fn test_diff_dir_file() {
                 (Merge::absent(), left_merged.path_value(&path6.join(&file))),
             ),
         ];
+        assert_eq!(actual_diff, expected_diff);
+    }
+
+    // Diff while filtering by `path1` (file1 -> directory1) as a file
+    {
+        let actual_diff = left_merged
+            .diff(&right_merged, &FilesMatcher::new(&[path1.clone()]))
+            .map(|(path, diff)| (path, diff.unwrap()))
+            .collect_vec();
+        let expected_diff = vec![
+            // path1: file1 -> directory1
+            (
+                path1.clone(),
+                (left_merged.path_value(&path1), Merge::absent()),
+            ),
+        ];
+        assert_eq!(actual_diff, expected_diff);
+    }
+
+    // Diff while filtering by `path1/file` (file1 -> directory1) as a file
+    {
+        let actual_diff = left_merged
+            .diff(&right_merged, &FilesMatcher::new(&[path1.join(&file)]))
+            .map(|(path, diff)| (path, diff.unwrap()))
+            .collect_vec();
+        let expected_diff = vec![
+            // path1: file1 -> directory1
+            (
+                path1.join(&file),
+                (Merge::absent(), right_merged.path_value(&path1.join(&file))),
+            ),
+        ];
+        assert_eq!(actual_diff, expected_diff);
+    }
+
+    // Diff while filtering by `path1` (file1 -> directory1) as a prefix
+    {
+        let actual_diff = left_merged
+            .diff(&right_merged, &PrefixMatcher::new(&[path1.clone()]))
+            .map(|(path, diff)| (path, diff.unwrap()))
+            .collect_vec();
+        let expected_diff = vec![
+            (
+                path1.clone(),
+                (left_merged.path_value(&path1), Merge::absent()),
+            ),
+            (
+                path1.join(&file),
+                (Merge::absent(), right_merged.path_value(&path1.join(&file))),
+            ),
+        ];
+        assert_eq!(actual_diff, expected_diff);
+    }
+
+    // Diff while filtering by `path6` (directory1 -> file1+(directory1-absent)) as
+    // a file. We don't see the directory at `path6` on the left side, but we
+    // do see the directory that's included in the conflict with a file on the right
+    // side.
+    {
+        let actual_diff = left_merged
+            .diff(&right_merged, &FilesMatcher::new(&[path6.clone()]))
+            .map(|(path, diff)| (path, diff.unwrap()))
+            .collect_vec();
+        let expected_diff = vec![(
+            path6.clone(),
+            (Merge::absent(), right_merged.path_value(&path6)),
+        )];
         assert_eq!(actual_diff, expected_diff);
     }
 }
