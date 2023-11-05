@@ -193,12 +193,10 @@ pub fn merge(slices: &Merge<&[u8]>) -> MergeResult {
                     merge_hunks.push(Merge::from_removes_adds(
                         parts[..num_diffs]
                             .iter()
-                            .map(|part| ContentHunk(part.to_vec()))
-                            .collect_vec(),
+                            .map(|part| ContentHunk(part.to_vec())),
                         parts[num_diffs..]
                             .iter()
-                            .map(|part| ContentHunk(part.to_vec()))
-                            .collect_vec(),
+                            .map(|part| ContentHunk(part.to_vec())),
                     ));
                 }
             }
