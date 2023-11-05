@@ -9,6 +9,10 @@
 set -ev
 
 export "SITE_URL_FOR_MKDOCS=$1"; shift
+# Affects the generation of `sitemap.xml.gz` by `mkdocs`. See
+# https://github.com/jimporter/mike/issues/103 and
+# https://reproducible-builds.org/docs/source-date-epoch/
+export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct docs/ mkdocs.yml)
 # https://github.com/python-poetry/poetry/issues/1917 and
 # https://github.com/python-poetry/poetry/issues/8623
 export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring
