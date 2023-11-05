@@ -722,13 +722,11 @@ mod tests {
                 }
             }
         }
-        let merge = Merge::new(
-            vec![to_file_id(base_tree.path_value(&path))],
-            vec![
-                to_file_id(left_tree.path_value(&path)),
-                to_file_id(right_tree.path_value(&path)),
-            ],
-        );
+        let merge = Merge::from_vec(vec![
+            to_file_id(left_tree.path_value(&path)),
+            to_file_id(base_tree.path_value(&path)),
+            to_file_id(right_tree.path_value(&path)),
+        ]);
         let content = extract_as_single_hunk(&merge, store, &path).block_on();
         let slices = content.map(|ContentHunk(buf)| buf.as_slice());
         let merge_result = files::merge(&slices);

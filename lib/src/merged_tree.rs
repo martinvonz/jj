@@ -414,10 +414,7 @@ impl MergedTree {
                     MergedTree::Merge(conflict) => Ok(conflict.clone()),
                 }
             };
-            let nested = Merge::new(
-                vec![to_merge(base)?],
-                vec![to_merge(self)?, to_merge(other)?],
-            );
+            let nested = Merge::from_vec(vec![to_merge(self)?, to_merge(base)?, to_merge(other)?]);
             let tree = merge_trees(&nested.flatten().simplify())?;
             // If the result can be resolved, then `merge_trees()` above would have returned
             // a resolved merge. However, that function will always preserve the arity of
