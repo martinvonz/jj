@@ -72,31 +72,29 @@ where
 
     // Collect non-zero value. Values with a count of 0 means that they have
     // cancelled out.
-    let counts = counts
-        .into_iter()
-        .filter(|&(_, count)| count != 0)
-        .collect_vec();
-    match counts[..] {
-        [(value, 1)] => {
-            // If there is a single value with a count of 1 left, then that is the result.
-            Some(value)
+    counts.retain(|_, count| *count != 0);
+    if counts.len() == 1 {
+        // If there is a single value with a count of 1 left, then that is the result.
+        let (value, count) = counts.into_iter().next().unwrap();
+        assert_eq!(count, 1);
+        Some(value)
+    } else if counts.len() == 2 {
+        // All sides made the same change.
+        // This matches what Git and Mercurial do (in the 3-way case at least), but not
+        // what Darcs and Pijul do. It means that repeated 3-way merging of multiple
+        // trees may give different results depending on the order of merging.
+        // TODO: Consider removing this special case, making the algorithm more strict,
+        // and maybe add a more lenient version that is used when the user explicitly
+        // asks for conflict resolution.
+        let ((value1, count1), (value2, count2)) = counts.into_iter().next_tuple().unwrap();
+        assert_eq!(count1 + count2, 1);
+        if count1 > 0 {
+            Some(value1)
+        } else {
+            Some(value2)
         }
-        [(value1, count1), (value2, count2)] => {
-            // All sides made the same change.
-            // This matches what Git and Mercurial do (in the 3-way case at least), but not
-            // what Darcs and Pijul do. It means that repeated 3-way merging of multiple
-            // trees may give different results depending on the order of merging.
-            // TODO: Consider removing this special case, making the algorithm more strict,
-            // and maybe add a more lenient version that is used when the user explicitly
-            // asks for conflict resolution.
-            assert_eq!(count1 + count2, 1);
-            if count1 > 0 {
-                Some(value1)
-            } else {
-                Some(value2)
-            }
-        }
-        _ => None,
+    } else {
+        None
     }
 }
 
