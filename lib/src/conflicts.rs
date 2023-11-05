@@ -285,7 +285,7 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<ContentHunk> {
         }
     }
 
-    Merge::new(removes, adds)
+    Merge::from_removes_adds(removes, adds)
 }
 
 /// Parses conflict markers in `content` and returns an updated version of

@@ -66,7 +66,7 @@ fn test_from_legacy_tree() {
     let file2_v1_id = write_file(store.as_ref(), &file2_path, "file2_v1");
     let file2_v2_id = write_file(store.as_ref(), &file2_path, "file2_v2");
     let file2_v3_id = write_file(store.as_ref(), &file2_path, "file2_v3");
-    let file2_conflict = Merge::new(
+    let file2_conflict = Merge::from_removes_adds(
         vec![Some(file_value(&file2_v1_id))],
         vec![
             Some(file_value(&file2_v2_id)),
@@ -80,7 +80,7 @@ fn test_from_legacy_tree() {
     let file3_path = RepoPath::from_internal_string("modify_delete");
     let file3_v1_id = write_file(store.as_ref(), &file3_path, "file3_v1");
     let file3_v2_id = write_file(store.as_ref(), &file3_path, "file3_v2");
-    let file3_conflict = Merge::new(
+    let file3_conflict = Merge::from_removes_adds(
         vec![Some(file_value(&file3_v1_id))],
         vec![Some(file_value(&file3_v2_id)), None],
     );
@@ -91,7 +91,7 @@ fn test_from_legacy_tree() {
     let file4_path = RepoPath::from_internal_string("add_add");
     let file4_v1_id = write_file(store.as_ref(), &file4_path, "file4_v1");
     let file4_v2_id = write_file(store.as_ref(), &file4_path, "file4_v2");
-    let file4_conflict = Merge::new(
+    let file4_conflict = Merge::from_removes_adds(
         vec![None],
         vec![
             Some(file_value(&file4_v1_id)),
@@ -108,7 +108,7 @@ fn test_from_legacy_tree() {
     let file5_v3_id = write_file(store.as_ref(), &file5_path, "file5_v3");
     let file5_v4_id = write_file(store.as_ref(), &file5_path, "file5_v4");
     let file5_v5_id = write_file(store.as_ref(), &file5_path, "file5_v5");
-    let file5_conflict = Merge::new(
+    let file5_conflict = Merge::from_removes_adds(
         vec![
             Some(file_value(&file5_v1_id)),
             Some(file_value(&file5_v2_id)),
@@ -149,7 +149,7 @@ fn test_from_legacy_tree() {
     // file2: 3-way conflict
     assert_eq!(
         merged_tree.value(&file2_path.components()[0]),
-        MergedTreeVal::Conflict(Merge::new(
+        MergedTreeVal::Conflict(Merge::from_removes_adds(
             vec![Some(file_value(&file2_v1_id)), None],
             vec![
                 Some(file_value(&file2_v2_id)),
@@ -161,7 +161,7 @@ fn test_from_legacy_tree() {
     // file3: modify/delete conflict
     assert_eq!(
         merged_tree.value(&file3_path.components()[0]),
-        MergedTreeVal::Conflict(Merge::new(
+        MergedTreeVal::Conflict(Merge::from_removes_adds(
             vec![Some(file_value(&file3_v1_id)), None],
             vec![Some(file_value(&file3_v2_id)), None, None],
         ))
@@ -169,7 +169,7 @@ fn test_from_legacy_tree() {
     // file4: add/add conflict
     assert_eq!(
         merged_tree.value(&file4_path.components()[0]),
-        MergedTreeVal::Conflict(Merge::new(
+        MergedTreeVal::Conflict(Merge::from_removes_adds(
             vec![None, None],
             vec![
                 Some(file_value(&file4_v1_id)),
@@ -181,7 +181,7 @@ fn test_from_legacy_tree() {
     // file5: 5-way conflict
     assert_eq!(
         merged_tree.value(&file5_path.components()[0]),
-        MergedTreeVal::Conflict(Merge::new(
+        MergedTreeVal::Conflict(Merge::from_removes_adds(
             vec![
                 Some(file_value(&file5_v1_id)),
                 Some(file_value(&file5_v2_id)),
@@ -279,7 +279,7 @@ fn test_path_value_and_entries() {
             (&file_dir_conflict_sub_path, "1"),
         ],
     );
-    let merged_tree = MergedTree::Merge(Merge::new(
+    let merged_tree = MergedTree::Merge(Merge::from_removes_adds(
         vec![tree1.clone()],
         vec![tree2.clone(), tree3.clone()],
     ));
@@ -287,7 +287,7 @@ fn test_path_value_and_entries() {
     // Get the root tree
     assert_eq!(
         merged_tree.path_value(&RepoPath::root()),
-        Merge::new(
+        Merge::from_removes_adds(
             vec![Some(TreeValue::Tree(tree1.id().clone()))],
             vec![
                 Some(TreeValue::Tree(tree2.id().clone())),
@@ -310,7 +310,7 @@ fn test_path_value_and_entries() {
     // Get modify/delete conflict (some None values)
     assert_eq!(
         merged_tree.path_value(&modify_delete_path),
-        Merge::new(
+        Merge::from_removes_adds(
             vec![tree1.path_value(&modify_delete_path)],
             vec![tree2.path_value(&modify_delete_path), None]
         ),
@@ -318,7 +318,7 @@ fn test_path_value_and_entries() {
     // Get file/dir conflict path
     assert_eq!(
         merged_tree.path_value(&file_dir_conflict_path),
-        Merge::new(
+        Merge::from_removes_adds(
             vec![tree1.path_value(&file_dir_conflict_path)],
             vec![
                 tree2.path_value(&file_dir_conflict_path),
@@ -419,7 +419,7 @@ fn test_resolve_success() {
         ],
     );
 
-    let tree = MergedTree::new(Merge::new(vec![base1], vec![side1, side2]));
+    let tree = MergedTree::new(Merge::from_removes_adds(vec![base1], vec![side1, side2]));
     let resolved = tree.resolve().unwrap();
     let resolved_tree = resolved.as_resolved().unwrap().clone();
     assert_eq!(
@@ -443,7 +443,7 @@ fn test_resolve_root_becomes_empty() {
     let side1 = create_single_tree(repo, &[(&path2, "base1")]);
     let side2 = create_single_tree(repo, &[(&path1, "base1")]);
 
-    let tree = MergedTree::new(Merge::new(vec![base1], vec![side1, side2]));
+    let tree = MergedTree::new(Merge::from_removes_adds(vec![base1], vec![side1, side2]));
     let resolved = tree.resolve().unwrap();
     assert_eq!(resolved.as_resolved().unwrap().id(), store.empty_tree_id());
 }
@@ -467,11 +467,11 @@ fn test_resolve_with_conflict() {
     let expected_side2 =
         create_single_tree(repo, &[(&trivial_path, "side1"), (&conflict_path, "side2")]);
 
-    let tree = MergedTree::new(Merge::new(vec![base1], vec![side1, side2]));
+    let tree = MergedTree::new(Merge::from_removes_adds(vec![base1], vec![side1, side2]));
     let resolved_tree = tree.resolve().unwrap();
     assert_eq!(
         resolved_tree,
-        Merge::new(vec![expected_base1], vec![expected_side1, expected_side2])
+        Merge::from_removes_adds(vec![expected_base1], vec![expected_side1, expected_side2])
     )
 }
 
@@ -548,13 +548,13 @@ fn test_conflict_iterator() {
         ],
     );
 
-    let tree = MergedTree::new(Merge::new(
+    let tree = MergedTree::new(Merge::from_removes_adds(
         vec![base1.clone()],
         vec![side1.clone(), side2.clone()],
     ));
     let conflicts = tree.conflicts().collect_vec();
     let conflict_at = |path: &RepoPath| {
-        Merge::new(
+        Merge::from_removes_adds(
             vec![base1.path_value(path)],
             vec![side1.path_value(path), side2.path_value(path)],
         )
@@ -619,13 +619,13 @@ fn test_conflict_iterator_higher_arity() {
         &[(&two_sided_path, "side3"), (&three_sided_path, "side3")],
     );
 
-    let tree = MergedTree::new(Merge::new(
+    let tree = MergedTree::new(Merge::from_removes_adds(
         vec![base1.clone(), base2.clone()],
         vec![side1.clone(), side2.clone(), side3.clone()],
     ));
     let conflicts = tree.conflicts().collect_vec();
     let conflict_at = |path: &RepoPath| {
-        Merge::new(
+        Merge::from_removes_adds(
             vec![base1.path_value(path), base2.path_value(path)],
             vec![
                 side1.path_value(path),
@@ -654,7 +654,7 @@ fn test_conflict_iterator_higher_arity() {
         vec![
             (
                 two_sided_path.clone(),
-                Merge::new(
+                Merge::from_removes_adds(
                     vec![base2.path_value(&two_sided_path)],
                     vec![
                         side1.path_value(&two_sided_path),
@@ -799,11 +799,11 @@ fn test_diff_conflicted() {
             (&path4, "right-side2"),
         ],
     );
-    let left_merged = MergedTree::new(Merge::new(
+    let left_merged = MergedTree::new(Merge::from_removes_adds(
         vec![left_base.clone()],
         vec![left_side1.clone(), left_side2.clone()],
     ));
-    let right_merged = MergedTree::new(Merge::new(
+    let right_merged = MergedTree::new(Merge::from_removes_adds(
         vec![right_base.clone()],
         vec![right_side1.clone(), right_side2.clone()],
     ));
@@ -926,9 +926,14 @@ fn test_diff_dir_file() {
             (&path6.join(&file), "right"),
         ],
     );
-    let left_merged = MergedTree::new(Merge::new(vec![left_base], vec![left_side1, left_side2]));
-    let right_merged =
-        MergedTree::new(Merge::new(vec![right_base], vec![right_side1, right_side2]));
+    let left_merged = MergedTree::new(Merge::from_removes_adds(
+        vec![left_base],
+        vec![left_side1, left_side2],
+    ));
+    let right_merged = MergedTree::new(Merge::from_removes_adds(
+        vec![right_base],
+        vec![right_side1, right_side2],
+    ));
 
     // Test the forwards diff
     {
@@ -1175,7 +1180,7 @@ fn test_merge_partial_resolution() {
     let base1_merged = MergedTree::new(Merge::resolved(base1));
     let side1_merged = MergedTree::new(Merge::resolved(side1));
     let side2_merged = MergedTree::new(Merge::resolved(side2));
-    let expected_merged = MergedTree::new(Merge::new(
+    let expected_merged = MergedTree::new(Merge::from_removes_adds(
         vec![expected_base1],
         vec![expected_side1, expected_side2],
     ));
@@ -1222,15 +1227,15 @@ fn test_merge_simplify_only() {
     let tree4 = create_single_tree(repo, &[(&path, "4")]);
     let tree5 = create_single_tree(repo, &[(&path, "5")]);
     let expected = tree5.clone();
-    let base1_merged = MergedTree::new(Merge::new(
+    let base1_merged = MergedTree::new(Merge::from_removes_adds(
         vec![tree1.clone()],
         vec![tree2.clone(), tree3.clone()],
     ));
-    let side1_merged = MergedTree::new(Merge::new(
+    let side1_merged = MergedTree::new(Merge::from_removes_adds(
         vec![tree1.clone()],
         vec![tree4.clone(), tree2.clone()],
     ));
-    let side2_merged = MergedTree::new(Merge::new(
+    let side2_merged = MergedTree::new(Merge::from_removes_adds(
         vec![tree4.clone()],
         vec![tree5.clone(), tree3.clone()],
     ));
@@ -1259,13 +1264,13 @@ fn test_merge_simplify_result() {
     let expected_base1 = create_single_tree(repo, &[(&path1, "1"), (&path2, "3")]);
     let expected_side1 = create_single_tree(repo, &[(&path1, "2"), (&path2, "3")]);
     let expected_side2 = create_single_tree(repo, &[(&path1, "3"), (&path2, "3")]);
-    let side1_merged = MergedTree::new(Merge::new(
+    let side1_merged = MergedTree::new(Merge::from_removes_adds(
         vec![tree1.clone()],
         vec![tree2.clone(), tree3.clone()],
     ));
     let base1_merged = MergedTree::new(Merge::resolved(tree4.clone()));
     let side2_merged = MergedTree::new(Merge::resolved(tree5.clone()));
-    let expected_merged = MergedTree::new(Merge::new(
+    let expected_merged = MergedTree::new(Merge::from_removes_adds(
         vec![expected_base1],
         vec![expected_side1, expected_side2],
     ));
@@ -1344,7 +1349,7 @@ fn test_merge_simplify_file_conflict() {
     let parent_base = create_single_tree(repo, &[(&conflict_path, &parent_base_text)]);
     let parent_left = create_single_tree(repo, &[(&conflict_path, &parent_left_text)]);
     let parent_right = create_single_tree(repo, &[(&conflict_path, &parent_right_text)]);
-    let parent_merged = MergedTree::new(Merge::new(
+    let parent_merged = MergedTree::new(Merge::from_removes_adds(
         vec![parent_base],
         vec![parent_left, parent_right],
     ));
@@ -1365,7 +1370,7 @@ fn test_merge_simplify_file_conflict() {
             (&conflict_path, &child1_right_text),
         ],
     );
-    let child1_merged = MergedTree::new(Merge::new(
+    let child1_merged = MergedTree::new(Merge::from_removes_adds(
         vec![child1_base],
         vec![child1_left, child1_right],
     ));
@@ -1388,13 +1393,13 @@ fn test_merge_simplify_file_conflict() {
     // be resolved. If we later change files::merge() so this no longer fails,  it
     // probably means that we can delete this whole test (the Merge::simplify() call
     // in try_resolve_file_conflict() is just an optimization then).
-    let text_merge = Merge::new(
-        vec![Merge::new(
+    let text_merge = Merge::from_removes_adds(
+        vec![Merge::from_removes_adds(
             vec![parent_base_text.as_bytes()],
             vec![parent_left_text.as_bytes(), parent_right_text.as_bytes()],
         )],
         vec![
-            Merge::new(
+            Merge::from_removes_adds(
                 vec![parent_base_text.as_bytes()],
                 vec![parent_left_text.as_bytes(), child1_right_text.as_bytes()],
             ),

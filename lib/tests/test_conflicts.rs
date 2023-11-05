@@ -64,7 +64,7 @@ line 5
 
     // The left side should come first. The diff should be use the smaller (right)
     // side, and the left side should be a snapshot.
-    let conflict = Merge::new(
+    let conflict = Merge::from_removes_adds(
         vec![Some(base_id.clone())],
         vec![Some(left_id.clone()), Some(right_id.clone())],
     );
@@ -88,7 +88,7 @@ line 5
     );
     // Swap the positive terms in the conflict. The diff should still use the right
     // side, but now the right side should come first.
-    let conflict = Merge::new(
+    let conflict = Merge::from_removes_adds(
         vec![Some(base_id.clone())],
         vec![Some(right_id.clone()), Some(left_id.clone())],
     );
@@ -157,7 +157,7 @@ line 3
 
     // The order of (a, b, c) should be preserved. For all cases, the "a" side
     // should be a snapshot.
-    let conflict = Merge::new(
+    let conflict = Merge::from_removes_adds(
         vec![Some(base_id.clone()), Some(base_id.clone())],
         vec![Some(a_id.clone()), Some(b_id.clone()), Some(c_id.clone())],
     );
@@ -181,7 +181,7 @@ line 3
     line 3
     "###
     );
-    let conflict = Merge::new(
+    let conflict = Merge::from_removes_adds(
         vec![Some(base_id.clone()), Some(base_id.clone())],
         vec![Some(c_id.clone()), Some(b_id.clone()), Some(a_id.clone())],
     );
@@ -205,7 +205,7 @@ line 3
     line 3
     "###
     );
-    let conflict = Merge::new(
+    let conflict = Merge::from_removes_adds(
         vec![Some(base_id.clone()), Some(base_id.clone())],
         vec![Some(c_id.clone()), Some(a_id.clone()), Some(b_id.clone())],
     );
@@ -268,7 +268,7 @@ line 5 right
 ",
     );
 
-    let conflict = Merge::new(
+    let conflict = Merge::from_removes_adds(
         vec![Some(base_id.clone())],
         vec![Some(left_id.clone()), Some(right_id.clone())],
     );
@@ -363,7 +363,7 @@ line 5
     );
 
     // left modifies a line, right deletes the same line.
-    let conflict = Merge::new(
+    let conflict = Merge::from_removes_adds(
         vec![Some(base_id.clone())],
         vec![Some(modified_id.clone()), Some(deleted_id.clone())],
     );
@@ -382,7 +382,7 @@ line 5
     );
 
     // right modifies a line, left deletes the same line.
-    let conflict = Merge::new(
+    let conflict = Merge::from_removes_adds(
         vec![Some(base_id.clone())],
         vec![Some(deleted_id.clone()), Some(modified_id.clone())],
     );
@@ -401,7 +401,7 @@ line 5
     );
 
     // modify/delete conflict at the file level
-    let conflict = Merge::new(
+    let conflict = Merge::from_removes_adds(
         vec![Some(base_id.clone())],
         vec![Some(modified_id.clone()), None],
     );
@@ -599,7 +599,7 @@ fn test_update_conflict_from_content() {
     let base_file_id = testutils::write_file(store, &path, "line 1\nline 2\nline 3\n");
     let left_file_id = testutils::write_file(store, &path, "left 1\nline 2\nleft 3\n");
     let right_file_id = testutils::write_file(store, &path, "right 1\nline 2\nright 3\n");
-    let conflict = Merge::new(
+    let conflict = Merge::from_removes_adds(
         vec![Some(base_file_id.clone())],
         vec![Some(left_file_id.clone()), Some(right_file_id.clone())],
     );
@@ -632,7 +632,7 @@ fn test_update_conflict_from_content() {
     let new_right_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nright 3\n");
     assert_eq!(
         new_conflict,
-        Merge::new(
+        Merge::from_removes_adds(
             vec![Some(new_base_file_id.clone())],
             vec![
                 Some(new_left_file_id.clone()),
@@ -650,7 +650,8 @@ fn test_update_conflict_from_content_modify_delete() {
     let path = RepoPath::from_internal_string("dir/file");
     let before_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
     let after_file_id = testutils::write_file(store, &path, "line 1\nline 2 after\nline 3\n");
-    let conflict = Merge::new(vec![Some(before_file_id)], vec![Some(after_file_id), None]);
+    let conflict =
+        Merge::from_removes_adds(vec![Some(before_file_id)], vec![Some(after_file_id), None]);
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
@@ -677,7 +678,7 @@ fn test_update_conflict_from_content_modify_delete() {
 
     assert_eq!(
         new_conflict,
-        Merge::new(
+        Merge::from_removes_adds(
             vec![Some(new_base_file_id.clone())],
             vec![Some(new_left_file_id.clone()), None]
         )

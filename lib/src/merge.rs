@@ -144,9 +144,8 @@ impl<T> Merge<T> {
     }
 
     /// Creates a new merge object from the given removes and adds.
-    pub fn new(removes: Vec<T>, adds: Vec<T>) -> Self {
+    pub fn from_removes_adds(removes: Vec<T>, adds: Vec<T>) -> Self {
         // TODO: removes and adds can be just IntoIterator.
-        // TODO: maybe add constructor that takes single values vec, and rename this
         assert_eq!(adds.len(), removes.len() + 1);
         let values = itertools::interleave(adds, removes).collect();
         Merge { values }
@@ -606,7 +605,7 @@ mod tests {
     use super::*;
 
     fn c<T: Clone>(removes: &[T], adds: &[T]) -> Merge<T> {
-        Merge::new(removes.to_vec(), adds.to_vec())
+        Merge::from_removes_adds(removes.to_vec(), adds.to_vec())
     }
 
     #[test]
@@ -681,39 +680,48 @@ mod tests {
             assert_eq!(Merge::from_legacy_form(legacy_form.0, legacy_form.1), merge);
         }
         // Non-conflict
-        test_equivalent((vec![], vec![0]), Merge::new(vec![], vec![Some(0)]));
+        test_equivalent(
+            (vec![], vec![0]),
+            Merge::from_removes_adds(vec![], vec![Some(0)]),
+        );
         // Regular 3-way conflict
         test_equivalent(
             (vec![0], vec![1, 2]),
-            Merge::new(vec![Some(0)], vec![Some(1), Some(2)]),
+            Merge::from_removes_adds(vec![Some(0)], vec![Some(1), Some(2)]),
         );
         // Modify/delete conflict
         test_equivalent(
             (vec![0], vec![1]),
-            Merge::new(vec![Some(0)], vec![Some(1), None]),
+            Merge::from_removes_adds(vec![Some(0)], vec![Some(1), None]),
         );
         // Add/add conflict
         test_equivalent(
             (vec![], vec![0, 1]),
-            Merge::new(vec![None], vec![Some(0), Some(1)]),
+            Merge::from_removes_adds(vec![None], vec![Some(0), Some(1)]),
         );
         // 5-way conflict
         test_equivalent(
             (vec![0, 1], vec![2, 3, 4]),
-            Merge::new(vec![Some(0), Some(1)], vec![Some(2), Some(3), Some(4)]),
+            Merge::from_removes_adds(vec![Some(0), Some(1)], vec![Some(2), Some(3), Some(4)]),
         );
         // 5-way delete/delete conflict
         test_equivalent(
             (vec![0, 1], vec![]),
-            Merge::new(vec![Some(0), Some(1)], vec![None, None, None]),
+            Merge::from_removes_adds(vec![Some(0), Some(1)], vec![None, None, None]),
         );
     }
 
     #[test]
     fn test_as_resolved() {
-        assert_eq!(Merge::new(vec![], vec![0]).as_resolved(), Some(&0));
+        assert_eq!(
+            Merge::from_removes_adds(vec![], vec![0]).as_resolved(),
+            Some(&0)
+        );
         // Even a trivially resolvable merge is not resolved
-        assert_eq!(Merge::new(vec![0], vec![0, 1]).as_resolved(), None);
+        assert_eq!(
+            Merge::from_removes_adds(vec![0], vec![0, 1]).as_resolved(),
+            None
+        );
     }
 
     #[test]
@@ -788,7 +796,7 @@ mod tests {
     #[test]
     fn test_merge_invariants() {
         fn check_invariants(removes: &[u32], adds: &[u32]) {
-            let merge = Merge::new(removes.to_vec(), adds.to_vec());
+            let merge = Merge::from_removes_adds(removes.to_vec(), adds.to_vec());
             // `simplify()` is idempotent
             assert_eq!(
                 merge.clone().simplify().simplify(),
