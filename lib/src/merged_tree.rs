@@ -156,7 +156,7 @@ impl MergedTree {
     pub fn dir(&self) -> &RepoPath {
         match self {
             MergedTree::Legacy(tree) => tree.dir(),
-            MergedTree::Merge(conflict) => conflict.adds()[0].dir(),
+            MergedTree::Merge(conflict) => conflict.first().dir(),
         }
     }
 
@@ -164,7 +164,7 @@ impl MergedTree {
     pub fn store(&self) -> &Arc<Store> {
         match self {
             MergedTree::Legacy(tree) => tree.store(),
-            MergedTree::Merge(trees) => trees.adds()[0].store(),
+            MergedTree::Merge(trees) => trees.first().store(),
         }
     }
 
@@ -448,7 +448,7 @@ fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
         return Ok(Merge::resolved(tree.clone()));
     }
 
-    let base_tree = &merge.adds()[0];
+    let base_tree = merge.first();
     let store = base_tree.store();
     let dir = base_tree.dir();
     // Keep resolved entries in `new_tree` and conflicted entries in `conflicts` to

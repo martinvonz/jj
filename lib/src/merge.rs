@@ -170,6 +170,11 @@ impl<T> Merge<T> {
         &self.adds
     }
 
+    /// Returns the zeroth added value, which is guaranteed to exist.
+    pub fn first(&self) -> &T {
+        &self.adds[0]
+    }
+
     /// Returns the `index`-th removed value, which is considered belonging to
     /// the `index`-th diff pair.
     pub fn get_remove(&self, index: usize) -> Option<&T> {
