@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   create a new workspace with its working-copy commit on top of all the parents,
   as if you had run `jj new r1 r2 r3 ...`.
 
+* You can now set `git.abandon-unreachable-commits = false` to disable the
+  usual behavior where commits that became unreachable in the Git repo are
+  abandoned ([#2504](https://github.com/martinvonz/jj/pull/2504)).
+
 ### Fixed bugs
 
 
