@@ -212,15 +212,18 @@ fn new_utf8_temp_dir(prefix: &str) -> io::Result<TempDir> {
 fn set_readonly_recursively(path: &Path) -> Result<(), std::io::Error> {
     // Directory permission is unchanged since files under readonly directory cannot
     // be removed.
-    if path.is_dir() {
+    let metadata = path.symlink_metadata()?;
+    if metadata.is_dir() {
         for entry in path.read_dir()? {
             set_readonly_recursively(&entry?.path())?;
         }
         Ok(())
-    } else {
-        let mut perms = std::fs::metadata(path)?.permissions();
+    } else if metadata.is_file() {
+        let mut perms = metadata.permissions();
         perms.set_readonly(true);
         std::fs::set_permissions(path, perms)
+    } else {
+        Ok(())
     }
 }
 
