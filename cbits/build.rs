@@ -60,6 +60,20 @@ fn build_mimalloc() {
         .compile("jj-mimalloc");
 }
 
+fn build_libfault() {
+    if cfg!(target_os = "windows") {
+        return;
+    }
+
+    let (c_opt_level, _) = new_cc_builder();
+    cc::Build::new()
+        .include("cbits/libfault")
+        .file("cbits/libfault/libfault.c")
+        .opt_level_str(&c_opt_level)
+        .compile("jj-libfault");
+}
+
 fn main() {
     build_mimalloc();
+    build_libfault();
 }
