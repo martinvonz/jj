@@ -805,6 +805,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#abandon-commits-that-became-unreachable-in-git" class="md-nav__link">
+    Abandon commits that became unreachable in Git
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#prefix-for-generated-branches-on-push" class="md-nav__link">
     Prefix for generated branches on push
   </a>
@@ -1592,6 +1599,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#abandon-commits-that-became-unreachable-in-git" class="md-nav__link">
+    Abandon commits that became unreachable in Git
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#prefix-for-generated-branches-on-push" class="md-nav__link">
     Prefix for generated branches on push
   </a>
@@ -2000,6 +2014,14 @@ jj<span class="w"> </span>branch<span class="w"> </span>track<span class="w"> </
 <span class="c1"># delete local gh-pages branch and stop tracking it</span>
 jj<span class="w"> </span>branch<span class="w"> </span>delete<span class="w"> </span>gh-pages
 jj<span class="w"> </span>branch<span class="w"> </span>untrack<span class="w"> </span>gh-pages@upstream
+</code></pre></div>
+<h3 id="abandon-commits-that-became-unreachable-in-git">Abandon commits that became unreachable in Git<a class="headerlink" href="#abandon-commits-that-became-unreachable-in-git" title="Permanent link">&para;</a></h3>
+<p>By default, when <code>jj</code> imports refs from Git, it will look for commits that used
+to be <a href="https://git-scm.com/docs/gitglossary/#Documentation/gitglossary.txt-aiddefreachableareachable">reachable</a> but no longer are reachable. Those commits will
+then be abandoned, and any descendant commits will be rebased off of them (as
+usual when commits are abandoned). You can disable this behavior and instead
+leave the Git-unreachable commits in your repo by setting:</p>
+<div class="highlight"><pre><span></span><code><span class="n">git</span><span class="p">.</span><span class="n">abandon-unreachable-commits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 </code></pre></div>
 <h3 id="prefix-for-generated-branches-on-push">Prefix for generated branches on push<a class="headerlink" href="#prefix-for-generated-branches-on-push" title="Permanent link">&para;</a></h3>
 <p><code>jj git push --change</code> generates branch names with a prefix of "push-" by
