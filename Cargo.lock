@@ -1629,6 +1629,7 @@ dependencies = [
  "indexmap",
  "insta",
  "itertools 0.11.0",
+ "jj-cbits",
  "jj-cli",
  "jj-lib",
  "libc",
