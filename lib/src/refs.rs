@@ -93,10 +93,11 @@ pub fn merge_ref_targets(
         return resolved.clone();
     }
 
-    let mut merge = Merge::new(
-        vec![base.as_merge().clone()],
-        vec![left.as_merge().clone(), right.as_merge().clone()],
-    )
+    let mut merge = Merge::from_vec(vec![
+        left.as_merge().clone(),
+        base.as_merge().clone(),
+        right.as_merge().clone(),
+    ])
     .flatten()
     .simplify();
     if !merge.is_resolved() {

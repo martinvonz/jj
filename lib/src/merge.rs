@@ -132,6 +132,17 @@ impl<T: Debug> Debug for Merge<T> {
 }
 
 impl<T> Merge<T> {
+    /// Creates a `Merge` from the given values, in which positive and negative
+    /// terms alternate.
+    pub fn from_vec(values: impl Into<SmallVec<[T; 1]>>) -> Self {
+        let values = values.into();
+        assert!(
+            values.len() & 1 != 0,
+            "must have one more adds than removes"
+        );
+        Merge { values }
+    }
+
     /// Creates a new merge object from the given removes and adds.
     pub fn new(removes: Vec<T>, adds: Vec<T>) -> Self {
         // TODO: removes and adds can be just IntoIterator.
@@ -335,10 +346,7 @@ impl<T> MergeBuilder<T> {
     /// Requires that exactly one more "adds" than "removes" have been added to
     /// this builder.
     pub fn build(self) -> Merge<T> {
-        assert!(self.values.len() & 1 != 0);
-        Merge {
-            values: self.values,
-        }
+        Merge::from_vec(self.values)
     }
 }
 

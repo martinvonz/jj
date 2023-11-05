@@ -373,10 +373,11 @@ fn merge_tree_value(
         _ => {
             // Start by creating a Merge object. Merges can cleanly represent a single
             // resolved state, the absence of a state, or a conflicted state.
-            let conflict = Merge::new(
-                vec![maybe_base.cloned()],
-                vec![maybe_side1.cloned(), maybe_side2.cloned()],
-            );
+            let conflict = Merge::from_vec(vec![
+                maybe_side1.cloned(),
+                maybe_base.cloned(),
+                maybe_side2.cloned(),
+            ]);
             let filename = dir.join(basename);
             let expanded = conflict.try_map(|term| match term {
                 Some(TreeValue::Conflict(id)) => store.read_conflict(&filename, id),

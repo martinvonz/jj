@@ -167,19 +167,21 @@ fn test_merge_ref_targets() {
     // Left removed, right moved forward
     assert_eq!(
         merge_ref_targets(index, RefTarget::absent_ref(), &target1, &target3),
-        RefTarget::from_merge(Merge::new(
-            vec![Some(commit1.id().clone())],
-            vec![None, Some(commit3.id().clone())],
-        ))
+        RefTarget::from_merge(Merge::from_vec(vec![
+            None,
+            Some(commit1.id().clone()),
+            Some(commit3.id().clone()),
+        ]))
     );
 
     // Right removed, left moved forward
     assert_eq!(
         merge_ref_targets(index, &target3, &target1, RefTarget::absent_ref()),
-        RefTarget::from_merge(Merge::new(
-            vec![Some(commit1.id().clone())],
-            vec![Some(commit3.id().clone()), None],
-        ))
+        RefTarget::from_merge(Merge::from_vec(vec![
+            Some(commit3.id().clone()),
+            Some(commit1.id().clone()),
+            None,
+        ]))
     );
 
     // Left became conflicted, right moved forward
