@@ -756,6 +756,49 @@ fn test_diff_external_tool() {
     "###);
 }
 
+#[cfg(unix)]
+#[test]
+fn test_diff_external_tool_symlink() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let external_file_path = test_env.env_root().join("external-file");
+    std::fs::write(&external_file_path, "").unwrap();
+    let external_file_permissions = external_file_path.symlink_metadata().unwrap().permissions();
+
+    std::os::unix::fs::symlink("non-existent1", repo_path.join("dead")).unwrap();
+    std::os::unix::fs::symlink(&external_file_path, repo_path.join("file")).unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::remove_file(repo_path.join("dead")).unwrap();
+    std::os::unix::fs::symlink("non-existent2", repo_path.join("dead")).unwrap();
+    std::fs::remove_file(repo_path.join("file")).unwrap();
+    std::fs::write(repo_path.join("file"), "").unwrap();
+
+    let edit_script = test_env.set_up_fake_diff_editor();
+    std::fs::write(
+        &edit_script,
+        "print-files-before\0print --\0print-files-after",
+    )
+    .unwrap();
+
+    // Shouldn't try to change permission of symlinks
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["diff", "--tool=fake-diff-editor"]), @r###"
+    dead
+    file
+    --
+    dead
+    file
+    "###);
+
+    // External file should be intact
+    assert_eq!(
+        external_file_path.symlink_metadata().unwrap().permissions(),
+        external_file_permissions
+    );
+}
+
 #[test]
 fn test_diff_stat() {
     let test_env = TestEnvironment::default();
