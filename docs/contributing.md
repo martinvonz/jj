@@ -104,6 +104,13 @@ installer options are fine), clone the repository, and use `cargo build`
 `cargo test --workspace`. If you are preparing a PR, there are some additional
 recommended steps.
 
+You will probably also want to make the `gh-pages` branch immutable (and thereby
+hidden from the default `jj log` output) by running the following in your repo:
+
+```shell
+jj config set --repo "revset-aliases.immutable_heads()" "main@origin | gh-pages@origin"
+```
+
 ### Summary
 
 One-time setup:
