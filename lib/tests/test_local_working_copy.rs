@@ -122,7 +122,7 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
                 let base_file_id = testutils::write_file(store, path, "base file contents");
                 let left_file_id = testutils::write_file(store, path, "left file contents");
                 let right_file_id = testutils::write_file(store, path, "right file contents");
-                Merge::new(
+                Merge::from_removes_adds(
                     vec![Some(TreeValue::File {
                         id: base_file_id,
                         executable: false,

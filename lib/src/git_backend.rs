@@ -1376,7 +1376,7 @@ mod tests {
             TreeId::from_bytes(tree_builder.write().unwrap().as_bytes())
         };
 
-        let root_tree = Merge::new(
+        let root_tree = Merge::from_removes_adds(
             vec![create_tree(0), create_tree(1)],
             vec![create_tree(2), create_tree(3), create_tree(4)],
         );
