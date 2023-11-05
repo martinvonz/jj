@@ -225,6 +225,11 @@
                     "description": "Whether jj creates a local branch with the same name when it imports a remote-tracking branch from git. See https://github.com/martinvonz/jj/blob/main/docs/config.md#automatic-local-branch-creation",
                     "default": true
                 },
+                "abandon-unreachable-commits": {
+                    "type": "boolean",
+                    "description": "Whether jj should abandon commits that became unreachable in Git.",
+                    "default": true
+                },
                 "push-branch-prefix": {
                     "type": "string",
                     "description": "Prefix used when pushing a change ID as a new branch",

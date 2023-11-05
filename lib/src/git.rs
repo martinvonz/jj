@@ -313,7 +313,11 @@ pub fn import_some_refs(
         }
     }
 
-    let abandoned_commits = abandon_unreachable_commits(mut_repo, &changed_remote_refs);
+    let abandoned_commits = if git_settings.abandon_unreachable_commits {
+        abandon_unreachable_commits(mut_repo, &changed_remote_refs)
+    } else {
+        vec![]
+    };
     let stats = GitImportStats { abandoned_commits };
     Ok(stats)
 }

@@ -525,6 +525,20 @@ jj branch delete gh-pages
 jj branch untrack gh-pages@upstream
 ```
 
+### Abandon commits that became unreachable in Git
+
+By default, when `jj` imports refs from Git, it will look for commits that used
+to be [reachable][reachable] but no longer are reachable. Those commits will
+then be abandoned, and any descendant commits will be rebased off of them (as
+usual when commits are abandoned). You can disable this behavior and instead
+leave the Git-unreachable commits in your repo by setting:
+
+```toml
+git.abandon-unreachable-commits = false
+```
+
+[reachable]: https://git-scm.com/docs/gitglossary/#Documentation/gitglossary.txt-aiddefreachableareachable
+
 ### Prefix for generated branches on push
 
 `jj git push --change` generates branch names with a prefix of "push-" by

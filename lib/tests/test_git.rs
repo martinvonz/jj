@@ -708,6 +708,7 @@ fn test_import_refs_reimport_with_moved_untracked_remote_ref() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
         auto_local_branch: false,
+        ..Default::default()
     };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
@@ -817,6 +818,37 @@ fn test_import_refs_reimport_all_from_root_removed() {
     git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert!(!tx.mut_repo().view().heads().contains(&jj_id(&commit)));
+}
+
+#[test]
+fn test_import_refs_reimport_abandoning_disabled() {
+    // Test that we don't abandoned unreachable commits if configured not to
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings {
+        abandon_unreachable_commits: false,
+        ..Default::default()
+    };
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let repo = &test_repo.repo;
+    let git_repo = get_git_repo(repo);
+
+    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    let commit2 = empty_git_commit(&git_repo, "refs/heads/delete-me", &[&commit1]);
+    let mut tx = repo.start_transaction(&settings, "test");
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    // Test the setup
+    assert!(tx.mut_repo().view().heads().contains(&jj_id(&commit2)));
+
+    // Remove the `delete-me` branch and re-import
+    git_repo
+        .find_reference("refs/heads/delete-me")
+        .unwrap()
+        .delete()
+        .unwrap();
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    assert!(tx.mut_repo().view().heads().contains(&jj_id(&commit2)));
 }
 
 #[test]
@@ -1426,6 +1458,7 @@ fn test_import_export_non_tracking_branch() {
     let test_data = GitRepoData::create();
     let mut git_settings = GitSettings {
         auto_local_branch: false,
+        ..Default::default()
     };
     let git_repo = test_data.git_repo;
     let commit_main_t0 = empty_git_commit(&git_repo, "refs/remotes/origin/main", &[]);
