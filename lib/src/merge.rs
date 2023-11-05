@@ -144,10 +144,18 @@ impl<T> Merge<T> {
     }
 
     /// Creates a new merge object from the given removes and adds.
-    pub fn from_removes_adds(removes: Vec<T>, adds: Vec<T>) -> Self {
-        // TODO: removes and adds can be just IntoIterator.
-        assert_eq!(adds.len(), removes.len() + 1);
-        let values = itertools::interleave(adds, removes).collect();
+    pub fn from_removes_adds(
+        removes: impl IntoIterator<Item = T>,
+        adds: impl IntoIterator<Item = T>,
+    ) -> Self {
+        let removes = removes.into_iter();
+        let mut adds = adds.into_iter();
+        let mut values = SmallVec::with_capacity(removes.size_hint().0 * 2 + 1);
+        values.push(adds.next().expect("must have at least one add"));
+        for diff in removes.zip_longest(adds) {
+            let (remove, add) = diff.both().expect("must have one more adds than removes");
+            values.extend([remove, add]);
+        }
         Merge { values }
     }
 

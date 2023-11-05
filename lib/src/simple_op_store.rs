@@ -505,8 +505,8 @@ fn ref_target_from_proto(maybe_proto: Option<crate::protos::op_store::RefTarget>
         crate::protos::op_store::ref_target::Value::Conflict(conflict) => {
             let term_from_proto =
                 |term: crate::protos::op_store::ref_conflict::Term| term.value.map(CommitId::new);
-            let removes = conflict.removes.into_iter().map(term_from_proto).collect();
-            let adds = conflict.adds.into_iter().map(term_from_proto).collect();
+            let removes = conflict.removes.into_iter().map(term_from_proto);
+            let adds = conflict.adds.into_iter().map(term_from_proto);
             RefTarget::from_merge(Merge::from_removes_adds(removes, adds))
         }
     }
