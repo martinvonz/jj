@@ -93,19 +93,16 @@ pub fn merge_ref_targets(
         return resolved.clone();
     }
 
-    let merge = Merge::new(
+    let mut merge = Merge::new(
         vec![base.as_merge().clone()],
         vec![left.as_merge().clone(), right.as_merge().clone()],
     )
     .flatten()
     .simplify();
-
-    if merge.is_resolved() {
-        RefTarget::from_merge(merge)
-    } else {
-        let merge = merge_ref_targets_non_trivial(index, merge);
-        RefTarget::from_merge(merge)
+    if !merge.is_resolved() {
+        merge_ref_targets_non_trivial(index, &mut merge);
     }
+    RefTarget::from_merge(merge)
 }
 
 pub fn merge_remote_refs(
@@ -127,27 +124,20 @@ pub fn merge_remote_refs(
     RemoteRef { target, state }
 }
 
-fn merge_ref_targets_non_trivial(
-    index: &dyn Index,
-    conflict: Merge<Option<CommitId>>,
-) -> Merge<Option<CommitId>> {
-    let (mut removes, mut adds) = conflict.take();
-    while let Some((remove_index, add_index)) = find_pair_to_remove(index, &removes, &adds) {
-        removes.swap_remove(remove_index);
-        adds.swap_remove(add_index);
+fn merge_ref_targets_non_trivial(index: &dyn Index, conflict: &mut Merge<Option<CommitId>>) {
+    while let Some((remove_index, add_index)) = find_pair_to_remove(index, conflict) {
+        conflict.swap_remove(remove_index, add_index);
     }
-    Merge::new(removes, adds)
 }
 
 fn find_pair_to_remove(
     index: &dyn Index,
-    removes: &[Option<CommitId>],
-    adds: &[Option<CommitId>],
+    conflict: &Merge<Option<CommitId>>,
 ) -> Option<(usize, usize)> {
     // If a "remove" is an ancestor of two different "adds" and one of the
     // "adds" is an ancestor of the other, then pick the descendant.
-    for (add_index1, add1) in adds.iter().enumerate() {
-        for (add_index2, add2) in adds.iter().enumerate().skip(add_index1 + 1) {
+    for (add_index1, add1) in conflict.adds().enumerate() {
+        for (add_index2, add2) in conflict.adds().enumerate().skip(add_index1 + 1) {
             // TODO: Instead of relying on the list order, maybe ((add1, add2), remove)
             // combination should be somehow weighted?
             let (add_index, add_id) = match (add1, add2) {
@@ -156,7 +146,7 @@ fn find_pair_to_remove(
                 (Some(id1), Some(id2)) if index.is_ancestor(id2, id1) => (add_index2, id2),
                 _ => continue,
             };
-            if let Some(remove_index) = removes.iter().position(|remove| match remove {
+            if let Some(remove_index) = conflict.removes().position(|remove| match remove {
                 Some(id) => index.is_ancestor(id, add_id),
                 None => true, // Absent ref can be considered a root
             }) {
