@@ -50,7 +50,7 @@ gix = { version = "0.55.2", default-features = false, features = [
 hex = "0.4.3"
 itertools = "0.11.0"
 indexmap = "2.1.0"
-libc = { version = "0.2.149" }
+libc = { version = "0.2.150" }
 insta = { version = "1.34.0", features = ["filters"] }
 maplit = "1.0.2"
 num_cpus = "1.16.0"
