@@ -22,8 +22,8 @@ use jj_lib::settings::UserSettings;
 use maplit::{hashmap, hashset};
 use tracing::instrument;
 
-use super::{diff_summary_to_description, edit_description};
 use crate::cli_util::{CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper};
+use crate::description_util::{diff_summary_to_description, edit_description};
 use crate::diff_util::{self, DiffFormat};
 use crate::formatter::PlainTextFormatter;
 use crate::ui::Ui;

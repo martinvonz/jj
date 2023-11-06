@@ -17,8 +17,8 @@ use jj_lib::matchers::EverythingMatcher;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
-use super::combine_messages;
 use crate::cli_util::{user_error, CommandError, CommandHelper, RevisionArg};
+use crate::description_util::combine_messages;
 use crate::ui::Ui;
 
 /// Move changes from a revision's parent into the revision
