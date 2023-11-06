@@ -17,8 +17,8 @@ use std::io::{self, Read, Write};
 use jj_lib::backend::ObjectId;
 use tracing::instrument;
 
-use super::{description_template_for_commit, edit_description};
 use crate::cli_util::{join_message_paragraphs, CommandError, CommandHelper, RevisionArg};
+use crate::description_util::{description_template_for_commit, edit_description};
 use crate::ui::Ui;
 
 /// Update the change description or other metadata

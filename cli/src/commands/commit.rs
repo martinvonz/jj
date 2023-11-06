@@ -17,8 +17,8 @@ use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
-use super::{description_template_for_commit, edit_description};
 use crate::cli_util::{join_message_paragraphs, user_error, CommandError, CommandHelper};
+use crate::description_util::{description_template_for_commit, edit_description};
 use crate::ui::Ui;
 
 /// Update the description and create a new change on top.

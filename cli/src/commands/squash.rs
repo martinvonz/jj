@@ -17,8 +17,8 @@ use jj_lib::backend::ObjectId;
 use jj_lib::revset;
 use tracing::instrument;
 
-use super::combine_messages;
 use crate::cli_util::{self, user_error, CommandError, CommandHelper, RevisionArg};
+use crate::description_util::combine_messages;
 use crate::ui::Ui;
 
 /// Move changes from a revision into its parent

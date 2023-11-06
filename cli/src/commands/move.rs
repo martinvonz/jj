@@ -18,8 +18,8 @@ use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
-use super::combine_messages;
 use crate::cli_util::{user_error, CommandError, CommandHelper, RevisionArg};
+use crate::description_util::combine_messages;
 use crate::ui::Ui;
 
 /// Move changes from one revision into another
