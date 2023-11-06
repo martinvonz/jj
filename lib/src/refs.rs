@@ -133,8 +133,8 @@ fn merge_ref_targets_non_trivial(
 ) -> Merge<Option<CommitId>> {
     let (mut removes, mut adds) = conflict.take();
     while let Some((remove_index, add_index)) = find_pair_to_remove(index, &removes, &adds) {
-        removes.remove(remove_index);
-        adds.remove(add_index);
+        removes.swap_remove(remove_index);
+        adds.swap_remove(add_index);
     }
     Merge::new(removes, adds)
 }

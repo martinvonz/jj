@@ -196,7 +196,7 @@ fn test_merge_ref_targets() {
         // TODO: "removes" should have commit 2, just like it does in the next test case
         RefTarget::from_legacy_form(
             [commit1.id().clone()],
-            [commit4.id().clone(), commit3.id().clone()]
+            [commit3.id().clone(), commit4.id().clone()]
         )
     );
 
@@ -213,7 +213,7 @@ fn test_merge_ref_targets() {
         ),
         RefTarget::from_legacy_form(
             [commit2.id().clone()],
-            [commit3.id().clone(), commit4.id().clone()]
+            [commit4.id().clone(), commit3.id().clone()]
         )
     );
 
