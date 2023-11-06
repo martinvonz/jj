@@ -307,12 +307,12 @@ pub fn run_mergetool_external(
     } else {
         vec![]
     };
-    let (mut removes, mut adds) = content.take();
-    let files: HashMap<&str, _> = maplit::hashmap! {
-        "base" => removes.pop().unwrap().0,
-        "right" => adds.pop().unwrap().0,
-        "left" => adds.pop().unwrap().0,
-        "output" => initial_output_content.clone(),
+    assert_eq!(content.num_sides(), 2);
+    let files: HashMap<&str, &[u8]> = maplit::hashmap! {
+        "base" => content.get_remove(0).unwrap().0.as_slice(),
+        "left" => content.get_add(0).unwrap().0.as_slice(),
+        "right" => content.get_add(1).unwrap().0.as_slice(),
+        "output" => initial_output_content.as_slice(),
     };
 
     let temp_dir = new_utf8_temp_dir("jj-resolve-").map_err(ExternalToolError::SetUpDir)?;
