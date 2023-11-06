@@ -206,6 +206,15 @@ impl<T> Merge<T> {
         self.values.get(index * 2)
     }
 
+    /// Removes the specified "removed"/"added" values. The removed slots are
+    /// replaced by the last "removed"/"added" values.
+    pub fn swap_remove(&mut self, remove_index: usize, add_index: usize) -> (T, T) {
+        // Swap with the last "added" and "removed" values in order.
+        let add = self.values.swap_remove(add_index * 2);
+        let remove = self.values.swap_remove(remove_index * 2 + 1);
+        (remove, add)
+    }
+
     /// The number of positive terms in the conflict.
     pub fn num_sides(&self) -> usize {
         self.values.len() / 2 + 1
@@ -813,6 +822,17 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_swap_remove() {
+        let mut x = c(&[1, 3, 5], &[0, 2, 4, 6]);
+        assert_eq!(x.swap_remove(0, 1), (1, 2));
+        assert_eq!(x, c(&[5, 3], &[0, 6, 4]));
+        assert_eq!(x.swap_remove(1, 0), (3, 0));
+        assert_eq!(x, c(&[5], &[4, 6]));
+        assert_eq!(x.swap_remove(0, 1), (5, 6));
+        assert_eq!(x, c(&[], &[4]));
     }
 
     #[test]
