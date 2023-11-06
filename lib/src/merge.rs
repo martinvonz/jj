@@ -165,19 +165,6 @@ impl<T> Merge<T> {
         Merge::new(removes, adds)
     }
 
-    /// Returns the removes and adds as a pair.
-    pub fn take(self) -> (Vec<T>, Vec<T>) {
-        let mut removes = Vec::with_capacity(self.values.len() / 2);
-        let mut adds = Vec::with_capacity(self.values.len() / 2 + 1);
-        let mut values = self.values.into_iter();
-        adds.push(values.next().unwrap());
-        while let Some(remove) = values.next() {
-            removes.push(remove);
-            adds.push(values.next().unwrap());
-        }
-        (removes, adds)
-    }
-
     /// The removed values, also called negative terms.
     pub fn removes(&self) -> impl ExactSizeIterator<Item = &T> {
         self.values[1..].iter().step_by(2)
