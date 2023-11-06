@@ -167,14 +167,12 @@ struct SyncRegion {
     right: Range<usize>,
 }
 
-pub fn merge(slices: Merge<&[u8]>) -> MergeResult {
-    let (removes, adds) = slices.take();
-    let num_diffs = removes.len();
+pub fn merge(slices: &Merge<&[u8]>) -> MergeResult {
     // TODO: Using the first remove as base (first in the inputs) is how it's
     // usually done for 3-way conflicts. Are there better heuristics when there are
     // more than 3 parts?
-    let mut diff_inputs = removes.to_vec();
-    diff_inputs.extend(adds);
+    let num_diffs = slices.removes().len();
+    let diff_inputs = slices.removes().chain(slices.adds()).copied().collect_vec();
 
     let diff = Diff::for_tokenizer(&diff_inputs, &diff::find_line_ranges);
     let mut resolved_hunk = ContentHunk(vec![]);
@@ -226,7 +224,7 @@ mod tests {
     }
 
     fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
-        super::merge(Merge::new(removes.to_vec(), adds.to_vec()))
+        super::merge(&Merge::new(removes.to_vec(), adds.to_vec()))
     }
 
     #[test]
