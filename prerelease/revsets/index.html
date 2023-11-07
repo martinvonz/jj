@@ -1335,6 +1335,8 @@ revsets (expressions) as arguments.</p>
 <code>push-123@origin</code> and <code>repushed@private</code> but not <code>push-123@upstream</code> or
 <code>main@origin</code> or <code>main@upstream</code>. If a branch is in a conflicted state, all
 its possible targets are included.</p>
+<p>While Git-tracking branches can be selected by <code>&lt;name&gt;@git</code>, these branches
+aren't included in <code>remote_branches()</code>.</p>
 </li>
 <li>
 <p><code>tags()</code>: All tag targets. If a tag is in a conflicted state, all its
