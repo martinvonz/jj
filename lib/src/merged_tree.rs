@@ -1170,13 +1170,8 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
             }
         }
     }
-}
 
-impl Stream for TreeDiffStreamImpl<'_> {
-    type Item = (RepoPath, BackendResult<(MergedTreeValue, MergedTreeValue)>);
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // Go through all pending tree futures and poll them.
+    fn poll_tree_futures(&mut self, cx: &mut Context<'_>) {
         let mut pending_index = 0;
         while pending_index < self.pending_trees.len()
             && (pending_index < self.max_concurrent_reads
@@ -1205,6 +1200,15 @@ impl Stream for TreeDiffStreamImpl<'_> {
                 pending_index += 1;
             }
         }
+    }
+}
+
+impl Stream for TreeDiffStreamImpl<'_> {
+    type Item = (RepoPath, BackendResult<(MergedTreeValue, MergedTreeValue)>);
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        // Go through all pending tree futures and poll them.
+        self.poll_tree_futures(cx);
 
         // Now emit the first file, or the first tree that completed with an error
         if let Some(entry) = self.items.first_entry() {
