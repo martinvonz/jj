@@ -2147,9 +2147,11 @@ fn resolve_commit_ref(
             branch_pattern,
             remote_pattern,
         } => {
+            // TODO: should we allow to select @git branches explicitly?
             let commit_ids = repo
                 .view()
                 .remote_branches_matching(branch_pattern, remote_pattern)
+                .filter(|&((_, remote_name), _)| remote_name != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO)
                 .flat_map(|(_, remote_ref)| remote_ref.target.added_ids())
                 .cloned()
                 .collect();

@@ -1836,12 +1836,19 @@ fn test_evaluate_expression_remote_branches() {
     let commit2 = write_random_commit(mut_repo, &settings);
     let commit3 = write_random_commit(mut_repo, &settings);
     let commit4 = write_random_commit(mut_repo, &settings);
+    let commit_git_remote = write_random_commit(mut_repo, &settings);
 
     // Can get branches when there are none
     assert_eq!(resolve_commit_ids(mut_repo, "remote_branches()"), vec![]);
     // Can get a few branches
     mut_repo.set_remote_branch("branch1", "origin", normal_remote_ref(commit1.id()));
     mut_repo.set_remote_branch("branch2", "private", normal_remote_ref(commit2.id()));
+    // Git-tracking branches aren't included
+    mut_repo.set_remote_branch(
+        "branch",
+        git::REMOTE_NAME_FOR_LOCAL_GIT_REPO,
+        normal_remote_ref(commit_git_remote.id()),
+    );
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
