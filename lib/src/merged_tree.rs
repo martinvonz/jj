@@ -498,7 +498,7 @@ fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
                 new_tree.set_or_remove(basename, value);
             }
             Err(path_merge) => {
-                conflicts.push((basename, path_merge));
+                conflicts.push((basename, path_merge.into_iter()));
             }
         };
     }
@@ -509,24 +509,16 @@ fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
         // For each side of the conflict, overwrite the entries in `new_tree` with the
         // values from  `conflicts`. Entries that are not in `conflicts` will remain
         // unchanged and will be reused for each side.
-        let mut tree_removes = vec![];
-        for i in 0..merge.removes().len() {
-            for (basename, path_conflict) in &conflicts {
-                new_tree.set_or_remove(basename, path_conflict.get_remove(i).unwrap().clone());
+        let tree_count = merge.iter().len();
+        let mut new_trees = Vec::with_capacity(tree_count);
+        for _ in 0..tree_count {
+            for (basename, path_conflict) in &mut conflicts {
+                new_tree.set_or_remove(basename, path_conflict.next().unwrap());
             }
             let tree = store.write_tree(dir, new_tree.clone())?;
-            tree_removes.push(tree);
+            new_trees.push(tree);
         }
-        let mut tree_adds = vec![];
-        for i in 0..merge.adds().len() {
-            for (basename, path_conflict) in &conflicts {
-                new_tree.set_or_remove(basename, path_conflict.get_add(i).unwrap().clone());
-            }
-            let tree = store.write_tree(dir, new_tree.clone())?;
-            tree_adds.push(tree);
-        }
-
-        Ok(Merge::new(tree_removes, tree_adds))
+        Ok(Merge::from_vec(new_trees))
     }
 }
 
