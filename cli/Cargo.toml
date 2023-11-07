@@ -71,9 +71,9 @@ libc = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-async-trait = { workspace = true }
 assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
+async-trait = { workspace = true }
 insta = { workspace = true }
 test-case = { workspace = true }
 testutils = { workspace = true }

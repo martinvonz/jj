@@ -27,8 +27,8 @@ bytes = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true }
 digest = { workspace = true }
-futures = { workspace = true }
 either = { workspace = true }
+futures = { workspace = true }
 git2 = { workspace = true }
 gix = { workspace = true }
 glob = { workspace = true }
