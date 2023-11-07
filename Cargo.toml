@@ -41,24 +41,24 @@ dirs = "5.0.1"
 either = "1.9.0"
 esl01-renderdag = "0.3.0"
 futures = "0.3.29"
-glob = "0.3.1"
 git2 = "0.17.2"
 gix = { version = "0.55.2", default-features = false, features = [
     "index",
     "max-performance-safe",
 ] }
+glob = "0.3.1"
 hex = "0.4.3"
-itertools = "0.11.0"
 indexmap = "2.1.0"
-libc = { version = "0.2.150" }
 insta = { version = "1.34.0", features = ["filters"] }
+itertools = "0.11.0"
+libc = { version = "0.2.150" }
 maplit = "1.0.2"
 num_cpus = "1.16.0"
 once_cell = "1.18.0"
 pest = "2.7.5"
 pest_derive = "2.7.5"
-pretty_assertions = "1.4.0"
 pollster = "0.3.0"
+pretty_assertions = "1.4.0"
 prost = "0.11.9"
 prost-build = "0.11.9"
 rand = "0.8.5"
@@ -67,21 +67,22 @@ rayon = "1.8.0"
 regex = "1.10.2"
 rpassword = "7.2.0"
 rustix = { version = "0.38.21", features = ["fs"] }
+scm-record = "0.1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.108"
+slab = "0.4.9"
 smallvec = { version = "1.11.1", features = [
     "const_generics",
     "const_new",
     "union",
 ] }
-scm-record = "0.1.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0.108"
-slab = "0.4.9"
 strsim = "0.10.0"
 tempfile = "3.8.1"
 test-case = "3.2.1"
 textwrap = "0.16.0"
 thiserror = "1.0.50"
 timeago = { version = "0.4.2", default-features = false }
+tokio = { version = "1.33.0" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
 tracing = "0.1.40"
 tracing-chrome = "0.7.1"
@@ -91,11 +92,10 @@ tracing-subscriber = { version = "0.3.17", default-features = false, features = 
     "env-filter",
     "fmt",
 ] }
-tokio = { version = "1.33.0" }
 unicode-width = "0.1.11"
+version_check = "0.9.4"
 watchman_client = { version = "0.8.0" }
 whoami = "1.4.1"
-version_check = "0.9.4"
 zstd = "0.12.4"
 
 # put all inter-workspace libraries, i.e. those that use 'path = ...' here in
