@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* The `remote_branches()` revset no longer includes branches exported to the Git
+  repository (so called Git-tracking branches.)
+
 ### New features
 
 * `jj workspace add` can now take _multiple_ `--revision` arguments, which will
@@ -33,8 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clone to see the full speedup.
 
 * The `remote_branches()` revset now includes branches exported to the Git
-  repository (so called Git-tracking branches.) Use
-  `remote_branches(remote=exact:"origin")` to query branches of certain remote.
+  repository (so called Git-tracking branches.) *This change will be reverted
+  in 0.12.0.*
 
 * Status messages are now printed to stderr.
 

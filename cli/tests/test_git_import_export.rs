@@ -53,9 +53,8 @@ fn test_resolution_of_git_tracking_branches() {
     insta::assert_snapshot!(query("main@git"), @r###"
     16d541ca40f42baf2dea41aa61a0b5f1cbf1f91b old_message
     "###);
-    insta::assert_snapshot!(query(r#"remote_branches(exact:"main", exact:"git")"#), @r###"
-    16d541ca40f42baf2dea41aa61a0b5f1cbf1f91b old_message
-    "###);
+    // Can't be selected by remote_branches()
+    insta::assert_snapshot!(query(r#"remote_branches(exact:"main", exact:"git")"#), @"");
 }
 
 #[test]

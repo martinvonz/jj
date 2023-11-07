@@ -112,6 +112,9 @@ revsets (expressions) as arguments.
   `main@origin` or `main@upstream`. If a branch is in a conflicted state, all
   its possible targets are included.
 
+  While Git-tracking branches can be selected by `<name>@git`, these branches
+  aren't included in `remote_branches()`.
+
 * `tags()`: All tag targets. If a tag is in a conflicted state, all its
   possible targets are included.
 
