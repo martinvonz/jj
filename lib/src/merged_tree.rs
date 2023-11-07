@@ -107,48 +107,36 @@ impl MergedTree {
         if conflict_ids.is_empty() {
             return Ok(MergedTree::resolved(tree));
         }
-        // Find the number of removes in the most complex conflict. We will then
-        // build `2*num_removes + 1` trees
-        let mut max_num_removes = 0;
+
+        // Find the number of removes and adds in the most complex conflict.
+        let mut max_tree_count = 1;
         let store = tree.store();
         let mut conflicts: Vec<(&RepoPath, MergedTreeValue)> = vec![];
         for (path, conflict_id) in &conflict_ids {
             let conflict = store.read_conflict(path, conflict_id)?;
-            max_num_removes = max(max_num_removes, conflict.removes().len());
+            max_tree_count = max(max_tree_count, conflict.iter().len());
             conflicts.push((path, conflict));
         }
-        let mut removes = vec![];
-        let mut adds = vec![store.tree_builder(tree.id().clone())];
-        for _ in 0..max_num_removes {
-            removes.push(store.tree_builder(tree.id().clone()));
-            adds.push(store.tree_builder(tree.id().clone()));
-        }
+        let mut tree_builders = Vec::new();
+        tree_builders.resize_with(max_tree_count, || store.tree_builder(tree.id().clone()));
         for (path, conflict) in conflicts {
-            let num_removes = conflict.removes().len();
             // If there are fewer terms in this conflict than in some other conflict, we can
             // add canceling removes and adds of any value. The simplest value is an absent
             // value, so we use that.
-            for i in num_removes..max_num_removes {
-                removes[i].remove(path.clone());
-                adds[i + 1].remove(path.clone());
-            }
-            // Now add the terms that were present in the conflict to the appropriate trees.
-            for (i, term) in conflict.removes().enumerate() {
-                removes[i].set_or_remove(path.clone(), term.clone());
-            }
-            for (i, term) in conflict.adds().enumerate() {
-                adds[i].set_or_remove(path.clone(), term.clone());
+            let terms_padded = conflict.into_iter().chain(iter::repeat(None));
+            for (builder, term) in zip(&mut tree_builders, terms_padded) {
+                builder.set_or_remove(path.clone(), term);
             }
         }
 
-        let write_tree = |builder: TreeBuilder| {
-            let tree_id = builder.write_tree();
-            store.get_tree(&RepoPath::root(), &tree_id)
-        };
-
-        let removed_trees = removes.into_iter().map(write_tree).try_collect()?;
-        let added_trees = adds.into_iter().map(write_tree).try_collect()?;
-        Ok(MergedTree::Merge(Merge::new(removed_trees, added_trees)))
+        let new_trees: Vec<_> = tree_builders
+            .into_iter()
+            .map(|builder| {
+                let tree_id = builder.write_tree();
+                store.get_tree(&RepoPath::root(), &tree_id)
+            })
+            .try_collect()?;
+        Ok(MergedTree::Merge(Merge::from_vec(new_trees)))
     }
 
     /// This tree's directory
