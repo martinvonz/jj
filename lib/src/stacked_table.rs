@@ -51,14 +51,8 @@ pub trait TableSegment {
     }
 
     fn get_value<'a>(&'a self, key: &[u8]) -> Option<&'a [u8]> {
-        if let Some(value) = self.segment_get_value(key) {
-            return Some(value);
-        }
-        let parent_file = self.segment_parent_file()?;
-        let parent_file: &ReadonlyTable = parent_file.as_ref();
-        // The parent ReadonlyIndex outlives the child
-        let parent_file: &'a ReadonlyTable = unsafe { std::mem::transmute(parent_file) };
-        parent_file.get_value(key)
+        self.segment_get_value(key)
+            .or_else(|| self.segment_parent_file()?.get_value(key))
     }
 }
 

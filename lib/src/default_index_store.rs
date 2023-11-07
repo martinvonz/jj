@@ -839,11 +839,8 @@ impl<'a> CompositeIndex<'a> {
         if pos.0 >= num_parent_commits {
             self.0.segment_entry_by_pos(pos, pos.0 - num_parent_commits)
         } else {
-            let parent_file: &ReadonlyIndexImpl = self.0.segment_parent_file().unwrap().as_ref();
-            // The parent ReadonlyIndex outlives the child
-            let parent_file: &'a ReadonlyIndexImpl = unsafe { std::mem::transmute(parent_file) };
-
-            CompositeIndex(parent_file).entry_by_pos(pos)
+            let parent_file = self.0.segment_parent_file().unwrap();
+            CompositeIndex(&**parent_file).entry_by_pos(pos)
         }
     }
 

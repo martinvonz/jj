@@ -62,8 +62,8 @@ pub fn cmd_run(ui: &mut Ui, command: &CommandHelper, args: &RunArgs) -> Result<(
 
         // SAFETY:
         // We use a internal constant of 4 threads, if it fails
-        let available = std::thread::available_parallelism()
-            .unwrap_or(unsafe { NonZeroUsize::new_unchecked(4) });
+        let available =
+            std::thread::available_parallelism().unwrap_or(NonZeroUsize::new(4).unwrap());
         available.into()
     };
     Err(user_error("This is a stub, do not use"))
