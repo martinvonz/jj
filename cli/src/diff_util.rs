@@ -22,6 +22,7 @@ use futures::StreamExt;
 use itertools::Itertools;
 use jj_lib::backend::{ObjectId, TreeValue};
 use jj_lib::commit::Commit;
+use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
 use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::DiffLine;
 use jj_lib::matchers::Matcher;
@@ -30,7 +31,7 @@ use jj_lib::merged_tree::{MergedTree, TreeDiffStream};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
-use jj_lib::{conflicts, diff, files, rewrite};
+use jj_lib::{diff, files, rewrite};
 use pollster::FutureExt;
 use tracing::instrument;
 use unicode_width::UnicodeWidthStr as _;
@@ -348,30 +349,21 @@ fn diff_content(
     path: &RepoPath,
     value: &MergedTreeValue,
 ) -> Result<Vec<u8>, CommandError> {
-    match value.as_resolved() {
-        Some(None) => Ok(vec![]),
-        Some(Some(TreeValue::File { id, .. })) => {
-            let mut file_reader = repo.store().read_file(path, id).unwrap();
-            let mut content = vec![];
-            file_reader.read_to_end(&mut content)?;
-            Ok(content)
+    let materialized = materialize_tree_value(repo.store(), path, value.clone()).block_on()?;
+    match materialized {
+        MaterializedTreeValue::Absent => Ok(vec![]),
+        MaterializedTreeValue::File { mut reader, .. } => {
+            let mut contents = vec![];
+            reader.read_to_end(&mut contents)?;
+            Ok(contents)
         }
-        Some(Some(TreeValue::Symlink(id))) => {
-            let target = repo.store().read_symlink(path, id)?;
-            Ok(target.into_bytes())
-        }
-        Some(Some(TreeValue::GitSubmodule(id))) => {
+        MaterializedTreeValue::Symlink { id: _, target } => Ok(target.into_bytes()),
+        MaterializedTreeValue::GitSubmodule(id) => {
             Ok(format!("Git submodule checked out at {}", id.hex()).into_bytes())
         }
-        None => {
-            let mut content = vec![];
-            conflicts::materialize(value, repo.store(), path, &mut content)
-                .block_on()
-                .unwrap();
-            Ok(content)
-        }
-        Some(Some(TreeValue::Tree(_))) | Some(Some(TreeValue::Conflict(_))) => {
-            panic!("Unexpected {value:?} in diff at path {path:?}",);
+        MaterializedTreeValue::Conflict { id: _, contents } => Ok(contents),
+        MaterializedTreeValue::Tree(id) => {
+            panic!("Unexpected tree with id {id:?} in diff at path {path:?}");
         }
     }
 }
@@ -497,47 +489,56 @@ fn git_diff_part(
     path: &RepoPath,
     value: &MergedTreeValue,
 ) -> Result<GitDiffPart, CommandError> {
+    let materialized = materialize_tree_value(repo.store(), path, value.clone()).block_on()?;
     let mode;
     let hash;
-    let mut content = vec![];
-    match value.as_resolved() {
-        Some(Some(TreeValue::File { id, executable })) => {
-            mode = if *executable {
+    let mut contents: Vec<u8>;
+    match materialized {
+        MaterializedTreeValue::Absent => {
+            panic!("Absent path {path:?} in diff should have been handled by caller");
+        }
+        MaterializedTreeValue::File {
+            id,
+            executable,
+            mut reader,
+        } => {
+            mode = if executable {
                 "100755".to_string()
             } else {
                 "100644".to_string()
             };
             hash = id.hex();
-            let mut file_reader = repo.store().read_file(path, id).unwrap();
-            file_reader.read_to_end(&mut content)?;
+            contents = vec![];
+            reader.read_to_end(&mut contents)?;
         }
-        Some(Some(TreeValue::Symlink(id))) => {
+        MaterializedTreeValue::Symlink { id, target } => {
             mode = "120000".to_string();
             hash = id.hex();
-            let target = repo.store().read_symlink(path, id)?;
-            content = target.into_bytes();
+            contents = target.into_bytes();
         }
-        Some(Some(TreeValue::GitSubmodule(id))) => {
+        MaterializedTreeValue::GitSubmodule(id) => {
             // TODO: What should we actually do here?
             mode = "040000".to_string();
             hash = id.hex();
+            contents = vec![];
         }
-        None => {
+        MaterializedTreeValue::Conflict {
+            id: _,
+            contents: conflict_data,
+        } => {
             mode = "100644".to_string();
             hash = "0000000000".to_string();
-            conflicts::materialize(value, repo.store(), path, &mut content)
-                .block_on()
-                .unwrap();
+            contents = conflict_data
         }
-        Some(Some(TreeValue::Tree(_))) | Some(Some(TreeValue::Conflict(_))) | Some(None) => {
-            panic!("Unexpected {value:?} in diff at path {path:?}");
+        MaterializedTreeValue::Tree(_) => {
+            panic!("Unexpected tree in diff at path {path:?}");
         }
     }
     let hash = hash[0..10].to_string();
     Ok(GitDiffPart {
         mode,
         hash,
-        content,
+        content: contents,
     })
 }
 

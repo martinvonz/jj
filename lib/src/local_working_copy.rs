@@ -45,7 +45,7 @@ use crate::backend::{
     BackendError, FileId, MergedTreeId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
 };
 use crate::commit::Commit;
-use crate::conflicts;
+use crate::conflicts::{self, materialize_tree_value, MaterializedTreeValue};
 #[cfg(feature = "watchman")]
 use crate::fsmonitor::watchman;
 use crate::fsmonitor::FsmonitorKind;
@@ -1170,8 +1170,9 @@ impl TreeState {
                 }
             }
             // TODO: Check that the file has not changed before overwriting/removing it.
-            match after.into_resolved() {
-                Ok(None) => {
+            let materialized = materialize_tree_value(&self.store, &path, after).await?;
+            let file_state = match materialized {
+                MaterializedTreeValue::Absent => {
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
                         if fs::remove_dir(parent_dir).is_err() {
@@ -1180,44 +1181,28 @@ impl TreeState {
                         parent_dir = parent_dir.parent().unwrap();
                     }
                     self.file_states.remove(&path);
+                    continue;
                 }
-                Ok(Some(after)) => {
-                    let file_state = match after {
-                        TreeValue::File { id, executable } => {
-                            let mut contents = self.store.read_file(&path, &id)?;
-                            self.write_file(&disk_path, &mut contents, executable)?
-                        }
-                        TreeValue::Symlink(id) => {
-                            let target = self.store.read_symlink(&path, &id)?;
-                            self.write_symlink(&disk_path, target)?
-                        }
-                        TreeValue::Conflict(_) => {
-                            panic!("unexpected conflict entry in diff at {path:?}");
-                        }
-                        TreeValue::GitSubmodule(_id) => {
-                            println!("ignoring git submodule at {path:?}");
-                            FileState::for_gitsubmodule()
-                        }
-                        TreeValue::Tree(_id) => {
-                            panic!("unexpected tree entry in diff at {path:?}");
-                        }
-                    };
-                    self.file_states.insert(path, file_state);
+                MaterializedTreeValue::File {
+                    executable,
+                    mut reader,
+                    ..
+                } => self.write_file(&disk_path, &mut reader, executable)?,
+                MaterializedTreeValue::Symlink { id: _, target } => {
+                    self.write_symlink(&disk_path, target)?
                 }
-                Err(after_conflict) => {
-                    let mut conflict_data = vec![];
-                    conflicts::materialize(
-                        &after_conflict,
-                        self.store.as_ref(),
-                        &path,
-                        &mut conflict_data,
-                    )
-                    .block_on()
-                    .expect("Failed to materialize conflict to in-memory buffer");
-                    let file_state = self.write_conflict(&disk_path, conflict_data)?;
-                    self.file_states.insert(path, file_state);
+                MaterializedTreeValue::GitSubmodule(_) => {
+                    println!("ignoring git submodule at {path:?}");
+                    FileState::for_gitsubmodule()
                 }
-            }
+                MaterializedTreeValue::Tree(_) => {
+                    panic!("unexpected tree entry in diff at {path:?}");
+                }
+                MaterializedTreeValue::Conflict { id: _, contents } => {
+                    self.write_conflict(&disk_path, contents)?
+                }
+            };
+            self.file_states.insert(path, file_state);
         }
         Ok(stats)
     }
