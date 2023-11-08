@@ -58,36 +58,6 @@ impl fmt::Display for RefName {
     }
 }
 
-#[derive(Error, Debug)]
-pub enum GitImportError {
-    #[error("Failed to read Git HEAD target commit {id}: {err}", id=id.hex())]
-    MissingHeadTarget {
-        id: CommitId,
-        #[source]
-        err: BackendError,
-    },
-    #[error("Ancestor of Git ref {ref_name} is missing: {err}")]
-    MissingRefAncestor {
-        ref_name: String,
-        #[source]
-        err: BackendError,
-    },
-    #[error(
-        "Git remote named '{name}' is reserved for local Git repository",
-        name = REMOTE_NAME_FOR_LOCAL_GIT_REPO
-    )]
-    RemoteReservedForLocalGitRepo,
-    #[error("Unexpected git error when importing refs: {0}")]
-    InternalGitError(#[from] git2::Error),
-}
-
-/// Describes changes made by `import_refs()` or `fetch()`.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct GitImportStats {
-    /// Commits superseded by newly imported commits.
-    pub abandoned_commits: Vec<CommitId>,
-}
-
 fn parse_git_ref(ref_name: &str) -> Option<RefName> {
     if let Some(branch_name) = ref_name.strip_prefix("refs/heads/") {
         // Git CLI says 'HEAD' is not a valid branch name
@@ -171,6 +141,36 @@ fn resolve_git_ref_to_commit_id(
 
     let git_commit = git_ref.peel_to_commit().ok()?;
     Some(CommitId::from_bytes(git_commit.id().as_bytes()))
+}
+
+#[derive(Error, Debug)]
+pub enum GitImportError {
+    #[error("Failed to read Git HEAD target commit {id}: {err}", id=id.hex())]
+    MissingHeadTarget {
+        id: CommitId,
+        #[source]
+        err: BackendError,
+    },
+    #[error("Ancestor of Git ref {ref_name} is missing: {err}")]
+    MissingRefAncestor {
+        ref_name: String,
+        #[source]
+        err: BackendError,
+    },
+    #[error(
+        "Git remote named '{name}' is reserved for local Git repository",
+        name = REMOTE_NAME_FOR_LOCAL_GIT_REPO
+    )]
+    RemoteReservedForLocalGitRepo,
+    #[error("Unexpected git error when importing refs: {0}")]
+    InternalGitError(#[from] git2::Error),
+}
+
+/// Describes changes made by `import_refs()` or `fetch()`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GitImportStats {
+    /// Commits superseded by newly imported commits.
+    pub abandoned_commits: Vec<CommitId>,
 }
 
 #[derive(Debug)]
