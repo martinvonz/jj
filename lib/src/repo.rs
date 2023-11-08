@@ -1340,53 +1340,67 @@ pub enum CheckOutCommitError {
 }
 
 mod dirty_cell {
-    use std::cell::{Cell, RefCell};
+    use std::cell::{OnceCell, RefCell};
 
     /// Cell that lazily updates the value after `mark_dirty()`.
+    ///
+    /// A clean value can be immutably borrowed within the `self` lifetime.
     #[derive(Clone, Debug)]
     pub struct DirtyCell<T> {
-        value: RefCell<T>,
-        dirty: Cell<bool>,
+        // Either clean or dirty value is set. The value is boxed to reduce stack space
+        // and memcopy overhead.
+        clean: OnceCell<Box<T>>,
+        dirty: RefCell<Option<Box<T>>>,
     }
 
     impl<T> DirtyCell<T> {
         pub fn with_clean(value: T) -> Self {
             DirtyCell {
-                value: RefCell::new(value),
-                dirty: Cell::new(false),
+                clean: OnceCell::from(Box::new(value)),
+                dirty: RefCell::new(None),
             }
         }
 
         pub fn get_or_ensure_clean(&self, f: impl FnOnce(&mut T)) -> &T {
-            // SAFETY: get_mut/mark_dirty(&mut self) should invalidate any previously-clean
-            // references leaked by this method. Clean value never changes until then.
-            self.ensure_clean(f);
-            unsafe { &*self.value.as_ptr() }
+            self.clean.get_or_init(|| {
+                // Panics if ensure_clean() is invoked from with_ref() callback for example.
+                let mut value = self.dirty.borrow_mut().take().unwrap();
+                f(&mut value);
+                value
+            })
         }
 
         pub fn ensure_clean(&self, f: impl FnOnce(&mut T)) {
-            if self.dirty.get() {
-                // This borrow_mut() ensures that there is no dirty temporary reference.
-                // Panics if ensure_clean() is invoked from with_ref() callback for example.
-                f(&mut self.value.borrow_mut());
-                self.dirty.set(false);
-            }
+            self.get_or_ensure_clean(f);
         }
 
         pub fn into_inner(self) -> T {
-            self.value.into_inner()
+            *self
+                .clean
+                .into_inner()
+                .or_else(|| self.dirty.into_inner())
+                .unwrap()
         }
 
         pub fn with_ref<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-            f(&self.value.borrow())
+            if let Some(value) = self.clean.get() {
+                f(value)
+            } else {
+                f(self.dirty.borrow().as_ref().unwrap())
+            }
         }
 
         pub fn get_mut(&mut self) -> &mut T {
-            self.value.get_mut()
+            self.clean
+                .get_mut()
+                .or_else(|| self.dirty.get_mut().as_mut())
+                .unwrap()
         }
 
         pub fn mark_dirty(&mut self) {
-            *self.dirty.get_mut() = true;
+            if let Some(value) = self.clean.take() {
+                *self.dirty.get_mut() = Some(value);
+            }
         }
     }
 }
