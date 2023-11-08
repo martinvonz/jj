@@ -14,13 +14,13 @@
 
 #![allow(missing_docs)]
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::iter::zip;
 
 use futures::StreamExt;
 use itertools::Itertools;
 
-use crate::backend::{BackendResult, FileId};
+use crate::backend::{BackendResult, CommitId, FileId, SymlinkId, TreeId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
 use crate::files::{ContentHunk, MergeResult};
@@ -101,6 +101,66 @@ pub async fn materialize(
         // Unless all terms are regular files, we can't do much better than to try to
         // describe the merge.
         conflict.describe(output)
+    }
+}
+
+/// A type similar to `MergedTreeValue` but with associated data to include in
+/// e.g. the working copy or in a diff.
+pub enum MaterializedTreeValue {
+    Absent,
+    File {
+        id: FileId,
+        executable: bool,
+        reader: Box<dyn Read>,
+    },
+    Symlink {
+        id: SymlinkId,
+        target: String,
+    },
+    Conflict {
+        id: MergedTreeValue,
+        contents: Vec<u8>,
+    },
+    GitSubmodule(CommitId),
+    Tree(TreeId),
+}
+
+/// Reads the data associated with a `MergedTreeValue` so it can be written to
+/// e.g. the working copy or diff.
+pub async fn materialize_tree_value(
+    store: &Store,
+    path: &RepoPath,
+    value: MergedTreeValue,
+) -> BackendResult<MaterializedTreeValue> {
+    match value.into_resolved() {
+        Ok(None) => Ok(MaterializedTreeValue::Absent),
+        Ok(Some(TreeValue::File { id, executable })) => {
+            let reader = store.read_file_async(path, &id).await?;
+            Ok(MaterializedTreeValue::File {
+                id,
+                executable,
+                reader,
+            })
+        }
+        Ok(Some(TreeValue::Symlink(id))) => {
+            let target = store.read_symlink_async(path, &id).await?;
+            Ok(MaterializedTreeValue::Symlink { id, target })
+        }
+        Ok(Some(TreeValue::GitSubmodule(id))) => Ok(MaterializedTreeValue::GitSubmodule(id)),
+        Ok(Some(TreeValue::Tree(id))) => Ok(MaterializedTreeValue::Tree(id)),
+        Ok(Some(TreeValue::Conflict(_))) => {
+            panic!("cannot materialize legacy conflict object at path {path:?}");
+        }
+        Err(conflict) => {
+            let mut contents = vec![];
+            materialize(&conflict, store, path, &mut contents)
+                .await
+                .expect("Failed to materialize conflict to in-memory buffer");
+            Ok(MaterializedTreeValue::Conflict {
+                id: conflict,
+                contents,
+            })
+        }
     }
 }
 

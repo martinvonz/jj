@@ -14,8 +14,7 @@
 
 use std::io::Write;
 
-use jj_lib::backend::TreeValue;
-use jj_lib::conflicts;
+use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
 use jj_lib::repo::Repo;
 use pollster::FutureExt;
 use tracing::instrument;
@@ -45,24 +44,23 @@ pub(crate) fn cmd_cat(
     let tree = commit.tree()?;
     let path = workspace_command.parse_file_path(&args.path)?;
     let repo = workspace_command.repo();
-    match tree.path_value(&path).into_resolved() {
-        Ok(None) => {
+    let value = tree.path_value(&path);
+    let materialized = materialize_tree_value(repo.store(), &path, value).block_on()?;
+    match materialized {
+        MaterializedTreeValue::Absent => {
             return Err(user_error("No such path"));
         }
-        Ok(Some(TreeValue::File { id, .. })) => {
-            let mut contents = repo.store().read_file(&path, &id)?;
+        MaterializedTreeValue::File { mut reader, .. } => {
             ui.request_pager();
-            std::io::copy(&mut contents, &mut ui.stdout_formatter().as_mut())?;
+            std::io::copy(&mut reader, &mut ui.stdout_formatter().as_mut())?;
         }
-        Err(conflict) => {
-            let mut contents = vec![];
-            conflicts::materialize(&conflict, repo.store(), &path, &mut contents)
-                .block_on()
-                .unwrap();
+        MaterializedTreeValue::Conflict { contents, .. } => {
             ui.request_pager();
             ui.stdout_formatter().write_all(&contents)?;
         }
-        _ => {
+        MaterializedTreeValue::Symlink { .. }
+        | MaterializedTreeValue::Tree(_)
+        | MaterializedTreeValue::GitSubmodule(_) => {
             return Err(user_error("Path exists but is not a file"));
         }
     }
