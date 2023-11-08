@@ -14,11 +14,12 @@
 
 #![allow(missing_docs)]
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::default::Default;
 use std::io::Read;
 use std::path::PathBuf;
-use std::{fmt, iter};
+use std::{fmt, iter, str};
 
 use git2::Oid;
 use itertools::Itertools;
@@ -113,39 +114,52 @@ fn get_git_backend(store: &Store) -> Option<&GitBackend> {
 /// Checks if `git_ref` points to a Git commit object, and returns its id.
 ///
 /// If the ref points to the previously `known_target` (i.e. unchanged), this
-/// should be faster than `git_ref.peel_to_commit()`.
+/// should be faster than `git_ref.into_fully_peeled_id()`.
 fn resolve_git_ref_to_commit_id(
-    git_ref: &git2::Reference<'_>,
+    git_ref: &gix::Reference,
     known_target: &RefTarget,
 ) -> Option<CommitId> {
+    let mut peeling_ref = Cow::Borrowed(git_ref);
+
     // Try fast path if we have a candidate id which is known to be a commit object.
     if let Some(id) = known_target.as_normal() {
-        if matches!(git_ref.target(), Some(oid) if oid.as_bytes() == id.as_bytes()) {
+        let raw_ref = &git_ref.inner;
+        if matches!(raw_ref.target.try_id(), Some(oid) if oid.as_bytes() == id.as_bytes()) {
             return Some(id.clone());
         }
-        if matches!(git_ref.target_peel(), Some(oid) if oid.as_bytes() == id.as_bytes()) {
+        if matches!(raw_ref.peeled, Some(oid) if oid.as_bytes() == id.as_bytes()) {
             // Perhaps an annotated tag stored in packed-refs file, and pointing to the
             // already known target commit.
             return Some(id.clone());
         }
         // A tag (according to ref name.) Try to peel one more level. This is slightly
-        // faster than recurse into peel_to_commit(). If we recorded a tag oid, we
+        // faster than recurse into into_fully_peeled_id(). If we recorded a tag oid, we
         // could skip this at all.
-        if let Some(Ok(tag)) = git_ref.is_tag().then(|| git_ref.peel_to_tag()) {
-            if tag.target_id().as_bytes() == id.as_bytes() {
-                // An annotated tag pointing to the already known target commit.
-                return Some(id.clone());
-            } else {
-                // Unknown id. Recurse from the current state as git_object_peel() of
-                // libgit2 would do. A tag may point to non-commit object.
-                let git_commit = tag.into_object().peel_to_commit().ok()?;
-                return Some(CommitId::from_bytes(git_commit.id().as_bytes()));
+        if raw_ref.peeled.is_none() && git_ref.name().as_bstr().starts_with(b"refs/tags/") {
+            let maybe_tag = git_ref
+                .try_id()
+                .and_then(|id| id.object().ok())
+                .and_then(|object| object.try_into_tag().ok());
+            if let Some(oid) = maybe_tag.as_ref().and_then(|tag| tag.target_id().ok()) {
+                if oid.as_bytes() == id.as_bytes() {
+                    // An annotated tag pointing to the already known target commit.
+                    return Some(id.clone());
+                }
+                // Unknown id. Recurse from the current state. A tag may point to
+                // non-commit object.
+                peeling_ref.to_mut().inner.target = gix::refs::Target::Peeled(oid.detach());
             }
         }
     }
 
-    let git_commit = git_ref.peel_to_commit().ok()?;
-    Some(CommitId::from_bytes(git_commit.id().as_bytes()))
+    // Alternatively, we might want to inline the first half of the peeling
+    // loop. into_fully_peeled_id() looks up the target object to see if it's
+    // a tag or not, and we need to check if it's a commit object.
+    let peeled_id = peeling_ref.into_owned().into_fully_peeled_id().ok()?;
+    let is_commit = peeled_id
+        .object()
+        .map_or(false, |object| object.kind.is_commit());
+    is_commit.then(|| CommitId::from_bytes(peeled_id.as_bytes()))
 }
 
 #[derive(Error, Debug)]
@@ -168,9 +182,15 @@ pub enum GitImportError {
     )]
     RemoteReservedForLocalGitRepo,
     #[error("Unexpected git error when importing refs: {0}")]
-    InternalGitError(#[from] git2::Error),
+    InternalGitError(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("The repo is not backed by a Git repo")]
     UnexpectedBackend,
+}
+
+impl GitImportError {
+    fn from_git(source: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
+        GitImportError::InternalGitError(source.into())
+    }
 }
 
 /// Describes changes made by `import_refs()` or `fetch()`.
@@ -211,15 +231,12 @@ pub fn import_some_refs(
 ) -> Result<GitImportStats, GitImportError> {
     let store = mut_repo.store();
     let git_backend = get_git_backend(store).ok_or(GitImportError::UnexpectedBackend)?;
-    let git_repo = git_backend.open_git_repo()?; // TODO: use gix::Repository
+    let git_repo = git_backend.git_repo();
 
     // TODO: Should this be a separate function? We may not always want to import
     // the Git HEAD (and add it to our set of heads).
     let old_git_head = mut_repo.view().git_head();
-    let changed_git_head = if let Ok(head_git_commit) = git_repo
-        .head()
-        .and_then(|head_ref| head_ref.peel_to_commit())
-    {
+    let changed_git_head = if let Ok(head_git_commit) = git_repo.head_commit() {
         // The current HEAD is not added to `hidable_git_heads` because HEAD move
         // doesn't automatically mean the old HEAD branch has been rewritten.
         let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
@@ -369,7 +386,7 @@ fn abandon_unreachable_commits(
 /// Calculates diff of git refs to be imported.
 fn diff_refs_to_import(
     view: &View,
-    git_repo: &git2::Repository,
+    git_repo: &gix::Repository,
     git_ref_filter: impl Fn(&RefName) -> bool,
 ) -> Result<RefsToImport, GitImportError> {
     let mut known_git_refs: HashMap<&str, &RefTarget> = view
@@ -409,9 +426,10 @@ fn diff_refs_to_import(
     .collect();
     let mut changed_git_refs = Vec::new();
     let mut changed_remote_refs = BTreeMap::new();
-    for git_ref in git_repo.references()? {
-        let git_ref = git_ref?;
-        let Some(full_name) = git_ref.name() else {
+    let git_references = git_repo.references().map_err(GitImportError::from_git)?;
+    for git_ref in git_references.all().map_err(GitImportError::from_git)? {
+        let git_ref = git_ref.map_err(GitImportError::from_git)?;
+        let Ok(full_name) = str::from_utf8(git_ref.name().as_bstr()) else {
             // Skip non-utf8 refs.
             continue;
         };
