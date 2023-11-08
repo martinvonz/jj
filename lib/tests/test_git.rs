@@ -1170,17 +1170,18 @@ fn test_import_refs_missing_git_commit() {
     let repo = &test_workspace.repo;
     let git_repo = get_git_repo(repo);
 
-    // Missing commit is ancestor of ref
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
-    empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
+    let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
     let shard = hex::encode(&commit1.id().as_bytes()[..1]);
     let object_basename = hex::encode(&commit1.id().as_bytes()[1..]);
     let object_store_path = git_repo.path().join("objects");
     let object_file = object_store_path.join(&shard).join(object_basename);
     let backup_object_file = object_store_path.join(&shard).join("backup");
     assert!(object_file.exists());
-    fs::rename(&object_file, &backup_object_file).unwrap();
 
+    // Missing commit is ancestor of ref
+    git_repo.set_head("refs/heads/unborn").unwrap();
+    fs::rename(&object_file, &backup_object_file).unwrap();
     let mut tx = repo.start_transaction(&settings, "test");
     let result = git::import_refs(tx.mut_repo(), &git_repo, &git_settings);
     assert_matches!(
@@ -1191,13 +1192,32 @@ fn test_import_refs_missing_git_commit() {
         }) if &ref_name == "main"
     );
 
+    // Missing commit is ancestor of HEAD
+    git_repo
+        .find_reference("refs/heads/main")
+        .unwrap()
+        .delete()
+        .unwrap();
+    git_repo.set_head_detached(commit2.id()).unwrap();
+    let mut tx = repo.start_transaction(&settings, "test");
+    let result = git::import_refs(tx.mut_repo(), &git_repo, &git_settings);
+    assert_matches!(
+        result,
+        Err(GitImportError::MissingHeadTarget {
+            id,
+            err: BackendError::ObjectNotFound { .. }
+        }) if id == jj_id(&commit2)
+    );
+
     // Missing commit is pointed to by ref
     fs::rename(&backup_object_file, &object_file).unwrap();
     git_repo
         .reference("refs/heads/main", commit1.id(), true, "test")
         .unwrap();
+    git_repo.set_head("refs/heads/unborn").unwrap();
     fs::rename(&object_file, &backup_object_file).unwrap();
     let mut tx = repo.start_transaction(&settings, "test");
+    // TODO: The ref is ignored if we passed fresh new git2 repo object.
     let result = git::import_refs(tx.mut_repo(), &git_repo, &git_settings);
     assert_matches!(
         result,
@@ -1209,9 +1229,15 @@ fn test_import_refs_missing_git_commit() {
 
     // Missing commit is pointed to by HEAD
     fs::rename(&backup_object_file, &object_file).unwrap();
+    git_repo
+        .find_reference("refs/heads/main")
+        .unwrap()
+        .delete()
+        .unwrap();
     git_repo.set_head_detached(commit1.id()).unwrap();
     fs::rename(&object_file, &backup_object_file).unwrap();
     let mut tx = repo.start_transaction(&settings, "test");
+    // TODO: The ref is ignored if we passed fresh new git2 repo object.
     let result = git::import_refs(tx.mut_repo(), &git_repo, &git_settings);
     assert_matches!(
         result,
