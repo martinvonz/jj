@@ -26,7 +26,7 @@ use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
 use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::DiffLine;
 use jj_lib::matchers::Matcher;
-use jj_lib::merge::{Merge, MergedTreeValue};
+use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::{MergedTree, TreeDiffStream};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
@@ -347,9 +347,9 @@ fn show_color_words_diff_line(
 fn diff_content(
     repo: &Arc<ReadonlyRepo>,
     path: &RepoPath,
-    value: &MergedTreeValue,
+    value: MergedTreeValue,
 ) -> Result<Vec<u8>, CommandError> {
-    let materialized = materialize_tree_value(repo.store(), path, value.clone()).block_on()?;
+    let materialized = materialize_tree_value(repo.store(), path, value).block_on()?;
     match materialized {
         MaterializedTreeValue::Absent => Ok(vec![]),
         MaterializedTreeValue::File { mut reader, .. } => {
@@ -402,50 +402,48 @@ pub fn show_color_words_diff(
             let ui_path = workspace_command.format_file_path(&path);
             let (left_value, right_value) = diff?;
             if left_value.is_absent() {
-                let right_content = diff_content(repo, &path, &right_value)?;
                 let description = basic_diff_file_type(&right_value);
                 writeln!(
                     formatter.labeled("header"),
                     "Added {description} {ui_path}:"
                 )?;
+                let right_content = diff_content(repo, &path, right_value)?;
                 if right_content.is_empty() {
                     writeln!(formatter.labeled("empty"), "    (empty)")?;
                 } else {
                     show_color_words_diff_hunks(&[], &right_content, formatter)?;
                 }
             } else if right_value.is_present() {
-                let left_content = diff_content(repo, &path, &left_value)?;
-                let right_content = diff_content(repo, &path, &right_value)?;
-                let description = match (left_value.into_resolved(), right_value.into_resolved()) {
+                let description = match (left_value.as_resolved(), right_value.as_resolved()) {
                     (
-                        Ok(Some(TreeValue::File {
+                        Some(Some(TreeValue::File {
                             executable: left_executable,
                             ..
                         })),
-                        Ok(Some(TreeValue::File {
+                        Some(Some(TreeValue::File {
                             executable: right_executable,
                             ..
                         })),
                     ) => {
-                        if left_executable && right_executable {
+                        if *left_executable && *right_executable {
                             "Modified executable file".to_string()
-                        } else if left_executable {
+                        } else if *left_executable {
                             "Executable file became non-executable at".to_string()
-                        } else if right_executable {
+                        } else if *right_executable {
                             "Non-executable file became executable at".to_string()
                         } else {
                             "Modified regular file".to_string()
                         }
                     }
-                    (Err(_), Err(_)) => "Modified conflict in".to_string(),
-                    (Err(_), _) => "Resolved conflict in".to_string(),
-                    (_, Err(_)) => "Created conflict in".to_string(),
-                    (Ok(Some(TreeValue::Symlink(_))), Ok(Some(TreeValue::Symlink(_)))) => {
+                    (None, None) => "Modified conflict in".to_string(),
+                    (None, _) => "Resolved conflict in".to_string(),
+                    (_, None) => "Created conflict in".to_string(),
+                    (Some(Some(TreeValue::Symlink(_))), Some(Some(TreeValue::Symlink(_)))) => {
                         "Symlink target changed at".to_string()
                     }
-                    (Ok(left_value), Ok(right_value)) => {
-                        let left_type = basic_diff_file_type(&Merge::resolved(left_value));
-                        let right_type = basic_diff_file_type(&Merge::resolved(right_value));
+                    (Some(_), Some(_)) => {
+                        let left_type = basic_diff_file_type(&left_value);
+                        let right_type = basic_diff_file_type(&right_value);
                         let (first, rest) = left_type.split_at(1);
                         format!(
                             "{}{} became {} at",
@@ -455,15 +453,17 @@ pub fn show_color_words_diff(
                         )
                     }
                 };
+                let left_content = diff_content(repo, &path, left_value)?;
+                let right_content = diff_content(repo, &path, right_value)?;
                 writeln!(formatter.labeled("header"), "{description} {ui_path}:")?;
                 show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
             } else {
-                let left_content = diff_content(repo, &path, &left_value)?;
                 let description = basic_diff_file_type(&left_value);
                 writeln!(
                     formatter.labeled("header"),
                     "Removed {description} {ui_path}:"
                 )?;
+                let left_content = diff_content(repo, &path, left_value)?;
                 if left_content.is_empty() {
                     writeln!(formatter.labeled("empty"), "    (empty)")?;
                 } else {
@@ -819,8 +819,8 @@ pub fn show_diff_stat(
         while let Some((repo_path, diff)) = tree_diff.next().await {
             let (left, right) = diff?;
             let path = workspace_command.format_file_path(&repo_path);
-            let left_content = diff_content(workspace_command.repo(), &repo_path, &left)?;
-            let right_content = diff_content(workspace_command.repo(), &repo_path, &right)?;
+            let left_content = diff_content(workspace_command.repo(), &repo_path, left)?;
+            let right_content = diff_content(workspace_command.repo(), &repo_path, right)?;
             max_path_width = max(max_path_width, path.width());
             let stat = get_diff_stat(path, &left_content, &right_content);
             max_diffs = max(max_diffs, stat.added + stat.removed);
