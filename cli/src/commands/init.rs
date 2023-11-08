@@ -17,7 +17,6 @@ use std::io::Write;
 
 use clap::ArgGroup;
 use jj_lib::file_util;
-use jj_lib::git_backend::GitBackend;
 use jj_lib::repo::Repo;
 use jj_lib::workspace::Workspace;
 use tracing::instrument;
@@ -79,12 +78,6 @@ pub(crate) fn cmd_init(
         }
         let (workspace, repo) =
             Workspace::init_external_git(command.settings(), &wc_path, &git_store_path)?;
-        let git_repo = repo
-            .store()
-            .backend_impl()
-            .downcast_ref::<GitBackend>()
-            .unwrap()
-            .open_git_repo()?;
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         git::maybe_add_gitignore(&workspace_command)?;
         workspace_command.snapshot(ui)?;
@@ -92,7 +85,6 @@ pub(crate) fn cmd_init(
             let mut tx = workspace_command.start_transaction("import git refs");
             let stats = jj_lib::git::import_some_refs(
                 tx.mut_repo(),
-                &git_repo,
                 &command.settings().git_settings(),
                 |ref_name| !jj_lib::git::is_reserved_git_remote_ref(ref_name),
             )?;

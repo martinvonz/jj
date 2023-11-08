@@ -28,7 +28,6 @@ use std::{iter, str};
 
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
-use git2::Repository;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId};
@@ -293,6 +292,7 @@ repository contents."
                 Some("Run `jj git remote rename` to give different name.".to_string())
             }
             GitImportError::InternalGitError(_) => None,
+            GitImportError::UnexpectedBackend => None,
         };
         CommandError::UserError { message, hint }
     }
@@ -782,8 +782,7 @@ impl WorkspaceCommandHelper {
     pub fn snapshot(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             if self.working_copy_shared_with_git {
-                let git_repo = self.git_backend().unwrap().open_git_repo()?;
-                self.import_git_refs_and_head(ui, &git_repo)?;
+                self.import_git_refs_and_head(ui)?;
             }
             self.snapshot_working_copy(ui)?;
         }
@@ -791,15 +790,11 @@ impl WorkspaceCommandHelper {
     }
 
     #[instrument(skip_all)]
-    fn import_git_refs_and_head(
-        &mut self,
-        ui: &mut Ui,
-        git_repo: &Repository,
-    ) -> Result<(), CommandError> {
+    fn import_git_refs_and_head(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let git_settings = self.settings.git_settings();
         let mut tx = self.start_transaction("import git refs");
         // Automated import shouldn't fail because of reserved remote name.
-        let stats = git::import_some_refs(tx.mut_repo(), git_repo, &git_settings, |ref_name| {
+        let stats = git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
             !git::is_reserved_git_remote_ref(ref_name)
         })?;
         if !tx.mut_repo().has_changes() {
