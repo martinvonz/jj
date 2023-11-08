@@ -234,7 +234,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     }
 
     let mut tx = repo.start_transaction(&settings, "test");
-    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
+    git::import_refs(tx.mut_repo(), &git_settings).unwrap();
 
     // Test the test setup
     assert_eq!(

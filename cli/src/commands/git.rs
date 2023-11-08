@@ -1082,10 +1082,8 @@ fn cmd_git_import(
     _args: &GitImportArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction("import git refs");
-    let stats = git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
+    let stats = git::import_refs(tx.mut_repo(), &command.settings().git_settings())?;
     print_git_import_stats(ui, &stats)?;
     tx.finish(ui)?;
     Ok(())

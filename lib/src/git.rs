@@ -33,6 +33,7 @@ use crate::refs::BranchPushUpdate;
 use crate::repo::{MutableRepo, Repo};
 use crate::revset::{self, RevsetExpression};
 use crate::settings::GitSettings;
+use crate::store::Store;
 use crate::str_util::StringPattern;
 use crate::view::View;
 
@@ -105,6 +106,10 @@ pub fn is_reserved_git_remote_ref(parsed_ref: &RefName) -> bool {
     to_remote_branch(parsed_ref, REMOTE_NAME_FOR_LOCAL_GIT_REPO).is_some()
 }
 
+fn get_git_backend(store: &Store) -> Option<&GitBackend> {
+    store.backend_impl().downcast_ref()
+}
+
 /// Checks if `git_ref` points to a Git commit object, and returns its id.
 ///
 /// If the ref points to the previously `known_target` (i.e. unchanged), this
@@ -164,6 +169,8 @@ pub enum GitImportError {
     RemoteReservedForLocalGitRepo,
     #[error("Unexpected git error when importing refs: {0}")]
     InternalGitError(#[from] git2::Error),
+    #[error("The repo is not backed by a Git repo")]
+    UnexpectedBackend,
 }
 
 /// Describes changes made by `import_refs()` or `fetch()`.
@@ -188,10 +195,9 @@ struct RefsToImport {
 /// records them in JJ's view.
 pub fn import_refs(
     mut_repo: &mut MutableRepo,
-    git_repo: &git2::Repository,
     git_settings: &GitSettings,
 ) -> Result<GitImportStats, GitImportError> {
-    import_some_refs(mut_repo, git_repo, git_settings, |_| true)
+    import_some_refs(mut_repo, git_settings, |_| true)
 }
 
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
@@ -200,10 +206,13 @@ pub fn import_refs(
 /// considered for addition, update, or deletion.
 pub fn import_some_refs(
     mut_repo: &mut MutableRepo,
-    git_repo: &git2::Repository,
     git_settings: &GitSettings,
     git_ref_filter: impl Fn(&RefName) -> bool,
 ) -> Result<GitImportStats, GitImportError> {
+    let store = mut_repo.store();
+    let git_backend = get_git_backend(store).ok_or(GitImportError::UnexpectedBackend)?;
+    let git_repo = git_backend.open_git_repo()?; // TODO: use gix::Repository
+
     // TODO: Should this be a separate function? We may not always want to import
     // the Git HEAD (and add it to our set of heads).
     let old_git_head = mut_repo.view().git_head();
@@ -223,14 +232,10 @@ pub fn import_some_refs(
     let RefsToImport {
         changed_git_refs,
         changed_remote_refs,
-    } = diff_refs_to_import(mut_repo.view(), git_repo, git_ref_filter)?;
+    } = diff_refs_to_import(mut_repo.view(), &git_repo, git_ref_filter)?;
 
-    // Import new Git commits to the backend
-    let store = mut_repo.store();
-    // TODO: It might be better to obtain both git_repo and git_backend from
-    // mut_repo, and return error if the repo isn't backed by Git.
-    let git_backend = store.backend_impl().downcast_ref::<GitBackend>().unwrap();
-    // Bulk-import all reachable commits to reduce overhead of table merging.
+    // Bulk-import all reachable Git commits to the backend to reduce overhead of
+    // table merging.
     let head_ids = itertools::chain(
         &changed_git_head,
         changed_git_refs.iter().map(|(_, new_target)| new_target),
@@ -1076,7 +1081,7 @@ pub fn fetch(
     // local branches. We also import local tags since remote tags should have
     // been merged by Git.
     tracing::debug!("import_refs");
-    let import_stats = import_some_refs(mut_repo, git_repo, git_settings, |ref_name| {
+    let import_stats = import_some_refs(mut_repo, git_settings, |ref_name| {
         to_remote_branch(ref_name, remote_name)
             .map(|branch| branch_names.iter().any(|pattern| pattern.matches(branch)))
             .unwrap_or_else(|| matches!(ref_name, RefName::Tag(_)))
