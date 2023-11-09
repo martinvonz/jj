@@ -254,20 +254,16 @@ fn cmd_branch_create(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
-    let branch_names: Vec<&str> = args
-        .names
+    let branch_names = &args.names;
+    if let Some(branch_name) = branch_names
         .iter()
-        .map(|branch_name| {
-            if view.get_local_branch(branch_name).is_present() {
-                Err(user_error_with_hint(
-                    format!("Branch already exists: {branch_name}"),
-                    "Use `jj branch set` to update it.",
-                ))
-            } else {
-                Ok(branch_name.as_str())
-            }
-        })
-        .try_collect()?;
+        .find(|&name| view.get_local_branch(name).is_present())
+    {
+        return Err(user_error_with_hint(
+            format!("Branch already exists: {branch_name}"),
+            "Use `jj branch set` to update it.",
+        ));
+    }
 
     if branch_names.len() > 1 {
         writeln!(
@@ -281,7 +277,7 @@ fn cmd_branch_create(
         workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "create {} pointing to commit {}",
-        make_branch_term(&branch_names),
+        make_branch_term(branch_names),
         target_commit.id().hex()
     ));
     for branch_name in branch_names {
