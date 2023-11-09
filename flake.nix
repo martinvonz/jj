@@ -34,7 +34,7 @@
             in
             pkgs.lib.all (re: builtins.match re relPath == null) regexes;
         };
- 
+
       rust-version = pkgs.rust-bin.stable."1.71.0".default;
 
       ourRustPlatform = pkgs.makeRustPlatform {
@@ -129,6 +129,9 @@
           cargo-insta
           cargo-nextest
           cargo-watch
+
+          # In case you need to run `cargo run --bin gen-protos`
+          protobuf
 
           # For building the documentation website
           poetry

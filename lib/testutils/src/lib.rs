@@ -334,6 +334,7 @@ pub fn commit_with_tree(store: &Arc<Store>, tree_id: MergedTreeId) -> Commit {
         description: "description".to_string(),
         author: signature.clone(),
         committer: signature,
+        secure_sig: None,
     };
     store.write_commit(commit).unwrap()
 }
