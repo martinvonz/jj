@@ -81,6 +81,38 @@ fn test_branch_empty_name() {
 }
 
 #[test]
+fn test_branch_move() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
+    insta::assert_snapshot!(stderr, @"");
+
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "create", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Branch already exists: foo
+    Hint: Use `jj branch set` to update it.
+    "###);
+
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
+    insta::assert_snapshot!(stderr, @"");
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "set", "-r@-", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Refusing to move branch backwards or sideways.
+    Hint: Use --allow-backwards to allow it.
+    "###);
+
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["branch", "set", "-r@-", "--allow-backwards", "foo"],
+    );
+    insta::assert_snapshot!(stderr, @"");
+}
+
+#[test]
 fn test_branch_forget_glob() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
