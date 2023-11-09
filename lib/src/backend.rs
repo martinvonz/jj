@@ -139,6 +139,14 @@ content_hash! {
     }
 }
 
+content_hash! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    pub struct SecureSig {
+        pub data: Vec<u8>,
+        pub sig: Vec<u8>,
+    }
+}
+
 /// Identifies a single legacy tree, which may have path-level conflicts, or a
 /// merge of multiple trees, where the individual trees do not have conflicts.
 // TODO(#1624): Delete this type at some point in the future, when we decide to drop
@@ -178,7 +186,7 @@ impl ContentHash for MergedTreeId {
 }
 
 impl MergedTreeId {
-    /// Create a resolved `MergedTreeId` from a single regular tree.  
+    /// Create a resolved `MergedTreeId` from a single regular tree.
     pub fn resolved(tree_id: TreeId) -> Self {
         MergedTreeId::Merge(Merge::resolved(tree_id))
     }
@@ -202,6 +210,7 @@ content_hash! {
         pub description: String,
         pub author: Signature,
         pub committer: Signature,
+        pub secure_sig: Option<SecureSig>,
     }
 }
 
@@ -450,6 +459,7 @@ pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Comm
         description: String::new(),
         author: signature.clone(),
         committer: signature,
+        secure_sig: None,
     }
 }
 

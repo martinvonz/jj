@@ -22,6 +22,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::{fs, str};
 
 use async_trait::async_trait;
+use gix::objs::CommitRefIter;
 use itertools::Itertools;
 use prost::Message;
 use thiserror::Error;
@@ -29,7 +30,8 @@ use thiserror::Error;
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendInitError, BackendLoadError, BackendResult,
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, FileId, MergedTreeId,
-    MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
+    MillisSinceEpoch, ObjectId, SecureSig, Signature, SymlinkId, Timestamp, Tree, TreeId,
+    TreeValue,
 };
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
@@ -371,9 +373,13 @@ fn gix_open_opts_from_settings(settings: &UserSettings) -> gix::open::Options {
 
 fn commit_from_git_without_root_parent(
     id: &CommitId,
-    commit: &gix::objs::CommitRef,
+    git_object: &gix::Object,
     uses_tree_conflict_format: bool,
-) -> Commit {
+) -> Result<Commit, BackendError> {
+    let commit = git_object
+        .try_to_commit_ref()
+        .map_err(|err| to_read_object_err(err, id))?;
+
     // We reverse the bits of the commit id to create the change id. We don't want
     // to use the first bytes unmodified because then it would be ambiguous
     // if a given hash prefix refers to the commit id or the change id. It
@@ -406,7 +412,27 @@ fn commit_from_git_without_root_parent(
     let author = signature_from_git(commit.author());
     let committer = signature_from_git(commit.committer());
 
-    Commit {
+    // If the commit is signed, extract both the signature and the signed data
+    // (which is the commit buffer with the gpgsig header omitted).
+    // We have to re-parse the raw commit data because gix CommitRef does not give
+    // us the sogned data, only the signature.
+    // Ideally, we could use try_to_commit_ref_iter at the beginning of this
+    // function and extract everything from that. For now, this works
+    let secure_sig = commit
+        .extra_headers
+        .iter()
+        // gix does not recognize gpgsig-sha256, but prevent future footguns by checking for it too
+        .any(|(k, _)| *k == "gpgsig" || *k == "gpgsig-sha256")
+        .then(|| CommitRefIter::signature(&git_object.data))
+        .transpose()
+        .map_err(|err| to_read_object_err(err, id))?
+        .flatten()
+        .map(|(sig, data)| SecureSig {
+            data: data.to_bstring().into(),
+            sig: sig.into_owned().into(),
+        });
+
+    Ok(Commit {
         parents,
         predecessors: vec![],
         // If this commit has associated extra metadata, we may reset this later.
@@ -415,7 +441,8 @@ fn commit_from_git_without_root_parent(
         description,
         author,
         committer,
-    }
+        secure_sig,
+    })
 }
 
 const EMPTY_STRING_PLACEHOLDER: &str = "JJ_EMPTY_STRING";
@@ -585,14 +612,11 @@ fn import_extra_metadata_entries_from_heads(
         let git_object = git_repo
             .find_object(validate_git_object_id(&id)?)
             .map_err(|err| map_not_found_err(err, &id))?;
-        let git_commit = git_object
-            .try_to_commit_ref()
-            .map_err(|err| to_read_object_err(err, &id))?;
         // TODO(#1624): Should we read the root tree here and check if it has a
         // `.jjconflict-...` entries? That could happen if the user used `git` to e.g.
         // change the description of a commit with tree-level conflicts.
         let commit =
-            commit_from_git_without_root_parent(&id, &git_commit, uses_tree_conflict_format);
+            commit_from_git_without_root_parent(&id, &git_object, uses_tree_conflict_format)?;
         mut_table.add_entry(id.to_bytes(), serialize_extras(&commit));
         work_ids.extend(
             commit
@@ -858,10 +882,7 @@ impl Backend for GitBackend {
             let git_object = locked_repo
                 .find_object(git_commit_id)
                 .map_err(|err| map_not_found_err(err, id))?;
-            let git_commit = git_object
-                .try_to_commit_ref()
-                .map_err(|err| to_read_object_err(err, id))?;
-            commit_from_git_without_root_parent(id, &git_commit, false)
+            commit_from_git_without_root_parent(id, &git_object, false)?
         };
         if commit.parents.is_empty() {
             commit.parents.push(self.root_commit_id.clone());
@@ -1282,6 +1303,51 @@ mod tests {
     }
 
     #[test]
+    fn read_signed_git_commit() {
+        let settings = user_settings();
+        let temp_dir = testutils::new_temp_dir();
+        let store_path = temp_dir.path();
+        let git_repo_path = temp_dir.path().join("git");
+        let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+
+        let signature = git2::Signature::now("Someone", "someone@example.com").unwrap();
+        let empty_tree_id = Oid::from_str("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap();
+        let empty_tree = git_repo.find_tree(empty_tree_id).unwrap();
+
+        let commit_buf = git_repo
+            .commit_create_buffer(
+                &signature,
+                &signature,
+                "git commit message",
+                &empty_tree,
+                &[],
+            )
+            .unwrap();
+
+        // libgit2-rs works with &strs here for some reason
+        let commit_buf = std::str::from_utf8(&commit_buf).unwrap();
+        let secure_sig =
+            "here are some ASCII bytes to be used as a test signature\n\ndefinitely not PGP";
+
+        let git_commit_id = git_repo
+            .commit_signed(commit_buf, secure_sig, None)
+            .unwrap();
+
+        let backend = GitBackend::init_external(&settings, store_path, &git_repo_path).unwrap();
+
+        let commit = backend
+            .read_commit(&CommitId::from_bytes(git_commit_id.as_bytes()))
+            .block_on()
+            .unwrap();
+
+        let sig = commit.secure_sig.expect("failed to read the signature");
+
+        // converting to string for nicer assert diff
+        assert_eq!(std::str::from_utf8(&sig.sig).unwrap(), secure_sig);
+        assert_eq!(std::str::from_utf8(&sig.data).unwrap(), commit_buf);
+    }
+
+    #[test]
     fn read_empty_string_placeholder() {
         let git_signature1 = gix::actor::SignatureRef {
             name: EMPTY_STRING_PLACEHOLDER.into(),
@@ -1345,6 +1411,7 @@ mod tests {
             description: "".to_string(),
             author: create_signature(),
             committer: create_signature(),
+            secure_sig: None,
         };
 
         // No parents
@@ -1422,6 +1489,7 @@ mod tests {
             description: "".to_string(),
             author: create_signature(),
             committer: create_signature(),
+            secure_sig: None,
         };
 
         // When writing a tree-level conflict, the root tree on the git side has the
@@ -1503,6 +1571,7 @@ mod tests {
             description: "initial".to_string(),
             author: signature.clone(),
             committer: signature,
+            secure_sig: None,
         };
         let commit_id = backend.write_commit(commit).unwrap().0;
         let git_refs = backend
@@ -1528,6 +1597,7 @@ mod tests {
             description: "initial".to_string(),
             author: create_signature(),
             committer: create_signature(),
+            secure_sig: None,
         };
         // libgit2 doesn't seem to preserve negative timestamps, so set it to at least 1
         // second after the epoch, so the timestamp adjustment can remove 1

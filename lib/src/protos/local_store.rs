@@ -65,6 +65,8 @@ pub struct Commit {
     pub author: ::core::option::Option<commit::Signature>,
     #[prost(message, optional, tag = "7")]
     pub committer: ::core::option::Option<commit::Signature>,
+    #[prost(bytes = "vec", optional, tag = "9")]
+    pub secure_sig: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
 }
 /// Nested message and enum types in `Commit`.
 pub mod commit {

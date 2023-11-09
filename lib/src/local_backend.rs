@@ -28,8 +28,8 @@ use tempfile::NamedTempFile;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictTerm, FileId, MergedTreeId, MillisSinceEpoch, ObjectId, Signature,
-    SymlinkId, Timestamp, Tree, TreeId, TreeValue,
+    ConflictId, ConflictTerm, FileId, MergedTreeId, MillisSinceEpoch, ObjectId, SecureSig,
+    Signature, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
@@ -307,10 +307,18 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
     proto.description = commit.description.clone();
     proto.author = Some(signature_to_proto(&commit.author));
     proto.committer = Some(signature_to_proto(&commit.committer));
+    proto.secure_sig = commit.secure_sig.as_ref().map(|s| s.sig.clone());
     proto
 }
 
-fn commit_from_proto(proto: crate::protos::local_store::Commit) -> Commit {
+fn commit_from_proto(mut proto: crate::protos::local_store::Commit) -> Commit {
+    // Note how .take() sets the secure_sig field to None before we encode the data.
+    // Needs to be done first since proto is partially moved a bunch below
+    let secure_sig = proto.secure_sig.take().map(|sig| SecureSig {
+        data: proto.encode_to_vec(),
+        sig,
+    });
+
     let parents = proto.parents.into_iter().map(CommitId::new).collect();
     let predecessors = proto.predecessors.into_iter().map(CommitId::new).collect();
     let root_tree = if proto.uses_tree_conflict_format {
@@ -329,6 +337,7 @@ fn commit_from_proto(proto: crate::protos::local_store::Commit) -> Commit {
         description: proto.description,
         author: signature_from_proto(proto.author.unwrap_or_default()),
         committer: signature_from_proto(proto.committer.unwrap_or_default()),
+        secure_sig,
     }
 }
 
@@ -485,6 +494,7 @@ mod tests {
             description: "".to_string(),
             author: create_signature(),
             committer: create_signature(),
+            secure_sig: None,
         };
 
         // No parents
