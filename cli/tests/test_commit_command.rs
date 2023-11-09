@@ -76,6 +76,35 @@ fn test_commit_with_editor() {
 }
 
 #[test]
+fn test_commit_interactive() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=add files"]);
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(edit_script, ["dump editor"].join("\0")).unwrap();
+
+    let diff_editor = test_env.set_up_fake_diff_editor();
+    std::fs::write(&diff_editor, "rm file2").unwrap();
+
+    // Create a commit interactively and select only file1
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-i"]);
+
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"
+    add files
+
+    JJ: This commit contains the following changes:
+    JJ:     A file1
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+}
+
+#[test]
 fn test_commit_with_default_description() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

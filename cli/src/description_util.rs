@@ -4,6 +4,7 @@ use std::{fs, io};
 use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::matchers::EverythingMatcher;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::settings::UserSettings;
 
@@ -80,7 +81,7 @@ pub fn combine_messages(
     Ok(description)
 }
 
-pub fn description_template_for_commit(
+pub fn description_template_for_describe(
     ui: &Ui,
     settings: &UserSettings,
     workspace_command: &WorkspaceCommandHelper,
@@ -105,6 +106,41 @@ pub fn description_template_for_commit(
     } else {
         Ok(description + "\n" + &diff_summary_to_description(&diff_summary_bytes))
     }
+}
+
+pub fn description_template_for_commit(
+    ui: &Ui,
+    settings: &UserSettings,
+    workspace_command: &WorkspaceCommandHelper,
+    intro: &str,
+    overall_commit_description: &str,
+    from_tree: &MergedTree,
+    to_tree: &MergedTree,
+) -> Result<String, CommandError> {
+    let mut diff_summary_bytes = Vec::new();
+    diff_util::show_diff(
+        ui,
+        &mut PlainTextFormatter::new(&mut diff_summary_bytes),
+        workspace_command,
+        from_tree,
+        to_tree,
+        &EverythingMatcher,
+        &[DiffFormat::Summary],
+    )?;
+    let mut template_chunks = Vec::new();
+    if !intro.is_empty() {
+        template_chunks.push(format!("JJ: {intro}\n"));
+    }
+    template_chunks.push(if overall_commit_description.is_empty() {
+        settings.default_description()
+    } else {
+        overall_commit_description.to_owned()
+    });
+    if !diff_summary_bytes.is_empty() {
+        template_chunks.push("\n".to_owned());
+        template_chunks.push(diff_summary_to_description(&diff_summary_bytes));
+    }
+    Ok(template_chunks.concat())
 }
 
 pub fn diff_summary_to_description(bytes: &[u8]) -> String {
