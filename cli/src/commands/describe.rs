@@ -18,7 +18,7 @@ use jj_lib::backend::ObjectId;
 use tracing::instrument;
 
 use crate::cli_util::{join_message_paragraphs, CommandError, CommandHelper, RevisionArg};
-use crate::description_util::{description_template_for_commit, edit_description};
+use crate::description_util::{description_template_for_describe, edit_description};
 use crate::ui::Ui;
 
 /// Update the change description or other metadata
@@ -71,7 +71,7 @@ pub(crate) fn cmd_describe(
         commit.description().to_owned()
     } else {
         let template =
-            description_template_for_commit(ui, command.settings(), &workspace_command, &commit)?;
+            description_template_for_describe(ui, command.settings(), &workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
     if description == *commit.description() && !args.reset_author {

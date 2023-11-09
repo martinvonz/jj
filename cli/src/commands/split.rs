@@ -14,18 +14,13 @@
 use std::io::Write;
 
 use jj_lib::backend::ObjectId;
-use jj_lib::matchers::EverythingMatcher;
-use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::Repo;
 use jj_lib::rewrite::{merge_commit_trees, DescendantRebaser};
-use jj_lib::settings::UserSettings;
 use maplit::{hashmap, hashset};
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper};
-use crate::description_util::{diff_summary_to_description, edit_description};
-use crate::diff_util::{self, DiffFormat};
-use crate::formatter::PlainTextFormatter;
+use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
+use crate::description_util::{description_template_for_commit, edit_description};
 use crate::ui::Ui;
 
 /// Split a revision in two
@@ -102,7 +97,7 @@ don't make any changes, then the operation will be aborted.
         )?;
     }
 
-    let first_template = description_template_for_cmd_split(
+    let first_template = description_template_for_commit(
         ui,
         command.settings(),
         tx.base_workspace_helper(),
@@ -122,7 +117,7 @@ don't make any changes, then the operation will be aborted.
         // If there was no description before, don't ask for one for the second commit.
         "".to_string()
     } else {
-        let second_template = description_template_for_cmd_split(
+        let second_template = description_template_for_commit(
             ui,
             command.settings(),
             tx.base_workspace_helper(),
@@ -159,31 +154,4 @@ don't make any changes, then the operation will be aborted.
     writeln!(ui.stderr())?;
     tx.finish(ui)?;
     Ok(())
-}
-
-fn description_template_for_cmd_split(
-    ui: &Ui,
-    settings: &UserSettings,
-    workspace_command: &WorkspaceCommandHelper,
-    intro: &str,
-    overall_commit_description: &str,
-    from_tree: &MergedTree,
-    to_tree: &MergedTree,
-) -> Result<String, CommandError> {
-    let mut diff_summary_bytes = Vec::new();
-    diff_util::show_diff(
-        ui,
-        &mut PlainTextFormatter::new(&mut diff_summary_bytes),
-        workspace_command,
-        from_tree,
-        to_tree,
-        &EverythingMatcher,
-        &[DiffFormat::Summary],
-    )?;
-    let description = if overall_commit_description.is_empty() {
-        settings.default_description()
-    } else {
-        overall_commit_description.to_owned()
-    };
-    Ok(format!("JJ: {intro}\n{description}\n") + &diff_summary_to_description(&diff_summary_bytes))
 }

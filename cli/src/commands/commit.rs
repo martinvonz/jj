@@ -48,8 +48,6 @@ pub(crate) fn cmd_commit(
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
-    let template =
-        description_template_for_commit(ui, command.settings(), &workspace_command, &commit)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
     let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
@@ -79,6 +77,16 @@ new working-copy commit.
             args.paths.join(" ")
         )?;
     }
+
+    let template = description_template_for_commit(
+        ui,
+        command.settings(),
+        tx.base_workspace_helper(),
+        "",
+        commit.description(),
+        &base_tree,
+        &middle_tree,
+    )?;
 
     let description = if !args.message_paragraphs.is_empty() {
         join_message_paragraphs(&args.message_paragraphs)
