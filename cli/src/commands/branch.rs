@@ -272,8 +272,8 @@ fn cmd_branch_create(
     if branch_names.len() > 1 {
         writeln!(
             ui.warning(),
-            "warning: Creating multiple branches ({}).",
-            branch_names.len()
+            "warning: Creating multiple branches: {}",
+            branch_names.join(", "),
         )?;
     }
 
@@ -302,8 +302,8 @@ fn cmd_branch_set(
     if branch_names.len() > 1 {
         writeln!(
             ui.warning(),
-            "warning: Updating multiple branches ({}).",
-            branch_names.len()
+            "warning: Updating multiple branches: {}",
+            branch_names.join(", "),
         )?;
     }
 
