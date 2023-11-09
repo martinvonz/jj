@@ -253,6 +253,8 @@ fn cmd_branch_create(
     args: &BranchCreateArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    let target_commit =
+        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
     let view = workspace_command.repo().view();
     let branch_names = &args.names;
     if let Some(branch_name) = branch_names
@@ -273,8 +275,6 @@ fn cmd_branch_create(
         )?;
     }
 
-    let target_commit =
-        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "create {} pointing to commit {}",
         make_branch_term(branch_names),
@@ -293,8 +293,22 @@ fn cmd_branch_set(
     command: &CommandHelper,
     args: &BranchSetArgs,
 ) -> Result<(), CommandError> {
-    let branch_names = &args.names;
     let mut workspace_command = command.workspace_helper(ui)?;
+    let target_commit =
+        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
+    let repo = workspace_command.repo().as_ref();
+    let branch_names = &args.names;
+    if !args.allow_backwards
+        && !branch_names
+            .iter()
+            .all(|branch_name| is_fast_forward(repo, branch_name, target_commit.id()))
+    {
+        return Err(user_error_with_hint(
+            "Refusing to move branch backwards or sideways.",
+            "Use --allow-backwards to allow it.",
+        ));
+    }
+
     if branch_names.len() > 1 {
         writeln!(
             ui.warning(),
@@ -303,22 +317,6 @@ fn cmd_branch_set(
         )?;
     }
 
-    let target_commit =
-        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
-    if !args.allow_backwards
-        && !branch_names.iter().all(|branch_name| {
-            is_fast_forward(
-                workspace_command.repo().as_ref(),
-                branch_name,
-                target_commit.id(),
-            )
-        })
-    {
-        return Err(user_error_with_hint(
-            "Refusing to move branch backwards or sideways.",
-            "Use --allow-backwards to allow it.",
-        ));
-    }
     let mut tx = workspace_command.start_transaction(&format!(
         "point {} to commit {}",
         make_branch_term(branch_names),
