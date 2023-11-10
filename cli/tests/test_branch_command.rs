@@ -131,6 +131,65 @@ fn test_branch_move() {
 }
 
 #[test]
+fn test_branch_move_conflicting() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let get_log = || {
+        let template = r#"separate(" ", description.first_line(), branches)"#;
+        let (stdout, _stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-T", template]);
+        stdout
+    };
+
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mA0"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mB0"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mC0"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "description(A0)", "-mA1"]);
+
+    // Set up conflicting branch.
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["branch", "create", "-rdescription(A0)", "foo"],
+    );
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["branch", "create", "--at-op=@-", "-rdescription(B0)", "foo"],
+    );
+    insta::assert_snapshot!(get_log(), @r###"
+    @  A1
+    ◉  A0 foo??
+    │ ◉  C0
+    ├─╯
+    │ ◉  B0 foo??
+    ├─╯
+    ◉
+    "###);
+
+    // Can't move the branch to C0 since it's sibling.
+    let stderr =
+        test_env.jj_cmd_failure(&repo_path, &["branch", "set", "-rdescription(C0)", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Refusing to move branch backwards or sideways.
+    Hint: Use --allow-backwards to allow it.
+    "###);
+
+    // Can move the branch to A1 since it's descendant of A0. It's not
+    // descendant of B0, though.
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "set", "-rdescription(A1)", "foo"]);
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(get_log(), @r###"
+    @  A1 foo
+    ◉  A0
+    │ ◉  C0
+    ├─╯
+    │ ◉  B0
+    ├─╯
+    ◉
+    "###);
+}
+
+#[test]
 fn test_branch_forget_glob() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
