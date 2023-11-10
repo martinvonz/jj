@@ -111,6 +111,10 @@ fn get_git_backend(store: &Store) -> Option<&GitBackend> {
     store.backend_impl().downcast_ref()
 }
 
+fn get_git_repo(store: &Store) -> Option<gix::Repository> {
+    get_git_backend(store).map(|backend| backend.git_repo())
+}
+
 /// Checks if `git_ref` points to a Git commit object, and returns its id.
 ///
 /// If the ref points to the previously `known_target` (i.e. unchanged), this
@@ -520,9 +524,15 @@ fn pinned_commit_ids(view: &View) -> impl Iterator<Item = &CommitId> {
 #[derive(Error, Debug)]
 pub enum GitExportError {
     #[error("Git error: {0}")]
-    InternalGitError(#[from] git2::Error),
+    InternalGitError(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("The repo is not backed by a Git repo")]
     UnexpectedBackend,
+}
+
+impl GitExportError {
+    fn from_git(source: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
+        GitExportError::InternalGitError(source.into())
+    }
 }
 
 /// A ref we failed to export to Git, along with the reason it failed.
@@ -549,15 +559,15 @@ pub enum FailedRefExportReason {
     /// We wanted to modify it, but Git had deleted it
     ModifiedInJjDeletedInGit,
     /// Failed to delete the ref from the Git repo
-    FailedToDelete(git2::Error),
+    FailedToDelete(Box<gix::reference::edit::Error>),
     /// Failed to set the ref in the Git repo
-    FailedToSet(git2::Error),
+    FailedToSet(Box<gix::reference::edit::Error>),
 }
 
 #[derive(Debug)]
 struct RefsToExport {
-    branches_to_update: BTreeMap<RefName, (Option<Oid>, Oid)>,
-    branches_to_delete: BTreeMap<RefName, Oid>,
+    branches_to_update: BTreeMap<RefName, (Option<gix::ObjectId>, gix::ObjectId)>,
+    branches_to_delete: BTreeMap<RefName, gix::ObjectId>,
     failed_branches: HashMap<RefName, FailedRefExportReason>,
 }
 
@@ -580,8 +590,7 @@ pub fn export_some_refs(
     mut_repo: &mut MutableRepo,
     git_ref_filter: impl Fn(&RefName) -> bool,
 ) -> Result<Vec<FailedRefExport>, GitExportError> {
-    let git_backend = get_git_backend(mut_repo.store()).ok_or(GitExportError::UnexpectedBackend)?;
-    let git_repo = git_backend.open_git_repo()?; // TODO: use gix::Repository
+    let git_repo = get_git_repo(mut_repo.store()).ok_or(GitExportError::UnexpectedBackend)?;
 
     let RefsToExport {
         branches_to_update,
@@ -595,18 +604,29 @@ pub fn export_some_refs(
 
     // TODO: Also check other worktrees' HEAD.
     if let Ok(head_ref) = git_repo.find_reference("HEAD") {
-        if let (Some(head_git_ref), Ok(current_git_commit)) =
-            (head_ref.symbolic_target(), head_ref.peel_to_commit())
+        if let Some(parsed_ref) = head_ref
+            .target()
+            .try_name()
+            .and_then(|name| str::from_utf8(name.as_bstr()).ok())
+            .and_then(parse_git_ref)
         {
-            if let Some(parsed_ref) = parse_git_ref(head_git_ref) {
+            let old_target = head_ref.inner.target.clone();
+            if let Ok(current_git_commit_id) = head_ref.into_fully_peeled_id() {
                 let detach_head =
                     if let Some((_old_oid, new_oid)) = branches_to_update.get(&parsed_ref) {
-                        *new_oid != current_git_commit.id()
+                        *new_oid != current_git_commit_id
                     } else {
                         branches_to_delete.contains_key(&parsed_ref)
                     };
                 if detach_head {
-                    git_repo.set_head_detached(current_git_commit.id())?;
+                    git_repo
+                        .reference(
+                            "HEAD",
+                            current_git_commit_id,
+                            gix::refs::transaction::PreviousValue::MustExistAndMatch(old_target),
+                            "export from jj",
+                        )
+                        .map_err(GitExportError::from_git)?;
                 }
             }
         }
@@ -616,7 +636,7 @@ pub fn export_some_refs(
             failed_branches.insert(parsed_ref_name, FailedRefExportReason::InvalidGitName);
             continue;
         };
-        if let Err(reason) = delete_git_ref(&git_repo, &git_ref_name, old_oid) {
+        if let Err(reason) = delete_git_ref(&git_repo, &git_ref_name, &old_oid) {
             failed_branches.insert(parsed_ref_name, reason);
         } else {
             let new_target = RefTarget::absent();
@@ -739,7 +759,7 @@ fn diff_refs_to_export(
             continue;
         }
         let old_oid = if let Some(id) = old_target.as_normal() {
-            Some(Oid::from_bytes(id.as_bytes()).unwrap())
+            Some(gix::ObjectId::from(id.as_bytes()))
         } else if old_target.has_conflict() {
             // The old git ref should only be a conflict if there were concurrent import
             // operations while the value changed. Don't overwrite these values.
@@ -750,8 +770,8 @@ fn diff_refs_to_export(
             None
         };
         if let Some(id) = new_target.as_normal() {
-            let new_oid = Oid::from_bytes(id.as_bytes());
-            branches_to_update.insert(ref_name, (old_oid, new_oid.unwrap()));
+            let new_oid = gix::ObjectId::from(id.as_bytes());
+            branches_to_update.insert(ref_name, (old_oid, new_oid));
         } else if new_target.has_conflict() {
             // Skip conflicts and leave the old value in git_refs
             continue;
@@ -769,16 +789,16 @@ fn diff_refs_to_export(
 }
 
 fn delete_git_ref(
-    git_repo: &git2::Repository,
+    git_repo: &gix::Repository,
     git_ref_name: &str,
-    old_oid: Oid,
+    old_oid: &gix::oid,
 ) -> Result<(), FailedRefExportReason> {
-    if let Ok(mut git_repo_ref) = git_repo.find_reference(git_ref_name) {
-        if git_repo_ref.target() == Some(old_oid) {
+    if let Ok(git_ref) = git_repo.find_reference(git_ref_name) {
+        if git_ref.inner.target.try_id() == Some(old_oid) {
             // The branch has not been updated by git, so go ahead and delete it
-            git_repo_ref
+            git_ref
                 .delete()
-                .map_err(FailedRefExportReason::FailedToDelete)?;
+                .map_err(|err| FailedRefExportReason::FailedToDelete(err.into()))?;
         } else {
             // The branch was updated by git
             return Err(FailedRefExportReason::DeletedInJjModifiedInGit);
@@ -790,37 +810,44 @@ fn delete_git_ref(
 }
 
 fn update_git_ref(
-    git_repo: &git2::Repository,
+    git_repo: &gix::Repository,
     git_ref_name: &str,
-    old_oid: Option<Oid>,
-    new_oid: Oid,
+    old_oid: Option<gix::ObjectId>,
+    new_oid: gix::ObjectId,
 ) -> Result<(), FailedRefExportReason> {
     match old_oid {
         None => {
             if let Ok(git_repo_ref) = git_repo.find_reference(git_ref_name) {
                 // The branch was added in jj and in git. We're good if and only if git
                 // pointed it to our desired target.
-                if git_repo_ref.target() != Some(new_oid) {
+                if git_repo_ref.inner.target.try_id() != Some(&new_oid) {
                     return Err(FailedRefExportReason::AddedInJjAddedInGit);
                 }
             } else {
                 // The branch was added in jj but still doesn't exist in git, so add it
                 git_repo
-                    .reference(git_ref_name, new_oid, false, "export from jj")
-                    .map_err(FailedRefExportReason::FailedToSet)?;
+                    .reference(
+                        git_ref_name,
+                        new_oid,
+                        gix::refs::transaction::PreviousValue::MustNotExist,
+                        "export from jj",
+                    )
+                    .map_err(|err| FailedRefExportReason::FailedToSet(err.into()))?;
             }
         }
         Some(old_oid) => {
-            // The branch was modified in jj. We can use libgit2's API for updating under a
-            // lock.
-            if let Err(err) =
-                git_repo.reference_matching(git_ref_name, new_oid, true, old_oid, "export from jj")
-            {
+            // The branch was modified in jj. We can use gix API for updating under a lock.
+            if let Err(err) = git_repo.reference(
+                git_ref_name,
+                new_oid,
+                gix::refs::transaction::PreviousValue::MustExistAndMatch(old_oid.into()),
+                "export from jj",
+            ) {
                 // The reference was probably updated in git
                 if let Ok(git_repo_ref) = git_repo.find_reference(git_ref_name) {
                     // We still consider this a success if it was updated to our desired target
-                    if git_repo_ref.target() != Some(new_oid) {
-                        return Err(FailedRefExportReason::FailedToSet(err));
+                    if git_repo_ref.inner.target.try_id() != Some(&new_oid) {
+                        return Err(FailedRefExportReason::FailedToSet(err.into()));
                     }
                 } else {
                     // The reference was deleted in git and moved in jj
