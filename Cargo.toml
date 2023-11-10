@@ -55,6 +55,7 @@ libc = { version = "0.2.150" }
 maplit = "1.0.2"
 num_cpus = "1.16.0"
 once_cell = "1.18.0"
+ouroboros = "0.18.0"
 pest = "2.7.5"
 pest_derive = "2.7.5"
 pollster = "0.3.0"

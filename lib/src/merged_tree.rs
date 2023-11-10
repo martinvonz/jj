@@ -575,22 +575,17 @@ pub struct TreeEntriesIterator<'matcher> {
     matcher: &'matcher dyn Matcher,
 }
 
+#[ouroboros::self_referencing]
 struct TreeEntriesDirItem {
-    entry_iterator: TreeEntriesNonRecursiveIterator<'static>,
-    // On drop, tree must outlive entry_iterator
-    tree: Box<MergedTree>,
+    tree: MergedTree,
+    #[borrows(tree)]
+    #[not_covariant]
+    entry_iterator: TreeEntriesNonRecursiveIterator<'this>,
 }
 
-impl TreeEntriesDirItem {
-    fn new(tree: MergedTree) -> Self {
-        let tree = Box::new(tree);
-        let entry_iterator = tree.entries_non_recursive();
-        let entry_iterator: TreeEntriesNonRecursiveIterator<'static> =
-            unsafe { std::mem::transmute(entry_iterator) };
-        Self {
-            entry_iterator,
-            tree,
-        }
+impl From<MergedTree> for TreeEntriesDirItem {
+    fn from(tree: MergedTree) -> Self {
+        TreeEntriesDirItem::new(tree, |tree| tree.entries_non_recursive())
     }
 }
 
@@ -598,7 +593,7 @@ impl<'matcher> TreeEntriesIterator<'matcher> {
     fn new(tree: MergedTree, matcher: &'matcher dyn Matcher) -> Self {
         // TODO: Restrict walk according to Matcher::visit()
         Self {
-            stack: vec![TreeEntriesDirItem::new(tree)],
+            stack: vec![TreeEntriesDirItem::from(tree)],
             matcher,
         }
     }
@@ -609,20 +604,18 @@ impl Iterator for TreeEntriesIterator<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
-            if let Some((name, value)) = top.entry_iterator.next() {
-                let path = top.tree.dir().join(name);
+            if let (tree, Some((name, value))) = top.with_mut(|x| (x.tree, x.entry_iterator.next()))
+            {
+                let path = tree.dir().join(name);
                 let value = value.to_merge();
                 if value.is_tree() {
                     // TODO: Handle the other cases (specific files and trees)
                     if self.matcher.visit(&path).is_nothing() {
                         continue;
                     }
-                    let tree_merge = value
-                        .to_tree_merge(top.tree.store(), &path)
-                        .unwrap()
-                        .unwrap();
+                    let tree_merge = value.to_tree_merge(tree.store(), &path).unwrap().unwrap();
                     let merged_tree = MergedTree::Merge(tree_merge);
-                    self.stack.push(TreeEntriesDirItem::new(merged_tree));
+                    self.stack.push(TreeEntriesDirItem::from(merged_tree));
                 } else if self.matcher.matches(&path) {
                     return Some((path, value));
                 }
@@ -681,23 +674,17 @@ impl<'a> Iterator for ConflictEntriesNonRecursiveIterator<'a> {
 
 /// The state for the non-recursive iteration over the conflicted entries in a
 /// single directory.
+#[ouroboros::self_referencing]
 struct ConflictsDirItem {
-    entry_iterator: ConflictEntriesNonRecursiveIterator<'static>,
-    // On drop, tree must outlive entry_iterator
-    tree: Box<MergedTree>,
+    tree: MergedTree,
+    #[borrows(tree)]
+    #[not_covariant]
+    entry_iterator: ConflictEntriesNonRecursiveIterator<'this>,
 }
 
-impl ConflictsDirItem {
-    fn new(tree: MergedTree) -> Self {
-        // Put the tree in a box so it doesn't move if `ConflictsDirItem` moves.
-        let tree = Box::new(tree);
-        let entry_iterator = ConflictEntriesNonRecursiveIterator::new(&tree);
-        let entry_iterator: ConflictEntriesNonRecursiveIterator<'static> =
-            unsafe { std::mem::transmute(entry_iterator) };
-        Self {
-            entry_iterator,
-            tree,
-        }
+impl From<MergedTree> for ConflictsDirItem {
+    fn from(tree: MergedTree) -> Self {
+        Self::new(tree, |tree| ConflictEntriesNonRecursiveIterator::new(tree))
     }
 }
 
@@ -719,7 +706,7 @@ impl ConflictIterator {
                 conflicts_iter: tree.conflicts().into_iter(),
             },
             MergedTree::Merge(_) => ConflictIterator::Merge {
-                stack: vec![ConflictsDirItem::new(tree)],
+                stack: vec![ConflictsDirItem::from(tree)],
             },
         }
     }
@@ -744,14 +731,15 @@ impl Iterator for ConflictIterator {
             }
             ConflictIterator::Merge { stack } => {
                 while let Some(top) = stack.last_mut() {
-                    if let Some((basename, tree_values)) = top.entry_iterator.next() {
-                        let path = top.tree.dir().join(basename);
+                    if let (tree, Some((basename, tree_values))) =
+                        top.with_mut(|x| (x.tree, x.entry_iterator.next()))
+                    {
+                        let path = tree.dir().join(basename);
                         // TODO: propagate errors
-                        if let Some(trees) =
-                            tree_values.to_tree_merge(top.tree.store(), &path).unwrap()
+                        if let Some(trees) = tree_values.to_tree_merge(tree.store(), &path).unwrap()
                         {
                             // If all sides are trees or missing, descend into the merged tree
-                            stack.push(ConflictsDirItem::new(MergedTree::Merge(trees)));
+                            stack.push(ConflictsDirItem::from(MergedTree::Merge(trees)));
                         } else {
                             // Otherwise this is a conflict between files, trees, etc. If they could
                             // be automatically resolved, they should have been when the top-level
@@ -806,13 +794,14 @@ pub struct TreeDiffIterator<'matcher> {
     matcher: &'matcher dyn Matcher,
 }
 
+#[ouroboros::self_referencing]
 struct TreeDiffDirItem {
     path: RepoPath,
-    // Iterator over the diffs between tree1 and tree2
-    entry_iterator: TreeEntryDiffIterator<'static>,
-    // On drop, tree1 and tree2 must outlive entry_iterator
-    tree1: Box<MergedTree>,
-    tree2: Box<MergedTree>,
+    tree1: MergedTree,
+    tree2: MergedTree,
+    #[borrows(tree1, tree2)]
+    #[not_covariant]
+    entry_iterator: TreeEntryDiffIterator<'this>,
 }
 
 enum TreeDiffItem {
@@ -830,7 +819,7 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         let root_dir = RepoPath::root();
         let mut stack = Vec::new();
         if !matcher.visit(&root_dir).is_nothing() {
-            stack.push(TreeDiffItem::Dir(TreeDiffDirItem::new(
+            stack.push(TreeDiffItem::Dir(TreeDiffDirItem::from_trees(
                 root_dir, tree1, tree2,
             )));
         };
@@ -873,17 +862,10 @@ impl<'matcher> TreeDiffIterator<'matcher> {
 }
 
 impl TreeDiffDirItem {
-    fn new(path: RepoPath, tree1: MergedTree, tree2: MergedTree) -> Self {
-        let tree1 = Box::new(tree1);
-        let tree2 = Box::new(tree2);
-        let iter: TreeEntryDiffIterator = TreeEntryDiffIterator::new(&tree1, &tree2);
-        let iter: TreeEntryDiffIterator<'static> = unsafe { std::mem::transmute(iter) };
-        Self {
-            path,
-            entry_iterator: iter,
-            tree1,
-            tree2,
-        }
+    fn from_trees(path: RepoPath, tree1: MergedTree, tree2: MergedTree) -> Self {
+        Self::new(path, tree1, tree2, |tree1, tree2| {
+            TreeEntryDiffIterator::new(tree1, tree2)
+        })
     }
 }
 
@@ -892,13 +874,16 @@ impl Iterator for TreeDiffIterator<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
-            let (dir, (name, before, after)) = match top {
+            let ((path, tree1, tree2), (name, before, after)) = match top {
                 TreeDiffItem::Dir(dir) => {
-                    if let Some((name, before, after)) = dir.entry_iterator.next() {
-                        (dir, (name, before.to_merge(), after.to_merge()))
-                    } else {
-                        self.stack.pop().unwrap();
-                        continue;
+                    match dir.with_mut(|x| ((x.path, x.tree1, x.tree2), x.entry_iterator.next())) {
+                        (dir, Some((name, before, after))) => {
+                            (dir, (name, before.to_merge(), after.to_merge()))
+                        }
+                        _ => {
+                            self.stack.pop().unwrap();
+                            continue;
+                        }
                     }
                 }
                 TreeDiffItem::File(..) => {
@@ -910,14 +895,14 @@ impl Iterator for TreeDiffIterator<'_> {
                 }
             };
 
-            let path = dir.path.join(name);
+            let path = path.join(name);
             let tree_before = before.is_tree();
             let tree_after = after.is_tree();
             let post_subdir =
                 if (tree_before || tree_after) && !self.matcher.visit(&path).is_nothing() {
                     let (before_tree, after_tree) = async {
-                        let before_tree = Self::tree(dir.tree1.as_ref(), &path, &before);
-                        let after_tree = Self::tree(dir.tree2.as_ref(), &path, &after);
+                        let before_tree = Self::tree(tree1, &path, &before);
+                        let after_tree = Self::tree(tree2, &path, &after);
                         futures::join!(before_tree, after_tree)
                     }
                     .block_on();
@@ -933,7 +918,7 @@ impl Iterator for TreeDiffIterator<'_> {
                             return Some((path, Err(err)));
                         }
                     };
-                    let subdir = TreeDiffDirItem::new(path.clone(), before_tree, after_tree);
+                    let subdir = TreeDiffDirItem::from_trees(path.clone(), before_tree, after_tree);
                     self.stack.push(TreeDiffItem::Dir(subdir));
                     self.stack.len() - 1
                 } else {
