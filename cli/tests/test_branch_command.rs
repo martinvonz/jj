@@ -24,14 +24,25 @@ fn test_branch_multiple_names() {
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo", "bar"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    warning: Creating multiple branches: foo, bar
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  bar foo 230dd059e1b0
+    ◉   000000000000
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo", "bar"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     warning: Updating multiple branches: foo, bar
     "###);
-
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  bar foo 230dd059e1b0
+    @  bar foo 8bb159bc30a9
+    ◉   230dd059e1b0
     ◉   000000000000
     "###);
 
@@ -42,14 +53,9 @@ fn test_branch_multiple_names() {
     Deleted 2 branches.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   230dd059e1b0
+    @   8bb159bc30a9
+    ◉   230dd059e1b0
     ◉   000000000000
-    "###);
-
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo", "bar"]);
-    insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    warning: Creating multiple branches: foo, bar
     "###);
 }
 
@@ -124,10 +130,10 @@ fn test_branch_forget_glob() {
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-1"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "bar-2"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-3"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-4"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo-1"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar-2"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo-3"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo-4"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1 foo-3 foo-4 230dd059e1b0
@@ -204,10 +210,10 @@ fn test_branch_delete_glob() {
     );
 
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m=commit"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-1"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "bar-2"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-3"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo-4"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo-1"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar-2"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo-3"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo-4"]);
     // Push to create remote-tracking branches
     test_env.jj_cmd_ok(&repo_path, &["git", "push", "--all"]);
 
@@ -298,7 +304,7 @@ fn test_branch_delete_export() {
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
 
     test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo"]);
@@ -322,7 +328,7 @@ fn test_branch_forget_export() {
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
@@ -602,7 +608,7 @@ fn test_branch_track_untrack() {
     "###);
 
     // Track existing branch. Local branch should result in conflict.
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "feature2"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "feature2"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "track", "feature2@origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: sptzoqmo 7b33f629 commit 1
@@ -738,7 +744,7 @@ fn test_branch_track_untrack_patterns() {
     insta::assert_snapshot!(stderr, @"");
 
     // Track local branch
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
     insta::assert_snapshot!(
         test_env.jj_cmd_cli_error(&repo_path, &["branch", "track", "main"]), @r###"
     error: invalid value 'main' for '<NAMES>...': remote branch must be specified in branch@remote form
@@ -844,7 +850,7 @@ fn test_branch_list() {
         "remote-delete",
     ] {
         test_env.jj_cmd_ok(&remote_path, &["new", "root()", "-m", branch]);
-        test_env.jj_cmd_ok(&remote_path, &["branch", "set", branch]);
+        test_env.jj_cmd_ok(&remote_path, &["branch", "create", branch]);
     }
     test_env.jj_cmd_ok(&remote_path, &["new"]);
     test_env.jj_cmd_ok(&remote_path, &["git", "export"]);
@@ -858,7 +864,7 @@ fn test_branch_list() {
     );
     let local_path = test_env.env_root().join("local");
     test_env.jj_cmd_ok(&local_path, &["new", "root()", "-m", "local-only"]);
-    test_env.jj_cmd_ok(&local_path, &["branch", "set", "local-only"]);
+    test_env.jj_cmd_ok(&local_path, &["branch", "create", "local-only"]);
 
     // Mutate refs in local repository
     test_env.jj_cmd_ok(&local_path, &["branch", "delete", "remote-delete"]);
@@ -908,7 +914,7 @@ fn test_branch_list_filtered() {
     let remote_path = test_env.env_root().join("remote");
     for branch in ["remote-keep", "remote-delete", "remote-rewrite"] {
         test_env.jj_cmd_ok(&remote_path, &["new", "root()", "-m", branch]);
-        test_env.jj_cmd_ok(&remote_path, &["branch", "set", branch]);
+        test_env.jj_cmd_ok(&remote_path, &["branch", "create", branch]);
     }
     test_env.jj_cmd_ok(&remote_path, &["new"]);
     test_env.jj_cmd_ok(&remote_path, &["git", "export"]);
@@ -922,7 +928,7 @@ fn test_branch_list_filtered() {
     );
     let local_path = test_env.env_root().join("local");
     test_env.jj_cmd_ok(&local_path, &["new", "root()", "-m", "local-keep"]);
-    test_env.jj_cmd_ok(&local_path, &["branch", "set", "local-keep"]);
+    test_env.jj_cmd_ok(&local_path, &["branch", "create", "local-keep"]);
 
     // Mutate refs in local repository
     test_env.jj_cmd_ok(&local_path, &["branch", "delete", "remote-delete"]);

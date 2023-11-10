@@ -916,7 +916,7 @@ fn test_git_fetch_remove_fetch() {
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
 
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin: qpvuntsm 230dd059 (empty) (no description set)
     "###);
@@ -957,7 +957,7 @@ fn test_git_fetch_rename_fetch() {
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
 
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin: qpvuntsm 230dd059 (empty) (no description set)
     "###);
