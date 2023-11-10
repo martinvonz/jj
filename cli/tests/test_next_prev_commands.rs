@@ -123,7 +123,7 @@ fn test_next_fails_on_branching_children() {
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     // Create a main branch for this test
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);

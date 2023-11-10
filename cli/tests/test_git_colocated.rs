@@ -183,7 +183,7 @@ fn test_git_colocated_unborn_branch() {
     "###);
 
     // Assign the default branch. The branch is no longer "unborn".
-    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "-r@-", "master"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "-r@-", "master"]);
 
     // Stage some change, and check out root again. This should unset the HEAD.
     // https://github.com/martinvonz/jj/issues/1495
@@ -277,7 +277,7 @@ fn test_git_colocated_rebase_on_import() {
     std::fs::write(workspace_root.join("file"), "contents").unwrap();
     test_env.jj_cmd_ok(&workspace_root, &["commit", "-m", "add a file"]);
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
-    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "master"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "master"]);
     test_env.jj_cmd_ok(&workspace_root, &["commit", "-m", "modify a file"]);
     // TODO: We shouldn't need this command here to trigger an import of the
     // refs/heads/master we just exported
@@ -325,7 +325,7 @@ fn test_git_colocated_branches() {
 
     // Create a branch in jj. It should be exported to Git even though it points to
     // the working- copy commit.
-    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "master"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "master"]);
     insta::assert_snapshot!(
         git_repo.find_reference("refs/heads/master").unwrap().target().unwrap().to_string(),
         @"3560559274ab431feea00b7b7e0b9250ecce951f"
@@ -371,7 +371,7 @@ fn test_git_colocated_branch_forget() {
     let _git_repo = git2::Repository::init(&workspace_root).unwrap();
     test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "foo"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "foo"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  65b6b74e08973b88d38404430f119c8c79465250 foo
     ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
@@ -525,7 +525,7 @@ fn test_git_colocated_external_checkout() {
     let git_repo = git2::Repository::init(&repo_path).unwrap();
     test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
     test_env.jj_cmd_ok(&repo_path, &["ci", "-m=A"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "-r@-", "master"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "-r@-", "master"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-m=B", "root()"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
 

@@ -1059,7 +1059,7 @@ fn test_multiple_revsets() {
     let repo_path = test_env.env_root().join("repo");
     for name in ["foo", "bar", "baz"] {
         test_env.jj_cmd_ok(&repo_path, &["new", "-m", name]);
-        test_env.jj_cmd_ok(&repo_path, &["branch", "set", name]);
+        test_env.jj_cmd_ok(&repo_path, &["branch", "create", name]);
     }
 
     // Default revset should be overridden if one or more -r options are specified.

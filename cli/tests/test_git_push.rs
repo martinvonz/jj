@@ -239,7 +239,7 @@ fn test_git_push_locally_created_and_rewritten() {
 
     // Push locally-created branch
     test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-mlocal 1"]);
-    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "my"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my"]);
     let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
@@ -567,7 +567,7 @@ fn test_git_push_conflict() {
     test_env.jj_cmd_ok(&workspace_root, &["commit", "-m", "second"]);
     std::fs::write(workspace_root.join("file"), "third").unwrap();
     test_env.jj_cmd_ok(&workspace_root, &["rebase", "-r", "@", "-d", "@--"]);
-    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "my-branch"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -696,7 +696,7 @@ fn test_git_push_conflicting_branches() {
         .unwrap();
     test_env.jj_cmd_ok(&workspace_root, &["git", "import"]);
     test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-m=description 3"]);
-    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch2"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch2"]);
     test_env.jj_cmd_ok(&workspace_root, &["git", "fetch"]);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]), @r###"
