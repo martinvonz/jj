@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `remote_branches()` revset no longer includes branches exported to the Git
   repository (so called Git-tracking branches.)
 
+* `jj branch set` no longer creates a new branch. Use `jj branch create`
+  instead.
+
 ### New features
 
 * `jj workspace add` can now take _multiple_ `--revision` arguments, which will

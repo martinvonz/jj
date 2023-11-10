@@ -98,6 +98,12 @@ fn test_branch_move() {
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "set", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No such branch: foo
+    Hint: Use `jj branch create` to create it.
+    "###);
+
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
     insta::assert_snapshot!(stderr, @"");
 
