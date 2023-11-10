@@ -521,6 +521,8 @@ fn pinned_commit_ids(view: &View) -> impl Iterator<Item = &CommitId> {
 pub enum GitExportError {
     #[error("Git error: {0}")]
     InternalGitError(#[from] git2::Error),
+    #[error("The repo is not backed by a Git repo")]
+    UnexpectedBackend,
 }
 
 /// A ref we failed to export to Git, along with the reason it failed.
@@ -570,18 +572,17 @@ struct RefsToExport {
 /// We do not export tags and other refs at the moment, since these aren't
 /// supposed to be modified by JJ. For them, the Git state is considered
 /// authoritative.
-pub fn export_refs(
-    mut_repo: &mut MutableRepo,
-    git_repo: &git2::Repository,
-) -> Result<Vec<FailedRefExport>, GitExportError> {
-    export_some_refs(mut_repo, git_repo, |_| true)
+pub fn export_refs(mut_repo: &mut MutableRepo) -> Result<Vec<FailedRefExport>, GitExportError> {
+    export_some_refs(mut_repo, |_| true)
 }
 
 pub fn export_some_refs(
     mut_repo: &mut MutableRepo,
-    git_repo: &git2::Repository,
     git_ref_filter: impl Fn(&RefName) -> bool,
 ) -> Result<Vec<FailedRefExport>, GitExportError> {
+    let git_backend = get_git_backend(mut_repo.store()).ok_or(GitExportError::UnexpectedBackend)?;
+    let git_repo = git_backend.open_git_repo()?; // TODO: use gix::Repository
+
     let RefsToExport {
         branches_to_update,
         branches_to_delete,
@@ -615,7 +616,7 @@ pub fn export_some_refs(
             failed_branches.insert(parsed_ref_name, FailedRefExportReason::InvalidGitName);
             continue;
         };
-        if let Err(reason) = delete_git_ref(git_repo, &git_ref_name, old_oid) {
+        if let Err(reason) = delete_git_ref(&git_repo, &git_ref_name, old_oid) {
             failed_branches.insert(parsed_ref_name, reason);
         } else {
             let new_target = RefTarget::absent();
@@ -627,7 +628,7 @@ pub fn export_some_refs(
             failed_branches.insert(parsed_ref_name, FailedRefExportReason::InvalidGitName);
             continue;
         };
-        if let Err(reason) = update_git_ref(git_repo, &git_ref_name, old_oid, new_oid) {
+        if let Err(reason) = update_git_ref(&git_repo, &git_ref_name, old_oid, new_oid) {
             failed_branches.insert(parsed_ref_name, reason);
         } else {
             let new_target = RefTarget::normal(CommitId::from_bytes(new_oid.as_bytes()));

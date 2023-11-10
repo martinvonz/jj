@@ -1101,10 +1101,8 @@ fn cmd_git_export(
     _args: &GitExportArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction("export git refs");
-    let failed_branches = git::export_refs(tx.mut_repo(), &git_repo)?;
+    let failed_branches = git::export_refs(tx.mut_repo())?;
     tx.finish(ui)?;
     print_failed_git_export(ui, &failed_branches)?;
     Ok(())
