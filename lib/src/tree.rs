@@ -196,22 +196,17 @@ pub struct TreeEntriesIterator<'matcher> {
     matcher: &'matcher dyn Matcher,
 }
 
+#[ouroboros::self_referencing]
 struct TreeEntriesDirItem {
-    entry_iterator: TreeEntriesNonRecursiveIterator<'static>,
-    // On drop, tree must outlive entry_iterator
-    tree: Box<Tree>,
+    tree: Tree,
+    #[borrows(tree)]
+    #[not_covariant]
+    entry_iterator: TreeEntriesNonRecursiveIterator<'this>,
 }
 
-impl TreeEntriesDirItem {
-    fn new(tree: Tree) -> Self {
-        let tree = Box::new(tree);
-        let entry_iterator = tree.entries_non_recursive();
-        let entry_iterator: TreeEntriesNonRecursiveIterator<'static> =
-            unsafe { std::mem::transmute(entry_iterator) };
-        Self {
-            entry_iterator,
-            tree,
-        }
+impl From<Tree> for TreeEntriesDirItem {
+    fn from(tree: Tree) -> Self {
+        Self::new(tree, |tree| tree.entries_non_recursive())
     }
 }
 
@@ -219,7 +214,7 @@ impl<'matcher> TreeEntriesIterator<'matcher> {
     fn new(tree: Tree, matcher: &'matcher dyn Matcher) -> Self {
         // TODO: Restrict walk according to Matcher::visit()
         Self {
-            stack: vec![TreeEntriesDirItem::new(tree)],
+            stack: vec![TreeEntriesDirItem::from(tree)],
             matcher,
         }
     }
@@ -230,16 +225,16 @@ impl Iterator for TreeEntriesIterator<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
-            if let Some(entry) = top.entry_iterator.next() {
-                let path = top.tree.dir().join(entry.name());
+            if let (tree, Some(entry)) = top.with_mut(|x| (x.tree, x.entry_iterator.next())) {
+                let path = tree.dir().join(entry.name());
                 match entry.value() {
                     TreeValue::Tree(id) => {
                         // TODO: Handle the other cases (specific files and trees)
                         if self.matcher.visit(&path).is_nothing() {
                             continue;
                         }
-                        let subtree = top.tree.known_sub_tree(&path, id);
-                        self.stack.push(TreeEntriesDirItem::new(subtree));
+                        let subtree = tree.known_sub_tree(&path, id);
+                        self.stack.push(TreeEntriesDirItem::from(subtree));
                     }
                     value => {
                         if self.matcher.matches(&path) {
