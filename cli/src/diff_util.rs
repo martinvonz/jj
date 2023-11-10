@@ -17,9 +17,9 @@ use std::collections::VecDeque;
 use std::io;
 use std::ops::Range;
 
-use futures::StreamExt;
+use futures::{try_join, Stream, StreamExt};
 use itertools::Itertools;
-use jj_lib::backend::{ObjectId, TreeValue};
+use jj_lib::backend::{BackendResult, ObjectId, TreeValue};
 use jj_lib::commit::Commit;
 use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
 use jj_lib::diff::{Diff, DiffHunk};
@@ -28,8 +28,9 @@ use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::{MergedTree, TreeDiffStream};
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
+use jj_lib::store::Store;
 use jj_lib::{diff, files, rewrite};
 use pollster::FutureExt;
 use tracing::instrument;
@@ -384,16 +385,14 @@ fn basic_diff_file_type(value: &MaterializedTreeValue) -> &'static str {
 pub fn show_color_words_diff(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
-    mut tree_diff: TreeDiffStream,
+    tree_diff: TreeDiffStream,
 ) -> Result<(), CommandError> {
-    let store = workspace_command.repo().store();
     formatter.push_label("diff")?;
+    let mut diff_stream = materialized_diff_stream(workspace_command.repo().store(), tree_diff);
     async {
-        while let Some((path, diff)) = tree_diff.next().await {
+        while let Some((path, diff)) = diff_stream.next().await {
             let ui_path = workspace_command.format_file_path(&path);
             let (left_value, right_value) = diff?;
-            let left_value = materialize_tree_value(store, &path, left_value).block_on()?;
-            let right_value = materialize_tree_value(store, &path, right_value).block_on()?;
             if left_value.is_absent() {
                 let description = basic_diff_file_type(&right_value);
                 writeln!(
@@ -677,19 +676,42 @@ fn show_unified_diff_hunks(
     Ok(())
 }
 
+fn materialized_diff_stream<'a>(
+    store: &'a Store,
+    tree_diff: TreeDiffStream<'a>,
+) -> impl Stream<
+    Item = (
+        RepoPathBuf,
+        BackendResult<(MaterializedTreeValue, MaterializedTreeValue)>,
+    ),
+> + 'a {
+    tree_diff
+        .map(|(path, diff)| async {
+            match diff {
+                Err(err) => (path, Err(err)),
+                Ok((before, after)) => {
+                    let before_future = materialize_tree_value(store, &path, before);
+                    let after_future = materialize_tree_value(store, &path, after);
+                    let values = try_join!(before_future, after_future);
+                    (path, values)
+                }
+            }
+        })
+        .buffered((store.concurrency() / 2).max(1))
+}
+
 pub fn show_git_diff(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
-    mut tree_diff: TreeDiffStream,
+    tree_diff: TreeDiffStream,
 ) -> Result<(), CommandError> {
-    let store = workspace_command.repo().store();
     formatter.push_label("diff")?;
+
+    let mut diff_stream = materialized_diff_stream(workspace_command.repo().store(), tree_diff);
     async {
-        while let Some((path, diff)) = tree_diff.next().await {
+        while let Some((path, diff)) = diff_stream.next().await {
             let path_string = path.as_internal_file_string();
             let (left_value, right_value) = diff?;
-            let left_value = materialize_tree_value(store, &path, left_value).block_on()?;
-            let right_value = materialize_tree_value(store, &path, right_value).block_on()?;
             if left_value.is_absent() {
                 let right_part = git_diff_part(&path, right_value)?;
                 formatter.with_label("file_header", |formatter| {
@@ -810,18 +832,16 @@ pub fn show_diff_stat(
     ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
-    mut tree_diff: TreeDiffStream,
+    tree_diff: TreeDiffStream,
 ) -> Result<(), CommandError> {
     let mut stats: Vec<DiffStat> = vec![];
     let mut max_path_width = 0;
     let mut max_diffs = 0;
 
-    let store = workspace_command.repo().store();
+    let mut diff_stream = materialized_diff_stream(workspace_command.repo().store(), tree_diff);
     async {
-        while let Some((repo_path, diff)) = tree_diff.next().await {
+        while let Some((repo_path, diff)) = diff_stream.next().await {
             let (left, right) = diff?;
-            let left = materialize_tree_value(store, &repo_path, left).block_on()?;
-            let right = materialize_tree_value(store, &repo_path, right).block_on()?;
             let path = workspace_command.format_file_path(&repo_path);
             let left_content = diff_content(&repo_path, left)?;
             let right_content = diff_content(&repo_path, right)?;
