@@ -125,6 +125,16 @@ pub enum MaterializedTreeValue {
     Tree(TreeId),
 }
 
+impl MaterializedTreeValue {
+    pub fn is_absent(&self) -> bool {
+        matches!(self, MaterializedTreeValue::Absent)
+    }
+
+    pub fn is_present(&self) -> bool {
+        !self.is_absent()
+    }
+}
+
 /// Reads the data associated with a `MergedTreeValue` so it can be written to
 /// e.g. the working copy or diff.
 pub async fn materialize_tree_value(

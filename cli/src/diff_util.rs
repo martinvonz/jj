@@ -485,15 +485,13 @@ struct GitDiffPart {
 }
 
 fn git_diff_part(
-    repo: &Arc<ReadonlyRepo>,
     path: &RepoPath,
-    value: &MergedTreeValue,
+    value: MaterializedTreeValue,
 ) -> Result<GitDiffPart, CommandError> {
-    let materialized = materialize_tree_value(repo.store(), path, value.clone()).block_on()?;
     let mode;
     let hash;
     let mut contents: Vec<u8>;
-    match materialized {
+    match value {
         MaterializedTreeValue::Absent => {
             panic!("Absent path {path:?} in diff should have been handled by caller");
         }
@@ -683,14 +681,16 @@ pub fn show_git_diff(
     workspace_command: &WorkspaceCommandHelper,
     mut tree_diff: TreeDiffStream,
 ) -> Result<(), CommandError> {
-    let repo = workspace_command.repo();
+    let store = workspace_command.repo().store();
     formatter.push_label("diff")?;
     async {
         while let Some((path, diff)) = tree_diff.next().await {
             let path_string = path.to_internal_file_string();
             let (left_value, right_value) = diff?;
+            let left_value = materialize_tree_value(store, &path, left_value).block_on()?;
+            let right_value = materialize_tree_value(store, &path, right_value).block_on()?;
             if left_value.is_absent() {
-                let right_part = git_diff_part(repo, &path, &right_value)?;
+                let right_part = git_diff_part(&path, right_value)?;
                 formatter.with_label("file_header", |formatter| {
                     writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
                     writeln!(formatter, "new file mode {}", &right_part.mode)?;
@@ -700,8 +700,8 @@ pub fn show_git_diff(
                 })?;
                 show_unified_diff_hunks(formatter, &[], &right_part.content)?;
             } else if right_value.is_present() {
-                let left_part = git_diff_part(repo, &path, &left_value)?;
-                let right_part = git_diff_part(repo, &path, &right_value)?;
+                let left_part = git_diff_part(&path, left_value)?;
+                let right_part = git_diff_part(&path, right_value)?;
                 formatter.with_label("file_header", |formatter| {
                     writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
                     if left_part.mode != right_part.mode {
@@ -725,7 +725,7 @@ pub fn show_git_diff(
                 })?;
                 show_unified_diff_hunks(formatter, &left_part.content, &right_part.content)?;
             } else {
-                let left_part = git_diff_part(repo, &path, &left_value)?;
+                let left_part = git_diff_part(&path, left_value)?;
                 formatter.with_label("file_header", |formatter| {
                     writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
                     writeln!(formatter, "deleted file mode {}", &left_part.mode)?;
