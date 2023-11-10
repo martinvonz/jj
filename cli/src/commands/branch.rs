@@ -123,7 +123,7 @@ pub struct BranchForgetArgs {
     pub glob: Vec<StringPattern>,
 }
 
-/// Update a given branch to point to a certain commit.
+/// Update an existing branch to point to a certain commit.
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchSetArgs {
     /// The branch's target revision.
@@ -298,6 +298,15 @@ fn cmd_branch_set(
         workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
     let repo = workspace_command.repo().as_ref();
     let branch_names = &args.names;
+    for name in branch_names {
+        let old_target = repo.view().get_local_branch(name);
+        if old_target.is_absent() {
+            return Err(user_error_with_hint(
+                format!("No such branch: {name}"),
+                "Use `jj branch create` to create it.",
+            ));
+        }
+    }
     if !args.allow_backwards
         && !branch_names
             .iter()
