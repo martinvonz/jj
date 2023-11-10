@@ -362,22 +362,22 @@ fn diff_content(path: &RepoPath, value: MaterializedTreeValue) -> Result<Vec<u8>
     }
 }
 
-fn basic_diff_file_type(value: &MaterializedTreeValue) -> String {
+fn basic_diff_file_type(value: &MaterializedTreeValue) -> &'static str {
     match value {
         MaterializedTreeValue::Absent => {
             panic!("absent path in diff");
         }
         MaterializedTreeValue::File { executable, .. } => {
             if *executable {
-                "executable file".to_string()
+                "executable file"
             } else {
-                "regular file".to_string()
+                "regular file"
             }
         }
-        MaterializedTreeValue::Symlink { .. } => "symlink".to_string(),
-        MaterializedTreeValue::Tree(_) => "tree".to_string(),
-        MaterializedTreeValue::GitSubmodule(_) => "Git submodule".to_string(),
-        MaterializedTreeValue::Conflict { .. } => "conflict".to_string(),
+        MaterializedTreeValue::Symlink { .. } => "symlink",
+        MaterializedTreeValue::Tree(_) => "tree",
+        MaterializedTreeValue::GitSubmodule(_) => "Git submodule",
+        MaterializedTreeValue::Conflict { .. } => "conflict",
     }
 }
 
