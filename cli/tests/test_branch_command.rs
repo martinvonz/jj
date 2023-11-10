@@ -119,7 +119,7 @@ fn test_branch_move() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "set", "-r@-", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Refusing to move branch backwards or sideways.
+    Error: Refusing to move branch backwards or sideways: foo
     Hint: Use --allow-backwards to allow it.
     "###);
 
@@ -169,7 +169,7 @@ fn test_branch_move_conflicting() {
     let stderr =
         test_env.jj_cmd_failure(&repo_path, &["branch", "set", "-rdescription(C0)", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Refusing to move branch backwards or sideways.
+    Error: Refusing to move branch backwards or sideways: foo
     Hint: Use --allow-backwards to allow it.
     "###);
 

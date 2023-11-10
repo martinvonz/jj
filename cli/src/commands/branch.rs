@@ -315,7 +315,7 @@ fn cmd_branch_set(
         }
         if !args.allow_backwards && !is_fast_forward(old_target) {
             return Err(user_error_with_hint(
-                "Refusing to move branch backwards or sideways.",
+                format!("Refusing to move branch backwards or sideways: {name}"),
                 "Use --allow-backwards to allow it.",
             ));
         }
