@@ -517,7 +517,7 @@ fn pinned_commit_ids(view: &View) -> impl Iterator<Item = &CommitId> {
     .flat_map(|target| target.added_ids())
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum GitExportError {
     #[error("Git error: {0}")]
     InternalGitError(#[from] git2::Error),
