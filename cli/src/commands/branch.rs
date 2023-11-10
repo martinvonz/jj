@@ -297,6 +297,13 @@ fn cmd_branch_set(
     let target_commit =
         workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
     let repo = workspace_command.repo().as_ref();
+    let is_fast_forward = |old_target: &RefTarget| {
+        // Strictly speaking, "all" old targets should be ancestors, but we allow
+        // conflict resolution by setting branch to "any" of the old target descendants.
+        old_target
+            .added_ids()
+            .any(|old| repo.index().is_ancestor(old, target_commit.id()))
+    };
     let branch_names = &args.names;
     for name in branch_names {
         let old_target = repo.view().get_local_branch(name);
@@ -306,16 +313,12 @@ fn cmd_branch_set(
                 "Use `jj branch create` to create it.",
             ));
         }
-    }
-    if !args.allow_backwards
-        && !branch_names
-            .iter()
-            .all(|branch_name| is_fast_forward(repo, branch_name, target_commit.id()))
-    {
-        return Err(user_error_with_hint(
-            "Refusing to move branch backwards or sideways.",
-            "Use --allow-backwards to allow it.",
-        ));
+        if !args.allow_backwards && !is_fast_forward(old_target) {
+            return Err(user_error_with_hint(
+                "Refusing to move branch backwards or sideways.",
+                "Use --allow-backwards to allow it.",
+            ));
+        }
     }
 
     if branch_names.len() > 1 {
@@ -712,17 +715,4 @@ fn cmd_branch_list(
     }
 
     Ok(())
-}
-
-fn is_fast_forward(repo: &dyn Repo, branch_name: &str, new_target_id: &CommitId) -> bool {
-    let current_target = repo.view().get_local_branch(branch_name);
-    if current_target.is_present() {
-        // Strictly speaking, "all" current targets should be ancestors, but we allow
-        // conflict resolution by setting branch to "any" of the old target descendants.
-        current_target
-            .added_ids()
-            .any(|add| repo.index().is_ancestor(add, new_target_id))
-    } else {
-        true
-    }
 }
