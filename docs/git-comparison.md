@@ -184,6 +184,11 @@ parent.
       <td><code>git log --oneline --graph --decorate</code></td>
     </tr>
     <tr>
+      <td>Show log of ancestors of the current commit only, including all ancestors, not just stopping at immutable commits</td>
+      <td><code>jj log -r ::@</code></td>
+      <td><code>git log</code></td>
+    </tr>
+    <tr>
       <td>Abandon the current change and start a new change</td>
       <td><code>jj abandon</code></td>
       <td><code>git reset --hard</code> (cannot be undone)</td>
