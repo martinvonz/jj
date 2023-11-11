@@ -127,14 +127,15 @@ impl GitBackend {
     }
 
     pub fn init_internal(
-        _settings: &UserSettings,
+        settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Self, Box<GitBackendInitError>> {
         let git_repo_path = Path::new("git");
-        let git_repo = gix::ThreadSafeRepository::init(
+        let git_repo = gix::ThreadSafeRepository::init_opts(
             store_path.join(git_repo_path),
             gix::create::Kind::Bare,
             gix::create::Options::default(),
+            gix_open_opts_from_settings(settings),
         )
         .map_err(GitBackendInitError::InitRepository)?;
         Self::init_with_repo(store_path, git_repo_path, git_repo)
@@ -143,7 +144,7 @@ impl GitBackend {
     /// Initializes backend by creating a new Git repo at the specified
     /// workspace path. The workspace directory must exist.
     pub fn init_colocated(
-        _settings: &UserSettings,
+        settings: &UserSettings,
         store_path: &Path,
         workspace_root: &Path,
     ) -> Result<Self, Box<GitBackendInitError>> {
@@ -153,10 +154,11 @@ impl GitBackend {
                 .context(&path)
                 .map_err(GitBackendInitError::Path)?
         };
-        let git_repo = gix::ThreadSafeRepository::init(
+        let git_repo = gix::ThreadSafeRepository::init_opts(
             canonical_workspace_root,
             gix::create::Kind::WithWorktree,
             gix::create::Options::default(),
+            gix_open_opts_from_settings(settings),
         )
         .map_err(GitBackendInitError::InitRepository)?;
         let git_repo_path = workspace_root.join(".git");
@@ -165,7 +167,7 @@ impl GitBackend {
 
     /// Initializes backend with an existing Git repo at the specified path.
     pub fn init_external(
-        _settings: &UserSettings,
+        settings: &UserSettings,
         store_path: &Path,
         git_repo_path: &Path,
     ) -> Result<Self, Box<GitBackendInitError>> {
@@ -175,8 +177,11 @@ impl GitBackend {
                 .context(&path)
                 .map_err(GitBackendInitError::Path)?
         };
-        let git_repo = gix::ThreadSafeRepository::open(canonical_git_repo_path)
-            .map_err(GitBackendInitError::OpenRepository)?;
+        let git_repo = gix::ThreadSafeRepository::open_opts(
+            canonical_git_repo_path,
+            gix_open_opts_from_settings(settings),
+        )
+        .map_err(GitBackendInitError::OpenRepository)?;
         Self::init_with_repo(store_path, git_repo_path, git_repo)
     }
 
@@ -214,7 +219,7 @@ impl GitBackend {
     }
 
     pub fn load(
-        _settings: &UserSettings,
+        settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Self, Box<GitBackendLoadError>> {
         let git_repo_path = {
@@ -228,8 +233,11 @@ impl GitBackend {
                 .context(&git_repo_path)
                 .map_err(GitBackendLoadError::Path)?
         };
-        let repo = gix::ThreadSafeRepository::open(git_repo_path)
-            .map_err(GitBackendLoadError::OpenRepository)?;
+        let repo = gix::ThreadSafeRepository::open_opts(
+            git_repo_path,
+            gix_open_opts_from_settings(settings),
+        )
+        .map_err(GitBackendLoadError::OpenRepository)?;
         let extra_metadata_store = TableStore::load(store_path.join("extra"), HASH_LENGTH);
         Ok(GitBackend::new(repo, extra_metadata_store))
     }
@@ -346,6 +354,19 @@ impl GitBackend {
             .map_err(|err| to_read_object_err(err, id))?;
         Ok(Box::new(Cursor::new(blob.take_data())))
     }
+}
+
+fn gix_open_opts_from_settings(settings: &UserSettings) -> gix::open::Options {
+    let user_name = settings.user_name();
+    let user_email = settings.user_email();
+    gix::open::Options::default().config_overrides([
+        // Committer has to be configured to record reflog. Author isn't
+        // needed, but let's copy the same values.
+        format!("author.name={user_name}"),
+        format!("author.email={user_email}"),
+        format!("committer.name={user_name}"),
+        format!("committer.email={user_email}"),
+    ])
 }
 
 fn commit_from_git_without_root_parent(
