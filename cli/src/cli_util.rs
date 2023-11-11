@@ -71,7 +71,6 @@ use jj_lib::workspace::{
 };
 use jj_lib::{dag_walk, file_util, git, revset};
 use once_cell::unsync::OnceCell;
-use thiserror::Error;
 use toml_edit;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
@@ -1315,8 +1314,8 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         let old_op_id = locked_ws.locked_wc().old_operation_id().clone();
         let (repo, wc_commit) =
             match check_stale_working_copy(locked_ws.locked_wc(), &wc_commit, &repo) {
-                Ok(None) => (repo, wc_commit),
-                Ok(Some(wc_operation)) => {
+                WorkingCopyFreshness::Fresh => (repo, wc_commit),
+                WorkingCopyFreshness::Updated(wc_operation) => {
                     let repo = repo.reload_at(&wc_operation)?;
                     let wc_commit = if let Some(wc_commit) = get_wc_commit(&repo)? {
                         wc_commit
@@ -1326,7 +1325,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
                     };
                     (repo, wc_commit)
                 }
-                Err(StaleWorkingCopyError::WorkingCopyStale) => {
+                WorkingCopyFreshness::WorkingCopyStale => {
                     return Err(user_error_with_hint(
                         format!(
                             "The working copy is stale (not updated since operation {}).",
@@ -1337,7 +1336,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                          for more information.",
                     ));
                 }
-                Err(StaleWorkingCopyError::SiblingOperation) => {
+                WorkingCopyFreshness::SiblingOperation => {
                     return Err(CommandError::InternalError(format!(
                         "The repo was loaded at operation {}, which seems to be a sibling of the \
                          working copy's operation {}",
@@ -1345,7 +1344,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                         short_operation_hash(&old_op_id)
                     )));
                 }
-                Err(StaleWorkingCopyError::UnrelatedOperation) => {
+                WorkingCopyFreshness::UnrelatedOperation => {
                     return Err(CommandError::InternalError(format!(
                         "The repo was loaded at operation {}, which seems unrelated to the \
                          working copy's operation {}",
@@ -1718,14 +1717,33 @@ pub fn start_repo_transaction(
     tx
 }
 
-#[derive(Debug, Error)]
-pub enum StaleWorkingCopyError {
-    #[error("The working copy is behind the latest operation")]
+/// Whether the working copy is stale or not.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum WorkingCopyFreshness {
+    /// The working copy isn't stale, and no need to reload the repo.
+    Fresh,
+    /// The working copy was updated since we loaded the repo. The repo must be
+    /// reloaded at the working copy's operation.
+    Updated(Box<Operation>),
+    /// The working copy is behind the latest operation.
     WorkingCopyStale,
-    #[error("The working copy is a sibling of the latest operation")]
+    /// The working copy is a sibling of the latest operation.
     SiblingOperation,
-    #[error("The working copy is unrelated to the latest operation")]
+    /// "The working copy is unrelated to the latest operation.
     UnrelatedOperation,
+}
+
+impl WorkingCopyFreshness {
+    /// Returns true if the working copy is not updated to the current
+    /// operation.
+    pub fn is_stale(&self) -> bool {
+        match self {
+            WorkingCopyFreshness::Fresh | WorkingCopyFreshness::Updated(_) => false,
+            WorkingCopyFreshness::WorkingCopyStale
+            | WorkingCopyFreshness::SiblingOperation
+            | WorkingCopyFreshness::UnrelatedOperation => true,
+        }
+    }
 }
 
 #[instrument(skip_all)]
@@ -1733,12 +1751,12 @@ pub fn check_stale_working_copy(
     locked_wc: &dyn LockedWorkingCopy,
     wc_commit: &Commit,
     repo: &ReadonlyRepo,
-) -> Result<Option<Operation>, StaleWorkingCopyError> {
+) -> WorkingCopyFreshness {
     // Check if the working copy's tree matches the repo's view
     let wc_tree_id = locked_wc.old_tree_id();
     if wc_commit.tree_id() == wc_tree_id {
         // The working copy isn't stale, and no need to reload the repo.
-        Ok(None)
+        WorkingCopyFreshness::Fresh
     } else {
         let wc_operation_data = repo
             .op_store()
@@ -1760,16 +1778,16 @@ pub fn check_stale_working_copy(
             if ancestor_op.id() == repo_operation.id() {
                 // The working copy was updated since we loaded the repo. The repo must be
                 // reloaded at the working copy's operation.
-                Ok(Some(wc_operation))
+                WorkingCopyFreshness::Updated(Box::new(wc_operation))
             } else if ancestor_op.id() == wc_operation.id() {
                 // The working copy was not updated when some repo operation committed,
                 // meaning that it's stale compared to the repo view.
-                Err(StaleWorkingCopyError::WorkingCopyStale)
+                WorkingCopyFreshness::WorkingCopyStale
             } else {
-                Err(StaleWorkingCopyError::SiblingOperation)
+                WorkingCopyFreshness::SiblingOperation
             }
         } else {
-            Err(StaleWorkingCopyError::UnrelatedOperation)
+            WorkingCopyFreshness::UnrelatedOperation
         }
     }
 }
