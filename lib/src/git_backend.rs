@@ -35,6 +35,7 @@ use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
 use crate::merge::{Merge, MergeBuilder};
 use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::settings::UserSettings;
 use crate::stacked_table::{
     MutableTable, ReadonlyTable, TableSegment, TableStore, TableStoreError,
 };
@@ -125,7 +126,10 @@ impl GitBackend {
         }
     }
 
-    pub fn init_internal(store_path: &Path) -> Result<Self, Box<GitBackendInitError>> {
+    pub fn init_internal(
+        _settings: &UserSettings,
+        store_path: &Path,
+    ) -> Result<Self, Box<GitBackendInitError>> {
         let git_repo_path = Path::new("git");
         let git_repo = gix::ThreadSafeRepository::init(
             store_path.join(git_repo_path),
@@ -139,6 +143,7 @@ impl GitBackend {
     /// Initializes backend by creating a new Git repo at the specified
     /// workspace path. The workspace directory must exist.
     pub fn init_colocated(
+        _settings: &UserSettings,
         store_path: &Path,
         workspace_root: &Path,
     ) -> Result<Self, Box<GitBackendInitError>> {
@@ -160,6 +165,7 @@ impl GitBackend {
 
     /// Initializes backend with an existing Git repo at the specified path.
     pub fn init_external(
+        _settings: &UserSettings,
         store_path: &Path,
         git_repo_path: &Path,
     ) -> Result<Self, Box<GitBackendInitError>> {
@@ -207,7 +213,10 @@ impl GitBackend {
         Ok(GitBackend::new(git_repo, extra_metadata_store))
     }
 
-    pub fn load(store_path: &Path) -> Result<Self, Box<GitBackendLoadError>> {
+    pub fn load(
+        _settings: &UserSettings,
+        store_path: &Path,
+    ) -> Result<Self, Box<GitBackendLoadError>> {
         let git_repo_path = {
             let target_path = store_path.join("git_target");
             let git_repo_path_str = fs::read_to_string(&target_path)
@@ -1051,6 +1060,7 @@ mod tests {
     #[test_case(false; "legacy tree format")]
     #[test_case(true; "tree-level conflict format")]
     fn read_plain_git_commit(uses_tree_conflict_format: bool) {
+        let settings = user_settings();
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
@@ -1110,7 +1120,7 @@ mod tests {
             .unwrap();
         let commit_id2 = CommitId::from_bytes(git_commit_id2.as_bytes());
 
-        let backend = GitBackend::init_external(store_path, &git_repo_path).unwrap();
+        let backend = GitBackend::init_external(&settings, store_path, &git_repo_path).unwrap();
 
         // Import the head commit and its ancestors
         backend
@@ -1212,6 +1222,7 @@ mod tests {
 
     #[test]
     fn read_git_commit_without_importing() {
+        let settings = user_settings();
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
@@ -1231,7 +1242,7 @@ mod tests {
             )
             .unwrap();
 
-        let backend = GitBackend::init_external(store_path, &git_repo_path).unwrap();
+        let backend = GitBackend::init_external(&settings, store_path, &git_repo_path).unwrap();
 
         // read_commit() without import_head_commits() works as of now. This might be
         // changed later.
@@ -1298,12 +1309,13 @@ mod tests {
     /// Test that parents get written correctly
     #[test]
     fn git_commit_parents() {
+        let settings = user_settings();
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(&git_repo_path).unwrap();
 
-        let backend = GitBackend::init_external(store_path, &git_repo_path).unwrap();
+        let backend = GitBackend::init_external(&settings, store_path, &git_repo_path).unwrap();
         let mut commit = Commit {
             parents: vec![],
             predecessors: vec![],
@@ -1361,12 +1373,13 @@ mod tests {
 
     #[test]
     fn write_tree_conflicts() {
+        let settings = user_settings();
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(&git_repo_path).unwrap();
 
-        let backend = GitBackend::init_external(store_path, &git_repo_path).unwrap();
+        let backend = GitBackend::init_external(&settings, store_path, &git_repo_path).unwrap();
         let create_tree = |i| {
             let blob_id = git_repo.blob(b"content {i}").unwrap();
             let mut tree_builder = git_repo.treebuilder(None).unwrap();
@@ -1450,8 +1463,9 @@ mod tests {
 
     #[test]
     fn commit_has_ref() {
+        let settings = user_settings();
         let temp_dir = testutils::new_temp_dir();
-        let backend = GitBackend::init_internal(temp_dir.path()).unwrap();
+        let backend = GitBackend::init_internal(&settings, temp_dir.path()).unwrap();
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),
@@ -1482,8 +1496,9 @@ mod tests {
 
     #[test]
     fn overlapping_git_commit_id() {
+        let settings = user_settings();
         let temp_dir = testutils::new_temp_dir();
-        let backend = GitBackend::init_internal(temp_dir.path()).unwrap();
+        let backend = GitBackend::init_internal(&settings, temp_dir.path()).unwrap();
         let mut commit1 = Commit {
             parents: vec![backend.root_commit_id().clone()],
             predecessors: vec![],
@@ -1532,5 +1547,14 @@ mod tests {
                 tz_offset: 0,
             },
         }
+    }
+
+    // Not using testutils::user_settings() because there is a dependency cycle
+    // 'jj_lib (1) -> testutils -> jj_lib (2)' which creates another distinct
+    // UserSettings type. testutils returns jj_lib (2)'s UserSettings, whereas
+    // our UserSettings type comes from jj_lib (1).
+    fn user_settings() -> UserSettings {
+        let config = config::Config::default();
+        UserSettings::from_config(config)
     }
 }

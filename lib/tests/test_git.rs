@@ -1119,8 +1119,9 @@ impl GitRepoData {
         let repo = ReadonlyRepo::init(
             &settings,
             &jj_repo_dir,
-            &move |_settings, store_path| {
+            &move |settings, store_path| {
                 Ok(Box::new(GitBackend::init_external(
+                    settings,
                     store_path,
                     &git_repo_dir,
                 )?))
@@ -1969,8 +1970,9 @@ fn test_init() {
     let repo = &ReadonlyRepo::init(
         &settings,
         &jj_repo_dir,
-        &move |_settings, store_path| {
+        &move |settings, store_path| {
             Ok(Box::new(GitBackend::init_external(
+                settings,
                 store_path,
                 &git_repo_dir,
             )?))
@@ -2293,8 +2295,9 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let jj_repo = ReadonlyRepo::init(
         settings,
         &jj_repo_dir,
-        &move |_settings, store_path| {
+        &move |settings, store_path| {
             Ok(Box::new(GitBackend::init_external(
+                settings,
                 store_path,
                 &clone_repo_dir,
             )?))
