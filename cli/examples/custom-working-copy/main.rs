@@ -49,8 +49,9 @@ fn run_custom_command(
     match command {
         CustomCommands::InitConflicts => {
             let wc_path = command_helper.cwd();
-            let backend_initializer = |_settings: &UserSettings, store_path: &Path| {
-                let backend: Box<dyn Backend> = Box::new(GitBackend::init_internal(store_path)?);
+            let backend_initializer = |settings: &UserSettings, store_path: &Path| {
+                let backend: Box<dyn Backend> =
+                    Box::new(GitBackend::init_internal(settings, store_path)?);
                 Ok(backend)
             };
             Workspace::init_with_factories(

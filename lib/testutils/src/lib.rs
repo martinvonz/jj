@@ -110,9 +110,13 @@ pub enum TestRepoBackend {
 }
 
 impl TestRepoBackend {
-    fn init_backend(&self, store_path: &Path) -> Result<Box<dyn Backend>, BackendInitError> {
+    fn init_backend(
+        &self,
+        settings: &UserSettings,
+        store_path: &Path,
+    ) -> Result<Box<dyn Backend>, BackendInitError> {
         match self {
-            TestRepoBackend::Git => Ok(Box::new(GitBackend::init_internal(store_path)?)),
+            TestRepoBackend::Git => Ok(Box::new(GitBackend::init_internal(settings, store_path)?)),
             TestRepoBackend::Local => Ok(Box::new(LocalBackend::init(store_path))),
             TestRepoBackend::Test => Ok(Box::new(TestBackend::init(store_path))),
         }
@@ -134,7 +138,7 @@ impl TestRepo {
         let repo = ReadonlyRepo::init(
             &settings,
             &repo_dir,
-            &move |_settings, store_path| backend.init_backend(store_path),
+            &move |settings, store_path| backend.init_backend(settings, store_path),
             ReadonlyRepo::default_op_store_initializer(),
             ReadonlyRepo::default_op_heads_store_initializer(),
             ReadonlyRepo::default_index_store_initializer(),
@@ -179,7 +183,7 @@ impl TestWorkspace {
         let (workspace, repo) = Workspace::init_with_backend(
             settings,
             &workspace_root,
-            &move |_settings, store_path| backend.init_backend(store_path),
+            &move |settings, store_path| backend.init_backend(settings, store_path),
         )
         .unwrap();
 

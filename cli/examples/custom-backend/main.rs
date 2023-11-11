@@ -26,6 +26,7 @@ use jj_lib::backend::{
 use jj_lib::git_backend::GitBackend;
 use jj_lib::repo::StoreFactories;
 use jj_lib::repo_path::RepoPath;
+use jj_lib::settings::UserSettings;
 use jj_lib::workspace::Workspace;
 
 #[derive(clap::Parser, Clone, Debug)]
@@ -40,7 +41,7 @@ fn create_store_factories() -> StoreFactories {
     // must match `Backend::name()`.
     store_factories.add_backend(
         "jit",
-        Box::new(|_settings, store_path| Ok(Box::new(JitBackend::load(store_path)?))),
+        Box::new(|settings, store_path| Ok(Box::new(JitBackend::load(settings, store_path)?))),
     );
     store_factories
 }
@@ -57,7 +58,7 @@ fn run_custom_command(
             Workspace::init_with_backend(
                 command_helper.settings(),
                 wc_path,
-                &|_settings, store_path| Ok(Box::new(JitBackend::init(store_path)?)),
+                &|settings, store_path| Ok(Box::new(JitBackend::init(settings, store_path)?)),
             )?;
             Ok(())
         }
@@ -78,13 +79,13 @@ struct JitBackend {
 }
 
 impl JitBackend {
-    fn init(store_path: &Path) -> Result<Self, BackendInitError> {
-        let inner = GitBackend::init_internal(store_path)?;
+    fn init(settings: &UserSettings, store_path: &Path) -> Result<Self, BackendInitError> {
+        let inner = GitBackend::init_internal(settings, store_path)?;
         Ok(JitBackend { inner })
     }
 
-    fn load(store_path: &Path) -> Result<Self, BackendLoadError> {
-        let inner = GitBackend::load(store_path)?;
+    fn load(settings: &UserSettings, store_path: &Path) -> Result<Self, BackendLoadError> {
+        let inner = GitBackend::load(settings, store_path)?;
         Ok(JitBackend { inner })
     }
 }

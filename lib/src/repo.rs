@@ -376,7 +376,7 @@ impl Default for StoreFactories {
         );
         factories.add_backend(
             GitBackend::name(),
-            Box::new(|_settings, store_path| Ok(Box::new(GitBackend::load(store_path)?))),
+            Box::new(|settings, store_path| Ok(Box::new(GitBackend::load(settings, store_path)?))),
         );
 
         // OpStores
