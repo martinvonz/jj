@@ -97,7 +97,7 @@ impl OpStore for SimpleOpStore {
 
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
         let path = self.view_path(id);
-        let buf = fs::read(path).map_err(|err| not_found_to_store_error(err, id))?;
+        let buf = fs::read(path).map_err(|err| io_to_read_error(err, id))?;
 
         let proto = crate::protos::op_store::View::decode(&*buf).map_err(|err| DecodeError {
             kind: "view",
@@ -125,7 +125,7 @@ impl OpStore for SimpleOpStore {
 
     fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
         let path = self.operation_path(id);
-        let buf = fs::read(path).map_err(|err| not_found_to_store_error(err, id))?;
+        let buf = fs::read(path).map_err(|err| io_to_read_error(err, id))?;
 
         let proto =
             crate::protos::op_store::Operation::decode(&*buf).map_err(|err| DecodeError {
@@ -150,14 +150,6 @@ impl OpStore for SimpleOpStore {
 
         persist_content_addressed_temp_file(temp_file, self.operation_path(&id))?;
         Ok(id)
-    }
-}
-
-fn not_found_to_store_error(err: std::io::Error, id: &impl ObjectId) -> OpStoreError {
-    if err.kind() == ErrorKind::NotFound {
-        OpStoreError::NotFound
-    } else {
-        io_to_read_error(err, id)
     }
 }
 
