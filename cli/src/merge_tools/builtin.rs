@@ -350,7 +350,7 @@ pub fn make_diff_files(
         files.push(scm_record::File {
             old_path: None,
             path: Cow::Owned(changed_path.to_fs_path(Path::new(""))),
-            file_mode: None,
+            file_mode: Some(right_file_mode),
             sections,
         });
     }
@@ -587,7 +587,11 @@ mod tests {
             File {
                 old_path: None,
                 path: "unchanged",
-                file_mode: None,
+                file_mode: Some(
+                    FileMode(
+                        33188,
+                    ),
+                ),
                 sections: [
                     Unchanged {
                         lines: [
@@ -599,7 +603,11 @@ mod tests {
             File {
                 old_path: None,
                 path: "changed",
-                file_mode: None,
+                file_mode: Some(
+                    FileMode(
+                        33188,
+                    ),
+                ),
                 sections: [
                     Unchanged {
                         lines: [
@@ -644,7 +652,11 @@ mod tests {
             File {
                 old_path: None,
                 path: "added",
-                file_mode: None,
+                file_mode: Some(
+                    FileMode(
+                        33188,
+                    ),
+                ),
                 sections: [
                     Changed {
                         lines: [
