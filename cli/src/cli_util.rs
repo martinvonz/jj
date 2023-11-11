@@ -1313,7 +1313,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         let mut locked_ws = self.workspace.start_working_copy_mutation()?;
         let old_op_id = locked_ws.locked_wc().old_operation_id().clone();
         let (repo, wc_commit) =
-            match check_stale_working_copy(locked_ws.locked_wc(), &wc_commit, &repo) {
+            match check_stale_working_copy(locked_ws.locked_wc(), &wc_commit, &repo)? {
                 WorkingCopyFreshness::Fresh => (repo, wc_commit),
                 WorkingCopyFreshness::Updated(wc_operation) => {
                     let repo = repo.reload_at(&wc_operation)?;
@@ -1751,17 +1751,16 @@ pub fn check_stale_working_copy(
     locked_wc: &dyn LockedWorkingCopy,
     wc_commit: &Commit,
     repo: &ReadonlyRepo,
-) -> WorkingCopyFreshness {
+) -> Result<WorkingCopyFreshness, OpStoreError> {
     // Check if the working copy's tree matches the repo's view
     let wc_tree_id = locked_wc.old_tree_id();
     if wc_commit.tree_id() == wc_tree_id {
         // The working copy isn't stale, and no need to reload the repo.
-        WorkingCopyFreshness::Fresh
+        Ok(WorkingCopyFreshness::Fresh)
     } else {
         let wc_operation_data = repo
             .op_store()
-            .read_operation(locked_wc.old_operation_id())
-            .unwrap();
+            .read_operation(locked_wc.old_operation_id())?;
         let wc_operation = Operation::new(
             repo.op_store().clone(),
             locked_wc.old_operation_id().clone(),
@@ -1778,16 +1777,16 @@ pub fn check_stale_working_copy(
             if ancestor_op.id() == repo_operation.id() {
                 // The working copy was updated since we loaded the repo. The repo must be
                 // reloaded at the working copy's operation.
-                WorkingCopyFreshness::Updated(Box::new(wc_operation))
+                Ok(WorkingCopyFreshness::Updated(Box::new(wc_operation)))
             } else if ancestor_op.id() == wc_operation.id() {
                 // The working copy was not updated when some repo operation committed,
                 // meaning that it's stale compared to the repo view.
-                WorkingCopyFreshness::WorkingCopyStale
+                Ok(WorkingCopyFreshness::WorkingCopyStale)
             } else {
-                WorkingCopyFreshness::SiblingOperation
+                Ok(WorkingCopyFreshness::SiblingOperation)
             }
         } else {
-            WorkingCopyFreshness::UnrelatedOperation
+            Ok(WorkingCopyFreshness::UnrelatedOperation)
         }
     }
 }
@@ -1945,19 +1944,19 @@ pub fn resolve_all_revs(
 fn find_all_operations(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<dyn OpHeadsStore>,
-) -> Vec<Operation> {
+) -> Result<Vec<Operation>, OpStoreError> {
     let mut visited = HashSet::new();
     let mut work: VecDeque<_> = op_heads_store.get_op_heads().into_iter().collect();
     let mut operations = vec![];
     while let Some(op_id) = work.pop_front() {
         if visited.insert(op_id.clone()) {
-            let store_operation = op_store.read_operation(&op_id).unwrap();
+            let store_operation = op_store.read_operation(&op_id)?;
             work.extend(store_operation.parents.iter().cloned());
             let operation = Operation::new(op_store.clone(), op_id, store_operation);
             operations.push(operation);
         }
     }
-    operations
+    Ok(operations)
 }
 
 fn resolve_single_op_from_store(
@@ -1987,7 +1986,7 @@ fn resolve_single_op_from_store(
         }
     }
     let mut matches = vec![];
-    for op in find_all_operations(op_store, op_heads_store) {
+    for op in find_all_operations(op_store, op_heads_store)? {
         if op.id().hex().starts_with(op_str) {
             matches.push(op);
         }

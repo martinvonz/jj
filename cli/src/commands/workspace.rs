@@ -314,7 +314,7 @@ fn cmd_workspace_update_stale(
     let repo = workspace_command.repo().clone();
     let (mut locked_ws, desired_wc_commit) =
         workspace_command.unchecked_start_working_copy_mutation()?;
-    if !check_stale_working_copy(locked_ws.locked_wc(), &desired_wc_commit, &repo).is_stale() {
+    if !check_stale_working_copy(locked_ws.locked_wc(), &desired_wc_commit, &repo)?.is_stale() {
         writeln!(
             ui.stderr(),
             "Nothing to do (the working copy is not stale)."
