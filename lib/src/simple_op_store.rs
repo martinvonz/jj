@@ -155,7 +155,11 @@ impl OpStore for SimpleOpStore {
 
 fn io_to_read_error(err: std::io::Error, id: &impl ObjectId) -> OpStoreError {
     if err.kind() == ErrorKind::NotFound {
-        OpStoreError::NotFound
+        OpStoreError::ObjectNotFound {
+            object_type: id.object_type(),
+            hash: id.hex(),
+            source: Box::new(err),
+        }
     } else {
         OpStoreError::ReadObject {
             object_type: id.object_type(),

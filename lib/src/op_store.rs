@@ -384,8 +384,12 @@ content_hash! {
 
 #[derive(Debug, Error)]
 pub enum OpStoreError {
-    #[error("Operation not found")]
-    NotFound,
+    #[error("Object {hash} of type {object_type} not found: {source}")]
+    ObjectNotFound {
+        object_type: String,
+        hash: String,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
     #[error("Error when reading object {hash} of type {object_type}: {source}")]
     ReadObject {
         object_type: String,
