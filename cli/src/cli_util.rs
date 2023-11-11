@@ -1958,7 +1958,7 @@ fn resolve_single_op_from_store(
             Ok(operation) => {
                 return Ok(Operation::new(op_store.clone(), op_id, operation));
             }
-            Err(OpStoreError::NotFound) => {
+            Err(OpStoreError::ObjectNotFound { .. }) => {
                 // Fall through
             }
             Err(err) => {
