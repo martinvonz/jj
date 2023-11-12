@@ -25,6 +25,7 @@ use async_trait::async_trait;
 use gix::objs::CommitRefIter;
 use itertools::Itertools;
 use prost::Message;
+use smallvec::SmallVec;
 use thiserror::Error;
 
 use crate::backend::{
@@ -538,13 +539,7 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
     }
 }
 
-/// Creates a random ref in refs/jj/. Used for preventing GC of commits we
-/// create.
-fn create_no_gc_ref() -> String {
-    let random_bytes: [u8; 16] = rand::random();
-    format!("{NO_GC_REF_NAMESPACE}{}", hex::encode(random_bytes))
-}
-
+/// Creates a ref in refs/jj/. Used for preventing GC of commits we create.
 fn prevent_gc(git_repo: &gix::Repository, id: &CommitId) -> Result<(), BackendError> {
     git_repo
         .reference(
@@ -923,7 +918,7 @@ impl Backend for GitBackend {
                 "Cannot write a commit with no parents".into(),
             ));
         }
-        let mut parents = vec![];
+        let mut parents = SmallVec::new();
         for parent_id in &contents.parents {
             if *parent_id == self.root_commit_id {
                 // Git doesn't have a root commit, so if the parent is the root commit, we don't
@@ -942,6 +937,7 @@ impl Backend for GitBackend {
             }
         }
         let extras = serialize_extras(&contents);
+
         // If two writers write commits of the same id with different metadata, they
         // will both succeed and the metadata entries will be "merged" later. Since
         // metadata entry is keyed by the commit id, one of the entries would be lost.
@@ -950,31 +946,40 @@ impl Backend for GitBackend {
         // repository is rsync-ed.
         let (table, table_lock) = self.read_extra_metadata_table_locked()?;
         let id = loop {
-            let git_id = locked_repo
-                .commit_as(
-                    committer,
-                    author,
-                    create_no_gc_ref(),
-                    message,
-                    git_tree_id,
-                    parents.iter().copied(),
-                )
-                .map_err(|err| BackendError::WriteObject {
-                    object_type: "commit",
-                    source: Box::new(err),
-                })?;
-            let id = CommitId::from_bytes(git_id.as_bytes());
-            match table.get_value(id.as_bytes()) {
+            let commit = gix::objs::Commit {
+                message: message.to_owned().into(),
+                tree: git_tree_id,
+                author: author.into(),
+                committer: committer.into(),
+                encoding: None,
+                parents: parents.clone(),
+                extra_headers: Default::default(),
+            };
+
+            // todo sign commits here
+
+            let git_id =
+                locked_repo
+                    .write_object(&commit)
+                    .map_err(|err| BackendError::WriteObject {
+                        object_type: "commit",
+                        source: Box::new(err),
+                    })?;
+
+            match table.get_value(git_id.as_bytes()) {
                 Some(existing_extras) if existing_extras != extras => {
                     // It's possible a commit already exists with the same commit id but different
                     // change id. Adjust the timestamp until this is no longer the case.
                     committer.time.seconds -= 1;
                 }
-                _ => {
-                    break id;
-                }
+                _ => break CommitId::from_bytes(git_id.as_bytes()),
             }
         };
+
+        // Everything up to this point had no permanent effect on the repo except
+        // GC-able objects
+        prevent_gc(&locked_repo, &id)?;
+
         // Update the signature to match the one that was actually written to the object
         // store
         contents.committer.timestamp.timestamp = MillisSinceEpoch(committer.time.seconds * 1000);
