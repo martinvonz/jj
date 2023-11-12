@@ -16,15 +16,16 @@
 
 use std::sync::Arc;
 
+use itertools::Itertools as _;
+
 use crate::backend::Timestamp;
-use crate::dag_walk::closest_common_node;
 use crate::index::ReadonlyIndex;
-use crate::op_store;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, RepoLoaderError};
 use crate::settings::UserSettings;
 use crate::view::View;
+use crate::{dag_walk, op_store};
 
 pub struct Transaction {
     mut_repo: MutableRepo,
@@ -71,12 +72,12 @@ impl Transaction {
     }
 
     pub fn merge_operation(&mut self, other_op: Operation) -> Result<(), RepoLoaderError> {
-        let ancestor_op = closest_common_node(
-            self.parent_ops.clone(),
-            vec![other_op.clone()],
+        let ancestor_op = dag_walk::closest_common_node_ok(
+            self.parent_ops.iter().cloned().map(Ok),
+            [Ok(other_op.clone())],
             |op: &Operation| op.id().clone(),
-            |op: &Operation| op.parents(),
-        )
+            |op: &Operation| op.parents().collect_vec(),
+        )?
         .unwrap();
         let repo_loader = self.base_repo().loader();
         let base_repo = repo_loader.load_at(&ancestor_op)?;

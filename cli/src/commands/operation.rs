@@ -116,6 +116,7 @@ fn cmd_op_log(
         let mut graph = get_graphlog(command.settings(), formatter.raw());
         let default_node_symbol = graph.default_node_symbol().to_owned();
         for op in iter {
+            let op = op?;
             let mut edges = vec![];
             for id in op.parent_ids() {
                 edges.push(Edge::direct(id.clone()));
@@ -146,6 +147,7 @@ fn cmd_op_log(
         }
     } else {
         for op in iter {
+            let op = op?;
             with_content_format.write(formatter, |formatter| {
                 formatter.with_label("op_log", |formatter| template.format(&op, formatter))
             })?;
@@ -190,19 +192,19 @@ pub fn cmd_op_undo(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let bad_op = workspace_command.resolve_single_op(&args.operation)?;
-    let parent_ops = bad_op.parents();
-    if parent_ops.len() > 1 {
-        return Err(user_error("Cannot undo a merge operation"));
-    }
-    if parent_ops.is_empty() {
+    let mut parent_ops = bad_op.parents();
+    let Some(parent_op) = parent_ops.next().transpose()? else {
         return Err(user_error("Cannot undo repo initialization"));
+    };
+    if parent_ops.next().is_some() {
+        return Err(user_error("Cannot undo a merge operation"));
     }
 
     let mut tx =
         workspace_command.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
     let repo_loader = tx.base_repo().loader();
     let bad_repo = repo_loader.load_at(&bad_op)?;
-    let parent_repo = repo_loader.load_at(&parent_ops[0])?;
+    let parent_repo = repo_loader.load_at(&parent_op)?;
     tx.mut_repo().merge(&bad_repo, &parent_repo);
     let new_view = view_with_desired_portions_restored(
         tx.repo().view().store_view(),
