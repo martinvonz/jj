@@ -1767,12 +1767,12 @@ pub fn check_stale_working_copy(
             wc_operation_data,
         );
         let repo_operation = repo.operation();
-        let maybe_ancestor_op = dag_walk::closest_common_node(
-            [wc_operation.clone()],
-            [repo_operation.clone()],
+        let maybe_ancestor_op = dag_walk::closest_common_node_ok(
+            [Ok(wc_operation.clone())],
+            [Ok(repo_operation.clone())],
             |op: &Operation| op.id().clone(),
-            |op: &Operation| op.parents(),
-        );
+            |op: &Operation| op.parents().collect_vec(),
+        )?;
         if let Some(ancestor_op) = maybe_ancestor_op {
             if ancestor_op.id() == repo_operation.id() {
                 // The working copy was updated since we loaded the repo. The repo must be
@@ -1911,15 +1911,19 @@ fn resolve_single_op(
             .map_err(OpHeadResolutionError::Err),
     }?;
     for _ in op_postfix.chars() {
-        operation = match operation.parents().as_slice() {
-            [op] => Ok(op.clone()),
-            [] => Err(user_error(format!(
+        let mut parent_ops = operation.parents();
+        let Some(op) = parent_ops.next().transpose()? else {
+            return Err(user_error(format!(
                 r#"The "{op_str}" expression resolved to no operations"#
-            ))),
-            [_, _, ..] => Err(user_error(format!(
+            )));
+        };
+        if parent_ops.next().is_some() {
+            return Err(user_error(format!(
                 r#"The "{op_str}" expression resolved to more than one operation"#
-            ))),
-        }?;
+            )));
+        }
+        drop(parent_ops);
+        operation = op;
     }
     Ok(operation)
 }

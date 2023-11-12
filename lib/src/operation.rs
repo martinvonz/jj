@@ -20,6 +20,8 @@ use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use itertools::Itertools as _;
+
 use crate::backend::CommitId;
 use crate::op_store::{OpStore, OpStoreResult, OperationId, ViewId};
 use crate::{dag_walk, op_store};
@@ -80,17 +82,12 @@ impl Operation {
         &self.data.parents
     }
 
-    pub fn parents(&self) -> Vec<Operation> {
-        let mut parents = Vec::new();
-        for parent_id in &self.data.parents {
-            let data = self.op_store.read_operation(parent_id).unwrap();
-            parents.push(Operation::new(
-                self.op_store.clone(),
-                parent_id.clone(),
-                data,
-            ));
-        }
-        parents
+    pub fn parents(&self) -> impl ExactSizeIterator<Item = OpStoreResult<Operation>> + '_ {
+        let op_store = &self.op_store;
+        self.data.parents.iter().map(|parent_id| {
+            let data = op_store.read_operation(parent_id)?;
+            Ok(Operation::new(op_store.clone(), parent_id.clone(), data))
+        })
     }
 
     pub fn view(&self) -> OpStoreResult<View> {
@@ -189,13 +186,13 @@ impl PartialOrd for OperationByEndTime {
 }
 
 /// Walks `head_op` and its ancestors in reverse topological order.
-pub fn walk_ancestors(head_op: &Operation) -> impl Iterator<Item = Operation> {
+pub fn walk_ancestors(head_op: &Operation) -> impl Iterator<Item = OpStoreResult<Operation>> {
     // Lazily load operations based on timestamp-based heuristic. This works so long
     // as the operation history is mostly linear.
-    dag_walk::topo_order_reverse_lazy(
-        vec![OperationByEndTime(head_op.clone())],
+    dag_walk::topo_order_reverse_lazy_ok(
+        [Ok(OperationByEndTime(head_op.clone()))],
         |OperationByEndTime(op)| op.id().clone(),
-        |OperationByEndTime(op)| op.parents().into_iter().map(OperationByEndTime),
+        |OperationByEndTime(op)| op.parents().map_ok(OperationByEndTime).collect_vec(),
     )
-    .map(|OperationByEndTime(op)| op)
+    .map_ok(|OperationByEndTime(op)| op)
 }

@@ -115,11 +115,12 @@ impl DefaultIndexStore {
         let change_id_length = store.change_id_length();
         let mut new_heads = view.heads().clone();
         let mut parent_op_id: Option<OperationId> = None;
-        for op in dag_walk::dfs(
-            vec![operation.clone()],
+        for op in dag_walk::dfs_ok(
+            [Ok(operation.clone())],
             |op: &Operation| op.id().clone(),
-            |op: &Operation| op.parents(),
+            |op: &Operation| op.parents().collect_vec(),
         ) {
+            let op = op?;
             if operations_dir.join(op.id().hex()).is_file() {
                 if parent_op_id.is_none() {
                     parent_op_id = Some(op.id().clone())
