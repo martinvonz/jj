@@ -117,8 +117,8 @@ fn cmd_op_log(
         let default_node_symbol = graph.default_node_symbol().to_owned();
         for op in iter {
             let mut edges = vec![];
-            for parent in op.parents() {
-                edges.push(Edge::direct(parent.id().clone()));
+            for id in op.parent_ids() {
+                edges.push(Edge::direct(id.clone()));
             }
             let is_head_op = op.id() == &head_op_id;
             let mut buffer = vec![];
