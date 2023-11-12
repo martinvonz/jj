@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::{fs, str};
 
 use async_trait::async_trait;
-use gix::objs::CommitRefIter;
+use gix::objs::{CommitRefIter, WriteTo};
 use itertools::Itertools;
 use prost::Message;
 use smallvec::SmallVec;
@@ -31,8 +31,8 @@ use thiserror::Error;
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendInitError, BackendLoadError, BackendResult,
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, FileId, MergedTreeId,
-    MillisSinceEpoch, ObjectId, SecureSig, Signature, SymlinkId, Timestamp, Tree, TreeId,
-    TreeValue,
+    MillisSinceEpoch, ObjectId, SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree,
+    TreeId, TreeValue,
 };
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
@@ -901,7 +901,13 @@ impl Backend for GitBackend {
         Ok(commit)
     }
 
-    fn write_commit(&self, mut contents: Commit) -> BackendResult<(CommitId, Commit)> {
+    fn write_commit(
+        &self,
+        mut contents: Commit,
+        mut sign_with: Option<SigningFn>,
+    ) -> BackendResult<(CommitId, Commit)> {
+        assert!(contents.secure_sig.is_none(), "commit.secure_sig was set");
+
         let locked_repo = self.lock_git_repo();
         let git_tree_id = match &contents.root_tree {
             MergedTreeId::Legacy(tree_id) => validate_git_object_id(tree_id)?,
@@ -946,7 +952,7 @@ impl Backend for GitBackend {
         // repository is rsync-ed.
         let (table, table_lock) = self.read_extra_metadata_table_locked()?;
         let id = loop {
-            let commit = gix::objs::Commit {
+            let mut commit = gix::objs::Commit {
                 message: message.to_owned().into(),
                 tree: git_tree_id,
                 author: author.into(),
@@ -956,7 +962,17 @@ impl Backend for GitBackend {
                 extra_headers: Default::default(),
             };
 
-            // todo sign commits here
+            if let Some(sign) = &mut sign_with {
+                // we don't use gix pool, but at least use their heuristic
+                let mut data = Vec::with_capacity(512);
+                commit.write_to(&mut data).unwrap();
+
+                let sig = sign(&data)?;
+                commit
+                    .extra_headers
+                    .push(("gpgsig".into(), sig.clone().into()));
+                contents.secure_sig = Some(SecureSig { data, sig });
+            }
 
             let git_id =
                 locked_repo
@@ -1098,11 +1114,13 @@ fn bytes_vec_from_json(value: &serde_json::Value) -> Vec<u8> {
 mod tests {
     use assert_matches::assert_matches;
     use git2::Oid;
+    use hex::ToHex;
     use pollster::FutureExt;
     use test_case::test_case;
 
     use super::*;
     use crate::backend::{FileId, MillisSinceEpoch};
+    use crate::content_hash::blake2b_hash;
 
     #[test_case(false; "legacy tree format")]
     #[test_case(true; "tree-level conflict format")]
@@ -1422,13 +1440,13 @@ mod tests {
         // No parents
         commit.parents = vec![];
         assert_matches!(
-            backend.write_commit(commit.clone()),
+            backend.write_commit(commit.clone(), None),
             Err(BackendError::Other(err)) if err.to_string().contains("no parents")
         );
 
         // Only root commit as parent
         commit.parents = vec![backend.root_commit_id().clone()];
-        let first_id = backend.write_commit(commit.clone()).unwrap().0;
+        let first_id = backend.write_commit(commit.clone(), None).unwrap().0;
         let first_commit = backend.read_commit(&first_id).block_on().unwrap();
         assert_eq!(first_commit, commit);
         let first_git_commit = git_repo.find_commit(git_id(&first_id)).unwrap();
@@ -1436,7 +1454,7 @@ mod tests {
 
         // Only non-root commit as parent
         commit.parents = vec![first_id.clone()];
-        let second_id = backend.write_commit(commit.clone()).unwrap().0;
+        let second_id = backend.write_commit(commit.clone(), None).unwrap().0;
         let second_commit = backend.read_commit(&second_id).block_on().unwrap();
         assert_eq!(second_commit, commit);
         let second_git_commit = git_repo.find_commit(git_id(&second_id)).unwrap();
@@ -1447,7 +1465,7 @@ mod tests {
 
         // Merge commit
         commit.parents = vec![first_id.clone(), second_id.clone()];
-        let merge_id = backend.write_commit(commit.clone()).unwrap().0;
+        let merge_id = backend.write_commit(commit.clone(), None).unwrap().0;
         let merge_commit = backend.read_commit(&merge_id).block_on().unwrap();
         assert_eq!(merge_commit, commit);
         let merge_git_commit = git_repo.find_commit(git_id(&merge_id)).unwrap();
@@ -1459,7 +1477,7 @@ mod tests {
         // Merge commit with root as one parent
         commit.parents = vec![first_id, backend.root_commit_id().clone()];
         assert_matches!(
-            backend.write_commit(commit),
+            backend.write_commit(commit, None),
             Err(BackendError::Other(err)) if err.to_string().contains("root commit")
         );
     }
@@ -1499,7 +1517,7 @@ mod tests {
 
         // When writing a tree-level conflict, the root tree on the git side has the
         // individual trees as subtrees.
-        let read_commit_id = backend.write_commit(commit.clone()).unwrap().0;
+        let read_commit_id = backend.write_commit(commit.clone(), None).unwrap().0;
         let read_commit = backend.read_commit(&read_commit_id).block_on().unwrap();
         assert_eq!(read_commit, commit);
         let git_commit = git_repo
@@ -1543,7 +1561,7 @@ mod tests {
         // When writing a single tree using the new format, it's represented by a
         // regular git tree.
         commit.root_tree = MergedTreeId::resolved(create_tree(5));
-        let read_commit_id = backend.write_commit(commit.clone()).unwrap().0;
+        let read_commit_id = backend.write_commit(commit.clone(), None).unwrap().0;
         let read_commit = backend.read_commit(&read_commit_id).block_on().unwrap();
         assert_eq!(read_commit, commit);
         let git_commit = git_repo
@@ -1578,7 +1596,7 @@ mod tests {
             committer: signature,
             secure_sig: None,
         };
-        let commit_id = backend.write_commit(commit).unwrap().0;
+        let commit_id = backend.write_commit(commit, None).unwrap().0;
         let git_refs = backend
             .open_git_repo()
             .unwrap()
@@ -1608,11 +1626,11 @@ mod tests {
         // second after the epoch, so the timestamp adjustment can remove 1
         // second and it will still be nonnegative
         commit1.committer.timestamp.timestamp = MillisSinceEpoch(1000);
-        let (commit_id1, mut commit2) = backend.write_commit(commit1).unwrap();
+        let (commit_id1, mut commit2) = backend.write_commit(commit1, None).unwrap();
         commit2.predecessors.push(commit_id1.clone());
         // `write_commit` should prevent the ids from being the same by changing the
         // committer timestamp of the commit it actually writes.
-        let (commit_id2, mut actual_commit2) = backend.write_commit(commit2.clone()).unwrap();
+        let (commit_id2, mut actual_commit2) = backend.write_commit(commit2.clone(), None).unwrap();
         // The returned matches the ID
         assert_eq!(
             backend.read_commit(&commit_id2).block_on().unwrap(),
@@ -1628,6 +1646,66 @@ mod tests {
         actual_commit2.committer.timestamp.timestamp =
             commit2.committer.timestamp.timestamp.clone();
         assert_eq!(actual_commit2, commit2);
+    }
+
+    #[test]
+    fn write_signed_commit() {
+        let settings = user_settings();
+        let temp_dir = testutils::new_temp_dir();
+        let backend = GitBackend::init_internal(&settings, temp_dir.path()).unwrap();
+
+        let commit = Commit {
+            parents: vec![backend.root_commit_id().clone()],
+            predecessors: vec![],
+            root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
+            change_id: ChangeId::new(vec![]),
+            description: "initial".to_string(),
+            author: create_signature(),
+            committer: create_signature(),
+            secure_sig: None,
+        };
+
+        let signer = Box::new(|data: &_| {
+            let hash: String = blake2b_hash(data).encode_hex();
+            Ok(format!("test sig\n\n\nhash={hash}").into_bytes())
+        });
+
+        let (id, commit) = backend.write_commit(commit, Some(signer)).unwrap();
+
+        let git_repo = backend.git_repo();
+        let obj = git_repo.find_object(id.as_bytes()).unwrap();
+        insta::assert_snapshot!(std::str::from_utf8(&obj.data).unwrap(), @r###"
+        tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904
+        author Someone <someone@example.com> 0 +0000
+        committer Someone <someone@example.com> 0 +0000
+        gpgsig test sig
+         
+         
+         hash=9ad9526c3b2103c41a229f2f3c82d107a0ecd902f476a855f0e1dd5f7bef1430663de12749b73e293a877113895a8a2a0f29da4bbc5a5f9a19c3523fb0e53518
+
+        initial
+        "###);
+
+        let returned_sig = commit.secure_sig.expect("failed to return the signature");
+
+        let commit = backend.read_commit(&id).block_on().unwrap();
+
+        let sig = commit.secure_sig.expect("failed to read the signature");
+        assert_eq!(&sig, &returned_sig);
+
+        insta::assert_snapshot!(std::str::from_utf8(&sig.sig).unwrap(), @r###"
+        test sig
+
+
+        hash=9ad9526c3b2103c41a229f2f3c82d107a0ecd902f476a855f0e1dd5f7bef1430663de12749b73e293a877113895a8a2a0f29da4bbc5a5f9a19c3523fb0e53518
+        "###);
+        insta::assert_snapshot!(std::str::from_utf8(&sig.data).unwrap(), @r###"
+        tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904
+        author Someone <someone@example.com> 0 +0000
+        committer Someone <someone@example.com> 0 +0000
+
+        initial
+        "###);
     }
 
     fn git_id(commit_id: &CommitId) -> Oid {

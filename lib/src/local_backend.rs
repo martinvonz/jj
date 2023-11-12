@@ -29,7 +29,7 @@ use tempfile::NamedTempFile;
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
     ConflictId, ConflictTerm, FileId, MergedTreeId, MillisSinceEpoch, ObjectId, SecureSig,
-    Signature, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
+    Signature, SigningFn, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
@@ -264,7 +264,13 @@ impl Backend for LocalBackend {
         Ok(commit_from_proto(proto))
     }
 
-    fn write_commit(&self, commit: Commit) -> BackendResult<(CommitId, Commit)> {
+    fn write_commit(
+        &self,
+        mut commit: Commit,
+        sign_with: Option<SigningFn>,
+    ) -> BackendResult<(CommitId, Commit)> {
+        assert!(commit.secure_sig.is_none(), "commit.secure_sig was set");
+
         if commit.parents.is_empty() {
             return Err(BackendError::Other(
                 "Cannot write a commit with no parents".into(),
@@ -272,7 +278,14 @@ impl Backend for LocalBackend {
         }
         let temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
 
-        let proto = commit_to_proto(&commit);
+        let mut proto = commit_to_proto(&commit);
+        if let Some(mut sign) = sign_with {
+            let data = proto.encode_to_vec();
+            let sig = sign(&data)?;
+            proto.secure_sig = Some(sig.clone());
+            commit.secure_sig = Some(SecureSig { data, sig });
+        }
+
         temp_file
             .as_file()
             .write_all(&proto.encode_to_vec())
@@ -307,7 +320,6 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
     proto.description = commit.description.clone();
     proto.author = Some(signature_to_proto(&commit.author));
     proto.committer = Some(signature_to_proto(&commit.committer));
-    proto.secure_sig = commit.secure_sig.as_ref().map(|s| s.sig.clone());
     proto
 }
 
@@ -500,31 +512,31 @@ mod tests {
         // No parents
         commit.parents = vec![];
         assert_matches!(
-            backend.write_commit(commit.clone()),
+            backend.write_commit(commit.clone(), None),
             Err(BackendError::Other(err)) if err.to_string().contains("no parents")
         );
 
         // Only root commit as parent
         commit.parents = vec![backend.root_commit_id().clone()];
-        let first_id = backend.write_commit(commit.clone()).unwrap().0;
+        let first_id = backend.write_commit(commit.clone(), None).unwrap().0;
         let first_commit = backend.read_commit(&first_id).block_on().unwrap();
         assert_eq!(first_commit, commit);
 
         // Only non-root commit as parent
         commit.parents = vec![first_id.clone()];
-        let second_id = backend.write_commit(commit.clone()).unwrap().0;
+        let second_id = backend.write_commit(commit.clone(), None).unwrap().0;
         let second_commit = backend.read_commit(&second_id).block_on().unwrap();
         assert_eq!(second_commit, commit);
 
         // Merge commit
         commit.parents = vec![first_id.clone(), second_id.clone()];
-        let merge_id = backend.write_commit(commit.clone()).unwrap().0;
+        let merge_id = backend.write_commit(commit.clone(), None).unwrap().0;
         let merge_commit = backend.read_commit(&merge_id).block_on().unwrap();
         assert_eq!(merge_commit, commit);
 
         // Merge commit with root as one parent
         commit.parents = vec![first_id, backend.root_commit_id().clone()];
-        let root_merge_id = backend.write_commit(commit.clone()).unwrap().0;
+        let root_merge_id = backend.write_commit(commit.clone(), None).unwrap().0;
         let root_merge_commit = backend.read_commit(&root_merge_id).block_on().unwrap();
         assert_eq!(root_merge_commit, commit);
     }
