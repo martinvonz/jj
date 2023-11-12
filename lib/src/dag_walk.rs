@@ -319,41 +319,6 @@ where
     result
 }
 
-pub fn leaves<T, ID, II, NI>(
-    start: II,
-    id_fn: impl Fn(&T) -> ID,
-    mut neighbors_fn: impl FnMut(&T) -> NI,
-) -> HashSet<T>
-where
-    T: Hash + Eq + Clone,
-    ID: Hash + Eq,
-    II: IntoIterator<Item = T>,
-    NI: IntoIterator<Item = T>,
-{
-    let mut visited = HashSet::new();
-    let mut work: Vec<T> = start.into_iter().collect();
-    let mut leaves: HashSet<T> = work.iter().cloned().collect();
-    let mut non_leaves = HashSet::new();
-    while !work.is_empty() {
-        // TODO: make this not waste so much memory on the sets
-        let mut new_work = vec![];
-        for c in work {
-            let id: ID = id_fn(&c);
-            if visited.contains(&id) {
-                continue;
-            }
-            for p in neighbors_fn(&c) {
-                non_leaves.insert(c.clone());
-                new_work.push(p);
-            }
-            visited.insert(id);
-            leaves.insert(c);
-        }
-        work = new_work;
-    }
-    leaves.difference(&non_leaves).cloned().collect()
-}
-
 /// Find nodes in the start set that are not reachable from other nodes in the
 /// start set.
 pub fn heads<T, ID, II, NI>(
