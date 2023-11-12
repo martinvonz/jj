@@ -147,6 +147,8 @@ content_hash! {
     }
 }
 
+pub type SigningFn = Box<dyn FnMut(&[u8]) -> BackendResult<Vec<u8>>>;
+
 /// Identifies a single legacy tree, which may have path-level conflicts, or a
 /// merge of multiple trees, where the individual trees do not have conflicts.
 // TODO(#1624): Delete this type at some point in the future, when we decide to drop
@@ -518,5 +520,16 @@ pub trait Backend: Send + Sync + Debug {
     /// committer name to an authenticated user's name, or the backend's
     /// timestamps may have less precision than the millisecond precision in
     /// `Commit`.
-    fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)>;
+    ///
+    /// The `sign_with` parameter could contain a function to cryptographically
+    /// sign some binary representation of the commit.
+    /// If the backend supports it, it could call it and store the result in
+    /// an implementation specific fashion, and both `read_commit` and the
+    /// return of `write_commit` should read it back as the `secure_sig`
+    /// field.
+    fn write_commit(
+        &self,
+        contents: Commit,
+        sign_with: Option<SigningFn>,
+    ) -> BackendResult<(CommitId, Commit)>;
 }

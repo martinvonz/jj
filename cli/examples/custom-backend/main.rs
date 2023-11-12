@@ -21,7 +21,7 @@ use jj_cli::cli_util::{CliRunner, CommandError, CommandHelper};
 use jj_cli::ui::Ui;
 use jj_lib::backend::{
     Backend, BackendInitError, BackendLoadError, BackendResult, ChangeId, Commit, CommitId,
-    Conflict, ConflictId, FileId, SymlinkId, Tree, TreeId,
+    Conflict, ConflictId, FileId, SigningFn, SymlinkId, Tree, TreeId,
 };
 use jj_lib::git_backend::GitBackend;
 use jj_lib::repo::StoreFactories;
@@ -160,7 +160,11 @@ impl Backend for JitBackend {
         self.inner.read_commit(id).await
     }
 
-    fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)> {
-        self.inner.write_commit(contents)
+    fn write_commit(
+        &self,
+        contents: Commit,
+        sign_with: Option<SigningFn>,
+    ) -> BackendResult<(CommitId, Commit)> {
+        self.inner.write_commit(contents, sign_with)
     }
 }

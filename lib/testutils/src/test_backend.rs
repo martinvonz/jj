@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use async_trait::async_trait;
 use jj_lib::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, FileId, ObjectId, SymlinkId, Tree, TreeId,
+    ConflictId, FileId, ObjectId, SecureSig, SigningFn, SymlinkId, Tree, TreeId,
 };
 use jj_lib::repo_path::RepoPath;
 
@@ -273,7 +273,19 @@ impl Backend for TestBackend {
         }
     }
 
-    fn write_commit(&self, contents: Commit) -> BackendResult<(CommitId, Commit)> {
+    fn write_commit(
+        &self,
+        mut contents: Commit,
+        mut sign_with: Option<SigningFn>,
+    ) -> BackendResult<(CommitId, Commit)> {
+        assert!(contents.secure_sig.is_none(), "commit.secure_sig was set");
+
+        if let Some(sign) = &mut sign_with {
+            let data = format!("{contents:?}").into_bytes();
+            let sig = sign(&data)?;
+            contents.secure_sig = Some(SecureSig { data, sig });
+        }
+
         let id = CommitId::new(get_hash(&contents));
         self.locked_data()
             .commits
