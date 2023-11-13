@@ -18,6 +18,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent};
 use jj_lib::rewrite::rebase_commit;
 use jj_lib::tree::{merge_trees, Tree};
+use smallvec::smallvec;
 use testutils::{create_single_tree, create_tree, TestRepo};
 
 #[test]
@@ -495,7 +496,7 @@ fn test_simplify_conflict() {
     match further_rebased_tree.value(&component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
-                .read_conflict(&RepoPath::from_components(vec![component.clone()]), id)
+                .read_conflict(&RepoPath::from_components(smallvec![component.clone()]), id)
                 .unwrap();
             assert_eq!(
                 conflict.removes().map(|v| v.as_ref()).collect_vec(),

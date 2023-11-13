@@ -425,6 +425,8 @@ fn test_help() {
                                  specified
           --from <FROM>          Show changes from this revision. Defaults to @ if --to is specified
           --to <TO>              Edit changes in this revision. Defaults to @ if --from is specified
+          --show-heap-stats      Show memory allocation statistics from the internal heap allocator on
+                                 `stdout`, when the program exits
       -h, --help                 Print help (see more with '--help')
 
     Global Options:

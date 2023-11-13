@@ -17,7 +17,9 @@
 use std::fmt::{Debug, Error, Formatter};
 use std::path::{Component, Path, PathBuf};
 
+use compact_str::CompactString;
 use itertools::Itertools;
+use smallvec::{smallvec, SmallVec};
 use thiserror::Error;
 
 use crate::file_util;
@@ -25,7 +27,7 @@ use crate::file_util;
 content_hash! {
     #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
     pub struct RepoPathComponent {
-        value: String,
+        value: CompactString,
     }
 }
 
@@ -48,13 +50,17 @@ impl From<&str> for RepoPathComponent {
 impl From<String> for RepoPathComponent {
     fn from(value: String) -> Self {
         assert!(!value.contains('/'));
-        RepoPathComponent { value }
+        RepoPathComponent {
+            value: value.into(),
+        }
     }
 }
 
+pub type RepoPathComponents = SmallVec<[RepoPathComponent; 4]>;
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RepoPath {
-    components: Vec<RepoPathComponent>,
+    components: RepoPathComponents,
 }
 
 impl Debug for RepoPath {
@@ -65,7 +71,9 @@ impl Debug for RepoPath {
 
 impl RepoPath {
     pub fn root() -> Self {
-        RepoPath { components: vec![] }
+        RepoPath {
+            components: smallvec![],
+        }
     }
 
     pub fn from_internal_string(value: &str) -> Self {
@@ -76,14 +84,14 @@ impl RepoPath {
             let components = value
                 .split('/')
                 .map(|value| RepoPathComponent {
-                    value: value.to_string(),
+                    value: value.into(),
                 })
                 .collect();
             RepoPath { components }
         }
     }
 
-    pub fn from_components(components: Vec<RepoPathComponent>) -> Self {
+    pub fn from_components(components: RepoPathComponents) -> Self {
         RepoPath { components }
     }
 
@@ -141,7 +149,7 @@ impl RepoPath {
         let repo_path_len: usize = self.components.iter().map(|x| x.as_str().len() + 1).sum();
         let mut result = PathBuf::with_capacity(base.as_os_str().len() + repo_path_len);
         result.push(base);
-        result.extend(self.components.iter().map(|dir| &dir.value));
+        result.extend(self.components.iter().map(|dir| dir.value.as_str()));
         result
     }
 
@@ -158,7 +166,7 @@ impl RepoPath {
             None
         } else {
             Some(RepoPath {
-                components: self.components[0..self.components.len() - 1].to_vec(),
+                components: SmallVec::from(&self.components[0..self.components.len() - 1]),
             })
         }
     }
@@ -171,7 +179,7 @@ impl RepoPath {
         }
     }
 
-    pub fn components(&self) -> &Vec<RepoPathComponent> {
+    pub fn components(&self) -> &RepoPathComponents {
         &self.components
     }
 }
@@ -281,17 +289,20 @@ mod tests {
 
     #[test]
     fn test_components() {
-        assert_eq!(RepoPath::root().components(), &vec![]);
+        assert_eq!(
+            RepoPath::root().components(),
+            &smallvec![] as &RepoPathComponents
+        );
         assert_eq!(
             RepoPath::from_internal_string("dir").components(),
-            &vec![RepoPathComponent::from("dir")]
+            &smallvec![RepoPathComponent::from("dir")] as &RepoPathComponents
         );
         assert_eq!(
             RepoPath::from_internal_string("dir/subdir").components(),
-            &vec![
+            &smallvec![
                 RepoPathComponent::from("dir"),
                 RepoPathComponent::from("subdir")
-            ]
+            ] as &RepoPathComponents
         );
     }
 
