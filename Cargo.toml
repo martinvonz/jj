@@ -26,7 +26,7 @@ blake2 = "0.10.6"
 byteorder = "1.5.0"
 bytes = "1.5.0"
 cargo_metadata = "0.17.0"
-clap = { version = "4.4.7", features = ["derive", "deprecated", "wrap_help"] }
+clap = { version = "4.4.8", features = ["derive", "deprecated", "wrap_help"] }
 clap_complete = "4.4.4"
 clap_mangen = "0.2.10"
 chrono = { version = "0.4.31", default-features = false, features = [
@@ -66,7 +66,7 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 rayon = "1.8.0"
 regex = "1.10.2"
-rpassword = "7.2.0"
+rpassword = "7.3.1"
 rustix = { version = "0.38.21", features = ["fs"] }
 scm-record = "0.1.0"
 serde = { version = "1.0", features = ["derive"] }
