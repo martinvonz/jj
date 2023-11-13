@@ -2,7 +2,7 @@ cargo-features = []
 
 [workspace]
 resolver = "2"
-members = ["cli", "lib", "lib/testutils", "lib/gen-protos"]
+members = ["cli", "lib", "cbits", "lib/testutils", "lib/gen-protos"]
 
 [workspace.package]
 version = "0.11.0"
@@ -26,6 +26,7 @@ blake2 = "0.10.6"
 byteorder = "1.5.0"
 bytes = "1.5.0"
 cargo_metadata = "0.17.0"
+cc = "1.0"
 clap = { version = "4.4.7", features = ["derive", "deprecated", "wrap_help"] }
 clap_complete = "4.4.4"
 clap_mangen = "0.2.10"
@@ -102,6 +103,7 @@ zstd = "0.12.4"
 # put all inter-workspace libraries, i.e. those that use 'path = ...' here in
 # their own (alphabetically sorted) block
 
+jj-cbits = { path = "cbits", version = "0.11.0" }
 jj-lib = { path = "lib", version = "0.11.0" }
 testutils = { path = "lib/testutils" }
 

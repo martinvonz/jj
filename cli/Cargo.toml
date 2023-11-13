@@ -45,6 +45,7 @@ gix = { workspace = true }
 hex = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
+jj-cbits = { workspace = true }
 jj-lib = { workspace = true }
 maplit = { workspace = true }
 once_cell = { workspace = true }
