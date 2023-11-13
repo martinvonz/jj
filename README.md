@@ -6,6 +6,7 @@
 ![](https://img.shields.io/github/v/release/martinvonz/jj)
 ![](https://img.shields.io/github/release-date/martinvonz/jj)
 ![](https://img.shields.io/crates/v/jj-cli)
+[![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
 <br/>
 ![](https://github.com/martinvonz/jj/workflows/build/badge.svg)
 ![](https://img.shields.io/codefactor/grade/github/martinvonz/jj/main)
