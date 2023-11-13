@@ -424,10 +424,19 @@ fn diff_refs_to_import(
     )
     .filter(|(ref_name, _)| git_ref_filter(ref_name))
     .collect();
+
     let mut changed_git_refs = Vec::new();
     let mut changed_remote_refs = BTreeMap::new();
     let git_references = git_repo.references().map_err(GitImportError::from_git)?;
-    for git_ref in git_references.all().map_err(GitImportError::from_git)? {
+    let chain_git_refs_iters = || -> Result<_, gix::reference::iter::init::Error> {
+        // Exclude uninteresting directories such as refs/jj/keep.
+        Ok(itertools::chain!(
+            git_references.local_branches()?,
+            git_references.remote_branches()?,
+            git_references.tags()?,
+        ))
+    };
+    for git_ref in chain_git_refs_iters().map_err(GitImportError::from_git)? {
         let git_ref = git_ref.map_err(GitImportError::from_git)?;
         let Ok(full_name) = str::from_utf8(git_ref.name().as_bstr()) else {
             // Skip non-utf8 refs.
