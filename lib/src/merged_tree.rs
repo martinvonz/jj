@@ -575,25 +575,37 @@ pub struct TreeEntriesIterator<'matcher> {
     matcher: &'matcher dyn Matcher,
 }
 
-#[ouroboros::self_referencing]
 struct TreeEntriesDirItem {
     tree: MergedTree,
-    #[borrows(tree)]
-    #[not_covariant]
-    entry_iterator: TreeEntriesNonRecursiveIterator<'this>,
+    entries: Vec<(RepoPath, MergedTreeValue)>,
 }
 
-impl From<MergedTree> for TreeEntriesDirItem {
-    fn from(tree: MergedTree) -> Self {
-        TreeEntriesDirItem::new(tree, |tree| tree.entries_non_recursive())
+impl TreeEntriesDirItem {
+    fn new(tree: MergedTree, matcher: &dyn Matcher) -> Self {
+        let mut entries = vec![];
+        let dir = tree.dir();
+        for (name, value) in tree.entries_non_recursive() {
+            let path = dir.join(name);
+            let value = value.to_merge();
+            if value.is_tree() {
+                // TODO: Handle the other cases (specific files and trees)
+                if matcher.visit(&path).is_nothing() {
+                    continue;
+                }
+            } else if !matcher.matches(&path) {
+                continue;
+            }
+            entries.push((path, value));
+        }
+        entries.reverse();
+        TreeEntriesDirItem { tree, entries }
     }
 }
 
 impl<'matcher> TreeEntriesIterator<'matcher> {
     fn new(tree: MergedTree, matcher: &'matcher dyn Matcher) -> Self {
-        // TODO: Restrict walk according to Matcher::visit()
         Self {
-            stack: vec![TreeEntriesDirItem::from(tree)],
+            stack: vec![TreeEntriesDirItem::new(tree, matcher)],
             matcher,
         }
     }
@@ -604,19 +616,16 @@ impl Iterator for TreeEntriesIterator<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
-            if let (tree, Some((name, value))) = top.with_mut(|x| (x.tree, x.entry_iterator.next()))
-            {
-                let path = tree.dir().join(name);
-                let value = value.to_merge();
+            if let Some((path, value)) = top.entries.pop() {
                 if value.is_tree() {
-                    // TODO: Handle the other cases (specific files and trees)
-                    if self.matcher.visit(&path).is_nothing() {
-                        continue;
-                    }
-                    let tree_merge = value.to_tree_merge(tree.store(), &path).unwrap().unwrap();
+                    let tree_merge = value
+                        .to_tree_merge(top.tree.store(), &path)
+                        .unwrap()
+                        .unwrap();
                     let merged_tree = MergedTree::Merge(tree_merge);
-                    self.stack.push(TreeEntriesDirItem::from(merged_tree));
-                } else if self.matcher.matches(&path) {
+                    self.stack
+                        .push(TreeEntriesDirItem::new(merged_tree, self.matcher));
+                } else {
                     return Some((path, value));
                 }
             } else {
