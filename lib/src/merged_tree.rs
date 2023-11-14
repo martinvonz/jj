@@ -683,17 +683,18 @@ impl<'a> Iterator for ConflictEntriesNonRecursiveIterator<'a> {
 
 /// The state for the non-recursive iteration over the conflicted entries in a
 /// single directory.
-#[ouroboros::self_referencing]
 struct ConflictsDirItem {
-    tree: MergedTree,
-    #[borrows(tree)]
-    #[not_covariant]
-    entry_iterator: ConflictEntriesNonRecursiveIterator<'this>,
+    entries: Vec<(RepoPath, MergedTreeValue)>,
 }
 
 impl From<MergedTree> for ConflictsDirItem {
     fn from(tree: MergedTree) -> Self {
-        Self::new(tree, |tree| ConflictEntriesNonRecursiveIterator::new(tree))
+        let dir = tree.dir();
+        let mut entries = ConflictEntriesNonRecursiveIterator::new(&tree)
+            .map(|(name, value)| (dir.join(name), value))
+            .collect_vec();
+        entries.reverse();
+        ConflictsDirItem { entries }
     }
 }
 
@@ -703,6 +704,7 @@ enum ConflictIterator {
         conflicts_iter: vec::IntoIter<(RepoPath, ConflictId)>,
     },
     Merge {
+        store: Arc<Store>,
         stack: Vec<ConflictsDirItem>,
     },
 }
@@ -715,6 +717,7 @@ impl ConflictIterator {
                 conflicts_iter: tree.conflicts().into_iter(),
             },
             MergedTree::Merge(_) => ConflictIterator::Merge {
+                store: tree.store().clone(),
                 stack: vec![ConflictsDirItem::from(tree)],
             },
         }
@@ -738,15 +741,11 @@ impl Iterator for ConflictIterator {
                     None
                 }
             }
-            ConflictIterator::Merge { stack } => {
+            ConflictIterator::Merge { store, stack } => {
                 while let Some(top) = stack.last_mut() {
-                    if let (tree, Some((basename, tree_values))) =
-                        top.with_mut(|x| (x.tree, x.entry_iterator.next()))
-                    {
-                        let path = tree.dir().join(basename);
+                    if let Some((path, tree_values)) = top.entries.pop() {
                         // TODO: propagate errors
-                        if let Some(trees) = tree_values.to_tree_merge(tree.store(), &path).unwrap()
-                        {
+                        if let Some(trees) = tree_values.to_tree_merge(store, &path).unwrap() {
                             // If all sides are trees or missing, descend into the merged tree
                             stack.push(ConflictsDirItem::from(MergedTree::Merge(trees)));
                         } else {
