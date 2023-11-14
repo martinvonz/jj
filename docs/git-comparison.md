@@ -338,7 +338,7 @@ parent.
       <td>Create a commit that cancels out a previous commit</td>
       <td><code>jj backout -r &lt;revision&gt;</code>
       </td>
-      <td>git revert &lt;revision&gt;</td>
+      <td><code>git revert &lt;revision&gt;</code></td>
     </tr>
   </tbody>
 </table>
