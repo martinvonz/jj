@@ -62,7 +62,7 @@ use clap::{Command, CommandFactory, FromArgMatches, Subcommand};
 use itertools::Itertools;
 use tracing::instrument;
 
-use crate::cli_util::{Args, CommandError, CommandHelper};
+use crate::cli_util::{user_error_with_hint, Args, CommandError, CommandHelper};
 use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
@@ -115,6 +115,11 @@ enum Commands {
     Rebase(rebase::RebaseArgs),
     Resolve(resolve::ResolveArgs),
     Restore(restore::RestoreArgs),
+    #[command(
+        hide = true,
+        help_template = "Not a real subcommand; consider `jj backout` or `jj restore`"
+    )]
+    Revert,
     #[command(hide = true)]
     // TODO: Flesh out.
     Run(run::RunArgs),
@@ -176,6 +181,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Squash(sub_args) => squash::cmd_squash(ui, command_helper, sub_args),
         Commands::Unsquash(sub_args) => unsquash::cmd_unsquash(ui, command_helper, sub_args),
         Commands::Restore(sub_args) => restore::cmd_restore(ui, command_helper, sub_args),
+        Commands::Revert => revert(),
         Commands::Run(sub_args) => run::cmd_run(ui, command_helper, sub_args),
         Commands::Diffedit(sub_args) => diffedit::cmd_diffedit(ui, command_helper, sub_args),
         Commands::Split(sub_args) => split::cmd_split(ui, command_helper, sub_args),
@@ -195,6 +201,13 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Bench(sub_args) => bench::cmd_bench(ui, command_helper, sub_args),
         Commands::Debug(sub_args) => debug::cmd_debug(ui, command_helper, sub_args),
     }
+}
+
+fn revert() -> Result<(), CommandError> {
+    Err(user_error_with_hint(
+        "No such subcommand",
+        "Consider `jj backout` or `jj restore`",
+    ))
 }
 
 #[cfg(test)]
