@@ -334,5 +334,11 @@ parent.
       </td>
       <td>Not supported</td>
     </tr>
+    <tr>
+      <td>Create a commit that cancels out a previous commit</td>
+      <td><code>jj backout -r &lt;revision&gt;</code>
+      </td>
+      <td>git revert &lt;revision&gt;</td>
+    </tr>
   </tbody>
 </table>
