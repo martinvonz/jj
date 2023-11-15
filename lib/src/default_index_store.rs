@@ -499,11 +499,7 @@ impl MutableIndexImpl {
         let other = CompositeIndex(other_segment);
         for pos in other_segment.segment_num_parent_commits()..other.num_commits() {
             let entry = other.entry_by_pos(IndexPosition(pos));
-            let parent_ids = entry
-                .parents()
-                .iter()
-                .map(|entry| entry.commit_id())
-                .collect_vec();
+            let parent_ids = entry.parents().map(|entry| entry.commit_id()).collect_vec();
             self.add_commit_data(entry.commit_id(), entry.change_id(), &parent_ids);
         }
     }
@@ -1816,12 +1812,11 @@ impl<'a> IndexEntry<'a> {
         self.source.segment_parent_positions(self.local_pos)
     }
 
-    pub fn parents(&self) -> Vec<IndexEntry<'a>> {
+    pub fn parents(&self) -> impl ExactSizeIterator<Item = IndexEntry<'a>> {
         let composite = CompositeIndex(self.source);
         self.parent_positions()
             .into_iter()
-            .map(|pos| composite.entry_by_pos(pos))
-            .collect()
+            .map(move |pos| composite.entry_by_pos(pos))
     }
 }
 
@@ -2068,7 +2063,7 @@ mod tests {
         assert_eq!(entry.generation_number(), 0);
         assert_eq!(entry.num_parents(), 0);
         assert_eq!(entry.parent_positions(), SmallIndexPositionsVec::new());
-        assert_eq!(entry.parents(), Vec::<IndexEntry>::new());
+        assert_eq!(entry.parents().len(), 0);
     }
 
     #[test]
@@ -2161,7 +2156,7 @@ mod tests {
             smallvec_inline![IndexPosition(0)]
         );
         assert_eq!(entry_1.parents().len(), 1);
-        assert_eq!(entry_1.parents()[0].pos, IndexPosition(0));
+        assert_eq!(entry_1.parents().next().unwrap().pos, IndexPosition(0));
         assert_eq!(entry_2.pos, IndexPosition(2));
         assert_eq!(entry_2.commit_id(), id_2);
         assert_eq!(entry_2.change_id(), change_id2);
@@ -2191,8 +2186,8 @@ mod tests {
             smallvec_inline![IndexPosition(4), IndexPosition(2)]
         );
         assert_eq!(entry_5.parents().len(), 2);
-        assert_eq!(entry_5.parents()[0].pos, IndexPosition(4));
-        assert_eq!(entry_5.parents()[1].pos, IndexPosition(2));
+        assert_eq!(entry_5.parents().next().unwrap().pos, IndexPosition(4));
+        assert_eq!(entry_5.parents().nth(1).unwrap().pos, IndexPosition(2));
     }
 
     #[test_case(false; "in memory")]
