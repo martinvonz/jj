@@ -967,7 +967,7 @@ impl<'a> CompositeIndex<'a> {
             let entry = self.entry_by_pos(*pos);
             min_generation = min(min_generation, entry.generation_number());
             for parent_entry in entry.parents() {
-                work.push(IndexEntryByGeneration(parent_entry));
+                work.push(IndexPositionByGeneration::from(&parent_entry));
             }
         }
 
@@ -975,16 +975,17 @@ impl<'a> CompositeIndex<'a> {
         // set of candidates. Stop walking when we have gone past the minimum
         // candidate generation.
         let mut visited = HashSet::new();
-        while let Some(IndexEntryByGeneration(item)) = work.pop() {
+        while let Some(item) = work.pop() {
             if !visited.insert(item.pos) {
                 continue;
             }
-            if item.generation_number() < min_generation {
+            if item.generation < min_generation {
                 break;
             }
             candidate_positions.remove(&item.pos);
-            for parent_entry in item.parents() {
-                work.push(IndexEntryByGeneration(parent_entry));
+            let entry = self.entry_by_pos(item.pos);
+            for parent_entry in entry.parents() {
+                work.push(IndexPositionByGeneration::from(&parent_entry));
             }
         }
         candidate_positions
@@ -1123,6 +1124,33 @@ impl Ord for IndexEntryByGeneration<'_> {
 impl PartialOrd for IndexEntryByGeneration<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+/// Wrapper to sort `IndexPosition` by its generation number.
+///
+/// This is similar to `IndexEntry` newtypes, but optimized for size and cache
+/// locality. The original `IndexEntry` will have to be looked up when needed.
+#[derive(Clone, Copy, Debug, Ord, PartialOrd)]
+struct IndexPositionByGeneration {
+    generation: u32,    // order by generation number
+    pos: IndexPosition, // tie breaker
+}
+
+impl Eq for IndexPositionByGeneration {}
+
+impl PartialEq for IndexPositionByGeneration {
+    fn eq(&self, other: &Self) -> bool {
+        self.pos == other.pos
+    }
+}
+
+impl From<&IndexEntry<'_>> for IndexPositionByGeneration {
+    fn from(entry: &IndexEntry<'_>) -> Self {
+        IndexPositionByGeneration {
+            generation: entry.generation_number(),
+            pos: entry.position(),
+        }
     }
 }
 
