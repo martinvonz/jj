@@ -912,20 +912,16 @@ impl<'a> CompositeIndex<'a> {
 
         let mut result = BTreeSet::new();
         while !(items1.is_empty() || items2.is_empty()) {
-            #[allow(unstable_name_collisions)]
             let entry1 = items1.last().unwrap();
-            #[allow(unstable_name_collisions)]
             let entry2 = items2.last().unwrap();
             match entry1.cmp(entry2) {
                 Ordering::Greater => {
-                    #[allow(unstable_name_collisions)]
                     let entry1 = items1.pop_last().unwrap();
                     for parent_entry in entry1.0.parents() {
                         items1.insert(IndexEntryByGeneration(parent_entry));
                     }
                 }
                 Ordering::Less => {
-                    #[allow(unstable_name_collisions)]
                     let entry2 = items2.pop_last().unwrap();
                     for parent_entry in entry2.0.parents() {
                         items2.insert(IndexEntryByGeneration(parent_entry));
@@ -933,9 +929,7 @@ impl<'a> CompositeIndex<'a> {
                 }
                 Ordering::Equal => {
                     result.insert(entry1.0.pos);
-                    #[allow(unstable_name_collisions)]
                     items1.pop_last();
-                    #[allow(unstable_name_collisions)]
                     items2.pop_last();
                 }
             }
