@@ -903,30 +903,32 @@ impl<'a> CompositeIndex<'a> {
     ) -> BTreeSet<IndexPosition> {
         let mut items1: BTreeSet<_> = set1
             .iter()
-            .map(|pos| IndexEntryByGeneration(self.entry_by_pos(*pos)))
+            .map(|pos| IndexPositionByGeneration::from(&self.entry_by_pos(*pos)))
             .collect();
         let mut items2: BTreeSet<_> = set2
             .iter()
-            .map(|pos| IndexEntryByGeneration(self.entry_by_pos(*pos)))
+            .map(|pos| IndexPositionByGeneration::from(&self.entry_by_pos(*pos)))
             .collect();
 
         let mut result = BTreeSet::new();
-        while let (Some(entry1), Some(entry2)) = (items1.last(), items2.last()) {
-            match entry1.cmp(entry2) {
+        while let (Some(item1), Some(item2)) = (items1.last(), items2.last()) {
+            match item1.cmp(item2) {
                 Ordering::Greater => {
-                    let entry1 = items1.pop_last().unwrap();
-                    for parent_entry in entry1.0.parents() {
-                        items1.insert(IndexEntryByGeneration(parent_entry));
+                    let item1 = items1.pop_last().unwrap();
+                    let entry1 = self.entry_by_pos(item1.pos);
+                    for parent_entry in entry1.parents() {
+                        items1.insert(IndexPositionByGeneration::from(&parent_entry));
                     }
                 }
                 Ordering::Less => {
-                    let entry2 = items2.pop_last().unwrap();
-                    for parent_entry in entry2.0.parents() {
-                        items2.insert(IndexEntryByGeneration(parent_entry));
+                    let item2 = items2.pop_last().unwrap();
+                    let entry2 = self.entry_by_pos(item2.pos);
+                    for parent_entry in entry2.parents() {
+                        items2.insert(IndexPositionByGeneration::from(&parent_entry));
                     }
                 }
                 Ordering::Equal => {
-                    result.insert(entry1.0.pos);
+                    result.insert(item1.pos);
                     items1.pop_last();
                     items2.pop_last();
                 }
@@ -1093,24 +1095,6 @@ impl Ord for IndexEntryByPosition<'_> {
 }
 
 impl PartialOrd for IndexEntryByPosition<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-#[derive(Clone, Eq, PartialEq)]
-struct IndexEntryByGeneration<'a>(IndexEntry<'a>);
-
-impl Ord for IndexEntryByGeneration<'_> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.0
-            .generation_number()
-            .cmp(&other.0.generation_number())
-            .then(self.0.pos.cmp(&other.0.pos))
-    }
-}
-
-impl PartialOrd for IndexEntryByGeneration<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
