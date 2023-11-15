@@ -974,17 +974,14 @@ impl<'a> CompositeIndex<'a> {
         // Walk ancestors of the parents of the candidates. Remove visited commits from
         // set of candidates. Stop walking when we have gone past the minimum
         // candidate generation.
-        let mut visited = HashSet::new();
-        while let Some(item) = work.pop() {
-            if !visited.insert(item.pos) {
-                continue;
-            }
+        while let Some(item) = dedup_pop(&mut work) {
             if item.generation < min_generation {
                 break;
             }
             candidate_positions.remove(&item.pos);
             let entry = self.entry_by_pos(item.pos);
             for parent_entry in entry.parents() {
+                assert!(parent_entry.pos < entry.pos);
                 work.push(IndexPositionByGeneration::from(&parent_entry));
             }
         }
@@ -1594,6 +1591,16 @@ impl RevWalkItemGenerationRange {
     fn contains_end(self, end: u32) -> bool {
         self.start < end && end <= self.end
     }
+}
+
+/// Removes the greatest items (including duplicates) from the heap, returns
+/// one.
+fn dedup_pop<T: Ord>(heap: &mut BinaryHeap<T>) -> Option<T> {
+    let item = heap.pop()?;
+    while heap.peek() == Some(&item) {
+        heap.pop().unwrap();
+    }
+    Some(item)
 }
 
 impl IndexSegment for ReadonlyIndexImpl {
