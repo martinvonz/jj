@@ -911,9 +911,7 @@ impl<'a> CompositeIndex<'a> {
             .collect();
 
         let mut result = BTreeSet::new();
-        while !(items1.is_empty() || items2.is_empty()) {
-            let entry1 = items1.last().unwrap();
-            let entry2 = items2.last().unwrap();
+        while let (Some(entry1), Some(entry2)) = (items1.last(), items2.last()) {
             match entry1.cmp(entry2) {
                 Ordering::Greater => {
                     let entry1 = items1.pop_last().unwrap();
