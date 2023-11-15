@@ -901,36 +901,38 @@ impl<'a> CompositeIndex<'a> {
         set1: &[IndexPosition],
         set2: &[IndexPosition],
     ) -> BTreeSet<IndexPosition> {
-        let mut items1: BTreeSet<_> = set1
+        let mut items1: BinaryHeap<_> = set1
             .iter()
             .map(|pos| IndexPositionByGeneration::from(&self.entry_by_pos(*pos)))
             .collect();
-        let mut items2: BTreeSet<_> = set2
+        let mut items2: BinaryHeap<_> = set2
             .iter()
             .map(|pos| IndexPositionByGeneration::from(&self.entry_by_pos(*pos)))
             .collect();
 
         let mut result = BTreeSet::new();
-        while let (Some(item1), Some(item2)) = (items1.last(), items2.last()) {
+        while let (Some(item1), Some(item2)) = (items1.peek(), items2.peek()) {
             match item1.cmp(item2) {
                 Ordering::Greater => {
-                    let item1 = items1.pop_last().unwrap();
+                    let item1 = dedup_pop(&mut items1).unwrap();
                     let entry1 = self.entry_by_pos(item1.pos);
                     for parent_entry in entry1.parents() {
-                        items1.insert(IndexPositionByGeneration::from(&parent_entry));
+                        assert!(parent_entry.pos < entry1.pos);
+                        items1.push(IndexPositionByGeneration::from(&parent_entry));
                     }
                 }
                 Ordering::Less => {
-                    let item2 = items2.pop_last().unwrap();
+                    let item2 = dedup_pop(&mut items2).unwrap();
                     let entry2 = self.entry_by_pos(item2.pos);
                     for parent_entry in entry2.parents() {
-                        items2.insert(IndexPositionByGeneration::from(&parent_entry));
+                        assert!(parent_entry.pos < entry2.pos);
+                        items2.push(IndexPositionByGeneration::from(&parent_entry));
                     }
                 }
                 Ordering::Equal => {
                     result.insert(item1.pos);
-                    items1.pop_last();
-                    items2.pop_last();
+                    dedup_pop(&mut items1).unwrap();
+                    dedup_pop(&mut items2).unwrap();
                 }
             }
         }
