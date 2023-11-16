@@ -15,7 +15,7 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::error::Error;
 use std::fs;
 use std::fs::{File, Metadata, OpenOptions};
@@ -153,7 +153,7 @@ pub struct TreeState {
     watchman_clock: Option<crate::protos::working_copy::WatchmanClock>,
 }
 
-fn file_state_from_proto(proto: crate::protos::working_copy::FileState) -> FileState {
+fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> FileState {
     let file_type = match proto.file_type() {
         crate::protos::working_copy::FileType::Normal => FileType::Normal {
             executable: FileExecutableFlag::default(),
@@ -195,21 +195,23 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
 }
 
 fn file_states_from_proto(
-    proto: &crate::protos::working_copy::TreeState,
+    proto: &HashMap<String, crate::protos::working_copy::FileState>,
 ) -> BTreeMap<RepoPath, FileState> {
     let mut file_states = BTreeMap::new();
-    for (path_str, proto_file_state) in &proto.file_states {
-        let path = RepoPath::from_internal_string(path_str.as_str());
-        file_states.insert(path, file_state_from_proto(proto_file_state.clone()));
+    for (path_str, proto_file_state) in proto {
+        let path = RepoPath::from_internal_string(path_str);
+        file_states.insert(path, file_state_from_proto(proto_file_state));
     }
     file_states
 }
 
-fn sparse_patterns_from_proto(proto: &crate::protos::working_copy::TreeState) -> Vec<RepoPath> {
+fn sparse_patterns_from_proto(
+    proto: Option<&crate::protos::working_copy::SparsePatterns>,
+) -> Vec<RepoPath> {
     let mut sparse_patterns = vec![];
-    if let Some(proto_sparse_patterns) = proto.sparse_patterns.as_ref() {
+    if let Some(proto_sparse_patterns) = proto {
         for prefix in &proto_sparse_patterns.prefixes {
-            sparse_patterns.push(RepoPath::from_internal_string(prefix.as_str()));
+            sparse_patterns.push(RepoPath::from_internal_string(prefix));
         }
     } else {
         // For compatibility with old working copies.
@@ -446,8 +448,8 @@ impl TreeState {
                 .collect();
             self.tree_id = MergedTreeId::Merge(tree_ids_builder.build());
         }
-        self.file_states = file_states_from_proto(&proto);
-        self.sparse_patterns = sparse_patterns_from_proto(&proto);
+        self.file_states = file_states_from_proto(&proto.file_states);
+        self.sparse_patterns = sparse_patterns_from_proto(proto.sparse_patterns.as_ref());
         self.watchman_clock = proto.watchman_clock;
         Ok(())
     }
