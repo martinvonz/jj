@@ -1130,44 +1130,34 @@ impl From<&IndexEntry<'_>> for IndexPositionByGeneration {
 }
 
 trait RevWalkIndex<'a> {
-    type Entry: Clone + Ord + RevWalkIndexEntry<'a>;
+    type Position: Copy + Ord;
+    type AdjacentPositions: IntoIterator<Item = Self::Position>;
 
-    fn entry_by_pos(&self, pos: IndexPosition) -> Self::Entry;
-    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> SmallIndexPositionsVec;
-}
-
-trait RevWalkIndexEntry<'a> {
-    fn as_index_entry(&self) -> &IndexEntry<'a>;
-    fn into_index_entry(self) -> IndexEntry<'a>;
+    fn entry_by_pos(&self, pos: Self::Position) -> IndexEntry<'a>;
+    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Self::AdjacentPositions;
 }
 
 impl<'a> RevWalkIndex<'a> for CompositeIndex<'a> {
-    type Entry = IndexEntryByPosition<'a>;
+    type Position = IndexPosition;
+    type AdjacentPositions = SmallIndexPositionsVec;
 
-    fn entry_by_pos(&self, pos: IndexPosition) -> Self::Entry {
-        IndexEntryByPosition(CompositeIndex::entry_by_pos(self, pos))
+    fn entry_by_pos(&self, pos: Self::Position) -> IndexEntry<'a> {
+        CompositeIndex::entry_by_pos(self, pos)
     }
 
-    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> SmallIndexPositionsVec {
+    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Self::AdjacentPositions {
         entry.parent_positions()
-    }
-}
-
-impl<'a> RevWalkIndexEntry<'a> for IndexEntryByPosition<'a> {
-    fn as_index_entry(&self) -> &IndexEntry<'a> {
-        &self.0
-    }
-
-    fn into_index_entry(self) -> IndexEntry<'a> {
-        self.0
     }
 }
 
 #[derive(Clone)]
 struct RevWalkDescendantsIndex<'a> {
     index: CompositeIndex<'a>,
-    children_map: HashMap<IndexPosition, SmallIndexPositionsVec>,
+    children_map: HashMap<IndexPosition, DescendantIndexPositionsVec>,
 }
+
+// See SmallIndexPositionsVec for the array size.
+type DescendantIndexPositionsVec = SmallVec<[Reverse<IndexPosition>; 4]>;
 
 impl<'a> RevWalkDescendantsIndex<'a> {
     fn build<'b>(
@@ -1175,12 +1165,12 @@ impl<'a> RevWalkDescendantsIndex<'a> {
         entries: impl IntoIterator<Item = IndexEntry<'b>>,
     ) -> Self {
         // For dense set, it's probably cheaper to use `Vec` instead of `HashMap`.
-        let mut children_map: HashMap<IndexPosition, SmallIndexPositionsVec> = HashMap::new();
+        let mut children_map: HashMap<IndexPosition, DescendantIndexPositionsVec> = HashMap::new();
         for entry in entries {
             children_map.entry(entry.position()).or_default(); // mark head node
             for parent_pos in entry.parent_positions() {
                 let parent = children_map.entry(parent_pos).or_default();
-                parent.push(entry.position());
+                parent.push(Reverse(entry.position()));
             }
         }
 
@@ -1196,30 +1186,21 @@ impl<'a> RevWalkDescendantsIndex<'a> {
 }
 
 impl<'a> RevWalkIndex<'a> for RevWalkDescendantsIndex<'a> {
-    type Entry = Reverse<IndexEntryByPosition<'a>>;
+    type Position = Reverse<IndexPosition>;
+    type AdjacentPositions = DescendantIndexPositionsVec;
 
-    fn entry_by_pos(&self, pos: IndexPosition) -> Self::Entry {
-        Reverse(IndexEntryByPosition(self.index.entry_by_pos(pos)))
+    fn entry_by_pos(&self, pos: Self::Position) -> IndexEntry<'a> {
+        self.index.entry_by_pos(pos.0)
     }
 
-    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> SmallIndexPositionsVec {
+    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Self::AdjacentPositions {
         self.children_map[&entry.position()].clone()
     }
 }
 
-impl<'a> RevWalkIndexEntry<'a> for Reverse<IndexEntryByPosition<'a>> {
-    fn as_index_entry(&self) -> &IndexEntry<'a> {
-        self.0.as_index_entry()
-    }
-
-    fn into_index_entry(self) -> IndexEntry<'a> {
-        self.0.into_index_entry()
-    }
-}
-
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
-struct RevWalkWorkItem<E, T> {
-    entry: E,
+struct RevWalkWorkItem<P, T> {
+    pos: P,
     state: RevWalkWorkItemState<T>,
 }
 
@@ -1230,21 +1211,14 @@ enum RevWalkWorkItemState<T> {
     Unwanted,
 }
 
-impl<E, T> RevWalkWorkItem<E, T> {
+impl<P, T> RevWalkWorkItem<P, T> {
     fn is_wanted(&self) -> bool {
         matches!(self.state, RevWalkWorkItemState::Wanted(_))
     }
 
-    fn map_entry<U>(self, f: impl FnOnce(E) -> U) -> RevWalkWorkItem<U, T> {
+    fn map_wanted<U>(self, f: impl FnOnce(T) -> U) -> RevWalkWorkItem<P, U> {
         RevWalkWorkItem {
-            entry: f(self.entry),
-            state: self.state,
-        }
-    }
-
-    fn map_wanted<U>(self, f: impl FnOnce(T) -> U) -> RevWalkWorkItem<E, U> {
-        RevWalkWorkItem {
-            entry: self.entry,
+            pos: self.pos,
             state: match self.state {
                 RevWalkWorkItemState::Wanted(t) => RevWalkWorkItemState::Wanted(f(t)),
                 RevWalkWorkItemState::Unwanted => RevWalkWorkItemState::Unwanted,
@@ -1256,7 +1230,7 @@ impl<E, T> RevWalkWorkItem<E, T> {
 #[derive(Clone)]
 struct RevWalkQueue<'a, I: RevWalkIndex<'a>, T> {
     index: I,
-    items: BinaryHeap<RevWalkWorkItem<I::Entry, T>>,
+    items: BinaryHeap<RevWalkWorkItem<I::Position, T>>,
     unwanted_count: usize,
 }
 
@@ -1281,18 +1255,14 @@ impl<'a, I: RevWalkIndex<'a>, T: Ord> RevWalkQueue<'a, I, T> {
         }
     }
 
-    fn push_wanted(&mut self, pos: IndexPosition, t: T) {
-        self.items.push(RevWalkWorkItem {
-            entry: self.index.entry_by_pos(pos),
-            state: RevWalkWorkItemState::Wanted(t),
-        });
+    fn push_wanted(&mut self, pos: I::Position, t: T) {
+        let state = RevWalkWorkItemState::Wanted(t);
+        self.items.push(RevWalkWorkItem { pos, state });
     }
 
-    fn push_unwanted(&mut self, pos: IndexPosition) {
-        self.items.push(RevWalkWorkItem {
-            entry: self.index.entry_by_pos(pos),
-            state: RevWalkWorkItemState::Unwanted,
-        });
+    fn push_unwanted(&mut self, pos: I::Position) {
+        let state = RevWalkWorkItemState::Unwanted;
+        self.items.push(RevWalkWorkItem { pos, state });
         self.unwanted_count += 1;
     }
 
@@ -1311,25 +1281,25 @@ impl<'a, I: RevWalkIndex<'a>, T: Ord> RevWalkQueue<'a, I, T> {
         }
     }
 
-    fn pop(&mut self) -> Option<RevWalkWorkItem<IndexEntry<'a>, T>> {
+    fn pop(&mut self) -> Option<RevWalkWorkItem<I::Position, T>> {
         if let Some(x) = self.items.pop() {
             self.unwanted_count -= !x.is_wanted() as usize;
-            Some(x.map_entry(RevWalkIndexEntry::into_index_entry))
+            Some(x)
         } else {
             None
         }
     }
 
-    fn pop_eq(&mut self, entry: &IndexEntry<'_>) -> Option<RevWalkWorkItem<IndexEntry<'a>, T>> {
+    fn pop_eq(&mut self, pos: &I::Position) -> Option<RevWalkWorkItem<I::Position, T>> {
         if let Some(x) = self.items.peek() {
-            (x.entry.as_index_entry() == entry).then(|| self.pop().unwrap())
+            (x.pos == *pos).then(|| self.pop().unwrap())
         } else {
             None
         }
     }
 
-    fn skip_while_eq(&mut self, entry: &IndexEntry<'_>) {
-        while self.pop_eq(entry).is_some() {
+    fn skip_while_eq(&mut self, pos: &I::Position) {
+        while self.pop_eq(pos).is_some() {
             continue;
         }
     }
@@ -1395,7 +1365,7 @@ impl<'a> RevWalk<'a> {
         for &pos in root_positions {
             // Do not add unreachable roots which shouldn't be visited
             if queue.index.contains_pos(pos) {
-                queue.push_wanted(pos, ());
+                queue.push_wanted(Reverse(pos), ());
             }
         }
         RevWalkDescendantsGenerationRange(RevWalkGenerationRangeImpl::new(queue, generation_range))
@@ -1418,16 +1388,18 @@ struct RevWalkImpl<'a, I: RevWalkIndex<'a>> {
 impl<'a, I: RevWalkIndex<'a>> RevWalkImpl<'a, I> {
     fn next(&mut self) -> Option<IndexEntry<'a>> {
         while let Some(item) = self.queue.pop() {
-            self.queue.skip_while_eq(&item.entry);
+            self.queue.skip_while_eq(&item.pos);
             if item.is_wanted() {
-                self.queue.push_wanted_adjacents(&item.entry, ());
-                return Some(item.entry);
+                let entry = self.queue.index.entry_by_pos(item.pos);
+                self.queue.push_wanted_adjacents(&entry, ());
+                return Some(entry);
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
                 debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
                 return None;
             } else {
-                self.queue.push_unwanted_adjacents(&item.entry);
+                let entry = self.queue.index.entry_by_pos(item.pos);
+                self.queue.push_unwanted_adjacents(&entry);
             }
         }
 
@@ -1509,8 +1481,9 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
     fn next(&mut self) -> Option<IndexEntry<'a>> {
         while let Some(item) = self.queue.pop() {
             if let RevWalkWorkItemState::Wanted(Reverse(mut pending_gen)) = item.state {
+                let entry = self.queue.index.entry_by_pos(item.pos);
                 let mut some_in_range = pending_gen.contains_end(self.generation_end);
-                while let Some(x) = self.queue.pop_eq(&item.entry) {
+                while let Some(x) = self.queue.pop_eq(&item.pos) {
                     // Merge overlapped ranges to reduce number of the queued items.
                     // For queries like `:(heads-)`, `gen.end` is close to `u32::MAX`, so
                     // ranges can be merged into one. If this is still slow, maybe we can add
@@ -1520,24 +1493,25 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
                         pending_gen = if let Some(merged) = pending_gen.try_merge_end(gen) {
                             merged
                         } else {
-                            self.enqueue_wanted_adjacents(&item.entry, pending_gen);
+                            self.enqueue_wanted_adjacents(&entry, pending_gen);
                             gen
                         };
                     } else {
                         unreachable!("no more unwanted items of the same entry");
                     }
                 }
-                self.enqueue_wanted_adjacents(&item.entry, pending_gen);
+                self.enqueue_wanted_adjacents(&entry, pending_gen);
                 if some_in_range {
-                    return Some(item.entry);
+                    return Some(entry);
                 }
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
                 debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
                 return None;
             } else {
-                self.queue.skip_while_eq(&item.entry);
-                self.queue.push_unwanted_adjacents(&item.entry);
+                let entry = self.queue.index.entry_by_pos(item.pos);
+                self.queue.skip_while_eq(&item.pos);
+                self.queue.push_unwanted_adjacents(&entry);
             }
         }
 
