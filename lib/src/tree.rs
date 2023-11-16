@@ -196,17 +196,19 @@ pub struct TreeEntriesIterator<'matcher> {
     matcher: &'matcher dyn Matcher,
 }
 
-#[ouroboros::self_referencing]
 struct TreeEntriesDirItem {
     tree: Tree,
-    #[borrows(tree)]
-    #[not_covariant]
-    entry_iterator: TreeEntriesNonRecursiveIterator<'this>,
+    entries: Vec<(RepoPath, TreeValue)>,
 }
 
 impl From<Tree> for TreeEntriesDirItem {
     fn from(tree: Tree) -> Self {
-        Self::new(tree, |tree| tree.entries_non_recursive())
+        let mut entries = tree
+            .entries_non_recursive()
+            .map(|entry| (tree.dir().join(entry.name()), entry.value().clone()))
+            .collect_vec();
+        entries.reverse();
+        Self { tree, entries }
     }
 }
 
@@ -225,20 +227,19 @@ impl Iterator for TreeEntriesIterator<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
-            if let (tree, Some(entry)) = top.with_mut(|x| (x.tree, x.entry_iterator.next())) {
-                let path = tree.dir().join(entry.name());
-                match entry.value() {
+            if let Some((path, value)) = top.entries.pop() {
+                match value {
                     TreeValue::Tree(id) => {
                         // TODO: Handle the other cases (specific files and trees)
                         if self.matcher.visit(&path).is_nothing() {
                             continue;
                         }
-                        let subtree = tree.known_sub_tree(&path, id);
+                        let subtree = top.tree.known_sub_tree(&path, &id);
                         self.stack.push(TreeEntriesDirItem::from(subtree));
                     }
                     value => {
                         if self.matcher.matches(&path) {
-                            return Some((path, value.clone()));
+                            return Some((path, value));
                         }
                     }
                 };
