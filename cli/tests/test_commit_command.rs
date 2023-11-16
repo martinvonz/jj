@@ -88,7 +88,7 @@ fn test_commit_interactive() {
     std::fs::write(edit_script, ["dump editor"].join("\0")).unwrap();
 
     let diff_editor = test_env.set_up_fake_diff_editor();
-    std::fs::write(&diff_editor, "rm file2").unwrap();
+    std::fs::write(diff_editor, "rm file2").unwrap();
 
     // Create a commit interactively and select only file1
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-i"]);
