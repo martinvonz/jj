@@ -1266,17 +1266,19 @@ impl<'a, I: RevWalkIndex<'a>, T: Ord> RevWalkQueue<'a, I, T> {
         self.unwanted_count += 1;
     }
 
-    fn push_wanted_adjacents(&mut self, entry: &IndexEntry<'_>, t: T)
+    fn extend_wanted(&mut self, positions: impl IntoIterator<Item = I::Position>, t: T)
     where
         T: Clone,
     {
-        for pos in self.index.adjacent_positions(entry) {
+        // positions typically contains one item, and single BinaryHeap::push()
+        // appears to be slightly faster than .extend() as of rustc 1.73.0.
+        for pos in positions {
             self.push_wanted(pos, t.clone());
         }
     }
 
-    fn push_unwanted_adjacents(&mut self, entry: &IndexEntry<'_>) {
-        for pos in self.index.adjacent_positions(entry) {
+    fn extend_unwanted(&mut self, positions: impl IntoIterator<Item = I::Position>) {
+        for pos in positions {
             self.push_unwanted(pos);
         }
     }
@@ -1391,7 +1393,8 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkImpl<'a, I> {
             self.queue.skip_while_eq(&item.pos);
             if item.is_wanted() {
                 let entry = self.queue.index.entry_by_pos(item.pos);
-                self.queue.push_wanted_adjacents(&entry, ());
+                self.queue
+                    .extend_wanted(self.queue.index.adjacent_positions(&entry), ());
                 return Some(entry);
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
@@ -1399,7 +1402,8 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkImpl<'a, I> {
                 return None;
             } else {
                 let entry = self.queue.index.entry_by_pos(item.pos);
-                self.queue.push_unwanted_adjacents(&entry);
+                self.queue
+                    .extend_unwanted(self.queue.index.adjacent_positions(&entry));
             }
         }
 
@@ -1475,7 +1479,10 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
             start: gen.start + 1,
             end: gen.end.saturating_add(1),
         };
-        self.queue.push_wanted_adjacents(entry, Reverse(succ_gen));
+        self.queue.extend_wanted(
+            self.queue.index.adjacent_positions(entry),
+            Reverse(succ_gen),
+        );
     }
 
     fn next(&mut self) -> Option<IndexEntry<'a>> {
@@ -1511,7 +1518,8 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
             } else {
                 let entry = self.queue.index.entry_by_pos(item.pos);
                 self.queue.skip_while_eq(&item.pos);
-                self.queue.push_unwanted_adjacents(&entry);
+                self.queue
+                    .extend_unwanted(self.queue.index.adjacent_positions(&entry));
             }
         }
 
