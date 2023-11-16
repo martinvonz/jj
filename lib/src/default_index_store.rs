@@ -1228,24 +1228,21 @@ impl<P, T> RevWalkWorkItem<P, T> {
 }
 
 #[derive(Clone)]
-struct RevWalkQueue<'a, I: RevWalkIndex<'a>, T> {
-    index: I,
-    items: BinaryHeap<RevWalkWorkItem<I::Position, T>>,
+struct RevWalkQueue<P, T> {
+    items: BinaryHeap<RevWalkWorkItem<P, T>>,
     unwanted_count: usize,
 }
 
-impl<'a, I: RevWalkIndex<'a>, T: Ord> RevWalkQueue<'a, I, T> {
-    fn new(index: I) -> Self {
+impl<P: Ord, T: Ord> RevWalkQueue<P, T> {
+    fn new() -> Self {
         Self {
-            index,
             items: BinaryHeap::new(),
             unwanted_count: 0,
         }
     }
 
-    fn map_wanted<U: Ord>(self, mut f: impl FnMut(T) -> U) -> RevWalkQueue<'a, I, U> {
+    fn map_wanted<U: Ord>(self, mut f: impl FnMut(T) -> U) -> RevWalkQueue<P, U> {
         RevWalkQueue {
-            index: self.index,
             items: self
                 .items
                 .into_iter()
@@ -1255,18 +1252,18 @@ impl<'a, I: RevWalkIndex<'a>, T: Ord> RevWalkQueue<'a, I, T> {
         }
     }
 
-    fn push_wanted(&mut self, pos: I::Position, t: T) {
+    fn push_wanted(&mut self, pos: P, t: T) {
         let state = RevWalkWorkItemState::Wanted(t);
         self.items.push(RevWalkWorkItem { pos, state });
     }
 
-    fn push_unwanted(&mut self, pos: I::Position) {
+    fn push_unwanted(&mut self, pos: P) {
         let state = RevWalkWorkItemState::Unwanted;
         self.items.push(RevWalkWorkItem { pos, state });
         self.unwanted_count += 1;
     }
 
-    fn extend_wanted(&mut self, positions: impl IntoIterator<Item = I::Position>, t: T)
+    fn extend_wanted(&mut self, positions: impl IntoIterator<Item = P>, t: T)
     where
         T: Clone,
     {
@@ -1277,13 +1274,13 @@ impl<'a, I: RevWalkIndex<'a>, T: Ord> RevWalkQueue<'a, I, T> {
         }
     }
 
-    fn extend_unwanted(&mut self, positions: impl IntoIterator<Item = I::Position>) {
+    fn extend_unwanted(&mut self, positions: impl IntoIterator<Item = P>) {
         for pos in positions {
             self.push_unwanted(pos);
         }
     }
 
-    fn pop(&mut self) -> Option<RevWalkWorkItem<I::Position, T>> {
+    fn pop(&mut self) -> Option<RevWalkWorkItem<P, T>> {
         if let Some(x) = self.items.pop() {
             self.unwanted_count -= !x.is_wanted() as usize;
             Some(x)
@@ -1292,7 +1289,7 @@ impl<'a, I: RevWalkIndex<'a>, T: Ord> RevWalkQueue<'a, I, T> {
         }
     }
 
-    fn pop_eq(&mut self, pos: &I::Position) -> Option<RevWalkWorkItem<I::Position, T>> {
+    fn pop_eq(&mut self, pos: &P) -> Option<RevWalkWorkItem<P, T>> {
         if let Some(x) = self.items.peek() {
             (x.pos == *pos).then(|| self.pop().unwrap())
         } else {
@@ -1300,7 +1297,7 @@ impl<'a, I: RevWalkIndex<'a>, T: Ord> RevWalkQueue<'a, I, T> {
         }
     }
 
-    fn skip_while_eq(&mut self, pos: &I::Position) {
+    fn skip_while_eq(&mut self, pos: &P) {
         while self.pop_eq(pos).is_some() {
             continue;
         }
@@ -1312,8 +1309,8 @@ pub struct RevWalk<'a>(RevWalkImpl<'a, CompositeIndex<'a>>);
 
 impl<'a> RevWalk<'a> {
     fn new(index: CompositeIndex<'a>) -> Self {
-        let queue = RevWalkQueue::new(index);
-        RevWalk(RevWalkImpl { queue })
+        let queue = RevWalkQueue::new();
+        RevWalk(RevWalkImpl { index, queue })
     }
 
     fn add_wanted(&mut self, pos: IndexPosition) {
@@ -1329,6 +1326,7 @@ impl<'a> RevWalk<'a> {
     /// The generation of the current wanted entries starts from 0.
     pub fn filter_by_generation(self, generation_range: Range<u32>) -> RevWalkGenerationRange<'a> {
         RevWalkGenerationRange(RevWalkGenerationRangeImpl::new(
+            self.0.index,
             self.0.queue,
             generation_range,
         ))
@@ -1360,17 +1358,21 @@ impl<'a> RevWalk<'a> {
         root_positions: &[IndexPosition],
         generation_range: Range<u32>,
     ) -> RevWalkDescendantsGenerationRange<'a> {
-        let index = self.0.queue.index;
+        let index = self.0.index;
         let entries = self.take_until_roots(root_positions);
         let descendants_index = RevWalkDescendantsIndex::build(index, entries);
-        let mut queue = RevWalkQueue::new(descendants_index);
+        let mut queue = RevWalkQueue::new();
         for &pos in root_positions {
             // Do not add unreachable roots which shouldn't be visited
-            if queue.index.contains_pos(pos) {
+            if descendants_index.contains_pos(pos) {
                 queue.push_wanted(Reverse(pos), ());
             }
         }
-        RevWalkDescendantsGenerationRange(RevWalkGenerationRangeImpl::new(queue, generation_range))
+        RevWalkDescendantsGenerationRange(RevWalkGenerationRangeImpl::new(
+            descendants_index,
+            queue,
+            generation_range,
+        ))
     }
 }
 
@@ -1384,7 +1386,8 @@ impl<'a> Iterator for RevWalk<'a> {
 
 #[derive(Clone)]
 struct RevWalkImpl<'a, I: RevWalkIndex<'a>> {
-    queue: RevWalkQueue<'a, I, ()>,
+    index: I,
+    queue: RevWalkQueue<I::Position, ()>,
 }
 
 impl<'a, I: RevWalkIndex<'a>> RevWalkImpl<'a, I> {
@@ -1392,18 +1395,18 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkImpl<'a, I> {
         while let Some(item) = self.queue.pop() {
             self.queue.skip_while_eq(&item.pos);
             if item.is_wanted() {
-                let entry = self.queue.index.entry_by_pos(item.pos);
+                let entry = self.index.entry_by_pos(item.pos);
                 self.queue
-                    .extend_wanted(self.queue.index.adjacent_positions(&entry), ());
+                    .extend_wanted(self.index.adjacent_positions(&entry), ());
                 return Some(entry);
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
                 debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
                 return None;
             } else {
-                let entry = self.queue.index.entry_by_pos(item.pos);
+                let entry = self.index.entry_by_pos(item.pos);
                 self.queue
-                    .extend_unwanted(self.queue.index.adjacent_positions(&entry));
+                    .extend_unwanted(self.index.adjacent_positions(&entry));
             }
         }
 
@@ -1441,13 +1444,14 @@ impl<'a> Iterator for RevWalkDescendantsGenerationRange<'a> {
 
 #[derive(Clone)]
 struct RevWalkGenerationRangeImpl<'a, I: RevWalkIndex<'a>> {
+    index: I,
     // Sort item generations in ascending order
-    queue: RevWalkQueue<'a, I, Reverse<RevWalkItemGenerationRange>>,
+    queue: RevWalkQueue<I::Position, Reverse<RevWalkItemGenerationRange>>,
     generation_end: u32,
 }
 
 impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
-    fn new(queue: RevWalkQueue<'a, I, ()>, generation_range: Range<u32>) -> Self {
+    fn new(index: I, queue: RevWalkQueue<I::Position, ()>, generation_range: Range<u32>) -> Self {
         // Translate filter range to item ranges so that overlapped ranges can be
         // merged later.
         //
@@ -1461,6 +1465,7 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
             end: u32::saturating_sub(generation_range.end, generation_range.start),
         };
         RevWalkGenerationRangeImpl {
+            index,
             queue: queue.map_wanted(|()| Reverse(item_range)),
             generation_end: generation_range.end,
         }
@@ -1479,16 +1484,14 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
             start: gen.start + 1,
             end: gen.end.saturating_add(1),
         };
-        self.queue.extend_wanted(
-            self.queue.index.adjacent_positions(entry),
-            Reverse(succ_gen),
-        );
+        self.queue
+            .extend_wanted(self.index.adjacent_positions(entry), Reverse(succ_gen));
     }
 
     fn next(&mut self) -> Option<IndexEntry<'a>> {
         while let Some(item) = self.queue.pop() {
             if let RevWalkWorkItemState::Wanted(Reverse(mut pending_gen)) = item.state {
-                let entry = self.queue.index.entry_by_pos(item.pos);
+                let entry = self.index.entry_by_pos(item.pos);
                 let mut some_in_range = pending_gen.contains_end(self.generation_end);
                 while let Some(x) = self.queue.pop_eq(&item.pos) {
                     // Merge overlapped ranges to reduce number of the queued items.
@@ -1516,10 +1519,10 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
                 debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
                 return None;
             } else {
-                let entry = self.queue.index.entry_by_pos(item.pos);
+                let entry = self.index.entry_by_pos(item.pos);
                 self.queue.skip_while_eq(&item.pos);
                 self.queue
-                    .extend_unwanted(self.queue.index.adjacent_positions(&entry));
+                    .extend_unwanted(self.index.adjacent_positions(&entry));
             }
         }
 
