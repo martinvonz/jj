@@ -63,6 +63,7 @@ pub mod watchman {
     use itertools::Itertools;
     use thiserror::Error;
     use tracing::{info, instrument};
+    use watchman_client::expr;
     use watchman_client::prelude::{
         Clock as InnerClock, ClockSpec, NameOnly, QueryRequestCommon, QueryResult,
     };
@@ -172,6 +173,26 @@ pub mod watchman {
             &self,
             previous_clock: Option<Clock>,
         ) -> Result<(Clock, Option<Vec<PathBuf>>), Error> {
+            // TODO: might be better to specify query options by caller, but we
+            // shouldn't expose the underlying watchman API too much.
+            let exclude_dirs = [Path::new(".git"), Path::new(".jj")];
+            let excludes = itertools::chain(
+                // the directories themselves
+                [expr::Expr::Name(expr::NameTerm {
+                    paths: exclude_dirs.iter().map(|&name| name.to_owned()).collect(),
+                    wholename: true,
+                })],
+                // and all files under the directories
+                exclude_dirs.iter().map(|&name| {
+                    expr::Expr::DirName(expr::DirNameTerm {
+                        path: name.to_owned(),
+                        depth: None,
+                    })
+                }),
+            )
+            .collect();
+            let expression = expr::Expr::Not(Box::new(expr::Expr::Any(excludes)));
+
             info!("Querying Watchman for changed files...");
             let QueryResult {
                 version: _,
@@ -189,6 +210,7 @@ pub mod watchman {
                     &self.resolved_root,
                     QueryRequestCommon {
                         since: previous_clock.map(|Clock(clock)| clock),
+                        expression: Some(expression),
                         ..Default::default()
                     },
                 )
