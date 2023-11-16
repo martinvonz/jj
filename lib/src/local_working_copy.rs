@@ -27,7 +27,7 @@ use std::os::unix::fs::symlink;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Sender};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::UNIX_EPOCH;
 
 use futures::StreamExt;
@@ -137,12 +137,62 @@ impl FileState {
     }
 }
 
+/// Lazily constructs file states map from proto data.
+///
+/// If fsmonitor is enabled and the working-copy is clean, we don't need to
+/// build a loaded `BTreeMap<RepoPath, _>` at all.
+#[derive(Clone, Debug)]
+struct LazyFileStatesMap {
+    loaded: OnceLock<BTreeMap<RepoPath, FileState>>,
+    proto: Option<Vec<crate::protos::working_copy::FileStateEntry>>,
+}
+
+impl LazyFileStatesMap {
+    fn new() -> Self {
+        LazyFileStatesMap {
+            loaded: OnceLock::from(BTreeMap::new()),
+            proto: None,
+        }
+    }
+
+    fn from_proto(proto: Vec<crate::protos::working_copy::FileStateEntry>) -> Self {
+        LazyFileStatesMap {
+            loaded: OnceLock::new(),
+            proto: Some(proto),
+        }
+    }
+
+    fn to_proto(&self) -> Vec<crate::protos::working_copy::FileStateEntry> {
+        if let Some(proto) = self.proto.as_ref() {
+            proto.clone()
+        } else {
+            // Just return new proto data. There would be no point to cache it
+            // since we've already paid the cost to build a loaded BTreeMap.
+            let loaded = self.loaded.get().expect("loaded or proto must exist");
+            file_states_to_proto(loaded)
+        }
+    }
+
+    fn get_or_load(&self) -> &BTreeMap<RepoPath, FileState> {
+        self.loaded.get_or_init(|| {
+            let proto = self.proto.as_ref().expect("loaded or proto must exist");
+            file_states_from_proto(proto)
+        })
+    }
+
+    fn make_mut(&mut self) -> &mut BTreeMap<RepoPath, FileState> {
+        self.get_or_load();
+        self.proto.take(); // mark dirty
+        self.loaded.get_mut().unwrap()
+    }
+}
+
 pub struct TreeState {
     store: Arc<Store>,
     working_copy_path: PathBuf,
     state_path: PathBuf,
     tree_id: MergedTreeId,
-    file_states: BTreeMap<RepoPath, FileState>,
+    file_states: LazyFileStatesMap,
     // Currently only path prefixes
     sparse_patterns: Vec<RepoPath>,
     own_mtime: MillisSinceEpoch,
@@ -194,9 +244,11 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
     proto
 }
 
+#[instrument(skip(proto))]
 fn file_states_from_proto(
     proto: &[crate::protos::working_copy::FileStateEntry],
 ) -> BTreeMap<RepoPath, FileState> {
+    tracing::debug!("loading file states from proto");
     proto
         .iter()
         .map(|entry| {
@@ -370,7 +422,7 @@ impl TreeState {
     }
 
     pub fn file_states(&self) -> &BTreeMap<RepoPath, FileState> {
-        &self.file_states
+        self.file_states.get_or_load()
     }
 
     pub fn sparse_patterns(&self) -> &Vec<RepoPath> {
@@ -400,7 +452,7 @@ impl TreeState {
             working_copy_path: working_copy_path.canonicalize().unwrap(),
             state_path,
             tree_id,
-            file_states: BTreeMap::new(),
+            file_states: LazyFileStatesMap::new(),
             sparse_patterns: vec![RepoPath::root()],
             own_mtime: MillisSinceEpoch(0),
             watchman_clock: None,
@@ -463,7 +515,7 @@ impl TreeState {
                 .collect();
             self.tree_id = MergedTreeId::Merge(tree_ids_builder.build());
         }
-        self.file_states = file_states_from_proto(&proto.file_states);
+        self.file_states = LazyFileStatesMap::from_proto(proto.file_states);
         self.sparse_patterns = sparse_patterns_from_proto(proto.sparse_patterns.as_ref());
         self.watchman_clock = proto.watchman_clock;
         Ok(())
@@ -480,7 +532,7 @@ impl TreeState {
             }
         }
 
-        proto.file_states = file_states_to_proto(&self.file_states);
+        proto.file_states = self.file_states.to_proto();
         let mut sparse_patterns = crate::protos::working_copy::SparsePatterns::default();
         for path in &self.sparse_patterns {
             sparse_patterns
@@ -593,12 +645,18 @@ impl TreeState {
             Some(fsmonitor_matcher) => fsmonitor_matcher.as_ref(),
         };
 
+        let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
+        if matcher.visit(&RepoPath::root()).is_nothing() {
+            // No need to load file states
+            self.watchman_clock = watchman_clock;
+            return Ok(is_dirty);
+        }
+
         let (tree_entries_tx, tree_entries_rx) = channel();
         let (file_states_tx, file_states_rx) = channel();
         let (present_files_tx, present_files_rx) = channel();
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
-            let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
             let current_tree = self.current_tree()?;
             let directory_to_visit = DirectoryToVisit {
                 dir: RepoPath::root(),
@@ -617,10 +675,13 @@ impl TreeState {
             )
         })?;
 
+        let file_states = self.file_states.make_mut();
         let mut tree_builder = MergedTreeBuilder::new(self.tree_id.clone());
         let mut deleted_files: HashSet<_> =
             trace_span!("collecting existing files").in_scope(|| {
-                self.file_states
+                // Since file_states shouldn't contain files excluded by the sparse patterns,
+                // fsmonitor_matcher here is identical to the intersected matcher.
+                file_states
                     .iter()
                     .filter(|&(path, state)| {
                         fsmonitor_matcher.matches(path) && state.file_type != FileType::GitSubmodule
@@ -637,7 +698,7 @@ impl TreeState {
         trace_span!("process file states").in_scope(|| {
             while let Ok((path, file_state)) = file_states_rx.recv() {
                 is_dirty = true;
-                self.file_states.insert(path, file_state);
+                file_states.insert(path, file_state);
             }
         });
         trace_span!("process present files").in_scope(|| {
@@ -648,7 +709,7 @@ impl TreeState {
         trace_span!("process deleted files").in_scope(|| {
             for file in &deleted_files {
                 is_dirty = true;
-                self.file_states.remove(file);
+                file_states.remove(file);
                 tree_builder.set_or_remove(file.clone(), Merge::absent());
             }
         });
@@ -663,7 +724,8 @@ impl TreeState {
                 .entries_matching(sparse_matcher.as_ref())
                 .map(|(path, _)| path)
                 .collect();
-            let state_paths: HashSet<_> = self.file_states.keys().cloned().collect();
+            let file_states = self.file_states.get_or_load();
+            let state_paths: HashSet<_> = file_states.keys().cloned().collect();
             assert_eq!(state_paths, tree_paths);
         }
         self.watchman_clock = watchman_clock;
@@ -691,6 +753,9 @@ impl TreeState {
         if matcher.visit(&dir).is_nothing() {
             return Ok(());
         }
+
+        // Don't try to load file states by multiple worker threads.
+        let file_states = self.file_states.get_or_load();
         let git_ignore =
             git_ignore.chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
         let dir_entries = disk_dir
@@ -719,7 +784,7 @@ impl TreeState {
                     return Ok(());
                 }
                 let path = dir.join(&RepoPathComponent::from(name));
-                if let Some(file_state) = self.file_states.get(&path) {
+                if let Some(file_state) = file_states.get(&path) {
                     if file_state.file_type == FileType::GitSubmodule {
                         return Ok(());
                     }
@@ -729,8 +794,7 @@ impl TreeState {
                     if git_ignore.matches(&path.to_internal_dir_string()) {
                         // If the whole directory is ignored, visit only paths we're already
                         // tracking.
-                        let tracked_paths = self
-                            .file_states
+                        let tracked_paths = file_states
                             .range((Bound::Excluded(&path), Bound::Unbounded))
                             .take_while(|(sub_path, _)| path.contains(sub_path))
                             .map(|(sub_path, file_state)| (sub_path.clone(), file_state.clone()))
@@ -795,7 +859,7 @@ impl TreeState {
                     if let Some(progress) = progress {
                         progress(&path);
                     }
-                    let maybe_current_file_state = self.file_states.get(&path);
+                    let maybe_current_file_state = file_states.get(&path);
                     if maybe_current_file_state.is_none()
                         && git_ignore.matches(&path.to_internal_file_string())
                     {
@@ -1160,14 +1224,18 @@ impl TreeState {
                 fs::remove_file(&disk_path).ok();
             }
             if before.is_absent() && disk_path.exists() {
-                self.file_states.insert(path, FileState::placeholder());
+                self.file_states
+                    .make_mut()
+                    .insert(path, FileState::placeholder());
                 stats.skipped_files += 1;
                 continue;
             }
             if after.is_present() {
                 let skip = create_parent_dirs(&self.working_copy_path, &path)?;
                 if skip {
-                    self.file_states.insert(path, FileState::placeholder());
+                    self.file_states
+                        .make_mut()
+                        .insert(path, FileState::placeholder());
                     stats.skipped_files += 1;
                     continue;
                 }
@@ -1183,7 +1251,7 @@ impl TreeState {
                         }
                         parent_dir = parent_dir.parent().unwrap();
                     }
-                    self.file_states.remove(&path);
+                    self.file_states.make_mut().remove(&path);
                     continue;
                 }
                 MaterializedTreeValue::File {
@@ -1205,7 +1273,7 @@ impl TreeState {
                     self.write_conflict(&disk_path, contents)?
                 }
             };
-            self.file_states.insert(path, file_state);
+            self.file_states.make_mut().insert(path, file_state);
         }
         Ok(stats)
     }
@@ -1223,7 +1291,7 @@ impl TreeState {
         while let Some((path, diff)) = diff_stream.next().await {
             let (_before, after) = diff?;
             if after.is_absent() {
-                self.file_states.remove(&path);
+                self.file_states.make_mut().remove(&path);
             } else {
                 let file_type = match after.into_resolved() {
                     Ok(value) => match value.unwrap() {
@@ -1255,7 +1323,7 @@ impl TreeState {
                     mtime: MillisSinceEpoch(0),
                     size: 0,
                 };
-                self.file_states.insert(path.clone(), file_state);
+                self.file_states.make_mut().insert(path.clone(), file_state);
             }
         }
         self.tree_id = new_tree.id();
