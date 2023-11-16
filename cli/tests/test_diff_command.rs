@@ -777,7 +777,7 @@ fn test_diff_external_tool_symlink() {
 
     let edit_script = test_env.set_up_fake_diff_editor();
     std::fs::write(
-        &edit_script,
+        edit_script,
         "print-files-before\0print --\0print-files-after",
     )
     .unwrap();
