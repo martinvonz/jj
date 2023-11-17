@@ -941,12 +941,8 @@ impl<'a> CompositeIndex<'a> {
 
     pub fn walk_revs(&self, wanted: &[IndexPosition], unwanted: &[IndexPosition]) -> RevWalk<'a> {
         let mut rev_walk = RevWalk::new(*self);
-        for &pos in wanted {
-            rev_walk.add_wanted(pos);
-        }
-        for &pos in unwanted {
-            rev_walk.add_unwanted(pos);
-        }
+        rev_walk.extend_wanted(wanted.iter().copied());
+        rev_walk.extend_unwanted(unwanted.iter().copied());
         rev_walk
     }
 
@@ -1313,12 +1309,12 @@ impl<'a> RevWalk<'a> {
         RevWalk(RevWalkImpl { index, queue })
     }
 
-    fn add_wanted(&mut self, pos: IndexPosition) {
-        self.0.queue.push_wanted(pos, ());
+    fn extend_wanted(&mut self, positions: impl IntoIterator<Item = IndexPosition>) {
+        self.0.queue.extend_wanted(positions, ());
     }
 
-    fn add_unwanted(&mut self, pos: IndexPosition) {
-        self.0.queue.push_unwanted(pos);
+    fn extend_unwanted(&mut self, positions: impl IntoIterator<Item = IndexPosition>) {
+        self.0.queue.extend_unwanted(positions);
     }
 
     /// Filters entries by generation (or depth from the current wanted set.)
