@@ -636,15 +636,17 @@ impl Iterator for TreeEntriesIterator<'_> {
     }
 }
 
-struct ConflictEntriesNonRecursiveIterator<'a> {
-    merged_tree: &'a MergedTree,
-    basename_iter: Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a>,
+/// The state for the non-recursive iteration over the conflicted entries in a
+/// single directory.
+struct ConflictsDirItem {
+    entries: Vec<(RepoPath, MergedTreeValue)>,
 }
 
-impl<'a> ConflictEntriesNonRecursiveIterator<'a> {
-    fn new(merged_tree: &'a MergedTree) -> Self {
-        let basename_iter: Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> = match merged_tree
-        {
+impl From<MergedTree> for ConflictsDirItem {
+    fn from(merged_tree: MergedTree) -> Self {
+        let dir = merged_tree.dir();
+
+        let basename_iter: Box<dyn Iterator<Item = &RepoPathComponent>> = match &merged_tree {
             MergedTree::Legacy(tree) => Box::new(
                 tree.entries_non_recursive()
                     .filter(|entry| matches!(entry.value(), &TreeValue::Conflict(_)))
@@ -658,41 +660,15 @@ impl<'a> ConflictEntriesNonRecursiveIterator<'a> {
                 }
             }
         };
-        ConflictEntriesNonRecursiveIterator {
-            merged_tree,
-            basename_iter,
-        }
-    }
-}
-
-impl<'a> Iterator for ConflictEntriesNonRecursiveIterator<'a> {
-    type Item = (&'a RepoPathComponent, MergedTreeValue);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for basename in self.basename_iter.by_ref() {
-            match self.merged_tree.value(basename) {
+        let mut entries = vec![];
+        for basename in basename_iter {
+            match merged_tree.value(basename) {
                 MergedTreeVal::Resolved(_) => {}
                 MergedTreeVal::Conflict(tree_values) => {
-                    return Some((basename, tree_values));
+                    entries.push((dir.join(basename), tree_values));
                 }
             }
         }
-        None
-    }
-}
-
-/// The state for the non-recursive iteration over the conflicted entries in a
-/// single directory.
-struct ConflictsDirItem {
-    entries: Vec<(RepoPath, MergedTreeValue)>,
-}
-
-impl From<MergedTree> for ConflictsDirItem {
-    fn from(tree: MergedTree) -> Self {
-        let dir = tree.dir();
-        let mut entries = ConflictEntriesNonRecursiveIterator::new(&tree)
-            .map(|(name, value)| (dir.join(name), value))
-            .collect_vec();
         entries.reverse();
         ConflictsDirItem { entries }
     }
