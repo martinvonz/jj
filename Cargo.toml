@@ -79,7 +79,7 @@ smallvec = { version = "1.11.2", features = [
 ] }
 strsim = "0.10.0"
 tempfile = "3.8.1"
-test-case = "3.2.1"
+test-case = "3.3.0"
 textwrap = "0.16.0"
 thiserror = "1.0.50"
 timeago = { version = "0.4.2", default-features = false }
