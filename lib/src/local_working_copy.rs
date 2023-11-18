@@ -52,7 +52,7 @@ use crate::fsmonitor::FsmonitorKind;
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::{
-    DifferenceMatcher, EverythingMatcher, IntersectionMatcher, Matcher, PrefixMatcher,
+    DifferenceMatcher, EverythingMatcher, FilesMatcher, IntersectionMatcher, Matcher, PrefixMatcher,
 };
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
@@ -870,7 +870,7 @@ impl TreeState {
                         .collect_vec()
                 });
 
-                Some(Box::new(PrefixMatcher::new(&repo_paths)))
+                Some(Box::new(FilesMatcher::new(&repo_paths)))
             }
         };
         Ok(FsmonitorMatcher {
