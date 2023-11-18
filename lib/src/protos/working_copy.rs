@@ -14,6 +14,14 @@ pub struct FileState {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FileStateEntry {
+    #[prost(string, tag = "1")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub state: ::core::option::Option<FileState>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SparsePatterns {
     #[prost(string, repeated, tag = "1")]
     pub prefixes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
@@ -27,11 +35,8 @@ pub struct TreeState {
     /// single (positive) value
     #[prost(bytes = "vec", repeated, tag = "5")]
     pub tree_ids: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
-    #[prost(map = "string, message", tag = "2")]
-    pub file_states: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        FileState,
-    >,
+    #[prost(message, repeated, tag = "2")]
+    pub file_states: ::prost::alloc::vec::Vec<FileStateEntry>,
     #[prost(message, optional, tag = "3")]
     pub sparse_patterns: ::core::option::Option<SparsePatterns>,
     #[prost(message, optional, tag = "4")]

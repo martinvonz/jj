@@ -15,7 +15,7 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::fs;
 use std::fs::{File, Metadata, OpenOptions};
@@ -195,12 +195,12 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
 }
 
 fn file_states_from_proto(
-    proto: &HashMap<String, crate::protos::working_copy::FileState>,
+    proto: &[crate::protos::working_copy::FileStateEntry],
 ) -> BTreeMap<RepoPath, FileState> {
     let mut file_states = BTreeMap::new();
-    for (path_str, proto_file_state) in proto {
-        let path = RepoPath::from_internal_string(path_str);
-        file_states.insert(path, file_state_from_proto(proto_file_state));
+    for entry in proto {
+        let path = RepoPath::from_internal_string(&entry.path);
+        file_states.insert(path, file_state_from_proto(entry.state.as_ref().unwrap()));
     }
     file_states
 }
@@ -465,12 +465,16 @@ impl TreeState {
             }
         }
 
-        for (file, file_state) in &self.file_states {
-            proto.file_states.insert(
-                file.to_internal_file_string(),
-                file_state_to_proto(file_state),
-            );
-        }
+        proto.file_states = self
+            .file_states
+            .iter()
+            .map(
+                |(path, state)| crate::protos::working_copy::FileStateEntry {
+                    path: path.to_internal_file_string(),
+                    state: Some(file_state_to_proto(state)),
+                },
+            )
+            .collect();
         let mut sparse_patterns = crate::protos::working_copy::SparsePatterns::default();
         for path in &self.sparse_patterns {
             sparse_patterns

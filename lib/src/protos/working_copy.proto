@@ -32,6 +32,11 @@ message FileState {
   bytes conflict_id = 4 [deprecated = true];
 }
 
+message FileStateEntry {
+  string path = 1;
+  FileState state = 2;
+}
+
 message SparsePatterns {
   repeated string prefixes = 1;
 }
@@ -41,7 +46,7 @@ message TreeState {
   // Alternating positive and negative terms if there's a conflict, otherwise a
   // single (positive) value
   repeated bytes tree_ids = 5;
-  map<string, FileState> file_states = 2;
+  repeated FileStateEntry file_states = 2;
   SparsePatterns sparse_patterns = 3;
   WatchmanClock watchman_clock = 4;
 }
