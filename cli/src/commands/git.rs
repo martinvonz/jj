@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::time::Instant;
-use std::{fs, io};
+use std::{fmt, fs, io};
 
 use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
@@ -33,7 +33,6 @@ use crate::cli_util::{
     resolve_multiple_nonempty_revsets, short_change_hash, short_commit_hash, user_error,
     user_error_with_hint, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
-use crate::commands::make_branch_term;
 use crate::progress::Progress;
 use crate::ui::Ui;
 
@@ -189,6 +188,13 @@ pub struct GitSubmodulePrintGitmodulesArgs {
     /// Read .gitmodules from the given revision.
     #[arg(long, short = 'r', default_value = "@")]
     revisions: RevisionArg,
+}
+
+fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
+    match branch_names {
+        [branch_name] => format!("branch {}", branch_name),
+        branch_names => format!("branches {}", branch_names.iter().join(", ")),
+    }
 }
 
 fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {

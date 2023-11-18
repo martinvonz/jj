@@ -17,7 +17,6 @@ use crate::cli_util::{
     parse_string_pattern, user_error, user_error_with_hint, CommandError, CommandHelper,
     RevisionArg,
 };
-use crate::commands::make_branch_term;
 use crate::formatter::Formatter;
 use crate::ui::Ui;
 
@@ -228,6 +227,13 @@ impl fmt::Display for RemoteBranchNamePattern {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let RemoteBranchNamePattern { branch, remote } = self;
         write!(f, "{branch}@{remote}")
+    }
+}
+
+fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
+    match branch_names {
+        [branch_name] => format!("branch {}", branch_name),
+        branch_names => format!("branches {}", branch_names.iter().join(", ")),
     }
 }
 

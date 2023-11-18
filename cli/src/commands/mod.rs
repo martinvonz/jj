@@ -55,11 +55,9 @@ mod util;
 mod version;
 mod workspace;
 
-use std::fmt;
 use std::fmt::Debug;
 
 use clap::{Command, CommandFactory, FromArgMatches, Subcommand};
-use itertools::Itertools;
 use tracing::instrument;
 
 use crate::cli_util::{user_error_with_hint, Args, CommandError, CommandHelper};
@@ -145,13 +143,6 @@ enum Commands {
 struct DummyCommandArgs {
     #[arg(trailing_var_arg = true, allow_hyphen_values = true, hide = true)]
     _args: Vec<String>,
-}
-
-fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
-    match branch_names {
-        [branch_name] => format!("branch {}", branch_name),
-        branch_names => format!("branches {}", branch_names.iter().join(", ")),
-    }
 }
 
 pub fn default_app() -> Command {
