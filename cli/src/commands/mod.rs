@@ -205,7 +205,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
 
 fn revert() -> Result<(), CommandError> {
     Err(user_error_with_hint(
-        "No such subcommand",
+        "No such subcommand: revert",
         "Consider `jj backout` or `jj restore`",
     ))
 }
