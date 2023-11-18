@@ -164,8 +164,9 @@ pub mod watchman {
 
         /// Query for changed files since the previous point in time.
         ///
-        /// The returned list of paths is absolute. If it is `None`, then the
-        /// caller must crawl the entire working copy themselves.
+        /// The returned list of paths is relative to the `working_copy_path`.
+        /// If it is `None`, then the caller must crawl the entire working copy
+        /// themselves.
         #[instrument(skip(self))]
         pub async fn query_changed_files(
             &self,
@@ -205,10 +206,7 @@ pub mod watchman {
                 let paths = files
                     .unwrap_or_default()
                     .into_iter()
-                    .map(|file_info| {
-                        let NameOnly { name } = file_info;
-                        self.resolved_root.path().join(name.into_inner())
-                    })
+                    .map(|NameOnly { name }| name.into_inner())
                     .collect_vec();
                 Ok((clock, Some(paths)))
             }

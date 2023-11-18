@@ -57,7 +57,7 @@ use crate::matchers::{
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
 use crate::op_store::{OperationId, WorkspaceId};
-use crate::repo_path::{FsPathParseError, RepoPath, RepoPathComponent, RepoPathJoin};
+use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
@@ -866,16 +866,7 @@ impl TreeState {
                 let repo_paths = trace_span!("processing fsmonitor paths").in_scope(|| {
                     changed_files
                         .into_iter()
-                        .filter_map(|path| {
-                            match RepoPath::parse_fs_path(
-                                &self.working_copy_path,
-                                &self.working_copy_path,
-                                path,
-                            ) {
-                                Ok(repo_path) => Some(repo_path),
-                                Err(FsPathParseError::InputNotInRepo(_)) => None,
-                            }
-                        })
+                        .filter_map(RepoPath::from_relative_path)
                         .collect_vec()
                 });
 

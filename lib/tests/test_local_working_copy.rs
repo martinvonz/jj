@@ -22,6 +22,7 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
 use std::os::unix::net::UnixListener;
+use std::path::Path;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -927,10 +928,7 @@ fn test_fsmonitor() {
     testutils::write_working_copy_file(&workspace_root, &gitignore_path, "to/ignored\n");
 
     let snapshot = |locked_ws: &mut LockedWorkspace, paths: &[&RepoPath]| {
-        let fs_paths = paths
-            .iter()
-            .map(|p| p.to_fs_path(&workspace_root))
-            .collect();
+        let fs_paths = paths.iter().map(|p| p.to_fs_path(Path::new(""))).collect();
         locked_ws
             .locked_wc()
             .snapshot(SnapshotOptions {
