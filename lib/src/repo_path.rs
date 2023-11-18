@@ -83,6 +83,22 @@ impl RepoPath {
         }
     }
 
+    /// Converts repo-relative `Path` to `RepoPath`.
+    ///
+    /// The input path should not contain `.` or `..`.
+    pub fn from_relative_path(relative_path: impl AsRef<Path>) -> Option<Self> {
+        let relative_path = relative_path.as_ref();
+        let components = relative_path
+            .components()
+            .map(|c| match c {
+                Component::Normal(a) => Some(RepoPathComponent::from(a.to_str().unwrap())),
+                // TODO: better to return Err instead of None?
+                _ => None,
+            })
+            .collect::<Option<_>>()?;
+        Some(RepoPath::from_components(components))
+    }
+
     pub fn from_components(components: Vec<RepoPathComponent>) -> Self {
         RepoPath { components }
     }
@@ -103,14 +119,8 @@ impl RepoPath {
         if repo_relative_path == Path::new(".") {
             return Ok(RepoPath::root());
         }
-        let components = repo_relative_path
-            .components()
-            .map(|c| match c {
-                Component::Normal(a) => Ok(RepoPathComponent::from(a.to_str().unwrap())),
-                _ => Err(FsPathParseError::InputNotInRepo(input.to_owned())),
-            })
-            .try_collect()?;
-        Ok(RepoPath::from_components(components))
+        Self::from_relative_path(repo_relative_path)
+            .ok_or_else(|| FsPathParseError::InputNotInRepo(input.to_owned()))
     }
 
     /// The full string form used internally, not for presenting to users (where
