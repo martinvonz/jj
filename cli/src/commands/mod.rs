@@ -119,7 +119,7 @@ enum Commands {
         hide = true,
         help_template = "Not a real subcommand; consider `jj backout` or `jj restore`"
     )]
-    Revert,
+    Revert(DummyCommandArgs),
     #[command(hide = true)]
     // TODO: Flesh out.
     Run(run::RunArgs),
@@ -138,6 +138,13 @@ enum Commands {
     Version(version::VersionArgs),
     #[command(subcommand)]
     Workspace(workspace::WorkspaceCommands),
+}
+
+/// A dummy command that accepts any arguments
+#[derive(clap::Args, Clone, Debug)]
+struct DummyCommandArgs {
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true, hide = true)]
+    _args: Vec<String>,
 }
 
 fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
@@ -181,7 +188,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Squash(sub_args) => squash::cmd_squash(ui, command_helper, sub_args),
         Commands::Unsquash(sub_args) => unsquash::cmd_unsquash(ui, command_helper, sub_args),
         Commands::Restore(sub_args) => restore::cmd_restore(ui, command_helper, sub_args),
-        Commands::Revert => revert(),
+        Commands::Revert(_args) => revert(),
         Commands::Run(sub_args) => run::cmd_run(ui, command_helper, sub_args),
         Commands::Diffedit(sub_args) => diffedit::cmd_diffedit(ui, command_helper, sub_args),
         Commands::Split(sub_args) => split::cmd_split(ui, command_helper, sub_args),
