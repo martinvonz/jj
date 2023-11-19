@@ -836,7 +836,7 @@ impl TreeState {
 
     #[instrument(skip_all)]
     fn make_fsmonitor_matcher(
-        &mut self,
+        &self,
         fsmonitor_kind: Option<FsmonitorKind>,
     ) -> Result<FsmonitorMatcher, SnapshotError> {
         let (watchman_clock, changed_files) = match fsmonitor_kind {
