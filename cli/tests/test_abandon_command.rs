@@ -97,11 +97,6 @@ fn test_rebase_branch_with_merge() {
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "descendants(c)"]);
-    // TODO(ilyagr): Minor Bug: The branch `e` should be shown next
-    // to the commit with description `e` below. This is because the commits are
-    // printed in the state *after* abandonment. This will be fixed together with
-    // adding (hidden) to the commit template, which causes a more obvious version
-    // of the same problem.
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Abandoned the following commits:
