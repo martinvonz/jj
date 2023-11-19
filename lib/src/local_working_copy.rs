@@ -197,12 +197,13 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
 fn file_states_from_proto(
     proto: &[crate::protos::working_copy::FileStateEntry],
 ) -> BTreeMap<RepoPath, FileState> {
-    let mut file_states = BTreeMap::new();
-    for entry in proto {
-        let path = RepoPath::from_internal_string(&entry.path);
-        file_states.insert(path, file_state_from_proto(entry.state.as_ref().unwrap()));
-    }
-    file_states
+    proto
+        .iter()
+        .map(|entry| {
+            let path = RepoPath::from_internal_string(&entry.path);
+            (path, file_state_from_proto(entry.state.as_ref().unwrap()))
+        })
+        .collect()
 }
 
 fn sparse_patterns_from_proto(
