@@ -19,13 +19,12 @@ use std::path::Path;
 
 use clap::Subcommand;
 use itertools::Itertools;
-use jj_lib::file_util;
 use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
 use crate::cli_util::{edit_temp_file, print_checkout_stats, CommandHelper};
-use crate::command_error::{internal_error_with_message, CommandError};
+use crate::command_error::{internal_error_with_message, user_error_with_message, CommandError};
 use crate::ui::Ui;
 
 /// Manage which paths from the working-copy commit are present in the working
@@ -111,14 +110,7 @@ fn cmd_sparse_set(
         .iter()
         .map(|v| workspace_command.parse_file_path(v))
         .try_collect()?;
-    // Determine inputs of `edit` operation now, since `workspace_command` is
-    // inaccessible while the working copy is locked.
-    let edit_inputs = args.edit.then(|| {
-        (
-            workspace_command.repo().clone(),
-            workspace_command.workspace_root().clone(),
-        )
-    });
+    let repo_path = workspace_command.repo().repo_path().to_owned();
     let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     let mut new_patterns = HashSet::new();
     if args.reset {
@@ -136,13 +128,8 @@ fn cmd_sparse_set(
     }
     let mut new_patterns = new_patterns.into_iter().collect_vec();
     new_patterns.sort();
-    if let Some((repo, workspace_root)) = edit_inputs {
-        new_patterns = edit_sparse(
-            &workspace_root,
-            repo.repo_path(),
-            &new_patterns,
-            command.settings(),
-        )?;
+    if args.edit {
+        new_patterns = edit_sparse(&repo_path, &new_patterns, command.settings())?;
         new_patterns.sort();
     }
     let stats = locked_ws
@@ -157,15 +144,13 @@ fn cmd_sparse_set(
 }
 
 fn edit_sparse(
-    workspace_root: &Path,
     repo_path: &Path,
     sparse: &[RepoPathBuf],
     settings: &UserSettings,
 ) -> Result<Vec<RepoPathBuf>, CommandError> {
     let mut content = String::new();
     for sparse_path in sparse {
-        let workspace_relative_sparse_path =
-            file_util::relative_path(workspace_root, &sparse_path.to_fs_path(workspace_root));
+        let workspace_relative_sparse_path = sparse_path.to_fs_path(Path::new(""));
         let path_string = workspace_relative_sparse_path.to_str().ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -188,13 +173,13 @@ fn edit_sparse(
 
     content
         .lines()
-        .filter(|line| !line.starts_with("JJ: ") && !line.trim().is_empty())
+        .filter(|line| !line.starts_with("JJ: "))
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
         .map(|line| {
-            Ok::<_, CommandError>(RepoPathBuf::parse_fs_path(
-                workspace_root,
-                workspace_root,
-                line.trim(),
-            )?)
+            RepoPathBuf::from_relative_path(line).map_err(|err| {
+                user_error_with_message(format!("Failed to parse sparse pattern: {line}"), err)
+            })
         })
         .try_collect()
 }
