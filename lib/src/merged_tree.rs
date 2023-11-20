@@ -287,10 +287,6 @@ impl MergedTree {
         }
     }
 
-    fn entries_non_recursive(&self) -> TreeEntriesNonRecursiveIterator {
-        TreeEntriesNonRecursiveIterator::new(self)
-    }
-
     /// Iterator over the entries matching the given matcher. Subtrees are
     /// visited recursively. Subtrees that differ between the current
     /// `MergedTree`'s terms are merged on the fly. Missing terms are treated as
@@ -544,31 +540,6 @@ fn merge_tree_values(
     }
 }
 
-struct TreeEntriesNonRecursiveIterator<'a> {
-    merged_tree: &'a MergedTree,
-    basename_iter: Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a>,
-}
-
-impl<'a> TreeEntriesNonRecursiveIterator<'a> {
-    fn new(merged_tree: &'a MergedTree) -> Self {
-        TreeEntriesNonRecursiveIterator {
-            merged_tree,
-            basename_iter: merged_tree.names(),
-        }
-    }
-}
-
-impl<'a> Iterator for TreeEntriesNonRecursiveIterator<'a> {
-    type Item = (&'a RepoPathComponent, MergedTreeVal<'a>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.basename_iter.next().map(|basename| {
-            let value = self.merged_tree.value(basename);
-            (basename, value)
-        })
-    }
-}
-
 /// Recursive iterator over the entries in a tree.
 pub struct TreeEntriesIterator<'matcher> {
     stack: Vec<TreeEntriesDirItem>,
@@ -584,9 +555,9 @@ impl TreeEntriesDirItem {
     fn new(tree: MergedTree, matcher: &dyn Matcher) -> Self {
         let mut entries = vec![];
         let dir = tree.dir();
-        for (name, value) in tree.entries_non_recursive() {
+        for name in tree.names() {
             let path = dir.join(name);
-            let value = value.to_merge();
+            let value = tree.value(name).to_merge();
             if value.is_tree() {
                 // TODO: Handle the other cases (specific files and trees)
                 if matcher.visit(&path).is_nothing() {
