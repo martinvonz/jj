@@ -95,10 +95,10 @@ fn test_new_merge() {
     // Same test with `--no-edit`
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "main", "@", "--no-edit"]);
-    // TODO(ilyagr): In this situation, `new` should probably report the identity of
-    // the newly created commit.
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Created new commit znkkpsqq 200ed1a1 (empty) (no description set)
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    200ed1a14c8acf09783dafefe5bebf2ff58f12fd
     ├─╮
