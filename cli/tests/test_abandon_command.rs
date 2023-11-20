@@ -31,7 +31,7 @@ fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, paren
 }
 
 #[test]
-fn test_rebase_branch_with_merge() {
+fn test_basics() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
