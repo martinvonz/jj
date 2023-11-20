@@ -125,8 +125,21 @@ fn test_new_insert_after() {
     ◉  root
     "###);
 
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["new", "--insert-after", "-m", "G", "B", "D"]);
+    // --insert-after can be repeated (this does not affect the outcome); --after is
+    // an alias
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "new",
+            "--insert-after",
+            "-m",
+            "G",
+            "--after",
+            "B",
+            "--after",
+            "D",
+        ],
+    );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 descendant commits
@@ -171,6 +184,16 @@ fn test_new_insert_after() {
     │ ◉  E
     ├─╯
     ◉  root
+    "###);
+
+    // --after cannot be used with --before
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--after", "B", "--before", "D"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: the argument '--insert-after' cannot be used with '--insert-before'
+
+    Usage: jj new --insert-after <REVISIONS>...
+
+    For more information, try '--help'.
     "###);
 }
 
@@ -415,7 +438,8 @@ fn setup_before_insertion(test_env: &TestEnvironment, repo_path: &Path) {
     test_env.jj_cmd_ok(repo_path, &["branch", "create", "D"]);
     test_env.jj_cmd_ok(repo_path, &["new", "-m", "E", "root()"]);
     test_env.jj_cmd_ok(repo_path, &["branch", "create", "E"]);
-    test_env.jj_cmd_ok(repo_path, &["new", "-m", "F", "D", "E"]);
+    // Any number of -r's is ignored
+    test_env.jj_cmd_ok(repo_path, &["new", "-m", "F", "-r", "D", "-r", "E"]);
     test_env.jj_cmd_ok(repo_path, &["branch", "create", "F"]);
 }
 
