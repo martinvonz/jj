@@ -411,6 +411,8 @@ impl From<TemplateParseError> for CommandError {
 
 impl From<FsPathParseError> for CommandError {
     fn from(err: FsPathParseError) -> Self {
+        // TODO: implement pattern prefix like "root:<path>" or "--cwd" option,
+        // and suggest it if the user input looks like repo-relative path #3216.
         user_error(err)
     }
 }

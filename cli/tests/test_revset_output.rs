@@ -141,13 +141,13 @@ fn test_bad_function_call() {
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(a, "../out")"#]);
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Error: Failed to parse revset:  --> 1:9
       |
     1 | file(a, "../out")
       |         ^------^
       |
-      = Invalid file pattern: Path "../out" is not in the repo
+      = Invalid file pattern: Path "../out" is not in the repo ".": Invalid component ".." in repo-relative path "../out"
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "branches(bad:pattern)"]);
