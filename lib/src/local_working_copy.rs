@@ -1043,7 +1043,7 @@ impl TreeState {
                 let repo_paths = trace_span!("processing fsmonitor paths").in_scope(|| {
                     changed_files
                         .into_iter()
-                        .filter_map(RepoPathBuf::from_relative_path)
+                        .filter_map(|path| RepoPathBuf::from_relative_path(path).ok())
                         .collect_vec()
                 });
 

@@ -204,14 +204,18 @@ impl RepoPathBuf {
     /// Converts repo-relative `Path` to `RepoPathBuf`.
     ///
     /// The input path should not contain `.` or `..`.
-    pub fn from_relative_path(relative_path: impl AsRef<Path>) -> Option<Self> {
+    pub fn from_relative_path(
+        relative_path: impl AsRef<Path>,
+    ) -> Result<Self, RelativePathParseError> {
         let relative_path = relative_path.as_ref();
         let mut components = relative_path
             .components()
             .map(|c| match c {
-                Component::Normal(name) => Some(name.to_str().unwrap()),
-                // TODO: better to return Err instead of None?
-                _ => None,
+                Component::Normal(name) => Ok(name.to_str().unwrap()),
+                _ => Err(RelativePathParseError::InvalidComponent {
+                    component: c.as_os_str().to_string_lossy().into(),
+                    path: relative_path.into(),
+                }),
             })
             .fuse();
         let mut value = String::with_capacity(relative_path.as_os_str().len());
@@ -222,7 +226,7 @@ impl RepoPathBuf {
             value.push('/');
             value.push_str(name?);
         }
-        Some(RepoPathBuf { value })
+        Ok(RepoPathBuf { value })
     }
 
     /// Parses an `input` path into a `RepoPathBuf` relative to `base`.
@@ -241,8 +245,11 @@ impl RepoPathBuf {
         if repo_relative_path == Path::new(".") {
             return Ok(Self::root());
         }
-        Self::from_relative_path(repo_relative_path)
-            .ok_or_else(|| FsPathParseError::InputNotInRepo(input.to_owned()))
+        Self::from_relative_path(repo_relative_path).map_err(|source| FsPathParseError {
+            base: file_util::relative_path(cwd, base).into(),
+            input: input.into(),
+            source,
+        })
     }
 
     /// Consumes this and returns the underlying string representation.
@@ -411,9 +418,20 @@ impl PartialOrd for RepoPathBuf {
 }
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
-pub enum FsPathParseError {
-    #[error(r#"Path "{}" is not in the repo"#, .0.display())]
-    InputNotInRepo(PathBuf),
+pub enum RelativePathParseError {
+    #[error(r#"Invalid component "{component}" in repo-relative path "{path}""#)]
+    InvalidComponent {
+        component: Box<str>,
+        path: Box<Path>,
+    },
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+#[error(r#"Path "{input}" is not in the repo "{base}""#)]
+pub struct FsPathParseError {
+    base: Box<Path>,
+    input: Box<Path>,
+    source: RelativePathParseError,
 }
 
 fn is_valid_repo_path_component_str(value: &str) -> bool {
@@ -428,6 +446,7 @@ fn is_valid_repo_path_str(value: &str) -> bool {
 mod tests {
     use std::panic;
 
+    use assert_matches::assert_matches;
     use itertools::Itertools as _;
 
     use super::*;
@@ -667,9 +686,12 @@ mod tests {
             RepoPathBuf::parse_fs_path(&cwd_path, wc_path, "dir/file").as_deref(),
             Ok(repo_path("dir/file"))
         );
-        assert_eq!(
+        assert_matches!(
             RepoPathBuf::parse_fs_path(&cwd_path, wc_path, ".."),
-            Err(FsPathParseError::InputNotInRepo("..".into()))
+            Err(FsPathParseError {
+                source: RelativePathParseError::InvalidComponent { .. },
+                ..
+            })
         );
         assert_eq!(
             RepoPathBuf::parse_fs_path(&cwd_path, &cwd_path, "../repo").as_deref(),
@@ -717,9 +739,12 @@ mod tests {
             RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "..").as_deref(),
             Ok(RepoPath::root())
         );
-        assert_eq!(
+        assert_matches!(
             RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "../.."),
-            Err(FsPathParseError::InputNotInRepo("../..".into()))
+            Err(FsPathParseError {
+                source: RelativePathParseError::InvalidComponent { .. },
+                ..
+            })
         );
         assert_eq!(
             RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "../other-dir/file").as_deref(),
@@ -733,13 +758,19 @@ mod tests {
         let cwd_path = temp_dir.path().join("cwd");
         let wc_path = cwd_path.join("repo");
 
-        assert_eq!(
+        assert_matches!(
             RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, ""),
-            Err(FsPathParseError::InputNotInRepo("".into()))
+            Err(FsPathParseError {
+                source: RelativePathParseError::InvalidComponent { .. },
+                ..
+            })
         );
-        assert_eq!(
+        assert_matches!(
             RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "not-repo"),
-            Err(FsPathParseError::InputNotInRepo("not-repo".into()))
+            Err(FsPathParseError {
+                source: RelativePathParseError::InvalidComponent { .. },
+                ..
+            })
         );
         assert_eq!(
             RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "repo").as_deref(),

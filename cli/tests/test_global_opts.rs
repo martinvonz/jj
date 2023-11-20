@@ -215,6 +215,25 @@ fn test_no_workspace_directory() {
 }
 
 #[test]
+fn test_bad_path() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["cat", "../out"]);
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Error: Path "../out" is not in the repo "."
+    Caused by: Invalid component ".." in repo-relative path "../out"
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["cat", "-Rrepo", "out"]);
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Error: Path "out" is not in the repo "repo"
+    Caused by: Invalid component ".." in repo-relative path "../out"
+    "###);
+}
+
+#[test]
 fn test_broken_repo_structure() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
