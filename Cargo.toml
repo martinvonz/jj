@@ -67,7 +67,7 @@ rand_chacha = "0.3.1"
 rayon = "1.8.0"
 regex = "1.10.2"
 rpassword = "7.3.1"
-rustix = { version = "0.38.24", features = ["fs"] }
+rustix = { version = "0.38.25", features = ["fs"] }
 scm-record = "0.1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.108"
@@ -79,7 +79,7 @@ smallvec = { version = "1.11.2", features = [
 ] }
 strsim = "0.10.0"
 tempfile = "3.8.1"
-test-case = "3.3.0"
+test-case = "3.3.1"
 textwrap = "0.16.0"
 thiserror = "1.0.50"
 timeago = { version = "0.4.2", default-features = false }
