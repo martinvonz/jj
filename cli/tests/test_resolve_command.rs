@@ -184,6 +184,8 @@ conflict
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    New conflicts appeared in these commits:
+      vruxwmqv ff4e8c6b conflict | (conflict) conflict
     Working copy now at: vruxwmqv ff4e8c6b conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
@@ -635,6 +637,8 @@ fn test_multiple_conflicts() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve", "another_file"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    New conflicts appeared in these commits:
+      vruxwmqv c3c25bce conflict | (conflict) conflict
     Working copy now at: vruxwmqv c3c25bce conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
@@ -664,6 +668,8 @@ fn test_multiple_conflicts() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve", "--quiet", "another_file"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    New conflicts appeared in these commits:
+      vruxwmqv fd3874cd conflict | (conflict) conflict
     Working copy now at: vruxwmqv fd3874cd conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b

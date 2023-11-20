@@ -28,7 +28,7 @@ use std::{iter, str};
 
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId};
 use jj_lib::commit::Commit;
@@ -52,8 +52,8 @@ use jj_lib::repo::{
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
     DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetCommitRef, RevsetEvaluationError,
-    RevsetExpression, RevsetIteratorExt, RevsetParseContext, RevsetParseError,
-    RevsetParseErrorKind, RevsetResolutionError, RevsetWorkspaceContext,
+    RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt, RevsetParseContext,
+    RevsetParseError, RevsetParseErrorKind, RevsetResolutionError, RevsetWorkspaceContext,
 };
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
@@ -1444,8 +1444,9 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
         }
 
-        let maybe_old_wc_commit = tx
-            .base_repo()
+        let old_repo = tx.base_repo().clone();
+
+        let maybe_old_wc_commit = old_repo
             .view()
             .get_wc_commit_id(self.workspace_id())
             .map(|commit_id| tx.base_repo().store().get_commit(commit_id))
@@ -1465,6 +1466,8 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             print_failed_git_export(ui, &failed_branches)?;
         }
         self.user_repo = ReadonlyUserRepo::new(tx.commit());
+        self.report_repo_changes(ui, &old_repo)?;
+
         if self.may_update_working_copy {
             if let Some(new_commit) = &maybe_new_wc_commit {
                 self.update_working_copy(ui, maybe_old_wc_commit.as_ref(), new_commit)?;
@@ -1482,6 +1485,102 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
   jj config set --user user.email "someone@example.com""#
             )?;
         }
+        Ok(())
+    }
+
+    /// Inform the user about important changes to the repo since the previous
+    /// operation (when `old_repo` was loaded).
+    fn report_repo_changes(
+        &self,
+        ui: &mut Ui,
+        old_repo: &Arc<ReadonlyRepo>,
+    ) -> Result<(), CommandError> {
+        let old_view = old_repo.view();
+        let new_repo = self.repo().as_ref();
+        let new_view = new_repo.view();
+        let added_heads = RevsetExpression::commits(
+            new_view
+                .heads()
+                .iter()
+                .filter(|id| !old_view.heads().contains(id))
+                .cloned()
+                .collect(),
+        );
+        let removed_heads = RevsetExpression::commits(
+            old_view
+                .heads()
+                .iter()
+                .filter(|id| !new_view.heads().contains(id))
+                .cloned()
+                .collect(),
+        );
+        // Filter the revsets by conflicts instead of reading all commits and doing the
+        // filtering here. That way, we can afford to evaluate the revset even if there
+        // are millions of commits added to the repo, assuming the revset engine can
+        // efficiently skip non-conflicting commits. Filter out empty commits mostly so
+        // `jj new <conflicted commit>` doesn't result in a message about new conflicts.
+        let conflicts = RevsetExpression::filter(RevsetFilterPredicate::HasConflict)
+            .intersection(&RevsetExpression::filter(RevsetFilterPredicate::File(None)));
+        let removed_conflicts_expr = added_heads.range(&removed_heads).intersection(&conflicts);
+        let added_conflicts_expr = removed_heads.range(&added_heads).intersection(&conflicts);
+
+        let get_commits = |expr: Rc<RevsetExpression>| -> Result<Vec<Commit>, CommandError> {
+            let commits = expr
+                .evaluate_programmatic(new_repo)?
+                .iter()
+                .commits(new_repo.store())
+                .try_collect()?;
+            Ok(commits)
+        };
+        let removed_conflict_commits = get_commits(removed_conflicts_expr)?;
+        let added_conflict_commits = get_commits(added_conflicts_expr)?;
+
+        fn commits_by_change_id(commits: &[Commit]) -> IndexMap<&ChangeId, Vec<&Commit>> {
+            let mut result: IndexMap<&ChangeId, Vec<&Commit>> = IndexMap::new();
+            for commit in commits {
+                result.entry(commit.change_id()).or_default().push(commit);
+            }
+            result
+        }
+        let removed_conflicts_by_change_id = commits_by_change_id(&removed_conflict_commits);
+        let added_conflicts_by_change_id = commits_by_change_id(&added_conflict_commits);
+        let mut resolved_conflicts_by_change_id = removed_conflicts_by_change_id.clone();
+        resolved_conflicts_by_change_id
+            .retain(|change_id, _commits| !added_conflicts_by_change_id.contains_key(change_id));
+        let mut new_conflicts_by_change_id = added_conflicts_by_change_id.clone();
+        new_conflicts_by_change_id
+            .retain(|change_id, _commits| !removed_conflicts_by_change_id.contains_key(change_id));
+
+        // TODO: Also report new divergence and maybe resolved divergence
+        let mut fmt = ui.stderr_formatter();
+        if !resolved_conflicts_by_change_id.is_empty() {
+            writeln!(
+                fmt,
+                "Existing conflicts were resolved or abandoned from these commits:"
+            )?;
+            for (_, old_commits) in &resolved_conflicts_by_change_id {
+                // TODO: Report which ones were resolved and which ones were abandoned. However,
+                // that involves resolving the change_id among the visible commits in the new
+                // repo, which isn't currently supported by Google's revset engine.
+                for commit in old_commits {
+                    write!(fmt, "  ")?;
+                    self.write_commit_summary(fmt.as_mut(), commit)?;
+                    writeln!(fmt)?;
+                }
+            }
+        }
+        if !new_conflicts_by_change_id.is_empty() {
+            writeln!(fmt, "New conflicts appeared in these commits:")?;
+            for (_, new_commits) in &new_conflicts_by_change_id {
+                for commit in new_commits {
+                    write!(fmt, "  ")?;
+                    self.write_commit_summary(fmt.as_mut(), commit)?;
+                    writeln!(fmt)?;
+                }
+            }
+        }
+
+        // TODO: Hint about doing `jj new <first commit with conflicts>`.
         Ok(())
     }
 }
