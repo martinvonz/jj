@@ -208,7 +208,7 @@ impl MergedTree {
     /// conflict, not one for each path in the tree.
     // TODO: Restrict this by a matcher (or add a separate method for that).
     pub fn conflicts(&self) -> impl Iterator<Item = (RepoPath, MergedTreeValue)> {
-        ConflictIterator::new(self.clone())
+        ConflictIterator::new(self)
     }
 
     /// Whether this tree has conflicts.
@@ -613,11 +613,11 @@ struct ConflictsDirItem {
     entries: Vec<(RepoPath, MergedTreeValue)>,
 }
 
-impl From<MergedTree> for ConflictsDirItem {
-    fn from(merged_tree: MergedTree) -> Self {
+impl From<&MergedTree> for ConflictsDirItem {
+    fn from(merged_tree: &MergedTree) -> Self {
         let dir = merged_tree.dir();
 
-        let basename_iter: Box<dyn Iterator<Item = &RepoPathComponent>> = match &merged_tree {
+        let basename_iter: Box<dyn Iterator<Item = &RepoPathComponent>> = match merged_tree {
             MergedTree::Legacy(tree) => Box::new(
                 tree.entries_non_recursive()
                     .filter(|entry| matches!(entry.value(), &TreeValue::Conflict(_)))
@@ -657,7 +657,7 @@ enum ConflictIterator {
 }
 
 impl ConflictIterator {
-    fn new(tree: MergedTree) -> Self {
+    fn new(tree: &MergedTree) -> Self {
         match tree {
             MergedTree::Legacy(tree) => ConflictIterator::Legacy {
                 store: tree.store().clone(),
@@ -694,7 +694,7 @@ impl Iterator for ConflictIterator {
                         // TODO: propagate errors
                         if let Some(trees) = tree_values.to_tree_merge(store, &path).unwrap() {
                             // If all sides are trees or missing, descend into the merged tree
-                            stack.push(ConflictsDirItem::from(MergedTree::Merge(trees)));
+                            stack.push(ConflictsDirItem::from(&MergedTree::Merge(trees)));
                         } else {
                             // Otherwise this is a conflict between files, trees, etc. If they could
                             // be automatically resolved, they should have been when the top-level
