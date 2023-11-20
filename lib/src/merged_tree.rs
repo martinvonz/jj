@@ -177,17 +177,7 @@ impl MergedTree {
                 }
                 other => MergedTreeVal::Resolved(other),
             },
-            MergedTree::Merge(trees) => {
-                if let Some(tree) = trees.as_resolved() {
-                    return MergedTreeVal::Resolved(tree.value(basename));
-                }
-                let value = trees.map(|tree| tree.value(basename));
-                if let Some(resolved) = value.resolve_trivial() {
-                    return MergedTreeVal::Resolved(*resolved);
-                }
-
-                MergedTreeVal::Conflict(value.map(|x| x.cloned()))
-            }
+            MergedTree::Merge(trees) => trees_value(trees, basename),
         }
     }
 
@@ -458,6 +448,17 @@ fn merged_tree_basenames<'a>(
             merge_iters(all_tree_basenames(before), all_tree_basenames(after))
         }
     }
+}
+
+fn trees_value<'a>(trees: &'a Merge<Tree>, basename: &RepoPathComponent) -> MergedTreeVal<'a> {
+    if let Some(tree) = trees.as_resolved() {
+        return MergedTreeVal::Resolved(tree.value(basename));
+    }
+    let value = trees.map(|tree| tree.value(basename));
+    if let Some(resolved) = value.resolve_trivial() {
+        return MergedTreeVal::Resolved(*resolved);
+    }
+    MergedTreeVal::Conflict(value.map(|x| x.cloned()))
 }
 
 fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
