@@ -211,7 +211,12 @@ impl RepoPathBuf {
         let mut components = relative_path
             .components()
             .map(|c| match c {
-                Component::Normal(name) => Ok(name.to_str().unwrap()),
+                Component::Normal(name) => {
+                    name.to_str()
+                        .ok_or_else(|| RelativePathParseError::InvalidUtf8 {
+                            path: relative_path.into(),
+                        })
+                }
                 _ => Err(RelativePathParseError::InvalidComponent {
                     component: c.as_os_str().to_string_lossy().into(),
                     path: relative_path.into(),
@@ -424,6 +429,8 @@ pub enum RelativePathParseError {
         component: Box<str>,
         path: Box<Path>,
     },
+    #[error(r#"Not valid UTF-8 path "{path}""#)]
+    InvalidUtf8 { path: Box<Path> },
 }
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
