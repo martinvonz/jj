@@ -63,6 +63,8 @@ fn test_restore() {
     insta::assert_snapshot!(stderr, @r###"
     Created rlvkpnrz e25100af (empty) (no description set)
     Rebased 1 descendant commits
+    New conflicts appeared in these commits:
+      kkmpptxz e301deb3 (conflict) (no description set)
     Working copy now at: kkmpptxz e301deb3 (conflict) (no description set)
     Parent commit      : rlvkpnrz e25100af (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files

@@ -225,6 +225,8 @@ fn test_chmod_file_dir_deletion_conflicts() {
         test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file", "-r=file_deletion"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    New conflicts appeared in these commits:
+      kmkuslsw 4cc432b5 file_deletion | (conflict) file_deletion
     Working copy now at: kmkuslsw 4cc432b5 file_deletion | (conflict) file_deletion
     Parent commit      : zsuskuln c51c9c55 file | file
     Parent commit      : royxmykx 6b18b3c1 deletion | deletion
