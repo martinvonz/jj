@@ -42,6 +42,27 @@ fn test_new() {
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
+
+    // --edit is a no-op
+    test_env.jj_cmd_ok(&repo_path, &["new", "--edit", "-m", "yet another commit"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  101cbec5cae8049cb9850a906ef3675631ed48fa yet another commit
+    ◉  026537ddb96b801b9cb909985d5443aab44616c1 off of root
+    │ ◉  4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
+    │ ◉  5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+
+    // --edit cannot be used with --no-edit
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--edit", "B", "--no-edit", "D"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: the argument '--edit' cannot be used with '--no-edit'
+
+    Usage: jj new <REVISIONS>...
+
+    For more information, try '--help'.
+    "###);
 }
 
 #[test]
@@ -71,11 +92,27 @@ fn test_new_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
     insta::assert_snapshot!(stdout, @"b");
 
+    // Same test with `--no-edit`
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "main", "@", "--no-edit"]);
+    // TODO(ilyagr): In this situation, `new` should probably report the identity of
+    // the newly created commit.
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉    200ed1a14c8acf09783dafefe5bebf2ff58f12fd
+    ├─╮
+    │ @  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
+    ◉ │  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+
     // Same test with `jj merge`
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     test_env.jj_cmd_ok(&repo_path, &["merge", "main", "@"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    200ed1a14c8acf09783dafefe5bebf2ff58f12fd
+    @    3a44e52b073cbb5deb11bb8fa0763a369e96427a
     ├─╮
     │ ◉  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
     ◉ │  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
@@ -94,9 +131,9 @@ fn test_new_merge() {
     "###);
 
     // merge with non-unique revisions
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "200e"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "3a44e"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: More than one revset resolved to revision 200ed1a14c8a
+    Error: More than one revset resolved to revision 3a44e52b073c
     "###);
 
     // merge with root

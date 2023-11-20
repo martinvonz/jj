@@ -27,7 +27,10 @@ use crate::cli_util::{
 };
 use crate::ui::Ui;
 
-/// Create a new, empty change and edit it in the working copy
+/// Create a new, empty change and (by default) edit it in the working copy
+///
+/// By default, `jj` will edit the new change, making the working copy represent
+/// the new commit. This can be avoided with `--no-edit`.
 ///
 /// Note that you can create a merge commit by specifying multiple revisions as
 /// argument. For example, `jj new main @` will create a new commit with the
@@ -50,6 +53,12 @@ pub(crate) struct NewArgs {
     /// Deprecated. Please prefix the revset with `all:` instead.
     #[arg(long, short = 'L', hide = true)]
     allow_large_revsets: bool,
+    /// Do not edit the newly created change
+    #[arg(long, conflicts_with = "_edit")]
+    no_edit: bool,
+    /// No-op flag to pair with --no-edit
+    #[arg(long, hide = true)]
+    _edit: bool,
     /// Insert the new change between the target commit(s) and their children
     //
     // Repeating this flag is allowed, but has no effect.
@@ -193,7 +202,9 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     if num_rebased > 0 {
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }
-    tx.edit(&new_commit).unwrap();
+    if !args.no_edit {
+        tx.edit(&new_commit).unwrap();
+    }
     tx.finish(ui)?;
     Ok(())
 }

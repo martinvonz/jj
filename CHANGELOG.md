@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   usual behavior where commits that became unreachable in the Git repo are
   abandoned ([#2504](https://github.com/martinvonz/jj/pull/2504)).
 
+* `jj new` gained a `--no-edit` option to prevent editing the newly created
+  commit. For example, `jj new a b --no-edit -m Merge` creates a merge commit
+  without affecting the working copy.
+
 ### Fixed bugs
 
 
