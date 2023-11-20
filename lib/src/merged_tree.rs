@@ -614,27 +614,16 @@ struct ConflictsDirItem {
     entries: Vec<(RepoPath, MergedTreeValue)>,
 }
 
-impl From<&MergedTree> for ConflictsDirItem {
-    fn from(merged_tree: &MergedTree) -> Self {
-        let dir = merged_tree.dir();
+impl From<&Merge<Tree>> for ConflictsDirItem {
+    fn from(trees: &Merge<Tree>) -> Self {
+        let dir = trees.first().dir();
+        if trees.is_resolved() {
+            return ConflictsDirItem { entries: vec![] };
+        }
 
-        let basename_iter: Box<dyn Iterator<Item = &RepoPathComponent>> = match merged_tree {
-            MergedTree::Legacy(tree) => Box::new(
-                tree.entries_non_recursive()
-                    .filter(|entry| matches!(entry.value(), &TreeValue::Conflict(_)))
-                    .map(|entry| entry.name()),
-            ),
-            MergedTree::Merge(trees) => {
-                if trees.is_resolved() {
-                    Box::new(iter::empty())
-                } else {
-                    Box::new(all_tree_basenames(trees))
-                }
-            }
-        };
         let mut entries = vec![];
-        for basename in basename_iter {
-            match merged_tree.value(basename) {
+        for basename in all_tree_basenames(trees) {
+            match trees_value(trees, basename) {
                 MergedTreeVal::Resolved(_) => {}
                 MergedTreeVal::Conflict(tree_values) => {
                     entries.push((dir.join(basename), tree_values));
@@ -664,9 +653,9 @@ impl ConflictIterator {
                 store: tree.store().clone(),
                 conflicts_iter: tree.conflicts().into_iter(),
             },
-            MergedTree::Merge(_) => ConflictIterator::Merge {
+            MergedTree::Merge(trees) => ConflictIterator::Merge {
                 store: tree.store().clone(),
-                stack: vec![ConflictsDirItem::from(tree)],
+                stack: vec![ConflictsDirItem::from(trees)],
             },
         }
     }
@@ -695,7 +684,7 @@ impl Iterator for ConflictIterator {
                         // TODO: propagate errors
                         if let Some(trees) = tree_values.to_tree_merge(store, &path).unwrap() {
                             // If all sides are trees or missing, descend into the merged tree
-                            stack.push(ConflictsDirItem::from(&MergedTree::Merge(trees)));
+                            stack.push(ConflictsDirItem::from(&trees));
                         } else {
                             // Otherwise this is a conflict between files, trees, etc. If they could
                             // be automatically resolved, they should have been when the top-level
