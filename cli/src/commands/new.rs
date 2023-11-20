@@ -42,7 +42,7 @@ pub(crate) struct NewArgs {
     #[arg(default_value = "@")]
     pub(crate) revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true)]
+    #[arg(short = 'r', hide = true, overrides_with = "unused_revision")]
     unused_revision: bool,
     /// The change description to use
     #[arg(long = "message", short, value_name = "MESSAGE")]
@@ -51,10 +51,24 @@ pub(crate) struct NewArgs {
     #[arg(long, short = 'L', hide = true)]
     allow_large_revsets: bool,
     /// Insert the new change between the target commit(s) and their children
-    #[arg(long, short = 'A', visible_alias = "after")]
+    //
+    // Repeating this flag is allowed, but has no effect.
+    #[arg(
+        long,
+        short = 'A',
+        visible_alias = "after",
+        overrides_with = "insert_after"
+    )]
     insert_after: bool,
     /// Insert the new change between the target commit(s) and their parents
-    #[arg(long, short = 'B', visible_alias = "before")]
+    //
+    // Repeating this flag is allowed, but has no effect.
+    #[arg(
+        long,
+        short = 'B',
+        visible_alias = "before",
+        overrides_with = "insert_before"
+    )]
     insert_before: bool,
 }
 
