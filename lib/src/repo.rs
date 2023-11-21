@@ -50,7 +50,7 @@ use crate::refs::{
     diff_named_ref_targets, diff_named_remote_refs, merge_ref_targets, merge_remote_refs,
 };
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
-use crate::rewrite::DescendantRebaser;
+use crate::rewrite::{DescendantRebaser, RebaseOptions};
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
 use crate::simple_op_store::SimpleOpStore;
@@ -855,28 +855,39 @@ impl MutableRepo {
     fn rebase_descendants_return_rebaser<'settings, 'repo>(
         &'repo mut self,
         settings: &'settings UserSettings,
+        options: RebaseOptions,
     ) -> Result<Option<DescendantRebaser<'settings, 'repo>>, TreeMergeError> {
         if !self.has_rewrites() {
             // Optimization
             return Ok(None);
         }
         let mut rebaser = self.create_descendant_rebaser(settings);
+        *rebaser.mut_options() = options;
         rebaser.rebase_all()?;
         Ok(Some(rebaser))
     }
 
-    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
+    pub fn rebase_descendants_with_options(
+        &mut self,
+        settings: &UserSettings,
+        options: RebaseOptions,
+    ) -> Result<usize, TreeMergeError> {
         Ok(self
-            .rebase_descendants_return_rebaser(settings)?
+            .rebase_descendants_return_rebaser(settings, options)?
             .map_or(0, |rebaser| rebaser.rebased().len()))
+    }
+
+    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
+        self.rebase_descendants_with_options(settings, Default::default())
     }
 
     pub fn rebase_descendants_return_map(
         &mut self,
         settings: &UserSettings,
+        options: RebaseOptions,
     ) -> Result<HashMap<CommitId, CommitId>, TreeMergeError> {
         Ok(self
-            .rebase_descendants_return_rebaser(settings)?
+            .rebase_descendants_return_rebaser(settings, options)?
             .map_or(HashMap::new(), |rebaser| rebaser.rebased().clone()))
     }
 

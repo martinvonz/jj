@@ -104,6 +104,22 @@ pub fn rebase_commit(
     old_commit: &Commit,
     new_parents: &[Commit],
 ) -> Result<Commit, TreeMergeError> {
+    rebase_commit_with_options(
+        settings,
+        mut_repo,
+        old_commit,
+        new_parents,
+        &Default::default(),
+    )
+}
+
+pub fn rebase_commit_with_options(
+    settings: &UserSettings,
+    mut_repo: &mut MutableRepo,
+    old_commit: &Commit,
+    new_parents: &[Commit],
+    options: &RebaseOptions,
+) -> Result<Commit, TreeMergeError> {
     let old_parents = old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
@@ -113,16 +129,44 @@ pub fn rebase_commit(
         .iter()
         .map(|parent| parent.store_commit().root_tree.clone())
         .collect_vec();
-    let new_tree_id = if new_parent_trees == old_parent_trees {
-        // Optimization
-        old_commit.tree_id().clone()
+
+    let (old_base_tree_id, new_tree_id) = if new_parent_trees == old_parent_trees {
+        (
+            // Optimization: old_base_tree_id is only used for newly empty, but when the parents
+            // haven't changed it can't be newly empty.
+            None,
+            // Optimization: Skip merging.
+            old_commit.tree_id().clone(),
+        )
     } else {
         let old_base_tree = merge_commit_trees(mut_repo, &old_parents)?;
         let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
         let old_tree = old_commit.tree()?;
-        let merged_tree = new_base_tree.merge(&old_base_tree, &old_tree)?;
-        merged_tree.id()
+        (
+            Some(old_base_tree.id()),
+            new_base_tree.merge(&old_base_tree, &old_tree)?.id(),
+        )
     };
+    // Ensure we don't abandon commits with multiple parents (merge commits), even
+    // if they're empty.
+    if let [parent] = new_parents {
+        match options.empty {
+            EmptyBehaviour::AbandonNewlyEmpty | EmptyBehaviour::AbandonAllEmpty => {
+                if *parent.tree_id() == new_tree_id
+                    && (options.empty == EmptyBehaviour::AbandonAllEmpty
+                        || old_base_tree_id != Some(old_commit.tree_id().clone()))
+                {
+                    mut_repo.record_abandoned_commit(old_commit.id().clone());
+                    // Record old_commit as being succeeded by the parent for the purposes of
+                    // the rebase.
+                    // This ensures that when we stack commits, the second commit knows to
+                    // rebase on top of the parent commit, rather than the abandoned commit.
+                    return Ok(parent.clone());
+                }
+            }
+            EmptyBehaviour::Keep => {}
+        }
+    }
     let new_parent_ids = new_parents
         .iter()
         .map(|commit| commit.id().clone())
@@ -221,6 +265,9 @@ pub struct DescendantRebaser<'settings, 'repo> {
     // have been rebased.
     heads_to_add: HashSet<CommitId>,
     heads_to_remove: Vec<CommitId>,
+
+    // Options to apply during a rebase.
+    options: RebaseOptions,
 }
 
 impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
@@ -322,7 +369,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             branches,
             heads_to_add,
             heads_to_remove: Default::default(),
+            options: Default::default(),
         }
+    }
+
+    /// Returns options that can be set.
+    pub fn mut_options(&mut self) -> &mut RebaseOptions {
+        &mut self.options
     }
 
     /// Returns a map from `CommitId` of old commit to new commit. Includes the
@@ -333,21 +386,30 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
+        // This should be a set, but performance of a vec is much better since we expect
+        // 99% of commits to have <= 2 parents.
         let mut new_ids = vec![];
+        let mut add_parent = |id: &CommitId| {
+            // This can trigger if we abandon an empty commit, as both the empty commit and
+            // its parent are succeeded by the same commit.
+            if !new_ids.contains(id) {
+                new_ids.push(id.clone());
+            }
+        };
         for old_id in old_ids {
             if let Some(new_parent_ids) = self.new_parents.get(old_id) {
                 for new_parent_id in new_parent_ids {
                     // The new parent may itself have been rebased earlier in the process
                     if let Some(newer_parent_id) = self.rebased.get(new_parent_id) {
-                        new_ids.push(newer_parent_id.clone());
+                        add_parent(newer_parent_id);
                     } else {
-                        new_ids.push(new_parent_id.clone());
+                        add_parent(new_parent_id);
                     }
                 }
             } else if let Some(new_parent_id) = self.rebased.get(old_id) {
-                new_ids.push(new_parent_id.clone());
+                add_parent(new_parent_id);
             } else {
-                new_ids.push(old_id.clone());
+                add_parent(old_id);
             };
         }
         new_ids
@@ -477,8 +539,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 .filter(|new_parent| head_set.contains(new_parent))
                 .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id))
                 .try_collect()?;
-            let new_commit =
-                rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents)?;
+            let new_commit = rebase_commit_with_options(
+                self.settings,
+                self.mut_repo,
+                &old_commit,
+                &new_parents,
+                &self.options,
+            )?;
             self.rebased
                 .insert(old_commit_id.clone(), new_commit.id().clone());
             self.update_references(old_commit_id, vec![new_commit.id().clone()], true)?;

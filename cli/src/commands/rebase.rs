@@ -334,7 +334,10 @@ fn rebase_revision(
         );
     }
     // Now, rebase the descendants of the children.
-    rebased_commit_ids.extend(tx.mut_repo().rebase_descendants_return_map(settings)?);
+    rebased_commit_ids.extend(
+        tx.mut_repo()
+            .rebase_descendants_return_map(settings, Default::default())?,
+    );
     let num_rebased_descendants = rebased_commit_ids.len();
 
     // We now update `new_parents` to account for the rebase of all of
