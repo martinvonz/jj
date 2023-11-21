@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commit. For example, `jj new a b --no-edit -m Merge` creates a merge commit
   without affecting the working copy.
 
+* `jj rebase` now takes the flag `--skip-empty`, which doesn't copy over commits
+  that would become empty after a rebase.
+
 ### Fixed bugs
 
 
