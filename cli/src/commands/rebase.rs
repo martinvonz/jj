@@ -22,7 +22,7 @@ use jj_lib::backend::{CommitId, ObjectId};
 use jj_lib::commit::Commit;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
-use jj_lib::rewrite::rebase_commit;
+use jj_lib::rewrite::{rebase_commit_with_options, EmptyBehaviour, RebaseOptions};
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
@@ -143,6 +143,13 @@ pub(crate) struct RebaseArgs {
     /// commit)
     #[arg(long, short, required = true)]
     destination: Vec<RevisionArg>,
+
+    /// If true, when rebasing would produce an empty commit, the commit is
+    /// skipped.
+    /// Will never skip merge commits with multiple non-empty parents.
+    #[arg(long)]
+    skip_empty: bool,
+
     /// Deprecated. Please prefix the revset with `all:` instead.
     #[arg(long, short = 'L', hide = true)]
     allow_large_revsets: bool,
@@ -160,6 +167,13 @@ pub(crate) fn cmd_rebase(
 Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets -d x -d y`.",
         ));
     }
+
+    let rebase_options = RebaseOptions {
+        empty: match args.skip_empty {
+            true => EmptyBehaviour::AbandonAllEmpty,
+            false => EmptyBehaviour::Keep,
+        },
+    };
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_parents = cli_util::resolve_all_revs(&workspace_command, ui, &args.destination)?
         .into_iter()
@@ -171,6 +185,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             &mut workspace_command,
             &new_parents,
             rev_str,
+            &rebase_options,
         )?;
     } else if !args.source.is_empty() {
         let source_commits =
@@ -181,6 +196,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             &mut workspace_command,
             &new_parents,
             &source_commits,
+            rebase_options,
         )?;
     } else {
         let branch_commits = if args.branch.is_empty() {
@@ -194,6 +210,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             &mut workspace_command,
             &new_parents,
             &branch_commits,
+            rebase_options,
         )?;
     }
     Ok(())
@@ -205,6 +222,7 @@ fn rebase_branch(
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     branch_commits: &IndexSet<Commit>,
+    rebase_options: RebaseOptions,
 ) -> Result<(), CommandError> {
     let parent_ids = new_parents
         .iter()
@@ -225,7 +243,14 @@ fn rebase_branch(
         .iter()
         .commits(workspace_command.repo().store())
         .try_collect()?;
-    rebase_descendants(ui, settings, workspace_command, new_parents, &root_commits)
+    rebase_descendants(
+        ui,
+        settings,
+        workspace_command,
+        new_parents,
+        &root_commits,
+        rebase_options,
+    )
 }
 
 fn rebase_descendants(
@@ -234,6 +259,7 @@ fn rebase_descendants(
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     old_commits: &IndexSet<Commit>,
+    rebase_options: RebaseOptions,
 ) -> Result<(), CommandError> {
     workspace_command.check_rewritable(old_commits)?;
     for old_commit in old_commits.iter() {
@@ -251,9 +277,17 @@ fn rebase_descendants(
     // `rebase_descendants` takes care of sorting in reverse topological order, so
     // no need to do it here.
     for old_commit in old_commits {
-        rebase_commit(settings, tx.mut_repo(), old_commit, new_parents)?;
+        rebase_commit_with_options(
+            settings,
+            tx.mut_repo(),
+            old_commit,
+            new_parents,
+            &rebase_options,
+        )?;
     }
-    let num_rebased = old_commits.len() + tx.mut_repo().rebase_descendants(settings)?;
+    let num_rebased = old_commits.len()
+        + tx.mut_repo()
+            .rebase_descendants_with_options(settings, rebase_options)?;
     writeln!(ui.stderr(), "Rebased {num_rebased} commits")?;
     tx.finish(ui)?;
     Ok(())
@@ -265,6 +299,7 @@ fn rebase_revision(
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     rev_str: &str,
+    rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
     let old_commit = workspace_command.resolve_single_rev(rev_str, ui)?;
     workspace_command.check_rewritable([&old_commit])?;
@@ -328,15 +363,21 @@ fn rebase_revision(
 
         rebased_commit_ids.insert(
             child_commit.id().clone(),
-            rebase_commit(settings, tx.mut_repo(), child_commit, &new_child_parents)?
-                .id()
-                .clone(),
+            rebase_commit_with_options(
+                settings,
+                tx.mut_repo(),
+                child_commit,
+                &new_child_parents,
+                rebase_options,
+            )?
+            .id()
+            .clone(),
         );
     }
     // Now, rebase the descendants of the children.
     rebased_commit_ids.extend(
         tx.mut_repo()
-            .rebase_descendants_return_map(settings, Default::default())?,
+            .rebase_descendants_return_map(settings, rebase_options.clone())?,
     );
     let num_rebased_descendants = rebased_commit_ids.len();
 
@@ -363,8 +404,18 @@ fn rebase_revision(
     // Finally, it's safe to rebase `old_commit`. At this point, it should no longer
     // have any children; they have all been rebased and the originals have been
     // abandoned.
-    rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
-    debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?, 0);
+    rebase_commit_with_options(
+        settings,
+        tx.mut_repo(),
+        &old_commit,
+        &new_parents,
+        rebase_options,
+    )?;
+    debug_assert_eq!(
+        tx.mut_repo()
+            .rebase_descendants_with_options(settings, rebase_options.clone())?,
+        0
+    );
 
     if num_rebased_descendants > 0 {
         writeln!(
