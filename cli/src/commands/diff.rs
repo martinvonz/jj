@@ -23,6 +23,10 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct DiffArgs {
     /// Show changes in this revision, compared to its parent(s)
+    ///
+    /// If the revision is a merge commit, this shows changes *from* the
+    /// automatic merge of the contents of all of its parents *to* the contents
+    /// of the revision itself.
     #[arg(long, short)]
     revision: Option<RevisionArg>,
     /// Show changes from this revision
