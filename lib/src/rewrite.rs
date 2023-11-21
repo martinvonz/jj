@@ -171,10 +171,33 @@ pub fn back_out_commit(
         .write()?)
 }
 
+#[derive(Clone, Default, PartialEq)]
+pub enum EmptyBehaviour {
+    /// Always keep empty commits
+    #[default]
+    Keep,
+    /// Skips commits that would be empty after the rebase, but that were not
+    /// originally empty.
+    /// Will never skip merge commits with multiple non-empty parents.
+    AbandonNewlyEmpty,
+    /// Skips all empty commits, including ones that were empty before the
+    /// rebase.
+    /// Will never skip merge commits with multiple non-empty parents.
+    AbandonAllEmpty,
+}
+
+/// Controls the configuration of a rebase.
+// If we wanted to add a flag similar to `git rebase --ignore-date`, then this
+// makes it much easier by ensuring that the only changes required are to
+// change the RebaseOptions construction in the CLI, and changing the
+// rebase_commit function to actually use the flag, and ensure we don't need to
+// plumb it in.
+#[derive(Clone, Default)]
+pub struct RebaseOptions {
+    pub empty: EmptyBehaviour,
+}
+
 /// Rebases descendants of a commit onto a new commit (or several).
-// TODO: Should there be an option to drop empty commits (and/or an option to
-// drop empty commits only if they weren't already empty)? Or maybe that
-// shouldn't be this type's job.
 pub struct DescendantRebaser<'settings, 'repo> {
     settings: &'settings UserSettings,
     mut_repo: &'repo mut MutableRepo,
