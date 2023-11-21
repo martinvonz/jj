@@ -13,12 +13,17 @@
 // limitations under the License.
 
 use itertools::Itertools as _;
+use jj_lib::commit::Commit;
 use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::rewrite::{restore_tree, DescendantRebaser};
+use jj_lib::rewrite::{
+    restore_tree, DescendantRebaser, EmptyBehaviour, RebaseOptions, RebasedDescendant,
+};
 use maplit::{hashmap, hashset};
+use test_case::test_case;
 use testutils::{
     assert_rebased, create_random_commit, create_tree, write_random_commit, CommitGraphBuilder,
     TestRepo,
@@ -1479,4 +1484,158 @@ fn test_rebase_descendants_update_checkout_abandoned_merge() {
     let new_checkout_id = repo.view().get_wc_commit_id(&workspace_id).unwrap();
     let checkout = repo.store().get_commit(new_checkout_id).unwrap();
     assert_eq!(checkout.parent_ids(), vec![commit_b.id().clone()]);
+}
+
+fn assert_rebase_skipped(
+    rebased: Option<RebasedDescendant>,
+    expected_old_commit: &Commit,
+    expected_new_commit: &Commit,
+) {
+    if let Some(RebasedDescendant {
+        old_commit,
+        new_commit,
+    }) = rebased
+    {
+        assert_eq!(old_commit, *expected_old_commit,);
+        assert_eq!(new_commit, *expected_new_commit);
+        // Since it was abandoned, the change ID should be different.
+        assert_ne!(old_commit.change_id(), new_commit.change_id());
+    } else {
+        panic!("expected rebased commit: {rebased:?}");
+    }
+}
+
+#[test_case(EmptyBehaviour::Keep; "keep all commits")]
+#[test_case(EmptyBehaviour::AbandonNewlyEmpty; "abandon newly empty commits")]
+#[test_case(EmptyBehaviour::AbandonAllEmpty ; "abandon all empty commits")]
+fn test_empty_commit_option(empty: EmptyBehaviour) {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    // Rebase a previously empty commit, a newly empty commit, and a commit with
+    // actual changes.
+    //
+    // BD (commit B joined with commit D)
+    // |   G
+    // |   |
+    // |   F (clean merge)
+    // |  /|\
+    // | C D E (empty)
+    // |  \|/
+    // |   B
+    // A__/
+    let mut tx = repo.start_transaction(&settings, "test");
+    let mut_repo = tx.mut_repo();
+    let create_fixed_tree = |paths: &[&str]| {
+        let content_map = paths
+            .iter()
+            .map(|&p| (RepoPath::from_internal_string(p), p))
+            .collect_vec();
+        let content_map_ref = content_map
+            .iter()
+            .map(|(path, content)| (path, *content))
+            .collect_vec();
+        create_tree(repo, &content_map_ref)
+    };
+
+    // The commit_with_parents function generates non-empty merge commits, so it
+    // isn't suitable for this test case.
+    let tree_b = create_fixed_tree(&["B"]);
+    let tree_c = create_fixed_tree(&["B", "C"]);
+    let tree_d = create_fixed_tree(&["B", "D"]);
+    let tree_f = create_fixed_tree(&["B", "C", "D"]);
+    let tree_g = create_fixed_tree(&["B", "C", "D", "G"]);
+
+    let commit_a = create_random_commit(mut_repo, &settings).write().unwrap();
+
+    let mut create_commit = |parents: &[&Commit], tree: &MergedTree| {
+        create_random_commit(mut_repo, &settings)
+            .set_parents(
+                parents
+                    .iter()
+                    .map(|commit| commit.id().clone())
+                    .collect_vec(),
+            )
+            .set_tree_id(tree.id())
+            .write()
+            .unwrap()
+    };
+    let commit_b = create_commit(&[&commit_a], &tree_b);
+    let commit_c = create_commit(&[&commit_b], &tree_c);
+    let commit_d = create_commit(&[&commit_b], &tree_d);
+    let commit_e = create_commit(&[&commit_b], &tree_b);
+    let commit_f = create_commit(&[&commit_c, &commit_d, &commit_e], &tree_f);
+    let commit_g = create_commit(&[&commit_f], &tree_g);
+    let commit_bd = create_commit(&[&commit_a], &tree_d);
+
+    let mut rebaser = DescendantRebaser::new(
+        &settings,
+        tx.mut_repo(),
+        hashmap! {
+            commit_b.id().clone() => hashset!{commit_bd.id().clone()}
+        },
+        hashset! {},
+    );
+    *rebaser.mut_options() = RebaseOptions {
+        empty: empty.clone(),
+    };
+
+    let new_head = match empty {
+        EmptyBehaviour::Keep => {
+            // The commit C isn't empty.
+            let new_commit_c =
+                assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_bd]);
+            let new_commit_d =
+                assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&commit_bd]);
+            let new_commit_e =
+                assert_rebased(rebaser.rebase_next().unwrap(), &commit_e, &[&commit_bd]);
+            let new_commit_f = assert_rebased(
+                rebaser.rebase_next().unwrap(),
+                &commit_f,
+                &[&new_commit_c, &new_commit_d, &new_commit_e],
+            );
+            assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_f])
+        }
+        EmptyBehaviour::AbandonAllEmpty => {
+            // The commit C isn't empty.
+            let new_commit_c =
+                assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_bd]);
+            // D and E are empty, and F is a clean merge with only one child. Thus, F is
+            // also considered empty.
+            assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_d, &commit_bd);
+            assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_e, &commit_bd);
+            assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_f, &new_commit_c);
+            assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_c])
+        }
+        EmptyBehaviour::AbandonNewlyEmpty => {
+            // The commit C isn't empty.
+            let new_commit_c =
+                assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_bd]);
+
+            // The changes in D are included in BD, so D is newly empty.
+            assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_d, &commit_bd);
+            // E was already empty, so F is a merge commit with C and E as parents.
+            // Although it's empty, we still keep it because we don't want to drop merge
+            // commits.
+            let new_commit_e =
+                assert_rebased(rebaser.rebase_next().unwrap(), &commit_e, &[&commit_bd]);
+            let new_commit_f = assert_rebased(
+                rebaser.rebase_next().unwrap(),
+                &commit_f,
+                &[&new_commit_c, &new_commit_e],
+            );
+            assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_f])
+        }
+    };
+
+    assert!(rebaser.rebase_next().unwrap().is_none());
+    assert_eq!(rebaser.rebased().len(), 5);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            new_head.id().clone(),
+        }
+    );
 }
