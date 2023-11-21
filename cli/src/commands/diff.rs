@@ -19,6 +19,7 @@ use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
 use crate::diff_util::{diff_formats_for, show_diff, DiffFormatArgs};
 use crate::ui::Ui;
 
+/// Compare file contents between two commits
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct DiffArgs {
     /// Show changes in this revision, compared to its parent(s)
