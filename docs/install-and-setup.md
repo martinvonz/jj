@@ -19,11 +19,11 @@ can install the same binaries of the last `jj` release from GitHub as follows:
 
 ```shell
 # Will put the jj binary for the latest release in ~/.cargo/bin by default
-cargo binstall --strategy crate-meta-data jj-cli
+cargo binstall --strategies crate-meta-data jj-cli
 ```
 
-Without the `--strategy` option, you may get equivalent binaries that should be
-compiled from the same source code.
+Without the `--strategies` option, you may get equivalent binaries that should
+be compiled from the same source code.
 
 
 ### Linux
