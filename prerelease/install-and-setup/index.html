@@ -1416,10 +1416,10 @@ options below.</p>
 <p>If you use <a href="https://github.com/cargo-bins/cargo-binstall"><code>cargo-binstall</code></a>, you
 can install the same binaries of the last <code>jj</code> release from GitHub as follows:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Will put the jj binary for the latest release in ~/.cargo/bin by default</span>
-cargo<span class="w"> </span>binstall<span class="w"> </span>--strategy<span class="w"> </span>crate-meta-data<span class="w"> </span>jj-cli
+cargo<span class="w"> </span>binstall<span class="w"> </span>--strategies<span class="w"> </span>crate-meta-data<span class="w"> </span>jj-cli
 </code></pre></div>
-<p>Without the <code>--strategy</code> option, you may get equivalent binaries that should be
-compiled from the same source code.</p>
+<p>Without the <code>--strategies</code> option, you may get equivalent binaries that should
+be compiled from the same source code.</p>
 <h3 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
 <h4 id="from-source">From Source<a class="headerlink" href="#from-source" title="Permanent link">&para;</a></h4>
 <p>First make sure that you have the <code>libssl-dev</code>, <code>openssl</code>, <code>pkg-config</code>, and
