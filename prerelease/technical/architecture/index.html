@@ -1460,7 +1460,7 @@ the <code>.jj/repo/store/type</code> file. There are similar files for the other
 <h3 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h3>
 <p>Here's a diagram showing some important types in the library crate. The
 following sections describe each component.</p>
-<div class="highlight"><pre><span></span><code>graph TD;
+<pre class="mermaid"><code>graph TD;
     ReadonlyRepo--&gt;Store;
     ReadonlyRepo--&gt;OpStore;
     ReadonlyRepo--&gt;OpHeadsStore;
@@ -1481,8 +1481,7 @@ following sections describe each component.</p>
     RepoLoader--&gt;OpHeadsStore;
     RepoLoader--&gt;ReadonlyRepo;
     Git--&gt;GitBackend;
-    GitBackend--&gt;StackedTable;
-</code></pre></div>
+    GitBackend--&gt;StackedTable;</code></pre>
 <h3 id="backend">Backend<a class="headerlink" href="#backend" title="Permanent link">&para;</a></h3>
 <p>The <code>Backend</code> trait defines the interface each
 commit backend needs to implement. The current in-tree commit backends
