@@ -33,7 +33,7 @@ chrono = { version = "0.4.31", default-features = false, features = [
     "std",
     "clock",
 ] }
-config = { version = "0.13.2", default-features = false, features = ["toml"] }
+config = { version = "0.13.4", default-features = false, features = ["toml"] }
 criterion = "0.5.1"
 crossterm = { version = "0.26", default-features = false }
 digest = "0.10.7"
