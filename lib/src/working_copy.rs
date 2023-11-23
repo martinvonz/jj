@@ -141,7 +141,7 @@ pub enum SnapshotError {
         max_size: HumanByteSize,
     },
     /// Some other error happened while snapshotting the working copy.
-    #[error("{message}: {err:?}")]
+    #[error("{message}: {err}")]
     Other {
         /// Error message.
         message: String,
@@ -224,7 +224,7 @@ pub enum CheckoutError {
     #[error("Internal backend error: {0}")]
     InternalBackendError(#[from] BackendError),
     /// Some other error happened while checking out the working copy.
-    #[error("{message}: {err:?}")]
+    #[error("{message}: {err}")]
     Other {
         /// Error message.
         message: String,
@@ -248,7 +248,7 @@ pub enum ResetError {
     #[error("Internal error: {0}")]
     InternalBackendError(#[from] BackendError),
     /// Some other error happened while checking out the working copy.
-    #[error("{message}: {err:?}")]
+    #[error("{message}: {err}")]
     Other {
         /// Error message.
         message: String,
@@ -260,7 +260,7 @@ pub enum ResetError {
 
 /// An error while reading the working copy state.
 #[derive(Debug, Error)]
-#[error("{message}: {err:?}")]
+#[error("{message}: {err}")]
 pub struct WorkingCopyStateError {
     /// Error message.
     pub message: String,
