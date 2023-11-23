@@ -447,6 +447,12 @@ pub enum CommandNameAndArgs {
 }
 
 impl CommandNameAndArgs {
+    /// Returns command name without arguments.
+    pub fn split_name(&self) -> Cow<str> {
+        let (name, _) = self.split_name_and_args();
+        name
+    }
+
     /// Returns command name and arguments.
     ///
     /// The command name may be an empty string (as well as each argument.)

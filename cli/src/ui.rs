@@ -224,8 +224,8 @@ impl Ui {
                     Err(e) => {
                         writeln!(
                             self.warning(),
-                            "Failed to spawn pager '{cmd}': {e}",
-                            cmd = self.pager_cmd,
+                            "Failed to spawn pager '{name}': {e}",
+                            name = self.pager_cmd.split_name(),
                         )
                         .ok();
                     }
