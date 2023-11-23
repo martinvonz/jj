@@ -36,7 +36,7 @@ pub enum BuiltinToolError {
     },
     #[error("Rendering {item} {id} is unimplemented for the builtin difftool/mergetool")]
     Unimplemented { item: &'static str, id: String },
-    #[error("Backend error: {0:?}")]
+    #[error("Backend error: {0}")]
     BackendError(#[from] jj_lib::backend::BackendError),
 }
 

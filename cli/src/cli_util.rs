@@ -480,7 +480,7 @@ impl TracingSubscription {
                     .from_env_lossy()
             })
             .map_err(|err| {
-                CommandError::InternalError(format!("failed to enable verbose logging: {err:?}"))
+                CommandError::InternalError(format!("failed to enable verbose logging: {err}"))
             })?;
         tracing::info!("verbose logging enabled");
         Ok(())
@@ -2215,14 +2215,14 @@ pub fn write_config_value_to_file(
             // If config doesn't exist yet, read as empty and we'll write one.
             std::io::ErrorKind::NotFound => Ok("".to_string()),
             _ => Err(user_error(format!(
-                "Failed to read file {path}: {err:?}",
+                "Failed to read file {path}: {err}",
                 path = path.display()
             ))),
         }
     })?;
     let mut doc = toml_edit::Document::from_str(&config_toml).map_err(|err| {
         user_error(format!(
-            "Failed to parse file {path}: {err:?}",
+            "Failed to parse file {path}: {err}",
             path = path.display()
         ))
     })?;
@@ -2264,7 +2264,7 @@ pub fn write_config_value_to_file(
     // Write config back
     std::fs::write(path, doc.to_string()).map_err(|err| {
         user_error(format!(
-            "Failed to write file {path}: {err:?}",
+            "Failed to write file {path}: {err}",
             path = path.display()
         ))
     })
