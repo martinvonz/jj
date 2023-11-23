@@ -35,6 +35,7 @@ fn test_checkout() {
     Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ADDED TEST FAILURE
     @  05ce7118568d3007efc9163b055f9cb4a6becfde
     ◉  5c52832c3483e0ace06d047a806024984f28f1d7 second
     ◉  69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
