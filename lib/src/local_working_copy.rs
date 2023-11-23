@@ -206,6 +206,20 @@ fn file_states_from_proto(
         .collect()
 }
 
+fn file_states_to_proto(
+    file_states: &BTreeMap<RepoPath, FileState>,
+) -> Vec<crate::protos::working_copy::FileStateEntry> {
+    file_states
+        .iter()
+        .map(
+            |(path, state)| crate::protos::working_copy::FileStateEntry {
+                path: path.to_internal_file_string(),
+                state: Some(file_state_to_proto(state)),
+            },
+        )
+        .collect()
+}
+
 fn sparse_patterns_from_proto(
     proto: Option<&crate::protos::working_copy::SparsePatterns>,
 ) -> Vec<RepoPath> {
@@ -466,16 +480,7 @@ impl TreeState {
             }
         }
 
-        proto.file_states = self
-            .file_states
-            .iter()
-            .map(
-                |(path, state)| crate::protos::working_copy::FileStateEntry {
-                    path: path.to_internal_file_string(),
-                    state: Some(file_state_to_proto(state)),
-                },
-            )
-            .collect();
+        proto.file_states = file_states_to_proto(&self.file_states);
         let mut sparse_patterns = crate::protos::working_copy::SparsePatterns::default();
         for path in &self.sparse_patterns {
             sparse_patterns
