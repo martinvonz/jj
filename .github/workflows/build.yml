@@ -32,8 +32,13 @@ jobs:
         toolchain:  1.71
     - name: Build
       run: cargo build --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
-    - name: Test
-      run: cargo test --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
+    - uses: nick-fields/retry@v2
+      name: Test (retries if not done after 15m)
+      with:
+        timeout_minutes: 15
+        max_attempts: 5
+        retry_on: timeout
+        command: cargo test --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
       env:
         RUST_BACKTRACE: 1
 
