@@ -218,10 +218,11 @@ impl Ui {
         match self.output {
             UiOutput::Terminal { .. } if io::stdout().is_terminal() => {
                 match UiOutput::new_paged(&self.pager_cmd) {
-                    Ok(new_output) => {
-                        self.output = new_output;
+                    Ok(pager_output) => {
+                        self.output = pager_output;
                     }
                     Err(e) => {
+                        // The pager executable couldn't be found or couldn't be run
                         writeln!(
                             self.warning(),
                             "Failed to spawn pager '{name}': {e}",
