@@ -2296,6 +2296,7 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(),
         .map_err(|err| CommandError::ConfigError(format!("ui.editor: {err}")))?;
     let exit_status = editor.to_command().arg(edit_path).status().map_err(|err| {
         user_error(format!(
+            // The executable couldn't be found or run; command-line arguments are not relevant
             "Failed to run editor '{name}': {err}",
             name = editor.split_name(),
         ))
