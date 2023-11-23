@@ -2294,11 +2294,12 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(),
         .config()
         .get("ui.editor")
         .map_err(|err| CommandError::ConfigError(format!("ui.editor: {err}")))?;
-    let exit_status = editor
-        .to_command()
-        .arg(edit_path)
-        .status()
-        .map_err(|_| user_error(format!("Failed to run editor '{editor}'")))?;
+    let exit_status = editor.to_command().arg(edit_path).status().map_err(|err| {
+        user_error(format!(
+            "Failed to run editor '{name}': {err}",
+            name = editor.split_name(),
+        ))
+    })?;
     if !exit_status.success() {
         return Err(user_error(format!(
             "Editor '{editor}' exited with an error"
