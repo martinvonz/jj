@@ -154,7 +154,7 @@ pub fn rebase_commit_with_options(
             EmptyBehaviour::Keep => false,
             EmptyBehaviour::AbandonNewlyEmpty => {
                 *parent.tree_id() == new_tree_id
-                    && old_base_tree_id != Some(old_commit.tree_id().clone())
+                    && old_base_tree_id.map_or(false, |id| id != *old_commit.tree_id())
             }
             EmptyBehaviour::AbandonAllEmpty => *parent.tree_id() == new_tree_id,
         };
