@@ -633,7 +633,12 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Difference(self.clone(), other.clone()))
     }
 
-    pub fn resolve(
+    /// Resolve a programmatically created revset expression. In particular, the
+    /// expression must not contain any symbols (branches, tags, change/commit
+    /// prefixes). Callers must not include `RevsetExpression::symbol()` in
+    /// the expression, and should instead resolve symbols to `CommitId`s and
+    /// pass them into `RevsetExpression::commits()`.
+    pub fn resolve_programmatic(
         self: Rc<Self>,
         repo: &dyn Repo,
     ) -> Result<ResolvedExpression, RevsetResolutionError> {
@@ -642,6 +647,8 @@ impl RevsetExpression {
             .map(|expression| resolve_visibility(repo, &expression))
     }
 
+    /// Resolve a user-provided expression. Symbols will be resolved using the
+    /// provided `SymbolResolver`.
     pub fn resolve_user_expression(
         self: Rc<Self>,
         repo: &dyn Repo,
@@ -1932,7 +1939,7 @@ pub fn walk_revs<'index>(
 ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
     RevsetExpression::commits(unwanted.to_vec())
         .range(&RevsetExpression::commits(wanted.to_vec()))
-        .resolve(repo)
+        .resolve_programmatic(repo)
         .unwrap()
         .evaluate(repo)
 }

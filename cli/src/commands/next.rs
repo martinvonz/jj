@@ -90,7 +90,7 @@ pub(crate) fn cmd_next(
         descendant_expression.minus(&RevsetExpression::commit(current_wc_id.clone()).descendants())
     };
     let targets: Vec<Commit> = target_expression
-        .resolve(workspace_command.repo().as_ref())?
+        .resolve_programmatic(workspace_command.repo().as_ref())?
         .evaluate(workspace_command.repo().as_ref())?
         .iter()
         .commits(workspace_command.repo().store())

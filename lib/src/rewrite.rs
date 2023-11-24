@@ -289,7 +289,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .parents()
             .minus(&old_commits_expression);
         let heads_to_add = heads_to_add_expression
-            .resolve(mut_repo)
+            .resolve_programmatic(mut_repo)
             .unwrap()
             .evaluate(mut_repo)
             .unwrap()
@@ -298,7 +298,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
         let to_visit_expression = old_commits_expression.descendants();
         let to_visit_revset = to_visit_expression
-            .resolve(mut_repo)
+            .resolve_programmatic(mut_repo)
             .unwrap()
             .evaluate(mut_repo)
             .unwrap();
