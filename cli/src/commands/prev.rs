@@ -88,8 +88,7 @@ pub(crate) fn cmd_prev(
         ancestor_expression.minus(&RevsetExpression::commit(current_wc_id.clone()))
     };
     let targets: Vec<_> = target_revset
-        .resolve_programmatic(workspace_command.repo().as_ref())
-        .evaluate(workspace_command.repo().as_ref())?
+        .evaluate_programmatic(workspace_command.repo().as_ref())?
         .iter()
         .commits(workspace_command.repo().store())
         .take(2)

@@ -364,8 +364,7 @@ fn test_resolve_working_copy() {
         .unwrap();
     let resolve = |ws_id: WorkspaceId| -> Vec<CommitId> {
         RevsetExpression::working_copy(ws_id)
-            .resolve_programmatic(mut_repo)
-            .evaluate(mut_repo)
+            .evaluate_programmatic(mut_repo)
             .unwrap()
             .iter()
             .collect()
@@ -2636,10 +2635,7 @@ fn test_evaluate_expression_file() {
         let mut_repo = &*mut_repo;
         let expression =
             RevsetExpression::filter(RevsetFilterPredicate::File(Some(vec![file_path.clone()])));
-        let revset = expression
-            .resolve_programmatic(mut_repo)
-            .evaluate(mut_repo)
-            .unwrap();
+        let revset = expression.evaluate_programmatic(mut_repo).unwrap();
         revset.iter().collect()
     };
 

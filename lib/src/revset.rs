@@ -657,6 +657,15 @@ impl RevsetExpression {
         resolve_symbols(repo, self, symbol_resolver)
             .map(|expression| resolve_visibility(repo, &expression))
     }
+
+    /// Resolve a programmatically created revset expression and evaluate it in
+    /// the repo.
+    pub fn evaluate_programmatic<'index>(
+        self: Rc<Self>,
+        repo: &'index dyn Repo,
+    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
+        self.resolve_programmatic(repo).evaluate(repo)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1939,8 +1948,7 @@ pub fn walk_revs<'index>(
 ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
     RevsetExpression::commits(unwanted.to_vec())
         .range(&RevsetExpression::commits(wanted.to_vec()))
-        .resolve_programmatic(repo)
-        .evaluate(repo)
+        .evaluate_programmatic(repo)
 }
 
 fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
