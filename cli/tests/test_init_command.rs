@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use test_case::test_case;
 
@@ -50,6 +50,10 @@ fn init_git_repo_with_opts(git_repo_path: &Path, opts: &git2::RepositoryInitOpti
         )
         .unwrap();
     git_repo.set_head("refs/heads/my-branch").unwrap();
+}
+
+fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
 }
 
 #[test]
@@ -310,6 +314,74 @@ fn test_init_git_colocated_symlink_gitlink() {
     ◉  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 HEAD@git f61b77cd
     │  (no description set)
     ~
+    "###);
+}
+
+#[test]
+fn test_init_git_colocated_imported_refs() {
+    let test_env = TestEnvironment::default();
+
+    // Set up remote refs
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
+    let remote_path = test_env.env_root().join("remote");
+    test_env.jj_cmd_ok(
+        &remote_path,
+        &["branch", "create", "local-remote", "remote-only"],
+    );
+    test_env.jj_cmd_ok(&remote_path, &["new"]);
+    test_env.jj_cmd_ok(&remote_path, &["git", "export"]);
+
+    let remote_git_path = remote_path.join(PathBuf::from_iter([".jj", "repo", "store", "git"]));
+    let set_up_local_repo = |local_path: &Path| {
+        let git_repo =
+            git2::Repository::clone(remote_git_path.to_str().unwrap(), local_path).unwrap();
+        let git_ref = git_repo
+            .find_reference("refs/remotes/origin/local-remote")
+            .unwrap();
+        git_repo
+            .reference(
+                "refs/heads/local-remote",
+                git_ref.target().unwrap(),
+                false,
+                "",
+            )
+            .unwrap();
+    };
+
+    // With git.auto-local-branch = true
+    let local_path = test_env.env_root().join("local1");
+    set_up_local_repo(&local_path);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["init", "--git-repo=."]);
+    insta::assert_snapshot!(stderr, @r###"
+    Done importing changes from the underlying Git repo.
+    Initialized repo in "."
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &local_path), @r###"
+    local-remote: vvkvtnvv 230dd059 (empty) (no description set)
+      @git: vvkvtnvv 230dd059 (empty) (no description set)
+      @origin: vvkvtnvv 230dd059 (empty) (no description set)
+    remote-only: vvkvtnvv 230dd059 (empty) (no description set)
+      @git: vvkvtnvv 230dd059 (empty) (no description set)
+      @origin: vvkvtnvv 230dd059 (empty) (no description set)
+    "###);
+
+    // With git.auto-local-branch = false
+    test_env.add_config("git.auto-local-branch = false");
+    let local_path = test_env.env_root().join("local2");
+    set_up_local_repo(&local_path);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["init", "--git-repo=."]);
+    insta::assert_snapshot!(stderr, @r###"
+    Done importing changes from the underlying Git repo.
+    The following remote branches aren't associated with the existing local branches:
+      local-remote@origin
+    Hint: Run `jj branch track local-remote@origin` to keep local branches updated on future pulls.
+    Initialized repo in "."
+    "###);
+    insta::assert_snapshot!(get_branch_output(&test_env, &local_path), @r###"
+    local-remote: vvkvtnvv 230dd059 (empty) (no description set)
+      @git: vvkvtnvv 230dd059 (empty) (no description set)
+    local-remote@origin: vvkvtnvv 230dd059 (empty) (no description set)
+    remote-only@origin: vvkvtnvv 230dd059 (empty) (no description set)
     "###);
 }
 

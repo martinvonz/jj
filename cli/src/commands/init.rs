@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs;
 use std::io::Write;
+use std::{fs, io};
 
 use clap::ArgGroup;
+use itertools::Itertools as _;
 use jj_lib::file_util;
 use jj_lib::repo::Repo;
+use jj_lib::view::View;
 use jj_lib::workspace::Workspace;
 use tracing::instrument;
 
@@ -97,6 +99,7 @@ pub(crate) fn cmd_init(
                 tx.finish(ui)?;
             }
         }
+        print_trackable_remote_branches(ui, workspace_command.repo().view())?;
     } else if args.git {
         Workspace::init_internal_git(command.settings(), &wc_path)?;
     } else {
@@ -125,5 +128,39 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
             relative_wc_path.display()
         )?;
     }
+    Ok(())
+}
+
+fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
+    let remote_branch_names = view
+        .branches()
+        .filter(|(_, branch_target)| branch_target.local_target.is_present())
+        .flat_map(|(name, branch_target)| {
+            branch_target
+                .remote_refs
+                .into_iter()
+                .filter(|&(_, remote_ref)| !remote_ref.is_tracking())
+                .map(move |(remote, _)| format!("{name}@{remote}"))
+        })
+        .collect_vec();
+    if remote_branch_names.is_empty() {
+        return Ok(());
+    }
+
+    writeln!(
+        ui.hint(),
+        "The following remote branches aren't associated with the existing local branches:"
+    )?;
+    let mut formatter = ui.stderr_formatter();
+    for full_name in &remote_branch_names {
+        write!(formatter, "  ")?;
+        writeln!(formatter.labeled("branch"), "{full_name}")?;
+    }
+    drop(formatter);
+    writeln!(
+        ui.hint(),
+        "Hint: Run `jj branch track {names}` to keep local branches updated on future pulls.",
+        names = remote_branch_names.join(" "),
+    )?;
     Ok(())
 }
