@@ -22,6 +22,7 @@ use std::sync::Arc;
 use crate::backend;
 use crate::backend::{BackendError, ChangeId, CommitId, MergedTreeId, Signature};
 use crate::merged_tree::MergedTree;
+use crate::signing::{SignResult, Verification};
 use crate::store::Store;
 
 #[derive(Clone)]
@@ -145,6 +146,20 @@ impl Commit {
             }
         }
         false
+    }
+
+    /// A quick way to just check if a signature is present.
+    pub fn is_signed(&self) -> bool {
+        self.data.secure_sig.is_some()
+    }
+
+    /// A slow (but cached) way to get the full verification.
+    pub fn verification(&self) -> SignResult<Option<Verification>> {
+        self.data
+            .secure_sig
+            .as_ref()
+            .map(|sig| self.store.signer().verify(&self.id, &sig.data, &sig.sig))
+            .transpose()
     }
 }
 

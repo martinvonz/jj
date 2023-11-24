@@ -355,6 +355,31 @@
                     "default": "1MiB"
                 }
             }
+        },
+        "signing": {
+            "type": "object",
+            "description": "Settings for verifying and creating cryptographic commit signatures",
+            "properties": {
+                "backend": {
+                    "type": "string",
+                    "description": "Which backend to use to create commit signatures"
+                },
+                "key": {
+                    "type": "string",
+                    "description": "The key parameter to pass to the signing backend. Overridden by `jj sign` parameter or by the global `--sign-with` option"
+                },
+                "sign-all": {
+                    "type": "boolean",
+                    "description": "Whether to sign all commits by default. Overridden by global `--no-sign` option",
+                    "default": false
+                },
+                "backends": {
+                    "type": "object",
+                    "description": "Tables of options to pass to specific signing backends",
+                    "properties": {},
+                    "additionalProperties": true
+                }
+            }
         }
     }
 }

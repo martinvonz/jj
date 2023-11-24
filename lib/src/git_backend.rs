@@ -967,7 +967,10 @@ impl Backend for GitBackend {
                 let mut data = Vec::with_capacity(512);
                 commit.write_to(&mut data).unwrap();
 
-                let sig = sign(&data)?;
+                let sig = sign(&data).map_err(|err| BackendError::WriteObject {
+                    object_type: "commit",
+                    source: Box::new(err),
+                })?;
                 commit
                     .extra_headers
                     .push(("gpgsig".into(), sig.clone().into()));

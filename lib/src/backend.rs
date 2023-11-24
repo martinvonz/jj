@@ -27,6 +27,7 @@ use thiserror::Error;
 use crate::content_hash::ContentHash;
 use crate::merge::Merge;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentBuf};
+use crate::signing::SignResult;
 
 pub trait ObjectId {
     fn new(value: Vec<u8>) -> Self;
@@ -147,7 +148,7 @@ content_hash! {
     }
 }
 
-pub type SigningFn = Box<dyn FnMut(&[u8]) -> BackendResult<Vec<u8>>>;
+pub type SigningFn = Box<dyn FnMut(&[u8]) -> SignResult<Vec<u8>>>;
 
 /// Identifies a single legacy tree, which may have path-level conflicts, or a
 /// merge of multiple trees, where the individual trees do not have conflicts.

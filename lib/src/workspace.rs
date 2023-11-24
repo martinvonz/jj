@@ -36,6 +36,7 @@ use crate::repo::{
     StoreFactories, StoreLoadError, SubmoduleStoreInitializer,
 };
 use crate::settings::UserSettings;
+use crate::signing::SignInitError;
 use crate::store::Store;
 use crate::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, WorkingCopy, WorkingCopyStateError,
@@ -55,6 +56,8 @@ pub enum WorkspaceInitError {
     Path(#[from] PathError),
     #[error(transparent)]
     Backend(#[from] BackendInitError),
+    #[error(transparent)]
+    SignInit(#[from] SignInitError),
 }
 
 #[derive(Error, Debug)]
@@ -249,6 +252,7 @@ impl Workspace {
             .map_err(|repo_init_err| match repo_init_err {
                 RepoInitError::Backend(err) => WorkspaceInitError::Backend(err),
                 RepoInitError::Path(err) => WorkspaceInitError::Path(err),
+                RepoInitError::SignInit(err) => WorkspaceInitError::SignInit(err),
             })?;
             let (working_copy, repo) = init_working_copy(
                 user_settings,

@@ -21,9 +21,10 @@ use chrono::DateTime;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
-use crate::backend::{ChangeId, ObjectId, Signature, Timestamp};
+use crate::backend::{ChangeId, Commit, ObjectId, Signature, Timestamp};
 use crate::fmt_util::binary_prefix;
 use crate::fsmonitor::FsmonitorKind;
+use crate::signing::SignBehavior;
 
 #[derive(Debug, Clone)]
 pub struct UserSettings {
@@ -59,6 +60,50 @@ impl Default for GitSettings {
         GitSettings {
             auto_local_branch: true,
             abandon_unreachable_commits: true,
+        }
+    }
+}
+
+/// Commit signing settings, describes how to and if to sign commits.
+#[derive(Debug, Clone, Default)]
+pub struct SignSettings {
+    /// What to actually do, see [SignBehavior].
+    pub behavior: SignBehavior,
+    /// The email address to compare against the commit author when determining
+    /// if the existing signature is "our own" in terms of the sign behavior.
+    pub user_email: String,
+    /// The signing backend specific key, to be passed to the signing backend.
+    pub key: Option<String>,
+}
+
+impl SignSettings {
+    /// Load the signing settings from the config.
+    pub fn from_settings(settings: &UserSettings) -> Self {
+        let sign_all = settings
+            .config()
+            .get_bool("signing.sign-all")
+            .unwrap_or(false);
+        Self {
+            behavior: if sign_all {
+                SignBehavior::Own
+            } else {
+                SignBehavior::Keep
+            },
+            user_email: settings.user_email(),
+            key: settings.config().get_string("signing.key").ok(),
+        }
+    }
+
+    /// Check if a commit should be signed according to the configured behavior
+    /// and email.
+    pub fn should_sign(&self, commit: &Commit) -> bool {
+        match self.behavior {
+            SignBehavior::Drop => false,
+            SignBehavior::Keep => {
+                commit.secure_sig.is_some() && commit.author.email == self.user_email
+            }
+            SignBehavior::Own => commit.author.email == self.user_email,
+            SignBehavior::Force => true,
         }
     }
 }
@@ -214,6 +259,16 @@ impl UserSettings {
             Err(config::ConfigError::NotFound(_)) => Ok(1024 * 1024),
             e @ Err(_) => e,
         }
+    }
+
+    // separate from sign_settings as those two are needed in pretty different
+    // places
+    pub fn signing_backend(&self) -> Option<String> {
+        self.config.get_string("signing.backend").ok()
+    }
+
+    pub fn sign_settings(&self) -> SignSettings {
+        SignSettings::from_settings(self)
     }
 }
 
