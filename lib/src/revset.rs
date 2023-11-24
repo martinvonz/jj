@@ -637,14 +637,14 @@ impl RevsetExpression {
     /// expression must not contain any symbols (branches, tags, change/commit
     /// prefixes). Callers must not include `RevsetExpression::symbol()` in
     /// the expression, and should instead resolve symbols to `CommitId`s and
-    /// pass them into `RevsetExpression::commits()`.
-    pub fn resolve_programmatic(
-        self: Rc<Self>,
-        repo: &dyn Repo,
-    ) -> Result<ResolvedExpression, RevsetResolutionError> {
+    /// pass them into `RevsetExpression::commits()`. Similarly, the expression
+    /// must not contain any `RevsetExpression::remote_symbol()` or
+    /// `RevsetExpression::working_copy()`, unless they're known to be valid.
+    pub fn resolve_programmatic(self: Rc<Self>, repo: &dyn Repo) -> ResolvedExpression {
         let symbol_resolver = FailingSymbolResolver;
         resolve_symbols(repo, self, &symbol_resolver)
             .map(|expression| resolve_visibility(repo, &expression))
+            .unwrap()
     }
 
     /// Resolve a user-provided expression. Symbols will be resolved using the
@@ -1940,7 +1940,6 @@ pub fn walk_revs<'index>(
     RevsetExpression::commits(unwanted.to_vec())
         .range(&RevsetExpression::commits(wanted.to_vec()))
         .resolve_programmatic(repo)
-        .unwrap()
         .evaluate(repo)
 }
 

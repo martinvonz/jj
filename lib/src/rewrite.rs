@@ -290,7 +290,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .minus(&old_commits_expression);
         let heads_to_add = heads_to_add_expression
             .resolve_programmatic(mut_repo)
-            .unwrap()
             .evaluate(mut_repo)
             .unwrap()
             .iter()
@@ -299,7 +298,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let to_visit_expression = old_commits_expression.descendants();
         let to_visit_revset = to_visit_expression
             .resolve_programmatic(mut_repo)
-            .unwrap()
             .evaluate(mut_repo)
             .unwrap();
         let to_visit: Vec<_> = to_visit_revset.iter().commits(store).try_collect().unwrap();

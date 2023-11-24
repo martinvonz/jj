@@ -116,7 +116,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         let new_parents = new_children.parents();
         if let Some(commit_id) = new_children
             .dag_range_to(&new_parents)
-            .resolve_programmatic(tx.repo())?
+            .resolve_programmatic(tx.repo())
             .evaluate(tx.repo())?
             .iter()
             .next()
@@ -128,7 +128,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             )));
         }
         let mut new_parents_commits: Vec<Commit> = new_parents
-            .resolve_programmatic(tx.repo())?
+            .resolve_programmatic(tx.repo())
             .evaluate(tx.repo())?
             .iter()
             .commits(tx.repo().store())
@@ -163,7 +163,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             // Exclude children that are ancestors of the new commit
             let to_rebase = old_parents.children().minus(&old_parents.ancestors());
             to_rebase
-                .resolve_programmatic(tx.base_repo().as_ref())?
+                .resolve_programmatic(tx.base_repo().as_ref())
                 .evaluate(tx.base_repo().as_ref())?
                 .iter()
                 .commits(tx.base_repo().store())
@@ -184,7 +184,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             let commit_parents = RevsetExpression::commits(child_commit.parent_ids().to_owned());
             let new_parents = commit_parents.minus(&old_parents);
             let mut new_parent_commits: Vec<Commit> = new_parents
-                .resolve_programmatic(tx.base_repo().as_ref())?
+                .resolve_programmatic(tx.base_repo().as_ref())
                 .evaluate(tx.base_repo().as_ref())?
                 .iter()
                 .commits(tx.base_repo().store())

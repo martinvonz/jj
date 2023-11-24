@@ -372,7 +372,6 @@ fn abandon_unreachable_commits(
         .intersection(&RevsetExpression::visible_heads().ancestors());
     let abandoned_commits = revset::optimize(abandoned_expression)
         .resolve_programmatic(mut_repo)
-        .unwrap()
         .evaluate(mut_repo)
         .unwrap()
         .iter()

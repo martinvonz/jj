@@ -30,9 +30,9 @@ use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
-    optimize, parse, DefaultSymbolResolver, ResolvedExpression, Revset, RevsetAliasesMap,
-    RevsetExpression, RevsetFilterPredicate, RevsetParseContext, RevsetResolutionError,
-    RevsetWorkspaceContext,
+    optimize, parse, DefaultSymbolResolver, FailingSymbolResolver, ResolvedExpression, Revset,
+    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetParseContext,
+    RevsetResolutionError, RevsetWorkspaceContext,
 };
 use jj_lib::revset_graph::{ReverseRevsetGraphIterator, RevsetGraphEdge};
 use jj_lib::settings::GitSettings;
@@ -350,7 +350,8 @@ fn test_resolve_working_copy() {
 
     // Cannot resolve a working-copy commit for an unknown workspace
     assert_matches!(
-        RevsetExpression::working_copy(ws1.clone()).resolve_programmatic(mut_repo),
+        RevsetExpression::working_copy(ws1.clone())
+            .resolve_user_expression(mut_repo, &FailingSymbolResolver),
         Err(RevsetResolutionError::WorkspaceMissingWorkingCopy { name }) if name == "ws1"
     );
 
@@ -364,7 +365,6 @@ fn test_resolve_working_copy() {
     let resolve = |ws_id: WorkspaceId| -> Vec<CommitId> {
         RevsetExpression::working_copy(ws_id)
             .resolve_programmatic(mut_repo)
-            .unwrap()
             .evaluate(mut_repo)
             .unwrap()
             .iter()
@@ -2638,7 +2638,6 @@ fn test_evaluate_expression_file() {
             RevsetExpression::filter(RevsetFilterPredicate::File(Some(vec![file_path.clone()])));
         let revset = expression
             .resolve_programmatic(mut_repo)
-            .unwrap()
             .evaluate(mut_repo)
             .unwrap();
         revset.iter().collect()

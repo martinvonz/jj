@@ -266,7 +266,6 @@ impl ReadonlyRepo {
             .get_or_init(|| {
                 let revset: Box<dyn Revset<'a>> = RevsetExpression::all()
                     .resolve_programmatic(self)
-                    .unwrap()
                     .evaluate(self)
                     .unwrap();
                 let change_id_index: Box<dyn ChangeIdIndex + 'a> = revset.change_id_index();
@@ -1327,7 +1326,6 @@ impl Repo for MutableRepo {
     fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
         let revset = RevsetExpression::all()
             .resolve_programmatic(self)
-            .unwrap()
             .evaluate(self)
             .unwrap();
         let change_id_index = revset.change_id_index();
@@ -1337,7 +1335,6 @@ impl Repo for MutableRepo {
     fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
         let revset = RevsetExpression::all()
             .resolve_programmatic(self)
-            .unwrap()
             .evaluate(self)
             .unwrap();
         let change_id_index = revset.change_id_index();
