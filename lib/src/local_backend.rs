@@ -281,7 +281,7 @@ impl Backend for LocalBackend {
         let mut proto = commit_to_proto(&commit);
         if let Some(mut sign) = sign_with {
             let data = proto.encode_to_vec();
-            let sig = sign(&data)?;
+            let sig = sign(&data).map_err(to_other_err)?;
             proto.secure_sig = Some(sig.clone());
             commit.secure_sig = Some(SecureSig { data, sig });
         }

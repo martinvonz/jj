@@ -57,6 +57,7 @@ use jj_lib::revset::{
 };
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
+use jj_lib::signing::SignInitError;
 use jj_lib::str_util::{StringPattern, StringPatternParseError};
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::TreeMergeError;
@@ -194,6 +195,10 @@ impl From<WorkspaceInitError> for CommandError {
             WorkspaceInitError::WorkingCopyState(err) => {
                 CommandError::InternalError(format!("Failed to access the repository: {err}"))
             }
+            WorkspaceInitError::SignInit(err @ SignInitError::UnknownBackend(_)) => {
+                user_error(format!("{err}"))
+            }
+            WorkspaceInitError::SignInit(err) => CommandError::InternalError(format!("{err}")),
         }
     }
 }
@@ -1655,6 +1660,10 @@ jj init --git-repo=.",
         ) => CommandError::InternalError(format!(
             "The repository appears broken or inaccessible: {err}"
         )),
+        WorkspaceLoadError::StoreLoadError(StoreLoadError::Signing(
+            err @ SignInitError::UnknownBackend(_),
+        )) => user_error(format!("{err}")),
+        WorkspaceLoadError::StoreLoadError(err) => CommandError::InternalError(format!("{err}")),
     }
 }
 

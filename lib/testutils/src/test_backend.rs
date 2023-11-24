@@ -282,7 +282,7 @@ impl Backend for TestBackend {
 
         if let Some(sign) = &mut sign_with {
             let data = format!("{contents:?}").into_bytes();
-            let sig = sign(&data)?;
+            let sig = sign(&data).map_err(|err| BackendError::Other(Box::new(err)))?;
             contents.secure_sig = Some(SecureSig { data, sig });
         }
 

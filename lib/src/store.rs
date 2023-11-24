@@ -22,14 +22,15 @@ use std::sync::{Arc, RwLock};
 
 use pollster::FutureExt;
 
-use crate::backend;
 use crate::backend::{
-    Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, MergedTreeId, SymlinkId, TreeId,
+    self, Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, MergedTreeId, SigningFn,
+    SymlinkId, TreeId,
 };
 use crate::commit::Commit;
 use crate::merge::{Merge, MergedTreeValue};
 use crate::merged_tree::MergedTree;
 use crate::repo_path::{RepoPath, RepoPathBuf};
+use crate::signing::Signer;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 
@@ -37,6 +38,7 @@ use crate::tree_builder::TreeBuilder;
 /// adds caching.
 pub struct Store {
     backend: Box<dyn Backend>,
+    signer: Signer,
     commit_cache: RwLock<HashMap<CommitId, Arc<backend::Commit>>>,
     tree_cache: RwLock<HashMap<(RepoPathBuf, TreeId), Arc<backend::Tree>>>,
     use_tree_conflict_format: bool,
@@ -51,9 +53,14 @@ impl Debug for Store {
 }
 
 impl Store {
-    pub fn new(backend: Box<dyn Backend>, use_tree_conflict_format: bool) -> Arc<Self> {
+    pub fn new(
+        backend: Box<dyn Backend>,
+        signer: Signer,
+        use_tree_conflict_format: bool,
+    ) -> Arc<Self> {
         Arc::new(Store {
             backend,
+            signer,
             commit_cache: Default::default(),
             tree_cache: Default::default(),
             use_tree_conflict_format,
@@ -62,6 +69,10 @@ impl Store {
 
     pub fn backend_impl(&self) -> &dyn Any {
         self.backend.as_any()
+    }
+
+    pub fn signer(&self) -> &Signer {
+        &self.signer
     }
 
     /// Whether new tree should be written using the tree-level format.
@@ -124,9 +135,14 @@ impl Store {
         Ok(data)
     }
 
-    pub fn write_commit(self: &Arc<Self>, commit: backend::Commit) -> BackendResult<Commit> {
+    pub fn write_commit(
+        self: &Arc<Self>,
+        commit: backend::Commit,
+        sign_with: Option<SigningFn>,
+    ) -> BackendResult<Commit> {
         assert!(!commit.parents.is_empty());
-        let (commit_id, commit) = self.backend.write_commit(commit, None)?;
+
+        let (commit_id, commit) = self.backend.write_commit(commit, sign_with)?;
         let data = Arc::new(commit);
         {
             let mut write_locked_cache = self.commit_cache.write().unwrap();

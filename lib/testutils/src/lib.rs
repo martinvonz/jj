@@ -336,7 +336,7 @@ pub fn commit_with_tree(store: &Arc<Store>, tree_id: MergedTreeId) -> Commit {
         committer: signature,
         secure_sig: None,
     };
-    store.write_commit(commit).unwrap()
+    store.write_commit(commit, None).unwrap()
 }
 
 pub fn dump_tree(store: &Arc<Store>, tree_id: &MergedTreeId) -> String {

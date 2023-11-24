@@ -31,7 +31,7 @@ use tracing::instrument;
 use self::dirty_cell::DirtyCell;
 use crate::backend::{
     Backend, BackendError, BackendInitError, BackendLoadError, BackendResult, ChangeId, CommitId,
-    MergedTreeId, ObjectId,
+    MergedTreeId, ObjectId, SigningFn,
 };
 use crate::commit::{Commit, CommitByCommitterTimestamp};
 use crate::commit_builder::CommitBuilder;
@@ -52,6 +52,7 @@ use crate::refs::{
 use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
 use crate::rewrite::{DescendantRebaser, RebaseOptions};
 use crate::settings::{RepoSettings, UserSettings};
+use crate::signing::{SignInitError, Signer};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
 use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
@@ -118,6 +119,8 @@ pub enum RepoInitError {
     Backend(#[from] BackendInitError),
     #[error(transparent)]
     Path(#[from] PathError),
+    #[error(transparent)]
+    SignInit(#[from] SignInitError),
 }
 
 impl ReadonlyRepo {
@@ -156,7 +159,8 @@ impl ReadonlyRepo {
         let backend = backend_initializer(user_settings, &store_path)?;
         let backend_path = store_path.join("type");
         fs::write(&backend_path, backend.name()).context(&backend_path)?;
-        let store = Store::new(backend, user_settings.use_tree_conflict_format());
+        let signer = Signer::from_settings(user_settings)?;
+        let store = Store::new(backend, signer, user_settings.use_tree_conflict_format());
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
 
         let op_store_path = repo_path.join("op_store");
@@ -418,6 +422,8 @@ pub enum StoreLoadError {
     },
     #[error(transparent)]
     Backend(#[from] BackendLoadError),
+    #[error(transparent)]
+    Signing(#[from] SignInitError),
 }
 
 impl StoreFactories {
@@ -608,6 +614,7 @@ impl RepoLoader {
     ) -> Result<Self, StoreLoadError> {
         let store = Store::new(
             store_factories.load_backend(user_settings, &repo_path.join("store"))?,
+            Signer::from_settings(user_settings)?,
             user_settings.use_tree_conflict_format(),
         );
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
@@ -792,8 +799,12 @@ impl MutableRepo {
         CommitBuilder::for_rewrite_from(self, settings, predecessor)
     }
 
-    pub fn write_commit(&mut self, commit: backend::Commit) -> BackendResult<Commit> {
-        let commit = self.store().write_commit(commit)?;
+    pub fn write_commit(
+        &mut self,
+        commit: backend::Commit,
+        sign_with: Option<SigningFn>,
+    ) -> BackendResult<Commit> {
+        let commit = self.store().write_commit(commit, sign_with)?;
         self.add_head(&commit);
         Ok(commit)
     }

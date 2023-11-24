@@ -16,10 +16,11 @@
 
 use std::sync::Arc;
 
-use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature};
+use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature, SigningFn};
 use crate::commit::Commit;
 use crate::repo::{MutableRepo, Repo};
-use crate::settings::{JJRng, UserSettings};
+use crate::settings::{JJRng, SignSettings, UserSettings};
+use crate::signing::SignBehavior;
 
 #[must_use]
 pub struct CommitBuilder<'repo> {
@@ -27,6 +28,7 @@ pub struct CommitBuilder<'repo> {
     rng: Arc<JJRng>,
     commit: backend::Commit,
     rewrite_source: Option<Commit>,
+    sign_settings: SignSettings,
 }
 
 impl CommitBuilder<'_> {
@@ -55,6 +57,7 @@ impl CommitBuilder<'_> {
             rng,
             commit,
             rewrite_source: None,
+            sign_settings: settings.sign_settings(),
         }
     }
 
@@ -83,6 +86,7 @@ impl CommitBuilder<'_> {
             commit,
             rng: settings.get_rng(),
             rewrite_source: Some(predecessor.clone()),
+            sign_settings: settings.sign_settings(),
         }
     }
 
@@ -157,14 +161,44 @@ impl CommitBuilder<'_> {
         self
     }
 
-    pub fn write(self) -> BackendResult<Commit> {
+    pub fn sign_settings(&self) -> &SignSettings {
+        &self.sign_settings
+    }
+
+    pub fn set_sign_behavior(mut self, sign_behavior: SignBehavior) -> Self {
+        self.sign_settings.behavior = sign_behavior;
+        self
+    }
+
+    pub fn set_sign_key(mut self, sign_key: Option<String>) -> Self {
+        self.sign_settings.key = sign_key;
+        self
+    }
+
+    pub fn write(mut self) -> BackendResult<Commit> {
         let mut rewrite_source_id = None;
         if let Some(rewrite_source) = self.rewrite_source {
             if *rewrite_source.change_id() == self.commit.change_id {
                 rewrite_source_id.replace(rewrite_source.id().clone());
             }
         }
-        let commit = self.mut_repo.write_commit(self.commit)?;
+
+        let sign_settings = self.sign_settings;
+        let store = self.mut_repo.store();
+
+        let signing_fn = (store.signer().can_sign() && sign_settings.should_sign(&self.commit))
+            .then(|| {
+                let store = store.clone();
+                Box::new(move |data: &_| store.signer().sign(data, sign_settings.key.as_deref()))
+                    as SigningFn
+            });
+
+        // Commit backend doesn't use secure_sig for writing and enforces it with an
+        // assert, but sign_settings.should_sign check above will want to know
+        // if we're rewriting a signed commit
+        self.commit.secure_sig = None;
+
+        let commit = self.mut_repo.write_commit(self.commit, signing_fn)?;
         if let Some(rewrite_source_id) = rewrite_source_id {
             self.mut_repo
                 .record_rewritten_commit(rewrite_source_id, commit.id().clone())
