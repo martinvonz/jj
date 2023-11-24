@@ -664,7 +664,7 @@ impl RevsetExpression {
         self: Rc<Self>,
         repo: &'index dyn Repo,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
-        self.resolve_programmatic(repo).evaluate(repo)
+        optimize(self).resolve_programmatic(repo).evaluate(repo)
     }
 }
 

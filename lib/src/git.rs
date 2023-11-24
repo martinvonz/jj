@@ -32,7 +32,7 @@ use crate::git_backend::GitBackend;
 use crate::op_store::{RefTarget, RefTargetOptionExt, RemoteRef, RemoteRefState};
 use crate::refs::BranchPushUpdate;
 use crate::repo::{MutableRepo, Repo};
-use crate::revset::{self, RevsetExpression};
+use crate::revset::RevsetExpression;
 use crate::settings::GitSettings;
 use crate::store::Store;
 use crate::str_util::StringPattern;
@@ -370,7 +370,7 @@ fn abandon_unreachable_commits(
     let abandoned_expression = RevsetExpression::commits(pinned_heads)
         .range(&RevsetExpression::commits(hidable_git_heads))
         .intersection(&RevsetExpression::visible_heads().ancestors());
-    let abandoned_commits = revset::optimize(abandoned_expression)
+    let abandoned_commits = abandoned_expression
         .evaluate_programmatic(mut_repo)
         .unwrap()
         .iter()
