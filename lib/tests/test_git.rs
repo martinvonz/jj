@@ -2909,7 +2909,12 @@ fn test_concurrent_read_write_commit() {
             pending_commit_ids.rotate_left(i); // start lookup from different place
             s.spawn(move || {
                 barrier.wait();
-                while !pending_commit_ids.is_empty() {
+                // This loop should finish within a couple of retries, but terminate in case
+                // it doesn't.
+                for _ in 0..100 {
+                    if pending_commit_ids.is_empty() {
+                        break;
+                    }
                     repo = repo.reload_at_head(settings).unwrap();
                     let git_backend = get_git_backend(&repo);
                     let mut tx = repo.start_transaction(settings, &format!("reader {i}"));
@@ -2935,6 +2940,15 @@ fn test_concurrent_read_write_commit() {
                         tx.commit();
                     }
                     thread::yield_now();
+                }
+                if !pending_commit_ids.is_empty() {
+                    // It's not an error if some of the readers couldn't observe the commits. It's
+                    // unlikely, but possible if the git backend had strong negative object cache
+                    // for example.
+                    eprintln!(
+                        "reader {i} couldn't observe the following commits: \
+                         {pending_commit_ids:#?}"
+                    );
                 }
             });
         }
