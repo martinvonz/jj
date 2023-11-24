@@ -1490,7 +1490,7 @@ fn assert_rebase_skipped(
     rebased: Option<RebasedDescendant>,
     expected_old_commit: &Commit,
     expected_new_commit: &Commit,
-) {
+) -> Commit {
     if let Some(RebasedDescendant {
         old_commit,
         new_commit,
@@ -1500,6 +1500,7 @@ fn assert_rebase_skipped(
         assert_eq!(new_commit, *expected_new_commit);
         // Since it was abandoned, the change ID should be different.
         assert_ne!(old_commit.change_id(), new_commit.change_id());
+        new_commit
     } else {
         panic!("expected rebased commit: {rebased:?}");
     }
@@ -1517,11 +1518,13 @@ fn test_empty_commit_option(empty: EmptyBehaviour) {
     // actual changes.
     //
     // BD (commit B joined with commit D)
+    // |   H (empty, no parent tree changes)
+    // |   |
     // |   G
     // |   |
     // |   F (clean merge)
     // |  /|\
-    // | C D E (empty)
+    // | C D E (empty, but parent tree changes)
     // |  \|/
     // |   B
     // A__/
@@ -1567,6 +1570,7 @@ fn test_empty_commit_option(empty: EmptyBehaviour) {
     let commit_e = create_commit(&[&commit_b], &tree_b);
     let commit_f = create_commit(&[&commit_c, &commit_d, &commit_e], &tree_f);
     let commit_g = create_commit(&[&commit_f], &tree_g);
+    let commit_h = create_commit(&[&commit_g], &tree_g);
     let commit_bd = create_commit(&[&commit_a], &tree_d);
 
     let mut rebaser = DescendantRebaser::new(
@@ -1595,7 +1599,9 @@ fn test_empty_commit_option(empty: EmptyBehaviour) {
                 &commit_f,
                 &[&new_commit_c, &new_commit_d, &new_commit_e],
             );
-            assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_f])
+            let new_commit_g =
+                assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_f]);
+            assert_rebased(rebaser.rebase_next().unwrap(), &commit_h, &[&new_commit_g])
         }
         EmptyBehaviour::AbandonAllEmpty => {
             // The commit C isn't empty.
@@ -1606,7 +1612,9 @@ fn test_empty_commit_option(empty: EmptyBehaviour) {
             assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_d, &commit_bd);
             assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_e, &commit_bd);
             assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_f, &new_commit_c);
-            assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_c])
+            let new_commit_g =
+                assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_c]);
+            assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_h, &new_commit_g)
         }
         EmptyBehaviour::AbandonNewlyEmpty => {
             // The commit C isn't empty.
@@ -1625,12 +1633,14 @@ fn test_empty_commit_option(empty: EmptyBehaviour) {
                 &commit_f,
                 &[&new_commit_c, &new_commit_e],
             );
-            assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_f])
+            let new_commit_g =
+                assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_f]);
+            assert_rebased(rebaser.rebase_next().unwrap(), &commit_h, &[&new_commit_g])
         }
     };
 
     assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 5);
+    assert_eq!(rebaser.rebased().len(), 6);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
