@@ -236,7 +236,7 @@ fn rebase_branch(
         .range(&RevsetExpression::commits(branch_commit_ids))
         .roots();
     let root_commits: IndexSet<_> = roots_expression
-        .resolve(workspace_command.repo().as_ref())
+        .resolve_programmatic(workspace_command.repo().as_ref())
         .unwrap()
         .evaluate(workspace_command.repo().as_ref())
         .unwrap()
@@ -312,7 +312,7 @@ fn rebase_revision(
 
     let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
     let child_commits: Vec<_> = children_expression
-        .resolve(workspace_command.repo().as_ref())
+        .resolve_programmatic(workspace_command.repo().as_ref())
         .unwrap()
         .evaluate(workspace_command.repo().as_ref())
         .unwrap()
@@ -353,7 +353,7 @@ fn rebase_revision(
                     .ancestors(),
             );
         let new_child_parents: Vec<Commit> = new_child_parents_expression
-            .resolve(tx.base_repo().as_ref())
+            .resolve_programmatic(tx.base_repo().as_ref())
             .unwrap()
             .evaluate(tx.base_repo().as_ref())
             .unwrap()
