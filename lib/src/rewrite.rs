@@ -150,21 +150,21 @@ pub fn rebase_commit_with_options(
     // Ensure we don't abandon commits with multiple parents (merge commits), even
     // if they're empty.
     if let [parent] = new_parents {
-        match options.empty {
-            EmptyBehaviour::AbandonNewlyEmpty | EmptyBehaviour::AbandonAllEmpty => {
-                if *parent.tree_id() == new_tree_id
-                    && (options.empty == EmptyBehaviour::AbandonAllEmpty
-                        || old_base_tree_id != Some(old_commit.tree_id().clone()))
-                {
-                    mut_repo.record_abandoned_commit(old_commit.id().clone());
-                    // Record old_commit as being succeeded by the parent for the purposes of
-                    // the rebase.
-                    // This ensures that when we stack commits, the second commit knows to
-                    // rebase on top of the parent commit, rather than the abandoned commit.
-                    return Ok(parent.clone());
-                }
+        let should_abandon = match options.empty {
+            EmptyBehaviour::Keep => false,
+            EmptyBehaviour::AbandonNewlyEmpty => {
+                *parent.tree_id() == new_tree_id
+                    && old_base_tree_id != Some(old_commit.tree_id().clone())
             }
-            EmptyBehaviour::Keep => {}
+            EmptyBehaviour::AbandonAllEmpty => *parent.tree_id() == new_tree_id,
+        };
+        if should_abandon {
+            mut_repo.record_abandoned_commit(old_commit.id().clone());
+            // Record old_commit as being succeeded by the parent for the purposes of
+            // the rebase.
+            // This ensures that when we stack commits, the second commit knows to
+            // rebase on top of the parent commit, rather than the abandoned commit.
+            return Ok(parent.clone());
         }
     }
     let new_parent_ids = new_parents
