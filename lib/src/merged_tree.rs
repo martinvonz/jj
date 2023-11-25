@@ -30,7 +30,7 @@ use pollster::FutureExt;
 use crate::backend::{BackendError, BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
-use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentBuf};
 use crate::store::Store;
 use crate::tree::{try_resolve_file_conflict, Tree, TreeMergeError};
 use crate::tree_builder::TreeBuilder;
@@ -268,7 +268,8 @@ impl MergedTree {
         }
     }
 
-    fn sub_tree_recursive(&self, components: &[RepoPathComponent]) -> Option<MergedTree> {
+    // TODO: switch to borrowed &RepoPath type or RepoPathComponents iterator
+    fn sub_tree_recursive(&self, components: &[RepoPathComponentBuf]) -> Option<MergedTree> {
         if let Some((first, tail)) = components.split_first() {
             tail.iter()
                 .try_fold(self.sub_tree(first)?, |tree, name| tree.sub_tree(name))

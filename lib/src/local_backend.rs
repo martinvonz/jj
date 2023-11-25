@@ -34,7 +34,7 @@ use crate::backend::{
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::merge::MergeBuilder;
-use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::repo_path::{RepoPath, RepoPathComponentBuf};
 
 const COMMIT_ID_LENGTH: usize = 64;
 const CHANGE_ID_LENGTH: usize = 16;
@@ -368,7 +368,7 @@ fn tree_from_proto(proto: crate::protos::local_store::Tree) -> Tree {
     let mut tree = Tree::default();
     for proto_entry in proto.entries {
         let value = tree_value_from_proto(proto_entry.value.unwrap());
-        tree.set(RepoPathComponent::from(proto_entry.name), value);
+        tree.set(RepoPathComponentBuf::from(proto_entry.name), value);
     }
     tree
 }
