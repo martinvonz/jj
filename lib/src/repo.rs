@@ -119,8 +119,6 @@ pub enum RepoInitError {
     Backend(#[from] BackendInitError),
     #[error(transparent)]
     Path(#[from] PathError),
-    #[error(transparent)]
-    SignInit(#[from] SignInitError),
 }
 
 impl ReadonlyRepo {
@@ -143,10 +141,12 @@ impl ReadonlyRepo {
         &|_settings, store_path| Box::new(DefaultSubmoduleStore::init(store_path))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
         backend_initializer: &BackendInitializer,
+        signer: Signer,
         op_store_initializer: &OpStoreInitializer,
         op_heads_store_initializer: &OpHeadsStoreInitializer,
         index_store_initializer: &IndexStoreInitializer,
@@ -159,7 +159,6 @@ impl ReadonlyRepo {
         let backend = backend_initializer(user_settings, &store_path)?;
         let backend_path = store_path.join("type");
         fs::write(&backend_path, backend.name()).context(&backend_path)?;
-        let signer = Signer::from_settings(user_settings)?;
         let store = Store::new(backend, signer, user_settings.use_tree_conflict_format());
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
 

@@ -32,6 +32,7 @@ use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::rewrite::RebasedDescendant;
 use jj_lib::settings::UserSettings;
+use jj_lib::signing::Signer;
 use jj_lib::store::Store;
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::Tree;
@@ -43,6 +44,7 @@ use tempfile::TempDir;
 use crate::test_backend::TestBackend;
 
 pub mod test_backend;
+pub mod test_signing_backend;
 
 pub fn hermetic_libgit2() {
     // libgit2 respects init.defaultBranch (and possibly other config
@@ -139,6 +141,7 @@ impl TestRepo {
             &settings,
             &repo_dir,
             &move |settings, store_path| backend.init_backend(settings, store_path),
+            Signer::from_settings(&settings).unwrap(),
             ReadonlyRepo::default_op_store_initializer(),
             ReadonlyRepo::default_op_heads_store_initializer(),
             ReadonlyRepo::default_index_store_initializer(),
@@ -175,6 +178,18 @@ impl TestWorkspace {
     }
 
     pub fn init_with_backend(settings: &UserSettings, backend: TestRepoBackend) -> Self {
+        Self::init_with_backend_and_signer(
+            settings,
+            backend,
+            Signer::from_settings(settings).unwrap(),
+        )
+    }
+
+    pub fn init_with_backend_and_signer(
+        settings: &UserSettings,
+        backend: TestRepoBackend,
+        signer: Signer,
+    ) -> Self {
         let temp_dir = new_temp_dir();
 
         let workspace_root = temp_dir.path().join("repo");
@@ -184,6 +199,7 @@ impl TestWorkspace {
             settings,
             &workspace_root,
             &move |settings, store_path| backend.init_backend(settings, store_path),
+            signer,
         )
         .unwrap();
 

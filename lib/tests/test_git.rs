@@ -35,6 +35,7 @@ use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, RemoteRefState};
 use jj_lib::refs::BranchPushUpdate;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::{GitSettings, UserSettings};
+use jj_lib::signing::Signer;
 use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
 use maplit::{btreemap, hashset};
@@ -1125,6 +1126,7 @@ impl GitRepoData {
                     &git_repo_dir,
                 )?))
             },
+            Signer::from_settings(&settings).unwrap(),
             ReadonlyRepo::default_op_store_initializer(),
             ReadonlyRepo::default_op_heads_store_initializer(),
             ReadonlyRepo::default_index_store_initializer(),
@@ -1990,6 +1992,7 @@ fn test_init() {
                 &git_repo_dir,
             )?))
         },
+        Signer::from_settings(&settings).unwrap(),
         ReadonlyRepo::default_op_store_initializer(),
         ReadonlyRepo::default_op_heads_store_initializer(),
         ReadonlyRepo::default_index_store_initializer(),
@@ -2315,6 +2318,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
                 &clone_repo_dir,
             )?))
         },
+        Signer::from_settings(settings).unwrap(),
         ReadonlyRepo::default_op_store_initializer(),
         ReadonlyRepo::default_op_heads_store_initializer(),
         ReadonlyRepo::default_index_store_initializer(),

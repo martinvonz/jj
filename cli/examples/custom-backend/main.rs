@@ -27,7 +27,8 @@ use jj_lib::git_backend::GitBackend;
 use jj_lib::repo::StoreFactories;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
-use jj_lib::workspace::Workspace;
+use jj_lib::signing::Signer;
+use jj_lib::workspace::{Workspace, WorkspaceInitError};
 
 #[derive(clap::Parser, Clone, Debug)]
 enum CustomCommands {
@@ -59,6 +60,8 @@ fn run_custom_command(
                 command_helper.settings(),
                 wc_path,
                 &|settings, store_path| Ok(Box::new(JitBackend::init(settings, store_path)?)),
+                Signer::from_settings(command_helper.settings())
+                    .map_err(WorkspaceInitError::SignInit)?,
             )?;
             Ok(())
         }
