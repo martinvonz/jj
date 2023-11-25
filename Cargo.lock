@@ -2795,6 +2795,7 @@ dependencies = [
  "async-trait",
  "config",
  "git2",
+ "hex",
  "itertools 0.11.0",
  "jj-lib",
  "rand",

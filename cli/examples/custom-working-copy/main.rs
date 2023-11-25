@@ -28,12 +28,15 @@ use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
+use jj_lib::signing::Signer;
 use jj_lib::store::Store;
 use jj_lib::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
     WorkingCopy, WorkingCopyStateError,
 };
-use jj_lib::workspace::{default_working_copy_factories, WorkingCopyInitializer, Workspace};
+use jj_lib::workspace::{
+    default_working_copy_factories, WorkingCopyInitializer, Workspace, WorkspaceInitError,
+};
 
 #[derive(clap::Parser, Clone, Debug)]
 enum CustomCommands {
@@ -58,6 +61,8 @@ fn run_custom_command(
                 command_helper.settings(),
                 wc_path,
                 &backend_initializer,
+                Signer::from_settings(command_helper.settings())
+                    .map_err(WorkspaceInitError::SignInit)?,
                 &ReadonlyRepo::default_op_store_initializer(),
                 &ReadonlyRepo::default_op_heads_store_initializer(),
                 &ReadonlyRepo::default_index_store_initializer(),

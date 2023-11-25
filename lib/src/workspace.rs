@@ -36,7 +36,7 @@ use crate::repo::{
     StoreFactories, StoreLoadError, SubmoduleStoreInitializer,
 };
 use crate::settings::UserSettings;
-use crate::signing::SignInitError;
+use crate::signing::{SignInitError, Signer};
 use crate::store::Store;
 use crate::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, WorkingCopy, WorkingCopyStateError,
@@ -149,7 +149,8 @@ impl Workspace {
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let backend_initializer: &'static BackendInitializer =
             &|_settings, store_path| Ok(Box::new(LocalBackend::init(store_path)));
-        Self::init_with_backend(user_settings, workspace_root, backend_initializer)
+        let signer = Signer::from_settings(user_settings)?;
+        Self::init_with_backend(user_settings, workspace_root, backend_initializer, signer)
     }
 
     /// Initializes a workspace with a new Git backend and bare Git repo in
@@ -160,7 +161,8 @@ impl Workspace {
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let backend_initializer: &'static BackendInitializer =
             &|settings, store_path| Ok(Box::new(GitBackend::init_internal(settings, store_path)?));
-        Self::init_with_backend(user_settings, workspace_root, backend_initializer)
+        let signer = Signer::from_settings(user_settings)?;
+        Self::init_with_backend(user_settings, workspace_root, backend_initializer, signer)
     }
 
     /// Initializes a workspace with a new Git backend and Git repo that shares
@@ -189,7 +191,8 @@ impl Workspace {
                 Ok(Box::new(backend))
             }
         };
-        Self::init_with_backend(user_settings, workspace_root, &backend_initializer)
+        let signer = Signer::from_settings(user_settings)?;
+        Self::init_with_backend(user_settings, workspace_root, &backend_initializer, signer)
     }
 
     /// Initializes a workspace with an existing Git repo at the specified path.
@@ -221,7 +224,8 @@ impl Workspace {
                 Ok(Box::new(backend))
             }
         };
-        Self::init_with_backend(user_settings, workspace_root, &backend_initializer)
+        let signer = Signer::from_settings(user_settings)?;
+        Self::init_with_backend(user_settings, workspace_root, &backend_initializer, signer)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -229,6 +233,7 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: &Path,
         backend_initializer: &BackendInitializer,
+        signer: Signer,
         op_store_initializer: &OpStoreInitializer,
         op_heads_store_initializer: &OpHeadsStoreInitializer,
         index_store_initializer: &IndexStoreInitializer,
@@ -244,6 +249,7 @@ impl Workspace {
                 user_settings,
                 &repo_dir,
                 backend_initializer,
+                signer,
                 op_store_initializer,
                 op_heads_store_initializer,
                 index_store_initializer,
@@ -252,7 +258,6 @@ impl Workspace {
             .map_err(|repo_init_err| match repo_init_err {
                 RepoInitError::Backend(err) => WorkspaceInitError::Backend(err),
                 RepoInitError::Path(err) => WorkspaceInitError::Path(err),
-                RepoInitError::SignInit(err) => WorkspaceInitError::SignInit(err),
             })?;
             let (working_copy, repo) = init_working_copy(
                 user_settings,
@@ -276,11 +281,13 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: &Path,
         backend_initializer: &BackendInitializer,
+        signer: Signer,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_factories(
             user_settings,
             workspace_root,
             backend_initializer,
+            signer,
             ReadonlyRepo::default_op_store_initializer(),
             ReadonlyRepo::default_op_heads_store_initializer(),
             ReadonlyRepo::default_index_store_initializer(),
