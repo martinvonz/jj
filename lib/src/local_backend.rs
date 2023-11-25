@@ -357,7 +357,7 @@ fn tree_to_proto(tree: &Tree) -> crate::protos::local_store::Tree {
     let mut proto = crate::protos::local_store::Tree::default();
     for entry in tree.entries() {
         proto.entries.push(crate::protos::local_store::tree::Entry {
-            name: entry.name().string(),
+            name: entry.name().as_str().to_owned(),
             value: Some(tree_value_to_proto(entry.value())),
         });
     }
