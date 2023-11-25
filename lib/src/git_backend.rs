@@ -777,7 +777,7 @@ impl Backend for GitBackend {
         let entries = contents
             .entries()
             .map(|entry| {
-                let name = entry.name().string();
+                let name = entry.name().as_str();
                 match entry.value() {
                     TreeValue::File {
                         id,
@@ -812,7 +812,7 @@ impl Backend for GitBackend {
                     },
                     TreeValue::Conflict(id) => gix::objs::tree::Entry {
                         mode: gix::object::tree::EntryMode::Blob,
-                        filename: (name + CONFLICT_SUFFIX).into(),
+                        filename: (name.to_owned() + CONFLICT_SUFFIX).into(),
                         oid: id.as_bytes().into(),
                     },
                 }

@@ -33,10 +33,6 @@ impl RepoPathComponent {
     pub fn as_str(&self) -> &str {
         &self.value
     }
-
-    pub fn string(&self) -> String {
-        self.value.to_string()
-    }
 }
 
 impl From<&str> for RepoPathComponent {
