@@ -123,10 +123,10 @@ fn test_from_legacy_tree() {
     tree_builder.set(file5_path.clone(), TreeValue::Conflict(file5_conflict_id));
 
     // dir1: directory without conflicts
-    let dir1_basename = &RepoPathComponent::from("dir1");
+    let dir1_basename = RepoPathComponent::new("dir1");
     let dir1_filename = RepoPath::root()
         .join(dir1_basename)
-        .join(&RepoPathComponent::from("file"));
+        .join(RepoPathComponent::new("file"));
     let dir1_filename_id = write_file(store.as_ref(), &dir1_filename, "file5_v2");
     tree_builder.set(dir1_filename.clone(), file_value(&dir1_filename_id));
 
@@ -135,7 +135,7 @@ fn test_from_legacy_tree() {
 
     let merged_tree = MergedTree::from_legacy_tree(tree.clone()).unwrap();
     assert_eq!(
-        merged_tree.value(&RepoPathComponent::from("missing")),
+        merged_tree.value(RepoPathComponent::new("missing")),
         MergedTreeVal::Resolved(None)
     );
     // file1: regular file without conflicts
@@ -373,11 +373,11 @@ fn test_resolve_success() {
     let trivial_file_path = RepoPath::from_internal_string("trivial-file");
     let trivial_hunk_path = RepoPath::from_internal_string("trivial-hunk");
     let both_added_dir_path = RepoPath::from_internal_string("added-dir");
-    let both_added_dir_file1_path = both_added_dir_path.join(&RepoPathComponent::from("file1"));
-    let both_added_dir_file2_path = both_added_dir_path.join(&RepoPathComponent::from("file2"));
+    let both_added_dir_file1_path = both_added_dir_path.join(RepoPathComponent::new("file1"));
+    let both_added_dir_file2_path = both_added_dir_path.join(RepoPathComponent::new("file2"));
     let emptied_dir_path = RepoPath::from_internal_string("to-become-empty");
-    let emptied_dir_file1_path = emptied_dir_path.join(&RepoPathComponent::from("file1"));
-    let emptied_dir_file2_path = emptied_dir_path.join(&RepoPathComponent::from("file2"));
+    let emptied_dir_file1_path = emptied_dir_path.join(RepoPathComponent::new("file1"));
+    let emptied_dir_file2_path = emptied_dir_path.join(RepoPathComponent::new("file2"));
     let base1 = create_single_tree(
         repo,
         &[
@@ -503,7 +503,7 @@ fn test_conflict_iterator() {
             (&dir_file_path, "base"),
             // no added_dir_path
             (
-                &modify_delete_dir_path.join(&RepoPathComponent::from("base")),
+                &modify_delete_dir_path.join(RepoPathComponent::new("base")),
                 "base",
             ),
         ],
@@ -520,11 +520,11 @@ fn test_conflict_iterator() {
             (&different_add_path, "side1"),
             (&dir_file_path, "side1"),
             (
-                &added_dir_path.join(&RepoPathComponent::from("side1")),
+                &added_dir_path.join(RepoPathComponent::new("side1")),
                 "side1",
             ),
             (
-                &modify_delete_dir_path.join(&RepoPathComponent::from("side1")),
+                &modify_delete_dir_path.join(RepoPathComponent::new("side1")),
                 "side1",
             ),
         ],
@@ -539,9 +539,9 @@ fn test_conflict_iterator() {
             // no modify_delete_path
             (&same_add_path, "same"),
             (&different_add_path, "side2"),
-            (&dir_file_path.join(&RepoPathComponent::from("dir")), "new"),
+            (&dir_file_path.join(RepoPathComponent::new("dir")), "new"),
             (
-                &added_dir_path.join(&RepoPathComponent::from("side2")),
+                &added_dir_path.join(RepoPathComponent::new("side2")),
                 "side2",
             ),
             // no modify_delete_dir_path
@@ -859,7 +859,7 @@ fn test_diff_dir_file() {
     let path4 = RepoPath::from_internal_string("path4");
     let path5 = RepoPath::from_internal_string("path5");
     let path6 = RepoPath::from_internal_string("path6");
-    let file = &RepoPathComponent::from("file");
+    let file = RepoPathComponent::new("file");
     let left_base = create_single_tree(
         repo,
         &[

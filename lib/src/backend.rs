@@ -384,7 +384,7 @@ impl Tree {
     }
 
     pub fn names(&self) -> impl Iterator<Item = &RepoPathComponent> {
-        self.entries.keys()
+        self.entries.keys().map(|name| name.as_ref())
     }
 
     pub fn entries(&self) -> TreeEntriesNonRecursiveIterator {
@@ -407,7 +407,7 @@ impl Tree {
                 self.entries.remove(name);
             }
             Some(value) => {
-                self.entries.insert(name.clone(), value);
+                self.entries.insert(name.to_owned(), value);
             }
         }
     }

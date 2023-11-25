@@ -14,25 +14,46 @@
 
 #![allow(missing_docs)]
 
+use std::borrow::Borrow;
 use std::fmt::{Debug, Error, Formatter};
+use std::ops::Deref;
 use std::path::{Component, Path, PathBuf};
 
 use itertools::Itertools;
+use ref_cast::{ref_cast_custom, RefCastCustom};
 use thiserror::Error;
 
 use crate::file_util;
 
-// TODO: make RepoPathComponent a borrowed type
-pub type RepoPathComponentBuf = RepoPathComponent;
-
 content_hash! {
+    /// Owned `RepoPath` component.
     #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-    pub struct RepoPathComponent {
+    pub struct RepoPathComponentBuf {
+        // Don't add more fields. Eq, Hash, and Ord must be compatible with the
+        // borrowed RepoPathComponent type.
         value: String,
     }
 }
 
+/// Borrowed `RepoPath` component.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Hash, RefCastCustom)]
+#[repr(transparent)]
+pub struct RepoPathComponent {
+    value: str,
+}
+
 impl RepoPathComponent {
+    /// Wraps `value` as `RepoPathComponent`.
+    ///
+    /// The input `value` must not be empty and not contain path separator.
+    pub fn new(value: &str) -> &Self {
+        assert!(is_valid_repo_path_component_str(value));
+        Self::new_unchecked(value)
+    }
+
+    #[ref_cast_custom]
+    const fn new_unchecked(value: &str) -> &Self;
+
     pub fn as_str(&self) -> &str {
         &self.value
     }
@@ -48,6 +69,45 @@ impl From<String> for RepoPathComponentBuf {
     fn from(value: String) -> Self {
         assert!(is_valid_repo_path_component_str(&value));
         RepoPathComponentBuf { value }
+    }
+}
+
+impl AsRef<RepoPathComponent> for RepoPathComponent {
+    fn as_ref(&self) -> &RepoPathComponent {
+        self
+    }
+}
+
+impl AsRef<RepoPathComponent> for RepoPathComponentBuf {
+    fn as_ref(&self) -> &RepoPathComponent {
+        self
+    }
+}
+
+impl Borrow<RepoPathComponent> for RepoPathComponentBuf {
+    fn borrow(&self) -> &RepoPathComponent {
+        self
+    }
+}
+
+impl Deref for RepoPathComponentBuf {
+    type Target = RepoPathComponent;
+
+    fn deref(&self) -> &Self::Target {
+        RepoPathComponent::new_unchecked(&self.value)
+    }
+}
+
+impl ToOwned for RepoPathComponent {
+    type Owned = RepoPathComponentBuf;
+
+    fn to_owned(&self) -> Self::Owned {
+        let value = self.value.to_owned();
+        RepoPathComponentBuf { value }
+    }
+
+    fn clone_into(&self, target: &mut Self::Owned) {
+        self.value.clone_into(&mut target.value);
     }
 }
 
@@ -189,7 +249,8 @@ impl RepoPath {
     }
 
     pub fn join(&self, entry: &RepoPathComponent) -> RepoPath {
-        let components = self.components.iter().chain([entry]).cloned().collect();
+        let components =
+            itertools::chain(self.components.iter().cloned(), [entry.to_owned()]).collect();
         RepoPath { components }
     }
 }
@@ -259,12 +320,12 @@ mod tests {
     #[test]
     fn test_join() {
         let root = RepoPath::root();
-        let dir = root.join(&RepoPathComponent::from("dir"));
+        let dir = root.join(RepoPathComponent::new("dir"));
         assert_eq!(dir, repo_path("dir"));
-        let subdir = dir.join(&RepoPathComponent::from("subdir"));
+        let subdir = dir.join(RepoPathComponent::new("subdir"));
         assert_eq!(subdir, repo_path("dir/subdir"));
         assert_eq!(
-            subdir.join(&RepoPathComponent::from("file")),
+            subdir.join(RepoPathComponent::new("file")),
             repo_path("dir/subdir/file")
         );
     }
@@ -272,8 +333,8 @@ mod tests {
     #[test]
     fn test_parent() {
         let root = RepoPath::root();
-        let dir_component = &RepoPathComponent::from("dir");
-        let subdir_component = &RepoPathComponent::from("subdir");
+        let dir_component = RepoPathComponent::new("dir");
+        let subdir_component = RepoPathComponent::new("subdir");
 
         let dir = root.join(dir_component);
         let subdir = dir.join(subdir_component);
@@ -286,8 +347,8 @@ mod tests {
     #[test]
     fn test_split() {
         let root = RepoPath::root();
-        let dir_component = &RepoPathComponent::from("dir");
-        let file_component = &RepoPathComponent::from("file");
+        let dir_component = RepoPathComponent::new("dir");
+        let file_component = RepoPathComponent::new("file");
 
         let dir = root.join(dir_component);
         let file = dir.join(file_component);
