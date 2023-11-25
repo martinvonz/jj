@@ -82,7 +82,7 @@ impl TreeBuilder {
             let tree = trees_to_write.get_mut(&dir).unwrap();
             match file_override {
                 Override::Replace(value) => {
-                    tree.set(basename.clone(), value);
+                    tree.set(basename.to_owned(), value);
                 }
                 Override::Tombstone => {
                     tree.remove(basename);
@@ -104,7 +104,7 @@ impl TreeBuilder {
                     }
                 } else {
                     let tree = store.write_tree(&dir, tree).unwrap();
-                    parent_tree.set(basename.clone(), TreeValue::Tree(tree.id().clone()));
+                    parent_tree.set(basename.to_owned(), TreeValue::Tree(tree.id().clone()));
                 }
             } else {
                 // We're writing the root tree. Write it even if empty. Return its id.

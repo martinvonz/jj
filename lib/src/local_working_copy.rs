@@ -783,7 +783,7 @@ impl TreeState {
                 if name == ".jj" || name == ".git" {
                     return Ok(());
                 }
-                let path = dir.join(&RepoPathComponent::from(name));
+                let path = dir.join(RepoPathComponent::new(name));
                 if let Some(file_state) = file_states.get(&path) {
                     if file_state.file_type == FileType::GitSubmodule {
                         return Ok(());

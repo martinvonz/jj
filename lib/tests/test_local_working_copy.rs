@@ -145,7 +145,7 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
                 Merge::normal(TreeValue::Symlink(id))
             }
             Kind::Tree => {
-                let file_path = path.join(&RepoPathComponent::from("file"));
+                let file_path = path.join(RepoPathComponent::new("file"));
                 let id = testutils::write_file(store, &file_path, "normal file contents");
                 let value = TreeValue::File {
                     id,
@@ -348,7 +348,7 @@ fn test_conflicting_changes_on_disk() {
         &[
             (&file_file_path, "committed contents"),
             (
-                &file_dir_path.join(&RepoPathComponent::from("file")),
+                &file_dir_path.join(RepoPathComponent::new("file")),
                 "committed contents",
             ),
             (&dir_file_path, "committed contents"),

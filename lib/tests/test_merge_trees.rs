@@ -83,36 +83,36 @@ fn test_same_type() {
 
     // Check that the simple, non-conflicting cases were resolved correctly
     assert_eq!(
-        merged_tree.value(&RepoPathComponent::from("__a")),
-        side2_tree.value(&RepoPathComponent::from("__a"))
+        merged_tree.value(RepoPathComponent::new("__a")),
+        side2_tree.value(RepoPathComponent::new("__a"))
     );
     assert_eq!(
-        merged_tree.value(&RepoPathComponent::from("_a_")),
-        side1_tree.value(&RepoPathComponent::from("_a_"))
+        merged_tree.value(RepoPathComponent::new("_a_")),
+        side1_tree.value(RepoPathComponent::new("_a_"))
     );
     assert_eq!(
-        merged_tree.value(&RepoPathComponent::from("_aa")),
-        side1_tree.value(&RepoPathComponent::from("_aa"))
+        merged_tree.value(RepoPathComponent::new("_aa")),
+        side1_tree.value(RepoPathComponent::new("_aa"))
     );
     assert_eq!(
-        merged_tree.value(&RepoPathComponent::from("aaa")),
-        side1_tree.value(&RepoPathComponent::from("aaa"))
+        merged_tree.value(RepoPathComponent::new("aaa")),
+        side1_tree.value(RepoPathComponent::new("aaa"))
     );
     assert_eq!(
-        merged_tree.value(&RepoPathComponent::from("aab")),
-        side2_tree.value(&RepoPathComponent::from("aab"))
+        merged_tree.value(RepoPathComponent::new("aab")),
+        side2_tree.value(RepoPathComponent::new("aab"))
     );
     assert_eq!(
-        merged_tree.value(&RepoPathComponent::from("aba")),
-        side1_tree.value(&RepoPathComponent::from("aba"))
+        merged_tree.value(RepoPathComponent::new("aba")),
+        side1_tree.value(RepoPathComponent::new("aba"))
     );
     assert_eq!(
-        merged_tree.value(&RepoPathComponent::from("abb")),
-        side1_tree.value(&RepoPathComponent::from("abb"))
+        merged_tree.value(RepoPathComponent::new("abb")),
+        side1_tree.value(RepoPathComponent::new("abb"))
     );
 
     // Check the conflicting cases
-    let component = &RepoPathComponent::from("_ab");
+    let component = RepoPathComponent::new("_ab");
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
@@ -129,7 +129,7 @@ fn test_same_type() {
         }
         _ => panic!("unexpected value"),
     };
-    let component = &RepoPathComponent::from("a_b");
+    let component = RepoPathComponent::new("a_b");
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
@@ -146,7 +146,7 @@ fn test_same_type() {
         }
         _ => panic!("unexpected value"),
     };
-    let component = &RepoPathComponent::from("ab_");
+    let component = RepoPathComponent::new("ab_");
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
@@ -163,7 +163,7 @@ fn test_same_type() {
         }
         _ => panic!("unexpected value"),
     };
-    let component = &RepoPathComponent::from("abc");
+    let component = RepoPathComponent::new("abc");
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
@@ -221,16 +221,16 @@ fn test_executable() {
     let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
 
     // Check that the merged tree has the correct executable bits
-    let norm = base_tree.value(&RepoPathComponent::from("nnn"));
-    let exec = base_tree.value(&RepoPathComponent::from("xxx"));
-    assert_eq!(merged_tree.value(&RepoPathComponent::from("nnn")), norm);
-    assert_eq!(merged_tree.value(&RepoPathComponent::from("nnx")), exec);
-    assert_eq!(merged_tree.value(&RepoPathComponent::from("nxn")), exec);
-    assert_eq!(merged_tree.value(&RepoPathComponent::from("nxx")), exec);
-    assert_eq!(merged_tree.value(&RepoPathComponent::from("xnn")), norm);
-    assert_eq!(merged_tree.value(&RepoPathComponent::from("xnx")), norm);
-    assert_eq!(merged_tree.value(&RepoPathComponent::from("xxn")), norm);
-    assert_eq!(merged_tree.value(&RepoPathComponent::from("xxx")), exec);
+    let norm = base_tree.value(RepoPathComponent::new("nnn"));
+    let exec = base_tree.value(RepoPathComponent::new("xxx"));
+    assert_eq!(merged_tree.value(RepoPathComponent::new("nnn")), norm);
+    assert_eq!(merged_tree.value(RepoPathComponent::new("nnx")), exec);
+    assert_eq!(merged_tree.value(RepoPathComponent::new("nxn")), exec);
+    assert_eq!(merged_tree.value(RepoPathComponent::new("nxx")), exec);
+    assert_eq!(merged_tree.value(RepoPathComponent::new("xnn")), norm);
+    assert_eq!(merged_tree.value(RepoPathComponent::new("xnx")), norm);
+    assert_eq!(merged_tree.value(RepoPathComponent::new("xxn")), norm);
+    assert_eq!(merged_tree.value(RepoPathComponent::new("xxx")), exec);
 }
 
 #[test]
@@ -411,7 +411,7 @@ fn test_types() {
     let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
 
     // Check the conflicting cases
-    let component = &RepoPathComponent::from("normal_executable_symlink");
+    let component = RepoPathComponent::new("normal_executable_symlink");
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
@@ -431,7 +431,7 @@ fn test_types() {
         }
         _ => panic!("unexpected value"),
     };
-    let component = &RepoPathComponent::from("tree_normal_symlink");
+    let component = RepoPathComponent::new("tree_normal_symlink");
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
@@ -456,7 +456,7 @@ fn test_simplify_conflict() {
     let repo = &test_repo.repo;
     let store = repo.store();
 
-    let component = &RepoPathComponent::from("file");
+    let component = RepoPathComponent::new("file");
     let path = RepoPath::from_internal_string("file");
     let write_tree = |contents: &str| -> Tree { create_single_tree(repo, &[(&path, contents)]) };
 
@@ -495,7 +495,7 @@ fn test_simplify_conflict() {
     match further_rebased_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
-                .read_conflict(&RepoPath::from_components(vec![component.clone()]), id)
+                .read_conflict(&RepoPath::from_components(vec![component.to_owned()]), id)
                 .unwrap();
             assert_eq!(
                 conflict.removes().map(|v| v.as_ref()).collect_vec(),
