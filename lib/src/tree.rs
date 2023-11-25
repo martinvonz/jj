@@ -30,7 +30,7 @@ use crate::backend::{
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{trivial_merge, Merge, MergedTreeValue};
-use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
+use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::store::Store;
 use crate::{backend, files};
 

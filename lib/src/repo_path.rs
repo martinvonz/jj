@@ -180,18 +180,8 @@ impl RepoPath {
     pub fn components(&self) -> &Vec<RepoPathComponent> {
         &self.components
     }
-}
 
-pub trait RepoPathJoin<T> {
-    type Result;
-
-    fn join(&self, entry: &T) -> Self::Result;
-}
-
-impl RepoPathJoin<RepoPathComponent> for RepoPath {
-    type Result = RepoPath;
-
-    fn join(&self, entry: &RepoPathComponent) -> RepoPath {
+    pub fn join(&self, entry: &RepoPathComponent) -> RepoPath {
         let components = self.components.iter().chain([entry]).cloned().collect();
         RepoPath { components }
     }

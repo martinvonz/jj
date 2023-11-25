@@ -30,7 +30,7 @@ use pollster::FutureExt;
 use crate::backend::{BackendError, BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
-use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
+use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::store::Store;
 use crate::tree::{try_resolve_file_conflict, Tree, TreeMergeError};
 use crate::tree_builder::TreeBuilder;
