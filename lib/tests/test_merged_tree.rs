@@ -23,7 +23,7 @@ use jj_lib::merged_tree::{
     MergedTree, MergedTreeBuilder, MergedTreeVal, TreeDiffIterator, TreeDiffStreamImpl,
 };
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
+use jj_lib::repo_path::{RepoPath, RepoPathComponent};
 use jj_lib::tree::merge_trees;
 use pretty_assertions::assert_eq;
 use testutils::{create_single_tree, write_file, TestRepo};

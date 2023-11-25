@@ -57,7 +57,7 @@ use crate::matchers::{
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
 use crate::op_store::{OperationId, WorkspaceId};
-use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
+use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
