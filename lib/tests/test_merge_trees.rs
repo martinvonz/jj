@@ -495,7 +495,7 @@ fn test_simplify_conflict() {
     match further_rebased_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
-                .read_conflict(&RepoPath::from_components(vec![component.to_owned()]), id)
+                .read_conflict(&RepoPath::from_internal_string(component.as_str()), id)
                 .unwrap();
             assert_eq!(
                 conflict.removes().map(|v| v.as_ref()).collect_vec(),

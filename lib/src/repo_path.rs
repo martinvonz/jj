@@ -15,11 +15,12 @@
 #![allow(missing_docs)]
 
 use std::borrow::Borrow;
+use std::cmp::Ordering;
 use std::fmt::{Debug, Error, Formatter};
+use std::iter::FusedIterator;
 use std::ops::Deref;
 use std::path::{Component, Path, PathBuf};
 
-use itertools::Itertools;
 use ref_cast::{ref_cast_custom, RefCastCustom};
 use thiserror::Error;
 
@@ -112,25 +113,68 @@ impl ToOwned for RepoPathComponent {
 }
 
 /// Iterator over `RepoPath` components.
-pub type RepoPathComponentsIter<'a> = std::iter::Map<
-    std::slice::Iter<'a, RepoPathComponentBuf>,
-    fn(&RepoPathComponentBuf) -> &RepoPathComponent,
->;
+#[derive(Clone, Debug)]
+pub struct RepoPathComponentsIter<'a> {
+    value: &'a str,
+}
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+impl RepoPathComponentsIter<'_> {
+    // TODO: add borrowed RepoPath type and implement as_path() instead
+    fn to_path(&self) -> RepoPath {
+        RepoPath {
+            value: self.value.to_owned(),
+        }
+    }
+}
+
+impl<'a> Iterator for RepoPathComponentsIter<'a> {
+    type Item = &'a RepoPathComponent;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.value.is_empty() {
+            return None;
+        }
+        let (name, remainder) = self
+            .value
+            .split_once('/')
+            .unwrap_or_else(|| (&self.value, &self.value[self.value.len()..]));
+        self.value = remainder;
+        Some(RepoPathComponent::new_unchecked(name))
+    }
+}
+
+impl DoubleEndedIterator for RepoPathComponentsIter<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.value.is_empty() {
+            return None;
+        }
+        let (remainder, name) = self
+            .value
+            .rsplit_once('/')
+            .unwrap_or_else(|| (&self.value[..0], &self.value));
+        self.value = remainder;
+        Some(RepoPathComponent::new_unchecked(name))
+    }
+}
+
+impl FusedIterator for RepoPathComponentsIter<'_> {}
+
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct RepoPath {
-    components: Vec<RepoPathComponentBuf>,
+    value: String,
 }
 
 impl Debug for RepoPath {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.write_fmt(format_args!("{:?}", &self.to_internal_file_string()))
+        f.write_fmt(format_args!("{:?}", &self.value))
     }
 }
 
 impl RepoPath {
-    pub fn root() -> Self {
-        RepoPath { components: vec![] }
+    pub const fn root() -> Self {
+        RepoPath {
+            value: String::new(),
+        }
     }
 
     /// Creates `RepoPath` from valid string representation.
@@ -139,16 +183,8 @@ impl RepoPath {
     /// `"/"`, `"/foo"`, `"foo/"`, `"foo//bar"` are all invalid.
     pub fn from_internal_string(value: &str) -> Self {
         assert!(is_valid_repo_path_str(value));
-        if value.is_empty() {
-            RepoPath::root()
-        } else {
-            let components = value
-                .split('/')
-                .map(|value| RepoPathComponentBuf {
-                    value: value.to_string(),
-                })
-                .collect();
-            RepoPath { components }
+        RepoPath {
+            value: value.to_owned(),
         }
     }
 
@@ -157,19 +193,23 @@ impl RepoPath {
     /// The input path should not contain `.` or `..`.
     pub fn from_relative_path(relative_path: impl AsRef<Path>) -> Option<Self> {
         let relative_path = relative_path.as_ref();
-        let components = relative_path
+        let mut components = relative_path
             .components()
             .map(|c| match c {
-                Component::Normal(a) => Some(RepoPathComponentBuf::from(a.to_str().unwrap())),
+                Component::Normal(name) => Some(name.to_str().unwrap()),
                 // TODO: better to return Err instead of None?
                 _ => None,
             })
-            .collect::<Option<_>>()?;
-        Some(RepoPath::from_components(components))
-    }
-
-    pub fn from_components(components: Vec<RepoPathComponentBuf>) -> Self {
-        RepoPath { components }
+            .fuse();
+        let mut value = String::with_capacity(relative_path.as_os_str().len());
+        if let Some(name) = components.next() {
+            value.push_str(name?);
+        }
+        for name in components {
+            value.push('/');
+            value.push_str(name?);
+        }
+        Some(RepoPath { value })
     }
 
     /// Parses an `input` path into a `RepoPath` relative to `base`.
@@ -197,67 +237,85 @@ impl RepoPath {
     /// trailing slash, unless this path represents the root directory. That
     /// way it can be concatenated with a basename and produce a valid path.
     pub fn to_internal_dir_string(&self) -> String {
-        let mut result = String::new();
-        for component in &self.components {
-            result.push_str(component.as_str());
-            result.push('/');
+        if self.value.is_empty() {
+            String::new()
+        } else {
+            [&self.value, "/"].concat()
         }
-        result
     }
 
     /// The full string form used internally, not for presenting to users (where
     /// we may want to use the platform's separator).
     pub fn to_internal_file_string(&self) -> String {
-        let strings = self
-            .components
-            .iter()
-            .map(|component| component.value.clone())
-            .collect_vec();
-        strings.join("/")
+        self.value.to_owned()
     }
 
     pub fn to_fs_path(&self, base: &Path) -> PathBuf {
-        let repo_path_len: usize = self.components.iter().map(|x| x.as_str().len() + 1).sum();
-        let mut result = PathBuf::with_capacity(base.as_os_str().len() + repo_path_len);
+        let mut result = PathBuf::with_capacity(base.as_os_str().len() + self.value.len() + 1);
         result.push(base);
-        result.extend(self.components.iter().map(|dir| &dir.value));
+        result.extend(self.components().map(RepoPathComponent::as_str));
         result
     }
 
     pub fn is_root(&self) -> bool {
-        self.components.is_empty()
+        self.value.is_empty()
     }
 
+    // TODO: might be better to add .starts_with() instead
     pub fn contains(&self, other: &RepoPath) -> bool {
-        other.components.starts_with(&self.components)
+        other.strip_prefix(self).is_some()
+    }
+
+    // TODO: make it return borrowed RepoPath type
+    fn strip_prefix(&self, base: &RepoPath) -> Option<&str> {
+        if base.value.is_empty() {
+            Some(&self.value)
+        } else {
+            let tail = self.value.strip_prefix(&base.value)?;
+            if tail.is_empty() {
+                Some(tail)
+            } else {
+                tail.strip_prefix('/')
+            }
+        }
     }
 
     pub fn parent(&self) -> Option<RepoPath> {
-        if self.is_root() {
-            None
-        } else {
-            Some(RepoPath {
-                components: self.components[0..self.components.len() - 1].to_vec(),
-            })
-        }
+        self.split().map(|(parent, _)| parent)
     }
 
     pub fn split(&self) -> Option<(RepoPath, &RepoPathComponent)> {
-        if self.is_root() {
-            None
-        } else {
-            Some((self.parent().unwrap(), self.components.last().unwrap()))
-        }
+        let mut components = self.components();
+        let basename = components.next_back()?;
+        Some((components.to_path(), basename))
     }
 
     pub fn components(&self) -> RepoPathComponentsIter<'_> {
-        self.components.iter().map(AsRef::as_ref)
+        RepoPathComponentsIter { value: &self.value }
     }
 
     pub fn join(&self, entry: &RepoPathComponent) -> RepoPath {
-        let components =
-            itertools::chain(self.components.iter().cloned(), [entry.to_owned()]).collect();
-        RepoPath { components }
+        let value = if self.value.is_empty() {
+            entry.as_str().to_owned()
+        } else {
+            [&self.value, "/", entry.as_str()].concat()
+        };
+        RepoPath { value }
+    }
+}
+
+impl Ord for RepoPath {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // If there were leading/trailing slash, components-based Ord would
+        // disagree with str-based Eq.
+        debug_assert!(is_valid_repo_path_str(&self.value));
+        self.components().cmp(other.components())
+    }
+}
+
+impl PartialOrd for RepoPath {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -278,6 +336,8 @@ fn is_valid_repo_path_str(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use std::panic;
+
+    use itertools::Itertools as _;
 
     use super::*;
 
@@ -306,6 +366,31 @@ mod tests {
         assert_eq!(RepoPath::root().to_internal_file_string(), "");
         assert_eq!(repo_path("dir").to_internal_file_string(), "dir");
         assert_eq!(repo_path("dir/file").to_internal_file_string(), "dir/file");
+    }
+
+    #[test]
+    fn test_to_internal_dir_string() {
+        assert_eq!(RepoPath::root().to_internal_dir_string(), "");
+        assert_eq!(repo_path("dir").to_internal_dir_string(), "dir/");
+        assert_eq!(repo_path("dir/file").to_internal_dir_string(), "dir/file/");
+    }
+
+    #[test]
+    fn test_contains() {
+        assert!(repo_path("").contains(&repo_path("")));
+        assert!(repo_path("").contains(&repo_path("x")));
+        assert!(!repo_path("x").contains(&repo_path("")));
+
+        assert!(repo_path("x").contains(&repo_path("x")));
+        assert!(repo_path("x").contains(&repo_path("x/y")));
+        assert!(!repo_path("x").contains(&repo_path("xy")));
+        assert!(!repo_path("y").contains(&repo_path("x/y")));
+
+        assert!(repo_path("x/y").contains(&repo_path("x/y")));
+        assert!(repo_path("x/y").contains(&repo_path("x/y/z")));
+        assert!(!repo_path("x/y").contains(&repo_path("x/yz")));
+        assert!(!repo_path("x/y").contains(&repo_path("x")));
+        assert!(!repo_path("x/y").contains(&repo_path("xy")));
     }
 
     #[test]
