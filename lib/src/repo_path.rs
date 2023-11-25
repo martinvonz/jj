@@ -43,7 +43,7 @@ impl From<&str> for RepoPathComponent {
 
 impl From<String> for RepoPathComponent {
     fn from(value: String) -> Self {
-        assert!(!value.contains('/'));
+        assert!(is_valid_repo_path_component_str(&value));
         RepoPathComponent { value }
     }
 }
@@ -64,8 +64,12 @@ impl RepoPath {
         RepoPath { components: vec![] }
     }
 
+    /// Creates `RepoPath` from valid string representation.
+    ///
+    /// The input `value` must not contain empty path components. For example,
+    /// `"/"`, `"/foo"`, `"foo/"`, `"foo//bar"` are all invalid.
     pub fn from_internal_string(value: &str) -> Self {
-        assert!(!value.ends_with('/'));
+        assert!(is_valid_repo_path_str(value));
         if value.is_empty() {
             RepoPath::root()
         } else {
@@ -193,8 +197,18 @@ pub enum FsPathParseError {
     InputNotInRepo(PathBuf),
 }
 
+fn is_valid_repo_path_component_str(value: &str) -> bool {
+    !value.is_empty() && !value.contains('/')
+}
+
+fn is_valid_repo_path_str(value: &str) -> bool {
+    !value.starts_with('/') && !value.ends_with('/') && !value.contains("//")
+}
+
 #[cfg(test)]
 mod tests {
+    use std::panic;
+
     use super::*;
 
     fn repo_path(value: &str) -> RepoPath {
@@ -206,6 +220,15 @@ mod tests {
         assert!(RepoPath::root().is_root());
         assert!(repo_path("").is_root());
         assert!(!repo_path("foo").is_root());
+    }
+
+    #[test]
+    fn test_from_internal_string() {
+        assert_eq!(repo_path(""), RepoPath::root());
+        assert!(panic::catch_unwind(|| repo_path("/")).is_err());
+        assert!(panic::catch_unwind(|| repo_path("/x")).is_err());
+        assert!(panic::catch_unwind(|| repo_path("x/")).is_err());
+        assert!(panic::catch_unwind(|| repo_path("x//y")).is_err());
     }
 
     #[test]
